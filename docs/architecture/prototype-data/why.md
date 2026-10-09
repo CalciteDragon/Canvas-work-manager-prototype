@@ -93,6 +93,7 @@ every path-taking passthrough shares.
 - [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate and preserved histories; the v4 → v5 step is now frozen too
 - [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `upgradeMarkdownSections`, `legacy-prose.ts`, the v5 Rich Text fixture and Markdown seeds
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — what the final converter captures and validates
+- [Prototype data is disposable until further notice; working seeds are what must survive](../../decisions/2026-10-prototype-data-is-disposable.md) — no new converters; seeds must load. The upgrade steps above are still in the code; Slice 66 plans their removal
 - [Where §51's bearer tokens live](../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — the v2 → v3 converter
 

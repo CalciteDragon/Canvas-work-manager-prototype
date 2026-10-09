@@ -100,6 +100,12 @@ Do not over-engineer, do not add abstraction layers to, do not write exhaustive 
 for: the host's HTTP implementation, JSON repositories, prototype auth, fake users and
 tokens, the mock AI provider, the event stream, the dev panel, the seed loader.
 
+**Local prototype data is disposable until further notice.** When a stored shape or a section type
+changes, update the seeds. Do not write a converter or a migration for existing
+`.prototype/*.json` files; a file the new build cannot read is refused with a hint to reset or
+reseed. What must keep working is a few seeds the user can load and play with
+([decision](docs/decisions/2026-10-prototype-data-is-disposable.md)).
+
 ### Never build (§80)
 
 Postgres, Supabase, RLS, production OAuth, cloud uploads, email, invitations, billing,

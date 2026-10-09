@@ -1,498 +1,436 @@
-<!-- plan id="66" status="active" summary="Sub-Projects views and their placements leave at schema v7 without losing work; the type is refused on create and load" -->
+<!-- plan id="66" status="active" summary="Sub-Projects section retired from seeds, picker and domain; old local files are reset, not converted, and the upgrade pipeline is removed" -->
 # Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E)
 
 ## Goal
 
-Remove the Sub-Projects section as a canvas view and creation option, and convert every stored
-Sub-Projects view, its shortcuts and the history actions that could bring either back. No project,
-page, task, reflection or authored content is lost (Stage E of
+Remove the Sub-Projects section as a canvas view and creation option, refuse it on create and on
+load, and delete the upgrade pipeline that existed only to carry old local data forward (Stage E of
 [Slice 59](../planned/59-markdown-and-work-navigation.md)).
 
 ## Spec sections
 
-- **§14 (owned-file upgrades).** Schema version 7, reached through a named v6→v7 step that extends
-  the existing backup, owner-lock and validate-before-replace pipeline.
+- **§14 (local prototype storage).** Local data is disposable: a file the build cannot read is
+  reset or reseeded, never converted. The policy prose at lines 600–609 ("each later cutover writes
+  its own named converter or resets") is **corrected** to "reset or reseed; no converters", linking
+  the decision (AGENTS §2 rule 5). The *Landed in Slice 25.1* notes (617–627) and "Re-running the
+  upgrade…" (646–648) get a Slice 66 note saying the converters were removed. Schema version stays
+  **6**.
 - **§26, §29 (line 1424).** "A Sub-Projects section is a *view* of that hierarchy" becomes history.
   A project's work hierarchy is shown and created only through the project column's **Work** list
   and its **Add workstream** plus (Slice 60).
-- **§29 (line 1618), §30 (lines 1640, 1661).** The registered types become six: Markdown, Task
-  List, Progress, Reflections, Timeline, Recent Activity. `sub-projects` joins `rich-text` as a
-  retired type. §30's aspirational "Prototype" list keeps its history and gains a Slice 66 note.
-- **§31 (lines 1784–1787, 1901).** Recovery prose that lists Sub-Projects as a disposable view
-  loses it. The archived-project sentence at 1901 is re-worded: archived descendants are reached
-  through Archive and workspace Settings (Slices 44, 47), not a section.
-- **§54.** `list_sections` stops naming `sub-projects` among view types. `create_section` refuses it
+- **§29 (line 1618), §30 (lines 1640, 1661).** The registered types become six: Markdown, Task List,
+  Progress, Reflections, Timeline, Recent Activity. `sub-projects` joins `rich-text` as a retired
+  type. §30's aspirational "Prototype" list keeps its history and gains a Slice 66 note.
+- **§31 (lines 1784–1787, 1901).** Recovery prose that lists Sub-Projects as a disposable view loses
+  it. The archived-project sentence at 1901 is re-worded: archived descendants are reached through
+  Archive and workspace Settings (Slices 44, 47).
+- **§54.** `list_sections` stops naming `sub-projects` among view types; `create_section` refuses it
   through the domain. No tool, grant or input shape changes.
-- **§66 (section structure), §69 and §77 (verification and actual use).**
+- **Other spec lines:** 1216 (Slice 60's note that the "Sub-Projects section remain unchanged") gains a
+  Slice 66 note; 3701 drops "every Sub-Projects section" from the list of link sources; 3817 (Slice
+  42's journey "create a child from its Sub-Projects section") gains a note that creation now goes
+  through Add workstream; §81's
+  milestone list (line 4314) gains a "retired in Slice 66" note, since §81 is itself a record.
+- **§66, §69, §77** (section structure, verification, actual use).
 
 Spec line 2816 already promises that the legacy `sub-projects` identifier is unchanged. That stays
-true: the identifier remains the stored name of a retired type, never a renamed one.
+true: it is the stored name of a retired type, never a renamed one.
 
 ## Build
 
-- Retire `sub-projects` in contracts and domain: drop it from `SECTION_CAPABILITIES`, list it in
-  `RETIRED_SECTION_TYPES` with replacement guidance, and refuse it in `SectionService.add` for every
-  caller. Integrity refuses it on load, with a narrow exemption for actions already `retired`.
-- A named v6→v7 converter removes Sub-Projects views and their shortcuts, densely renumbers the
-  affected pages, and retires the history actions whose subject is one of them. It reports what it
-  removed. The v5→v6 step is frozen and stops validating.
-- Delete the web section folder, its registry entry and the section-level hierarchy callback that
-  only it called. Regenerate seeds. Update tests, e2e journeys, acceptance scripts, the spec, the
-  architecture tree, the guides and a new §78 decision.
+- **Part A — retire the type.** Drop `sub-projects` from `SECTION_CAPABILITIES` and list it in
+  `RETIRED_SECTION_TYPES` with replacement guidance. `SectionService.add` refuses it for every
+  caller; integrity refuses any document holding it, live or in history, with a hint to reset.
+  Delete the web section folder, its registry entry and the section-level hierarchy callback only
+  it called. Remove it from the seed builder and regenerate the seeds.
+- **Part B — remove the upgrade pipeline** (per the
+  [disposable-data decision](../../decisions/2026-10-prototype-data-is-disposable.md)). Delete the
+  v2→v6 converters, the legacy-prose encoder, their tests and fixtures, and `pnpm prototype:upgrade`.
+  Keep `captureActivityIdentities`, which the seed builder uses. Messages that named the upgrade
+  name reset or reseed instead.
+- Update the spec, the architecture tree, guides, README and decisions in the same change.
 
 ## Done when
 
-Upgrading copies from every supported version (2–6) reaches v7, removes exactly the Sub-Projects
-views and the shortcuts sourced from them, and keeps every project, page, task, reflection, other
-section and other shortcut. A repeat upgrade changes no bytes. After restart no Undo or Redo can
-recreate a Sub-Projects view or its placement, while unrelated actions keep their order and still
-step. Browser, HTTP and both MCP transports refuse the type. Workstreams are still created, listed,
-completed and archived through the project column. All required checks pass, and the slice is used
-in the real app.
+The picker offers six types and no Sub-Projects. Browser, HTTP and both MCP transports refuse a new
+Sub-Projects section with a sentence naming the workstream route. A file holding one, or any file at
+another schema version, refuses to load and names `pnpm prototype:reset`. Every seed loads, passes
+integrity, and renders with a dense combined order. Workstreams are still created, listed,
+completed and archived through the project column. `pnpm prototype:upgrade` no longer exists, and
+nothing in the code, tests or living docs refers to it. All required checks pass, and the slice is
+used in the real app.
 
 ## Do not
 
+- Write any converter, migration or compatibility path for local data.
+- Bump `SCHEMA_VERSION`. Nothing about the document's shape changes; the retired type is refused by
+  integrity, as Rich Text already is.
 - Rename stored `kind: 'subproject'`, project ids, MCP tool names, URL shapes or the legacy type
   string. Do not relabel stored history labels.
-- Add a replacement hierarchy view, a status or due-date column to the Work list, or any new
-  section type. Changing what the Work list shows is a product question for after real use.
-- Delete history actions, touch actions whose only link to a removed view is a placement
-  neighbour, or change the history state machine.
-- Rewrite frozen fixtures (`nested-projects-v2/v3`, `history-v4`, `history-v5-rich-text`) or older
-  conversion semantics beyond freezing the v5→v6 step's output.
+- Add a replacement hierarchy view, or status, due dates or completion dates to the Work list
+  (accepted loss; see *Decisions taken before planning*).
+- Remove `projectHierarchyRevision`, the page-level `onProjectHierarchyChange` contract member, or
+  `SECTION_DISPLAY_NAMES`.
 - Do Stage F's integrated acceptance matrix; this slice proves its own rows only.
+- Rewrite frozen roadmap records or the historical prose of decisions (amend them instead).
 
 <!-- ───────────── Written when the slice starts ───────────── -->
 
+## Decisions taken before planning (user, 2026-10-08 and 2026-10-09)
+
+1. **Local prototype data is disposable until further notice.** No converter for this change;
+   old files are reset. Logic that exists only to preserve old local data is deleted, not
+   extended. A couple of working seeds are what must survive
+   ([decision](../../decisions/2026-10-prototype-data-is-disposable.md)).
+2. **Remove the dead section-level callback** in this slice.
+3. **Accept losing the Sub-Projects view's per-row details.** The Work list rows show icon, name,
+   nesting and a ✓ for completed work. They do not show status, due date or completion date, and
+   the hierarchy can no longer be placed on a canvas. Real use decides whether a later slice adds
+   any of that.
+
 ## Findings from the repository that shape the plan
 
-- **Where Sub-Projects views live.** In seeds, three live views: `section-project-launch-sub-projects`
-  (busy-week), `section-project-renovation-sub-projects` and `section-project-kitchen-sub-projects`
+- **Where Sub-Projects views live.** In seeds: `section-project-launch-sub-projects` (busy-week),
+  `section-project-renovation-sub-projects` and `section-project-kitchen-sub-projects`
   (nested-projects), all at position 2 from `sliceTenCanvas` in `seeds.ts`. No seed has a shortcut
-  to one, and no seed has history. The developer's `.prototype/data.json` holds none.
-- **Shortcut sources are not type-restricted.** `SectionShortcutService` accepts any live section in
-  the same root as a source, so a Home or Work shortcut to a Sub-Projects view is legal data today
-  and must be handled.
-- **Where a Sub-Projects view can appear in history.** Every payload that names a section or a
-  shortcut, by subject:
-
-  | Operation | Subject field | Can recreate the view or placement? |
-  |---|---|---|
-  | `section.add`, `section.remove` | `section` (full snapshot) | yes: Redo of add, Undo of a deleted removal |
-  | `section.update`, `section.move`, `section.restore` | `sectionId` | no, but mutates the view if present |
-  | `shortcut.add`, `shortcut.remove` | `shortcut` (full snapshot, with `sourceSectionId`) | yes: placement |
-  | `shortcut.update`, `shortcut.move` | `shortcutId` | no, but mutates the placement if present |
-  | `task.add`, `reflection.add` | `container.section` | always a container type; a view here is corrupt |
-  | page, project, task/reflection transitions | none | no |
-
-  `PlacementSnapshot.previous/next` may name a removed view or shortcut as a **neighbour**. The
-  existing neighbour fallback already treats a missing neighbour as "no evidence", so those actions
-  stay untouched.
-- **`retired` is already an action state** ([decision](../../decisions/2026-09-operation-history-retired-actions.md)).
-  It is terminal: no transition selects a retired action, `nextOperationAction` skips it in both
-  directions, and `recordOperationAction` discards retired actions above the cursor like any other
-  redo branch. The state machine's invariant is "at or below the cursor: applied or retired; above:
-  undone or retired", so marking **any** action retired in place, with the cursor left where it is,
-  keeps the invariant. `retireOperationAction` itself must not be reused here: it moves the cursor
-  to `order − 1`, which is only correct for the next step, not for an action in the middle of a stack.
-- **Integrity already refuses retired types** (`assertNotRetired` in `data-store.ts`) on
-  `sections`, on `section.add`/`section.remove` snapshots and on created containers, regardless of
-  action state. A retired action keeps its snapshot (the payload schema requires it), so the check
-  must skip actions whose `state` is `retired`.
-- **The refusal message is Rich Text-specific.** `SectionService.add` says "add a Markdown section
-  instead" for every retired type. A Sub-Projects refusal needs its own replacement.
+  to one, and no seed has history. The developer's `.prototype/data.json` holds none, so it keeps
+  loading unchanged.
+- **Integrity already refuses retired types** (`assertNotRetired` in `data-store.ts`) on `sections`,
+  on `section.add`/`section.remove` snapshots and on created containers. Adding `sub-projects` to the
+  list covers every place that could recreate one, with no new check. Its message currently says
+  "Run pnpm prototype:upgrade"; `describeVersion` says "prototype:upgrade … or prototype:reset".
+- **The refusal sentence is Rich Text-specific.** `SectionService.add` says "add a Markdown section
+  instead" for every retired type.
+- **The upgrade pipeline's footprint.**
+  - Source: `packages/prototype-data/src/upgrade-{project-pages,operation-history,activity-identity,markdown-sections,cli}.ts`,
+    `legacy-prose.ts`, with tests, and `version-3-undo-compatibility.test.ts`.
+  - Fixtures: `test/fixtures/` (four JSON files and a README). Three of them hold Sub-Projects
+    views, so with Part A alone their chain tests would fail at final validation. That is what makes
+    Part B part of this slice rather than a follow-up.
+  - Callers: `packages/domain/src/markdown-conversion.test.ts`; five cases in
+    `apps/prototype-host/recovery-undo-acceptance.test.ts`; `data-file-ownership.test.ts` (one
+    `upgradeDataFileOwned` refusal); the root `prototype:upgrade` script and the package's
+    `upgrade-data` script.
+  - Dependencies: the `upgrade` member of `DataFileOwnerKind` and its remedy text; `markdown-it` as
+    a devDependency of `@cwm/prototype-data`, which only `legacy-prose.test.ts` uses.
+  - **One survivor:** `seeds.ts` imports `captureActivityIdentities` from
+    `upgrade-activity-identity.ts` to fill seed Activity context. It moves to a seed-owned module.
+- **Owner records are parsed as plain strings** (`data-file-ownership.ts`): an unknown `kind` falls
+  back to a generic remedy, so dropping `upgrade` from the union cannot break reading a stale owner
+  file.
+- **The host acceptance cases.** Two of the five (`cursor, revision and both entries survive a
+  restart…` and `Archive outlives expired and pruned actions`) use the upgrade only to get a
+  current file from `nested-projects-v3.json`. They test history and Archive, not conversion, and
+  can start from `writeSeedFile` with the `nested-projects` seed. The other three
+  (`v2 and v3 files convert…`, `a v5 file with Rich Text history converts…`, `a hand-edited v6 file
+  holding Rich Text…`) test conversion and are deleted. Helpers that only they use
+  (`legacyReceipts`, `legacyTombstone`, `upgrade`, `upgradeCli`) are removed with them.
 - **`onProjectHierarchyChange` on a section has one caller.** `SubProjectsSection.create` is the only
-  section that calls it. `projectHierarchyRevision` stays: `TimelineSection` reads it. The page-level
-  `onProjectHierarchyChange` (Todos, Archive, Reflections pages) stays.
-- **The v5→v6 step validates.** `upgradeMarkdownSections` ends with `validateDocumentIntegrity` and
-  rejects anything but 5 or 6. At `SCHEMA_VERSION = 7` that validation would retarget, so it has to be
-  frozen, as Slice 63 froze v4→v5.
-- **Ordering.** `listPlacements` sorts a page's live sections and shortcuts by `position`, then `id`;
-  `renumberPlacements` keeps a sibling's `updatedAt`. The converter uses the same order and the same
-  rule, with no clock.
+  section that calls it. `projectHierarchyRevision` stays, because `TimelineSection` reads it.
+  `ProjectCanvas`'s page-level `onProjectHierarchyChange` also loses its only call, but
+  `project-page-contract.ts` requires it of every page, and the Todos, Archive and Reflections pages
+  call theirs.
+- **Ordering.** `listPlacements` sorts a page's live sections and shortcuts by `position`, then
+  `id.localeCompare`. Removing position 2 from `sliceTenCanvas` also shifts nested-projects' Recent
+  Activity sections (6) and Renovation Home's four shortcuts (7–10); `seeds.test.ts` checks section
+  density only.
 
 ## Design
 
-### 1. Contracts — `packages/contracts/src/section.ts`, `document.ts`
+### Part A — retire the type
 
-- `SCHEMA_VERSION = 7`.
+**Contracts (`section.ts`).**
 - Remove `'sub-projects'` from `SECTION_CAPABILITIES`.
 - `RETIRED_SECTION_TYPES` changes from a string list to a frozen record of **type → replacement
   sentence**:
   - `'rich-text'`: "add a Markdown section instead";
-  - `'sub-projects'`: "create a workstream instead — Add workstream beside Work in the project
-    column, or create_project with a parentProjectId".
+  - `'sub-projects'`: "create a workstream under the project instead".
 
-  The sentence reaches people and agents alike, so it names both surfaces.
+  The sentence is surface-neutral, because the domain throws it to browser, HTTP and MCP callers
+  alike and must not name a UI control or an MCP tool (AGENTS §1). The surfaces add their own
+  route: `create_section`'s MCP description names `create_project` with a parent, and the web never
+  offers the type at all. `isRetiredSectionType` keeps
+  its signature (own-key check); a new `retiredSectionReplacement(type): string | undefined` returns
+  the sentence. The doc comment links both decisions.
+- `SECTION_DISPLAY_NAMES` keeps `'sub-projects': 'Sub-Projects'`, because the refusal message names
+  the type that way. Its comment says why it outlives the type.
 
-  `isRetiredSectionType(type)` keeps its signature (own-key check). A new
-  `retiredSectionReplacement(type): string | undefined` returns the sentence. The doc comment points
-  to both decisions.
-- `SECTION_DISPLAY_NAMES` keeps `'sub-projects': 'Sub-Projects'`: the refusal message and any
-  displayed historical name still need it. Its doc comment says why it outlives the type.
+**Domain (`section-service.ts`).** The check stays where Slice 63 put it: after the actor and grant
+checks, before any lookup. Its message becomes
+`` `${displayNameOf(type)} sections are retired and can no longer be created; ${retiredSectionReplacement(type)}.` ``
+The refusal order is unchanged: an agent without `projects.write` gets the permission error first.
 
-### 2. Domain — `section-service.ts`
+**Integrity (`data-store.ts`).** No new check. `assertNotRetired` now also catches `sub-projects`.
+Its message, and `describeVersion`'s, name `pnpm prototype:reset` (or `prototype:seed`) instead of
+the upgrade. The comment links the disposable-data decision.
 
-`SectionService.add` keeps the Slice 63 check in the same position (after actor and grant checks,
-before any lookup), and its message becomes
-`` `${displayNameOf(type)} sections are retired and can no longer be created; ${retiredSectionReplacement(type)}.` ``.
-The refusal order Slice 63 pinned is unchanged. Nothing else in the domain names the type.
-`section-recovery-policy` needs no change: an undeclared type already reads as `unknown`.
+**Web.**
+- Delete `sections/sub-projects/` (six files) and its registry entry and import. The registry
+  comment stops naming `sub-projects` as the one display-name override.
+- **Remove the section-level `onProjectHierarchyChange` callback:**
+  - `SectionContentInputs` and its key check in `section-contract.ts`;
+  - the output and wiring in `project-section-frame.ts`;
+  - the no-op in `shortcut-frame.ts`;
+  - `projectHierarchyChanged` and its template binding in `project-canvas`;
+  - the input on the six remaining section components;
+  - `design-lab-fixtures.ts`;
+  - the stories and specs that pass it.
 
-### 3. Integrity — `packages/repositories/src/data-store.ts`
+  `ProjectCanvas` keeps its page-level input for the page contract. Its doc comment says the canvas
+  no longer calls it.
+- **Re-word comments** that give the Sub-Projects section as a reason for something still true:
+  - `project-page-store.ts`: the hierarchy revision now exists for Timeline;
+  - `project-workspace-store.ts`: `notifyHierarchyChanged` is now called by pages;
+  - `project-page-navigation.ts`, `primitive-panels.ts`/`.html`, `project-canvas.stories.ts`;
+  - `project-workspace-shell.spec.ts`, `core/shell/shell-store.spec.ts`.
 
-- The `sections` check is unchanged and now also refuses `sub-projects`.
-- Only the two `assertNotRetired` calls on actions — the `section.add`/`section.remove` snapshot and
-  the created `container.section` — are skipped for an action whose `state` is `'retired'`. A retired
-  action can never execute again (no transition selects it and nothing un-retires it), so its
-  snapshot can never recreate anything. Every other action check still applies to retired actions:
-  history membership, unique order, the high-water bound, `operationProjectOf`, the `project.add`
-  absence anchor and generation reachability. The comment says this and links the new decision.
-- Everything else is unchanged. A non-retired `section.update`/`move`/`restore` naming a missing
-  section is already legal (it reports `missing`), so integrity does not need to resolve them.
+**Seeds (`seeds.ts`).** `sliceTenCanvas` drops the Sub-Projects line and every later placement on
+those pages moves up one:
+- Progress, Reflections and Timeline become 2–4;
+- nested-projects' explicit Recent Activity sections become 5;
+- Renovation Home's four shortcuts become 6–9;
+- the Launch canvas in busy-week renumbers the same way.
 
-### 4. The v6→v7 converter — `packages/prototype-data/src/upgrade-retired-work-views.ts`
+The archived `section-project-renovation-archived-notes` keeps its stale position 7: archived
+records are outside the live order, and Restore appends. Regenerate `prototype/seeds/*.json`; only
+`busy-week` and `nested-projects` change. In `seeds.test.ts`, the four hard-coded type lists (around
+lines 141, 189, 504 and 513) drop `sub-projects`, and a combined section-and-shortcut density check
+is added over **live** placements per page.
 
-`upgradeRetiredWorkViews(input: unknown)` reads opaque v6 JSON, writes literal v7 data, and
-validates the final document with `validateDocumentIntegrity`. It is now the chain's only
-validating step. It matches the literal string `'sub-projects'`, never `RETIRED_SECTION_TYPES`, so
-its behaviour cannot drift when contracts change.
+**MCP (`tools/sections.ts`).** `list_sections` drops `sub-projects` from its view list. The contract
+test's `sub-projects` exemption is removed. `create_section`'s description gains one sentence,
+parallel to its Rich Text one, saying the work-hierarchy view is retired and nested work is created
+with `create_project` and a parent. It uses prose, not the identifier, so the description test's ban
+on the identifier holds.
 
-**Versions.** It accepts 6 and 7. At 7 it runs the same conversion: a clean file comes back
-`changed: false` and is never written; a hand-edited v7 file holding a Sub-Projects view is
-converted and written, so the integrity message's remedy works. Anything else is a `RangeError`.
+**Tests that name the view.** These swap it for Progress, Timeline or Recent Activity, or drop it
+from a type list:
+- `section.test.ts`, `section-ownership.test.ts`, `section-recovery-policy.test.ts`,
+  `project-archive-service.test.ts`;
+- `registry.spec.ts`, `section-create-dialog.spec.ts`;
+- `project-section-frame.spec.ts`: the Sub-Projects display-name case is deleted;
+- `recovery-undo-acceptance.test.ts`, `apps/e2e/archive.spec.ts`, `apps/e2e/section-edit-undo.spec.ts`.
 
-**Algorithm**, in this order, over plain JSON:
+**Counts that assume seven sections on nested-projects Home** drop to six:
+`apps/e2e/canvas-editing.spec.ts:296` and `:348` (`[data-section-frame]`) and
+`apps/e2e/web.spec.ts:138` (`[data-section-item]`). A new assertion is **added** to
+`canvas-editing.spec.ts`, next to the journey around line 346: the nested-projects Home and Kitchen
+canvases render their live sections and shortcuts in the seed's order, by id. It is written first,
+so it fails while the Sub-Projects frame is still there. This is Acceptance 4's evidence.
 
-1. **Resolve section types.** Build `sectionId → type` from `sections` (live and archived), every
-   `section.add`/`section.remove` snapshot (every action state) and every `task.add`/
-   `reflection.add` `container.section`. Disagreement for one id refuses the conversion with a
-   diagnostic naming the id and the sources. `retiredViews` = ids whose type is `'sub-projects'`.
-   A `container.section` of that type refuses: it is corrupt, not convertible.
-2. **Resolve shortcut sources.** Build `shortcutId → sourceSectionId` from `sectionShortcuts` and
-   every `shortcut.add`/`shortcut.remove` snapshot, in every action state. Disagreement refuses.
-   `retiredPlacements` = shortcut ids whose source is in `retiredViews`, whether the shortcut is live
-   or exists only in a snapshot.
-3. **Remove records.** Drop every section in `retiredViews` (live and archived) and every live
-   shortcut in `retiredPlacements`. Nothing else in `sections`, `sectionShortcuts`, `pages`,
-   `projects`, `tasks`, `reflections` or `activity` changes. **Activity guard:** integrity refuses an
-   `entityType: 'section'` event whose section is missing (`data-store.ts`, the activity-target check).
-   The domain no longer writes such events, but a hand edit or an older build could have. If an event
-   targets a section in `retiredViews`, the converter refuses with a diagnostic naming the event and
-   the section, instead of letting final validation fail with a generic message. Nothing is written.
-4. **Renumber.** For each page that lost a **live** section or a shortcut, sort its remaining live
-   sections and shortcuts with the domain's exact comparator — `position`, then
-   `id.localeCompare` (`byPositionThenId` in `page-placements.ts`) — and assign `0..n−1`. Every
-   later placement shifts, shortcuts included (on the `nested-projects` Home the four shortcuts at
-   7–10 become 6–9). Only `position` changes; `updatedAt` is kept, matching `renumberPlacements`'
-   sibling rule. Archived sections keep their stale positions. Pages that lost nothing are not
-   touched, even if already sparse.
-5. **Retire actions.** For each action whose `state` is not already `retired`, its subject is
-   looked up by the table in *Findings*:
-   - `section.add`/`section.remove`: `section.id` in `retiredViews`;
-   - `section.update`/`section.move`/`section.restore`: `sectionId` in `retiredViews`;
-   - `shortcut.add`/`shortcut.remove`: `shortcut.id` in `retiredPlacements` (equivalently its
-     `sourceSectionId` in `retiredViews`);
-   - `shortcut.update`/`shortcut.move`: `shortcutId` in `retiredPlacements`.
+### Part B — remove the upgrade pipeline
 
-   A matching action's `state` becomes `'retired'`; no other field changes (id, order, label,
-   createdAt, expiresAt, operation). A subject that resolves nowhere (an id in no source) is left
-   untouched and counted as `unresolvedActions`: like Slice 63's orphans it already reports
-   `missing` and can recreate nothing. Every other action is untouched, including those that name a
-   removed record only as a placement neighbour.
-6. **Settle histories.** Each history that gained a retired action gets `revision + 1`, so a client
-   holding the old revision refuses `history_revision_stale` and re-reads. `cursor` and
-   `orderHighWaterMark` are unchanged. A test asserts the state-machine invariant on every history
-   after conversion.
+- **Move** `captureActivityIdentities` and its local helpers (`collection`, `text`, `byId`,
+  `rootOf`, and the `Row` type alias; no other upgrade imports) from `upgrade-activity-identity.ts` to a new
+  `packages/prototype-data/src/activity-identity.ts`. `seeds.ts` imports it from there, and its doc
+  comment describes seed use only. Its rules are tested today only through
+  `upgrade-activity-identity.test.ts`, which is deleted, so the capture cases move to a new
+  `activity-identity.test.ts`:
+  - root vs subproject root;
+  - no project for agent events;
+  - the titleless-reflection fallback;
+  - the five refusals.
 
-**Result:** `{ document, changed, removedSections, removedShortcuts, retiredActions,
-renumberedPages, unresolvedActions }`, the first four as sorted id lists. `changed` is true when the
-version moved or step 3 or 5 changed something; orphans alone never set it.
+  The refusal branches stay, because a hand-edited seed builder could still hit them.
+- **Delete:**
+  - `upgrade-project-pages.ts`, `upgrade-operation-history.ts`, `upgrade-activity-identity.ts`,
+    `upgrade-markdown-sections.ts`, `upgrade-cli.ts` and `legacy-prose.ts`, with their tests (five
+    test files; `upgrade-operation-history.ts` has none of its own);
+  - `version-3-undo-compatibility.test.ts`;
+  - `test/fixtures/` (all five files);
+  - `packages/domain/src/markdown-conversion.test.ts`.
+- **`index.ts`** keeps only the seed, persona, token and seed-CLI exports, plus
+  `captureActivityIdentities` if anything outside the package needs it; otherwise it is not exported.
+- **Scripts.** Remove `prototype:upgrade` from the root `package.json` and `upgrade-data` from
+  `@cwm/prototype-data`'s. Remove the `markdown-it` devDependency there and refresh `pnpm-lock.yaml`.
+- **Ownership.** Remove `'upgrade'` from `DataFileOwnerKind` and its remedy. Remove the
+  `upgradeDataFileOwned` refusal case from `data-file-ownership.test.ts`; the seed case still covers
+  CLI refusal.
+- **Host acceptance.** In `recovery-undo-acceptance.test.ts`:
+  - delete the three conversion cases;
+  - start the two history/Archive cases from a `nested-projects` seed written by `writeSeedFile`;
+  - delete the helpers left unused.
 
-**Why retire rather than delete.** Retirement is the existing, visible meaning of "this action can
-never succeed again". It keeps every order, the cursor and the labels exactly where they were, and
-needs no new history rule. Deleting would open holes in the middle of a stack, which pruning
-deliberately never does, and would lose the record that the step existed. The cost is the narrow
-integrity exemption in §3.
-
-### 5. The chain — `upgrade-markdown-sections.ts`, `upgrade-cli.ts`
-
-- **`upgradeMarkdownSections` is frozen.** It no longer validates and returns opaque JSON. It accepts
-  5, 6 and 7. It writes the literal version 6 for a v5 input and keeps the input's version
-  otherwise, so a hand-edited v7 file holding `rich-text` still converts (the Slice 63 remedy keeps
-  working). Its refusals and counts are unchanged.
-- **`upgradeDataFile`** accepts 2–7, chains `v2→3 → v3→4 → v4→5 → v5→6 → v6→7`, and writes only when
-  some step changed the document. Backup-before-write, temp-file-then-rename, owner lock and
-  no-write-on-failure are untouched.
-- **`upgradeMessage`** reports the removed sections and shortcuts by id, the retired action count
-  and the renumbered page count, alongside the existing counts. The backup path is already named.
-
-### 6. Web
-
-- **Delete** `sections/sub-projects/` (six files) and its registry entry and import.
-- **Remove the section-level `onProjectHierarchyChange` callback**, whose only caller is gone:
-  `SectionContentInputs` and its key check in `section-contract.ts`; the frame output and input
-  wiring in `project-section-frame.ts`; the no-op in `shortcut-frame.ts`; `projectHierarchyChanged`
-  and its template binding in `project-canvas`; the input on the six remaining section components;
-  `design-lab-fixtures.ts`; and the stories and specs that pass it. (`live-panels.html` binds only
-  `projectHierarchyRevision` and does not change.)
-  `ProjectCanvas`'s **page-level** `onProjectHierarchyChange` input also loses its only call. It stays
-  declared, because `project-page-contract.ts` requires it of every page and the Todos, Archive and
-  Reflections pages do call it; its doc comment says the canvas no longer has a reason to. The
-  decision records this rather than reshaping the page contract for one page.
-  `projectHierarchyRevision` stays everywhere: `TimelineSection` reads it.
-- **Re-word comments** that cite the Sub-Projects section as the reason for something still true:
-  `project-page-store.ts` (the hierarchy revision now exists for Timeline), `project-workspace-store.ts`
-  (`notifyHierarchyChanged` is now called by pages, not a section), `project-page-navigation.ts`,
-  `primitive-panels.ts`/`.html`.
-
-### 7. Seeds, fixtures, MCP and scripts
-
-- **Seeds.** `sliceTenCanvas` drops the Sub-Projects line, and **every later placement** on those
-  pages moves up one: Progress, Reflections and Timeline become 2–4; the explicit Recent Activity
-  sections at 6 in `nested-projects` become 5; the four Renovation Home shortcuts at 7–10 become
-  6–9. Busy-week's Launch canvas renumbers the same way. Regenerate all six `prototype/seeds/*.json`
-  at v7 (four change only their version). `seeds.test.ts` gains a combined section-and-shortcut
-  density check per page; the existing check covers sections only.
-- **New frozen fixture** `packages/prototype-data/test/fixtures/history-v6-sub-projects.json`,
-  produced once by the real domain at this slice's starting commit from the `nested-projects` seed,
-  under a fixed clock so every action sits inside one 24-hour window. Every write goes through the
-  domain; there are no JSON edits. Calls in this exact order (P = the seed's person, A = the seed's existing
-  `agent-claude` connection, which already holds `projects.write` — no connection is created;
-  KV = `section-project-kitchen-sub-projects`, RV = `section-project-renovation-sub-projects`):
-  1. A: update RV's title (agent history on Renovation — a view action in another actor's history).
-  2. A: update Renovation's brief Markdown (unrelated, same agent history).
-  3. P on Kitchen: update Kitchen's brief Markdown (unrelated, below everything).
-  4. P on Kitchen: collapse KV (`section.update`).
-  5. P on Kitchen: move KV to the top (`section.move`).
-  6. P on Kitchen: move Kitchen's Progress so its recorded neighbour is KV (neighbour-only move).
-  7. P on Kitchen: add a shortcut on Kitchen's **Work** canvas to RV (S-work; Slice 65 destination).
-  8. P on Renovation: add a Home shortcut to KV (S-home), then resize it (`shortcut.update`), then
-     move it (`shortcut.move`).
-  9. P on Renovation: add a second Home shortcut to KV, then remove it (snapshot-only placement in
-     `shortcut.remove`).
-  10. P on Renovation: remove RV. S-work references it, so the domain **retains** it
-      (`section.remove`, `disposition: 'retained'`); then restore it through
-      `SectionService.restoreSection` (`section.restore`; a view has `recovery: 'none'`, so it is
-      never listed in the Archive UI); then
-      remove it again, leaving an archived view still referenced by S-work.
-  11. P on Kitchen: add a second view V3, then remove it (unreferenced, so `disposition: 'deleted'`:
-      a snapshot-only view in `section.remove`).
-  12. P on Kitchen: update Kitchen's brief again (unrelated), then add a third view V2.
-  13. P on Kitchen: Undo V2's add (V2 becomes snapshot-only, undone, above the cursor), then Undo
-      the brief edit from step 12 (an unrelated undone action above the cursor).
-
-  So Kitchen's person history ends with the cursor below two undone actions, one of which retires.
-  Every operation type in the *Findings* table that can name a view or its placement occurs at least
-  once. Views appear live, archived and snapshot-only; placements appear live and snapshot-only;
-  `section.add` occurs both applied and undone, and the other types occur applied (the retirement
-  rule does not depend on an action's state, and a test asserts that on a plain-JSON copy). Provenance — seed, these calls, the commit and the
-  clock — goes in `test/fixtures/README.md` and the decision entry. The generator is a scratchpad
-  script and is not committed.
-- **Refusal variants are plain-JSON edits in tests**, not fixtures: conflicting section types for an
-  id, conflicting shortcut sources, a `sub-projects` created container.
-- **MCP.** `list_sections` description drops `sub-projects` from its view list; the contract test's
-  `sub-projects` exemption is removed. `create_section`'s description gains one sentence, parallel to
-  its Rich Text one, saying the work-hierarchy view is retired and nested work is created with
-  `create_project` and a parent. It uses prose, not the identifier, so the description test's ban on
-  the identifier holds.
-- **Domain tests over converted data.** `@cwm/prototype-data` cannot import `@cwm/domain`, so — as
-  Slice 63 did in `markdown-conversion.test.ts` — the walk over converted history lives in a new
-  `packages/domain/src/retired-work-views-conversion.test.ts`. The existing
-  `markdown-conversion.test.ts` passes `upgradeMarkdownSections(...).document` straight to its harness;
-  after the freeze that is an unvalidated v6 document (and its v5 fixture holds two Sub-Projects
-  views), so it chains through `upgradeRetiredWorkViews` and asserts on the v7 result.
-- **Scripts and journeys.**
-  - `recovery-undo-acceptance.test.ts` replaces the Renovation view id with another seeded view and
-    updates its CLI assertions: "schema version 6" becomes 7, and the "already at 6 but still held
-    retired sections … 8 Rich Text sections" case expects the v7 message (its v5 copies also lose
-    their two Sub-Projects views, which the message now reports).
-  - `apps/e2e/archive.spec.ts` and `section-edit-undo.spec.ts` use Progress, Timeline or Recent
-    Activity where they used the view.
-  - `acceptance.mjs` and `mcp-acceptance.mjs` gain the refusal check (Acceptance 4).
+  The kept cases need only seed content (`project-alex-private`, `section-project-kitchen-tasks`,
+  Recent Activity, an empty history so `revision` counts hold). One assertion depends on converted
+  data: "Archive outlives…" expects the brief's config in the legacy-prose escaped form
+  (`recovery-undo-acceptance.test.ts:338`). It changes to the seed's raw Markdown
+  (`seeds.ts`, Renovation's brief). `legacyReceipts`, `legacyTombstone`, `upgrade` and `upgradeCli`
+  are used only by the deleted cases and are removed.
+- **Contracts tests.** In `document.test.ts`, delete `strips a version-3 undoRecords collection…`
+  (line 29), which exists only for the converter. Rename `rejects a version-3 file, which needs
+  pnpm prototype:upgrade` (line 35) to say it needs a reset; the behaviour it asserts stays.
+- **Contracts comments.** `document.ts`'s version history comment and `project.ts`'s mention stop
+  pointing to converters that no longer exist; they say versions 2–5 are no longer readable.
 
 ## Acceptance check
 
-1. **Every supported version converts.** `pnpm --filter @cwm/prototype-data test` runs the chain on
-   copies of `nested-projects-v2.json`, `-v3.json`, `history-v4.json`, `history-v5-rich-text.json`
-   and the new v6 fixture. Each reaches v7 and `validateDocumentIntegrity` accepts it. For each:
-   - no section of type `sub-projects` remains, live or archived, and no shortcut whose source was one;
-   - project, page, task, reflection and activity collections are deep-equal to the input's after
-     the earlier steps; every other section and shortcut is deep-equal except `position`;
-   - every affected page's live combined order is `0..n−1` in the same relative order as before.
-2. **The v6 fixture's history.** Exactly the subject actions in the fixture are `retired`; every
-   other action, including the neighbour-only move and the snapshot-only add's unrelated siblings, is
-   byte-identical. Each touched history's revision rose by one; cursors and high-water marks are
-   unchanged; the state-machine invariant holds for every history.
-3. **Restart and repeat.** The converted file opens in a fresh `JsonFileDataStore`. In the domain
-   (`retired-work-views-conversion.test.ts`, with the clock pinned inside the fixture's 24-hour window
-   so no step refuses `history_expired`), Undo and Redo walk the whole of each fixture history to both ends: every step is either an
-   unrelated action that executes, or is skipped because it is retired; no step recreates a view or
-   a placement, and the unrelated Markdown edits apply. A second `pnpm prototype:upgrade` on the
-   converted copy reports "already at schema version 7" and leaves it byte-identical. A hand-edited
-   v7 file holding a Sub-Projects view fails to load with the upgrade command named; running it
-   converts the file and it loads.
-4. **New writes refuse the type.** `SectionService.add` with `sub-projects` throws `DomainRuleError`
-   naming Work and writes nothing; `POST /api/projects/:id/sections` returns the mapped rule error;
-   MCP `create_section` over HTTP and stdio returns the tool error. An agent without `projects.write`
-   still gets the permission error first. `rich-text` refusal still names Markdown.
-5. **The picker and canvas.** The add-section dialog lists six types, Markdown first, no
-   Sub-Projects. The `nested-projects` Home and Kitchen canvases render with no gap in order.
-6. **Work still works.** The e2e journeys for Add workstream, Work navigation, workstream completion,
-   archive and Settings recovery pass unchanged on the converted seeds.
+1. **Create is refused everywhere.**
+   - `SectionService.add` with `sub-projects` throws `DomainRuleError` naming the workstream route
+     and writes nothing; an agent without `projects.write` still gets the permission error first.
+   - `POST /api/projects/:id/sections` returns the mapped rule error.
+   - MCP `create_section` over Streamable HTTP and over stdio returns the tool error
+     (`mcp-acceptance.mjs`).
+   - `rich-text` is still refused, naming Markdown.
+2. **Load is refused with the reset remedy.** `data-store.test.ts` covers three documents: a seed
+   copy with a live Sub-Projects section; one with a `section.add` snapshot of one in history; one
+   at schema version 5. Each throws `DocumentIntegrityError` (or the version error) whose message
+   names `pnpm prototype:reset` and does not name `prototype:upgrade`.
+3. **Every seed works.** `seeds.test.ts` loads all six seeds through integrity. It finds no
+   `sub-projects` anywhere and a dense combined order on every page. The host serves each seed
+   through `prototype:seed`.
+4. **The picker and canvas.** The add-section dialog lists six types, Markdown first. The
+   `nested-projects` Home and Kitchen canvases render in seed order with no gap (e2e).
+5. **Work still works.** The existing e2e journeys for Add workstream, Work navigation, workstream
+   completion, archive and Settings recovery pass unchanged.
+6. **The pipeline is gone.** Run
+   `rg "prototype:upgrade|upgrade-data|upgrade[A-Z]\w+|upgrade-(cli|project-pages|operation-history|activity-identity|markdown-sections)|[Ll]egacy-?[Pp]rose|V3_SCHEMA_VERSION|prototype-data/test/fixtures"`
+   over `apps packages scripts .github package.json README.md AGENTS.md docs/architecture docs/guides`
+   and the main spec. It finds only dated amendment or Slice 66 notes; frozen roadmap records and
+   historical decision prose are expected to keep theirs. `pnpm prototype:upgrade` exits as an
+   unknown script.
 7. **Gates:** `pnpm test`, `pnpm lint` (with `docs:check`), `pnpm build` (initial bundle under the
    unchanged 1,050,000-byte ceiling), `pnpm storybook:build`, `pnpm e2e`, and host `acceptance`,
-   `agent-acceptance`, `mcp-acceptance`, `live-acceptance`, with `pnpm docs:api` built first.
-8. **Actual use.** Run `pnpm prototype:upgrade .prototype/data.json` first: the developer's file
-   is at v6 and holds no view, so it only changes version, but the host refuses it until it is
-   upgraded. Then upgrade a copy of an older `nested-projects` data file, start `pnpm dev:host` and
-   `pnpm dev:web` separately, and confirm Home and Kitchen render without the view, the header Undo
-   and Redo step over retired actions, and Add workstream creates and lists a child. Try
-   `create_section` with `sub-projects` from a real MCP client. Record friction with
-   `CURRENT_SLICE = 66`.
+   `agent-acceptance`, `mcp-acceptance`, `live-acceptance`. Build `pnpm docs:api` first.
+8. **Actual use.** Start `pnpm dev:host` and `pnpm dev:web` separately on the developer's
+   `.prototype/data.json`, which should load unchanged.
+   - Load `nested-projects` and `busy-week` from the dev panel. Confirm Home and Kitchen render
+     without the view, Add workstream creates and lists a child, and header Undo/Redo still work.
+   - Try `create_section` with `sub-projects` from a real MCP client and read the refusal.
+   - Record friction with `CURRENT_SLICE = 66`.
 
 ## File-level change list
 
 | File | Change | Responsibility |
 |---|---|---|
-| `packages/contracts/src/document.ts` | modify | `SCHEMA_VERSION = 7`, version doc comment |
-| `packages/contracts/src/section.ts` | modify | drop capability; `RETIRED_SECTION_TYPES` record; `retiredSectionReplacement`; display-name comment |
-| `packages/contracts/src/section.test.ts`, `document.test.ts` | modify | capability table, retired record, replacement, version |
-| `packages/domain/src/section-service.ts` (+ `.test.ts`) | modify | per-type refusal sentence |
+| `packages/contracts/src/section.ts`, `section.test.ts` | modify | drop capability; `RETIRED_SECTION_TYPES` record; `retiredSectionReplacement`; comments |
+| `packages/contracts/src/document.ts`, `project.ts` | modify | comments only (no converters exist) |
+| `packages/contracts/src/document.test.ts` | modify | delete the `undoRecords` stripping case; rename the version-3 case to name reset |
+| `packages/domain/src/section-service.ts`, `section-service.test.ts` | modify | per-type refusal sentence |
 | `packages/domain/src/section-ownership.test.ts`, `section-recovery-policy.test.ts`, `project-archive-service.test.ts` | modify | drop `sub-projects` from type tables and view lists |
-| `packages/domain/src/retired-work-views-conversion.test.ts` | create | converted-history walk over the v6 fixture, pinned clock, after restart |
-| `packages/domain/src/markdown-conversion.test.ts` | modify | chain the frozen v5→v6 output through v6→v7 before the harness |
-| `packages/repositories/src/data-store.ts` (+ `.test.ts`) | modify | retired-action exemption; v7 refusal of the view |
-| `packages/prototype-data/src/upgrade-retired-work-views.ts` (+ `.test.ts`) | create | v6→v7 converter |
-| `packages/prototype-data/src/upgrade-markdown-sections.ts` (+ `.test.ts`) | modify | freeze: no validation, accepts 5–7 |
-| `packages/prototype-data/src/upgrade-cli.ts` (+ `.test.ts`) | modify | 2–7 chain, message with removed ids |
-| `packages/prototype-data/src/index.ts` | modify | export the new step |
-| `packages/prototype-data/src/seeds.ts`, `seeds.test.ts` | modify | drop the view, renumber, expected type lists |
-| `packages/prototype-data/test/fixtures/history-v6-sub-projects.json`, `README.md` | create / modify | frozen fixture and provenance |
-| `prototype/seeds/*.json` (six) | regenerate | v7 seeds |
-| `packages/mcp-tools/src/tools/sections.ts`, `contract.test.ts` | modify | description; drop exemption; refusal over the registry |
-| `apps/prototype-host/api/routes.test.ts`, `recovery-undo-acceptance.test.ts` | modify | HTTP refusal; replace view id; v7 CLI messages and counts |
-| `apps/prototype-host/scripts/acceptance.mjs`, `mcp-acceptance.mjs` | modify | refusal check over HTTP API and MCP |
-| `apps/web/src/app/features/projects/sections/sub-projects/*` (six files) | delete | the view |
-| `apps/web/src/app/features/projects/sections/registry.ts`, `registry.spec.ts` | modify | six types, doc comment |
-| `apps/web/src/app/features/projects/section-create-dialog.spec.ts` | modify | picker order |
-| `apps/web/src/app/features/projects/sections/section-contract.ts` | modify | drop section-level `onProjectHierarchyChange` |
-| `apps/web/src/app/features/projects/sections/section-frame/project-section-frame.ts`, `.spec.ts`, `.stories.ts` | modify | drop the output/wiring; drop the Sub-Projects display-name test |
-| `apps/web/src/app/features/projects/shortcuts/shortcut-frame.ts`, `.spec.ts`, `.stories.ts` | modify | drop the no-op |
-| `apps/web/src/app/features/projects/project-canvas.ts`, `.html`, `.spec.ts`, `.stories.ts` | modify | drop `projectHierarchyChanged` and its binding; story comment |
-| `apps/web/src/app/features/projects/sections/{markdown,progress,tasks,reflections,timeline,activity}/*-section.ts` (+ specs that pass the input) | modify | drop the input |
-| `apps/web/src/app/features/projects/project-page-store.ts`, `.spec.ts`, `project-workspace-store.ts`, `project-page-navigation.ts`, `project-workspace-shell.spec.ts`, `core/shell/shell-store.spec.ts` | modify | comments only |
+| `packages/domain/src/markdown-conversion.test.ts` | delete | converter-only test |
+| `packages/repositories/src/data-store.ts`, `data-store.test.ts` | modify | reset remedy in both messages; refusal cases |
+| `packages/repositories/src/data-file-ownership.ts` | modify | drop `upgrade` kind and remedy |
+| `packages/prototype-data/src/activity-identity.ts`, `activity-identity.test.ts` | create | `captureActivityIdentities` for seeds, with its ported capture and refusal cases |
+| `packages/prototype-data/src/upgrade-*.ts` (five) and their four tests, `legacy-prose.ts` and test, `version-3-undo-compatibility.test.ts` | delete | pipeline |
+| `packages/prototype-data/test/fixtures/*` (five) | delete | pipeline fixtures |
+| `packages/prototype-data/src/index.ts`, `seeds.ts`, `seeds.test.ts` | modify | exports; drop the view and renumber; combined density |
+| `packages/prototype-data/package.json`, root `package.json`, `pnpm-lock.yaml` | modify | drop `upgrade-data`, `prototype:upgrade`, `markdown-it` devDependency |
+| `prototype/seeds/busy-week.json`, `nested-projects.json` | regenerate | seeds without the view |
+| `packages/mcp-tools/src/tools/sections.ts`, `contract.test.ts` | modify | descriptions; drop exemption; refusal |
+| `apps/prototype-host/api/routes.test.ts` | modify | HTTP refusal |
+| `apps/prototype-host/recovery-undo-acceptance.test.ts` | modify | delete conversion cases and their helpers; seed-based start; raw brief Markdown at line 338; replace view id |
+| `apps/prototype-host/data-file-ownership.test.ts` | modify | drop the upgrade refusal case |
+| `apps/prototype-host/scripts/acceptance.mjs`, `mcp-acceptance.mjs` | modify | refusal over HTTP API and both MCP transports |
+| `apps/web/src/app/features/projects/sections/sub-projects/*` (six) | delete | the view |
+| `apps/web/src/app/features/projects/sections/registry.ts`, `registry.spec.ts`, `section-create-dialog.spec.ts` | modify | six types |
+| `apps/web/src/app/features/projects/sections/section-contract.ts` | modify | drop section-level callback |
+| `apps/web/src/app/features/projects/sections/section-frame/project-section-frame.ts`, `.spec.ts` | modify | drop the output; drop the display-name case |
+| `apps/web/src/app/features/projects/shortcuts/shortcut-frame.ts` | modify | drop the no-op |
+| `apps/web/src/app/features/projects/project-canvas.ts`, `.html`, `.stories.ts` | modify | drop `projectHierarchyChanged` and binding; comments |
+| `apps/web/src/app/features/projects/sections/{markdown,tasks,progress,reflections,timeline,activity}/*-section.ts` and specs that pass the input | modify | drop the input |
+| `apps/web/src/app/features/projects/project-page-store.ts`, `project-workspace-store.ts`, `project-page-navigation.ts`, `project-workspace-shell.spec.ts`, `core/shell/shell-store.spec.ts` | modify | comments only |
 | `apps/web/src/app/prototype/design-lab/design-lab-fixtures.ts`, `panels/primitive-panels.ts`, `.html` | modify | drop the input; re-word the note |
 | `apps/web/src/app/prototype/dev-panel/dev-panel-store.ts` | modify | `CURRENT_SLICE = 66` |
 | `apps/e2e/archive.spec.ts`, `section-edit-undo.spec.ts` | modify | replace the view id |
+| `apps/e2e/canvas-editing.spec.ts`, `web.spec.ts` | modify | Home section counts 7 → 6; Home order assertion |
 | `.prototype/notes.json` | modify | friction from actual use |
-| `.prototype/data.json` | upgrade, git-ignored | developer file converted to v7 before running the host |
-| Main spec | modify | §§26, 29, 30, 31, 54 per *Spec sections*; line 576's example `schemaVersion`; line 1216's Slice 60 note ("Sub-Projects section remain unchanged") gains a Slice 66 note; line 3701's link list drops "every Sub-Projects section"; §81 line 4314's milestone section list gains a "retired in Slice 66" note (the §81 record itself is history) |
+| Main spec | modify | lines listed under *Spec sections* |
 | `docs/decisions/2026-10-retiring-the-sub-projects-section.md`, `README.md` | create / modify | §78 entry and index |
-| `docs/decisions/2026-10-schema-version-6-markdown-conversion.md`, `2026-09-operation-history-retired-actions.md`, `2026-09-project-workspaces-and-subproject-work-units.md` | modify | dated amendments only |
-| `docs/architecture/{contracts,domain,repositories,prototype-data,mcp-tools,web/projects}/` (four files each, as changed), `docs/architecture/prototype-host/live-updates/why.md`, `docs/architecture/testing/what.md` (conversion and acceptance test rows), `docs/architecture/what.md`, `why.md` | modify | types, schema v7, converter, exemption, removed callback |
-| `docs/guides/first-milestone-walkthrough.md`, `mcp-setup.md`, `README.md`, `AGENTS.md` | modify | six types, step 18, upgrade command text, schema version |
+| `docs/decisions/2026-09-schema-version-4-conversion.md`, `2026-09-schema-version-5-conversion.md`, `2026-10-schema-version-6-markdown-conversion.md`, `2026-09-one-writer-per-data-file.md`, `2026-09-historical-activity-identity.md`, `2026-10-prototype-data-is-disposable.md` | modify | dated amendments: converters, upgrade command and `upgrade` owner removed; capture now a seed module; the pipeline removal landed; index statuses |
+| `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`, `2026-09-a-section-has-a-name.md`, `2026-09-sections-own-their-data.md`, `2026-09-workstream-user-terminology.md`, `2026-09-reactivating-under-an-archived-ancestor.md`, `2026-10-work-canvas-shortcut-destinations.md` | modify | dated amendments where they describe the Sub-Projects view as current; index statuses |
+| `docs/architecture/prototype-data/` (all four) | modify | no converters; seeds and seed CLI only; `activity-identity.ts` |
+| `docs/architecture/{contracts,domain,repositories,mcp-tools,web/projects}/` (four files each, as changed), `testing/what.md`, `testing/how.md` (line 254, `upgrade-cli.ts`), `prototype-host/live-updates/why.md`, `docs/architecture/how.md`, `what.md`, `why.md` | modify | types, remedies, removed callback, removed pipeline and command |
+| `docs/guides/first-milestone-walkthrough.md`, `mcp-setup.md`, `README.md` | modify | six types; step 18; reset instead of upgrade |
 | `docs/roadmap/planned/59-markdown-and-work-navigation.md`, `goals.md` | modify | Stage E note at close |
 
 ## Test plan — tests first
 
-Each new case is written and watched failing before the code it drives.
+Each new case is written and watched failing before the code it drives. Deleting a test is not a
+red step; the deletions happen after the new refusal tests are green.
 
 | Test | Proves |
 |---|---|
-| `section.test.ts`: `sub-projects is retired with a Work replacement` | record shape; no capability; `isRetiredSectionType` and `retiredSectionReplacement` for both types, and `undefined` for `toString` |
-| `section-service.test.ts`: `refuses a new Sub-Projects section naming Work` | message, nothing written, grant-first order for agents |
-| `data-store.test.ts`: `refuses a live or archived Sub-Projects section at v7` | load refusal names the upgrade command |
-| `data-store.test.ts`: `accepts a retired action whose snapshot holds a retired type` / `refuses the same snapshot on an applied or undone action` | exemption is exactly `state === 'retired'` |
-| `data-store.test.ts`: `still refuses a retired action with a duplicate order or beyond the high-water mark` | the exemption covers only the two retired-type checks |
-| `upgrade-retired-work-views.test.ts`: `refuses an activity event targeting a removed view, naming both` | Activity guard, nothing returned |
-| `…`: `retires snapshot-only placements and views` | the `shortcut.remove`-only and `section.remove`/undone-`section.add`-only records |
-| `upgrade-retired-work-views.test.ts`: `removes live and archived views and their shortcuts only` | step 3 on the v6 fixture |
-| `…`: `renumbers only affected pages, by position then id, keeping updatedAt` | step 4, including a page with a pre-existing gap that lost nothing |
-| `…`: `retires exactly the subject actions in every state and leaves neighbour-only actions byte-identical` | step 5 |
-| `…`: `bumps each touched history's revision once and keeps cursor and invariant` | step 6 |
-| `…`: `refuses conflicting section types, conflicting shortcut sources and a view as a created container` | diagnostics, nothing returned |
-| `…`: `counts unresolved subjects without changing them` | orphan rule |
-| `…`: `is idempotent on its own output and converts a hand-edited v7 file` | versions |
-| `retired-work-views-conversion.test.ts` (domain): `walks every converted history to both ends without recreating a view or placement` | clock pinned in the fixture window; after restart through `JsonFileDataStore`; unrelated edits apply |
-| `markdown-conversion.test.ts` (domain): existing cases on the v7 result | the frozen v5→v6 step still feeds working history |
-| `upgrade-markdown-sections.test.ts`: `no longer validates and keeps a v7 input's version` | freeze |
-| `upgrade-cli.test.ts`: `chains 2–7`, `writes nothing when already at 7`, `reports removed ids`, `refusal leaves the original bytes and no backup` | CLI |
-| `seeds.test.ts`: expected type lists without `sub-projects`; `every page's live sections and shortcuts are densely ordered together` | seeds, including the shifted shortcuts |
+| `section.test.ts`: `sub-projects is retired with a workstream replacement` | record shape; no capability; `isRetiredSectionType` and `retiredSectionReplacement` for both types; `undefined` for `toString` |
+| `section-service.test.ts`: `refuses a new Sub-Projects section naming the workstream route` | message; nothing written; grant-first order for agents |
+| `data-store.test.ts`: `refuses a live Sub-Projects section, naming reset` | load refusal and remedy |
+| `data-store.test.ts`: `refuses a Sub-Projects snapshot in history, naming reset` | history can't recreate one |
+| `data-store.test.ts`: `an older schema version names reset, not upgrade` | `describeVersion` |
+| `seeds.test.ts`: `no seed holds a retired section type`; `every page's live sections and shortcuts are densely ordered together` | seeds, including shifted shortcuts |
 | `routes.test.ts`: `POST sections refuses sub-projects` | HTTP |
 | `contract.test.ts`: `create_section refuses sub-projects`; descriptions free of the identifier | MCP registry |
 | `registry.spec.ts`, `section-create-dialog.spec.ts` | six types, Markdown first |
-| `project-section-frame.spec.ts`, `shortcut-frame.spec.ts`, `project-canvas.spec.ts` | content inputs no longer carry the callback; hierarchy revision still forwarded |
+| `project-section-frame.spec.ts` | content inputs no longer carry the callback; hierarchy revision still forwarded (the shortcut frame and canvas specs never referenced it and stay unchanged) |
+| `activity-identity.test.ts`: ported capture cases and five refusals | the seed-only module keeps its rules |
+| `document.test.ts`: `rejects a version-3 file, which needs a reset` | renamed; behaviour unchanged |
+| `recovery-undo-acceptance.test.ts` (kept cases) | history restart and Archive behaviour, now from a seed |
+| e2e `archive.spec.ts`, `section-edit-undo.spec.ts` | same journeys on another view |
+| e2e `canvas-editing.spec.ts`: `nested-projects Home and Kitchen render their live sections and shortcuts in seed order` | Acceptance 4; red while the view exists |
+| e2e `canvas-editing.spec.ts:296,348`, `web.spec.ts:138` | Home counts now six |
 
 ## Boundaries touched
 
-- **Contracts once.** The retired record and replacement live only in `section.ts`; the domain,
-  integrity and MCP read it. The converter deliberately does not, and matches its frozen literal.
+- **Contracts once.** The retired record and its sentences live only in `section.ts`; the domain,
+  integrity and MCP read them.
 - **Domain abstractions only.** The refusal is input validation in `SectionService`; no new edge.
 - **MCP calls the domain.** No tool reads the store.
-- **Gateways.** The web change deletes a component and a callback; no component gains a gateway or
+- **Gateways.** The web change deletes a component and a callback; no component gains a gateway or a
   concrete adapter.
-- **History.** The state machine and executors are unchanged; the converter writes the existing
-  `retired` state without using the transition helpers, and the invariant is asserted.
-- **Disposable (§71).** The converter is seed-loader-grade code: tested on fixtures, not generalised.
-- **One writer.** The CLI keeps the owner lock; e2e preparation and the host keep theirs.
+- **Disposable (§71).** Part B deletes disposable infrastructure; it adds none.
+- **One writer.** The seed and reset CLIs, e2e preparation and the host keep their owner locks; only
+  the upgrade writer disappears.
 
 ## Explicit non-goals
 
-- A new hierarchy view, or showing status, due dates or completion in the Work list.
-- Generalising the converter into a "retire any type" framework; Rich Text and Sub-Projects each
-  keep a named step.
-- Pruning or compacting retired actions; ordinary retention does that.
-- Removing `projectHierarchyRevision`, the page-level `onProjectHierarchyChange`, or
-  `SECTION_DISPLAY_NAMES`.
+- Converting, cleaning up or preserving any existing local file.
+- Showing status, due dates or completion dates in the Work list.
+- Removing `RETIRED_SECTION_TYPES`' `rich-text` entry. It still refuses new Rich Text sections.
 - Stage F's integrated matrix, phone/theme sweeps beyond this slice's own journeys, and any
   terminology change.
 
 ## Open questions
 
-- **Retire or delete history actions?** Proposed: retire (Design §4). A reviewer or the user may
-  prefer deletion for simpler integrity; that would change §3 and §4 but not the user-visible result.
-- **Remove the dead section-level callback here?** Proposed: yes, because this slice removes its
-  only caller and a required input that nothing calls is misleading. It touches about twenty web
-  files mechanically; it can be split into its own commit, or into a follow-up slice if review
-  prefers a smaller working set.
-- **Is losing the Sub-Projects view's status and due-date line acceptable?** The Work list shows
-  names and nesting only. The umbrella's request is to manage nested work through the sidebar, so
-  the plan accepts the loss and records it in the decision; real use may promote a candidate.
+None. The three decisions above settle the shape. If removing the pipeline turns up a kept test
+that cannot be satisfied from a seed, the Outcome reports it rather than inventing a fixture.
 
 ## Revisions
 
-- **Initial draft (2026-10-08).** Grounded in the current code: seeds, history payload union,
-  existing `retired` state and its invariant, integrity's snapshot checks, the Rich Text-specific
-  refusal and the single caller of the section-level hierarchy callback.
-- **Review round 1 (2026-10-08).** The reviewer confirmed the core algorithm: the cursor invariant
-  holds, `retireOperationAction` would be wrong mid-stack, and neighbour fallback makes renumbering
-  safe for unrelated Undo. Findings verified against the code and fixed:
-  - The fixture recipe asked for a Home shortcut to Renovation's view, which sits on Home itself and
-    is refused. It also hand-edited an archived view on the false premise that views are always
-    deleted; `removalOutcome` retains a shortcut-referenced view. The recipe is now an exact, ordered
-    list of domain calls with no JSON edits. It covers a Work-canvas shortcut, a retained-then-restored
-    view, snapshot-only views and placements, and a redo branch that survives.
-  - The domain walk test moved to `packages/domain` (prototype-data cannot import the domain).
-    `markdown-conversion.test.ts` and `recovery-undo-acceptance.test.ts`' v6 messages were added to
-    the change list.
-  - Seed renumbering now covers every later placement, shortcuts included, with a combined density test.
-  - The integrity exemption is limited to the two `assertNotRetired` calls, with a test that other
-    action checks still apply to retired actions.
-  - Added an Activity guard with a named diagnostic, the domain's exact `localeCompare` comparator,
-    a refusal sentence and `create_section` text that serve agents as well as people, the canvas's
-    now-unused page-level callback, the pinned clock, upgrading the developer's data file, and the
-    missed spec lines and `testing/what.md`.
-  - The decision entry will record why the converter writes `retired` directly instead of using
-    `retireOperationAction` (line 115 moves the cursor to `order − 1`). This deviates from the
-    umbrella's wording "using the existing history state machine", and the entry says so.
-- **Review round 2 (2026-10-08).** All fifteen round-1 findings are closed. The reviewer checked
-  every fixture step against the domain: each can be performed in order, lands in the history the
-  plan says, and still walks after conversion. No older fixture trips the converter. No substantive
-  findings. Three wording fixes:
-  - agent A is the seed's existing `agent-claude`, because the domain cannot create connections;
-  - step 10 names `restoreSection`, because views never appear in Archive;
-  - the coverage claim now says which states each operation type actually appears in.
+- **Initial draft (2026-10-08).** A v6→v7 converter removed views and their shortcuts, renumbered
+  pages and marked unreachable history steps as retired, with an integrity exemption for retired
+  steps.
+- **Review round 1 (2026-10-08).** The core algorithm held. Fixes went to the fixture recipe, test
+  placement, seed renumbering (shortcuts at 7–10 shift too), the exemption's scope, an Activity
+  guard, the comparator, agent-facing refusal text, the canvas's page-level callback, the pinned
+  clock and missed docs.
+- **Review round 2 (2026-10-08).** All round-1 findings were closed; no substantive findings remained.
+- **Rewrite (2026-10-09), user direction.** Local prototype data is disposable
+  ([decision](../../decisions/2026-10-prototype-data-is-disposable.md)), so the converter, the
+  retired-step design, the schema bump and the fixture recipe are gone. Rewriting surfaced one
+  consequence the earlier plan didn't have: three existing upgrade fixtures hold Sub-Projects views.
+  Once integrity refuses the type, the old pipeline's own tests fail. So the pipeline is removed in
+  this slice (Part B). The user also confirmed removing the dead callback and accepting the loss of
+  the per-row status line. Several round-1/2 findings carry over: seed renumbering, agent-facing
+  refusal text, the page-level callback, and the missed spec lines.
+- **Review round 3 (2026-10-09), fresh reviewer on the rewrite.** Parts A and B were sound in
+  outline. Verified and fixed:
+  - Three e2e counts assume seven Home sections (`canvas-editing.spec.ts:296,348`,
+    `web.spec.ts:138`). Added, with a named order assertion for Acceptance 4.
+  - A kept host case expects the escaped legacy brief (`:338`). It now expects the seed's raw
+    Markdown.
+  - `captureActivityIdentities` would have lost all its tests; `activity-identity.test.ts` ports them.
+  - `document.test.ts`' converter-only cases were missing.
+  - The domain refusal sentence named an MCP tool; it is now surface-neutral, and only the MCP
+    description names `create_project`.
+  - §14's policy prose is corrected rather than merely annotated, and spec line 3817 was added.
+  - Added: amendments to six Sub-Projects-era decisions, three pipeline-era ones and the
+    disposable-data entry; `testing/how.md`; a wider `rg` check.
+  - Factual fixes: the upgrade modules have four test files, not five; `seeds.test.ts` has four
+    hard-coded type lists; the archived seed note keeps its stale position. Removed three web files
+    that have nothing to change.
+- **Review round 4 (2026-10-09).** Eleven of twelve closed. The Home order assertion did not exist
+  yet, so the plan now adds a Home-and-Kitchen seed-order e2e test, written first, plus a Test plan
+  row. Two minor fixes: the `Row` alias moves with the capture helpers, and a leftover "if unused"
+  hedge is gone. No substantive findings remain.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

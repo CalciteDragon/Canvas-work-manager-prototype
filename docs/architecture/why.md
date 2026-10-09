@@ -84,6 +84,7 @@ deliberately under-engineered. Adding abstraction to them is the wrong direction
 - [Activity captures identity that survives removed content](../decisions/2026-09-historical-activity-identity.md)
 - [Schema version 5 converts historical Activity identity](../decisions/2026-09-schema-version-5-conversion.md)
 - [Schema version 6 converts Rich Text to Markdown and retires it](../decisions/2026-10-schema-version-6-markdown-conversion.md)
+- [Prototype data is disposable until further notice; working seeds are what must survive](../decisions/2026-10-prototype-data-is-disposable.md)
 
 Each subsystem's `why.md` lists the decisions that shape it; the
 [decision index](../decisions/README.md) lists them all.

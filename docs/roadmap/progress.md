@@ -15,7 +15,7 @@ verification follow-ups rather than feature slices.
 
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
-| 66 | Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E) | Sub-Projects views and their placements leave at schema v7 without losing work; the type is refused on create and load | [66-retire-sub-projects-section.md](active/66-retire-sub-projects-section.md) |
+| 66 | Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E) | Sub-Projects section retired from seeds, picker and domain; old local files are reset, not converted, and the upgrade pipeline is removed | [66-retire-sub-projects-section.md](active/66-retire-sub-projects-section.md) |
 
 ### Planned
 
