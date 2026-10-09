@@ -891,6 +891,10 @@ describe('shortcut routes (§27, §68)', () => {
     // Both seeded Kitchen placements: its task list and its reflections.
     expect(JSON.stringify(refused.body)).toContain('shortcut-renovation-kitchen-tasks');
     expect(JSON.stringify(refused.body)).toContain('shortcut-renovation-kitchen-reflections');
+    // Slice 68: the message says where each placement sits and what it places.
+    const { message } = refused.body as { message: string };
+    expect(message).toContain('on the Home page of "Home renovation"');
+    expect(message).toContain('from "Kitchen"');
     expect(await call(routes, 'GET', '/api/projects/project-kitchen')).toEqual(kitchenBefore);
     expect(await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).toEqual(placementsBefore);
   });
@@ -958,6 +962,7 @@ describe('shortcut routes on a workstream Work canvas (Slice 65; §27, §61)', (
 
     expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
     expect(JSON.stringify(refused.body)).toContain(created.shortcut.id);
+    expect((refused.body as { message: string }).message).toContain('on the Work page of "Cabinets", placing "Markdown" from "Garden"');
     expect(await call(routes, 'GET', '/api/projects/project-cabinets')).toEqual(before);
   });
 });

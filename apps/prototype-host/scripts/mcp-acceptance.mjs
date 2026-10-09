@@ -39,6 +39,8 @@ const modernClient = (name) =>
 // reactivation, each through its own project's history; Slice 42 adds project creation Undo/Redo;
 // Slice 65 adds a workstream Work-canvas shortcut and a forward move refused for splitting one.
 // Slice 67 reads Markdown source back and reopens a done task through its workstream's history.
+// Slice 68 removes the split placement by the id read from the refusal text, which describes its page
+// and source, and proves the same description on a refused Undo of the move.
 const assertClient = async (client, title, dataFile, foreign, access) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -587,6 +589,8 @@ const assertPageHistory = async (client, foreign, title, dataFile, access) => {
  * **subject's** own history; a no-op answers null. A sub-project moves across roots and back, a
  * sub-project's own archive is undone while it is archived, and restore_project's reactivation
  * reverses — all under projects.write alone, and none of it reachable by another connection.
+ * Slices 65 and 68 end it with a move refused for splitting a Work canvas placement, forward and
+ * then as an Undo, each refusal describing the placement well enough to remove it in one step.
  */
 const assertProjectHistory = async (client, foreign, title, dataFile, access) => {
   const firstCreated = await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Project history A ${title}` } });
@@ -711,7 +715,8 @@ const assertProjectHistory = async (client, foreign, title, dataFile, access) =>
 
   // Slice 65: a placement on the mover's Work canvas whose source is on its current root's Home
   // splits across roots on a move, so the forward move is refused naming it until it is removed.
-  // A forward move rather than Undo: Undo would first meet the agent's own placement add.
+  // A forward move rather than Undo: Undo would first meet the agent's own placement add. The
+  // reversal refusal is proven below, with the blocking placement in another connection's history.
   const anchor = await client.callTool({ name: 'create_section', arguments: { projectId: second, type: 'markdown', title: 'Anchor' } });
   const moverWork = JSON.parse((await client.callTool({ name: 'list_project_pages', arguments: { projectId: child } })).content[0].text)
     .find(({ kind }) => kind === 'work').id;
@@ -723,11 +728,44 @@ const assertProjectHistory = async (client, foreign, title, dataFile, access) =>
   const pinnedId = pinned.structuredContent.shortcut.id;
   const beforeSplit = await businessState(dataFile);
   const split = await client.callTool({ name: 'update_project', arguments: { projectId: child, parentProjectId: first } });
-  check(split.isError === true && textOf(split).includes(pinnedId), `${title} a move that would split the placement is refused, naming it`);
+  const splitText = textOf(split);
+  check(split.isError === true && splitText.includes(pinnedId), `${title} a move that would split the placement is refused, naming it`);
+  // Slice 68: the refusal says where the placement sits and what it places, and its id is enough to
+  // remove it — no list_section_shortcuts call.
+  check(
+    splitText.includes(`on the Work page of "Renamed ${title}"`) && splitText.includes(`placing "Anchor" from "Project history B ${title}"`),
+    `${title} the refusal names the mover's Work page and the placed section's project (Slice 68)`,
+  );
+  const parsedId = /shortcut "([^"]+)"/.exec(splitText)?.[1];
+  check(parsedId === pinnedId, `${title} the shortcut id is read back from the refusal text`);
   check((await businessState(dataFile)) === beforeSplit && (await projectOf(child)).parentProjectId === second, `${title} and writes nothing`);
-  check((await client.callTool({ name: 'remove_section_shortcut', arguments: { shortcutId: pinnedId } })).isError !== true, `${title} the placement is removed`);
+  check((await client.callTool({ name: 'remove_section_shortcut', arguments: { shortcutId: parsedId } })).isError !== true, `${title} the placement is removed by the id from the text`);
   const retried = await client.callTool({ name: 'update_project', arguments: { projectId: child, parentProjectId: first } });
   check(retried.isError !== true && (await projectOf(child)).parentProjectId === first, `${title} and the retried move succeeds`);
+
+  // Slice 68: the Undo of that move gives the same description. Another connection places a section
+  // from the child's new root on the child's Work canvas — same-root now, split by the Undo. It is in
+  // that connection's history, so the agent's cursor still points at the move.
+  const reversalAnchor = await foreign.callTool({ name: 'create_section', arguments: { projectId: first, type: 'markdown', title: 'Reversal anchor' } });
+  const reversalPlaced = await foreign.callTool({
+    name: 'add_section_shortcut',
+    arguments: { projectId: child, pageId: moverWork, sourceSectionId: reversalAnchor.structuredContent.section.id },
+  });
+  check(reversalPlaced.isError !== true, `${title} another connection places a new-root section on the mover's Work canvas`);
+  const beforeReversal = await businessState(dataFile);
+  const reversal = await step(receiptOf(retried));
+  const reversalText = textOf(reversal);
+  check(
+    reversal.isError === true && reversalText.includes(`history_conflict: Undo of the update on "Renamed ${title}" was refused: `) &&
+      reversalText.includes(`on the Work page of "Renamed ${title}", placing "Reversal anchor" from "Project history A ${title}"`),
+    `${title} Undo of the move is refused with the same description of the placement (Slice 68)`,
+  );
+  check((await businessState(dataFile)) === beforeReversal && (await projectOf(child)).parentProjectId === first, `${title} and the refused Undo writes nothing`);
+  check(
+    (await foreign.callTool({ name: 'remove_section_shortcut', arguments: { shortcutId: reversalPlaced.structuredContent.shortcut.id } })).isError !== true,
+    `${title} the other connection removes its placement`,
+  );
+  check((await step(receiptOf(retried))).isError !== true && (await projectOf(child)).parentProjectId === second, `${title} and the Undo then succeeds`);
 };
 
 /**
