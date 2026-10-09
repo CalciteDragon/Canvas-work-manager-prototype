@@ -64,6 +64,12 @@ direction-wide evidence ledger. It adds four proofs that are missing, covers rea
 friction notes, reconciles the documentation, and closes the umbrella. The umbrella records the
 completed child slices. The disposable-data policy supersedes its original converter proposals and
 its same-file conversion evidence.
+On 2026-10-09 the user promoted two Slice 65 friction notes to candidates, which come next after
+Slice 67:
+- [Slice 68 — cross-root move refusal names each placement](planned/68-cross-root-refusal-names-placements.md)
+  (`note-2026-10-03-002`);
+- [Slice 69 — distinguishable names for untitled shortcut sources](planned/69-distinguishable-shortcut-names.md)
+  (`note-2026-10-03-001`).
 [Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
 **workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
 explicit parent. Three independent reviewers' diff findings are resolved, all 95 integrated

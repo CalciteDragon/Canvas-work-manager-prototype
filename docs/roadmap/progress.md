@@ -29,6 +29,8 @@ verification follow-ups rather than feature slices.
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
 | 59 | Slice 59 — Markdown, reversible task completion and work navigation | Umbrella proposal for Markdown sections, task selection and reopening, sidebar controls and work-canvas shortcuts | [59-markdown-and-work-navigation.md](planned/59-markdown-and-work-navigation.md) |
+| 68 | Slice 68 — Cross-root move refusal names each placement | A refused cross-root move names each blocking shortcut's canvas and source section, so an agent or person can remove it in one step | [68-cross-root-refusal-names-placements.md](planned/68-cross-root-refusal-names-placements.md) |
+| 69 | Slice 69 — Distinguishable names for untitled shortcut sources | A shortcut to an untitled section is named with its source's owner on its frame and in history labels, so it cannot be mistaken for a local section | [69-distinguishable-shortcut-names.md](planned/69-distinguishable-shortcut-names.md) |
 
 ### Completed
 
