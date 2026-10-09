@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 66 | Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E) | Sub-Projects views and their placements leave at schema v7 without losing work; the type is refused on create and load | [66-retire-sub-projects-section.md](active/66-retire-sub-projects-section.md) |
 
 ### Planned
 

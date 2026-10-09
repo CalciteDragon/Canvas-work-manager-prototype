@@ -84,7 +84,10 @@ initial bundle is about 1,028 kB under the unchanged ceiling. Stage C is complet
 same-root shortcuts recorded in its own history, and a cross-root move refuses any placement with
 exactly one end in the moving subtree. Independent review findings are resolved; 3,111 offline
 tests, the targeted browser journey and both acceptance scripts passed, with real browser and HTTP
-MCP use recorded. Stage E (retiring the Sub-Projects section) is next.
+MCP use recorded. Stage E (retiring the Sub-Projects section) is active as
+[Slice 66](active/66-retire-sub-projects-section.md): a v6→v7 conversion removes Sub-Projects views and
+their shortcuts and retires the history actions that could bring them back. Its plan passed two
+review rounds on 2026-10-08; implementation has not started.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
