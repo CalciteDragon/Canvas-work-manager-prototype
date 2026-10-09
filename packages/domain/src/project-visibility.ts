@@ -27,8 +27,8 @@ export interface ArchivedAncestry {
    *
    * Deliberately narrow. A project archived in its own right is *not* hidden by this: it is
    * already excluded wherever a caller filters `status`, it is what `status: ['archived']` asks
-   * for, and it is what an archived project's own page renders. Widening `isHidden` to cover it
-   * would blank the Sub-Projects section of the very project someone is looking at.
+   * for. Widening `isHidden` to cover it would erase archived projects from that query;
+   * Archive and workspace Settings apply their own recovery eligibility.
    */
   isHidden(id: ProjectId): boolean;
 }

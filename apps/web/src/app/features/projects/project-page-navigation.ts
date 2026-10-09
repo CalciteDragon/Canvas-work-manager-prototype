@@ -18,7 +18,7 @@ import { Icon } from '../../shared/components/icon/icon';
  * keeps `Sidebar` from quietly becoming `Component → Gateway` (§19).
  *
  * Active state comes from `activeKind` rather than from `routerLinkActive`. The app's own
- * links — the global sidebar, project creation, every Sub-Projects section — use the short
+ * links — the global sidebar, project creation, Work navigation — use the short
  * `/projects/:id` form, and `routerLinkActive` on the Home tab's `/pages/home` would not match
  * it, so Home would render as current only for the users who typed the long URL.
  */

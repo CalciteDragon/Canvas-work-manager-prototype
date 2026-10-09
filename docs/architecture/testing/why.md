@@ -59,9 +59,9 @@ header and survives reload.
 closed the Archive/removal/Undo refactor by tracing every Refactor §26 criterion to one named
 assertion, then joining those through the browser and real SDK clients. Commit-before-publish is
 proven against the bytes on disk at frame delivery (`live-updates.test.ts`), because an in-memory
-snapshot cannot tell a committed write from a pending one. Migration and retention are proven in
-the host, the one package allowed to compose the converter, the services and the JSON store, over
-temp copies of the committed fixtures, so no seed or snapshot changed. Grant removal and
+snapshot cannot tell a committed write from a pending one. Persistence and retention are proven in
+the host, which composes the seed builders, services and JSON store over isolated temp files.
+Old-file conversion cases were removed with the disposable-data pipeline in Slice 66. Grant removal and
 revocation are proven over both transports, because changing an in-memory actor would not
 exercise the authenticator's live lookup. Where a new assertion passed on first run — this slice
 added tests, not product code — each was checked against a temporary, reverted fault to prove it

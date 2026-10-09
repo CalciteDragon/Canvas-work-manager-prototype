@@ -170,6 +170,12 @@ const stepReceipt = async (client, receipt, direction = 'undo') => {
  * redo_operation reapplies — the A → B → Undo → Undo → Redo → Redo chain included.
  */
 const assertUndo = async (client, title, dataFile) => {
+  const beforeRetiredCreate = await readFile(dataFile, 'utf8');
+  for (const [type, replacement] of [['sub-projects', 'workstream'], ['rich-text', 'Markdown']]) {
+    const refused = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type } });
+    check(refused.isError === true && refused.content.some((part) => part.type === 'text' && part.text.includes(replacement)), `${title} ${type} create is refused with replacement guidance`);
+  }
+  check(await readFile(dataFile, 'utf8') === beforeRetiredCreate, `${title} retired creates leave the whole file unchanged`);
   const canvas = async () => {
     const listed = await client.callTool({ name: 'list_sections', arguments: { projectId: PROJECT } });
     return JSON.parse(listed.content[0].text).map(({ id }) => id);

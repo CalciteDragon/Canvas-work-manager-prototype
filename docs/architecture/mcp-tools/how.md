@@ -32,8 +32,8 @@ matching domain service, which commits the insert and renumbering together. The 
 exercise each tool at a specified position under exactly that grant. `create_section`'s
 description teaches `markdown` with a source config and says Rich Text is retired: a `rich-text`
 create is refused by `SectionService.add` with the same `DomainRuleError` HTTP and the browser get
-([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). `create_section` and
-`update_section` also say a Markdown config is exactly `{ markdown }` or empty. `SectionService`
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). The retired hierarchy view is refused too; nested work uses `create_project` with a parent.
+`create_section` and `update_section` also say a Markdown config is exactly `{ markdown }` or empty. `SectionService`
 refuses any other with a `DomainRuleError` that names the offending key, and the tools only relay it
 ([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
 
@@ -159,8 +159,7 @@ chain and revocation over the real transport.
 - **Agent prose names the `subproject` kind a workstream.** `create_project` and
   `get_project` define `kind "subproject" is a workstream`. The vocabulary case in
   `contract.test.ts` pins both definitions and rejects "sub-project" and "unit of work"
-  prose in every description, except the unchanged `sub-projects` section-type identifier
-  in `list_sections`. Tool names, schemas and grants retain their existing identifiers.
+  prose in every description. Tool names, schemas and grants retain their existing identifiers.
 - **Imports:** only contracts, domain and zod — `check-package-imports.mjs --allow
   @cwm/contracts,@cwm/domain,zod` in `pnpm --filter @cwm/mcp-tools lint`.
 - **Every tool has a contract case** — `contract.test.ts` iterates `registry.list()` and

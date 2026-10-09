@@ -64,7 +64,6 @@ const render = async (gateway = new FakeWorkManagerGateway({ activity: [entry()]
   fixture.componentRef.setInput('onProjectDataChange', vi.fn<() => void>());
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
-  fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();

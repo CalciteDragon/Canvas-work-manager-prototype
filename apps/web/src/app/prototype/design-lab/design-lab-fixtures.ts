@@ -190,7 +190,6 @@ export class StubSectionContent {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input<() => void>();
-  readonly onProjectHierarchyChange = input<() => void>();
   readonly projectDataRevision = input(0);
   readonly projectHierarchyRevision = input(0);
   readonly readOnly = input(false);

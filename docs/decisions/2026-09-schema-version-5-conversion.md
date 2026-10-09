@@ -45,3 +45,6 @@ Another required persisted field needs a fourth named conversion, or retained re
 show a legacy event target that version 4 legitimately allowed to be absent.
 
 **Amended, 2026-10-02 — Slice 63 freezes this step.** `upgradeActivityIdentity` now writes the literal version 5 and returns opaque JSON without validating, like the two steps before it; version 5 and later pass through. The chain continues to version 6 and validates there ([Schema version 6](2026-10-schema-version-6-markdown-conversion.md)).
+
+**Amended, 2026-10-09 (Slice 66).** The conversion pipeline is removed. Captured Activity identity remains a current invariant; seed builders use `activity-identity.ts` rather than a version conversion step.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

@@ -21,7 +21,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
-| [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | current |
+| [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | amended; Slice 66 |
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
 | [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling; Slice 41 adds the eager header controls; Slice 58 fits the phone drawer at 1048.5 kB; Slice 62 deferred panel controls to reach 1,032,388 bytes |
@@ -37,7 +37,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [A Markdown section's config is validated on every write](2026-10-section-config-validated-on-write.md) | `{}` or exactly `{ markdown }`, refused in `SectionService` for every caller; other types stay open | current (Slice 64) |
 | [What an `Identity` is, and where it comes from](2026-08-identity-contract-and-me-route.md) | The `Identity` contract and `GET /api/me` | current |
 | [What `ActivityEvent.summary` is for, and what it is not](2026-08-activity-summary-ownership.md) | `summary` is a log line the domain writes; the UI composes its own | amended; Slice 36 adds captured historical context |
-| [Activity captures target identity so an audit line outlives its row](2026-09-historical-activity-identity.md) | Required event context survives creation Undo without row tombstones | amended; Slice 42 adds the project lifecycle anchor |
+| [Activity captures target identity so an audit line outlives its row](2026-09-historical-activity-identity.md) | Required event context survives creation Undo without row tombstones | amended; Slice 66 |
 
 ## Domain
 
@@ -60,16 +60,16 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [What counts as AI in the prototype](2026-08-prototype-ai-scope-and-fun-fact.md) | Fun Fact is a fixture rotation, not `AIProvider` | current |
 | [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | Section removal targets the project; disposable deletion emits `project.section_removed` | amended (Slice 35 transitions keep it) |
 | [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31, 35–36) |
-| [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | Every row keeps a live section reference; Slice 31 adds reference-checked deletion for disposable sections | amended; Slice 43 cascades live owned rows |
-| [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended; Slice 43 retires the live-row refusal dialog |
+| [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | Every row keeps a live section reference; Slice 31 adds reference-checked deletion for disposable sections | amended; Slice 66 |
+| [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended; Slice 66 |
 | [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35; section Restore records in Slice 37; Slice 43 cascades live owned rows |
 | [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31; Slice 43 changes new removal settlement; Slice 44 adds structural readiness; Slice 62 adds Markdown prose; Slice 63 retires Rich Text prose |
-| [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | amended; Slice 60 adds the gear and workstream terminology |
+| [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | amended; Slice 66 |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | amended; Slice 38 gives the creation a restricted inverse |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | amended; Slice 36 history may restore captured content; Slice 43 removes removal-time reassign |
 | [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33; new reassign requests retired in Slice 43 |
 | [Section removal is one cascade gesture, and task Delete is reversible](2026-09-one-step-section-removal-and-task-delete.md) | ID-only cascade for live owned rows; keep legacy reassign history; expose soft archive as task Delete | current |
-| [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | current |
+| [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | amended; Slice 66 |
 | [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | amended; Slice 37 extends the rule to placement inverses; Slice 65 to Work canvases |
 | [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | amended (Undo restores by neighbours, Slice 30; Work canvases, Slice 65) |
 | [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets; renumbering leaves shifted siblings' `updatedAt` amended | amended |
@@ -94,14 +94,14 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [An existing project's writes are one action family, and its own archive can be undone while archived](2026-09-project-update-operation-history.md) | Subject-owned project history, changed-field footprints, hierarchy rechecks and the narrow archived-subject exception | amended (Slice 41: per-step `blockedBy`, edit-naming labels; Slice 42: create result and first history action) |
 | [Project creation belongs to the created project's history and can be recovered at its URL](2026-09-project-creation-history.md) | `project.add`, durable absence anchors, preflight and creator-only recovery | current (Slice 42) |
 | [A forward reparent refuses a Home shortcut it would carry across roots](2026-09-forward-reparent-refuses-cross-root-shortcut.md) | `ProjectService.update` shares the history executor's cross-root placement check; 409 naming each placement | amended; Slice 65 refuses a placement with exactly one end in the moving subtree |
-| [A workstream's Work canvas takes shortcuts the way a root's Home does](2026-10-work-canvas-shortcut-destinations.md) | Canonical-page destinations, same-root sources at any depth, destination-owned history, the one-end-inside reparent rule | current (Slice 65) |
+| [A workstream's Work canvas takes shortcuts the way a root's Home does](2026-10-work-canvas-shortcut-destinations.md) | Canonical-page destinations, same-root sources at any depth, destination-owned history, the one-end-inside reparent rule | amended; Slice 66 |
 
 ## Repositories
 
 | Entry | Settled | Status |
 |---|---|---|
 | [How repository queries combine and compare values](2026-08-repository-query-semantics.md) | Query filters AND together; empty arrays match nothing | current |
-| [One writer per data file](2026-09-one-writer-per-data-file.md) | An advisory owner record: the host holds it for life, stdio per call, the CLIs refuse; nonce-guarded reclaim | current (Slice 54) |
+| [One writer per data file](2026-09-one-writer-per-data-file.md) | An advisory owner record: the host holds it for life, stdio per call, the CLIs refuse; nonce-guarded reclaim | amended; Slice 66 |
 
 ## MCP tools
 
@@ -115,11 +115,12 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
+| [The Sub-Projects section is retired; Work is the hierarchy surface](2026-10-retiring-the-sub-projects-section.md) | Six types; Work navigation/creation; unreadable local files reset or reseed | current; Slice 66 |
 | [Persona workspace topology in seeds](2026-08-persona-workspace-topology.md) | Three personas with separately owned workspaces in every seed | current |
 | [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | current |
-| [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 and v3 → v4 steps; only v3 receipts retire | amended; Slice 36 chains version 5 |
-| [Schema version 5 backfills durable Activity identity without changing history](2026-09-schema-version-5-conversion.md) | Validated v4 → v5 Activity-context backfill preserves operation history | amended; Slice 63 freezes the step at version 5 |
-| [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md) | Escape-everything v5 → v6 conversion of sections and history; Rich Text refused on create and load | amended; Slice 64 drops extras |
+| [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 and v3 → v4 steps; only v3 receipts retire | amended; Slice 66 |
+| [Schema version 5 backfills durable Activity identity without changing history](2026-09-schema-version-5-conversion.md) | Validated v4 → v5 Activity-context backfill preserves operation history | amended; Slice 66 |
+| [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md) | Escape-everything v5 → v6 conversion of sections and history; Rich Text refused on create and load | amended; Slice 66 |
 
 ## Prototype host
 

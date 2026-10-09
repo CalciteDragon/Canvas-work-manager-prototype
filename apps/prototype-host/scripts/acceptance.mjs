@@ -105,6 +105,13 @@ try {
   check(project.body.project.workspaceId === 'workspace-demo', 'the project lands in the actor workspace');
   check(project.body.operation.operation === 'project.add' && project.body.operation.revision === 1, 'creation answers its first history receipt');
 
+  const beforeRetiredCreate = await readFile(dataFile, 'utf8');
+  for (const [type, replacement] of [['sub-projects', 'workstream'], ['rich-text', 'Markdown']]) {
+    const refused = await request('POST', `/api/projects/${project.body.project.id}/sections`, { type });
+    check(refused.status === 409 && refused.body.error === 'rule_violation' && refused.body.message.includes(replacement), `${type} create is refused with replacement guidance`);
+  }
+  check(await readFile(dataFile, 'utf8') === beforeRetiredCreate, 'retired creates leave the whole file unchanged');
+
   console.log('\nproject creation Undo, restart and Redo...\n');
   const projectPages = async () => (await request('GET', `/api/projects/${project.body.project.id}/pages`)).body;
   const projectHistory = async () => (await request('GET', `/api/projects/${project.body.project.id}/history`)).body;

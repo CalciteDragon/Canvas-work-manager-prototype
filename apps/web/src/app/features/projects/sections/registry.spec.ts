@@ -10,7 +10,7 @@ import { SECTION_REGISTRY, definitionFor } from './registry';
  */
 describe('SECTION_REGISTRY (§29)', () => {
   it('ships the §30 section types that exist', () => {
-    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
+    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
   });
 
   it('gives every definition the members §29 pins', () => {
@@ -61,6 +61,7 @@ describe('SECTION_REGISTRY (§29)', () => {
     expect(definitionFor('markdown')?.displayName).toBe('Markdown');
     // Retired at schema version 6 (Slice 63): no stored document holds one, and none can be created.
     expect(definitionFor('rich-text')).toBeUndefined();
+    expect(definitionFor('sub-projects')).toBeUndefined();
   });
 });
 

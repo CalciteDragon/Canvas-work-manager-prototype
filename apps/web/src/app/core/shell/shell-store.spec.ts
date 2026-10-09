@@ -305,7 +305,7 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
   });
 
   // §81's create. The sidebar's only caller of `projects.create` before this slice was the
-  // sub-projects section, which hard-codes `parentProjectId` — so the assertion that matters
+  // nested-work creation, which supplies `parentProjectId` — so the assertion that matters
   // is the *absence* of one.
   it('creates a top-level project in the persona’s own workspace', async () => {
     const { store, gateway, reporter } = storeWith({ projects: [] });

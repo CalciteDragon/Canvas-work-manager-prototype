@@ -160,6 +160,8 @@ Undo action or imply the row is the next action
 
 ## Decisions that shape this system
 
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../../decisions/2026-10-retiring-the-sub-projects-section.md)
+
 - [Markdown source and rendering](../../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling.
 - [Schema version 6 converts Rich Text to Markdown and retires it](../../../decisions/2026-10-schema-version-6-markdown-conversion.md) — the registry drops Rich Text, and the placeholder hides the escapes.
 - [A Markdown section's config is validated on every write](../../../decisions/2026-10-section-config-validated-on-write.md) — the schema comes from contracts; unreadable config shows only the guidance note.

@@ -179,8 +179,10 @@ ISO string so ordering stays lossless without a clock or timezone
 
 ## Decisions that shape this system
 
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../decisions/2026-10-retiring-the-sub-projects-section.md)
+
 - [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — pure recovery and history label functions read capability metadata, without parsing source or adding a service edge.
-- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `SectionService.add` refuses retired types; converted history Undoes and Redoes into Markdown.
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `SectionService.add` refuses retired types; historical conversion evidence predates the pipeline removal in Slice 66.
 
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — pure read eligibility is shared by two projections while canonical Restore writes recheck blockers.
 

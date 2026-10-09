@@ -31,3 +31,6 @@ still establish whether "workstream" reads naturally for small personal work.
 ## Revisit when
 
 Real use confuses workstreams with tasks or suggests a better name for nested work.
+
+**Amended, 2026-10-09 (Slice 66).** Stage E has landed: the Sub-Projects section and its copy are removed. Workstream remains the user/agent noun; stored identifiers and history labels remain unchanged.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

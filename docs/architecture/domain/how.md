@@ -48,10 +48,12 @@ Activity summary still uses its existing verb. A config edit is prose only when 
 `markdown` says `Markdown`, and any other prose key falls back to `prose`. Labels stored before
 version 6 keep their Rich Text wording. The domain reads no Markdown or HTML syntax.
 
-`SectionService.add` refuses a retired type (`isRetiredSectionType` from contracts — today only
-`rich-text`) with a `DomainRuleError` after the actor and grant checks and before any lookup, so
+`SectionService.add` refuses a retired type (`isRetiredSectionType` from contracts — today
+`rich-text` and `sub-projects`) with a `DomainRuleError` after the actor and grant checks and before any lookup, so
 browser, HTTP and MCP get the same refusal and it confirms nothing about the project
 ([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+Replacement guidance comes from `retiredSectionReplacement`: Markdown for Rich Text and creating
+a workstream under the project for Sub-Projects.
 
 `add` and `update` also refuse a config that does not fit its type (`sectionConfigRefusal` from
 contracts). Today only Markdown is checked, and it takes `{}` or exactly `{ markdown }`. `add`

@@ -56,7 +56,7 @@ flowchart TB
     repositories["@cwm/repositories<br/>interfaces, unit of work, JSON store"]
     domain["@cwm/domain<br/>services, clock, actor, permissions"]
     mcp["@cwm/mcp-tools<br/>tool registry"]
-    data["@cwm/prototype-data<br/>seeds, personas, tokens, converter"]
+    data["@cwm/prototype-data<br/>seeds, personas, tokens"]
   end
   subgraph apps["apps/"]
     web["web<br/>Angular"]

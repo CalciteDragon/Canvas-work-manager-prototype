@@ -48,3 +48,6 @@ change an idea" and §71's disposable infrastructure.
 
 Real or long-lived data appears, such as a user-testing round on persisted workspaces, or the user
 asks for data to be kept. The MVP specification will need its own migration policy either way.
+
+**Amended, 2026-10-09 (Slice 66).** The planned pipeline removal has landed: all old-version conversion steps, the legacy prose encoder, fixtures and conversion command are removed. Seed Activity capture survives in a seed-owned module. Unreadable local files are refused with reset/reseed guidance.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

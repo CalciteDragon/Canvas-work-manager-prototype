@@ -143,7 +143,7 @@ describe('ProjectArchiveService (§31)', () => {
 });
 
 describe('ProjectArchiveService content projection (Refactor §14 Archive column)', () => {
-  const VIEWS = ['sub-projects', 'progress', 'timeline', 'recent-activity'].map(
+  const VIEWS = ['progress', 'timeline', 'recent-activity'].map(
     (type) => `section-project-renovation-${type}`,
   );
 
@@ -351,7 +351,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     const { items } = await archive.derive(harness.actor, ROOT);
     expect(sectionItem(items, 'section-project-kitchen-brief')).toBeUndefined();
     expect(sectionItem(items, 'section-project-kitchen-tasks')).toBeUndefined();
-    for (const type of ['sub-projects', 'progress', 'timeline', 'recent-activity']) {
+    for (const type of ['progress', 'timeline', 'recent-activity']) {
       expect(sectionItem(items, `section-project-kitchen-${type}`)).toBeUndefined();
     }
     // An actual archived project stays an entry, whatever happened to the views that listed it.

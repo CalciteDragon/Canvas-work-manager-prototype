@@ -65,3 +65,6 @@ people want Work shortcuts often. Seeds do not exercise them, so real use has to
 Stage E retires the Sub-Projects section, or real use shows Work canvases want a different
 reference: a link card, a live summary or a copy. Revisit too if a move UI arrives and people hit
 the split-placement refusal often.
+
+**Amended, 2026-10-09 (Slice 66).** Stage E retires the Sub-Projects view without changing Work canvas shortcut destinations, source eligibility, combined ordering or destination-owned history.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

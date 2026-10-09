@@ -47,7 +47,6 @@ const render = async (
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', vi.fn());
   fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
-  fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.componentRef.setInput('readOnly', readOnly);

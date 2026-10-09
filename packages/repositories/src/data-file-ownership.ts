@@ -7,17 +7,17 @@ import { basename, dirname, join, resolve } from 'node:path';
  * One writer per data file (§14, §15; docs/decisions/2026-09-one-writer-per-data-file.md).
  *
  * Every process that writes a canonical JSON file — the HTTP host for its lifetime, a stdio call
- * for its turn, the seed, reset and upgrade CLIs, the e2e preparation — first publishes an owner
+ * for its turn, the seed and reset CLIs, the e2e preparation — first publishes an owner
  * record beside it, `<data file>.owner`. A second writer waits for its turn up to a bound, then is
  * refused with `data_file_in_use:` naming the owner and the file to delete by hand.
  *
  * Advisory and deliberately small: one file per data path on one machine, no lease, heartbeat or
  * lock service (§71, §80). It is disposable with the JSON store it guards. Only entrypoints
- * acquire; the library functions (`loadPersistence`, `writeSeedFile`, `upgradeDataFile`) do not.
+ * acquire; the library functions (`loadPersistence`, `writeSeedFile`) do not.
  */
 
 /** Who holds the file. The kind picks the remedy a refusal names. */
-export type DataFileOwnerKind = 'http-host' | 'stdio' | 'seed' | 'upgrade' | 'e2e-prepare';
+export type DataFileOwnerKind = 'http-host' | 'stdio' | 'seed' | 'e2e-prepare';
 
 /** The owner file's content: an internal file format of this package, not a contract. */
 export interface DataFileOwnerRecord {
@@ -121,7 +121,6 @@ const REMEDIES: Record<DataFileOwnerKind, string> = {
   'http-host': 'stop the host, or use its HTTP MCP endpoint',
   stdio: 'wait for its tool call to finish, then retry',
   seed: 'wait for the seed or reset to finish, then retry',
-  upgrade: 'wait for the upgrade to finish, then retry',
   'e2e-prepare': 'wait for the e2e preparation to finish, then retry',
 };
 

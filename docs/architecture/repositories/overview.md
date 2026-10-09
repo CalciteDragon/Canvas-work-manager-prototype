@@ -50,7 +50,7 @@ canonical-page removal is available only to that preflighted domain inverse.
 - Seeds: [prototype-data](../prototype-data/overview.md) builds documents; this package
   only holds them.
 - When to take ownership: entrypoints decide — the host for its lifetime, stdio per call, the
-  seed, reset, upgrade and e2e-preparation commands around their write. `JsonDataStore` and the
+  seed, reset and e2e-preparation commands around their write. `JsonDataStore` and the
   library functions never acquire.
 
 ## Read next

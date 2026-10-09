@@ -62,7 +62,7 @@ describe('SectionCreateDialog (§27)', () => {
     query(fixture, '[data-create-section-submit]')!.click();
     await fixture.whenStable();
 
-    expect([...type.options].map((option) => option.value)).toEqual(['markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
+    expect([...type.options].map((option) => option.value)).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
     expect(create).toHaveBeenCalledWith('task-list', null);
     expect(closed).toHaveBeenCalledTimes(1);
   });

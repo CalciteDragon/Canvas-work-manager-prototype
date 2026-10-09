@@ -86,8 +86,8 @@ export const SubprojectSchema = z.object({
 export type Subproject = z.infer<typeof SubprojectSchema>;
 
 /**
- * No default for `kind`. A version-2 record reaching this parser is a *file to convert*, and
- * guessing its kind here would hide that from whoever has to run `pnpm prototype:upgrade`.
+ * No default for `kind`. Versions 2–5 are no longer readable; a stale file needs a reset, and
+ * guessing its kind here would hide that from whoever has to run `pnpm prototype:reset`.
  */
 export const ProjectSchema = z.discriminatedUnion('kind', [RootProjectSchema, SubprojectSchema]);
 export type Project = z.infer<typeof ProjectSchema>;

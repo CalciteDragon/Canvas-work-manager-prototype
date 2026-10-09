@@ -1,28 +1,14 @@
-import { execFile } from 'node:child_process';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { join } from 'node:path';
 import { PrototypeDocumentSchema, type OperationReceipt, type PrototypeDocument, type SectionId } from '@cwm/contracts';
 import { DomainRuleError, EntityNotFoundError, SimulatedClock, type ActorContext } from '@cwm/domain';
-import { SEED_NOW } from '@cwm/prototype-data';
+import { SEED_NOW, writeSeedFile } from '@cwm/prototype-data';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApi } from './api/services.ts';
 import { loadPersistence } from './persistence/store.ts';
 
-/**
- * Slices 33 and 35 (Refactor §26.3, §26.5, §26.11): recovery, conversion and history over real files on disk.
- *
- * The host is the one package allowed to compose the converter, the domain services and the
- * JSON store, so this is where a converted or post-Undo file is proven reopenable. Every
- * "reopen" builds a fresh store from the bytes on disk; nothing is carried over in memory.
- */
-
-const here = dirname(fileURLToPath(import.meta.url));
-const fixture = (name: string) => join(here, '../../packages/prototype-data/test/fixtures', name);
-const upgradeCli = join(here, '../../packages/prototype-data/src/upgrade-cli.ts');
-const run = promisify(execFile);
+/** Recovery and history over seeded files on disk. Every reopen reads fresh bytes. */
 
 const DEMO: ActorContext = { actor: 'user', workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
 const ALEX: ActorContext = { actor: 'user', workspaceId: 'workspace-alex' as never, userId: 'user-alex' as never };
@@ -34,15 +20,12 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
-const tempCopy = async (name: string, edit: (document: Record<string, unknown[]>) => void = () => undefined) => {
+const seedFile = async () => {
   const directory = await mkdtemp(join(tmpdir(), 'cwm-recovery-'));
   directories.push(directory);
   const path = join(directory, 'data.json');
-  const document = JSON.parse(await readFile(fixture(name), 'utf8')) as Record<string, unknown[]>;
-  edit(document);
-  const source = `${JSON.stringify(document, null, 2)}\n`;
-  await writeFile(path, source, 'utf8');
-  return { directory, path, source };
+  await writeSeedFile('nested-projects', { targetPath: path });
+  return { path };
 };
 
 /** A fresh store and service graph over whatever is on disk now. */
@@ -108,24 +91,6 @@ const refusalReason = (promise: Promise<unknown>) =>
     (error: unknown) => (error instanceof DomainRuleError ? (error.details as { reason: string }).reason : error instanceof EntityNotFoundError ? 'not-found' : String(error)),
   );
 
-/** A progress view removed before Slice 31 made disposable removal a deletion. */
-const legacyTombstone = (withPage: boolean) => ({
-  id: 'section-legacy-progress-tombstone',
-  projectId: 'project-renovation',
-  ...(withPage ? { pageId: 'page-project-renovation' } : {}),
-  type: 'progress',
-  position: 20,
-  columnSpan: 6,
-  collapsed: false,
-  config: {},
-  createdAt: '2026-08-01T16:00:00.000Z',
-  updatedAt: '2026-08-10T16:00:00.000Z',
-  archivedAt: '2026-08-10T16:00:00.000Z',
-});
-
-const upgrade = (path: string) =>
-  run(process.execPath, ['--import', 'tsx', upgradeCli, path], { cwd: here, env: { ...process.env, INIT_CWD: here } });
-
 /** Runs the next step in `direction` for `actor` at the history's current revision, the way a client does. */
 const step = async (api: ReturnType<typeof createApi>, actor: ActorContext, direction: 'undo' | 'redo', projectId = ROOT) => {
   const summary = await api.history.summary(actor, projectId);
@@ -140,98 +105,9 @@ const transitionOf = async (api: ReturnType<typeof createApi>, actor: ActorConte
   return api.history.transition(actor, receipt.historyId, { actionId: receipt.actionId, direction, expectedRevision: summary.revision });
 };
 
-/** Version-3 Undo records as a real version-3 file held them: one consumed, one outstanding. */
-const legacyReceipts = (document: Record<string, unknown[]>) => {
-  const section = document['sections']!.find((candidate) => (candidate as { id: string }).id === 'section-project-renovation-brief');
-  const base = { workspaceId: 'workspace-demo', projectId: 'project-renovation', actor: 'user', actorUserId: 'user-demo', label: 'Removed the Brief section', createdAt: SEED_NOW, expiresAt: '2026-08-25T16:00:00.000Z' };
-  document['undoRecords'] = [
-    { ...base, id: 'undo-consumed', sequence: 1, consumedAt: SEED_NOW, operation: { version: 1, type: 'section.add', section } },
-    { ...base, id: 'undo-outstanding', sequence: 2, operation: { version: 1, type: 'section.remove', section, placement: { pageId: 'page-project-renovation', index: 0 }, appliedPolicy: 'none', rows: [], postSectionArchivedAt: SEED_NOW } },
-  ];
-};
-
-describe('recovery, conversion and history over persisted files (Slices 33, 35)', () => {
-  it('v2 and v3 files convert through the real CLI to version 6 and reopen with content and references intact', async () => {
-    // ---- version 2, through the real CLI and the frozen version-3 intermediate.
-    const v2 = await tempCopy('nested-projects-v2.json', (document) => document['sections']!.push(legacyTombstone(false)));
-    const { stdout } = await upgrade(v2.path);
-    expect(stdout).toMatch(/Converted .* from schema version 2 to 6\. Undo and Redo history starts empty\. 3 Rich Text sections and 0 history records became Markdown/);
-    const backups = (await readdir(v2.directory)).filter((name) => name.startsWith('data.json.backup-'));
-    expect(backups).toHaveLength(1);
-    expect(await readFile(join(v2.directory, backups[0]!), 'utf8')).toBe(v2.source);
-
-    const original = JSON.parse(v2.source) as PrototypeDocument;
-    const converted = await reopen(v2.path);
-    expect(converted.document().schemaVersion).toBe(6);
-    expectReferentialIntegrity(converted.document());
-    expect(converted.document().users).toEqual(original.users);
-    expect(converted.document().milestones).toEqual(original.milestones);
-    expect(converted.document().activityEvents).toEqual(original.activityEvents);
-    expect(converted.document().tasks.map(({ id }) => id)).toEqual(original.tasks.map(({ id }) => id));
-    expect(converted.document().reflections.map(({ id, body }) => [id, body])).toEqual(original.reflections.map(({ id, body }) => [id, body]));
-    // Stored, never projected: the old disposable tombstone stays in the file and out of Archive.
-    expect(converted.document().sections.find(({ id }) => id === 'section-legacy-progress-tombstone')?.archivedAt).toBeDefined();
-    const v2Archive = await archivedSectionIds(converted.api);
-    expect(v2Archive).toContain('section-project-garden-tasks');
-    expect(v2Archive).not.toContain('section-legacy-progress-tombstone');
-
-    // A write and its Undo on the converted file, then a fresh reopen.
-    const brief = 'section-project-renovation-brief' as SectionId;
-    const removed = await converted.api.sections.remove(DEMO, brief);
-    expect(removed.section.archivedAt).toBeDefined();
-    await transitionOf(converted.api, DEMO, removed.operation);
-    const afterUndo = await reopen(v2.path);
-    expectReferentialIntegrity(await onDisk(v2.path));
-    expect(afterUndo.document().sections.find(({ id }) => id === brief)).toMatchObject({ position: 0, archiveGeneration: 1, config: { markdown: 'Whole\\-house plan\\. Kitchen first\\, garden in the spring\\.' } });
-    expect(afterUndo.document().sections.find(({ id }) => id === brief)?.archivedAt).toBeUndefined();
-    expect(afterUndo.document().operationActions).toEqual([expect.objectContaining({ id: removed.operation.actionId, state: 'undone' })]);
-
-    // ---- version 3 holding legacy receipts: converted once, receipts retired, then a no-op.
-    const v3 = await tempCopy('nested-projects-v3.json', (document) => {
-      document['sections']!.push(legacyTombstone(true));
-      legacyReceipts(document);
-    });
-    expect((await upgrade(v3.path)).stdout).toMatch(/from schema version 3 to 6\. 2 Undo receipts from version 3 were retired\./);
-    expect((await readdir(v3.directory)).filter((name) => name.includes('backup'))).toHaveLength(1);
-    expect((await upgrade(v3.path)).stdout).toMatch(/already at schema version 6\. Nothing was written/);
-    expect((await readdir(v3.directory)).filter((name) => name.includes('backup'))).toHaveLength(1);
-
-    const loaded = await reopen(v3.path);
-    expectReferentialIntegrity(loaded.document());
-    expect(loaded.document()).not.toHaveProperty('undoRecords');
-    expect(JSON.parse(await readFile(v3.path, 'utf8'))).not.toHaveProperty('undoRecords');
-    expect(await loaded.api.history.summary(DEMO, ROOT)).toMatchObject({ historyId: null, undo: null, redo: null });
-    const v3Archive = await archivedSectionIds(loaded.api);
-    expect(v3Archive).toContain('section-project-renovation-archived-notes');
-    expect(v3Archive).not.toContain('section-legacy-progress-tombstone');
-
-    // A shortcut-backed source is retained under its id, then Undo returns the same id.
-    const source = 'section-project-kitchen-tasks' as SectionId;
-    const kitchenTasks = loaded.document().tasks.filter((task) => task.sectionId === source && task.archivedAt === undefined).map(({ id }) => id);
-    expect(kitchenTasks.length).toBeGreaterThan(0);
-    const cascade = await loaded.api.sections.remove(DEMO, source);
-    expect(cascade.section).toMatchObject({ id: source, archivedAt: expect.any(String) });
-
-    const removedOnDisk = await reopen(v3.path);
-    expectReferentialIntegrity(removedOnDisk.document());
-    expect(removedOnDisk.document().sectionShortcuts.find(({ sourceSectionId }) => sourceSectionId === source)).toBeDefined();
-    expect(await archivedSectionIds(removedOnDisk.api)).toContain(source);
-    await removedOnDisk.api.history.transition(DEMO, cascade.operation.historyId, {
-      actionId: cascade.operation.actionId, direction: 'undo', expectedRevision: cascade.operation.revision,
-    });
-
-    const restored = await reopen(v3.path);
-    expectReferentialIntegrity(restored.document());
-    expect(restored.document().sections.find(({ id }) => id === source)?.archivedAt).toBeUndefined();
-    for (const id of kitchenTasks) {
-      expect(restored.document().tasks.find((task) => task.id === id)).toMatchObject({ sectionId: source });
-      expect(restored.document().tasks.find((task) => task.id === id)?.archivedAt).toBeUndefined();
-    }
-  });
-
+describe('recovery and history over persisted files (Slices 33, 35, 66)', () => {
   it('cursor, revision and both entries survive a restart for the owning actor, and nothing for another', async () => {
-    const file = await tempCopy('nested-projects-v3.json');
-    await upgrade(file.path);
+    const file = await seedFile();
     const host = await reopen(file.path);
     const activity = 'section-project-renovation-recent-activity' as SectionId;
     const before = host.document().sections.find(({ id }) => id === activity)!;
@@ -285,8 +161,7 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
   });
 
   it('Archive outlives expired and pruned actions', async () => {
-    const file = await tempCopy('nested-projects-v3.json');
-    await upgrade(file.path);
+    const file = await seedFile();
     const host = await reopen(file.path);
     const prose = 'section-project-renovation-brief' as SectionId;
     const container = 'section-project-kitchen-tasks' as SectionId;
@@ -305,7 +180,7 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
     for (const id of ['section-project-renovation-progress', 'section-project-renovation-timeline']) {
       receipts.push((await host.api.sections.update(DEMO, id as SectionId, { collapsed: true })).operation!);
     }
-    for (const id of ['section-project-renovation-sub-projects', 'section-project-renovation-progress']) {
+    for (const id of ['section-project-renovation-reflections', 'section-project-renovation-progress']) {
       receipts.push((await host.api.sections.move(DEMO, id as SectionId, 0)).operation!);
     }
     receipts.push((await host.api.sections.remove(DEMO, 'section-project-renovation-recent-activity' as SectionId)).operation);
@@ -335,52 +210,9 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
 
     const final = await reopen(file.path);
     expectReferentialIntegrity(final.document());
-    expect(final.document().sections.find(({ id }) => id === prose)).toMatchObject({ archiveGeneration: 1, config: { markdown: 'Whole\\-house plan\\. Kitchen first\\, garden in the spring\\.' } });
+    expect(final.document().sections.find(({ id }) => id === prose)).toMatchObject({ archiveGeneration: 1, config: { markdown: 'Whole-house plan. Kitchen first, garden in the spring.' } });
     expect(final.document().sections.find(({ id }) => id === prose)?.archivedAt).toBeUndefined();
     expect(final.document().sections.find(({ id }) => id === container)?.archivedAt).toBeUndefined();
     for (const id of cascaded) expect(final.document().tasks.find((task) => task.id === id)?.archivedAt).toBeUndefined();
-  });
-
-  /** Slice 63 (acceptance items 2 and 3): Rich Text to Markdown, through the real CLI and restarts. */
-  it('a v5 file with Rich Text history converts to v6 once, survives restarts, and Undoes into Markdown', async () => {
-    const file = await tempCopy('history-v5-rich-text.json');
-    expect((await upgrade(file.path)).stdout).toMatch(
-      /from schema version 5 to 6\. Every Undo and Redo action was preserved\. 8 Rich Text sections and 11 history records became Markdown.* 4 converted configs held something besides prose; it was dropped\. 1 edit to a section no record holds was left as recorded\./,
-    );
-    const once = await readFile(file.path, 'utf8');
-    expect(once).not.toContain('"rich-text"');
-    expect((await upgrade(file.path)).stdout).toMatch(/already at schema version 6\. Nothing was written/);
-    expect(await readFile(file.path, 'utf8')).toBe(once);
-
-    const host = await reopen(file.path);
-    expectReferentialIntegrity(host.document());
-    const kitchen = 'section-project-kitchen-brief' as SectionId;
-    const edit = host.document().operationActions.find(({ operation }) => operation.type === 'section.update' && operation.sectionId === kitchen)!;
-    const labels = host.document().operationActions.map(({ id, label }) => [id, label]);
-    await step(host.api, DEMO, 'undo', 'project-kitchen' as never);
-
-    const undone = await reopen(file.path);
-    const change = edit.operation.type === 'section.update' ? edit.operation.changes[0]! : undefined;
-    expect(undone.document().sections.find(({ id }) => id === kitchen)).toMatchObject({
-      type: 'markdown', config: { markdown: 'Appliances and finishes before cabinets are ordered\\.' },
-    });
-    expect(change?.before).toEqual({ markdown: 'Appliances and finishes before cabinets are ordered\\.' });
-    await step(undone.api, DEMO, 'redo', 'project-kitchen' as never);
-    // Snapshot-only: the undone add Redoes into a Markdown section with its own id.
-    await step(undone.api, DEMO, 'redo');
-    const redone = await reopen(file.path);
-    expect(redone.document().sections.find(({ id }) => id === 'section-7')).toMatchObject({ type: 'markdown', config: { markdown: '\\# Looks like a heading\\\n1\\. x' } });
-    expect(redone.document().sections.find(({ id }) => id === kitchen)?.config).toEqual(change?.after);
-    expect(redone.document().operationActions.map(({ id, label }) => [id, label])).toEqual(labels);
-  });
-
-  it('a hand-edited v6 file holding Rich Text refuses to load, naming the upgrade, which then converts it', async () => {
-    const file = await tempCopy('history-v5-rich-text.json', (document) => {
-      (document as unknown as { schemaVersion: number }).schemaVersion = 6;
-    });
-    await expect(reopen(file.path)).rejects.toThrow(/retired section type "rich-text".*pnpm prototype:upgrade/);
-
-    expect((await upgrade(file.path)).stdout).toMatch(/already at schema version 6 but still held retired sections\..* 8 Rich Text sections/);
-    expectReferentialIntegrity((await reopen(file.path)).document());
   });
 });

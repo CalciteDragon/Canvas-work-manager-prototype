@@ -45,13 +45,11 @@ export class ShortcutFrame {
 
   private readonly noopConfig = async (_config: SectionConfig): Promise<boolean> => false;
   private readonly noopProjectData = (): void => {};
-  private readonly noopProjectHierarchy = (): void => {};
 
   readonly contentInputs = computed<SectionContentInputs>(() => ({
     section: this.shortcut().source,
     onConfigChange: this.noopConfig,
     onProjectDataChange: this.noopProjectData,
-    onProjectHierarchyChange: this.noopProjectHierarchy,
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
     readOnly: true,

@@ -8,6 +8,7 @@ import {
   containerTypeFor,
   displayNameOf,
   isRetiredSectionType,
+  retiredSectionReplacement,
   sectionConfigRefusal,
   type SectionConfig,
   nameOf,
@@ -233,7 +234,7 @@ export class SectionService {
     // browser, HTTP and MCP — gets the same answer (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
     if (isRetiredSectionType(input.type)) {
       throw new DomainRuleError(
-        `${displayNameOf(input.type)} sections are retired and can no longer be created; add a Markdown section instead.`,
+        `${displayNameOf(input.type)} sections are retired and can no longer be created; ${retiredSectionReplacement(input.type)}.`,
       );
     }
     // A type that declares its config shape refuses any other, on the same terms

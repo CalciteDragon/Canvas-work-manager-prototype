@@ -11,7 +11,7 @@ describe('renderMarkdown', () => {
     expect(html).not.toContain('<h1');
   });
   /**
-   * Frozen outputs of `encodeLegacyProse` (packages/prototype-data, Slice 63), rendered through
+   * Frozen historical prose-escaping samples (Slice 63), rendered through
    * the real renderer: converted Rich Text reads as its prose, never as structure.
    */
   it.each([

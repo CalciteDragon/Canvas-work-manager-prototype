@@ -196,3 +196,6 @@ kind, ownership, nesting rules, routes and tool names retain the shape recorded 
 The Sub-Projects section keeps its existing name until its retirement in Slice 59 Stage E;
 transactional "unit of work" remains the persistence pattern. The noun and rejected
 alternatives are recorded in [workstream user terminology](2026-09-workstream-user-terminology.md).
+
+**Amended, 2026-10-09 (Slice 66).** The Sub-Projects section is retired. The project column's Work list and Add workstream control provide hierarchy navigation and creation. The old file conversion pipeline is removed; the project/page model stays intact.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

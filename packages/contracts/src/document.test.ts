@@ -26,13 +26,7 @@ describe('PrototypeDocumentSchema', () => {
     expect(PrototypeDocumentSchema.parse(document)).toEqual({ ...document, operationHistories: [], operationActions: [] });
   });
 
-  it('strips a version-3 `undoRecords` collection rather than carrying it', () => {
-    // Only the explicit converter reads legacy receipts; a v4 document never holds one.
-    const parsed = PrototypeDocumentSchema.parse({ ...document, undoRecords: [{ id: 'undo-1' }] });
-    expect(parsed).not.toHaveProperty('undoRecords');
-  });
-
-  it('rejects a version-3 file, which needs `pnpm prototype:upgrade`', () => {
+  it('rejects a version-3 file, which needs `pnpm prototype:reset`', () => {
     expect(PrototypeDocumentSchema.safeParse({ ...document, schemaVersion: 3 }).success).toBe(false);
   });
 

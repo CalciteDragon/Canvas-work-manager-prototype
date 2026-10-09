@@ -259,7 +259,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   // Acceptance 3, as a test rather than a claim: §30 says Home and a work canvas take "all
   // registered types", including ones registered after that sentence was written — so the case
-  // iterates the registry instead of naming seven types it would then have to be kept in step
+  // iterates the registry instead of naming six types it would then have to be kept in step
   // with. Both canvases, because a sub-project's page is the one whose id is not canonical.
   it.each([
     ['a root’s Home', 'page-project-a'],

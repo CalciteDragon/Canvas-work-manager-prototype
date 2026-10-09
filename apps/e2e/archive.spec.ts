@@ -202,7 +202,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   const addTaskToSection = (sectionId: string, title: string) =>
     addTask({ projectId: ROOT, sectionId, title });
 
-  const views = ['sub-projects', 'progress', 'timeline', 'recent-activity'].map((type) => `section-${ROOT}-${type}`);
+  const views = ['progress', 'timeline', 'recent-activity'].map((type) => `section-${ROOT}-${type}`);
   for (const id of views) await api('DELETE', `/api/sections/${id}`);
 
   const notes = await addSection({ type: 'markdown', title: 'Kept notes', config: { markdown: 'Measure the hallway shelf' } });

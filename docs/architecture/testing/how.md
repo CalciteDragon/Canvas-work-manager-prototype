@@ -127,7 +127,7 @@ paths are in [what](what.md).
 
 - Every system, by construction. Test-only dependencies: `vitest`, `@playwright/test`,
   `@modelcontextprotocol/client`, `storybook`, `@storybook/angular-vite`,
-  `@storybook/addon-themes`, `jsdom`, and `markdown-it` in prototype-data (only `legacy-prose.test.ts`'s render proof).
+  `@storybook/addon-themes` and `jsdom`.
 - [prototype-data](../prototype-data/overview.md) — seeds for every suite and script.
 - [prototype-runtime](../prototype-host/prototype-runtime/overview.md) — `/prototype/seed`
   for the e2e specs.
@@ -250,8 +250,8 @@ pnpm storybook                                        # :6006
 - **Integrated recovery acceptance (Slice 33)** is a matrix, not one journey. The Refactor §26
   ledger in [the Slice 33 record](../../roadmap/completed/33-recovery-undo-integrated-acceptance.md)
   names each assertion. To rerun the failure and reopen evidence: `recovery-undo-acceptance.test.ts`
-  copies the committed fixtures under `packages/prototype-data/test/fixtures/` to temp files, runs
-  `upgrade-cli.ts` through `node --import tsx`, and reopens with `loadPersistence` each time;
+  writes current seeds to temp files through `writeSeedFile` and reopens with `loadPersistence`
+  each time; old-file conversion cases were removed in Slice 66;
   `live-updates.test.ts` swaps `store.persist` or `operationActions.insert` for a throwing function,
   checks the bytes on disk are unchanged and no frame was delivered, then restores the original
   and retries once. `section-edit-undo.spec.ts` sets the dev panel's failure rate to 100% only

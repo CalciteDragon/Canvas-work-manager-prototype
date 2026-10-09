@@ -52,7 +52,6 @@ export class ProjectSectionFrame {
   /** Awaited content writes retain a draft on refusal. */
   readonly saveConfig = input.required<(id: SectionId, config: SectionConfig) => Promise<boolean>>();
   readonly projectDataChanged = output<void>();
-  readonly projectHierarchyChanged = output<void>();
 
   readonly configOpen = signal(false);
   readonly editingName = signal(false);
@@ -67,13 +66,11 @@ export class ProjectSectionFrame {
   private readonly emitConfig = (config: SectionConfig): Promise<boolean> =>
     this.saveConfig()(this.section().id, config);
   private readonly emitProjectDataChange = (): void => this.projectDataChanged.emit();
-  private readonly emitProjectHierarchyChange = (): void => this.projectHierarchyChanged.emit();
 
   readonly contentInputs = computed<SectionContentInputs>(() => ({
     section: this.section(),
     onConfigChange: this.emitConfig,
     onProjectDataChange: this.emitProjectDataChange,
-    onProjectHierarchyChange: this.emitProjectHierarchyChange,
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
     readOnly: false,

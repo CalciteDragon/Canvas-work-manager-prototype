@@ -67,7 +67,6 @@ pnpm dev:web                 # Angular on http://localhost:4200
 pnpm dev:host                # host on http://127.0.0.1:4310
 pnpm prototype:seed <name>   # rewrite .prototype/data.json from a seed (empty, personal-workspace, busy-week, nested-projects, overdue-chaos, agent-heavy)
 pnpm prototype:reset         # personal-workspace
-pnpm prototype:upgrade <f>   # bounded v2 → v3 → v4 → v5 → v6 conversion (or start at v3–v6)
 pnpm mcp:stdio               # the same registry over stdio (CWM_MCP_TOKEN)
 pnpm test                    # every workspace's vitest suites — offline, no browser
 pnpm lint                    # type-checks, the boundary lints, the token lint, and docs:check
@@ -87,7 +86,7 @@ only). The README documents each.
 
 - **A new entity or field:** start in [contracts](contracts/how.md); the type errors
   lead you to every consumer. Bump `SCHEMA_VERSION` if an existing `data.json` would be
-  wrong, and decide whether this cutover earns a converter (§14).
+  wrong, update the seeds, and reset or reseed local files (§14).
 - **A new rule:** a failing test in `packages/domain`, then the service. Never in a route,
   a tool or a component.
 - **A new read surface:** domain service → route in `api/routes.ts` → gateway interface

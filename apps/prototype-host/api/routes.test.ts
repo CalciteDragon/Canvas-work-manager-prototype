@@ -600,6 +600,15 @@ describe('section routes', () => {
     expect((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'markdown', config: { markdown: 'New' } } })).status).toBe(201);
   });
 
+  it('POST sections refuses sub-projects with the workstream route (Slice 66)', async () => {
+    const routes = buildRoutes();
+    for (const projectId of [MINE, THEIRS]) {
+      const refused = await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body: { type: 'sub-projects' } });
+      expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation', message: expect.stringMatching(/Sub-Projects.*retired.*workstream/) } });
+    }
+    expect((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body).toEqual([]);
+  });
+
   it('lists, creates, updates, moves, duplicates and removes a section', async () => {
     const routes = buildRoutes();
 

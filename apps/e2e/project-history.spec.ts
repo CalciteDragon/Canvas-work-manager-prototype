@@ -155,7 +155,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
 
   const progressSpan = async () => (await sectionsOf(ROOT, HOME)).find(({ id }) => id === 'section-project-renovation-progress')?.columnSpan;
   const progressIndex = async () => (await sectionsOf(ROOT, HOME)).sort((a, b) => a.position - b.position).findIndex(({ id }) => id === 'section-project-renovation-progress');
-  const originalIndex = 3;
+  const originalIndex = 2;
   /** Where the page itself draws Progress among the canvas's sections. */
   const renderedProgressIndex = () => page.locator('[data-section-canvas] > [data-section-item]')
     .evaluateAll((items) => items.map((item) => item.getAttribute('data-section-id')).indexOf('section-project-renovation-progress'));

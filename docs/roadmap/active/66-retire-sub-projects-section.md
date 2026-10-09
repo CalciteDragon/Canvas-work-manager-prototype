@@ -307,6 +307,7 @@ so it fails while the Sub-Projects frame is still there. This is Acceptance 4's 
 | `packages/contracts/src/document.ts`, `project.ts` | modify | comments only (no converters exist) |
 | `packages/contracts/src/document.test.ts` | modify | delete the `undoRecords` stripping case; rename the version-3 case to name reset |
 | `packages/domain/src/section-service.ts`, `section-service.test.ts` | modify | per-type refusal sentence |
+| `packages/domain/src/project-service.ts`, `project-visibility.ts`, `apps/web/src/app/features/projects/project-canvas.spec.ts` | modify | current public comments after hierarchy-view retirement |
 | `packages/domain/src/section-ownership.test.ts`, `section-recovery-policy.test.ts`, `project-archive-service.test.ts` | modify | drop `sub-projects` from type tables and view lists |
 | `packages/domain/src/markdown-conversion.test.ts` | delete | converter-only test |
 | `packages/repositories/src/data-store.ts`, `data-store.test.ts` | modify | reset remedy in both messages; refusal cases |
@@ -333,6 +334,7 @@ so it fails while the Sub-Projects frame is still there. This is Acceptance 4's 
 | `apps/web/src/app/prototype/design-lab/design-lab-fixtures.ts`, `panels/primitive-panels.ts`, `.html` | modify | drop the input; re-word the note |
 | `apps/web/src/app/prototype/dev-panel/dev-panel-store.ts` | modify | `CURRENT_SLICE = 66` |
 | `apps/e2e/archive.spec.ts`, `section-edit-undo.spec.ts` | modify | replace the view id |
+| `apps/e2e/project-history.spec.ts` | modify | Progress starts at position 2 after seed retirement |
 | `apps/e2e/canvas-editing.spec.ts`, `web.spec.ts` | modify | Home section counts 7 → 6; Home order assertion |
 | `.prototype/notes.json` | modify | friction from actual use |
 | Main spec | modify | lines listed under *Spec sections* |
@@ -341,6 +343,7 @@ so it fails while the Sub-Projects frame is still there. This is Acceptance 4's 
 | `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`, `2026-09-a-section-has-a-name.md`, `2026-09-sections-own-their-data.md`, `2026-09-workstream-user-terminology.md`, `2026-09-reactivating-under-an-archived-ancestor.md`, `2026-10-work-canvas-shortcut-destinations.md` | modify | dated amendments where they describe the Sub-Projects view as current; index statuses |
 | `docs/architecture/prototype-data/` (all four) | modify | no converters; seeds and seed CLI only; `activity-identity.ts` |
 | `docs/architecture/{contracts,domain,repositories,mcp-tools,web/projects}/` (four files each, as changed), `testing/what.md`, `testing/how.md` (line 254, `upgrade-cli.ts`), `prototype-host/live-updates/why.md`, `docs/architecture/how.md`, `what.md`, `why.md` | modify | types, remedies, removed callback, removed pipeline and command |
+| `docs/architecture/prototype-host/what.md` | modify | ownership suite no longer tests an upgrade writer |
 | `docs/guides/first-milestone-walkthrough.md`, `mcp-setup.md`, `README.md` | modify | six types; step 18; reset instead of upgrade |
 | `docs/roadmap/planned/59-markdown-and-work-navigation.md`, `goals.md` | modify | Stage E note at close |
 
@@ -431,6 +434,18 @@ that cannot be satisfied from a seed, the Outcome reports it rather than inventi
   yet, so the plan now adds a Home-and-Kitchen seed-order e2e test, written first, plus a Test plan
   row. Two minor fixes: the `Row` alias moves with the capture helpers, and a leftover "if unused"
   hedge is gone. No substantive findings remain.
+
+- **Implementation resumed (2026-10-09).** Contracts, domain, HTTP and MCP registry tests were written first and failed because Sub-Projects could still be created; live/history integrity cases failed because it could still load. The per-type retirement and reset remedies made these new cases green. Execution was interrupted to diagnose a Windows sandbox runtime file lock; restarting Codex restored normal sandboxed commands. Web retirement, seed/pipeline removal and living documentation now proceed as independent work areas.
+
+- **Implementation verification (2026-10-09).** Seed retirement first failed on busy-week and nested-projects, then all 112 prototype-data checks passed. The moved Activity helper's reflection-fallback assertion also failed under a deliberate, reverted fault. Web registry, picker and frame cases failed for the six-type/callback expectations, then passed 36/36. The new Home/Kitchen order journey failed with reversed placements and passed after restoring the comparator. That temporary fault overlapped the first full verification run; the final test, app build and Storybook checks were rerun after it was reverted. A later subprocess-based domain boundary check timed out under concurrent build load, so the full offline suite was rerun without those builds; no implementation assertion failed in that run.
+
+- **Integrated browser finding (2026-10-09).** The full browser suite exposed one more seed-order assumption: the header-history journey expected restored Progress at index 3. Removing the preceding view correctly returns it at index 2. Updated that expectation and added the previously missed file to the change list; the failure was the expected 3 versus actual 2, not a history implementation defect.
+
+- **Diff review round 1 (2026-10-09), three independent reviewers.** Correctness/spec and the dedicated architectural-boundary pass found no substantive issues. The documentation/acceptance reviewer identified stale conversion-test coverage, decision-link annotations implying retained converters, a host ownership-suite row naming the deleted upgrade wrapper, and §77's reference to committed legacy fixtures. Each claim was checked against the diff and corrected to current seeded-file coverage or explicitly historical evidence. The reviewer confirmed that the retained history cases protect restart, exact actor isolation, pruning, expiry and durable Archive. The six-seed host load and actual-app evidence remain part of the final walkthrough, rather than being inferred from unit tests.
+
+- **Diff review round 2 (2026-10-09), fresh independent reviewer.** Previous repairs matched the code. The remaining finding was two public domain comments describing the retired hierarchy renderer; they now explain the unchanged archived-status query and Archive/Settings eligibility. A related canvas-spec comment now names six types. No additional correctness, spec, boundary or test gaps were found.
+
+- **Review closure and actual use (2026-10-09).** The round-2 reviewer rechecked the public comments and returned no substantive findings. All 2,957 offline tests passed with browser/build processes stopped; the earlier subprocess timeouts were not reproduced and no timeout was widened. Compodoc, lint, build, Storybook and all four host acceptance scripts passed. The developer's data loaded unchanged before seed swaps; the host loaded and served reads for all six seeds. Dev-panel busy-week and nested-projects use confirmed the six-option picker and ordered Home/Kitchen canvases. A workstream explicitly parented to Kitchen appeared in Work, creation Undo removed it, and Redo restored the same address. The real-clock SDK HTTP client refused the retired type with workstream guidance and preserved every business field; only existing authentication `lastUsedAt` bookkeeping is excluded from that comparison. Note `note-2026-10-09-001` records the accepted Work-row detail loss. The temporary walkthrough helper was deleted. The final full browser rerun follows the corrected Progress-index expectation.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

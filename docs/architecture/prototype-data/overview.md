@@ -2,12 +2,11 @@
 
 `@cwm/prototype-data` is everything that makes a workspace state one command away (§16,
 §17, §76): the six deterministic seed builders, the three personas, the fixture agent
-tokens, the CLI that writes a seed into `.prototype/data.json`, and the four explicit converters
-that carry a version-2 to version-5 data file forward to version 6. It is prototype-only (§71) and
+tokens and the CLI that replaces `.prototype/data.json` with a current seed. It is prototype-only (§71) and
 nothing in it survives into the MVP.
 
 **Code:** `packages/prototype-data/src` · **Committed snapshots:** `prototype/seeds/*.json`
-· **Tests:** `packages/prototype-data/src/*.test.ts` and `test/fixtures/` (vitest) ·
+· **Tests:** `packages/prototype-data/src/*.test.ts` (vitest) ·
 **Package:** `@cwm/prototype-data` · **Depends on:** `@cwm/contracts`, `@cwm/repositories`
 
 ## Responsibilities
@@ -20,7 +19,7 @@ nothing in it survives into the MVP.
 - Hold §51's bearer tokens (`prototype-user-a-readwrite`, `-readonly`, `-revoked`) as
   fixtures beside the seeds, not as contract fields.
 - `pnpm prototype:seed <name>` / `pnpm prototype:reset`: write a seed atomically over the
-  data file, refused with `data_file_in_use:` while a host or another writer owns it. `pnpm prototype:upgrade <file>`: sniff the version, convert v2 → v3 → v4 → v5 → v6 (or start at v3–v6), validate, back up, write.
+  data file, refused with `data_file_in_use:` while a host or another writer owns it.
 
 ## Not responsible for
 
@@ -28,8 +27,8 @@ nothing in it survives into the MVP.
   `/prototype/seed` ([prototype-runtime](../prototype-host/prototype-runtime/overview.md)).
 - Authentication — the host resolves a token to a connection
   ([mcp-transport](../prototype-host/mcp-transport/overview.md)).
-- A migration framework: each converter is one named function for one cutover, run in a fixed
-  order by the one CLI (§14).
+- Preserving old local files: unreadable files are reset or reseeded; no conversion pipeline
+  exists (§14).
 
 ## Read next
 

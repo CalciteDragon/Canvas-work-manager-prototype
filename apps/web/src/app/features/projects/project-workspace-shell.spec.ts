@@ -330,7 +330,7 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     ).toEqual(['home']);
   });
 
-  // The app's own links — the sidebar, project creation, every Sub-Projects section — use the
+  // The app's own links — the sidebar, project creation, Work navigation — use the
   // short form. `routerLinkActive` on the tab's `/pages/home` would not match it.
   it('marks Home current when the user arrived at the short /projects/:id URL', async () => {
     const { harness, router } = await open('/projects/project-renovation');

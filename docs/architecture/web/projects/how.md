@@ -75,6 +75,9 @@ The cue holds no receipt and cannot promise the next Undo step.
    store's shortcut live filter compares a frame's `rootProjectId` with that root, not with the
    canvas's project — on a Work canvas the two differ, and comparing the project silently missed
    every same-root change ([why](../../../decisions/2026-10-work-canvas-shortcut-destinations.md)).
+   The content contract no longer carries a hierarchy-change callback. The canvas retains the
+   page renderer's callback input but does not call it; pages still use theirs. Timeline receives
+   `projectHierarchyRevision` to refresh its dated hierarchy after project writes.
 4. Canvas controls are available without a mode: grip drag and keyboard movement reorder
    placements, inline title edits report write results to the frame, resize handles snap
    to supported widths, and insertion points open `SectionCreateDialog`. The canvas keeps
@@ -215,11 +218,11 @@ Successful Save and Cancel restore focus to Edit. Preview renders only the local
 | `InsertionPoint`, `SectionResizeHandle` | components | Canvas insertion and resize controls; their marks come from the shared `Icon` | [API](../../../api/components/InsertionPoint.html) |
 | `gridInsertionGaps` | function | Sparse grid gaps that can fit a supported width | [API](../../../api/miscellaneous/variables.html#gridInsertionGaps) |
 | `CanvasWriteResult` | type | Success or displayed canvas-write failure | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
-| `TaskListSection`, `SubProjectsSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The six registered types beside Markdown | [API](../../../api/components/TaskListSection.html) |
+| `TaskListSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The five registered types beside Markdown | [API](../../../api/components/TaskListSection.html) |
 | `MarkdownSection`, `MarkdownSectionBody` | components | Eager shell, deferred source rendering and awaited authoring | [API](../../../api/components/MarkdownSection.html) |
 | `placeholderTextOf` | function | Display-only simplification of escaped source for the eager placeholder | [API](../../../api/miscellaneous/variables.html#placeholderTextOf) |
 | `MarkdownSourceEditor` | component | Presentational draft, Preview and Save/Cancel requests | [API](../../../api/components/MarkdownSourceEditor.html) |
-| `ProgressStore`, `ReflectionsStore`, `SubProjectsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
+| `ProgressStore`, `ReflectionsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |
 | `ArchivedRegion` | component | Presentational archive list; labels domain-supplied recovery metadata, two-step guidance and the placement Restore actually produces | [API](../../../api/components/ArchivedRegion.html) |

@@ -350,7 +350,6 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     ['Progress', 'progress', { milestoneIds: ['milestone-1'] }],
     ['Timeline', 'timeline', {}],
     ['Recent Activity', 'recent-activity', {}],
-    ['Sub-Projects', 'sub-projects', {}],
     ['blank Markdown', 'markdown', { markdown: ' \n\t ' }],
   ])('hard-deletes disposable %s and preserves its exact receipt snapshot', async (_, type, config) => {
     const harness = buildHarness();

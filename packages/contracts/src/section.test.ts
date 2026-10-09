@@ -9,6 +9,7 @@ import {
   containerTypeFor,
   displayNameOf,
   isRetiredSectionType,
+  retiredSectionReplacement,
   MarkdownConfigSchema,
   nameOf,
   SECTION_CONFIG_SCHEMAS,
@@ -106,15 +107,14 @@ describe('section ownership', () => {
 });
 
 describe('section capabilities (Refactor §§6–8)', () => {
-  it('declares exactly the seven registered types, each with one recovery capability', () => {
+  it('declares exactly the six registered types, each with one recovery capability', () => {
     expect(Object.keys(SECTION_CAPABILITIES).sort()).toEqual(
-      ['markdown', 'progress', 'recent-activity', 'reflections', 'sub-projects', 'task-list', 'timeline'],
+      ['markdown', 'progress', 'recent-activity', 'reflections', 'task-list', 'timeline'],
     );
     expect(SECTION_CAPABILITIES).toEqual({
       'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
       reflections: { ownedData: 'reflections', recovery: 'owned-content' },
       markdown: { recovery: 'config', proseKey: 'markdown' },
-      'sub-projects': { recovery: 'none' },
       progress: { recovery: 'none' },
       timeline: { recovery: 'none' },
       'recent-activity': { recovery: 'none' },
@@ -196,9 +196,22 @@ describe('section configs validated by type (Slice 64)', () => {
 });
 
 describe('retired section types (Slice 63)', () => {
-  it('retires exactly Rich Text, which no capability declares any more', () => {
-    expect(RETIRED_SECTION_TYPES).toEqual(['rich-text']);
-    for (const type of RETIRED_SECTION_TYPES) expect(Object.hasOwn(SECTION_CAPABILITIES, type)).toBe(false);
+  it('sub-projects is retired with a workstream replacement (Slice 66)', () => {
+    expect(RETIRED_SECTION_TYPES).toEqual({
+      'rich-text': 'add a Markdown section instead',
+      'sub-projects': 'create a workstream under the project instead',
+    });
+    expect(Object.isFrozen(RETIRED_SECTION_TYPES)).toBe(true);
+    expect(isRetiredSectionType('sub-projects')).toBe(true);
+    expect(sectionCapabilityOf('sub-projects')).toBeUndefined();
+    expect(retiredSectionReplacement('sub-projects')).toBe('create a workstream under the project instead');
+    expect(retiredSectionReplacement('rich-text')).toBe('add a Markdown section instead');
+    expect(retiredSectionReplacement('toString')).toBeUndefined();
+  });
+
+  it('retires Rich Text and Sub-Projects, which no capability declares any more', () => {
+    expect(Object.keys(RETIRED_SECTION_TYPES)).toEqual(['rich-text', 'sub-projects']);
+    for (const type of Object.keys(RETIRED_SECTION_TYPES)) expect(Object.hasOwn(SECTION_CAPABILITIES, type)).toBe(false);
   });
 
   it('answers by exact type, never for a registered, unknown or inherited one', () => {
@@ -211,10 +224,8 @@ describe('retired section types (Slice 63)', () => {
 
 describe('what a section is called', () => {
   it('derives every registered display name, and overrides the one it cannot', () => {
-    // The seven registered types, against `SECTION_REGISTRY`'s own display names. Six derive
-    // from the kebab type; `sub-projects` is the entry the overrides table exists for, and
-    // the spec (line 1109) spells it with the hyphen. Retired Rich Text still derives the name
-    // its stored history labels use.
+    // The six registered types derive from their kebab types. Retired Sub-Projects keeps
+    // its display-name override for refusals; Rich Text still derives its historical name.
     expect(displayNameOf('rich-text')).toBe('Rich Text');
     expect(displayNameOf('markdown')).toBe('Markdown');
     expect(displayNameOf('task-list')).toBe('Task List');

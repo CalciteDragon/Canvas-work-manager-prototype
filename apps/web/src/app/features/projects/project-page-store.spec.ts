@@ -382,7 +382,7 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
     readonly section = undefined;
     readonly onConfigChange = undefined;
     readonly onProjectDataChange = undefined;
-    readonly onProjectHierarchyChange = undefined;
+
     readonly projectDataRevision = undefined;
     readonly projectHierarchyRevision = undefined;
     readonly readOnly = undefined;
@@ -1807,8 +1807,8 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(store.projectHierarchyRevision()).toBe(1);
   });
 
-  // The hierarchy revision is the one signal that ignores `projectId`: a Sub-Projects section
-  // is a *view* of the work tree, so a sibling's creation has to move it.
+  // The hierarchy revision is the one signal that ignores `projectId`: Timeline reads
+  // the work tree, so a sibling's creation has to move it.
   it('invalidates hierarchy only for a project event naming another workspace project', async () => {
     const { store, gateway, live } = setup();
     await store.load(PROJECT, PAGE);

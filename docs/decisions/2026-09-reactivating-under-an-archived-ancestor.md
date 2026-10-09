@@ -75,3 +75,6 @@ archived owner, distinguishing *hidden because an ancestor is archived* from *ar
 right* — the two states this entry separates — and it is where a `ProjectQuery` member for reading
 them would earn its place, with a caller. Also worth revisiting whether `assertNoActiveChildren`
 should walk the whole subtree rather than one level.
+
+**Amended, 2026-10-09 (Slice 66).** The Sub-Projects section is retired. Archived descendants are reached through root Archive and workspace Settings recovery. Named project/section reads and archived-ancestor write guards remain unchanged.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

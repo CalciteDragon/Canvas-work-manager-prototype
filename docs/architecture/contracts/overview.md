@@ -23,8 +23,8 @@ Section, row, placement, page and project writes return `{ section|task|reflecti
 action and revision while captured fields, structural effects and optional implicit containers
 stay server-side. Public history shapes live apart from stored actions so browser consumers do not
 pull in inverse payloads. Activity carries durable captured identity; project absence is anchored
-separately by its creation lifecycle and retained undone history action. `SCHEMA_VERSION` is 6: Rich Text is retired — `RETIRED_SECTION_TYPES` names it
-and nothing may create or store it.
+separately by its creation lifecycle and retained undone history action. `SCHEMA_VERSION` is 6: Rich Text and Sub-Projects are retired — `RETIRED_SECTION_TYPES` names them
+and nothing may create or store either.
 
 **Code:** `packages/contracts/src` · **Tests:** `packages/contracts/src/*.test.ts`
 (vitest) · **Package:** `@cwm/contracts` · **Depends on:** `zod` only

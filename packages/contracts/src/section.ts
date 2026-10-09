@@ -84,23 +84,28 @@ export const SECTION_CAPABILITIES: Readonly<Record<string, SectionCapability>> =
   'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
   reflections: { ownedData: 'reflections', recovery: 'owned-content' },
   markdown: { recovery: 'config', proseKey: 'markdown' },
-  'sub-projects': { recovery: 'none' },
   progress: { recovery: 'none' },
   timeline: { recovery: 'none' },
   'recent-activity': { recovery: 'none' },
 };
 
 /**
- * **Section types that may no longer be created or stored** (Slice 63). Rich Text became Markdown
- * at schema version 6: every stored Rich Text section and every history copy of one was converted
- * by `pnpm prototype:upgrade`, so the domain refuses a new one and the store refuses a document that
- * still holds one (docs/decisions/2026-10-schema-version-6-markdown-conversion.md). The type stays
- * an open string (§30); this list is the narrow exception, not a closed set of the types allowed.
+ * **Section types that may no longer be created or stored**, and their replacement guidance.
+ * Rich Text became Markdown (docs/decisions/2026-10-schema-version-6-markdown-conversion.md);
+ * the work hierarchy now lives in Work (docs/decisions/2026-10-retiring-the-sub-projects-section.md).
+ * The type stays an open string (§30); this record is the narrow exception, not a closed set.
  */
-export const RETIRED_SECTION_TYPES: readonly string[] = ['rich-text'];
+export const RETIRED_SECTION_TYPES: Readonly<Record<string, string>> = Object.freeze({
+  'rich-text': 'add a Markdown section instead',
+  'sub-projects': 'create a workstream under the project instead',
+});
 
 /** Whether `type` is retired — exact match only, never for an inherited `Object` key. */
-export const isRetiredSectionType = (type: string): boolean => RETIRED_SECTION_TYPES.includes(type);
+export const isRetiredSectionType = (type: string): boolean => Object.hasOwn(RETIRED_SECTION_TYPES, type);
+
+/** Surface-neutral replacement sentence for a retired type; never reads inherited keys. */
+export const retiredSectionReplacement = (type: string): string | undefined =>
+  isRetiredSectionType(type) ? RETIRED_SECTION_TYPES[type] : undefined;
 
 /** Markdown's whole config: its exact source, and no other key (§29; Slice 64). */
 export const MarkdownConfigSchema = z.strictObject({ markdown: z.string() });
@@ -175,10 +180,9 @@ export const containerTypeFor = (owned: OwnedDataKind): string => {
 };
 
 /**
- * Display names that the derivation below cannot produce. One entry today: the spec spells
- * sub-projects with a hyphen (line 1109), and nothing distinguishes that hyphen from
- * `task-list`'s. `registry.spec.ts` fails when a registered name and this pair disagree, so
- * the table grows exactly when a new type earns an entry and never silently.
+ * Display names that the derivation below cannot produce. Sub-Projects keeps its hyphen
+ * after retirement so refusals still name the retired type correctly. Registry tests check
+ * the names of registered types against the same derivation.
  */
 export const SECTION_DISPLAY_NAMES: Record<string, string> = { 'sub-projects': 'Sub-Projects' };
 

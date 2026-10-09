@@ -22,13 +22,9 @@ import { OperationActionSchema, OperationHistorySchema } from './operation-histo
  * would make an existing file wrong — a mismatch is fatal rather than silently coerced, so a stale
  * file fails at load instead of halfway through a session.
  *
- * There is still no migration *runner* or registry. `pnpm prototype:upgrade` runs four explicit
- * converters in a fixed order — version 2 → 3 (`upgradeProjectPages`), version 3 → 4
- * (`upgradeOperationHistory`) and version 4 → 5 (`upgradeActivityIdentity`), each frozen at its own
- * output, and version 5 → 6 (`upgradeMarkdownSections`) — and validates the version-6 result before
- * writing a byte (docs/decisions/2026-09-schema-version-4-conversion.md,
- * docs/decisions/2026-09-schema-version-5-conversion.md,
- * docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
+ * Versions 2–5 are no longer readable. Local prototype data is disposable: reset or reseed an
+ * incompatible file; no converter or migration preserves it
+ * (docs/decisions/2026-10-prototype-data-is-disposable.md).
  */
 export const SCHEMA_VERSION = 6;
 
@@ -57,7 +53,7 @@ export const PrototypeDocumentSchema = z.object({
   /**
    * Per-actor, per-project Undo/Redo cursors and the typed actions they step through — never
    * inside `activityEvents`. Defaulted, so a hand-written document with no history parses to
-   * empty stacks; the version-4 converter and every seed write both collections explicitly.
+   * empty stacks; every seed writes both collections explicitly.
    */
   operationHistories: z.array(OperationHistorySchema).default(() => []),
   operationActions: z.array(OperationActionSchema).default(() => []),

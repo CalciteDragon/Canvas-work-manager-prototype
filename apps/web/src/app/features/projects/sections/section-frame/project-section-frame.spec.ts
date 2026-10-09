@@ -36,13 +36,12 @@ let inputChanges = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<button data-test-save type="button" (click)="onConfigChange()({ text: 'edited' })">
     save
-  </button><button data-test-hierarchy type="button" (click)="onProjectHierarchyChange()()">hierarchy</button>`,
+  </button>`,
 })
 class TestContent {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
-  readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
@@ -67,7 +66,6 @@ class TestInspector {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
-  readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
@@ -134,19 +132,16 @@ describe('ProjectSectionFrame (§31)', () => {
       seen.push(['config', { id, config }]);
       return true;
     });
-    frame.projectHierarchyChanged.subscribe(() => seen.push(['hierarchy']));
 
     query(fixture, '[data-section-collapse]')!.click();
     query(fixture, '[data-section-remove]')!.click();
     // Config-change is the one hop that carries a section's actual content upward.
     query(fixture, '[data-test-save]')!.click();
-    query(fixture, '[data-test-hierarchy]')!.click();
 
     expect(seen).toEqual([
       ['collapse', { id: 'section-a', collapsed: true }],
       ['remove', 'section-a'],
       ['config', { id: 'section-a', config: { text: 'edited' } }],
-      ['hierarchy'],
     ]);
   });
 
@@ -179,11 +174,12 @@ describe('ProjectSectionFrame (§31)', () => {
     // `NgComponentOutlet` calls `setInput` for every key on every pass, and only
     // `Object.is` equality stops that from being a change.
     const first = fixture.componentInstance.contentInputs();
+    expect(first).not.toHaveProperty('onProjectHierarchyChange');
+    expect(first.projectHierarchyRevision).toBe(0);
     fixture.detectChanges();
     const second = fixture.componentInstance.contentInputs();
     expect(second).toBe(first);
     expect(second.onConfigChange).toBe(first.onConfigChange);
-    expect(second.onProjectHierarchyChange).toBe(first.onProjectHierarchyChange);
 
     fixture.detectChanges();
 
@@ -204,13 +200,6 @@ describe('ProjectSectionFrame (§31)', () => {
     expect(query(withInspector, '[data-test-inspector]')).not.toBeNull();
   });
 
-  it('renders an untitled sub-projects frame as Sub-Projects, not Sub Projects', () => {
-    // The regression the one-entry overrides table exists to prevent; the spec (line 1109)
-    // spells it with the hyphen and a split-on-hyphen derivation cannot produce it.
-    const fixture = render({ type: 'sub-projects' }, { type: 'sub-projects', displayName: 'Sub-Projects' });
-
-    expect(query(fixture, '.section-frame__title')!.textContent).toContain('Sub-Projects');
-  });
 
   it('edits the title inline and commits Enter once, including clearing to the default', async () => {
     const fixture = render({ title: 'Backlog' });

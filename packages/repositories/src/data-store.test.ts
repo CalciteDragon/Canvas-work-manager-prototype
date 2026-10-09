@@ -1965,25 +1965,43 @@ describe('operation history integrity', () => {
   });
 
   /**
-   * Schema version 6 retired Rich Text (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
-   * Every record that can recreate a section — the live list and the add, remove and created
-   * container snapshots — must therefore name a type this build can still create, so converted
-   * history can only ever bring back Markdown. The message names the remedy.
+   * Retired types are refused in every record that can recreate a section — the live list
+   * and the add, remove and created-container snapshots. The message names reset or reseed.
    */
   describe('retired section types', () => {
-    const upgrade = /retired section type "rich-text".*pnpm prototype:upgrade/;
+    it('refuses a live Sub-Projects section, naming reset (Slice 66)', () => {
+      const document = withHistory([]);
+      document.sections.push({ ...document.sections[0]!, id: 'section-view' as never, type: 'sub-projects', position: 2 });
+      expect(() => new InMemoryDataStore(document)).toThrow(DocumentIntegrityError);
+      expect(() => new InMemoryDataStore(document)).toThrow(/retired section type "sub-projects".*pnpm prototype:reset/);
+    });
+
+    it('refuses a Sub-Projects snapshot in history, naming reset (Slice 66)', () => {
+      const snapshot = action().operation as unknown as { section: Record<string, unknown> };
+      const added = action({ operation: { ...action().operation, section: { ...snapshot.section, type: 'sub-projects' } } });
+      expect(() => new InMemoryDataStore(withHistory([history()], [added]))).toThrow(DocumentIntegrityError);
+      expect(() => new InMemoryDataStore(withHistory([history()], [added])))
+        .toThrow(/retired section type "sub-projects".*pnpm prototype:reset/);
+    });
+
+    it('an older schema version names reset (Slice 66)', () => {
+      expect(() => new InMemoryDataStore({ ...validDocument(), schemaVersion: 5 }))
+        .toThrow('document is at schema version 5, but this build reads version 6. Run "pnpm prototype:reset" or "pnpm prototype:seed <seed>" to replace it.');
+    });
+
+    const reset = /retired section type "rich-text".*pnpm prototype:reset/;
     const snapshot = action().operation as unknown as { section: Record<string, unknown> };
     const retired = { ...snapshot.section, type: 'rich-text', config: { text: 'Old prose' } };
 
     it('in the live sections', () => {
       const document = withHistory([]);
       document.sections.push({ ...document.sections[0]!, id: 'section-notes' as never, type: 'rich-text', position: 2, config: { text: 'Old prose' } });
-      expect(() => new InMemoryDataStore(document)).toThrow(upgrade);
+      expect(() => new InMemoryDataStore(document)).toThrow(reset);
     });
 
     it('in a section.add snapshot', () => {
       const added = action({ operation: { ...action().operation, section: retired } });
-      expect(() => new InMemoryDataStore(withHistory([history()], [added]))).toThrow(upgrade);
+      expect(() => new InMemoryDataStore(withHistory([history()], [added]))).toThrow(reset);
     });
 
     it('in a section.remove snapshot', () => {
@@ -2000,7 +2018,7 @@ describe('operation history integrity', () => {
           archiveGeneration: 1,
         },
       });
-      expect(() => new InMemoryDataStore(withHistory([history()], [removed]))).toThrow(upgrade);
+      expect(() => new InMemoryDataStore(withHistory([history()], [removed]))).toThrow(reset);
     });
 
     it('in a created container snapshot', () => {
@@ -2014,7 +2032,7 @@ describe('operation history integrity', () => {
           container: { section: container, placement: { pageId: 'page-gone', index: 0 } },
         },
       });
-      expect(() => new InMemoryDataStore(withHistory([history({ cursor: 0 })], [created]))).toThrow(upgrade);
+      expect(() => new InMemoryDataStore(withHistory([history({ cursor: 0 })], [created]))).toThrow(reset);
       // The same action with a real container type loads, so the refusal is the type and nothing else.
       const valid = action({ ...created, operation: { ...created.operation, container: { section: { ...container, type: 'task-list' }, placement: { pageId: 'page-gone', index: 0 } } } });
       expect(() => new InMemoryDataStore(withHistory([history({ cursor: 0 })], [valid]))).not.toThrow();

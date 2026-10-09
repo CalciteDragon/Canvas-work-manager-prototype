@@ -214,7 +214,7 @@ export class ProjectPageStore {
    *
    * Routing is on `type` and `projectId`, never on `entityType` — §57's section events
    * deliberately name the *project* as their entity. The **hierarchy** revision is the one
-   * exception that ignores `projectId`: a Sub-Projects section is a view of the work tree, so
+   * exception that ignores `projectId`: Timeline reads the work tree, so
    * a sibling's creation has to move it.
    */
   private onLiveEvent(event: LiveEvent): void {

@@ -7,13 +7,13 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
 import { getDefaultEnvironment, StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
-import { seedDataFileOwned, upgradeDataFileOwned, writeSeedFile } from '@cwm/prototype-data';
+import { seedDataFileOwned, writeSeedFile } from '@cwm/prototype-data';
 import { acquireDataFileOwnership, type DataFileOwnerRecord } from '@cwm/repositories';
 import { afterEach, describe, expect, it } from 'vitest';
 
 /**
  * Slice 54 — one writer per data file, across real processes: the host owns its file for life,
- * stdio per call, and the seed and upgrade CLIs are refused while either holds it.
+ * stdio per call, and the seed and reset CLIs are refused while either holds it.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const directories: string[] = [];
@@ -142,10 +142,9 @@ describe('one writer per data file (Slice 54)', () => {
     expect(textOf(refused)).toContain(ownerPath);
     expect(await readFile(path, 'utf8')).toBe(before);
 
-    // The seed, reset and upgrade CLIs are writers too.
+    // The seed and reset CLIs are writers too.
     const files = await listing(directory);
     await expect(seedDataFileOwned('agent-heavy', { targetPath: path })).rejects.toThrow(/^data_file_in_use: .*http-host/);
-    await expect(upgradeDataFileOwned(path)).rejects.toThrow(/^data_file_in_use: .*http-host/);
     expect(await readFile(path, 'utf8')).toBe(before);
     expect(await listing(directory)).toEqual(files);
 

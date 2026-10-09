@@ -9,10 +9,10 @@ store itself never does.
 1. The host calls `loadPersistence`, which opens the path from `CWM_DATA_FILE` (default
    `.prototype/data.json`, repo-anchored) with `JsonDataStore` and parses it through
    `validateDocumentIntegrity`. A missing file or a wrong `schemaVersion` fails the start, and so
-   does a retired section type (`isRetiredSectionType`, today `rich-text`) in `sections` or in any
+   does a retired section type (`isRetiredSectionType`, today `rich-text` and `sub-projects`) in `sections` or in any
    snapshot that can recreate a section — a `section.add` or `section.remove` section, or a
    `task.add`/`reflection.add` created container — with a message naming
-   `pnpm prototype:upgrade`. A `section.update` is not checked: it never brings a type back.
+   `pnpm prototype:reset` or reseeding. A `section.update` is not checked: it never brings a type back.
 2. A domain service asks the store for a unit of work. Units are queued: the next starts
    when the previous commits or discards, so provisional state is never visible to a
    concurrent operation.

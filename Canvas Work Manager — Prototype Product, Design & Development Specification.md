@@ -599,14 +599,14 @@ JSON is preferable during this phase because:
 - AI agents can inspect test fixtures
 - prototype data volume is tiny
 
-"No migrations are initially necessary" held while a stale `schemaVersion` could simply be
-reset. It stops holding the first time a real file is worth keeping. The multi-page cutover is
-that first time, so it gets **one bounded converter with its own explicit CLI entry** —
-validate, back up, write atomically, no-op on an already-converted file, fail loudly on
-anything else. It is deliberately not a migration runner, a registry or a rollback framework;
-each later cutover writes its own named converter or resets, and either is cheaper than a
-framework nothing else uses. See
-`docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`.
+Local prototype data is disposable until further notice. A stored-shape or section-type change
+updates the seed builders and snapshots. A file this build cannot read is refused with a message
+naming `pnpm prototype:reset` or reseeding; no converter, migration or compatibility path carries
+old local files forward. See [the disposable-data policy](docs/decisions/2026-10-prototype-data-is-disposable.md).
+
+The following cutover notes record earlier implementations; **Slice 66 removes every conversion
+step, the legacy prose encoder, conversion fixtures and the old conversion command**. Schema
+version remains 6, and current seeds use Markdown. These notes no longer describe a runnable path.
 
 *Amended in Slice 35:* the second cutover wrote its own converter, so the CLI now runs **two named
 steps in a fixed order** — version 2 → 3, frozen at its version-3 output, then version 3 → 4 —
@@ -614,7 +614,7 @@ after sniffing the file's version. That is a chain of two explicit functions cal
 still not a runner or registry; the earlier wording "not … a version chain" described the single
 step that existed then ([decision](docs/decisions/2026-09-schema-version-4-conversion.md)).
 
-*Landed in Slice 25.1: `pnpm prototype:upgrade <path>` converts a version-2 file in place,
+*Landed in Slice 25.1: the former explicit conversion CLI converts a version-2 file in place,
 keeping a backup beside it.*
 
 *Slice 30 added `undoRecords` inside version 3 as a defaulted collection
@@ -623,8 +623,7 @@ keeping a backup beside it.*
 *Landed in Slice 35: `SCHEMA_VERSION` is 4.* Single-use Undo records gave way to per-actor,
 per-project **operation histories**: the document holds `operationHistories` (a cursor, an order
 high-water mark and a revision per exact actor and project) and `operationActions` (typed, ordered
-actions), and every section carries an `archiveGeneration`. `undoRecords` is gone. `pnpm
-prototype:upgrade` converts a version-2 or version-3 file, retiring any version-3 receipts with a
+actions), and every section carries an `archiveGeneration`. `undoRecords` is gone. the former explicit conversion CLI converts a version-2 or version-3 file, retiring any version-3 receipts with a
 notice rather than translating them, and validates the version-4 result before writing a byte.
 Integrity checks a history's scope and ordering and never resolves the ids an action's payload names
 ([conversion](docs/decisions/2026-09-schema-version-4-conversion.md),
@@ -1213,8 +1212,11 @@ gain the child action; it names the child's history and links to it
 
 *Terminology correction, Slice 60 (2026-09-30).* People and agents call the nested
 `kind: 'subproject'` a **workstream**. Roots remain projects. The identifier, ids, routes, tool
-names, recorded history labels and Sub-Projects section remain unchanged; this is a prose change
+names and recorded history labels remain unchanged; this is a prose change
 ([decision](docs/decisions/2026-09-workstream-user-terminology.md)).
+
+*Slice 66 removes the former Sub-Projects section; Work navigation and Add workstream remain the
+hierarchy surface.*
 
 A project is one of two things, and the difference is structural rather than cosmetic:
 
@@ -1421,8 +1423,9 @@ Sections reorder within their page. Reordering one page never renumbers another,
 duplicating a section leaves the copy on the page that owned the original.
 
 Subprojects are not sections and do not live on a page: they belong to the parent's work
-hierarchy. A Sub-Projects section is a *view* of that hierarchy, which is why removing one
-takes no work down with it.
+hierarchy. The project column's **Work** list shows it and **Add workstream** creates nested work.
+The former Sub-Projects section is retired in Slice 66; no hierarchy view remains on the canvas
+([decision](docs/decisions/2026-10-retiring-the-sub-projects-section.md)).
 
 *Landed in Slices 25.1 and 25.2. Sections carry `pageId`, `validateDocumentIntegrity` holds a
 section's page and project in agreement, and positions are dense **per page**: adding,
@@ -1561,6 +1564,9 @@ without copying rows. The source frame stayed read-only and identified its canon
 changed only the placement. This is browser/MCP evidence for the ownership boundary, not a decision
 that embedded shortcuts are yet an MVP requirement.*
 
+*Slice 66 removes the retired Sub-Projects view from those seeds; Home now has six registered
+section kinds with the same four shortcut placements.*
+
 ---
 
 # 28. Layout Experiment Flag
@@ -1615,7 +1621,7 @@ SECTION_REGISTRY
 *Landed in Slice 29.* Every registered type also declares one capability in the contracts
 package's `SECTION_CAPABILITIES`: which rows it owns, if any, and what removing it could leave
 worth recovering — owned rows (Task List, Reflections), config prose (Markdown, with a declared `proseKey`) or nothing
-(Sub-Projects, Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
+(Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
 from it, and the registry test fails when a registered type has no declaration, so adding a type
 now touches its folder, one registry line and one capability line. A type nothing declares — a
 stale or hand-edited `type` — has *unknown* recovery, never "nothing to recover"
@@ -1654,11 +1660,14 @@ AI Summary
 Recent Activity
 ```
 
+*Slice 66 retires Sub-Projects from the historical Prototype list above; the current registered
+types are the six listed below.*
+
 Adding a new section type should require minimal changes outside its own feature folder.
 
 ## Which pages accept sections
 
-Seven types are registered today: Markdown, Task List, Sub-Projects, Progress, Reflections,
+Six types are registered today: Markdown, Task List, Progress, Reflections,
 Timeline and Recent Activity. Markdown stores exact source in `config.markdown`;
 its deferred body offers Edit, Source/Preview and explicit Save/Cancel. Unchanged Save and
 Cancel write nothing, refusal keeps the draft, and live updates retain it with a replacement
@@ -1666,7 +1675,11 @@ notice. Unreadable config cannot be overwritten here and shows only the guidance
 64:* every write refuses a Markdown config other than `{}` or exactly `{ markdown }`, so only a hand
 edit, or history replaying state recorded before it, can store one. *Amended in Slice 63:* Rich Text is retired — converted to
 Markdown at schema version 6, refused on create through every surface, and refused on load
-([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)). The type stays an open
+([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)). *Amended in Slice 66:*
+Sub-Projects is retired too, with workstream creation under the project as its replacement.
+The retired-type record supplies each type's replacement guidance, while unreadable local files
+are reset or reseeded. Schema version stays 6
+([decision](docs/decisions/2026-10-retiring-the-sub-projects-section.md)). The type stays an open
 string; retired types are the narrow exception.
 
 | Page | Sections |
@@ -1780,8 +1793,8 @@ More menu is the single recovery entry point from root and nested work routes.
 removed or hidden section is listed only when something in it remains to recover: a Task List
 or Reflections container with any rows still assigned to it (archived rows included), Markdown
 whose only config is its declared string prose key that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
-empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
-Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
+empty (listed conservatively as unknown content). Removed Progress, Timeline and Recent Activity
+views — and a container with no remaining rows, or blank prose — are deleted
 when no canonical row or shortcut references them. Historical tombstones remain unlisted;
 shortcut-backed disposable sections keep an internal tombstone, leaving the shortcut's source
 unavailable placeholder intact. Only currently restorable archived sub-projects, tasks and
@@ -1898,8 +1911,8 @@ it are not the same rule. **Archived owners** are excluded by the `status` filte
 read already had — the dashboard, workspace search and upcoming work — and by the unscoped task
 list, which had none. **Live work beneath an archived ancestor** is excluded by all of those and
 by the project list too, which still returns a project archived in its own right so that
-`status: ['archived']` keeps working and an archived project's own Sub-Projects section still
-lists what is under it. A read that names a project or a section always answers, because an
+`status: ['archived']` keeps working. Archived descendants are reached through root Archive
+and workspace Settings recovery (Slices 44 and 47). A read that names a project or a section always answers, because an
 archived project's own page keeps rendering.*
 
 *Writes beneath an archived ancestor are refused naming the ancestor, and the two operations
@@ -2815,6 +2828,12 @@ get_dashboard_context
 a **workstream**; `create_project` and `get_project` define the mapping explicitly. Tool and
 field names are unchanged, including the legacy `sub-projects` section identifier.
 
+*Slice 66:* `list_sections` describes Progress, Timeline and Recent Activity as computed views,
+alongside Markdown and the Task List/Reflections containers. `create_section` refuses the retired
+hierarchy view through the domain; nested work is created with `create_project` and a parent.
+Tool names, grants and input shapes stay unchanged. The legacy identifier above remains the
+stored name of a retired type.
+
 Once projects split into roots and subprojects (§26), an agent must be able to say which it
 means. Creating a root and creating a unit of work are **distinct, discoverable operations**,
 not one call whose meaning depends on whether a parent happened to be passed. A call whose
@@ -3698,7 +3717,7 @@ seed/state inspector
 *Both project routes landed in Slice 25.3, resolving to one `ProjectWorkspaceShell` — Angular
 re-uses the instance across a parameter change, so moving between a root's pages keeps its
 context loaded once. `/projects/:projectId` **stays valid** rather than redirecting: it is what
-the sidebar, project creation and every Sub-Projects section link to. Resolution is a positive
+the sidebar and project creation link to. Resolution is a positive
 rule — the project is a root, the kind is navigable, the root has it enabled, and this build can
 render it — so `/pages/work` on a root falls back like any other kind that is not a tab. A
 fallback replaces the URL and carries its reason in navigation state, which is what lets the
@@ -3814,7 +3833,8 @@ open browser aggregate
 
 *Slice 42 adds a creation-history journey: create a root in the sidebar, Undo it, reload at its
 same URL into creator-only recovery, Redo the same project and Home page ids, then create a child
-from its Sub-Projects section and repeat Undo, cross-owner not-found and recovery. The parent tree
+through **Add workstream** in the Work column and repeat Undo, cross-owner not-found and recovery
+(the original Sub-Projects creation surface was retired in Slice 66). The parent tree
 receives the child's committed Undo/Redo frames. Domain and HTTP/MCP checks also refuse Undo when
 the project gained content, children, references, changed fields or another actor's history, with
 no partial mutation; a retired creation remains absent after reload and history expiry.*
@@ -3845,8 +3865,8 @@ use, not whether these paths can be exercised.
 
 *Slice 33 closed the Archive, removal and Undo refactor the same way.* Each Refactor §26
 criterion is traced to a named assertion at the lowest layer that can observe it — domain
-preconditions and pruning, commit-before-publish against the bytes on disk, converter and reopen
-over temp copies of the committed fixtures — and then joined through the browser (nested pointer
+preconditions and pruning, commit-before-publish against the bytes on disk, seed-file persistence and reopen
+over fresh nested-projects seed files — and then joined through the browser (nested pointer
 move and resize Undo, an injected client failure with retry, an agent's overlapping edit, Archive
 Restore appending where Undo returns between neighbours) and both MCP transports (retired reassign
 inputs refused without writes, independent task update Undo/Redo, exact row ids through cascade, a foreign connection, a removed `projects.write` grant and a revoked
@@ -4311,7 +4331,7 @@ The first genuinely useful prototype should support:
 
 - tasks
 - markdown
-- sub-projects
+- sub-projects (retired in Slice 66; Work list and Add workstream replace it)
 - progress
 - reflections
 - timeline

@@ -46,7 +46,7 @@ const task = (id: string, status: 'todo' | 'done'): Task =>
 
 const canvas = (sections: ProjectSection[]) => [
   // Split in two because `provideRouter` returns `EnvironmentProviders`, which only
-  // `applicationConfig` accepts — a Sub-Projects section's links need the router.
+  // `applicationConfig` accepts — the section content's links need the router.
   applicationConfig({ providers: [provideRouter([])] }),
   moduleMetadata({
     providers: [

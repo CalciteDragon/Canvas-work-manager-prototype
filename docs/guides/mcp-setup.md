@@ -182,9 +182,11 @@ Use the returned `section.id` in `update_section`:
 Config is replaced whole, so supply the complete `{ markdown: source }` object. Both write
 results and `list_sections` return the exact source in `config.markdown`, never generated HTML.
 Home and work canvases accept Markdown; a shortcut renders its source read-only.
-The picker has seven types, with Markdown first, and every seeded project's brief is a Markdown
-section. Rich Text is retired: a `create_section` with `type: "rich-text"` is refused, and
-`pnpm prototype:upgrade` converts an older file's Rich Text sections to Markdown.
+The picker has six types, with Markdown first, and every seeded project's brief is a Markdown
+section. Rich Text and Sub-Projects are retired: `create_section` refuses `rich-text` with Markdown
+guidance and `sub-projects` with workstream guidance. Create nested work through `create_project`
+with a parent. A file holding either retired type, or an older schema, needs `pnpm prototype:reset`
+or reseeding; local files are disposable.
 
 In the browser, **Edit** opens source, **Preview** renders the draft, and **Save** commits one
 config write. **Cancel** and an unchanged Save write nothing. Reload retains saved source;
@@ -302,8 +304,8 @@ suppresses archived subtasks. Live content hidden solely by an archived project 
 descendants are omitted. Listed items keep their owning breadcrumb, cause, cascade and restore
 metadata. The query works while the optional Archive page is disabled.
 
-Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
-and Sub-Projects views, blank Markdown (including one created with no `config`, which stores `{}`),
+Since Slice 29 section entries are **content-only**: removed Progress, Timeline and Recent Activity
+views, blank Markdown (including one created with no `config`, which stores `{}`),
 and empty containers after their tasks are moved through `update_task` are not listed. Each listed section
 carries `recovery` — `owned-content` (with `ownedData`; `contentCount`, every row still in the
 container; and `separateRestoreCount`, the row restores still needed after the section's own),
@@ -495,8 +497,8 @@ The stdio process stays connected, still lists its tools, and its next call afte
 host succeeds and sees everything the host wrote. Use the HTTP endpoint whenever the host is
 running. Two stdio clients on one file take turns: a call behind another client's call prints
 `canvas-work-manager stdio waiting for data file owned by stdio pid <pid>` to stderr, waits up to
-5 s, and then returns a `data_file_in_use:` tool error — retry it. `pnpm prototype:reset`,
-`pnpm prototype:seed` and `pnpm prototype:upgrade` are refused the same way while anything owns
+5 s, and then returns a `data_file_in_use:` tool error — retry it. `pnpm prototype:reset` and
+`pnpm prototype:seed` are refused the same way while anything owns
 the file. A host started while another process owns the file prints
 `prototype-host waiting for data file owned by <kind> pid <pid>`, starts as soon as that owner lets
 go, and otherwise exits after 5 s with `prototype-host failed to start … — data_file_in_use: …` —

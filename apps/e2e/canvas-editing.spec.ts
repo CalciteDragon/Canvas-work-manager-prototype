@@ -293,7 +293,7 @@ test('the navigation column follows the viewport and keeps long and narrow navig
   await seed('nested-projects');
   await api.patch(`/api/projects/${HOME_RENOVATION}/pages/archive`, { enabled: false });
   await page.goto(`/projects/${HOME_RENOVATION}`);
-  await expect(page.locator('[data-section-frame]')).toHaveCount(7);
+  await expect(page.locator('[data-section-frame]')).toHaveCount(6);
   await checkViewportHeight();
   // The shell's workspace region is the scroller, not the window; scrolling the window moves
   // nothing and would let a column that scrolls away with the canvas pass.
@@ -342,10 +342,25 @@ test('the navigation column follows the viewport and keeps long and narrow navig
   await expect(page.locator('[data-work-project-id]').last()).toBeVisible();
 });
 
+test('retired hierarchy view leaves Home and Kitchen placements in dense seed order', async ({ page }) => {
+  await seed('nested-projects');
+  for (const projectId of [HOME_RENOVATION, KITCHEN]) {
+    const expected = await orderOf(projectId, await pageId(projectId, projectId === KITCHEN ? 'work' : 'home'));
+    expect(expected.map(({ position }) => position)).toEqual(expected.map((_, index) => index));
+    expect(expected.every(({ id }) => !id.endsWith('-sub-projects'))).toBe(true);
+    await page.goto(`/projects/${projectId}`);
+    const placements = page.locator('[data-section-item], [data-shortcut-item]');
+    await expect(placements).toHaveCount(expected.length);
+    await expect.poll(() => placements.evaluateAll((elements) => elements.map((element) =>
+      element.getAttribute('data-section-id') ?? element.getAttribute('data-shortcut-id'),
+    ))).toEqual(expected.map(({ id }) => id));
+  }
+});
+
 test('frame indicators and direct controls work in both themes and collapse states without edit mode', async ({ page }) => {
   await seed('nested-projects');
   await page.goto(`/projects/${HOME_RENOVATION}`);
-  await expect(page.locator('[data-section-frame]')).toHaveCount(7);
+  await expect(page.locator('[data-section-frame]')).toHaveCount(6);
   await expect(page.locator('[data-shortcut-frame]')).toHaveCount(4);
   await expectOnlyCanvasChrome(page);
 

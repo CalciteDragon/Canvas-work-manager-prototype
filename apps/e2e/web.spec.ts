@@ -135,7 +135,7 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
   await expect(page.locator('[data-work-project-id="project-kitchen"]')).toBeVisible();
   await expect(page.locator('[data-work-project-id="project-kitchen"] [data-work-project-id="project-cabinets"]')).toBeVisible();
   await expect(page.locator('[data-shortcut-frame]')).toHaveCount(4);
-  await expect(page.locator('[data-section-item]')).toHaveCount(7);
+  await expect(page.locator('[data-section-item]')).toHaveCount(6);
 
   // The committed seed, not a test-only fixture, drives the exact chronology. The equality at
   // 23:59:59.999Z includes Kitchen (a date-only unit) and two tasks, then ids settle the tasks.

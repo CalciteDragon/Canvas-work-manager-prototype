@@ -30,7 +30,7 @@ const row = (
 const none = { tasks: [], reflections: [] };
 
 describe('sectionRecoveryOf — disposable views', () => {
-  it.each(['progress', 'timeline', 'recent-activity', 'sub-projects'])(
+  it.each(['progress', 'timeline', 'recent-activity'])(
     'leaves %s out, whatever display config it carries',
     (type) => {
       expect(sectionRecoveryOf(section(type), none)).toEqual({ include: false });

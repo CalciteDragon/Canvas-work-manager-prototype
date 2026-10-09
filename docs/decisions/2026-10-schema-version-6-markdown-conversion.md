@@ -101,3 +101,6 @@ an archived Rich Text section with no string `text` converts to an empty archive
 Archive no longer lists. This is accepted, and it is among the discarded configs the CLI reports,
 not identified separately. An edit that changed only extras converts to equal sides and still
 undoes and redoes. See [Markdown config validated on write](2026-10-section-config-validated-on-write.md).
+
+**Amended, 2026-10-09 (Slice 66).** Rich Text remains retired and Markdown remains the replacement. The conversion pipeline, legacy prose encoder and conversion fixtures are removed; unreadable local files are reset or reseeded. Schema version remains 6.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

@@ -43,9 +43,9 @@ advisory owner record — the host for its lifetime, a stdio call for its turn �
 rest with `data_file_in_use:`. That is also why
 [live updates are HTTP-only](../decisions/2026-08-live-updates-are-http-only.md): stdio MCP owns a
 separate store. Schema version 5 adds captured historical Activity identity, making audit rows
-readable after an Add is undone; version 6 converts every Rich Text section, live or in history,
-to Markdown and retires the type. The bounded converter chain preserves operation histories
-through both.
+readable after an Add is undone; version 6 uses Markdown and retires Rich Text. Sub-Projects is
+also retired without changing version 6. Unreadable local files are reset or reseeded; the old
+conversion pipeline has been removed.
 
 **Operation history is product state, not transport state.** Supported section, task and
 reflection writes record typed server-side payloads in the exact actor's project history. Public
@@ -63,8 +63,8 @@ deliberately under-engineered. Adding abstraction to them is the wrong direction
 
 ## Consequences
 
-- Changing a data shape is: edit a Zod schema, fix the type errors, reseed. When a real
-  file is worth keeping, a bounded converter is written once (`pnpm prototype:upgrade`).
+- Changing a data shape is: edit a Zod schema, fix the type errors, update the seeds and reseed.
+  Local prototype data is disposable; no compatibility path carries old files forward.
 - Every mutation, from the UI, from an agent or from the dev panel, goes through the same
   domain service — so one activity record, one permission check, one live frame.
 - The MVP migration (§72–74) is a set of adapter swaps: identity provider, gateway,

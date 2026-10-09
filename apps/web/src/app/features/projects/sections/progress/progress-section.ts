@@ -7,7 +7,6 @@ export class ProgressSection {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
-  readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);

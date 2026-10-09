@@ -90,6 +90,15 @@ describe('SectionService.add', () => {
  * validation, so it runs after the actor and grant checks and before any lookup.
  */
 describe('SectionService.add refuses a retired type', () => {
+  it('refuses a new Sub-Projects section naming the workstream route (Slice 66)', async () => {
+    const harness = buildHarness();
+    const before = harness.store.snapshot();
+    await expect(harness.sectionWriteService.add(harness.actor, MINE, { type: 'sub-projects' }))
+      .rejects.toThrow(expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/Sub-Projects.*retired.*create a workstream under the project/) }));
+    await expect(harness.sectionWriteService.add(agentActorFor(0), MINE, { type: 'sub-projects' }))
+      .rejects.toBeInstanceOf(PermissionDeniedError);
+    expect(harness.store.snapshot()).toEqual(before);
+  });
   const writable = (harness: ReturnType<typeof buildHarness>) => {
     const { sections, activityEvents, operationHistories, operationActions } = harness.store.snapshot();
     return { sections, activityEvents, operationHistories, operationActions };

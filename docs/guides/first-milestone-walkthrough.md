@@ -64,7 +64,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    empty tabs — they have not been enabled yet.
 5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. Its project
    column shows Home, Todos, Archive and Reflections, followed by a three-level work tree:
-   **Kitchen → Cabinets**, plus **Garden**. Home contains the seven seeded section kinds and
+   **Kitchen → Cabinets**, plus **Garden**. Home contains the six seeded section kinds and
    four seeded shortcut frames, so this is the useful starting point for the rest of the pass.
 6. **Page settings and work creation.** Open the gear beside the root name in the project column. Home is checked and disabled;
    Todos, Archive and Reflections are ordinary persisted toggles. Disable Todos, visit its old
@@ -116,11 +116,11 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 13. **Switch Flow/Grid mode.** Use the development panel's **project layout** control, or
     `/prototype/state`. The choice is per project: Home renovation and Kitchen can be inspected
     independently in Flow and Grid. In Grid, a half-width section sits beside its neighbour.
-14. **Seven section kinds.** On both the root Home and Kitchen's work canvas, inspect Markdown,
-    Task List, Sub-Projects, Progress, Reflections, Timeline and Recent Activity. Home and a
+14. **Six section kinds.** On both the root Home and Kitchen's work canvas, inspect Markdown,
+    Task List, Progress, Reflections, Timeline and Recent Activity. Home and a
     workstream's Work canvas may also contain shortcuts; Todos and Archive are derived pages and
     hold no sections.
-    The picker has seven types with **Markdown** first; Rich Text no longer exists. Each seeded
+    The picker has six types with **Markdown** first; Rich Text and Sub-Projects are retired. Each seeded
     project's brief is a Markdown section that shows its prose rendered. Choose **Edit** on a brief
     to see its source, then **Cancel**. Add a Markdown section, choose **Edit**, and type a heading,
     a list, a link and fenced code.
@@ -151,8 +151,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 17. **Markdown and progress.** The Markdown brief shows its prose rendered and grows with its
     wrapped content; **Edit** opens the source and **Save** writes it. Progress shows the percentage and its formula explanation; its settings control exposes
     count, weighted and manual settings without changing modes.
-18. **Sub-projects and timeline.** The Sub-Projects frame mirrors the work hierarchy and links
-    into it. Timeline shows the project's dated records in order.
+18. **Workstreams and timeline.** The project column's Work list shows and links the work hierarchy;
+    **Add workstream** creates nested work with an explicit parent. Timeline shows the project's
+    dated records in order.
 19. **Todos.** Open the root's Todos tab. It is one chronological projection across root tasks,
     nested workstreams and their tasks: due dates first, equal instants by kind then ID, completed
     and cancelled rows retained, and undated work last. Follow **Choose appliance finishes** to

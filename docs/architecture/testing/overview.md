@@ -42,7 +42,7 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
 - **Contract tests** for schemas (accept/reject) and for every MCP tool (success under
   minimal grants, denial per grant, store assertion) with no socket.
 - **Host tests**: routes, errors, auth, hub, SSE, MCP handler and stdio, all in-process; plus
-  integrated recovery acceptance that composes the converter, services and JSON
+  integrated recovery acceptance that composes seed builders, services and JSON
   store over temp files, and the compound row Add fault matrix.
 - **Component tests** for stores and components with fake gateways; **Storybook** for
   the variant sets §4 names, with a theme toolbar.

@@ -91,10 +91,8 @@ export class ProjectService {
    * (§31), so reparenting or reactivating can leave one live inside something someone has put
    * away — hidden from the tree a person navigates while every write to it is refused. It is
    * the trap state, and it is the only thing dropped: a project archived in its own right is
-   * still returned, so `status: ['archived']` keeps working and an archived project's
-   * Sub-Projects section still lists the descendants that were archived with it — which, since
-   * archiving requires its children archived first, is all of them on a document built through
-   * these operations.
+   * still returned, so `status: ['archived']` keeps working. Archive and workspace Settings
+   * apply their own recovery eligibility when presenting archived projects.
    *
    * The ancestry is built over the **unfiltered** workspace, then the query is applied. Built
    * over the filtered result it would be looking for ancestors that are no longer in the array,

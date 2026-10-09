@@ -76,3 +76,6 @@ A pid reused by an unrelated process becomes a real nuisance rather than a rare 
 a workflow needs stdio and the UI to mutate one file at the same time. The honest answer to the
 second is still the proxy named in the [live updates decision](2026-08-live-updates-are-http-only.md),
 not a lease or a lock service (§71, §80).
+
+**Amended, 2026-10-09 (Slice 66).** The old conversion writer and its owner kind are removed. The host, stdio, seed/reset and e2e-preparation writers still acquire the same owner record; the one-writer rule is unchanged.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

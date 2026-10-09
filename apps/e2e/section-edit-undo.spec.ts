@@ -317,7 +317,7 @@ for (const mode of ['flow', 'grid'] as const) {
     await setLayout(KITCHEN, mode);
     await page.setViewportSize({ width: 1440, height: 1200 });
     const brief = 'section-project-kitchen-brief';
-    const subProjects = 'section-project-kitchen-sub-projects';
+    const progress = 'section-project-kitchen-progress';
     const originalOrder = await kitchenOrder();
     await page.goto(`/projects/${KITCHEN}`);
     await expect(page.locator('[data-project-name]')).toHaveText('Kitchen');
@@ -331,8 +331,8 @@ for (const mode of ['flow', 'grid'] as const) {
     await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-12/);
     expect(await spanOf(brief)).toBe(12);
 
-    await pointerMoveBefore(page, subProjects, brief);
-    await expect.poll(async () => (await kitchenOrder()).indexOf(subProjects)).toBe(0);
+    await pointerMoveBefore(page, progress, brief);
+    await expect.poll(async () => (await kitchenOrder()).indexOf(progress)).toBe(0);
     await undoFromHeader(page, /^Undo: Moved the .+ section$/);
     await expect.poll(() => kitchenOrder()).toEqual(originalOrder);
     await page.reload();

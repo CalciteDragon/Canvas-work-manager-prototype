@@ -487,8 +487,7 @@ describe('agent-facing workstream vocabulary (§26, §54)', () => {
       expect(registry.list().find((tool) => tool.name === name)?.description).toContain('kind "subproject" is a workstream');
     }
     for (const tool of registry.list()) {
-      // `sub-projects` is the existing section-type identifier, deliberately unchanged.
-      const prose = tool.name === 'list_sections' ? tool.description.replaceAll('sub-projects', '') : tool.description;
+      const prose = tool.description;
       expect(prose).not.toMatch(/sub-project|units? of work/i);
     }
   });
@@ -650,6 +649,16 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
       harness.registry.call('create_section', { projectId: PROJECT, type: 'rich-text' }, agent(['projects.read'])),
     ).rejects.toThrow(PermissionDeniedError);
 
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('create_section refuses sub-projects through the domain, writing nothing (Slice 66)', async () => {
+    const harness = buildHarness();
+    const before = harness.store.snapshot();
+    await expect(harness.registry.call('create_section', { projectId: PROJECT, type: 'sub-projects' }, agent(['projects.write'])))
+      .rejects.toThrow(expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/retired.*workstream/) }));
+    await expect(harness.registry.call('create_section', { projectId: PROJECT, type: 'sub-projects' }, agent(['projects.read'])))
+      .rejects.toThrow(PermissionDeniedError);
     expect(harness.store.snapshot()).toEqual(before);
   });
 

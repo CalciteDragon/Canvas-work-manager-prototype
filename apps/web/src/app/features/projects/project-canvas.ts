@@ -78,6 +78,7 @@ export class ProjectCanvas {
   readonly rootProjectId = input.required<ProjectId>();
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
+  /** Page contract input; the canvas no longer writes the work hierarchy (Slice 66). */
   readonly onProjectHierarchyChange = input<() => void>(() => {});
   readonly onOpenArchive = input<() => void>(() => {});
 
@@ -476,10 +477,6 @@ export class ProjectCanvas {
     this.onProjectDataChange()();
   }
 
-  projectHierarchyChanged(): void {
-    this.store.notifyProjectHierarchyChanged();
-    this.onProjectHierarchyChange()();
-  }
 }
 
 const placementId = (placement: ProjectCanvasPlacement): string =>

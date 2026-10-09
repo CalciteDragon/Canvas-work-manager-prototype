@@ -42,17 +42,15 @@ const render = async (options: ConstructorParameters<typeof FakeWorkManagerGatew
   const fixture = TestBed.createComponent(TimelineSection);
   const onConfigChange = vi.fn();
   const onProjectDataChange = vi.fn();
-  const onProjectHierarchyChange = vi.fn();
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', onConfigChange);
   fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
-  fixture.componentRef.setInput('onProjectHierarchyChange', onProjectHierarchyChange);
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
-  return { fixture, gateway, onConfigChange, onProjectDataChange, onProjectHierarchyChange };
+  return { fixture, gateway, onConfigChange, onProjectDataChange };
 };
 
 const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string) =>

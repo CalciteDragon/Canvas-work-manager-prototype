@@ -88,15 +88,14 @@ const fail = (message: string): never => {
 };
 
 /**
- * A retired section type (Slice 63) in a record that can recreate a section. Schema version 6
- * converted every one, so a document still holding one was hand-edited or written by an old build,
- * and the upgrade command converts it (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
+ * Refuse retired types in every record that can recreate a section. Local prototype data
+ * is disposable; reset or reseed it (docs/decisions/2026-10-prototype-data-is-disposable.md).
  */
 const assertNotRetired = (section: { id: string; type: string }, where: string): void => {
   if (!isRetiredSectionType(section.type)) return;
   fail(
     `${where} holds section "${section.id}" of retired section type "${section.type}". ` +
-      'Run "pnpm prototype:upgrade <path>" to convert it.',
+      'Run "pnpm prototype:reset" or "pnpm prototype:seed <seed>" to replace it.',
   );
 };
 
@@ -112,7 +111,7 @@ const uniqueMap = <T extends { id: string }>(collection: string, values: T[]): M
 /**
  * A version mismatch is the one parse failure with a *remedy*, so it says so. Without this the
  * operator with a version-2 file gets "document does not match PrototypeDocumentSchema" and a
- * page of Zod paths, which names neither the problem nor `pnpm prototype:upgrade` (§14).
+ * page of Zod paths, which names neither the problem nor `pnpm prototype:reset` (§14).
  */
 const describeVersion = (input: unknown): string | undefined => {
   if (typeof input !== 'object' || input === null) return undefined;
@@ -120,9 +119,7 @@ const describeVersion = (input: unknown): string | undefined => {
   if (typeof version !== 'number' || version === SCHEMA_VERSION) return undefined;
   return (
     `document is at schema version ${version}, but this build reads version ${SCHEMA_VERSION}. ` +
-    (version < SCHEMA_VERSION
-      ? 'Run "pnpm prototype:upgrade <path>" to convert it, or "pnpm prototype:reset" to discard it.'
-      : 'It was written by a newer build.')
+    'Run "pnpm prototype:reset" or "pnpm prototype:seed <seed>" to replace it.'
   );
 };
 

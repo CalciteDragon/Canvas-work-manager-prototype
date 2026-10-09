@@ -127,15 +127,13 @@ owning project/root context, but no executable inverse
 list and every slice adds verbs. `LiveEvent.type` reuses it so a frame is the
 announcement of the activity record that was just written, not a parallel type.
 
-**Versioning without a migration runner.** `SCHEMA_VERSION` went 1 → 2 (rows name their
-section) with a reset, and 2 → 3 (kinds and pages) with one bounded converter because a
-real file was by then worth keeping. Version 4 introduced operation histories; version 5 requires
-captured Activity identity; version 6 converts Rich Text to Markdown and retires it. Four bounded,
-named steps are chained by the CLI without becoming a general migration framework
-([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+**Local data is disposable.** `SCHEMA_VERSION` is 6; older versions and retired types are
+refused with reset/reseed guidance. Seed builders follow the current contracts. The earlier
+conversion pipeline has been deleted rather than extended
+([decision](../../decisions/2026-10-prototype-data-is-disposable.md)).
 
-**A retired type is a named exception, not a closed set.** `RETIRED_SECTION_TYPES` lists the one
-type nothing may create or store any more, so the domain and the store refuse it with the same
+**A retired type is a named exception, not a closed set.** `RETIRED_SECTION_TYPES` names the two
+types nothing may create or store any more, so the domain and the store refuse it with the same
 list while `type` stays open for new types
 ([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
@@ -149,6 +147,8 @@ list while `type` stays open for new types
   everything else: zod is its only dependency, and it stays that way.
 
 ## Decisions that shape this system
+
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../decisions/2026-10-retiring-the-sub-projects-section.md)
 
 - [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — capability metadata names the source key while its shape stays in the section folder.
 
@@ -174,10 +174,10 @@ list while `type` stays open for new types
 - [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `operation-history.ts`
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — cursor, revision and state shapes
 - [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — `ProjectSection.archiveGeneration`, `retired`, the conflict vocabulary
-- [Schema version 4 converted explicitly and froze the v3 → v4 step](../../decisions/2026-09-schema-version-4-conversion.md) — retained as the intermediate step before v5
+- [Schema version 4 converted explicitly and froze the v3 → v4 step](../../decisions/2026-09-schema-version-4-conversion.md) — historical cutover; converter removed in Slice 66
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — typed row payloads and `{ task|reflection, operation }` results
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — required captured context
-- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the v4 → v5 step, now itself a frozen intermediate before v6
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — historical cutover; converter removed in Slice 66
 - [Undo and Redo advertise their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md) — the shared static/family declaration
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family

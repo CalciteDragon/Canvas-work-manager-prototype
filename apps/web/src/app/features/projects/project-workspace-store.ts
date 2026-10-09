@@ -519,9 +519,9 @@ export class ProjectWorkspaceStore {
   }
 
   /**
-   * A Sub-Projects section created a unit of work. §62's own frame will say so too, but the
-   * canvas that made the write knows first, and waiting for the round trip would leave the
-   * column a step behind the section beside it.
+   * A project page changed the work hierarchy. §62's own frame will say so too, but the
+   * page that made the write knows first, and waiting for the round trip would leave the
+   * column a step behind the page beside it.
    */
   notifyHierarchyChanged(): void {
     this.refreshContext();

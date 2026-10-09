@@ -42,7 +42,7 @@ system. Dependencies flow downward on this list; the [what](what.md) page draws 
 - [mcp-tools](mcp-tools/overview.md) — `@cwm/mcp-tools`: the transport-free registry of
   thirty-eight tool definitions over the domain services.
 - [prototype-data](prototype-data/overview.md) — `@cwm/prototype-data`: seeds, personas,
-  agent tokens, the seed CLI and the explicit schema converters.
+  agent tokens and the seed/reset CLI.
 - [prototype-host](prototype-host/overview.md) — `apps/prototype-host`: the Node process
   on `:4310` that serves the fake API, the MCP endpoint, the event stream and the rig
   controls over one data file.

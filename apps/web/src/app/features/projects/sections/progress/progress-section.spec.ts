@@ -14,7 +14,7 @@ describe('ProgressSection live invalidation', () => {
     const gateway = new FakeWorkManagerGateway({ progress: { projectId: section.projectId, formula: 'count', percentage: 50, completed: 1, total: 2, explanation: 'half' } });
     TestBed.configureTestingModule({ providers: [ProgressStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
     const fixture = TestBed.createComponent(ProgressSection);
-    fixture.componentRef.setInput('section', section); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
+    fixture.componentRef.setInput('section', section); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
     fixture.detectChanges(); await fixture.whenStable(); await settle();
     const before = gateway.calls.filter(({ method }) => method === 'progress.get').length;
     fixture.componentRef.setInput('projectHierarchyRevision', 1); fixture.detectChanges(); await fixture.whenStable(); await settle();
@@ -39,7 +39,7 @@ describe('ProgressSection live invalidation', () => {
 
     const create = (value: typeof section) => {
       const fixture = TestBed.createComponent(ProgressSection);
-      fixture.componentRef.setInput('section', value); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
+      fixture.componentRef.setInput('section', value); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
       fixture.detectChanges();
       return fixture;
     };
@@ -65,7 +65,6 @@ describe('ProgressSection live invalidation', () => {
     fixture.componentRef.setInput('section', section);
     fixture.componentRef.setInput('onConfigChange', vi.fn());
     fixture.componentRef.setInput('onProjectDataChange', vi.fn());
-    fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
     fixture.componentRef.setInput('projectDataRevision', 0);
     fixture.componentRef.setInput('projectHierarchyRevision', 0);
     fixture.componentRef.setInput('readOnly', true);
