@@ -58,9 +58,9 @@ The user requested a new branch and an
 [umbrella implementation plan in Slice 59](planned/59-markdown-and-work-navigation.md):
 Markdown source/rendering in place of Rich Text, task checkbox reopening and click selection,
 project-name page-settings gear, Work creation plus, clearer nested-work terminology and
-section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A–D are delivered;
-Stages E and F remain planned. The umbrella orders six bounded stages and
-records proposed defaults, explicit migration/history work and integrated acceptance.
+section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A–E are delivered;
+Stage F remains planned. The umbrella records the completed child slices and the remaining integrated
+acceptance; the disposable-data policy supersedes its original converter proposals.
 [Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
 **workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
 explicit parent. Three independent reviewers' diff findings are resolved, all 95 integrated
@@ -84,11 +84,13 @@ initial bundle is about 1,028 kB under the unchanged ceiling. Stage C is complet
 same-root shortcuts recorded in its own history, and a cross-root move refuses any placement with
 exactly one end in the moving subtree. Independent review findings are resolved; 3,111 offline
 tests, the targeted browser journey and both acceptance scripts passed, with real browser and HTTP
-MCP use recorded. Stage E (retiring the Sub-Projects section) is active as
-[Slice 66](active/66-retire-sub-projects-section.md). The type is refused on create and load and
+MCP use recorded. [Slice 66](completed/66-retire-sub-projects-section.md) completed Stage E on
+2026-10-09: the Sub-Projects type is refused on create and load and
 removed from the seeds. Because [local prototype data is now disposable](../decisions/2026-10-prototype-data-is-disposable.md),
 there is no converter: old files are reset, and the v2→v6 upgrade pipeline is removed. The rewritten
-plan passed review on 2026-10-09; implementation has not started.
+plan and independent diff reviews are closed. All 2,957 offline tests, all 106 browser journeys,
+the four host acceptance scripts and the required build/documentation gates passed. All six seeds
+were served by the host, and real browser/MCP use recorded the accepted loss of Work-row details.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed

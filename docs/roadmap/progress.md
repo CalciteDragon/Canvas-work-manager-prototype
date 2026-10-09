@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 66 | Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E) | Sub-Projects section retired from seeds, picker and domain; old local files are reset, not converted, and the upgrade pipeline is removed | [66-retire-sub-projects-section.md](active/66-retire-sub-projects-section.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -104,4 +102,5 @@ verification follow-ups rather than feature slices.
 | 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | 2026-10-03 | Rich Text converted to Markdown at schema v6 with history intact; Rich Text retired on create and load | [63-rich-text-to-markdown-conversion.md](completed/63-rich-text-to-markdown-conversion.md) |
 | 64 | Slice 64 — Section configs validated by type | 2026-10-03 | Markdown config is exactly { markdown } or empty, refused otherwise on every write; the v6 converter drops extras | [64-section-config-validation.md](completed/64-section-config-validation.md) |
 | 65 | Slice 65 — Shortcuts on Work canvases (Slice 59 Stage D) | 2026-10-05 | Workstream Work canvases take same-root shortcuts in their own history; a cross-root move refuses any placement with exactly one end inside | [65-work-canvas-shortcuts.md](completed/65-work-canvas-shortcuts.md) |
+| 66 | Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E) | 2026-10-09 | Retired Sub-Projects, removed the upgrade pipeline, and verified six seeds through browser, HTTP and both MCP transports | [66-retire-sub-projects-section.md](completed/66-retire-sub-projects-section.md) |
 <!-- roadmap:end -->

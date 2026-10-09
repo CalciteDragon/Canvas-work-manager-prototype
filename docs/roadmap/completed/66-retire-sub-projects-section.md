@@ -1,4 +1,4 @@
-<!-- plan id="66" status="active" summary="Sub-Projects section retired from seeds, picker and domain; old local files are reset, not converted, and the upgrade pipeline is removed" -->
+<!-- completed-record id="66" closed="2026-10-09" summary="Retired Sub-Projects, removed the upgrade pipeline, and verified six seeds through browser, HTTP and both MCP transports" -->
 # Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E)
 
 ## Goal
@@ -451,14 +451,14 @@ that cannot be satisfied from a seed, the Outcome reports it rather than inventi
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables** — The [registry](../../../apps/web/src/app/features/projects/sections/registry.ts) offers six types, Markdown first, and the Sub-Projects renderer and section-only hierarchy callback are gone. [Contracts](../../../packages/contracts/src/section.ts) give both retired types their own replacement guidance; domain, HTTP and both MCP transports refuse creation, and [integrity](../../../packages/repositories/src/data-store.ts) refuses live or recreating history copies with reset/reseed guidance. All six seeds load with dense combined placement order. The conversion pipeline, command, fixtures and encoder are deleted; [Activity capture](../../../packages/prototype-data/src/activity-identity.ts) remains seed-owned with its focused tests. Creation, history, Archive and work-canvas shortcuts still work. The final full browser suite passed all 106 journeys, including the corrected header-history journey; 2,957 offline tests, all four host acceptance scripts, lint, documentation checks, Compodoc, app build and Storybook passed. The initial bundle is about 1.021 MB under the unchanged 1,050,000-byte ceiling. No required check was skipped.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+**Deliberate choices** — Schema version stays 6 and stored identifiers and historical labels remain unchanged. The [disposable-data policy](../../decisions/2026-10-prototype-data-is-disposable.md) makes refusal plus reset preferable to another converter. The [retirement decision](../../decisions/2026-10-retiring-the-sub-projects-section.md) accepts losing a movable hierarchy overview and its row details: Work remains the hierarchy surface, while Timeline and each workstream's header expose dates and status. Page-level callbacks and Timeline's hierarchy revision are preserved. Seed/reset ownership locks remain intact.
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+**Deviations from the plan** — Integrated browser verification found one extra hard-coded seed index in the header-history journey; Progress now returns at index 2. Independent review also found public domain comments and living test inventories outside the initial file list still describing the retired renderer or deleted converters. Those narrowly scoped repairs were added to the plan and reviewed to closure. Windows sandbox restrictions interrupted execution; commands that the sandbox could not run used reviewed escalation. Concurrent subprocess checks timed out, so the full offline suite was rerun with browser/build processes stopped; all 2,957 tests passed without widening any timeout.
 
-**Deferred** — <what was left out and which slice owns it>.
+**Deferred** — Slice 59 Stage F's integrated direction-wide matrix remains separate work. Richer Work rows and a replacement hierarchy overview are not added here. Actual use is recorded in [the friction notes](../../../.prototype/notes.json), note `note-2026-10-09-001`, so later work can judge the accepted detail loss from use rather than from speculation.
 
-**Open questions** — <what the next phase or the user must answer>.
+**Open questions** — None blocks this slice. Sustained use must establish whether the Work list needs more row details. The walkthrough created a Kitchen child through the explicit-parent dialog, then removed and restored the same id through its own header; a real SDK client received the refusal and changed no business fields, excluding only existing authentication `lastUsedAt` bookkeeping.
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+**Documentation updated** — The main spec, architecture root and contracts/domain/repositories/prototype-data/prototype-host/MCP/web-projects/testing systems, both guides and README describe current behavior. The retirement decision is indexed and linked from the affected systems; twelve older decisions carry dated amendments instead of rewritten history. Compodoc was regenerated after the public-comment repairs and its fragment regression passed. Slice 59's Stage E note and remaining Stage F acceptance use the disposable-data policy; the goals and generated board mark this slice complete.

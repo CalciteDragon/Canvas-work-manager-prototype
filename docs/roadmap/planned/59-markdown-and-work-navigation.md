@@ -212,6 +212,18 @@ reconnect and history refresh affected canvases without copying content.
 
 ### E — Retire Sub-Projects without deleting work
 
+**Completed 2026-10-09 by [Slice 66](../completed/66-retire-sub-projects-section.md).**
+The six-type registry and all six seeds omit the view; domain/HTTP/both MCP transports refuse
+creation and integrity refuses live or recreating history copies. Schema version remains 6.
+The [disposable-data decision](../../decisions/2026-10-prototype-data-is-disposable.md)
+supersedes the converter and retired-action proposal below: incompatible local files are reset
+or reseeded, and the v2→v6 pipeline, command, encoder and fixtures are removed. Project identifiers,
+historical labels, Work navigation and page-level hierarchy refresh remain unchanged. Independent
+review findings are resolved; 2,957 offline tests, all 106 browser journeys and the four host
+acceptance scripts passed, with real browser/MCP use recorded.
+
+**Original proposal — superseded by that decision:**
+
 After A and D, read §§14, 29–32, 54, 66 and prototype-data, domain, repositories and web/projects.
 Remove registry entry, renderer/store files and seed placements. A legacy capability may remain
 only if converted history validation needs it; the type cannot remain a creatable/rendered view.
@@ -233,20 +245,20 @@ type through the domain; hiding the picker is insufficient. Keep unrelated unkno
 Use isolated `nested-projects` for hierarchy, `personal-workspace` for simple/empty flows and
 `agent-heavy` for grants. Browser evidence covers desktop keyboard, 375 px touch, both themes
 and narrow Grid sections. Start `pnpm dev:web` and `pnpm dev:host` separately for real use;
-stop them before Playwright's own servers. Upgrade temporary files, and run stdio sequentially
+stop them before Playwright's own servers. Write current seeds to temporary files, and run stdio sequentially
 with HTTP when sharing a data file, respecting the one-writer rule. Record friction with the
 current child CURRENT_SLICE; no runtime friction is claimed during planning.
 
 | Request / invariant | Executable acceptance evidence |
 |---|---|
 | Markdown replacement | Picker exposes Markdown and no Rich Text. Save headings/lists/code/links, inspect exact source via API, reload and verify rendering. HTTP and both MCP transports create/update/read source. |
-| Content preservation | Upgrade legacy fixture copies through final version, compare prose/IDs/references and reversible steps, restart, run upgrade again unchanged; assert malformed/unknown and blank recovery rules. |
+| Seeded content and history | Write current seeds, compare prose/IDs/references and reversible steps across restart, and recover retained content from Archive; assert retired-type and stale-version refusal with reset guidance, plus unknown and blank recovery rules. |
 | Reopen task | Check/uncheck in Task List and Todos; API proves `todo` and absent timestamp; progress/picker update, linked reflection remains; owner header reverses/reapplies exact fields. |
 | Click selects | No Details button; row/title click and Enter/Space open drawer; title edits there. Checkbox/Delete do not select. Close restores focus and narrow drawer remains usable. |
 | Gear | Beside root name on root/nested routes; keyboard/touch opening; fixed Home and persistent optional toggles; refusal preserves native check/error; Escape returns focus. |
 | Terminology | Selected noun recorded and applied across navigation, creation, Todos, Archive, reflections and agent descriptions; identifiers/historical labels compatible. |
 | Work plus | Explicit-parent root/nested creation; cancel/failure/pending writes zero/zero/one project; second-tab tree/Todos update and same-ID creation Undo/Redo. |
-| No hierarchy view | Registry/picker/seeds omit Sub-Projects; converted canvases/history cannot revive it; compare preserved project/task counts and content before/after. |
+| No hierarchy view | Registry/picker/seeds omit Sub-Projects; live and recreating history copies are refused on load; current seeded canvases keep their project/task content and dense combined order. |
 | Work shortcut | Add ancestor/sibling source at chosen position; resize/collapse/reorder/remove and Undo/Redo change only placement/destination history; Open source editing refreshes both canvases. |
 | Failure and scope | Missing grants, foreign IDs, invalid page, same-page source, archived owner, cross-root edge, incomplete order, failed/delayed writes, navigation and reconnect cause no unintended changes. |
 

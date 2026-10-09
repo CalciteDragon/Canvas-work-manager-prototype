@@ -37,7 +37,7 @@ Until the user says otherwise:
   and over MCP.
 
 The existing upgrade pipeline (versions 2–6) is still in the code when this entry is written.
-[Slice 66](../roadmap/active/66-retire-sub-projects-section.md) plans its removal.
+[Slice 66](../roadmap/completed/66-retire-sub-projects-section.md) plans its removal.
 
 **Confidence**
 
