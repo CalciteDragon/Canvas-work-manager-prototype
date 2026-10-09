@@ -3,7 +3,7 @@
 
 ## Goal
 
-Stage B of the [Slice 59 umbrella](../planned/59-markdown-and-work-navigation.md): a done task's
+Stage B of the [Slice 59 umbrella](59-markdown-and-work-navigation.md): a done task's
 checkbox can be unchecked to reopen it, in Task Lists and on Todos; clicking a Task List row or
 its title selects the task and opens the existing drawer, where the title is now edited. The
 **Details** button and inline title editing go away.

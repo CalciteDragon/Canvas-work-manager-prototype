@@ -102,6 +102,7 @@ test.describe('narrow touch recovery', () => {
     await setClock(NOW);
     const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
     await page.goto('/settings/archived-projects');
+    await expect(page.locator('[data-identity-name]')).toBeVisible();
     for (const theme of ['dark', 'light'] as const) {
       if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
@@ -131,6 +132,7 @@ test.describe('narrow touch recovery', () => {
     await setClock(NOW);
     const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
     await page.goto('/settings/archived-projects');
+    await expect(page.locator('[data-identity-name]')).toBeVisible();
     const status = (id: ProjectId) => row(page, id).locator('[data-archived-status]');
     const restore = (id: ProjectId) => row(page, id).locator('[data-archived-restore]');
     // Each theme uses both methods, alternating by step. A tap is not pre-focused: the rescue

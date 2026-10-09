@@ -460,6 +460,7 @@ test('Slice 45 · 1. the controls work with Archive disabled, populated off Home
     // The toggle is session-only: every full load applies the persona's stored theme again.
     const visit = async (url: string) => {
       await page.goto(url);
+      await expect(page.locator('[data-identity-name]')).toBeVisible();
       await expect(page.locator('[data-theme-toggle]')).toBeVisible();
       if (await page.locator('html').getAttribute('data-theme') !== colorScheme) await page.locator('[data-theme-toggle]').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);

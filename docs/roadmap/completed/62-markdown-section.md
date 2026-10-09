@@ -3,7 +3,7 @@
 
 ## Goal
 
-This is the first half of Stage C of the [Slice 59 umbrella](../planned/59-markdown-and-work-navigation.md). It adds a registered `markdown` section type:
+This is the first half of Stage C of the [Slice 59 umbrella](59-markdown-and-work-navigation.md). It adds a registered `markdown` section type:
 
 - The section stores Markdown **source** in `config.markdown` and shows it rendered.
 - **Edit** opens the source, with **Preview**, **Save** and **Cancel**.

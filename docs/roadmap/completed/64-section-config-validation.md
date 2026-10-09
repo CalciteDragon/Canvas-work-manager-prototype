@@ -242,7 +242,7 @@ domain 831, mcp-tools 177, host 290), and `pnpm lint` and `pnpm docs:check` are 
 - `apps/prototype-host/recovery-undo-acceptance.test.ts` asserted the old CLI sentence. The plan's
   file list missed it, and the full suite caught it.
 - Review added three small fixes: the `SectionConfigSchema` doc comment, a note on the
-  [Slice 59 umbrella](../planned/59-markdown-and-work-navigation.md) whose C2 guidance this
+  [Slice 59 umbrella](59-markdown-and-work-navigation.md) whose C2 guidance this
   supersedes, and softer "only a hand edit" wording. Undo and Redo can still replay pre-Slice-64
   history.
 - The e2e spec was edited (`tone` dropped) but `pnpm e2e` was not run.

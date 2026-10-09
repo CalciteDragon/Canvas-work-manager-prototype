@@ -5,7 +5,7 @@
 
 Remove the Sub-Projects section as a canvas view and creation option, refuse it on create and on
 load, and delete the upgrade pipeline that existed only to carry old local data forward (Stage E of
-[Slice 59](../planned/59-markdown-and-work-navigation.md)).
+[Slice 59](59-markdown-and-work-navigation.md)).
 
 ## Spec sections
 

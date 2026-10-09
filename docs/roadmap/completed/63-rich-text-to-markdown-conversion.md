@@ -4,7 +4,7 @@
 ## Goal
 
 Convert every current and historical Rich Text section to Markdown without losing visible prose,
-then retire Rich Text creation and registration (Stage C2 of [Slice 59](../planned/59-markdown-and-work-navigation.md)).
+then retire Rich Text creation and registration (Stage C2 of [Slice 59](59-markdown-and-work-navigation.md)).
 
 ## Spec sections
 

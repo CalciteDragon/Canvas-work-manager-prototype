@@ -1065,6 +1065,46 @@
       "projectId": "project-kitchen",
       "slice": 66,
       "note": "Slice 66 real use: busy-week, Renovation Home and Kitchen render without the hierarchy view; the section picker offers six types, Markdown first. Work plus created Slice 66 walkthrough under the explicitly selected Kitchen parent; its own header Undo removed it and Redo returned the same address. Work lists nesting and Garden completion, but Kitchen and Cabinets dates/status details require opening the workstream or reading Timeline. This is the accepted loss from retiring the canvas hierarchy overview; sustained use should decide whether Work needs richer rows. A real HTTP MCP create_section refusal names the workstream route and preserves every business field (authentication still updates lastUsedAt)."
+    },
+    {
+      "id": "note-2026-10-09-002",
+      "createdAt": "2026-10-09T21:29:58.727Z",
+      "route": "/projects/project-kitchen#section-section-project-kitchen-tasks",
+      "projectId": "project-kitchen",
+      "slice": 67,
+      "note": "Slice 67 real use on isolated nested-projects: desktop keyboard Markdown Save, header Undo/Redo, Task List and Todos complete/reopen, title selection, nested gear, explicit Kitchen parent Work plus, and Garden source editing refreshed the open Kitchen shortcut. At measured 375 CSS px in dark and light, source/history, Task List/Todos toggles, stacked drawer, gear and nested create worked with zero document overflow. In-app browser provided clicks at phone width; genuine touch is proven separately by the themed Playwright journeys, not claimed for this manual walkthrough. A real HTTP SDK client created/read exact Markdown, reopened task-kitchen-completed live to an unchecked browser box and 0% progress, placed Garden on Cabinets Work, and received the retired Sub-Projects refusal. Existing friction remains: generic Updated reopen label, below-fold drawer, Preview return wording, and ambiguous untitled Markdown shortcuts. No new product defect found."
+    },
+    {
+      "id": "note-2026-10-09-003",
+      "createdAt": "2026-10-09T21:31:40.937Z",
+      "route": "/projects/project-work-manager",
+      "projectId": "project-work-manager",
+      "slice": 67,
+      "note": "Slice 67 scratch-seed follow-through: loaded personal-workspace and agent-heavy through the dev panel on CWM_DATA_FILE. Personal workspace rendered its brief and three task rows, with No workstreams yet in Work; agent-heavy rendered Work Manager with agent-maintained prose and 25% progress. No new friction surfaced in these seed inspections."
+    },
+    {
+      "id": "note-2026-10-09-004",
+      "createdAt": "2026-10-09T21:50:38.734Z",
+      "route": "/projects/project-a3180e9f",
+      "projectId": "project-a3180e9f",
+      "slice": 67,
+      "note": "Slice 67 separate actual-app touch walkthrough (dark, 375px, hasTouch): loaded personal-workspace and agent-heavy with panel taps, then authored/previewed/saved Markdown and tapped header Undo/Redo on nested-projects. Task List and Todos checkbox round trips and owner link/detail selection, nested gear, explicit Kitchen-parent Work plus, and Work shortcut with source edit/live destination refresh all operated. Task details still require scrolling below the selected list; known carried friction. No additional touch blocker observed. Separate exploratory use, not a run of automated acceptance tests; text entry and native parent selection used Playwright input APIs, and the dev panel opened with its keyboard chord."
+    },
+    {
+      "id": "note-2026-10-09-005",
+      "createdAt": "2026-10-09T21:50:47.566Z",
+      "route": "/projects/project-23776ad0",
+      "projectId": "project-23776ad0",
+      "slice": 67,
+      "note": "Slice 67 separate actual-app touch walkthrough (light, 375px, hasTouch): loaded personal-workspace and agent-heavy with panel taps, then authored/previewed/saved Markdown and tapped header Undo/Redo on nested-projects. Task List and Todos checkbox round trips and owner link/detail selection, nested gear, explicit Kitchen-parent Work plus, and Work shortcut with source edit/live destination refresh all operated. Task details still require scrolling below the selected list; known carried friction. No additional touch blocker observed. Separate exploratory use, not a run of automated acceptance tests; text entry and native parent selection used Playwright input APIs, and the dev panel opened with its keyboard chord."
+    },
+    {
+      "id": "note-2026-10-09-006",
+      "createdAt": "2026-10-09T22:02:20.098Z",
+      "route": null,
+      "projectId": null,
+      "slice": 67,
+      "note": "Slice 67 review residue: .gitignore still describes pnpm prototype:upgrade and ignores .prototype/*.backup-*.json beside a converted file, but Slice 66 removed the upgrade script and converters. Harmless; remove the comment and rule in a later housekeeping change."
     }
   ]
 }

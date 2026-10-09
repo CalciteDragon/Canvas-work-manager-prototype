@@ -1,4 +1,4 @@
-<!-- plan id="59" status="planned" summary="Umbrella proposal for Markdown sections, task selection and reopening, sidebar controls and work-canvas shortcuts" -->
+<!-- completed-record id="59" closed="2026-10-09" summary="Markdown, reversible checkboxes, title selection, gear, Work plus, workstream wording and Work shortcuts delivered by Slices 60–67; same-file conversion superseded" -->
 # Slice 59 — Markdown, reversible task completion and work navigation
 
 **Umbrella implementation proposal — 2026-09-30. Planning only; no runtime changes.**
@@ -10,6 +10,21 @@ plan carries more detail than an ordinary candidate. Create bounded child slices
 refresh its exact file/test list from the then-current repository. A–F below are stages,
 not reserved slice numbers. Keep this umbrella planned until its implementation lifecycle
 begins; do not execute the entire direction as one coding phase.
+
+**Final status amendment — 2026-10-09.** The opening paragraphs preserve this document's
+2026-09-30 planning status, and the *Proposed product rules* below are historical; the stage
+decisions and child records own the shipped behavior. Stages A–F were delivered by
+[Slice 60](../completed/60-workstream-navigation-controls.md) (A),
+[Slice 61](../completed/61-task-reopen-and-selection.md) (B),
+[Slices 62–64](../completed/62-markdown-section.md) (C and its config validation),
+[Slice 65](../completed/65-work-canvas-shortcuts.md) (D),
+[Slice 66](../completed/66-retire-sub-projects-section.md) (E) and
+[Slice 67](67-markdown-and-work-navigation-closure.md) (F), whose evidence ledger gives every
+acceptance row named, passing unit, browser and SDK/real-HTTP assertions. The Done-when's
+"same-file conversion evidence" was **superseded, not proven**: under the
+[disposable-data decision](../../decisions/2026-10-prototype-data-is-disposable.md) Slice 66
+removed every converter, and an older file is refused with a reset hint. Stage F's note below
+was written while Slice 67 was active.
 
 ## Goal
 
@@ -242,7 +257,7 @@ type through the domain; hiding the picker is insufficient. Keep unrelated unkno
 
 ### F — Integrated acceptance and closure
 
-**Stage F is active as [Slice 67](../active/67-markdown-and-work-navigation-closure.md)** (planned
+**Stage F is active as [Slice 67](67-markdown-and-work-navigation-closure.md)** (planned
 2026-10-09, reviewed in three rounds). Its ledger maps every row below to named assertions. It adds
 four proofs that are missing:
 
@@ -386,3 +401,37 @@ coding; escalate if a resolution changes user scope:
 - **Review round 2 (2026-09-30):** Reviewer checked the revised document and closed both
   findings; no substantive findings remained. Proposed product defaults are still explicitly
   subject to the owning child plan's design review and decision entry.
+
+<!-- ───────────── Written before roadmap.mjs complete ───────────── -->
+
+## Outcome
+
+**Deliverables.** The direction's requests are implemented and proven: Markdown source with safe
+rendering replaces Rich Text; task checkboxes reopen canonical tasks in Task Lists and Todos,
+clearing completion timestamps; a title or row click selects; the gear beside the root name
+replaces Manage pages; the Work plus creates nested work under an explicit parent; the user-facing
+noun is **workstream**; a workstream's Work canvas takes same-root shortcuts in its own history;
+and the Sub-Projects section is retired. The
+[Slice 67 evidence ledger](67-markdown-and-work-navigation-closure.md#outcome) names the assertion
+for each row at every layer, including both real MCP transports for Markdown, reopen and Work
+shortcuts, and its final run passed 109 browser journeys with the offline, build and four host
+acceptance gates.
+
+**Choices and deviations.** This umbrella adds no application implementation. Its 2026-09-30
+proposals were refined in the child plans and decisions: Stage C split into C1/C2 plus Slice 64's
+config validation, and the user's later
+[disposable-data decision](../../decisions/2026-10-prototype-data-is-disposable.md) replaced the
+proposed converters with refusal and reset. The Done-when's same-file conversion evidence is
+therefore recorded as superseded, not proven; seeds, durable recovery and the load refusal carry
+the remaining evidence.
+
+**Deferred and open questions.** Placement naming in a cross-root move refusal is
+[Slice 68](../planned/68-cross-root-refusal-names-placements.md); distinguishable untitled shortcut
+names are [Slice 69](../planned/69-distinguishable-shortcut-names.md). The Reopened label, below-fold
+drawer, Preview wording and Work-row detail are Known friction in
+[goals](../goals.md). Sustained use still has to test the decisions' confidence.
+
+**Documentation updated.** The spec, architecture tree, decisions and guides were reconciled in
+Slices 60–66; Slice 67 audited them for drift. This closure adds the amendment above, this
+Outcome, and the link retargets; the record will move to `completed/` through the roadmap's
+supported lifecycle, and the direction will move to a Done milestone in goals.

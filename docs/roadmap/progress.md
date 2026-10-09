@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 67 | Slice 67 — Markdown and work navigation integrated closure (Slice 59 Stage F) | Direction-wide evidence ledger, the two missing proofs, real use, documentation reconciliation and the Slice 59 umbrella's closure | [67-markdown-and-work-navigation-closure.md](active/67-markdown-and-work-navigation-closure.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -28,7 +26,6 @@ verification follow-ups rather than feature slices.
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
-| 59 | Slice 59 — Markdown, reversible task completion and work navigation | Umbrella proposal for Markdown sections, task selection and reopening, sidebar controls and work-canvas shortcuts | [59-markdown-and-work-navigation.md](planned/59-markdown-and-work-navigation.md) |
 | 68 | Slice 68 — Cross-root move refusal names each placement | A refused cross-root move names each blocking shortcut's canvas and source section, so an agent or person can remove it in one step | [68-cross-root-refusal-names-placements.md](planned/68-cross-root-refusal-names-placements.md) |
 | 69 | Slice 69 — Distinguishable names for untitled shortcut sources | A shortcut to an untitled section is named with its source's owner on its frame and in history labels, so it cannot be mistaken for a local section | [69-distinguishable-shortcut-names.md](planned/69-distinguishable-shortcut-names.md) |
 
@@ -106,5 +103,7 @@ verification follow-ups rather than feature slices.
 | 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | 2026-10-03 | Rich Text converted to Markdown at schema v6 with history intact; Rich Text retired on create and load | [63-rich-text-to-markdown-conversion.md](completed/63-rich-text-to-markdown-conversion.md) |
 | 64 | Slice 64 — Section configs validated by type | 2026-10-03 | Markdown config is exactly { markdown } or empty, refused otherwise on every write; the v6 converter drops extras | [64-section-config-validation.md](completed/64-section-config-validation.md) |
 | 65 | Slice 65 — Shortcuts on Work canvases (Slice 59 Stage D) | 2026-10-05 | Workstream Work canvases take same-root shortcuts in their own history; a cross-root move refuses any placement with exactly one end inside | [65-work-canvas-shortcuts.md](completed/65-work-canvas-shortcuts.md) |
+| 59 | Slice 59 — Markdown, reversible task completion and work navigation | 2026-10-09 | Markdown, reversible checkboxes, title selection, gear, Work plus, workstream wording and Work shortcuts delivered by Slices 60–67; same-file conversion superseded | [59-markdown-and-work-navigation.md](completed/59-markdown-and-work-navigation.md) |
 | 66 | Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E) | 2026-10-09 | Retired Sub-Projects, removed the upgrade pipeline, and verified six seeds through browser, HTTP and both MCP transports | [66-retire-sub-projects-section.md](completed/66-retire-sub-projects-section.md) |
+| 67 | Slice 67 — Markdown and work navigation integrated closure (Slice 59 Stage F) | 2026-10-09 | Slice 59 evidence ledger closed: four new proofs seen to fail, 109 browser journeys, real use, nine notes triaged, docs reconciled | [67-markdown-and-work-navigation-closure.md](completed/67-markdown-and-work-navigation-closure.md) |
 <!-- roadmap:end -->

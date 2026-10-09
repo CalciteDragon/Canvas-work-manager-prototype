@@ -558,10 +558,11 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
     await submit.click();
     await expect(submit).toBeDisabled();
     await expect(submit).toHaveCount(1);
+    // The section renders only after the delayed POST answers, so unrouting cannot race its handler.
+    await expect(page.locator('[data-section-frame]', { hasText: 'One click only' })).toBeVisible();
   } finally {
     await page.unroute(`**/api/projects/${root.id}/sections`);
   }
-  await expect(page.locator('[data-section-frame]', { hasText: 'One click only' })).toBeVisible();
   expect(createRequests).toBe(1);
 });
 

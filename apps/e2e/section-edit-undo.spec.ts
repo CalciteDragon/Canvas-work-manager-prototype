@@ -159,6 +159,7 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Contextual add');
   await page.locator('[data-create-section-submit]').click();
+  await expect(page.locator('[data-section-item] [data-section-title-edit]').filter({ hasText: 'Contextual add' })).toBeVisible();
   const added = (await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ title }) => title === 'Contextual add');
   if (added === undefined) throw new Error('The contextual section was not created');
   // Slice 41: a forward write shows no notice; the header's label is its confirmation.

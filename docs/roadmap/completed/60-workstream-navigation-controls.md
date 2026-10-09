@@ -9,7 +9,7 @@
 
 ## Goal
 
-Stage A of the [Slice 59 umbrella](../planned/59-markdown-and-work-navigation.md): call a nested unit
+Stage A of the [Slice 59 umbrella](59-markdown-and-work-navigation.md): call a nested unit
 of work a **workstream** wherever people and agents read it; open a root's page settings from a gear
 beside its name in the project column; and create a workstream at any live level from a plus beside
 **Work**, so nothing needs the Sub-Projects section to create work (Stage E retires it).

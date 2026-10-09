@@ -778,6 +778,7 @@ test('live task-container removal keeps its focus and recovery behavior at a nar
     title: 'Narrow live task',
   })).task;
   await page.goto(`/projects/${root.id}`);
+  await expect(page.locator('[data-identity-name]')).toBeVisible();
 
   const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
   for (const [index, theme] of (['dark', 'light'] as const).entries()) {
