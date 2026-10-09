@@ -52,3 +52,30 @@ end can be inside the moving subtree. The rule is now "refuse each placement wit
 the subtree". A Work placement whose source stays behind is refused, and one with both ends inside
 moves with the subtree. The message no longer says "Home shortcut". See
 [Work canvas shortcut destinations](2026-10-work-canvas-shortcut-destinations.md).
+
+**Amended, 2026-10-09 — Slice 68.** This answers the "medium on the wording". Real use through HTTP
+MCP (friction note `note-2026-10-03-002`) showed an id alone sent an agent searching project by
+project for the placement. The refusal now describes each placement:
+
+- **The sentence.** `shortcut "<id>" (on the <Home|Work> page of "<project>", placing "<section>"
+  from "<project>") would cross root trees; remove it from that page, then retry`. Several
+  placements read `shortcuts …` and `remove each from its page, then retry`. The section is named
+  by `nameOf`. It names no control and no tool.
+- **One helper.** `carriedShortcutsSentence` in `project-history.ts` writes it, from what
+  `shortcutsCarriedAcrossRoots` already reads (it now returns `CarriedShortcut`s: the placement,
+  its page and source, and each one's project). The forward refusal opens with `project "<id>"
+  cannot move to another root: `; a reparent's Undo or Redo keeps its own opener. The placement
+  sentence is the same, verbatim.
+- **Every id is still named.** Only the descriptions are bounded: the first three placements are
+  described and any further ones are listed by id.
+- **History refusals.** The typed `shortcut-reference` conflicts are unchanged — no title, no new
+  field. In the text, the sentence replaces their generic entries; any other conflict (a live child
+  on an archive+move Redo, say) follows in the generic list (`conflictListText`), so the text never
+  omits what the payload carries.
+- **Accepted disclosure.** The forward write asserts only `projects.write`, so a write-only actor
+  now also learns same-workspace project and section names from a refused move. Accepted: history
+  refusals already name project titles to such an actor, every name is in the tree it is writing
+  to, and gating the description on `projects.read` would give one refusal two shapes for no real
+  protection in a single-workspace prototype. A domain test pins it.
+
+The rule — when a move is refused — is unchanged.

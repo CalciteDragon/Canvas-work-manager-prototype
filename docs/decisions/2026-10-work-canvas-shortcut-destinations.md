@@ -68,3 +68,5 @@ the split-placement refusal often.
 
 **Amended, 2026-10-09 (Slice 66).** Stage E retires the Sub-Projects view without changing Work canvas shortcut destinations, source eligibility, combined ordering or destination-owned history.
 See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).
+
+**Amended, 2026-10-09 (Slice 68).** The split-placement refusal now also describes each placement's page and source, from one shared sentence; the rule is unchanged. See [the forward reparent decision](2026-09-forward-reparent-refuses-cross-root-shortcut.md).

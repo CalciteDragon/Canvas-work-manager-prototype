@@ -171,8 +171,10 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
   verbatim and stamps only `updatedAt`. The permanently unsatisfiable conflicts retire the action
   ([decision](../../decisions/2026-09-operation-history-retired-actions.md)). Every refusal message
   starts with its reason token (`history_conflict: …`), because MCP carries message text only.
-  The shared conflict formatter appends words from each typed `nextStep` and suppresses retry advice
-  for a retiring list ([decision](../../decisions/2026-09-mcp-history-conflict-guidance.md)).
+  The shared conflict formatter, `conflictListText` in `operation-execution.ts`, appends words from
+  each typed `nextStep` and suppresses retry advice for a retiring list
+  ([decision](../../decisions/2026-09-mcp-history-conflict-guidance.md)); `refuseOnConflicts` uses it
+  for every executor.
 - **A project step is reversed under today's tree.** `project-history.ts` compares every recorded
   field against the value the other direction left (a parent mismatch reads `reparented`), then
   re-runs `ProjectService.update`'s rules for the resulting change: a destination parent in the
@@ -186,7 +188,12 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
   projects. That last check is one exported function, `shortcutsCarriedAcrossRoots`, which
   `ProjectService.update` runs too: after the parent is known usable and before `commit` (afterwards
   both roots read the same and it would pass), a forward move refuses with a `DomainRuleError` naming
-  each placement to remove, so the host answers 409 rather than a 500 from integrity. `ProjectService`
+  each placement to remove, so the host answers 409 rather than a 500 from integrity. It returns
+  `CarriedShortcut`s — each placement with the page and source section it read, and their projects —
+  and `carriedShortcutsSentence` turns them into the one sentence both paths use: every id, the first
+  three described by page and source (Slice 68). The history executor still emits one typed
+  `shortcut-reference` conflict per placement, unchanged; its text puts the sentence in place of their
+  generic entries and lists any other conflict after it with `conflictListText`. `ProjectService`
   reads `SectionRepository` and `SectionShortcutRepository` for it — repositories, not a new service
   edge ([decision](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md)). `completedAt` is written back verbatim. The archived-subject exception lives
   only in `OperationHistoryService.transitionBlocker` and only for the three steps

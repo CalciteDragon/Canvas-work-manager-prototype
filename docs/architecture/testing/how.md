@@ -81,7 +81,11 @@ a current read, so a race is verified against the canonical write refusal too.
     proves a forward cross-root `update_project` is refused naming a placement it would split, then
     succeeds once the placement is removed — on both transports. Slice 67 reads updated and Undone
     Markdown source back through `list_sections` and disk, and reopens a descendant task with
-    owner-history isolation and exact `completedAt` Undo/Redo on both transports.
+    owner-history isolation and exact `completedAt` Undo/Redo on both transports. Slice 68 checks
+    that the forward refusal describes the placement's Work page and source, removes it by the id
+    parsed from that text, and has the second connection place a new-root section on the mover's
+    Work canvas so the agent's Undo of the move is refused with the same description, writes
+    nothing, and succeeds once the placement is gone — on both transports.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first takes the scratch file's owner
    record and copies the current empty seed over it — refused with `data_file_in_use:` if a
    leftover e2e host still owns `.prototype/e2e-data.json`, reclaimed if a hard-killed one left a

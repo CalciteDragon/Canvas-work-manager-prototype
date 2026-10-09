@@ -1056,7 +1056,9 @@
       "route": "/mcp",
       "projectId": "project-cabinets",
       "slice": 65,
-      "note": "Slice 65 real use through HTTP MCP. An agent placed Garden's brief on Cabinets' Work canvas, and update_project moving Cabinets to a new root was refused with 'shortcut \"shortcut-…\" would cross root trees; remove that placement first'. Undo of the add then made the move succeed. Friction: the refusal names only the placement id, not which canvas holds it or which section it points at. With Work destinations the placement can be on the mover's own canvas or elsewhere in the tree, so an agent has to list shortcuts project by project to find it. Naming the destination project and source section in the message would make the repair one step."
+      "note": "Slice 65 real use through HTTP MCP. An agent placed Garden's brief on Cabinets' Work canvas, and update_project moving Cabinets to a new root was refused with 'shortcut \"shortcut-…\" would cross root trees; remove that placement first'. Undo of the add then made the move succeed. Friction: the refusal names only the placement id, not which canvas holds it or which section it points at. With Work destinations the placement can be on the mover's own canvas or elsewhere in the tree, so an agent has to list shortcuts project by project to find it. Naming the destination project and source section in the message would make the repair one step.",
+      "resolvedAt": "2026-10-09T23:45:00.000Z",
+      "resolution": "Closed by Slice 68 (docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md, amended). Verified live on a scratch nested-projects copy over HTTP MCP: the refusal now reads `project \"project-cabinets\" cannot move to another root: shortcut \"shortcut-…\" (on the Work page of \"Cabinets\", placing \"Markdown\" from \"Garden\") would cross root trees; remove it from that page, then retry`. The agent removed the placement with remove_section_shortcut using the id parsed from that text, with no list_section_shortcuts call, and the retried move succeeded. A refused Undo of the move gives the same placement sentence after its own history_conflict opener."
     },
     {
       "id": "note-2026-10-09-001",
@@ -1105,6 +1107,14 @@
       "projectId": null,
       "slice": 67,
       "note": "Slice 67 review residue: .gitignore still describes pnpm prototype:upgrade and ignores .prototype/*.backup-*.json beside a converted file, but Slice 66 removed the upgrade script and converters. Harmless; remove the comment and rule in a later housekeeping change."
+    },
+    {
+      "id": "note-2026-10-09-007",
+      "createdAt": "2026-10-09T23:45:00.000Z",
+      "route": "/mcp",
+      "projectId": "project-cabinets",
+      "slice": 68,
+      "note": "Slice 68 real use through HTTP MCP on nested-projects. The described refusal made the repair one step: the id, the page (\"the Work page of Cabinets\") and the source (\"Markdown\" from \"Garden\") were enough to act without listing shortcuts, and the person-placed section showed up on the refused Undo as \"Bench notes\" from \"Workshop\". Residual friction: an untitled source reads by its type, \"Markdown\"; the owning project is what tells it apart here, but two untitled briefs in one project would read the same, and the remove receipt label says \"Removed the Markdown shortcut\". That is Slice 69 (how a shortcut is named), not this sentence."
     }
   ]
 }
