@@ -242,6 +242,19 @@ type through the domain; hiding the picker is insufficient. Keep unrelated unkno
 
 ### F — Integrated acceptance and closure
 
+**Stage F is active as [Slice 67](../active/67-markdown-and-work-navigation-closure.md)** (planned
+2026-10-09, reviewed in three rounds). Its ledger maps every row below to named assertions. It adds
+four proofs that are missing:
+
+- reopen over both real MCP transports;
+- Markdown at 375 px, in narrow Grid and in both themes;
+- MCP read-back of Markdown source;
+- the picker's type list in the browser.
+
+It records the "same-file conversion evidence" requirement as superseded by the
+[disposable-data decision](../../decisions/2026-10-prototype-data-is-disposable.md). After Slice 67
+completes, this umbrella closes.
+
 Use isolated `nested-projects` for hierarchy, `personal-workspace` for simple/empty flows and
 `agent-heavy` for grants. Browser evidence covers desktop keyboard, 375 px touch, both themes
 and narrow Grid sections. Start `pnpm dev:web` and `pnpm dev:host` separately for real use;

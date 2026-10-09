@@ -59,8 +59,11 @@ The user requested a new branch and an
 Markdown source/rendering in place of Rich Text, task checkbox reopening and click selection,
 project-name page-settings gear, Work creation plus, clearer nested-work terminology and
 section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A–E are delivered;
-Stage F remains planned. The umbrella records the completed child slices and the remaining integrated
-acceptance; the disposable-data policy supersedes its original converter proposals.
+Stage F is active as [Slice 67](active/67-markdown-and-work-navigation-closure.md), the
+direction-wide evidence ledger. It adds four proofs that are missing, covers real use, triages the
+friction notes, reconciles the documentation, and closes the umbrella. The umbrella records the
+completed child slices. The disposable-data policy supersedes its original converter proposals and
+its same-file conversion evidence.
 [Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
 **workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
 explicit parent. Three independent reviewers' diff findings are resolved, all 95 integrated

@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 67 | Slice 67 — Markdown and work navigation integrated closure (Slice 59 Stage F) | Direction-wide evidence ledger, the two missing proofs, real use, documentation reconciliation and the Slice 59 umbrella's closure | [67-markdown-and-work-navigation-closure.md](active/67-markdown-and-work-navigation-closure.md) |
 
 ### Planned
 
