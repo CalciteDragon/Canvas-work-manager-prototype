@@ -907,6 +907,16 @@ describe('carriedShortcutsSentence', () => {
     );
   });
 
+  it('describes exactly three, and lists a fourth by id', () => {
+    const described = ' (on the Work page of "Cabinets", placing "Markdown" from "Garden")';
+    expect(carriedShortcutsSentence(['a', 'b', 'c'].map((id) => entry(id)))).toBe(
+      `shortcuts "a"${described}, "b"${described} and "c"${described} would cross root trees; remove each from its page, then retry`,
+    );
+    expect(carriedShortcutsSentence(['a', 'b', 'c', 'd'].map((id) => entry(id)))).toBe(
+      `shortcuts "a"${described}, "b"${described}, "c"${described}, and "d" would cross root trees; remove each from its page, then retry`,
+    );
+  });
+
   it('names all five ids, describes the first three, and uses the plural repair', () => {
     const sentence = carriedShortcutsSentence(['a', 'b', 'c', 'd', 'e'].map((id) => entry(id)))!;
     const described = ' (on the Work page of "Cabinets", placing "Markdown" from "Garden")';

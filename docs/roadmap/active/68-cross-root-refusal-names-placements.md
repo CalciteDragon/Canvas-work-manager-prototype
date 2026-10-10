@@ -422,14 +422,60 @@ renders `nextStep`, which does not change.
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables** — A refused cross-root move now says where each blocking placement sits and what
+it places: `shortcut "<id>" (on the Work page of "Cabinets", placing "Markdown" from "Garden") would
+cross root trees; remove it from that page, then retry`. One pure helper,
+`carriedShortcutsSentence` in [`project-history.ts`](../../../packages/domain/src/project-history.ts),
+writes it from the `CarriedShortcut`s that `shortcutsCarriedAcrossRoots` now returns. The forward
+refusal in [`project-service.ts`](../../../packages/domain/src/project-service.ts) and a reparent's
+Undo/Redo both use it, each behind its own opener. `conflictListText` was extracted unchanged from
+`refuseOnConflicts` in [`operation-execution.ts`](../../../packages/domain/src/operation-execution.ts),
+so a mixed history refusal lists every other conflict after the sentence. HTTP 409s and both MCP
+transports carry the text. `mcp-acceptance` removes the placement by the id parsed from the
+refusal, and proves the same description on a refused Undo. The live run on a scratch
+`nested-projects` copy over HTTP MCP did the Done-when exactly. The agent removed the placement with
+no `list_section_shortcuts` call and the retried move succeeded. A person-placed section then made
+the agent's Undo refuse with `on the Work page of "Cabinets", placing "Bench notes" from
+"Workshop"`, and the refused Undo wrote nothing.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+**Deliberate choices** — Every id is named; only the first three placements are described, so the
+two decisions' "names every placement" stays true. The typed `shortcut-reference` conflicts are
+unchanged (no title, no field); only the text differs. The `projects.write`-only disclosure is
+accepted and pinned by a test. All three are recorded in the
+[forward-reparent amendment](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md).
+Three placements read `a, b and c`, and four or more read `a, b, c, and d, e`, as the plan's examples
+show. Tests pin both boundaries.
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+**Deviations from the plan** — None in shape. The route-test extensions were written after the
+domain change. Their failure on the old wording was shown by temporarily restoring the pre-slice
+domain files: both 409 cases failed, then passed again on the new code. The plan's forward test
+cases extended the existing `S-dest`/`S-src` tests rather than adding new ones. Review added a
+comment on `refuse`'s unused `shown` argument and helper tests for exactly three and four
+placements.
 
-**Deferred** — <what was left out and which slice owns it>.
+**Deferred** — An untitled source still reads by its type ("Markdown"). Two untitled briefs in one
+project would read the same, and the remove receipt says "Removed the Markdown shortcut". That
+belongs to [Slice 69](../planned/69-distinguishable-shortcut-names.md) (how a shortcut is named), recorded as friction note
+`note-2026-10-09-007`. A move UI and an inline "remove and move" stay out of scope.
 
-**Open questions** — <what the next phase or the user must answer>.
+**Open questions** — None new. Whether three described placements is the right bound only matters
+once real trees carry more than a handful of split placements.
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+**Documentation updated** — `docs/architecture/domain/{how,why}.md`,
+`docs/architecture/testing/{how,what}.md`, both cross-root decisions (dated Slice 68 amendments)
+and their index rows, and `.prototype/notes.json`: `note-2026-10-03-002` is resolved and
+`note-2026-10-09-007` is added.
+
+**Gates** — `pnpm lint` (with `docs:check`) and `mcp-acceptance` on both transports pass.
+`pnpm test` did **not** pass in a single run on this machine. Across six full runs, each one had a
+different set of unrelated specs hit vitest's 5 s timeout: domain import-lint and service specs,
+host stdio and live-update specs, and web component specs. No assertion failed, and every run's
+failures were timeouts only. Slices 66 and 67 recorded the same pattern. On the final tree, every
+package passed on its own:
+- the root script tests: 9;
+- contracts 364, repositories 200, prototype-data 112, domain 844, mcp-tools 181, prototype-host 291;
+- web 967/967, in five batches, because the whole web suite still times out on this machine even
+  run alone.
+
+Web depends only on `@cwm/contracts`, which this slice does not touch; its only change is
+`CURRENT_SLICE`. No timeout was widened.

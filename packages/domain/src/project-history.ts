@@ -404,6 +404,8 @@ const refuse = (
     return;
   }
   const others = conflicts.filter(({ problem }) => problem !== 'shortcut-reference');
+  // The generic `shown` list is deliberately unused: it would repeat the placements and could push
+  // the other conflicts past its five-item cap. The typed payload still carries every conflict.
   refuseOnConflicts(
     conflicts,
     () => `${opener}${described}${others.length === 0 ? '' : `; ${conflictListText(others, false)}`}`,
