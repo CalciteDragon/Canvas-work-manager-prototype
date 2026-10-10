@@ -427,7 +427,7 @@ the remaining evidence.
 
 **Deferred and open questions.** Placement naming in a cross-root move refusal is
 [Slice 68](68-cross-root-refusal-names-placements.md); distinguishable untitled shortcut
-names are [Slice 69](../planned/69-distinguishable-shortcut-names.md). The Reopened label, below-fold
+names are [Slice 69](../active/69-distinguishable-shortcut-names.md). The Reopened label, below-fold
 drawer, Preview wording and Work-row detail are Known friction in
 [goals](../goals.md). Sustained use still has to test the decisions' confidence.
 

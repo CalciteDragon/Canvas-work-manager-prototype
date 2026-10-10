@@ -109,8 +109,8 @@ next now that the Markdown and work navigation direction is done:
 - [Slice 68 — cross-root move refusal names each placement](completed/68-cross-root-refusal-names-placements.md),
   completed 2026-10-09: the refusal now describes each placement's page and source
   (`note-2026-10-03-002`);
-- [Slice 69 — distinguishable names for untitled shortcut sources](planned/69-distinguishable-shortcut-names.md)
-  (`note-2026-10-03-001`).
+- [Slice 69 — distinguishable names for untitled shortcut sources](active/69-distinguishable-shortcut-names.md),
+  active since 2026-10-09 with its plan reviewed in two rounds (`note-2026-10-03-001`).
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
@@ -293,7 +293,7 @@ Known friction not yet promoted to a slice, carried in `.prototype/notes.json`:
 - Retiring the hierarchy section leaves Work rows without its dates/status detail; sustained
   use must decide whether richer rows are needed (`note-2026-10-09-001`).
 - Shortcut ambiguity (promoted) and placement-only move refusals (resolved by Slice 68) went to
-  [Slice 69](planned/69-distinguishable-shortcut-names.md) (`note-2026-10-03-001`) and
+  [Slice 69](active/69-distinguishable-shortcut-names.md) (`note-2026-10-03-001`) and
   [Slice 68](completed/68-cross-root-refusal-names-placements.md) (`note-2026-10-03-002`).
 - §46's failure-rate injection applies to reads as well as writes (`note-2026-09-06-009`).
 - Storybook is limited to a handful of story sets; the Design Lab's *primitive* panels are
