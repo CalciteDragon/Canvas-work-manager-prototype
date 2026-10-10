@@ -1,4 +1,4 @@
-<!-- plan id="68" status="active" summary="A refused cross-root move names each blocking shortcut's canvas and source section, so an agent or person can remove it in one step" -->
+<!-- completed-record id="68" closed="2026-10-10" summary="A refused cross-root move describes each blocking placement's page and source in one shared sentence; agents remove it by the id from the text" -->
 # Slice 68 — Cross-root move refusal names each placement
 
 ## Goal

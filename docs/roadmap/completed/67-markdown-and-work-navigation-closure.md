@@ -371,7 +371,7 @@ not a PASS. Cells marked *(confirm)* name a file whose exact titles are still to
   - untitled-shortcut ambiguity (`note-2026-10-03-001`): promoted to
     [Slice 69](../planned/69-distinguishable-shortcut-names.md) and triaged as such;
   - a placement-naming reparent refusal (`note-2026-10-03-002`): promoted to
-    [Slice 68](../active/68-cross-root-refusal-names-placements.md) and triaged as such;
+    [Slice 68](68-cross-root-refusal-names-placements.md) and triaged as such;
   - Work-row details (`note-2026-10-09-001`).
 - Re-proving Slice 34's history families. They are reached only where a Slice 59 row depends on
   them.
