@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 69 | Slice 69 — Distinguishable names for untitled shortcut sources | A shortcut to an untitled section is named with its source's owner on its frame and in history labels, so it cannot be mistaken for a local section | [69-distinguishable-shortcut-names.md](active/69-distinguishable-shortcut-names.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -106,5 +104,6 @@ verification follow-ups rather than feature slices.
 | 59 | Slice 59 — Markdown, reversible task completion and work navigation | 2026-10-09 | Markdown, reversible checkboxes, title selection, gear, Work plus, workstream wording and Work shortcuts delivered by Slices 60–67; same-file conversion superseded | [59-markdown-and-work-navigation.md](completed/59-markdown-and-work-navigation.md) |
 | 66 | Slice 66 — Retire the Sub-Projects section (Slice 59 Stage E) | 2026-10-09 | Retired Sub-Projects, removed the upgrade pipeline, and verified six seeds through browser, HTTP and both MCP transports | [66-retire-sub-projects-section.md](completed/66-retire-sub-projects-section.md) |
 | 67 | Slice 67 — Markdown and work navigation integrated closure (Slice 59 Stage F) | 2026-10-09 | Slice 59 evidence ledger closed: four new proofs seen to fail, 109 browser journeys, real use, nine notes triaged, docs reconciled | [67-markdown-and-work-navigation-closure.md](completed/67-markdown-and-work-navigation-closure.md) |
+| 69 | Slice 69 — Distinguishable names for untitled shortcut sources | 2026-10-09 | Untitled shortcut frames, controls and new history labels include their source owner; independent reviews and live browser/MCP evidence passed | [69-distinguishable-shortcut-names.md](completed/69-distinguishable-shortcut-names.md) |
 | 68 | Slice 68 — Cross-root move refusal names each placement | 2026-10-10 | A refused cross-root move describes each blocking placement's page and source in one shared sentence; agents remove it by the id from the text | [68-cross-root-refusal-names-placements.md](completed/68-cross-root-refusal-names-placements.md) |
 <!-- roadmap:end -->

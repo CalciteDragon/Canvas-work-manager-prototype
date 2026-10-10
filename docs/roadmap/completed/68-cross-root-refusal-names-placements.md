@@ -455,7 +455,7 @@ placements.
 
 **Deferred** — An untitled source still reads by its type ("Markdown"). Two untitled briefs in one
 project would read the same, and the remove receipt says "Removed the Markdown shortcut". That
-belongs to [Slice 69](../active/69-distinguishable-shortcut-names.md) (how a shortcut is named), recorded as friction note
+belongs to [Slice 69](69-distinguishable-shortcut-names.md) (how a shortcut is named), recorded as friction note
 `note-2026-10-09-007`. A move UI and an inline "remove and move" stay out of scope.
 
 **Open questions** — None new. Whether three described placements is the right bound only matters

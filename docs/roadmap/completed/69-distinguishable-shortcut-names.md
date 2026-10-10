@@ -1,4 +1,4 @@
-<!-- plan id="69" status="active" summary="A shortcut to an untitled section is named with its source's owner on its frame and in history labels, so it cannot be mistaken for a local section" -->
+<!-- completed-record id="69" closed="2026-10-09" summary="Untitled shortcut frames, controls and new history labels include their source owner; independent reviews and live browser/MCP evidence passed" -->
 # Slice 69 — Distinguishable names for untitled shortcut sources
 
 ## Goal
@@ -319,6 +319,17 @@ The first concurrent offline run timed out in an existing five-second import-lin
 the full rerun passed with no timeout changes. An overlapping docs check saw the Node check's
 temporary malformed-Mermaid fixture; the subsequent check passed after that fixture was removed.
 
+**Diff review round 1.** Two independent reviewers inspected `06517fc → baff89e` directly.
+The correctness/spec/acceptance reviewer returned no substantive findings, confirming title and
+owner fallback, all placement-write labels, unavailable-source removal and historical capture.
+The dedicated boundaries/documentation reviewer also returned clean: one contracts rule,
+unchanged domain edges and gateway isolation, unchanged schemas/styles and truthful living docs.
+Both identified only the already-pending live use and phase closure.
+
+**Diff review round 2.** A third reviewer, who had reviewed the plan but implemented no files,
+re-read the complete implementation diff and acceptance evidence. No substantive defects,
+regressions, scope creep or documentation gaps remained. No repair was required from either round.
+
 <!-- One entry per review round: what the reviewer found, what changed. -->
 
 **Round 1** (independent reviewer, against the code). No boundary violations; the line numbers and
@@ -348,3 +359,43 @@ announcement test, and the seeded Home test at `:372-376` all hold. Two minor fi
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
+
+**Deliverables.** [`shortcutNameOf`](../../../packages/contracts/src/section-shortcut.ts) now
+gives untitled shortcut sources their owner's name across the frame, controls, canvas labels and
+newly captured history labels and add Activity summaries. Titled sources keep their chosen name.
+[`SectionShortcutService`](../../../packages/domain/src/section-shortcut-service.ts) reads the
+current owner for each write without making archived or hidden sources harder to remove. The
+contract, domain, frame/canvas, browser and MCP regressions cover these surfaces, and
+`CURRENT_SLICE` is 69.
+
+**Deliberate choices.** The [naming decision](../../decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)
+settles the parenthesised owner form and explains the rejected possessive, separator, prose and
+collision-only alternatives. The shared rule lives in contracts because both domain and web need
+it; no stored names or contract shapes were added. Frames follow the owner's current name on a
+resolved read, while history and Activity text stay true to the write that captured them. The
+additional owner-rename regression pins this choice.
+
+**Evidence and deviations.** The required failing tests were observed before implementation,
+then the full offline suite passed (2,969 Vitest tests and nine Node checks), as did lint,
+docs:check, regenerated Compodoc, all 26 affected browser journeys, both MCP transports and the
+Storybook build. The live Remove Placement Interactions passed both steps. The first overloaded
+offline run hit an existing import-lint timeout; the full rerun passed without changing the test.
+No acceptance checks were skipped. Three independent reviewers in two diff rounds found no
+substantive issue. The only plan addition was the owner-rename guard requested in execution review.
+
+After review, actual browser use on a scratch `nested-projects` file put Garden's brief directly
+below Kitchen's own brief and showed `Markdown` beside `Markdown (Garden)`, with the expected
+header and controls. Collapse, header Undo and reload retained the distinction. The seeded Home
+showed `Reflections (Kitchen)` beside `Reflections (Home renovation)`. A real HTTP SDK client
+discovered Cabinets' Work page, added Garden's untitled source, and received
+`Added the Markdown (Garden) shortcut` in both the receipt and `get_operation_history`. The run
+resolved `note-2026-10-03-001` in [the notes](../../../.prototype/notes.json); it found no new
+naming friction.
+
+**Deferred and open questions.** Picker names, page qualifiers, collisions between chosen titles
+or two untitled sections owned by one project, and editable shortcut names remain outside this
+slice. The decision records their revisit triggers; no new product question blocks closure.
+
+**Documentation updated.** Contracts, domain, web/projects and testing architecture folders,
+the new decision and two dated amendments/index, spec §§27/54, the milestone walkthrough and
+roadmap direction now describe the implemented rule. No command or URL changed.

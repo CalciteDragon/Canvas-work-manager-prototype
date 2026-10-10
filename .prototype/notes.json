@@ -1044,6 +1044,8 @@
     },
     {
       "id": "note-2026-10-03-001",
+      "resolvedAt": "2026-10-10T09:58:05.000Z",
+      "resolution": "Closed by Slice 69 (docs/decisions/2026-10-untitled-shortcut-sources-name-their-owner.md). Live use on a disposable nested-projects copy placed Garden's untitled brief directly below Kitchen's local brief: the frames read Markdown and Markdown (Garden), the controls use Markdown (Garden), and Kitchen's header reads Undo: Added the Markdown (Garden) shortcut. Collapse and header Undo worked with the qualified label, and reload preserved the distinction. Home displays Reflections (Kitchen) and Reflections (Home renovation) apart. A real HTTP MCP SDK add on Cabinets' Work page returned Added the Markdown (Garden) shortcut, and get_operation_history returned the same label. No new naming friction found in this run; same-owner/page collisions remain the decision's revisit trigger.",
       "createdAt": "2026-10-03T07:36:27.058Z",
       "route": "/projects/project-kitchen",
       "projectId": "project-kitchen",

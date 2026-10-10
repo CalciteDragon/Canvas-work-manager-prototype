@@ -104,13 +104,15 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**Next.** On 2026-10-09 the user promoted two Slice 65 friction notes to candidates, which come
-next now that the Markdown and work navigation direction is done:
+**Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
+after the Markdown and work navigation direction; both are now resolved:
 - [Slice 68 — cross-root move refusal names each placement](completed/68-cross-root-refusal-names-placements.md),
   completed 2026-10-09: the refusal now describes each placement's page and source
   (`note-2026-10-03-002`);
-- [Slice 69 — distinguishable names for untitled shortcut sources](active/69-distinguishable-shortcut-names.md),
-  active since 2026-10-09 with its plan reviewed in two rounds (`note-2026-10-03-001`).
+- [Slice 69 — distinguishable names for untitled shortcut sources](completed/69-distinguishable-shortcut-names.md),
+  completed 2026-10-09: untitled shortcut frames, controls and new history labels include the
+  source owner, with independent diff reviews and real browser/MCP use (`note-2026-10-03-001`).
+  No implementation plan remains active; sustained use can choose the next candidate.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
@@ -292,9 +294,11 @@ Known friction not yet promoted to a slice, carried in `.prototype/notes.json`:
   (`note-2026-10-02-001`).
 - Retiring the hierarchy section leaves Work rows without its dates/status detail; sustained
   use must decide whether richer rows are needed (`note-2026-10-09-001`).
-- Shortcut ambiguity (promoted) and placement-only move refusals (resolved by Slice 68) went to
-  [Slice 69](active/69-distinguishable-shortcut-names.md) (`note-2026-10-03-001`) and
-  [Slice 68](completed/68-cross-root-refusal-names-placements.md) (`note-2026-10-03-002`).
+- Untitled shortcuts owned by different projects are distinguished by
+  [Slice 69](completed/69-distinguishable-shortcut-names.md) (`note-2026-10-03-001`), and placement-only
+  move refusals were resolved by [Slice 68](completed/68-cross-root-refusal-names-placements.md)
+  (`note-2026-10-03-002`). Two untitled sources owned by one project can still share a name;
+  the naming decision leaves page qualifiers for further use.
 - §46's failure-rate injection applies to reads as well as writes (`note-2026-09-06-009`).
 - Storybook is limited to a handful of story sets; the Design Lab's *primitive* panels are
   the evidence for a shared component library that has not been extracted.

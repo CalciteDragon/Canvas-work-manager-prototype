@@ -369,7 +369,7 @@ not a PASS. Cells marked *(confirm)* name a file whose exact titles are still to
   - escaped legacy prose (`note-2026-10-02-002`): expected obsolete, since converted data is
     disposable;
   - untitled-shortcut ambiguity (`note-2026-10-03-001`): promoted to
-    [Slice 69](../active/69-distinguishable-shortcut-names.md) and triaged as such;
+    [Slice 69](69-distinguishable-shortcut-names.md) and triaged as such;
   - a placement-naming reparent refusal (`note-2026-10-03-002`): promoted to
     [Slice 68](68-cross-root-refusal-names-placements.md) and triaged as such;
   - Work-row details (`note-2026-10-09-001`).
