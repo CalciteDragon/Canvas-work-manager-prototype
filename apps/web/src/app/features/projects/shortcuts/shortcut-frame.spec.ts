@@ -60,7 +60,21 @@ describe('ShortcutFrame (§27)', () => {
     expect(query(fixture, 'app-markdown-renderer')?.textContent).toContain('Canonical source');
     expect(query(fixture, '[data-markdown-edit]')).toBeNull();
     expect(query(fixture, '[data-shortcut-open-source]')).not.toBeNull();
-    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Markdown');
+    expect(query(fixture, 'h2')?.textContent?.replace('↗', '').trim()).toBe('Markdown (Website launch)');
+    expect(query(fixture, '[data-shortcut-drag-handle]')?.getAttribute('aria-label')).toBe('Move shortcut to Markdown (Website launch)');
+    expect(query(fixture, '[data-shortcut-collapse]')?.getAttribute('aria-label')).toBe('Collapse Markdown (Website launch)');
+    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Markdown (Website launch)');
+  });
+
+  it('uses a titled source name alone in its heading and controls', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const value = shortcut();
+    const fixture = render(shortcut({ source: { ...value.source, title: 'Launch brief' } }));
+
+    expect(query(fixture, 'h2')?.textContent?.replace('↗', '').trim()).toBe('Launch brief');
+    expect(query(fixture, '[data-shortcut-drag-handle]')?.getAttribute('aria-label')).toBe('Move shortcut to Launch brief');
+    expect(query(fixture, '[data-shortcut-collapse]')?.getAttribute('aria-label')).toBe('Collapse Launch brief');
+    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Launch brief');
   });
 
   it('keeps layout controls available without exposing source editing or sizing controls', () => {

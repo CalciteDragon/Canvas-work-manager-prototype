@@ -114,6 +114,7 @@ a type with no schema, registered or not, is never checked
 | `SECTION_OWNERSHIP` | const | Container type → owned row kind, derived from the capabilities; absence makes a type a view | [API](../../api/miscellaneous/variables.html#SECTION_OWNERSHIP) |
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
 | `nameOf` | function | A section's display name: `title` override, else derived from `type` | [API](../../api/miscellaneous/variables.html#nameOf) |
+| `shortcutNameOf` | function | A shortcut's display name: chosen title alone, otherwise type name with its trimmed owner; null or blank owner falls back to `nameOf` | [API](../../api/miscellaneous/variables.html#shortcutNameOf) |
 | `ProjectArchiveSectionRecoverySchema` | const | Archive section entry's recovery metadata union | [API](../../api/miscellaneous/variables.html#ProjectArchiveSectionRecoverySchema) |
 | `ProjectArchiveResultSchema` | const | Ready-only root Archive result | [API](../../api/miscellaneous/variables.html#ProjectArchiveResultSchema) |
 | `ArchivedProjectsResultSchema` | const | Workspace archived-project recovery result | [API](../../api/miscellaneous/variables.html#ArchivedProjectsResultSchema) |

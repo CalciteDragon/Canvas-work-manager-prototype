@@ -39,7 +39,8 @@ and nothing may create or store either.
 - Own `SCHEMA_VERSION` (currently `6`) and `PrototypeDocumentSchema`, so a stale
   `.prototype/data.json` fails at load rather than mid-session.
 - Own the small pure functions that several layers need to agree on: `nameOf` for a
-  section's display name, `SECTION_CAPABILITIES` (and the derived `SECTION_OWNERSHIP` /
+  section's display name, `shortcutNameOf` for a shortcut's owner-qualified untitled source,
+  `SECTION_CAPABILITIES` (and the derived `SECTION_OWNERSHIP` /
   `ownedKindOf`) for which section types own rows and what removing one could leave to recover, `isRootProject`, `NAVIGABLE_PAGE_KINDS`.
 
 ## Not responsible for

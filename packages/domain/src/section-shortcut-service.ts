@@ -6,6 +6,7 @@ import {
   ShortcutSourceSchema,
   canonicalPageKindFor,
   nameOf,
+  shortcutNameOf,
   type CreateSectionShortcutInput,
   type MoveSectionShortcutInput,
   type Project,
@@ -175,13 +176,14 @@ export class SectionShortcutService {
       const ordered = [...placements];
       ordered.splice(position, 0, { kind: 'shortcut', value: shortcut });
       await renumberPlacements(this.dependencies, this.dependencies.clock, ordered);
-      await this.record(actor, destination.project, 'project.shortcut_added', `Added a shortcut to ${nameOf(source)}`);
+      const name = shortcutNameOf(source, byProject.get(source.projectId)?.name ?? null);
+      await this.record(actor, destination.project, 'project.shortcut_added', `Added a shortcut to ${name}`);
       const stored = await this.requireShortcut(actor, shortcut.id);
       const operation = await this.dependencies.history.record(actor, {
         // The **destination** project, always — the root for Home, the workstream for Work: the
         // action belongs to the canvas the placement is on, never to the project the source lives in.
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.add', [], nameOf(source)),
+        label: shortcutWriteLabel('shortcut.add', [], name),
         operation: captureShortcutAdd(
           destination.project.id,
           stored,
@@ -227,7 +229,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_updated', 'Updated a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.update', changes, await this.sourceNameOf(updated)),
+        label: shortcutWriteLabel('shortcut.update', changes, await this.shortcutNameFor(updated)),
         operation: captureShortcutUpdate({
           shortcutId: updated.id,
           projectId: destination.project.id,
@@ -276,7 +278,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_moved', 'Moved a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.move', [], await this.sourceNameOf(updated)),
+        label: shortcutWriteLabel('shortcut.move', [], await this.shortcutNameFor(updated)),
         operation: captureShortcutMove({
           shortcutId: id,
           projectId: destination.project.id,
@@ -315,7 +317,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_removed', 'Removed a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.remove', [], await this.sourceNameOf(current)),
+        label: shortcutWriteLabel('shortcut.remove', [], await this.shortcutNameFor(current)),
         operation: captureShortcutRemove(destination.project.id, current, placement),
       });
       return { shortcutId: id, projectId: destination.project.id, pageId: current.pageId, operation };
@@ -323,13 +325,15 @@ export class SectionShortcutService {
   }
 
   /**
-   * The source section's name for a history label, read with a plain `find` — deliberately not
+   * The shortcut's name for a history label, read with plain repository `find`s — deliberately not
    * `requireSource`/`assertSourceScope`, because a removal may run while the source is archived or
    * hidden, and a label must never add a refusal. `null` when the source cannot be read.
    */
-  private async sourceNameOf(placement: SectionShortcut): Promise<string | null> {
+  private async shortcutNameFor(placement: SectionShortcut): Promise<string | null> {
     const source = await this.dependencies.sections.find(placement.sourceSectionId);
-    return source === null ? null : nameOf(source);
+    if (source === null) return null;
+    const owner = await this.dependencies.projects.find(source.projectId);
+    return shortcutNameOf(source, owner?.name ?? null);
   }
 
   private async resolveCurrent(

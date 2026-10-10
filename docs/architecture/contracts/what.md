@@ -17,7 +17,7 @@ flowchart TB
     project["project.ts<br/>Project = root | subproject"]
     page["project-page.ts<br/>ProjectPage, NAVIGABLE_PAGE_KINDS"]
     section["section.ts<br/>ProjectSection, SECTION_CAPABILITIES, nameOf"]
-    shortcut["section-shortcut.ts"]
+    shortcut["section-shortcut.ts<br/>SectionShortcut, shortcutNameOf"]
     task["task.ts"]
     milestone["milestone.ts"]
     reflection["reflection.ts"]
@@ -86,7 +86,7 @@ reference a section elsewhere in the same tree.
 | `ProjectSchema`, `isRootProject` | `src/project.ts` | Discriminated union on `kind`; status and `progressFormula` |
 | `ProjectPageSchema`, `NAVIGABLE_PAGE_KINDS` | `src/project-page.ts` | Four root kinds plus `work`; which are tabs |
 | `ProjectSectionSchema`, `SECTION_CAPABILITIES`, `SECTION_CONFIG_SCHEMAS`, `MarkdownConfigSchema`, `sectionConfigRefusal`, `RETIRED_SECTION_TYPES`, `isRetiredSectionType`, `retiredSectionReplacement`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, per-type capabilities with the declared prose key for config recovery, retired types and replacement guidance, the container/view split, display names, grid presets |
-| `SectionShortcutSchema` | `src/section-shortcut.ts` | Placements on a canonical page (Home or Work) referencing a source section |
+| `SectionShortcutSchema`, `shortcutNameOf` | `src/section-shortcut.ts` | Placements on a canonical page (Home or Work) referencing a source section, and their shared display naming rule |
 | `TaskSchema` | `src/task.ts` | §33's task; `archivedAt`, `archivedWithSectionId`, `archivedWithTaskId` |
 | `ReflectionSchema` | `src/reflection.ts` | Body, optional title/prompt, optional subject, archive markers |
 | `ActivityEventSchema`, `ActivityActionSchema` | `src/activity.ts` | Actor-attributed events; open `entity.verb` action |

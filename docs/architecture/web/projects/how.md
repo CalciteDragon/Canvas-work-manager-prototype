@@ -15,6 +15,13 @@ each option binds `[selected]`, because a `[value]` on the select runs before it
 
 ## Runtime flow
 
+`ShortcutFrame.name` and the shortcut branch of `ProjectCanvas.placementName` call contracts'
+`shortcutNameOf(source, sourceProjectName)`. Untitled sources gain their owning project in
+parentheses, while a title override stays alone. The same name reaches frame controls, resize
+handles, insertion labels and keyboard move announcements. Local sections still use `nameOf`.
+The frame follows current resolved identity; the header displays the server's captured history
+label, so an owner rename does not rewrite older steps.
+
 The root-name gear opens a hidden, root-scoped page-settings disclosure. Its local state survives
 page-kind changes while the column stays mounted; Escape closes and focuses the gear, and a live
 root change closes it. The Work plus requests the shell's deferred `WorkCreateDialog`, with an
@@ -239,7 +246,7 @@ Successful Save and Cancel restore focus to Edit. Preview renders only the local
 - [tasks](../tasks/overview.md) — `TaskListStore`, `TaskRow`, `TaskDetailDrawer` inside
   the Task List section. Todos owns its separate task row and store.
 - `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section.
-- [contracts](../../contracts/overview.md) — `nameOf`, `SECTION_OWNERSHIP` (through the
+- [contracts](../../contracts/overview.md) — `nameOf`, `shortcutNameOf`, `SECTION_OWNERSHIP` (through the
   registry's `kind`), `NAVIGABLE_PAGE_KINDS`, `isRootProject`, and every shape.
 - `@angular/cdk/drag-drop`.
 

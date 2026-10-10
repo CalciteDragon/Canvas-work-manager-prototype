@@ -128,10 +128,16 @@ describes the project, but an archive's own Undo, a reactivation's Redo and an a
 edit may run while their subject is archived; a header reading only the project-level blocker could
 never undo an archive. `summaryOf` therefore computes each entry's `blockedBy` with the very
 `transitionBlocker` a transition of that step runs, so availability and execution cannot drift.
-Labels are captured at record time and name the change: shortcut labels read the source section's
-name with a plain `find` (never the scope checks, so a label adds no refusal), and project labels
+Labels are captured at record time and name the change: shortcut labels derive `shortcutNameOf`
+from plain source and owner repository `find` calls (never the scope checks, so archived or hidden
+source removal gains no refusal), and project labels
 name the one edit and its result, or say `Edited` for several
 ([decision](../../decisions/2026-09-project-header-history-controls.md)).
+
+Untitled shortcut names include the source's owning project, even for a same-project source on
+another page. A frame follows an owner rename on its next read, while each placement write
+captures the current name and leaves older labels and add Activity summaries frozen
+([decision](../../decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
 
 **Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
 and owning project/root while the entity is readable in the caller's unit. Feeds prefer current

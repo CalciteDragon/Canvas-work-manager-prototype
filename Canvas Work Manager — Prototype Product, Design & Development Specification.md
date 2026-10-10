@@ -1530,6 +1530,14 @@ The first pass renders source content **read-only**, identifies where it came fr
 editing is worth the ambiguity of two live views of one section is a question for later use,
 not an assumption to build in now.
 
+*Since Slice 69* an untitled source's shortcut is named with its owning project:
+`Markdown (Garden)`, including a same-project source on another page (`Reflections (Home renovation)`).
+A titled source keeps its chosen title alone. The frame, its control names, canvas placement
+labels, newly recorded history labels and the add's Activity summary share this rule. The frame
+follows the owner's current name on a resolved read; each recorded label and summary freezes at
+write time. Local section names and existing historical text are unchanged
+([decision](docs/decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
+
 The control that creates one is labelled **Add shortcut**.
 
 *Landed in Slice 37.* Every placement write is undoable. Adding, resizing, collapsing, moving and
@@ -2920,7 +2928,8 @@ though the removal response snapshot carries `archivedAt`. `get_operation_histor
 Redo, the revision and any archived blocker. *Since Slice 41* each of the two entries carries its own
 `blockedBy` — the archived project a transition of **that step** would refuse for, or `null` — while
 the top-level `blockedBy` describes the project; history labels name what changed ("Collapsed the
-Tasks shortcut", `Renamed "Old" to "New"`). `undo_operation` and `redo_operation`
+Tasks shortcut", `Renamed "Old" to "New"`); since Slice 69 an untitled source's shortcut name
+includes its owner (§27). `undo_operation` and `redo_operation`
 (`projects.write`, input `{ historyId, actionId, expectedRevision }`) run exactly the next action in
 their direction for the exact actor whose history it is.
 MCP errors carry no structured details, so refusal text starts with its reason. Repeating a

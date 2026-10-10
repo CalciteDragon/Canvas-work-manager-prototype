@@ -539,6 +539,28 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(document.activeElement).toBe(query(fixture, '[data-section-item][data-section-id="section-text"] [data-section-drag-handle]'));
   });
 
+  it('qualifies shortcut resize, insertion and keyboard move names with the source owner', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-text', 'markdown', 0)],
+      shortcutsAllowed: true,
+      shortcuts: [shortcut('shortcut-a', 1)],
+    });
+    const item = '[data-shortcut-id="shortcut-a"]';
+
+    expect(query(fixture, `${item} app-section-resize-handle[data-edge="end"] [data-resize-handle]`)?.getAttribute('aria-label')).toBe('Resize Task List (Website launch)');
+    expect(query(fixture, `${item} [data-insertion-point="before"] button`)?.getAttribute('aria-label')).toBe('Insert before Task List (Website launch)');
+    expect(query(fixture, '[data-section-id="section-text"] app-section-resize-handle[data-edge="end"] [data-resize-handle]')?.getAttribute('aria-label')).toBe('Resize Markdown');
+
+    const grip = query(fixture, `${item} [data-shortcut-drag-handle]`)!;
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('shortcuts.move')).toEqual({ id: 'shortcut-a', input: { position: 0 } });
+    expect(query(fixture, '[data-canvas-live-region]')?.textContent?.trim()).toBe('Moved Task List (Website launch) to position 1 of 2.');
+    expect(document.activeElement).toBe(query(fixture, `${item} [data-shortcut-drag-handle]`));
+  });
+
   it('moves focus from the removed section to the recovery notice’s Open Archive, and offers no Undo here', async () => {
     const { fixture } = await render();
     const remove = query(fixture, '[data-section-id="section-text"] [data-section-remove]') as HTMLButtonElement;

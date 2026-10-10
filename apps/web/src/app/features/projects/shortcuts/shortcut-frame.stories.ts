@@ -131,7 +131,7 @@ export const RemovePlacement: Story = {
   args: { removeRequested: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Remove shortcut to Markdown' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Remove shortcut to Markdown (Website launch)' }));
     await expect(args.removeRequested).toHaveBeenCalledWith('shortcut-story');
   },
 };

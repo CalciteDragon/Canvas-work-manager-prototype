@@ -25,7 +25,7 @@ import type {
   SectionShortcutId,
   ShortcutSource,
 } from '@cwm/contracts';
-import { nameOf } from '@cwm/contracts';
+import { nameOf, shortcutNameOf } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
 import { SectionCreateDialog } from './section-create-dialog';
@@ -209,7 +209,9 @@ export class ProjectCanvas {
   }
 
   placementName(placement: ProjectCanvasPlacement): string {
-    return placement.kind === 'section' ? nameOf(placement.section) : nameOf(placement.shortcut.source);
+    return placement.kind === 'section'
+      ? nameOf(placement.section)
+      : shortcutNameOf(placement.shortcut.source, placement.shortcut.sourceProjectName);
   }
 
   displayedSpan(placement: ProjectCanvasPlacement): SectionColumnSpan {

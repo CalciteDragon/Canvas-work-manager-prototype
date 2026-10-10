@@ -59,6 +59,11 @@ that name, and the registry checks it against the folder's default config
 `type` string plus a one-entry display-name table; `title` is optional
 ([decision](../../decisions/2026-09-a-section-has-a-name.md)).
 
+**An untitled shortcut names its source's owner.** `shortcutNameOf` supplies the same pure
+rule to web and domain: a chosen title stays alone, while an untitled source adds its owning
+project in parentheses. It derives text from existing identity, with no shape or stored-name
+change ([decision](../../decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
+
 **Section config is an object replaced whole, opaque unless its type declares a schema.** Only
 Markdown declares one, because agents write it: `SECTION_CONFIG_SCHEMAS` lets the domain refuse a
 malformed config for every caller rather than store a section no one can edit. Other types' configs

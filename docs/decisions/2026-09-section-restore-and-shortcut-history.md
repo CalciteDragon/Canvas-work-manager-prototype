@@ -103,3 +103,10 @@ summaries are unchanged. Shortcut steps are now offered in the project header ([
 well as a root's Home. A Work placement's actions are in the workstream's history, never the
 root's or the source's. The executors accept the destination project's canonical page and compare
 the roots of both ends. See [Work canvas shortcut destinations](2026-10-work-canvas-shortcut-destinations.md).
+
+**Amended, 2026-10-09 — Slice 69.** Newly recorded placement labels name the shortcut through
+`shortcutNameOf`, qualifying an untitled source with its owning project. The add's Activity
+summary uses that same name; other placement summaries stay generic. Plain repository reads of
+the source and owner preserve removal for archived or hidden sources. An owner rename changes
+subsequent labels, while earlier labels and summaries stay as recorded. See
+[untitled shortcut source naming](2026-10-untitled-shortcut-sources-name-their-owner.md).

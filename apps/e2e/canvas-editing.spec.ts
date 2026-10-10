@@ -217,15 +217,19 @@ test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and r
   await option.locator('[data-shortcut-add]').click();
   const shortcutId = ((await (await created).json()) as { shortcut: { id: string } }).shortcut.id;
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Added the Markdown shortcut');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Added the Markdown (Garden) shortcut');
   await expect(page.getByText(/recorded in .* history/)).toHaveCount(0);
-  expect(await actionLabels(KITCHEN)).toContain('Added the Markdown shortcut');
-  expect(await actionLabels(HOME_RENOVATION)).not.toContain('Added the Markdown shortcut');
-  expect(await actionLabels('project-garden')).not.toContain('Added the Markdown shortcut');
+  expect(await actionLabels(KITCHEN)).toContain('Added the Markdown (Garden) shortcut');
+  expect(await actionLabels(HOME_RENOVATION)).not.toContain('Added the Markdown (Garden) shortcut');
+  expect(await actionLabels('project-garden')).not.toContain('Added the Markdown (Garden) shortcut');
   await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(1);
 
   const frame = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcutId}"]`);
   await expect(frame.locator('[data-shortcut-source]')).toContainText('Home renovation / Garden');
+  await expect(page.locator(`[data-section-item][data-section-id="section-${KITCHEN}-brief"] [data-section-title-edit]`)).toHaveAttribute('aria-label', 'Rename Markdown');
+  await expect(frame.locator('[data-shortcut-frame]')).toHaveAccessibleName('Markdown (Garden)');
+  await expect(frame.locator('[data-shortcut-remove]')).toHaveAttribute('aria-label', 'Remove shortcut to Markdown (Garden)');
+  await expect(frame.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-label', 'Collapse Markdown (Garden)');
   await expect(frame).toContainText('Autumn planting only');
   await expect(frame.locator('[data-markdown-edit]')).toHaveCount(0);
 
@@ -234,19 +238,19 @@ test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and r
   await resizeHandle.press('ArrowLeft');
   await resizeHandle.press('Enter');
   await expect.poll(async () => (await orderOf(KITCHEN, work)).find(({ id }) => id === shortcutId)?.columnSpan).toBe(8);
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Resized the Markdown shortcut');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Resized the Markdown (Garden) shortcut');
   const handle = frame.locator('[data-shortcut-drag-handle]');
   await handle.press('ArrowUp');
   await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(0);
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Moved the Markdown shortcut');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Moved the Markdown (Garden) shortcut');
   await frame.locator('[data-shortcut-collapse]').click();
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Collapsed the Markdown shortcut');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Collapsed the Markdown (Garden) shortcut');
 
   // Header Undo and Redo on Kitchen, one step at a time.
-  await undoFromHeader(page, 'Collapsed the Markdown shortcut');
-  await undoFromHeader(page, 'Moved the Markdown shortcut');
+  await undoFromHeader(page, 'Collapsed the Markdown (Garden) shortcut');
+  await undoFromHeader(page, 'Moved the Markdown (Garden) shortcut');
   await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(1);
-  await redoFromHeader(page, 'Moved the Markdown shortcut');
+  await redoFromHeader(page, 'Moved the Markdown (Garden) shortcut');
   await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(0);
 
   // Every placement write so far — add, resize, reorder, collapse, Undo, Redo — left the source alone.
@@ -269,7 +273,7 @@ test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and r
   expect(briefEdited.config).not.toEqual(briefBefore.config);
   await frame.locator('[data-shortcut-remove]').click();
   await expect(frame).toHaveCount(0);
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Markdown shortcut');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Markdown (Garden) shortcut');
   expect((await orderOf(KITCHEN, work)).some(({ id }) => id === shortcutId)).toBe(false);
   expect((await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)).toEqual(briefEdited);
 });
@@ -373,6 +377,8 @@ test('frame indicators and direct controls work in both themes and collapse stat
   await page.goto(`/projects/${HOME_RENOVATION}`);
   await expect(page.locator('[data-section-frame]')).toHaveCount(6);
   await expect(page.locator('[data-shortcut-frame]')).toHaveCount(4);
+  await expect(page.locator('[data-shortcut-item][data-shortcut-id="shortcut-renovation-kitchen-reflections"] [data-shortcut-frame]')).toHaveAccessibleName('Reflections (Kitchen)');
+  await expect(page.locator('[data-shortcut-item][data-shortcut-id="shortcut-renovation-reflections-page"] [data-shortcut-frame]')).toHaveAccessibleName('Reflections (Home renovation)');
   await expectOnlyCanvasChrome(page);
 
   const firstSection = page.locator('[data-section-frame]').first();

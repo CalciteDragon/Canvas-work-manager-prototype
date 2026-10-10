@@ -3,6 +3,7 @@ import {
   ResolvedSectionShortcutSchema,
   SectionShortcutSchema,
   ShortcutSourceSchema,
+  shortcutNameOf,
 } from './section-shortcut';
 
 const placement = {
@@ -30,6 +31,17 @@ const source = {
 };
 
 describe('§27 shortcut contracts', () => {
+  it.each([
+    [undefined, 'Garden', 'Markdown (Garden)'],
+    ['   ', 'Garden', 'Markdown (Garden)'],
+    ['Launch brief', 'Garden', 'Launch brief'],
+    [undefined, null, 'Markdown'],
+    [undefined, '   ', 'Markdown'],
+    [undefined, ' Garden ', 'Markdown (Garden)'],
+  ])('names a shortcut with title %j and owner %j as %s', (title, owner, expected) => {
+    expect(shortcutNameOf({ type: 'markdown', title }, owner)).toBe(expected);
+  });
+
   it('keeps the persisted record a placement rather than a copy of its source', () => {
     expect(SectionShortcutSchema.parse(placement)).toEqual(placement);
     expect(SectionShortcutSchema.parse({ ...placement, source })).not.toHaveProperty('source');

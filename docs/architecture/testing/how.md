@@ -255,6 +255,14 @@ pnpm storybook                                        # :6006
   same user's history endpoint with a second tab watching; an Archive Restore that records its own
   action, is undone back into Archive and redone, with the removal beneath it still its own step;
   and duplication, which stays an HTTP action because the frame has no Duplicate control yet.
+- **Untitled shortcut names (Slice 69)** are checked in `canvas-editing.spec.ts` with
+  `toHaveAccessibleName` on `[data-shortcut-frame]`: Kitchen's local `Rename Markdown` control
+  sits beside `Markdown (Garden)`, and the seeded Home distinguishes `Reflections (Kitchen)`
+  from `Reflections (Home renovation)`. `project-history.spec.ts` checks the qualified Progress
+  shortcut's captured labels. Both MCP transports check the untitled Work Manager source's
+  receipt and following history label. The `ShortcutFrame` story's play function finds
+  `Remove shortcut to Markdown (Website launch)`; `pnpm test` does not execute that play function,
+  so run its Interactions in Storybook separately.
 - **Integrated recovery acceptance (Slice 33)** is a matrix, not one journey. The Refactor §26
   ledger in [the Slice 33 record](../../roadmap/completed/33-recovery-undo-integrated-acceptance.md)
   names each assertion. To rerun the failure and reopen evidence: `recovery-undo-acceptance.test.ts`

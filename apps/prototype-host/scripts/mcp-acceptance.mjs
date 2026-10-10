@@ -454,11 +454,13 @@ const assertRestoreAndShortcuts = async (client, title) => {
     onWork.isError !== true && onWork.structuredContent.shortcut.pageId === workPageId && receiptOf(onWork)?.operation === 'shortcut.add',
     `${title} add_section_shortcut places an ancestor section on a workstream's Work canvas`,
   );
+  check(receiptOf(onWork)?.label === 'Added the Markdown (Work Manager) shortcut', `${title} the untitled Work shortcut receipt names its source owner`);
   const workPlacements = async () =>
     JSON.parse((await client.callTool({ name: 'list_section_shortcuts', arguments: { projectId: childId } })).content[0].text);
   check((await workPlacements()).some(({ id }) => id === onWork.structuredContent.shortcut.id), `${title} list_section_shortcuts lists it without a pageId`);
   const childHistory = (await client.callTool({ name: 'get_operation_history', arguments: { projectId: childId } })).structuredContent;
   check(childHistory.historyId === receiptOf(onWork).historyId, `${title} the Work placement is in the workstream's own history`);
+  check(childHistory.undo?.label === 'Added the Markdown (Work Manager) shortcut', `${title} the Work history uses the same qualified shortcut name`);
   const undoneWork = await client.callTool({
     name: 'undo_operation',
     arguments: { historyId: receiptOf(onWork).historyId, actionId: receiptOf(onWork).actionId, expectedRevision: childHistory.revision },

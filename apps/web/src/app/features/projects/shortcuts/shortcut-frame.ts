@@ -3,7 +3,7 @@ import { NgComponentOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import {
-  nameOf,
+  shortcutNameOf,
   type ProjectPageKind,
   type ResolvedSectionShortcut,
   type SectionConfig,
@@ -33,7 +33,7 @@ export class ShortcutFrame {
   readonly moveRequested = output<'previous' | 'next'>();
   readonly removeRequested = output<SectionShortcutId>();
 
-  readonly sourceName = computed(() => nameOf(this.shortcut().source));
+  readonly name = computed(() => shortcutNameOf(this.shortcut().source, this.shortcut().sourceProjectName));
   readonly sourceDefinition = computed(() => definitionFor(this.shortcut().source.type));
   readonly sourceRoute = computed(() => {
     const shortcut = this.shortcut();

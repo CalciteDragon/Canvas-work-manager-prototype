@@ -136,12 +136,12 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await option.locator('[data-shortcut-add]').click();
   const shortcutId = ((await (await created).json()) as { shortcut: { id: string } }).shortcut.id;
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Added the Progress shortcut');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Added the Progress (Kitchen) shortcut');
   const shortcut = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcutId}"]`);
   await shortcut.locator('[data-shortcut-collapse]').click();
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Collapsed the Progress shortcut');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Collapsed the Progress (Kitchen) shortcut');
   await shortcut.locator('[data-shortcut-remove]').click();
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Progress shortcut');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Progress (Kitchen) shortcut');
   // A shortcut removal leaves nothing for Archive, so there is no notice at all.
   await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
 
@@ -163,13 +163,13 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
     { label: 'Renamed "Home renovation" to "House renovation"',
       undone: () => expect(page.locator('[data-project-name]')).toHaveText('Home renovation'),
       redone: () => expect(page.locator('[data-project-name]')).toHaveText('House renovation') },
-    { label: 'Removed the Progress shortcut',
+    { label: 'Removed the Progress (Kitchen) shortcut',
       undone: () => expect(shortcut).toBeVisible(),
       redone: () => expect(shortcut).toHaveCount(0) },
-    { label: 'Collapsed the Progress shortcut',
+    { label: 'Collapsed the Progress (Kitchen) shortcut',
       undone: () => expect(shortcut.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-expanded', 'true'),
       redone: () => expect(shortcut.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-expanded', 'false') },
-    { label: 'Added the Progress shortcut',
+    { label: 'Added the Progress (Kitchen) shortcut',
       undone: () => expect(shortcut).toHaveCount(0),
       redone: () => expect(shortcut).toBeVisible() },
     { label: 'Removed the Markdown section',

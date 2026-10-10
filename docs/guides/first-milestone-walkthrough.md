@@ -138,7 +138,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     Add Markdown notes on Kitchen's work canvas, then place a shortcut to them on Home. It
     renders the notes with no **Edit** control; **Open source** reaches the editable original.
     Then open Kitchen's work canvas and **Add shortcut** to Garden's brief there: the action is
-    Kitchen's, so Kitchen's header offers **Undo: Added the Markdown shortcut**.
+    Kitchen's, so Kitchen's header offers **Undo: Added the Markdown (Garden) shortcut**.
+    Its frame reads **Markdown (Garden)** beside Kitchen's own **Markdown** brief, and the
+    shortcut's controls use that same name. A titled source keeps its chosen title alone.
 
 ---
 

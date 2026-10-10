@@ -80,7 +80,7 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
 | `SectionService` | class | Section lifecycle and container resolution; explicit add/update/move and removal return typed Undo results | [API](../../api/classes/SectionService.html) |
 | `OperationRecorder` | interface | Records one history action and recovers a still-outstanding removal receipt inside the caller's unit | [API](../../api/interfaces/OperationRecorder.html) |
 | `RepositoryOperationRecorder` | class | Finds or creates the actor's history, appends, discards the redo branch, prunes, returns the receipt | [API](../../api/classes/RepositoryOperationRecorder.html) |
-| `shortcutWriteLabel`, `projectWriteLabel` | functions | History labels that name the source section and the project edit (Slice 41) | [API](../../api/miscellaneous/variables.html#shortcutWriteLabel) |
+| `shortcutWriteLabel`, `projectWriteLabel` | functions | History labels receiving the shortcut's display name and naming the project edit | [API](../../api/miscellaneous/variables.html#shortcutWriteLabel) |
 | `sectionUpdateLabel` | function | Captures an update's history wording from its normalized field footprint | [API](../../api/miscellaneous/variables.html#sectionUpdateLabel) |
 | `OperationHistoryService` | class | The caller's summary under `projects.read`; one transition under its stored family’s write grant | [API](../../api/classes/OperationHistoryService.html) |
 | `captureTaskAdd`, `revertTaskAdd`, `reapplyTaskAdd` | functions | Representative task capture and both-direction row executors; update/archive/restore follow the same seam | [API](../../api/miscellaneous/variables.html#captureTaskAdd) |

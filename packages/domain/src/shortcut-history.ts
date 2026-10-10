@@ -63,7 +63,7 @@ type ShortcutPlacementOperation = ShortcutAddOperation | ShortcutRemoveOperation
 type ShortcutOperation = ShortcutPlacementOperation | ShortcutUpdateOperation | ShortcutMoveOperation;
 
 /**
- * The history label for one placement write, naming the **source section** so a control can say
+ * The history label for one placement write, receiving the **shortcut's display name** so a control can say
  * which shortcut it will change (Slice 41): `Collapsed the Tasks shortcut`, `Resized the Tasks
  * shortcut`, `Removed the Tasks shortcut`. An update that changed both fields is `Updated`. When the
  * source could not be read the noun falls back to `a shortcut` — a label never adds a refusal.
@@ -71,9 +71,9 @@ type ShortcutOperation = ShortcutPlacementOperation | ShortcutUpdateOperation | 
 export const shortcutWriteLabel = (
   kind: ShortcutOperation['type'],
   changes: readonly ShortcutFieldChange[],
-  sourceName: string | null,
+  shortcutName: string | null,
 ): string => {
-  const noun = sourceName === null ? 'a shortcut' : `the ${sourceName} shortcut`;
+  const noun = shortcutName === null ? 'a shortcut' : `the ${shortcutName} shortcut`;
   switch (kind) {
     case 'shortcut.add':
       return `Added ${noun}`;

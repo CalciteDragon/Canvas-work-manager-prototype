@@ -107,6 +107,11 @@ section, synced against the page's data revision — because under
 Task Lists must differ. A shortcut never gets a writable store: `ShortcutFrame` mounts
 the source read-only ([decision](../../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)).
 
+**Untitled shortcut names identify the owner on the frame itself.** A breadcrumb alone leaves
+a local `Markdown` beside an indistinguishable shortcut. The shared `shortcutNameOf` makes the
+latter `Markdown (Garden)` throughout its controls without inventing a stored override or
+changing a chosen title ([decision](../../../decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
+
 **Section removal is one gesture with a recoverable result.** The canvas sends only the section
 id; the domain archives live owned rows with it and leaves independently archived rows alone.
 An uncertain write keeps an ID-only Retry remove, while a failed follow-up read offers Retry

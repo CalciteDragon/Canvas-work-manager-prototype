@@ -302,6 +302,23 @@ Each is written and seen to fail before the change it drives.
 
 ## Revisions
 
+**Execution review, 2026-10-09.** An independent reviewer rechecked the plan against the current
+code and returned no substantive findings. Its optional strengthening was taken: a domain guard
+renames the source's owning project, verifies the next write uses its current name, and verifies
+the stored add label and Activity summary retain the original name. This extends test-plan item 3
+without changing the file list or naming rule.
+
+**Implementation green point.** Contract cases failed because the helper did not exist; domain
+labels, unavailable-source removal and owner rename failed on unqualified names; frame/canvas
+tests failed on unqualified headings and resize names. The changed browser assertions failed on
+Garden/Progress labels and seeded Reflections names, and MCP failed on its untitled receipt.
+After implementation, all 2,969 Vitest tests plus nine Node checks passed, all 26 affected browser
+journeys passed, both MCP transports passed, and the Storybook build and live Remove Placement
+Interactions passed. Lint and documentation checks are green after regenerating Compodoc.
+The first concurrent offline run timed out in an existing five-second import-lint test;
+the full rerun passed with no timeout changes. An overlapping docs check saw the Node check's
+temporary malformed-Mermaid fixture; the subsequent check passed after that fixture was removed.
+
 <!-- One entry per review round: what the reviewer found, what changed. -->
 
 **Round 1** (independent reviewer, against the code). No boundary violations; the line numbers and

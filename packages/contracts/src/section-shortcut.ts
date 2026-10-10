@@ -2,7 +2,21 @@ import { z } from 'zod';
 import { IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, SectionShortcutIdSchema } from './ids';
 import { ProjectPageKindSchema } from './project-page';
-import { ProjectSectionSchema, SectionColumnSpanSchema } from './section';
+import { ProjectSectionSchema, SectionColumnSpanSchema, nameOf, normaliseSectionTitle, type ProjectSection } from './section';
+
+/**
+ * A shortcut's display name on its frame, controls and newly recorded history (Slice 69, §27).
+ * Titled sources keep their chosen name; untitled sources include their owning project's name.
+ * A missing or blank owner falls back to the section name. This derives text, never stored state.
+ */
+export const shortcutNameOf = (
+  source: Pick<ProjectSection, 'type' | 'title'>,
+  ownerName: string | null,
+): string => {
+  const name = nameOf(source);
+  const owner = ownerName?.trim();
+  return normaliseSectionTitle(source.title) !== undefined || !owner ? name : `${name} (${owner})`;
+};
 
 /**
  * §27's shortcut placement: a **reference**, not a copy.
