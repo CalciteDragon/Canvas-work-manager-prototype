@@ -26,7 +26,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'list_project_pages',
     description:
-      'List the pages a project owns. A root project has Home — always present, always enabled — plus whichever of Todos, Archive and Reflections have been turned on, each with its enabled state; a disabled page keeps everything on it and is simply not navigation. A sub-project has exactly one work canvas, which is not a tab and cannot be configured.',
+      'List the pages a project owns. A root project has Home — always present, always enabled — plus whichever of Todos, Archive and Reflections have been turned on, each with its enabled state; a disabled page keeps everything on it and is simply not navigation. A workstream has exactly one work canvas, which is not a tab and cannot be configured.',
     permission: 'projects.read',
     inputSchema: z.object({ projectId: ProjectIdSchema }),
     execute: ({ projectId }, { actor, services }) => services.pages.list(actor, projectId),
@@ -34,7 +34,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'set_project_page_enabled',
     description:
-      'Turn one of a root project’s optional pages — todos, archive or reflections — on or off. Enabling a page for the first time creates it; disabling one is nondestructive, keeping its sections, their layout and every reference to it, and changes only whether it is navigation. Home cannot be disabled, and a sub-project has no pages to configure. Pages and project creation share the project’s own history, so undo later page changes before undoing project.add. Answers the confirmed page and an operation receipt: the first enable records page.add, whose Undo removes that page again — only while it is unchanged and nothing on it references it — and whose Redo brings the same page id back; a later change of the switch records page.update, which reverses the switch alone. A call that asks for the state the page is already in changes nothing and answers a null receipt. Reverse either through undo_operation with projects.write; a toggle still works while the project is archived, but reversing one through history does not.',
+      'Turn one of a root project’s optional pages — todos, archive or reflections — on or off. Enabling a page for the first time creates it; disabling one is nondestructive, keeping its sections, their layout and every reference to it, and changes only whether it is navigation. Home cannot be disabled, and a workstream has no pages to configure. Pages and project creation share the project’s own history, so undo later page changes before undoing project.add. Answers the confirmed page and an operation receipt: the first enable records page.add, whose Undo removes that page again — only while it is unchanged and nothing on it references it — and whose Redo brings the same page id back; a later change of the switch records page.update, which reverses the switch alone. A call that asks for the state the page is already in changes nothing and answers a null receipt. Reverse either through undo_operation with projects.write; a toggle still works while the project is archived, but reversing one through history does not.',
     permission: 'projects.write',
     inputSchema: SetProjectPageEnabledInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.pages.setEnabled(actor, projectId, input),
@@ -42,7 +42,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_project_todos',
     description:
-      'The chronology of everything under one root project: its own tasks plus every descendant unit of work and every descendant task, ordered by due date, undated last, ties broken by kind then id. A unit of work’s date-only due date sorts at the end of that UTC day. Rows keep their status and stay on the list once finished — done and cancelled alike — while archived rows, archived containers and anything beneath an archived project are excluded. Each row carries the canonical project, page and container that owns it, so completing it there and completing it here are the same operation. Reading it needs both projects.read and tasks.read, and is refused rather than answered in part; it neither creates the Todos page nor depends on it being switched on.',
+      'The chronology of everything under one root project: its own tasks plus every descendant workstream and every descendant task, ordered by due date, undated last, ties broken by kind then id. A workstream’s date-only due date sorts at the end of that UTC day. Rows keep their status and stay on the list once finished — done and cancelled alike — while archived rows, archived containers and anything beneath an archived project are excluded. Each row carries the canonical project, page and container that owns it, so completing it there and completing it here are the same operation. Reading it needs both projects.read and tasks.read, and is refused rather than answered in part; it neither creates the Todos page nor depends on it being switched on.',
     permission: 'projects.read',
     additionalPermissions: ['tasks.read'],
     inputSchema: ProjectTodosQuerySchema,
@@ -51,7 +51,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_project_archive',
     description:
-      'Read currently restorable archived entries in one root project: sub-projects, sections, tasks and reflections, with their canonical origin, cause and required restore grant. The list is parent-first: archived descendants and cascade members appear only after their owner is restored, while live content hidden solely by an archived project is omitted. Sections are listed only when they hold recoverable content; recovery and cascade counts explain what a section Restore revives and what remains separately archived. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Archive page being enabled.',
+      'Read currently restorable archived entries in one root project: workstreams, sections, tasks and reflections, with their canonical origin, cause and required restore grant. The list is parent-first: archived descendants and cascade members appear only after their owner is restored, while live content hidden solely by an archived project is omitted. Sections are listed only when they hold recoverable content; recovery and cascade counts explain what a section Restore revives and what remains separately archived. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Archive page being enabled.',
     permission: 'projects.read',
     additionalPermissions: ['tasks.read', 'reflections.read'],
     inputSchema: ProjectArchiveQuerySchema,
@@ -60,7 +60,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_project_journal',
     description:
-      'Read the Reflections journal for one root project: reflections from its Home, its Reflections page container and every descendant work canvas, newest first. Each entry keeps its canonical owner and, when linked, the current status of the completed task or sub-project it is about; subjectless journal entries remain ordinary entries. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Reflections page being enabled. Use the completed-work picker in the app to choose an eligible subject; this tool writes a reflection through add_reflection.',
+      'Read the Reflections journal for one root project: reflections from its Home, its Reflections page container and every descendant work canvas, newest first. Each entry keeps its canonical owner and, when linked, the current status of the completed task or workstream it is about; subjectless journal entries remain ordinary entries. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Reflections page being enabled. Use the completed-work picker in the app to choose an eligible subject; this tool writes a reflection through add_reflection.',
     permission: 'projects.read',
     additionalPermissions: ['tasks.read', 'reflections.read'],
     inputSchema: ProjectJournalQuerySchema,

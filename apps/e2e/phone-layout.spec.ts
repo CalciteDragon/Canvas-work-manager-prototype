@@ -4,8 +4,9 @@
  * resize. Everything here is what jsdom cannot show — a real focus trap, `inert` actually
  * blocking the workspace, container-query stacking, horizontal overflow and `matchMedia`.
  */
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { addSection, createRoot, seed, setClock } from './seed';
+import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import type { ProjectSection } from '@cwm/contracts';
+import { addSection, api, createRoot, seed, setClock, setLayout } from './seed';
 
 const PHONE = { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } as const;
 const THEMES = ['dark', 'light'] as const;
@@ -73,12 +74,81 @@ const expectNoHorizontalOverflow = async (page: Page, label: string) => {
   expect(widths.track, `${label}: project main track`).toBeLessThanOrEqual(1);
 };
 
+/** A long fenced line scrolls within its code block rather than widening the canvas. */
+const expectScrollableCode = async (pre: Locator) => {
+  await expect(pre).toBeVisible();
+  expect(await pre.evaluate((element) => getComputedStyle(element).overflowX)).toMatch(/^(auto|scroll)$/);
+  expect(await pre.evaluate((element) => {
+    element.scrollLeft = 40;
+    return element.scrollLeft;
+  })).toBeGreaterThan(0);
+};
+
 test.beforeEach(async () => {
   await seed('nested-projects');
   await setClock('2026-09-01T12:00:00.000Z');
 });
 
 for (const theme of THEMES) {
+  test(`${theme}: Markdown stays contained and editable on a phone and in a narrow Grid`, async ({ browser }) => {
+    const root = await createRoot('Markdown containment');
+    const source = `# Phone plan\n\n- One\n- Two\n\n[docs](https://example.com)\n\n\`\`\`ts\n${'x'.repeat(200)}\n\`\`\`\n`;
+    const section = await addSection(root.id, {
+      type: 'markdown', title: 'Narrow Markdown', columnSpan: 4, config: { markdown: source },
+    });
+    const phone = await phoneContext(browser, theme);
+    const desktop = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: theme });
+    try {
+      const page = await phone.newPage();
+      await page.goto(`/projects/${root.id}`);
+      await useTheme(page, theme);
+      const frame = page.locator(`[data-section-item][data-section-id="${section.id}"] [data-section-frame]`);
+      await expect(frame.locator('h3')).toHaveText('Phone plan');
+      await expect(frame.locator('ul li')).toHaveCount(2);
+      await expect(frame.locator('pre code')).toHaveText('x'.repeat(200));
+      await expect(frame.locator('a')).toHaveAttribute('rel', /\bnoopener\b/);
+      await expectScrollableCode(frame.locator('pre'));
+      await expectNoHorizontalOverflow(page, 'Markdown');
+
+      const editedSource = `${source}\nSaved by touch.\n`;
+      await frame.locator('[data-markdown-edit]').tap();
+      await frame.locator('[data-markdown-source]').fill(editedSource);
+      await frame.locator('[data-markdown-save]').tap();
+      await expect(frame.locator('[data-markdown-source]')).toHaveCount(0);
+      expect((await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections`))
+        .find(({ id }) => id === section.id)?.config).toEqual({ markdown: editedSource });
+
+      await setLayout(root.id, 'grid');
+      const gridPage = await desktop.newPage();
+      await gridPage.goto(`/projects/${root.id}`);
+      await expect(gridPage.locator('[data-identity-name]')).toHaveText('Demo User');
+      if (await gridPage.locator('html').getAttribute('data-theme') !== theme) {
+        await gridPage.locator('[data-theme-toggle]').click();
+      }
+      await expect(gridPage.locator('html')).toHaveAttribute('data-theme', theme);
+      const grid = gridPage.locator('[data-section-canvas]');
+      const item = grid.locator(`[data-section-item][data-section-id="${section.id}"]`);
+      await expect(item.locator('pre code')).toHaveText('x'.repeat(200));
+      const gap = await grid.evaluate((element) => Number.parseFloat(getComputedStyle(element).columnGap));
+      const width = await grid.evaluate((element) => element.clientWidth);
+      const itemWidth = await item.evaluate((element) => element.getBoundingClientRect().width);
+      expect(Math.abs(itemWidth - (4 * (width - 11 * gap) / 12 + 3 * gap)), 'Grid applies span 4').toBeLessThanOrEqual(1);
+      await expectScrollableCode(item.locator('pre'));
+      const gridFrame = item.locator('[data-section-frame]');
+      expect(await gridFrame.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(itemWidth + 1);
+      // Sparse-grid insertion overlays intentionally extend the item's scroll box into the gap.
+      // The frame must fit its item, while content and page scroll boxes remain contained.
+      for (const [label, locator] of [
+        ['frame', gridFrame], ['grid', grid], ['document', gridPage.locator('html')],
+      ] as const) {
+        expect(await locator.evaluate((element) => element.scrollWidth - element.clientWidth), label).toBeLessThanOrEqual(1);
+      }
+    } finally {
+      await phone.close();
+      await desktop.close();
+    }
+  });
+
   test(`${theme}: the drawer opens by tap, Enter and Space, traps focus, and closes by Escape, backdrop and Close`, async ({ browser }) => {
     const context = await phoneContext(browser, theme);
     const page = await context.newPage();
@@ -154,6 +224,52 @@ for (const theme of THEMES) {
 
 for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
   test.use({ ...PHONE, colorScheme: theme });
+
+  test('gear page settings and Work creation stay tappable and fit the viewport', async ({ page }) => {
+    await page.goto('/projects/project-renovation');
+    await useTheme(page, theme);
+    await page.locator('[data-project-nav-toggle]').tap();
+    const gear = page.locator('[data-project-settings-toggle]');
+    await gear.tap();
+    await expect(page.locator('[data-project-page-manager]')).toBeVisible();
+    const toggle = page.locator('[data-page-toggle-kind="reflections"] input');
+    await toggle.tap();
+    await expect(toggle).not.toBeChecked();
+    await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
+    await toggle.press('Escape');
+    await expect(gear).toBeFocused();
+    await expect(page.locator('[data-project-page-manager]')).toBeHidden();
+    const plus = page.locator('[data-work-create]');
+    for (const control of [gear, plus]) {
+      const box = (await control.boundingBox())!;
+      expect(box.height, 'coarse-pointer target height').toBeGreaterThanOrEqual(44);
+      expect(box.width, 'coarse-pointer target width').toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(375);
+    }
+    await plus.tap();
+    const dialog = page.getByRole('dialog', { name: 'Add workstream' });
+    await expect(dialog).toBeVisible();
+    const box = (await dialog.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(812);
+    await expectNoHorizontalOverflow(page, 'Work creation dialog');
+    const name = `Phone workstream ${theme}`;
+    await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
+    await expect(dialog.getByRole('combobox', { name: 'Parent', exact: true })).toHaveValue('project-renovation');
+    await expect(dialog).toContainText('Inside Home renovation');
+    const url = page.url();
+    await dialog.getByRole('button', { name: 'Create', exact: true }).tap();
+    await expect(dialog).toHaveCount(0);
+    expect(page.url()).toBe(url);
+    await expect(plus).toBeFocused();
+    const child = (await api.get<Array<{ id: string; name: string; parentProjectId?: string }>>('/api/projects')).find((project) => project.name === name)!;
+    expect(child.parentProjectId).toBe('project-renovation');
+    await expect(page.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+    await expectNoHorizontalOverflow(page, 'Created workstream');
+  });
 
   test('choosing a destination closes the drawer, navigates and focuses the workspace', async ({ page }) => {
     await page.goto('/app');
@@ -246,6 +362,35 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await page.locator('[data-task-delete]').tap();
     await expect(page.locator('[data-task-row]')).toHaveCount(0);
     await expect(page.locator('[data-task-delete-recovery]')).toContainText('Phone delete task');
+  });
+
+  test('a title tap opens the stacked task drawer, Close returns focus, and a done checkbox reopens by touch', async ({ page }) => {
+    await page.goto('/projects/project-kitchen');
+    await useTheme(page, theme);
+    const row = page.locator('[data-task-row][data-task-id="task-kitchen-completed"]');
+    const title = row.locator('button[data-task-title]');
+    await title.tap();
+    const details = page.locator('[data-task-drawer]');
+    await expect(details).toBeVisible();
+    await expect(title).toHaveAttribute('aria-current', 'true');
+    const rowBox = (await row.boundingBox())!;
+    const drawerBox = (await details.boundingBox())!;
+    expect(drawerBox.y).toBeGreaterThanOrEqual(rowBox.y + rowBox.height);
+    await details.getByRole('button', { name: 'Close task details' }).tap();
+    await expect(details).toHaveCount(0);
+    await expect(title).toBeFocused();
+    await expectNoHorizontalOverflow(page, 'Task drawer closed');
+
+    const toggle = row.locator('[data-task-complete]');
+    await expect(toggle).toBeChecked();
+    await toggle.tap();
+    await expect(toggle).not.toBeChecked();
+    await expect.poll(async () => api.get<{ status: string; completedAt?: string }>('/api/tasks/task-kitchen-completed'))
+      .toMatchObject({ status: 'todo' });
+    expect(await api.get('/api/tasks/task-kitchen-completed')).not.toHaveProperty('completedAt');
+    await page.reload();
+    await expect(toggle).not.toBeChecked();
+    await expectNoHorizontalOverflow(page, 'Task reopened');
   });
 });
 

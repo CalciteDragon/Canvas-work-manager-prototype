@@ -17,7 +17,7 @@ a "Restore succeeded" error, so the committed write stays reported; any other er
    `main.ts` bootstraps `App` with `appConfig`, which provides the router with
    component-input binding and the four adapters behind their tokens.
 2. `App` renders `AppShell` and mounts `DevPanel` once, so Ctrl/Cmd+Shift+D works on
-   every route. `AppShell` owns `ShellStore`, which loads the project tree through the
+   every route; its controls are deferred until the modal opens. `AppShell` owns `ShellStore`, which loads the project tree through the
    gateway and renders `Sidebar` and `TopBar` as presentational children.
 3. `PrototypeIdentityProvider` reads `GET /api/me`; `ThemeService` applies the persona's
    theme as `data-theme` on `<html>`; `PrototypeLiveUpdates` opens the `EventSource`
@@ -31,6 +31,12 @@ a "Restore succeeded" error, so the committed write stays reported; any other er
    re-reads quietly. Compound task/reflection Add transitions also refresh section existence on
    open project surfaces. A `prototype.reloaded` frame reloads the tab.
 
+Markdown rendering escapes HTML, disables images and retains markdown-it unsafe-link
+validation; Angular sanitizes the `innerHTML` binding again. Headings nest under the section
+title, links get safe new-tab attributes, and table alignment uses classes.
+`ViewEncapsulation.None` reaches inserted markup with every style scoped beneath
+`.markdown-renderer`, using design tokens including `--font-mono`. The parser loads lazily.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -43,6 +49,7 @@ a "Restore succeeded" error, so the committed write stays reported; any other er
 | `ArchivedProjectsPage` | component | Settings recovery route | [API](../../api/components/ArchivedProjectsPage.html) |
 | `ArchivedProjectsStore` | injectable | Workspace-scoped recovery state, retry and live refresh | [API](../../api/injectables/ArchivedProjectsStore.html) |
 | `SECTION_REGISTRY`, `DASHBOARD_WIDGET_REGISTRY`, `PROJECT_PAGE_REGISTRY` | consts | The three open-ended lists | [API](../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
+| `MarkdownRenderer`, `renderMarkdown` | component / function | Safe source presentation | [API](../../api/components/MarkdownRenderer.html) |
 | `Icon` | component | Shared decorative SVG marks (`shared/components/icon`) | [API](../../api/components/Icon.html) |
 
 Each subsystem's `how.md` lists its own.
@@ -50,6 +57,8 @@ Each subsystem's `how.md` lists its own.
 ## Dependencies
 
 **Depends on**
+
+- `markdown-it` 15, imported only by the lazy shared renderer.
 
 - [contracts](../contracts/overview.md) — every type the gateway returns and every input
   a form builds; `zod` for the `GatewayError.details` parse.

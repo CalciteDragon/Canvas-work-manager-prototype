@@ -15,6 +15,10 @@ export type SectionColumnSpan = z.infer<typeof SectionColumnSpanSchema>;
  * bare `z.unknown()` let storage hold `[]`, `"text"` or `null` — values no input schema
  * can produce or edit — and made "absent" and "explicitly undefined" the same thing.
  * See docs/decisions/2026-08-section-config-ownership.md.
+ *
+ * The storage shape stays opaque; a type that owns config declares its write shape in
+ * `SECTION_CONFIG_SCHEMAS`, which `SectionService` enforces (Slice 64,
+ * docs/decisions/2026-10-section-config-validated-on-write.md).
  */
 export const SectionConfigSchema = z.record(z.string(), z.unknown());
 export type SectionConfig = z.infer<typeof SectionConfigSchema>;
@@ -52,11 +56,14 @@ export type OwnedDataKind = z.infer<typeof OwnedDataKindSchema>;
 export const SectionRecoveryCapabilitySchema = z.enum(['owned-content', 'config', 'none']);
 export type SectionRecoveryCapability = z.infer<typeof SectionRecoveryCapabilitySchema>;
 
-/** A type owns rows exactly when its recovery is `owned-content`; the refinement holds that. */
+/** A type owns rows exactly for `owned-content`, and declares its prose key exactly for `config` recovery. */
 export const SectionCapabilitySchema = z
-  .object({ ownedData: OwnedDataKindSchema.optional(), recovery: SectionRecoveryCapabilitySchema })
+  .object({ ownedData: OwnedDataKindSchema.optional(), recovery: SectionRecoveryCapabilitySchema, proseKey: z.string().min(1).optional() })
   .refine(({ ownedData, recovery }) => (ownedData !== undefined) === (recovery === 'owned-content'), {
     message: 'a section owns rows exactly when its recovery capability is owned-content',
+  })
+  .refine(({ proseKey, recovery }) => (proseKey !== undefined) === (recovery === 'config'), {
+    message: 'a section declares a prose key exactly when its recovery capability is config',
   });
 export type SectionCapability = z.infer<typeof SectionCapabilitySchema>;
 
@@ -67,19 +74,72 @@ export type SectionCapability = z.infer<typeof SectionCapabilitySchema>;
  * fails when a registered type has no entry — so a new type has to declare its recovery.
  * Keyed by the same open `type` strings the registry uses.
  *
- * `rich-text` owns its data through `config.text` rather than through rows: it has nothing
- * to cascade, and archiving the section keeps its text — `config` rides along on the record,
- * so restoring returns the prose intact. That survival is why a view can be worth archiving
- * too, and why removal asks this table rather than `kind` before it decides.
+ * `markdown` keeps prose in `config.markdown` rather than through rows. `proseKey` declares that
+ * key's name, never its shape; the section folder owns the schema. It has no rows to cascade, and
+ * archiving keeps the source — config rides along on the record, so restoring returns the prose
+ * intact. That survival is why a view can be worth archiving too, and why removal asks this table
+ * rather than `kind` before it decides.
  */
 export const SECTION_CAPABILITIES: Readonly<Record<string, SectionCapability>> = {
   'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
   reflections: { ownedData: 'reflections', recovery: 'owned-content' },
-  'rich-text': { recovery: 'config' },
-  'sub-projects': { recovery: 'none' },
+  markdown: { recovery: 'config', proseKey: 'markdown' },
   progress: { recovery: 'none' },
   timeline: { recovery: 'none' },
   'recent-activity': { recovery: 'none' },
+};
+
+/**
+ * **Section types that may no longer be created or stored**, and their replacement guidance.
+ * Rich Text became Markdown (docs/decisions/2026-10-schema-version-6-markdown-conversion.md);
+ * the work hierarchy now lives in Work (docs/decisions/2026-10-retiring-the-sub-projects-section.md).
+ * The type stays an open string (§30); this record is the narrow exception, not a closed set.
+ */
+export const RETIRED_SECTION_TYPES: Readonly<Record<string, string>> = Object.freeze({
+  'rich-text': 'add a Markdown section instead',
+  'sub-projects': 'create a workstream under the project instead',
+});
+
+/** Whether `type` is retired — exact match only, never for an inherited `Object` key. */
+export const isRetiredSectionType = (type: string): boolean => Object.hasOwn(RETIRED_SECTION_TYPES, type);
+
+/** Surface-neutral replacement sentence for a retired type; never reads inherited keys. */
+export const retiredSectionReplacement = (type: string): string | undefined =>
+  isRetiredSectionType(type) ? RETIRED_SECTION_TYPES[type] : undefined;
+
+/** Markdown's whole config: its exact source, and no other key (§29; Slice 64). */
+export const MarkdownConfigSchema = z.strictObject({ markdown: z.string() });
+export type MarkdownConfig = z.infer<typeof MarkdownConfigSchema>;
+
+/**
+ * **The config shapes the domain enforces on write**, for the types that declare one (Slice 64).
+ * A type is listed once it owns config whose shape matters to more than its own folder — today only
+ * Markdown, whose source every writer, agents included, must send as exactly `{ markdown }`. The
+ * other types are absent, not empty: they read no config, and nothing is gained by refusing one yet
+ * (docs/decisions/2026-10-section-config-validated-on-write.md).
+ */
+export const SECTION_CONFIG_SCHEMAS: Readonly<Record<string, z.ZodObject>> = {
+  markdown: MarkdownConfigSchema,
+};
+
+/**
+ * Why `config` cannot be written to a section of `type`, as a sentence for the caller — or
+ * `undefined` when it can. An empty config is always writable: it is what every section starts as,
+ * and an absent config and an empty one are not different states. A type that declares no schema,
+ * including an unregistered one, is not checked.
+ */
+export const sectionConfigRefusal = (type: string, config: SectionConfig): string | undefined => {
+  if (!Object.hasOwn(SECTION_CONFIG_SCHEMAS, type) || Object.keys(config).length === 0) return undefined;
+  const schema = SECTION_CONFIG_SCHEMAS[type]!;
+  const parsed = schema.safeParse(config);
+  if (parsed.success) return undefined;
+  const quoted = (keys: readonly PropertyKey[]) => keys.map((key) => `"${String(key)}"`).join(', ');
+  const reasons = parsed.error.issues.map((issue) =>
+    issue.code === 'unrecognized_keys'
+      ? `it does not take ${quoted(issue.keys)}`
+      : `${quoted(issue.path)} must be ${issue.code === 'invalid_type' ? `a ${issue.expected}` : 'valid'}`,
+  );
+  return `A ${displayNameOf(type)} section’s config takes only ${quoted(Object.keys(schema.shape))}, or nothing; ${reasons.join('; ')}.`;
 };
 
 // `Object.hasOwn`, not `in`: `'toString' in SECTION_CAPABILITIES` is true, and a section type
@@ -120,10 +180,9 @@ export const containerTypeFor = (owned: OwnedDataKind): string => {
 };
 
 /**
- * Display names that the derivation below cannot produce. One entry today: the spec spells
- * sub-projects with a hyphen (line 1109), and nothing distinguishes that hyphen from
- * `task-list`'s. `registry.spec.ts` fails when a registered name and this pair disagree, so
- * the table grows exactly when a new type earns an entry and never silently.
+ * Display names that the derivation below cannot produce. Sub-Projects keeps its hyphen
+ * after retirement so refusals still name the retired type correctly. Registry tests check
+ * the names of registered types against the same derivation.
  */
 export const SECTION_DISPLAY_NAMES: Record<string, string> = { 'sub-projects': 'Sub-Projects' };
 

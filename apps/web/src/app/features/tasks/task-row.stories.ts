@@ -84,3 +84,18 @@ export const Completing: Story = {
     await expect(args.completionRequested).toHaveBeenCalledWith('task-story');
   },
 };
+
+/** A done row can be unchecked; the model owns its checked state until a store patches it. */
+export const Reopening: Story = {
+  args: {
+    task: task({ title: 'Book the venue', status: 'done', completedAt: AT }),
+    pending: false,
+    reopenRequested: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const checkbox = within(canvasElement).getByRole('checkbox', { name: 'Reopen task Book the venue' });
+    await userEvent.click(checkbox);
+    await expect(args.reopenRequested).toHaveBeenCalledWith('task-story');
+    await expect(checkbox).toBeChecked();
+  },
+};

@@ -56,10 +56,12 @@ export class TodosPage {
   readonly projectId = input.required<ProjectId>();
   /** The Todos page record. Nothing here reads it: the chronology is scoped by the root (§34). */
   readonly pageId = input.required<ProjectPageId>();
-  /** §28's canvas modes do not apply to a list; declared because the shell binds all seven. */
+  /** §28's canvas modes do not apply to a list; declared because the shell binds every input. */
   readonly projectLayoutMode = input<ProjectLayoutMode>('flow');
-  /** Shortcut placement is a Home-only capability (§27), and Todos holds no sections at all. */
+  /** Shortcut placement belongs to canonical pages (§27), and Todos holds no sections at all. */
   readonly shortcutsAllowed = input<boolean>(false);
+  /** Declared because the shell sets every renderer input; this page has no shortcuts to refresh. */
+  readonly rootProjectId = input<ProjectId | null>(null);
   /** The shell's write freeze. */
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
@@ -79,7 +81,7 @@ export class TodosPage {
     owner: ReturnType<TodosPage['historyOwner']>;
   } | null>(null);
 
-  /** No control at all is offered while the shell is blocking writes, so nothing lies. */
+  /** Task toggles remain focusable, but every write is refused while this is true. */
   readonly writesBlocked = computed(() =>
     this.restoreBlocked() || this.store.completing() !== null || this.store.deleting() !== null,
   );
@@ -110,7 +112,7 @@ export class TodosPage {
   }
 
   kindLabel(item: ProjectTodoItem): string {
-    return item.kind === 'task' ? 'Task' : 'Unit of work';
+    return item.kind === 'task' ? 'Task' : 'Workstream';
   }
 
   statusOf(item: ProjectTodoItem): string {
@@ -175,6 +177,36 @@ export class TodosPage {
     // §39's progress may have moved, and a completed unit of work moves the work tree too.
     this.onProjectDataChange()();
     if (item.kind === 'subproject') this.onProjectHierarchyChange()();
+  }
+
+  /** Reset native checkbox state from the synchronous optimistic patch, before awaiting it. */
+  async toggle(item: ProjectTodoItem, event: Event): Promise<void> {
+    if (item.kind !== 'task') return;
+    const id = item.task.id;
+    const projectId = this.projectId();
+    const generation = this.recoveryGeneration;
+    const box = event.target as HTMLInputElement;
+    const focused = document.activeElement === box;
+    const write = this.writesBlocked()
+      ? Promise.resolve(false)
+      : item.task.status === 'done' ? this.store.reopen(item) : this.store.complete(item);
+    const current = this.store.items().find((candidate) => candidate.kind === 'task' && candidate.task.id === id);
+    box.checked = current?.kind === 'task' && current.task.status === 'done';
+    const applied = await write;
+    if (this.projectId() !== projectId || this.recoveryGeneration !== generation) return;
+    // A synchronous refusal can settle before Angular renders the optimistic value. Its
+    // binding then sees the same prior value and skips the native box; use the current row,
+    // never the captured item, so a newer toggle or live answer cannot be overwritten.
+    const settled = this.store.items().find((candidate) => candidate.kind === 'task' && candidate.task.id === id);
+    box.checked = settled?.kind === 'task' && settled.task.status === 'done';
+    if (applied) this.onProjectDataChange()();
+    if (!focused || document.activeElement !== document.body) return;
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.recoveryGeneration !== generation || document.activeElement !== document.body) return;
+      const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')]
+        .find((candidate) => candidate.getAttribute('data-todo-id') === id);
+      row?.querySelector<HTMLInputElement>('[data-todo-toggle]')?.focus();
+    }, { injector: this.injector });
   }
 
   async delete(item: ProjectTodoItem): Promise<void> {

@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { ProjectPage, ProjectSection, SectionShortcut } from '@cwm/contracts';
 import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock, setLayout } from './seed';
-import { historyControl } from './history-controls';
+import { historyControl, redoFromHeader, undoFromHeader } from './history-controls';
 
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
 const HOME_RENOVATION = 'project-renovation';
@@ -91,6 +91,193 @@ const expectOnlyCanvasChrome = async (page: Page): Promise<void> => {
   }
 };
 
+test('section picker offers exactly the six current types', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  await page.goto(`/projects/${HOME_RENOVATION}`);
+  await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
+  await expect(page.locator('[data-create-section-type]')).toBeVisible();
+  expect(await page.locator('[data-create-section-type] option').evaluateAll((options) =>
+    options.map((option) => (option as HTMLOptionElement).value),
+  )).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
+});
+
+test('markdown section saves source, renders safely and undoes', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Markdown journey');
+  await page.goto(`/projects/${root.id}`);
+  await page.locator('[data-empty-canvas-add]').click();
+  await page.locator('[data-create-section-type]').selectOption('markdown');
+  await page.locator('[data-create-section-submit]').click();
+  const frame = page.locator('[data-section-frame]');
+  await expect(frame.locator('[data-markdown-edit]')).toBeVisible();
+  const sections = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections`);
+  const section = sections.find(({ type }) => type === 'markdown');
+  if (section === undefined) throw new Error('The picker did not create a Markdown section');
+  const source = '# Plan\n\n- One\n- Two\n\n[docs](https://example.com)\n\n```ts\nconst answer = 42;\n```\n\n<script>window.__x=1</script>\n';
+  const savedConfig = async () => (await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections`))
+    .find(({ id }) => id === section.id)?.config;
+  const patchResponse = () => page.waitForResponse((response) =>
+    response.request().method() === 'PATCH' && new URL(response.url()).pathname === `/api/sections/${section.id}`,
+  );
+
+  await frame.locator('[data-markdown-edit]').click();
+  await frame.locator('[data-markdown-source]').fill(source);
+  await frame.locator('[data-markdown-preview]').click();
+  await expect(frame.locator('h3')).toHaveText('Plan');
+  await expect(frame.locator('ul li')).toHaveCount(2);
+  const initialSave = patchResponse();
+  await frame.locator('[data-markdown-save]').click();
+  expect((await initialSave).status()).toBe(200);
+  await expect(frame.locator('[data-markdown-source]')).toHaveCount(0);
+  expect(await savedConfig()).toEqual({ markdown: source });
+
+  await page.reload();
+  await expect(frame.locator('h3')).toHaveText('Plan');
+  await expect(frame.locator('ul li')).toHaveCount(2);
+  await expect(frame.locator('a[target="_blank"][rel~="noopener"][rel~="noreferrer"]')).toHaveText('docs');
+  await expect(frame.locator('pre code')).toContainText('const answer = 42;');
+  await expect(frame).toContainText('<script>window.__x=1</script>');
+  await expect(frame.locator('script')).toHaveCount(0);
+  expect(await page.evaluate(() => '__x' in window)).toBe(false);
+
+  const patches: import('@playwright/test').Request[] = [];
+  const observePatches = (request: import('@playwright/test').Request): void => {
+    if (request.method() === 'PATCH' && new URL(request.url()).pathname === `/api/sections/${section.id}`) patches.push(request);
+  };
+  page.on('request', observePatches);
+  await frame.locator('[data-markdown-edit]').click();
+  await frame.locator('[data-markdown-source]').fill('A draft that must be discarded.');
+  await frame.locator('[data-markdown-cancel]').click();
+  await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
+  expect(await savedConfig()).toEqual({ markdown: source });
+
+  await frame.locator('[data-markdown-edit]').click();
+  await expect(frame.locator('[data-markdown-source]')).toHaveValue(source);
+  await frame.locator('[data-markdown-save]').click();
+  await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
+  expect(await savedConfig()).toEqual({ markdown: source });
+
+  // A real changed Save settles the earlier gestures before asserting the absent writes.
+  const changedSource = `${source}\nA saved change.\n`;
+  await frame.locator('[data-markdown-edit]').click();
+  await frame.locator('[data-markdown-source]').fill(changedSource);
+  const changedSave = patchResponse();
+  await frame.locator('[data-markdown-save]').click();
+  expect((await changedSave).status()).toBe(200);
+  await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
+  expect(await savedConfig()).toEqual({ markdown: changedSource });
+  expect(patches).toHaveLength(1);
+  expect(patches[0]!.postDataJSON()).toEqual({ config: { markdown: changedSource } });
+  page.off('request', observePatches);
+
+  expect((await undoFromHeader(page, 'Edited Markdown in the Markdown section')).response.status()).toBe(200);
+  await expect.poll(savedConfig).toEqual({ markdown: source });
+  expect((await redoFromHeader(page, 'Edited Markdown in the Markdown section')).response.status()).toBe(200);
+  await expect.poll(savedConfig).toEqual({ markdown: changedSource });
+});
+
+test('markdown shortcut renders read-only', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Markdown shortcut journey');
+  const [child] = await createSubprojects(root.id, 1);
+  const source = await addSection(child!.id, { type: 'markdown', config: { markdown: '# Shared notes\n\nRead-only source.' } });
+  const shortcut = await addShortcut(root.id, { pageId: await pageId(root.id), sourceSectionId: source.id });
+  await page.goto(`/projects/${root.id}`);
+  const frame = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcut.id}"]`);
+  await expect(frame.locator('h3')).toHaveText('Shared notes');
+  await expect(frame).toContainText('Read-only source.');
+  await expect(frame.locator('[data-markdown-edit]')).toHaveCount(0);
+});
+
+/**
+ * Slice 65: a workstream's Work canvas takes a shortcut the way a root's Home does, and the action
+ * is the workstream's — its header, its history, never the root's or the source's.
+ */
+test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and removes a shortcut', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const work = await pageId(KITCHEN, 'work');
+  const gardenBrief = 'section-project-garden-brief';
+  const briefBefore = (await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)!;
+  const actionLabels = async (projectId: string): Promise<string[]> => {
+    const summary = await api.get<{ undo: { label: string } | null; redo: { label: string } | null }>(`/api/projects/${projectId}/history`);
+    return [summary.undo?.label, summary.redo?.label].filter((label): label is string => label !== undefined);
+  };
+  await page.goto(`/projects/${KITCHEN}`);
+
+  // Add at a chosen insertion point: before Kitchen's Task List, the second placement.
+  await page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="section-${KITCHEN}-tasks"] [data-insertion-point-button]`).click();
+  await page.locator('[data-create-shortcut-mode]').click();
+  const option = page.locator('[data-shortcut-source-option]').filter({ hasText: 'Home renovation / Garden' }).filter({ hasText: 'Markdown' }).first();
+  await expect(option).toContainText('Home renovation / Garden');
+  const created = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/api/projects/${KITCHEN}/shortcuts`));
+  await option.locator('[data-shortcut-add]').click();
+  const shortcutId = ((await (await created).json()) as { shortcut: { id: string } }).shortcut.id;
+  await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Added the Markdown (Garden) shortcut');
+  await expect(page.getByText(/recorded in .* history/)).toHaveCount(0);
+  expect(await actionLabels(KITCHEN)).toContain('Added the Markdown (Garden) shortcut');
+  expect(await actionLabels(HOME_RENOVATION)).not.toContain('Added the Markdown (Garden) shortcut');
+  expect(await actionLabels('project-garden')).not.toContain('Added the Markdown (Garden) shortcut');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(1);
+
+  const frame = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcutId}"]`);
+  await expect(frame.locator('[data-shortcut-source]')).toContainText('Home renovation / Garden');
+  await expect(page.locator(`[data-section-item][data-section-id="section-${KITCHEN}-brief"] [data-section-title-edit]`)).toHaveAttribute('aria-label', 'Rename Markdown');
+  await expect(frame.locator('[data-shortcut-frame]')).toHaveAccessibleName('Markdown (Garden)');
+  await expect(frame.locator('[data-shortcut-remove]')).toHaveAttribute('aria-label', 'Remove shortcut to Markdown (Garden)');
+  await expect(frame.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-label', 'Collapse Markdown (Garden)');
+  await expect(frame).toContainText('Autumn planting only');
+  await expect(frame.locator('[data-markdown-edit]')).toHaveCount(0);
+
+  // Resize by keyboard, then reorder by keyboard, then collapse.
+  const resizeHandle = frame.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
+  await resizeHandle.press('ArrowLeft');
+  await resizeHandle.press('Enter');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).find(({ id }) => id === shortcutId)?.columnSpan).toBe(8);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Resized the Markdown (Garden) shortcut');
+  const handle = frame.locator('[data-shortcut-drag-handle]');
+  await handle.press('ArrowUp');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(0);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Moved the Markdown (Garden) shortcut');
+  await frame.locator('[data-shortcut-collapse]').click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Collapsed the Markdown (Garden) shortcut');
+
+  // Header Undo and Redo on Kitchen, one step at a time.
+  await undoFromHeader(page, 'Collapsed the Markdown (Garden) shortcut');
+  await undoFromHeader(page, 'Moved the Markdown (Garden) shortcut');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(1);
+  await redoFromHeader(page, 'Moved the Markdown (Garden) shortcut');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(0);
+
+  // Every placement write so far — add, resize, reorder, collapse, Undo, Redo — left the source alone.
+  expect((await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)).toEqual(briefBefore);
+
+  // Open source, edit the Garden brief, come back and see the edit on Kitchen's canvas.
+  await frame.locator('[data-shortcut-open-source]').click();
+  await expect(page).toHaveURL(/\/projects\/project-garden/);
+  const source = page.locator(`[data-section-item][data-section-id="${gardenBrief}"]`);
+  await source.locator('[data-markdown-edit]').click();
+  await source.locator('[data-markdown-source]').fill('Autumn planting, edited from its own canvas.');
+  await source.locator('[data-markdown-save]').click();
+  await expect(source.locator('[data-markdown-source]')).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/projects/${KITCHEN}`));
+  await expect(frame).toContainText('Autumn planting, edited from its own canvas.');
+
+  // Remove; the source is exactly what its own edit left, and the placement never wrote it.
+  const briefEdited = (await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)!;
+  expect(briefEdited.config).not.toEqual(briefBefore.config);
+  await frame.locator('[data-shortcut-remove]').click();
+  await expect(frame).toHaveCount(0);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Markdown (Garden) shortcut');
+  expect((await orderOf(KITCHEN, work)).some(({ id }) => id === shortcutId)).toBe(false);
+  expect((await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)).toEqual(briefEdited);
+});
+
 test('the navigation column follows the viewport and keeps long and narrow navigation reachable', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
@@ -113,7 +300,7 @@ test('the navigation column follows the viewport and keeps long and narrow navig
   };
 
   await checkViewportHeight();
-  await addSection(empty.id, { type: 'rich-text', columnSpan: 12 });
+  await addSection(empty.id, { type: 'markdown', columnSpan: 12 });
   await page.reload();
   await expect(page.locator('[data-section-frame]')).toHaveCount(1);
   await checkViewportHeight();
@@ -121,7 +308,7 @@ test('the navigation column follows the viewport and keeps long and narrow navig
   await seed('nested-projects');
   await api.patch(`/api/projects/${HOME_RENOVATION}/pages/archive`, { enabled: false });
   await page.goto(`/projects/${HOME_RENOVATION}`);
-  await expect(page.locator('[data-section-frame]')).toHaveCount(7);
+  await expect(page.locator('[data-section-frame]')).toHaveCount(6);
   await checkViewportHeight();
   // The shell's workspace region is the scroller, not the window; scrolling the window moves
   // nothing and would let a column that scrolls away with the canvas pass.
@@ -170,11 +357,28 @@ test('the navigation column follows the viewport and keeps long and narrow navig
   await expect(page.locator('[data-work-project-id]').last()).toBeVisible();
 });
 
+test('retired hierarchy view leaves Home and Kitchen placements in dense seed order', async ({ page }) => {
+  await seed('nested-projects');
+  for (const projectId of [HOME_RENOVATION, KITCHEN]) {
+    const expected = await orderOf(projectId, await pageId(projectId, projectId === KITCHEN ? 'work' : 'home'));
+    expect(expected.map(({ position }) => position)).toEqual(expected.map((_, index) => index));
+    expect(expected.every(({ id }) => !id.endsWith('-sub-projects'))).toBe(true);
+    await page.goto(`/projects/${projectId}`);
+    const placements = page.locator('[data-section-item], [data-shortcut-item]');
+    await expect(placements).toHaveCount(expected.length);
+    await expect.poll(() => placements.evaluateAll((elements) => elements.map((element) =>
+      element.getAttribute('data-section-id') ?? element.getAttribute('data-shortcut-id'),
+    ))).toEqual(expected.map(({ id }) => id));
+  }
+});
+
 test('frame indicators and direct controls work in both themes and collapse states without edit mode', async ({ page }) => {
   await seed('nested-projects');
   await page.goto(`/projects/${HOME_RENOVATION}`);
-  await expect(page.locator('[data-section-frame]')).toHaveCount(7);
+  await expect(page.locator('[data-section-frame]')).toHaveCount(6);
   await expect(page.locator('[data-shortcut-frame]')).toHaveCount(4);
+  await expect(page.locator('[data-shortcut-item][data-shortcut-id="shortcut-renovation-kitchen-reflections"] [data-shortcut-frame]')).toHaveAccessibleName('Reflections (Kitchen)');
+  await expect(page.locator('[data-shortcut-item][data-shortcut-id="shortcut-renovation-reflections-page"] [data-shortcut-frame]')).toHaveAccessibleName('Reflections (Home renovation)');
   await expectOnlyCanvasChrome(page);
 
   const firstSection = page.locator('[data-section-frame]').first();
@@ -236,11 +440,11 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   const root = await createRoot('Insertion journey');
   await setLayout(root.id, 'flow');
   const home = await pageId(root.id);
-  const first = await addSection(root.id, { type: 'rich-text', title: 'First notes', columnSpan: 12 });
-  const second = await addSection(root.id, { type: 'rich-text', title: 'Second notes', columnSpan: 6 });
+  const first = await addSection(root.id, { type: 'markdown', title: 'First notes', columnSpan: 12 });
+  const second = await addSection(root.id, { type: 'markdown', title: 'Second notes', columnSpan: 6 });
   const third = await addSection(root.id, { type: 'task-list', title: 'Third list', columnSpan: 6 });
   const [child] = await createSubprojects(root.id, 1);
-  const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 8 });
+  const source = await addSection(child!.id, { type: 'markdown', title: 'Shortcut source', columnSpan: 8 });
   await addSection(child!.id, { type: 'task-list', title: 'Shortcut candidate', columnSpan: 6 });
   const shortcut = await addShortcut(root.id, {
     pageId: home,
@@ -262,7 +466,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   expect(await orderOf(root.id, home)).toEqual(initialOrder);
 
   await beforeThird.click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Inserted notes');
   await page.locator('[data-create-section-submit]').click();
   const inserted = page.locator('[data-section-frame]', { hasText: 'Inserted notes' });
@@ -276,7 +480,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   expect((await orderOf(root.id, home)).map(({ id }) => id)).toEqual([first.id, shortcut.id, second.id, insertedId, third.id]);
 
   await page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="${first.id}"] button`).click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('First placement');
   await page.locator('[data-create-section-submit]').click();
   await expect(page.locator('[data-section-frame]', { hasText: 'First placement' })).toBeVisible();
@@ -284,7 +488,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   expect(firstPlacement.position).toBe(0);
 
   await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Last placement');
   await page.locator('[data-create-section-submit]').click();
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
@@ -312,9 +516,9 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   const anchoredOrder = await orderOf(root.id, home);
   const anchor = anchoredOrder[2]!;
   await page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="${anchor.id}"] button`).click();
-  const live = await addSection(root.id, { type: 'rich-text', title: 'Live insertion', position: 0 });
+  const live = await addSection(root.id, { type: 'markdown', title: 'Live insertion', position: 0 });
   await expect(page.locator(`[data-section-item][data-section-id="${live.id}"]`)).toBeVisible();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('After live insertion');
   await page.locator('[data-create-section-submit]').click();
   // The dialog closes only once the create resolved; reading before that races the write.
@@ -330,14 +534,14 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   // A failed create keeps the form state for correction. The host failure panel is client-side,
   // so it is enabled only after the page and popup have loaded and always reset in finally.
   await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Retry after failure');
   try {
     await openFailurePanel(page, '1');
     await page.locator('[data-create-section-submit]').click();
     await expect(page.locator('[data-create-section-error]')).toContainText('prototype failure injection');
     await expect(page.locator('[data-create-section-name]')).toHaveValue('Retry after failure');
-    await expect(page.locator('[data-create-section-type]')).toHaveValue('rich-text');
+    await expect(page.locator('[data-create-section-type]')).toHaveValue('markdown');
   } finally {
     await openFailurePanel(page, '0');
   }
@@ -354,16 +558,17 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   });
   try {
     await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
-    await page.locator('[data-create-section-type]').selectOption('rich-text');
+    await page.locator('[data-create-section-type]').selectOption('markdown');
     await page.locator('[data-create-section-name]').fill('One click only');
     const submit = page.locator('[data-create-section-submit]');
     await submit.click();
     await expect(submit).toBeDisabled();
     await expect(submit).toHaveCount(1);
+    // The section renders only after the delayed POST answers, so unrouting cannot race its handler.
+    await expect(page.locator('[data-section-frame]', { hasText: 'One click only' })).toBeVisible();
   } finally {
     await page.unroute(`**/api/projects/${root.id}/sections`);
   }
-  await expect(page.locator('[data-section-frame]', { hasText: 'One click only' })).toBeVisible();
   expect(createRequests).toBe(1);
 });
 
@@ -373,8 +578,8 @@ test('grid insertion fills only supported gaps and insertion overlays stay inert
   await page.setViewportSize({ width: 1440, height: 900 });
   const root = await createRoot('Grid insertion');
   await setLayout(root.id, 'grid');
-  const wide = await addSection(root.id, { type: 'rich-text', title: 'Eight columns', columnSpan: 8 });
-  const narrow = await addSection(root.id, { type: 'rich-text', title: 'Six columns', columnSpan: 6 });
+  const wide = await addSection(root.id, { type: 'markdown', title: 'Eight columns', columnSpan: 8 });
+  const narrow = await addSection(root.id, { type: 'markdown', title: 'Six columns', columnSpan: 6 });
   await page.goto(`/projects/${root.id}`);
   const firstFrame = page.locator(`[data-section-item][data-section-id="${wide.id}"]`);
   const beforeBox = await firstFrame.boundingBox();
@@ -383,7 +588,7 @@ test('grid insertion fills only supported gaps and insertion overlays stay inert
   await expect(gap).toHaveCount(1);
   const gapButton = gap.locator('[data-insertion-point-button]');
   await gapButton.click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Fills the gap');
   await page.locator('[data-create-section-submit]').click();
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
@@ -399,17 +604,17 @@ test('grid insertion fills only supported gaps and insertion overlays stay inert
 
   const noGap = await createRoot('No grid gap');
   await setLayout(noGap.id, 'grid');
-  await addSection(noGap.id, { type: 'rich-text', title: 'Four columns', columnSpan: 4 });
-  await addSection(noGap.id, { type: 'rich-text', title: 'Six columns', columnSpan: 6 });
-  await addSection(noGap.id, { type: 'rich-text', title: 'Full row', columnSpan: 12 });
+  await addSection(noGap.id, { type: 'markdown', title: 'Four columns', columnSpan: 4 });
+  await addSection(noGap.id, { type: 'markdown', title: 'Six columns', columnSpan: 6 });
+  await addSection(noGap.id, { type: 'markdown', title: 'Full row', columnSpan: 12 });
   await page.goto(`/projects/${noGap.id}`);
   await expect(page.locator('app-insertion-point[data-insertion-point="gap"]')).toHaveCount(0);
 
   const sorting = await createRoot('Sorting over gap');
   await setLayout(sorting.id, 'grid');
-  const eight = await addSection(sorting.id, { type: 'rich-text', title: 'Anchor eight', columnSpan: 8 });
-  const six = await addSection(sorting.id, { type: 'rich-text', title: 'Next six', columnSpan: 6 });
-  const twelve = await addSection(sorting.id, { type: 'rich-text', title: 'Dragged twelve', columnSpan: 12 });
+  const eight = await addSection(sorting.id, { type: 'markdown', title: 'Anchor eight', columnSpan: 8 });
+  const six = await addSection(sorting.id, { type: 'markdown', title: 'Next six', columnSpan: 6 });
+  const twelve = await addSection(sorting.id, { type: 'markdown', title: 'Dragged twelve', columnSpan: 12 });
   await page.goto(`/projects/${sorting.id}`);
   const anchorItem = page.locator(`[data-section-item][data-section-id="${eight.id}"]`);
   const canvas = page.locator('[data-section-canvas]');
@@ -531,10 +736,10 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   });
   const root = await createRoot('Resize journey');
   await setLayout(root.id, 'grid');
-  const wide = await addSection(root.id, { type: 'rich-text', title: 'Resizable notes', columnSpan: 12 });
-  const neighbor = await addSection(root.id, { type: 'rich-text', title: 'Neighbor notes', columnSpan: 4 });
+  const wide = await addSection(root.id, { type: 'markdown', title: 'Resizable notes', columnSpan: 12 });
+  const neighbor = await addSection(root.id, { type: 'markdown', title: 'Neighbor notes', columnSpan: 4 });
   const [child] = await createSubprojects(root.id, 1);
-  const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 12 });
+  const source = await addSection(child!.id, { type: 'markdown', title: 'Shortcut source', columnSpan: 12 });
   const home = await pageId(root.id);
   const shortcut = await addShortcut(root.id, {
     pageId: home,
@@ -622,17 +827,20 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   await expect(shortcutHandle).toBeHidden();
   expect((await orderOf(root.id))[2]?.columnSpan).toBe(8);
 
-  // Flow height remains content-driven: the narrower editor wraps a realistic body and pushes
+  // Flow height remains content-driven: the narrower section rewraps a realistic body and pushes
   // the next item down, while the canonical ordered position stays fixed.
   await api.patch(`/api/sections/${wide.id}`, { columnSpan: 12 });
   await setLayout(root.id, 'flow');
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
-  const flowText = page.locator(`[data-section-item][data-section-id="${wide.id}"] [data-rich-text-body]`);
   const flowWrapper = page.locator(`[data-section-item][data-section-id="${wide.id}"]`);
+  const flowText = flowWrapper.locator('app-markdown-renderer');
   const nextWrapper = page.locator(`[data-section-item][data-section-id="${neighbor.id}"]`);
-  await flowText.fill('The canvas keeps the content height. '.repeat(90));
-  await flowText.press('Tab');
+  await flowWrapper.locator('[data-markdown-edit]').click();
+  await flowWrapper.locator('[data-markdown-source]').fill('The canvas keeps the content height. '.repeat(90));
+  await flowWrapper.locator('[data-markdown-save]').click();
+  await expect(flowWrapper.locator('[data-markdown-source]')).toHaveCount(0);
+  await expect(flowText).toContainText('The canvas keeps the content height.');
   await expect.poll(async () => (await orderOf(root.id)).map(({ id }) => id).indexOf(neighbor.id)).toBe(1);
   const nextBefore = await nextWrapper.boundingBox();
   const textBeforeResize = await flowText.boundingBox();
@@ -646,8 +854,8 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const textAfterResize = await flowText.boundingBox();
   const nextAfter = await nextWrapper.boundingBox();
   if (textAfterResize === null || nextAfter === null) throw new Error('Flow resize geometry did not render');
-  // The editor itself grows to the rewrapped text in any engine, not only where CSS
-  // `field-sizing` exists, and that growth is what moves the neighbour down.
+  // The rendered body itself grows to the rewrapped text, and that growth is what moves the
+  // neighbour down.
   expect(textAfterResize.height).toBeGreaterThan(textBeforeResize.height);
   expect(nextAfter.y).toBeGreaterThan(nextBefore.y);
   expect((await orderOf(root.id)).map(({ id }) => id).indexOf(neighbor.id)).toBe(1);
@@ -659,7 +867,7 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   await setClock(PINNED_NOW);
   const root = await createRoot('Frame actions');
   await setLayout(root.id, 'flow');
-  const view = await addSection(root.id, { type: 'rich-text', title: 'Rename me', columnSpan: 12 });
+  const view = await addSection(root.id, { type: 'markdown', title: 'Rename me', columnSpan: 12 });
   const firstList = await addSection(root.id, { type: 'task-list', title: 'Move from here', columnSpan: 12 });
   const secondList = await addSection(root.id, { type: 'task-list', title: 'Move to here', columnSpan: 12 });
   const progress = await addSection(root.id, { type: 'progress', title: 'Progress controls', columnSpan: 12 });
@@ -703,7 +911,7 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   await namedFrame.locator('[data-section-title-edit]').click();
   await namedFrame.locator('[data-section-name]').fill('');
   await namedFrame.locator('[data-section-name]').press('Enter');
-  await expect(namedFrame.locator('[data-section-title-edit]')).toContainText('Rich Text');
+  await expect(namedFrame.locator('[data-section-title-edit]')).toContainText('Markdown');
   expect((await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?pageId=${home}`)).find(({ id }) => id === view.id)?.title).toBeUndefined();
 
   try {
@@ -733,10 +941,13 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   const progressFrame = page.locator(`[data-section-item][data-section-id="${progress.id}"]`);
   await progressFrame.getByRole('button', { name: 'Weighted' }).click();
   await expect(progressFrame.getByRole('button', { name: 'Weighted' })).toHaveAttribute('aria-pressed', 'true');
-  await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).fill('Body editing is available without a mode.');
-  await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).press('Tab');
+  const viewFrame = page.locator(`[data-section-item][data-section-id="${view.id}"]`);
+  await viewFrame.locator('[data-markdown-edit]').click();
+  await viewFrame.locator('[data-markdown-source]').fill('Body editing is available without a mode.');
+  await viewFrame.locator('[data-markdown-save]').click();
+  await expect(viewFrame.locator('[data-markdown-source]')).toHaveCount(0);
 
-  // Removal keeps meaningful Rich Text in Archive, while the action describes the operation.
+  // Removal keeps meaningful Markdown in Archive, while the action describes the operation.
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`)).toHaveAttribute('aria-label', 'Remove section Keep draft after failure');
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`).click();
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"]`)).toHaveCount(0);
@@ -788,10 +999,10 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await setClock(PINNED_NOW);
   const root = await createRoot('Keyboard journey');
   await setLayout(root.id, 'grid');
-  const first = await addSection(root.id, { type: 'rich-text', title: 'First keyboard section', columnSpan: 12 });
-  const second = await addSection(root.id, { type: 'rich-text', title: 'Second keyboard section', columnSpan: 8 });
+  const first = await addSection(root.id, { type: 'markdown', title: 'First keyboard section', columnSpan: 12 });
+  const second = await addSection(root.id, { type: 'markdown', title: 'Second keyboard section', columnSpan: 8 });
   const [child] = await createSubprojects(root.id, 1);
-  const source = await addSection(child!.id, { type: 'rich-text', title: 'Keyboard shortcut source', columnSpan: 6 });
+  const source = await addSection(child!.id, { type: 'markdown', title: 'Keyboard shortcut source', columnSpan: 6 });
   const home = await pageId(root.id);
   const shortcut = await addShortcut(root.id, {
     pageId: home,
@@ -804,7 +1015,7 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   const secondInsert = page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="${second.id}"] [data-insertion-point-button]`);
   await secondInsert.press('Enter');
   await expect(page.locator('[data-section-create-dialog]')).toBeVisible();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Keyboard inserted section');
   await page.locator('[data-create-section-submit]').press('Enter');
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
@@ -901,8 +1112,8 @@ test.describe('coarse pointer', () => {
     await setClock(PINNED_NOW);
     const root = await createRoot('Touch journey');
     await setLayout(root.id, 'grid');
-    const first = await addSection(root.id, { type: 'rich-text', title: 'Touch notes', columnSpan: 12 });
-    const neighbor = await addSection(root.id, { type: 'rich-text', title: 'Touch neighbor', columnSpan: 6 });
+    const first = await addSection(root.id, { type: 'markdown', title: 'Touch notes', columnSpan: 12 });
+    const neighbor = await addSection(root.id, { type: 'markdown', title: 'Touch neighbor', columnSpan: 6 });
     await page.goto(`/projects/${root.id}`);
     expect(await page.evaluate(() => matchMedia('(hover: none), (any-pointer: coarse)').matches)).toBe(true);
 
@@ -924,7 +1135,7 @@ test.describe('coarse pointer', () => {
     expect(touchTargetsHit).toEqual([true, true, true, true]);
 
     await insertion.tap();
-    await page.locator('[data-create-section-type]').selectOption('rich-text');
+    await page.locator('[data-create-section-type]').selectOption('markdown');
     await page.locator('[data-create-section-name]').fill('Touch-created notes');
     await page.locator('[data-create-section-submit]').tap();
     await expect(page.locator('[data-section-frame]', { hasText: 'Touch-created notes' })).toBeVisible();
@@ -933,7 +1144,7 @@ test.describe('coarse pointer', () => {
       .find(({ title }) => title === 'Touch-created notes');
     if (inserted === undefined) throw new Error('Touch insertion did not create a section');
     const [child] = await createSubprojects(root.id, 1);
-    const source = await addSection(child!.id, { type: 'rich-text', title: 'Touch shortcut source' });
+    const source = await addSection(child!.id, { type: 'markdown', title: 'Touch shortcut source' });
     const shortcut = await addShortcut(root.id, {
       pageId: home,
       sourceSectionId: source.id,
@@ -1079,7 +1290,7 @@ test('revealing controls does not shift the canvas or turn text and edge interac
   await page.setViewportSize({ width: 1440, height: 900 });
   const root = await createRoot('No layout shift');
   await setLayout(root.id, 'grid');
-  const notes = await addSection(root.id, { type: 'rich-text', title: 'Selectable notes', columnSpan: 8 });
+  const notes = await addSection(root.id, { type: 'markdown', title: 'Selectable notes', columnSpan: 8 });
   const list = await addSection(root.id, { type: 'task-list', title: 'Task selection', columnSpan: 4 });
   await api.post('/api/tasks', { projectId: root.id, sectionId: list.id, title: 'Select this row title with a pointer drag' });
   await page.goto(`/projects/${root.id}`);
@@ -1103,10 +1314,11 @@ test('revealing controls does not shift the canvas or turn text and edge interac
     if (request.method() === 'POST' && /\/api\/(sections|shortcuts)\/[^/]+\/move$/.test(new URL(request.url()).pathname)) moveRequests += 1;
   };
   page.on('request', observeMoves);
-  const textarea = firstWrapper.locator('[data-rich-text-body]');
+  await firstWrapper.locator('[data-markdown-edit]').click();
+  const textarea = firstWrapper.locator('[data-markdown-source]');
   await textarea.fill('Drag across this text selection without moving the section.');
   const textareaBox = await textarea.boundingBox();
-  if (textareaBox === null) throw new Error('Rich Text editor has no browser geometry');
+  if (textareaBox === null) throw new Error('Markdown source editor has no browser geometry');
   await page.mouse.move(textareaBox.x + 18, textareaBox.y + 14);
   await page.mouse.down();
   await page.mouse.move(textareaBox.x + 110, textareaBox.y + 14, { steps: 4 });
@@ -1114,6 +1326,11 @@ test('revealing controls does not shift the canvas or turn text and edge interac
   expect(await textarea.evaluate((element) => (element as HTMLTextAreaElement).selectionEnd)).toBeGreaterThan(0);
 
   const taskTitle = page.locator(`[data-section-item][data-section-id="${list.id}"] [data-task-title]`);
+  let taskPatchRequests = 0;
+  const observeTaskPatches = (request: import('@playwright/test').Request): void => {
+    if (request.method() === 'PATCH' && /^\/api\/tasks\/[^/]+$/.test(new URL(request.url()).pathname)) taskPatchRequests += 1;
+  };
+  page.on('request', observeTaskPatches);
   const taskBox = await taskTitle.boundingBox();
   if (taskBox === null) throw new Error('Task title has no browser geometry');
   await page.mouse.move(taskBox.x + 2, taskBox.y + taskBox.height / 2);
@@ -1121,7 +1338,10 @@ test('revealing controls does not shift the canvas or turn text and edge interac
   await page.mouse.move(taskBox.x + Math.min(taskBox.width - 1, 110), taskBox.y + taskBox.height / 2, { steps: 4 });
   await page.mouse.up();
   await expect(page.locator(`[data-section-item][data-section-id="${list.id}"] [data-task-row]`)).toBeVisible();
-  await expect(page.locator(`[data-section-item][data-section-id="${list.id}"] [data-task-title-editor]`)).toHaveCount(0);
+  await expect(page.locator(`[data-section-item][data-section-id="${list.id}"]`)).not.toHaveClass(/cdk-drag-dragging/);
+  await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
+  expect(taskPatchRequests).toBe(0);
+  page.off('request', observeTaskPatches);
 
   for (const inset of [4, 8]) {
     const frameBox = await firstWrapper.locator('[data-section-frame]').boundingBox();
@@ -1143,9 +1363,9 @@ test('hover and focus actually reveal chrome, neighbouring handles resize their 
   await page.setViewportSize({ width: 1440, height: 900 });
   const root = await createRoot('Revealed chrome');
   await setLayout(root.id, 'grid');
-  const left = await addSection(root.id, { type: 'rich-text', title: 'Left half', columnSpan: 6 });
-  const right = await addSection(root.id, { type: 'rich-text', title: 'Right half', columnSpan: 6 });
-  await addSection(root.id, { type: 'rich-text', title: 'Below', columnSpan: 12 });
+  const left = await addSection(root.id, { type: 'markdown', title: 'Left half', columnSpan: 6 });
+  const right = await addSection(root.id, { type: 'markdown', title: 'Right half', columnSpan: 6 });
+  await addSection(root.id, { type: 'markdown', title: 'Below', columnSpan: 12 });
   await page.goto(`/projects/${root.id}`);
   const leftItem = page.locator(`[data-section-item][data-section-id="${left.id}"]`);
   const rightItem = page.locator(`[data-section-item][data-section-id="${right.id}"]`);

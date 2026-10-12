@@ -107,7 +107,8 @@ export class ProjectPageStore {
   private readonly pendingTasks = inject(PendingTasks);
   /**
    * The header's history hears about every canvas write (Slice 41). Shortcut writes record in the
-   * destination root — this canvas's project — so their reports name it.
+   * destination project — this canvas's project, the root on Home and the workstream on Work — so
+   * their reports name it.
    */
   private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
@@ -123,6 +124,12 @@ export class ProjectPageStore {
   private requestedProjectId: ProjectId | undefined;
   private requestedPageId: ProjectPageId | undefined;
   private requestedShortcutsAllowed = true;
+  /**
+   * The root of the canvas's project tree, which live frames name as `rootProjectId`. A root's
+   * Home is its own root; a workstream's Work canvas is not (Slice 65), so the shortcut half of
+   * the live filter compares against this rather than the canvas's project.
+   */
+  private requestedRootProjectId: ProjectId | undefined;
   /**
    * Whether a load has completed. The staleness guards used to ask `projectState() !== null`,
    * which answered "is anything loaded" as a side effect; with the record gone, `sections()`
@@ -207,7 +214,7 @@ export class ProjectPageStore {
    *
    * Routing is on `type` and `projectId`, never on `entityType` — §57's section events
    * deliberately name the *project* as their entity. The **hierarchy** revision is the one
-   * exception that ignores `projectId`: a Sub-Projects section is a view of the work tree, so
+   * exception that ignores `projectId`: Timeline reads the work tree, so
    * a sibling's creation has to move it.
    */
   private onLiveEvent(event: LiveEvent): void {
@@ -215,7 +222,9 @@ export class ProjectPageStore {
     if (event.type === 'prototype.reloaded') {
       const projectId = this.requestedProjectId;
       const pageId = this.requestedPageId;
-      if (projectId !== undefined && pageId !== undefined) void this.load(projectId, pageId, this.requestedShortcutsAllowed);
+      if (projectId !== undefined && pageId !== undefined) {
+        void this.load(projectId, pageId, this.requestedShortcutsAllowed, this.requestedRootProjectId);
+      }
       return;
     }
 
@@ -229,7 +238,7 @@ export class ProjectPageStore {
     const aboutThisProject =
       event.projectId === projectId || (event.type.startsWith('project.') && event.entityId === projectId);
     const hasShortcuts = this.shortcutsState().length > 0;
-    const isInRootTree = event.rootProjectId === projectId;
+    const isInRootTree = event.rootProjectId === (this.requestedRootProjectId ?? projectId);
     if (event.type.startsWith('project.')) this.notifyProjectHierarchyChanged();
     if (!aboutThisProject && !(hasShortcuts && isInRootTree)) return;
 
@@ -383,13 +392,17 @@ export class ProjectPageStore {
    * The canvas of **one page** (§27). Navigating between two pages of the same root re-uses
    * this component and this store, so a response that lands after the page changed must write
    * nothing — the guard is the page as well as the project.
+   *
+   * `rootProjectId` defaults to the project itself, which is right for a root's Home; the shell
+   * passes a workstream's root so live frames from elsewhere in the tree reach its shortcuts.
    */
-  load(projectId: ProjectId, pageId: ProjectPageId, shortcutsAllowed = true): Promise<void> {
+  load(projectId: ProjectId, pageId: ProjectPageId, shortcutsAllowed = true, rootProjectId: ProjectId = projectId): Promise<void> {
     const generation = ++this.loadGeneration;
     const current = () => generation === this.loadGeneration;
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
     this.requestedShortcutsAllowed = shortcutsAllowed;
+    this.requestedRootProjectId = rootProjectId;
     this.recoveryNoticeState.set(null);
     this.failedRemovalState.set(null);
     this.orderCompleteState.set(false);
@@ -531,7 +544,7 @@ export class ProjectPageStore {
     });
   }
 
-  /** Adds a placement to this Home canvas; the source remains owned by its canonical page. */
+  /** Adds a placement to this canonical canvas; the source remains owned by its own page. */
   addShortcut(input: CreateSectionShortcutInput): Promise<CanvasWriteResult> {
     return this.mutateWithResult(async ({ current, projectId, pageId, generation }) => {
       if (input.pageId !== pageId) throw new Error('The shortcut destination does not match this canvas');
@@ -844,7 +857,7 @@ export class ProjectPageStore {
       : { ...state, refreshFailed: true });
   }
 
-  /** A shortcut write records in the destination root: this canvas's project. */
+  /** A shortcut write records in the destination project: this canvas's project (root on Home, workstream on Work). */
   private reportedShortcutWrite<T extends { operation: OperationWriteReport['receipt'] }>(write: () => Promise<T>): Promise<T> {
     const projectId = this.requestedProjectId;
     return reportedWrite(this.reporter, write, ({ operation }) => ({ projectId: projectId!, receipt: operation }));

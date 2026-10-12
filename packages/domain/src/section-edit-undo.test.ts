@@ -11,15 +11,15 @@ import { listPlacements } from './page-placements';
 type Harness = ReturnType<typeof buildHarness>;
 
 describe('sectionUpdateLabel', () => {
-  const section = { type: 'rich-text', title: 'Notes', config: { text: 'Before' }, collapsed: false, columnSpan: 12 } as const;
+  const section = { type: 'markdown', title: 'Notes', config: { markdown: 'Before' }, collapsed: false, columnSpan: 12 } as const;
 
   it('names single-field edits and resolves a cleared title against the resulting name', () => {
     expect(sectionUpdateLabel(section, { ...section, title: 'Draft' }, [{ field: 'title', before: 'Notes', after: 'Draft' }]))
       .toBe('Renamed the Notes section to Draft');
     expect(sectionUpdateLabel(section, { ...section, title: undefined }, [{ field: 'title', before: 'Notes', after: null }]))
-      .toBe('Renamed the Notes section to Rich Text');
-    expect(sectionUpdateLabel(section, { ...section, config: { text: 'After' } }, [{ field: 'config', before: { text: 'Before' }, after: { text: 'After' } }]))
-      .toBe('Edited prose in the Notes section');
+      .toBe('Renamed the Notes section to Markdown');
+    expect(sectionUpdateLabel(section, { ...section, config: { markdown: 'After' } }, [{ field: 'config', before: { markdown: 'Before' }, after: { markdown: 'After' } }]))
+      .toBe('Edited Markdown in the Notes section');
     expect(sectionUpdateLabel(section, { ...section, collapsed: true }, [{ field: 'collapsed', before: false, after: true }]))
       .toBe('Collapsed the Notes section');
     expect(sectionUpdateLabel({ ...section, collapsed: true }, section, [{ field: 'collapsed', before: true, after: false }]))
@@ -28,15 +28,34 @@ describe('sectionUpdateLabel', () => {
       .toBe('Resized the Notes section to 8 columns');
   });
 
-  it('uses general wording for combined, non-prose and non-rich-text config edits', () => {
-    expect(sectionUpdateLabel(section, { ...section, config: { text: 'After', tone: 'loud' } }, [
-      { field: 'config', before: { text: 'Before' }, after: { text: 'After', tone: 'loud' } },
+  it('a markdown-only source change says Markdown', () => {
+    const markdown = { ...section, type: 'markdown', title: undefined, config: { markdown: '# Before' } };
+    const after = { ...markdown, config: { markdown: '# After' } };
+    const sourceChange = { field: 'config', before: markdown.config, after: after.config } as const;
+    expect(sectionUpdateLabel(markdown, after, [sourceChange]))
+      .toBe('Edited Markdown in the Markdown section');
+    expect(sectionUpdateLabel({ ...markdown, title: 'Plan' }, { ...after, title: 'Plan' }, [sourceChange]))
+      .toBe('Edited Markdown in the Plan section');
+    expect(sectionUpdateLabel(markdown, { ...after, title: 'Plan' }, [
+      sourceChange, { field: 'title', before: null, after: 'Plan' },
+    ])).toBe('Updated the Markdown section');
+    expect(sectionUpdateLabel(markdown, { ...after, config: { markdown: '# After', extra: true } }, [
+      { field: 'config', before: markdown.config, after: { markdown: '# After', extra: true } },
+    ])).toBe('Updated the Markdown section');
+    expect(sectionUpdateLabel(markdown, { ...after, config: { text: 'After' } }, [
+      { field: 'config', before: { text: 'Before' }, after: { text: 'After' } },
+    ])).toBe('Updated the Markdown section');
+  });
+
+  it('uses general wording for combined, non-prose and non-prose-type config edits', () => {
+    expect(sectionUpdateLabel(section, { ...section, config: { markdown: 'After', tone: 'loud' } }, [
+      { field: 'config', before: { markdown: 'Before' }, after: { markdown: 'After', tone: 'loud' } },
     ])).toBe('Updated the Notes section');
     expect(sectionUpdateLabel(section, { ...section, config: { tone: 'loud' } }, [
-      { field: 'config', before: { text: 'Before' }, after: { tone: 'loud' } },
+      { field: 'config', before: { markdown: 'Before' }, after: { tone: 'loud' } },
     ])).toBe('Updated the Notes section');
-    expect(sectionUpdateLabel({ ...section, type: 'progress' }, { ...section, type: 'progress', config: { text: 'After' } }, [
-      { field: 'config', before: { text: 'Before' }, after: { text: 'After' } },
+    expect(sectionUpdateLabel({ ...section, type: 'progress' }, { ...section, type: 'progress', config: { markdown: 'After' } }, [
+      { field: 'config', before: { markdown: 'Before' }, after: { markdown: 'After' } },
     ])).toBe('Updated the Notes section');
     expect(sectionUpdateLabel(section, { ...section, title: 'Draft', collapsed: true }, [
       { field: 'title', before: 'Notes', after: 'Draft' }, { field: 'collapsed', before: false, after: true },
@@ -72,7 +91,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
     await harness.undo(harness.actor, after.operation);
 
     const added = await harness.sectionWriteService.add(harness.actor, MINE, {
-      type: 'rich-text', title: 'Scratch', config: { text: 'temporary' }, position: 1,
+      type: 'markdown', title: 'Scratch', config: { markdown: 'temporary' }, position: 1,
     });
 
     expect(added.operation).toMatchObject({ operation: 'section.add', revision: 4 });
@@ -147,7 +166,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('an unrelated later edit to a different field survives Undo and Redo', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
 
     const titleUpdate = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: '  Notes  ' });
     await harness.sectionWriteService.update(someoneElse, added.section.id, { columnSpan: 6 });
@@ -167,7 +186,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
     const sourceProject = await harness.projectService.create(harness.actor, {
       workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Source',
     });
-    const source = await harness.sectionWriteService.add(harness.actor, sourceProject.id, { type: 'rich-text' });
+    const source = await harness.sectionWriteService.add(harness.actor, sourceProject.id, { type: 'markdown' });
     const home = (await harness.pages.list({ projectId: MINE, kind: 'home' }))[0]!;
     const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, { pageId: home.id, sourceSectionId: source.section.id });
     const order = async () => (await listPlacements(harness, home.id)).map(({ value }) => value.id);
@@ -214,7 +233,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
       id: 'section-raw' as SectionId,
       projectId: MINE,
       pageId: 'page-project-mine' as ProjectSection['pageId'],
-      type: 'rich-text',
+      type: 'markdown',
       position: 0,
       columnSpan: 12,
       collapsed: false,
@@ -247,7 +266,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
       const harness = failing();
       for (const [id, position] of [['section-a', 0], ['section-b', 1]] as const) {
         await harness.sections.insert({
-          id: id as SectionId, projectId: MINE, pageId: 'page-project-mine' as ProjectSection['pageId'], type: 'rich-text',
+          id: id as SectionId, projectId: MINE, pageId: 'page-project-mine' as ProjectSection['pageId'], type: 'markdown',
           title: id, position, columnSpan: 12, collapsed: false, config: {}, archiveGeneration: 0,
           createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z',
         });
@@ -264,7 +283,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('records one action and event per changed operation; each transition adds one event and no action', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
     const events = harness.store.snapshot().activityEvents.length;
     const actions = harness.store.snapshot().operationActions.length;
 
@@ -292,10 +311,10 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('treats a config with reordered keys as a no-op', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'a', tone: 'calm' } });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', config: { range: 'a', tone: 'calm' } });
     const before = writable(harness);
 
-    const result = await harness.sectionWriteService.update(harness.actor, added.section.id, { config: { tone: 'calm', text: 'a' } });
+    const result = await harness.sectionWriteService.update(harness.actor, added.section.id, { config: { tone: 'calm', range: 'a' } });
 
     expect(result.operation).toBeNull();
     expect(writable(harness)).toEqual(before);
@@ -304,8 +323,8 @@ describe('SectionService edit receipts, Undo and Redo', () => {
   describe('add inverse refuses once removal would destroy later work', () => {
     it('refuses after someone else changed the section config, without deleting it', async () => {
       const harness = buildHarness();
-      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'initial' } });
-      await harness.sectionWriteService.update(someoneElse, added.section.id, { config: { text: 'authored later' } });
+      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'initial' } });
+      await harness.sectionWriteService.update(someoneElse, added.section.id, { config: { markdown: 'authored later' } });
       const before = writable(harness);
 
       const refusal = await refusalOf(harness.undo(harness.actor, added.operation));
@@ -321,7 +340,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
       const child = await harness.projectService.create(harness.actor, {
         workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Child',
       });
-      const added = await harness.sectionWriteService.add(harness.actor, child.id, { type: 'rich-text' });
+      const added = await harness.sectionWriteService.add(harness.actor, child.id, { type: 'markdown' });
       await harness.sectionShortcutService.create(harness.actor, MINE, { pageId: home.id, sourceSectionId: added.section.id });
       const before = writable(harness);
 
@@ -335,7 +354,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
     it('is blocked while the owning project is archived', async () => {
       const harness = buildHarness();
-      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
       await harness.projectService.update(someoneElse, MINE, { status: 'archived' });
 
       const refusal = await refusalOf(harness.undo(harness.actor, added.operation));
@@ -348,7 +367,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
   describe('update footprint', () => {
     it('another actor’s overlapping edit refuses with a typed conflict and writes nothing', async () => {
       const harness = buildHarness();
-      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
       const mine = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: 'Mine' });
       await harness.sectionWriteService.update(someoneElse, added.section.id, { title: 'Theirs' });
       const before = writable(harness);
@@ -365,7 +384,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
     it('allows Undo once another actor changed the field back — applied state, not supersession, decides', async () => {
       const harness = buildHarness();
-      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
       const mine = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: 'A' });
       await harness.sectionWriteService.update(someoneElse, added.section.id, { title: 'B' });
       await harness.sectionWriteService.update(someoneElse, added.section.id, { title: 'A' });
@@ -376,7 +395,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
     it('refuses when a touched field changed outside any service', async () => {
       const harness = buildHarness();
-      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
       const update = await harness.sectionWriteService.update(harness.actor, added.section.id, { columnSpan: 6, collapsed: true });
       const current = (await harness.sections.find(added.section.id))!;
       await harness.sections.update({ ...current, columnSpan: 4 });
@@ -389,7 +408,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
     it('Redo refuses when the field changed after the Undo', async () => {
       const harness = buildHarness();
-      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
       const update = await harness.sectionWriteService.update(harness.actor, added.section.id, { collapsed: true });
       await harness.undo(harness.actor, update.operation!);
       await harness.sectionWriteService.update(someoneElse, added.section.id, { collapsed: true });
@@ -402,7 +421,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
     it('is not blocked by someone else’s later move, and keeps the moved position', async () => {
       const harness = buildHarness();
       await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress' });
-      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+      const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
       const update = await harness.sectionWriteService.update(harness.actor, added.section.id, { collapsed: true });
       await harness.sectionWriteService.move(someoneElse, added.section.id, 0);
 
@@ -416,7 +435,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
     const three = async (harness: Harness) => {
       const a = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', title: 'A' });
       const b = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'timeline', title: 'B' });
-      const c = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'C', config: { text: 'Keep' } });
+      const c = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'C', config: { markdown: 'Keep' } });
       return { a: a.section.id, b: b.section.id, c: c.section.id };
     };
     const order = async (harness: Harness) =>
@@ -507,7 +526,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
       const harness = buildHarness();
       const ids: Record<string, SectionId> = {};
       for (const title of ['P', 'S', 'N', 'X', 'Y']) {
-        ids[title] = (await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title })).section.id;
+        ids[title] = (await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title })).section.id;
       }
       const move = await harness.sectionWriteService.move(harness.actor, ids['S']!, 4);
       // Someone else puts X between P and N; S's recorded next neighbour N is no longer after P.
@@ -550,7 +569,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('is not found for a different actor in the same workspace, even with projects.write', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
     const before = writable(harness);
 
     await expect(harness.undo(someoneElse, added.operation)).rejects.toBeInstanceOf(EntityNotFoundError);
@@ -559,7 +578,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('never recovers an edit receipt as an already-removed response', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown' });
     await harness.store.runUnitOfWork(() => harness.historyRecorder.record(harness.actor, {
       projectId: MINE,
       label: 'Updated',
@@ -576,7 +595,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
     const harness = buildHarness();
     for (const [id, position] of [['section-sparse-a', 3], ['section-sparse-b', 9]] as const) {
       await harness.sections.insert({
-        id: id as SectionId, projectId: MINE, pageId: 'page-project-mine' as ProjectSection['pageId'], type: 'rich-text',
+        id: id as SectionId, projectId: MINE, pageId: 'page-project-mine' as ProjectSection['pageId'], type: 'markdown',
         position, columnSpan: 12, collapsed: false, config: {}, archiveGeneration: 0,
         createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z',
       });
@@ -591,16 +610,16 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('restores a cleared title and a replaced config exactly, and reapplies them', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Named', config: { text: 'one', nested: { a: [1, 2] } } });
-    const update = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: null, config: { text: 'two' } });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', title: 'Named', config: { range: 'one', nested: { a: [1, 2] } } });
+    const update = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: null, config: { range: 'two' } });
 
     await harness.undo(harness.actor, update.operation!);
-    expect(await harness.sections.find(added.section.id)).toMatchObject({ title: 'Named', config: { text: 'one', nested: { a: [1, 2] } } });
+    expect(await harness.sections.find(added.section.id)).toMatchObject({ title: 'Named', config: { range: 'one', nested: { a: [1, 2] } } });
 
     await harness.redo(harness.actor, update.operation!);
     const redone = await harness.sections.find(added.section.id);
     expect(redone).not.toHaveProperty('title');
-    expect(redone?.config).toEqual({ text: 'two' });
+    expect(redone?.config).toEqual({ range: 'two' });
   });
 });
 
@@ -609,7 +628,7 @@ describe('section edit history acceptance', () => {
   /** One receipt of the named family, alone in a fresh harness so it is the next Undo. */
   const family = async (harness: Harness, kind: 'add' | 'update' | 'move', projectId = MINE, actor: ActorContext = harness.actor): Promise<OperationReceipt> => {
     await harness.sectionWriteService.add(someoneElse, projectId, { type: 'progress', title: 'Neighbour' });
-    const subject = await harness.sectionWriteService.add(actor, projectId, { type: 'rich-text', title: 'Subject', config: { text: 'Kept prose' } });
+    const subject = await harness.sectionWriteService.add(actor, projectId, { type: 'markdown', title: 'Subject', config: { markdown: 'Kept prose' } });
     if (kind === 'add') return subject.operation;
     if (kind === 'update') return (await harness.sectionWriteService.update(actor, subject.section.id, { collapsed: true })).operation!;
     return (await harness.sectionWriteService.move(actor, subject.section.id, 0)).operation!;
@@ -664,7 +683,7 @@ describe('section edit history acceptance', () => {
     const child = await harness.projectService.create(harness.actor, {
       workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen',
     });
-    const add = await harness.sectionWriteService.add(harness.actor, child.id, { type: 'rich-text', title: 'Added' });
+    const add = await harness.sectionWriteService.add(harness.actor, child.id, { type: 'markdown', title: 'Added' });
     const update = await harness.sectionWriteService.update(harness.actor, add.section.id, { collapsed: true });
     await harness.sectionWriteService.add(someoneElse, child.id, { type: 'progress' });
     const move = await harness.sectionWriteService.move(harness.actor, add.section.id, 1);
@@ -693,13 +712,13 @@ describe('section edit history acceptance', () => {
     const kitchen = await harness.projectService.create(harness.actor, {
       workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen',
     });
-    const source = await harness.sectionWriteService.add(harness.actor, kitchen.id, { type: 'rich-text' });
+    const source = await harness.sectionWriteService.add(harness.actor, kitchen.id, { type: 'markdown' });
     const a = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', title: 'A' });
     const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
       pageId: `page-${MINE}` as never, sourceSectionId: source.section.id,
     });
     const b = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'timeline', title: 'B' });
-    const c = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'C' });
+    const c = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'C' });
     const order = async () => (await listPlacements(harness, `page-${MINE}` as never)).map(({ value }) => value.id);
     expect(await order()).toEqual([a.section.id, shortcut.id, b.section.id, c.section.id]);
 
@@ -718,7 +737,7 @@ describe('section edit history acceptance', () => {
   it('each edit family works for its system actor and hides that history from every other actor', async () => {
     const harness = buildHarness();
     const system: ActorContext = { actor: 'system', workspaceId: harness.actor.workspaceId };
-    const add = await harness.sectionWriteService.add(system, MINE, { type: 'rich-text', title: 'Added' });
+    const add = await harness.sectionWriteService.add(system, MINE, { type: 'markdown', title: 'Added' });
     const update = await harness.sectionWriteService.update(system, add.section.id, { collapsed: true });
     await harness.sectionWriteService.add(someoneElse, MINE, { type: 'progress' });
     const move = await harness.sectionWriteService.move(system, add.section.id, 1);

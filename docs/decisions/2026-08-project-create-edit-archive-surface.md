@@ -119,3 +119,8 @@ receipt, so the new project's header immediately offers Undo: Created "…". Cre
 Sub-Projects section still announces the action in the parent's header with an Open link to the
 child's own history. Undo leaves the creator at the child's URL in a recovery state where Redo
 restores the same project and page ids ([project creation history](2026-09-project-creation-history.md)).
+
+**Amended, 2026-10-01 — Slice 61.** The TaskRow inline-title comparison above is historical.
+A task title now selects and opens the drawer, where its Title field commits on Enter or blur;
+the separate Details button is removed. This entry's project controls are unchanged
+([decision](2026-09-task-checkbox-reopen-and-selection.md)).

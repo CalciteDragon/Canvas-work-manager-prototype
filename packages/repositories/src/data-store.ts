@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   canonicalPageKindFor,
   isCanonicalPageKind,
+  isRetiredSectionType,
   operationProjectOf,
   ownedKindOf,
   pageAcceptsSectionType,
@@ -86,6 +87,18 @@ const fail = (message: string): never => {
   throw new DocumentIntegrityError(message);
 };
 
+/**
+ * Refuse retired types in every record that can recreate a section. Local prototype data
+ * is disposable; reset or reseed it (docs/decisions/2026-10-prototype-data-is-disposable.md).
+ */
+const assertNotRetired = (section: { id: string; type: string }, where: string): void => {
+  if (!isRetiredSectionType(section.type)) return;
+  fail(
+    `${where} holds section "${section.id}" of retired section type "${section.type}". ` +
+      'Run "pnpm prototype:reset" or "pnpm prototype:seed <seed>" to replace it.',
+  );
+};
+
 const uniqueMap = <T extends { id: string }>(collection: string, values: T[]): Map<string, T> => {
   const result = new Map<string, T>();
   for (const value of values) {
@@ -98,7 +111,7 @@ const uniqueMap = <T extends { id: string }>(collection: string, values: T[]): M
 /**
  * A version mismatch is the one parse failure with a *remedy*, so it says so. Without this the
  * operator with a version-2 file gets "document does not match PrototypeDocumentSchema" and a
- * page of Zod paths, which names neither the problem nor `pnpm prototype:upgrade` (§14).
+ * page of Zod paths, which names neither the problem nor `pnpm prototype:reset` (§14).
  */
 const describeVersion = (input: unknown): string | undefined => {
   if (typeof input !== 'object' || input === null) return undefined;
@@ -106,9 +119,7 @@ const describeVersion = (input: unknown): string | undefined => {
   if (typeof version !== 'number' || version === SCHEMA_VERSION) return undefined;
   return (
     `document is at schema version ${version}, but this build reads version ${SCHEMA_VERSION}. ` +
-    (version < SCHEMA_VERSION
-      ? 'Run "pnpm prototype:upgrade <path>" to convert it, or "pnpm prototype:reset" to discard it.'
-      : 'It was written by a newer build.')
+    'Run "pnpm prototype:reset" or "pnpm prototype:seed <seed>" to replace it.'
   );
 };
 
@@ -243,6 +254,7 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   }
 
   for (const section of document.sections) {
+    assertNotRetired(section, `section "${section.id}"`);
     projectFor('section', section.id, section.projectId);
     const page = pages.get(section.pageId) ?? fail(`section "${section.id}" has missing page "${section.pageId}"`);
     if (page.projectId !== section.projectId) fail(`section "${section.id}" has a page from another project`);
@@ -274,11 +286,10 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       fail(`section shortcut "${shortcut.id}" has missing page "${shortcut.pageId}"`);
     const destination = projects.get(page.projectId) ??
       fail(`page "${page.id}" has missing project "${page.projectId}"`);
-    if (page.kind !== 'home') {
-      fail(`section shortcut "${shortcut.id}" must be placed on a Home page`);
-    }
-    if (destination.kind !== 'root') {
-      fail(`section shortcut "${shortcut.id}" must be placed on a root project's Home`);
+    // A root's Home or a workstream's Work canvas (Slice 65), never an optional page: the
+    // canonical page is the one canvas every project has and every placement hangs from.
+    if (page.kind !== canonicalPageKindFor(destination.kind)) {
+      fail(`section shortcut "${shortcut.id}" must be placed on its project's canonical page`);
     }
 
     const source = sections.get(shortcut.sourceSectionId) ??
@@ -655,6 +666,15 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       } else {
         fail(`absent project "${projectId}" requires a retained undone project.add action`);
       }
+    }
+
+    // Every snapshot that Undo or Redo can recreate a section from. A `section.update` is not one:
+    // it only writes onto a section that already exists, so it never brings a type back.
+    if (action.operation.type === 'section.add' || action.operation.type === 'section.remove') {
+      assertNotRetired(action.operation.section, `operation action "${action.id}"`);
+    }
+    if ((action.operation.type === 'task.add' || action.operation.type === 'reflection.add') && action.operation.container !== undefined) {
+      assertNotRetired(action.operation.container.section, `operation action "${action.id}"`);
     }
 
     if (action.operation.type === 'section.remove' && action.operation.disposition === 'retained') {

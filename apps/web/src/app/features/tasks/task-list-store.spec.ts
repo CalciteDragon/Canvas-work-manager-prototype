@@ -352,6 +352,143 @@ describe('TaskListStore under the panel’s failure injection (§63)', () => {
   });
 });
 
+describe('TaskListStore.reopen (§34, §62, §63)', () => {
+  it('paints todo and deletes completedAt before the gateway answers, then applies server fields', async () => {
+    const before = task({ status: 'done', completedAt: AT });
+    const gate = deferred<TaskWriteResult>();
+    const update = vi.fn(() => gate.promise);
+    const { store } = setup({ tasks: [before], update });
+    await store.load(section());
+
+    const reopening = store.reopen(before.id);
+    expect(store.tasks()[0]?.status).toBe('todo');
+    expect(store.tasks()[0]).not.toHaveProperty('completedAt');
+    expect(store.completingIds().has(before.id)).toBe(true);
+    expect(update).toHaveBeenCalledWith(before.id, { status: 'todo' });
+
+    const after = task({ status: 'todo', updatedAt: '2026-08-27T18:00:00.000Z' });
+    gate.resolve(resultOf(after));
+    expect(await reopening).toBe(true);
+    expect(store.tasks()[0]).toEqual(after);
+    expect(store.completingIds().has(before.id)).toBe(false);
+  });
+
+  it('restores the exact previous task and completedAt and exposes a failed reopen', async () => {
+    const before = task({ status: 'done', completedAt: AT, priority: 'high' });
+    const gate = deferred<TaskWriteResult>();
+    const { store } = setup({ tasks: [before], update: vi.fn(() => gate.promise) });
+    await store.load(section());
+
+    const reopening = store.reopen(before.id);
+    gate.reject(new GatewayError('conflict', 409, 'the task is archived'));
+    expect(await reopening).toBe(false);
+    expect(store.tasks()[0]).toEqual(before);
+    expect(store.error()).toContain('the task is archived');
+    expect(store.completingIds().has(before.id)).toBe(false);
+  });
+
+  it('refuses an unknown, open or already-toggling task without another request', async () => {
+    const done = task({ status: 'done', completedAt: AT });
+    const open = task({ id: 'task-open' });
+    const gate = deferred<TaskWriteResult>();
+    const update = vi.fn(() => gate.promise);
+    const { store, gateway } = setup({ tasks: [done, open], update });
+    await store.load(section());
+
+    expect(await store.reopen('task-unknown' as TaskId)).toBe(false);
+    expect(await store.reopen(open.id)).toBe(false);
+    const reopening = store.reopen(done.id);
+    expect(await store.reopen(done.id)).toBe(false);
+    // A slow reopen has painted todo, but the opposite toggle must still wait.
+    expect(await store.complete(done.id)).toBe(false);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(gateway.tasks.complete).not.toHaveBeenCalled();
+    gate.resolve(resultOf(task()));
+    await reopening;
+  });
+
+  it('queues a burst of live refreshes and applies one read after reopen settles', async () => {
+    const before = task({ status: 'done', completedAt: AT });
+    const gate = deferred<TaskWriteResult>();
+    const { store, gateway } = setup({ tasks: [before], update: vi.fn(() => gate.promise) });
+    await store.load(section());
+    const fresh = task({ title: 'Renamed by an agent' });
+    vi.mocked(gateway.tasks.list).mockResolvedValue([fresh]);
+
+    const reopening = store.reopen(before.id);
+    await store.refresh();
+    await store.refresh();
+    expect(gateway.tasks.list).toHaveBeenCalledTimes(1);
+    expect(store.tasks()[0]?.status).toBe('todo');
+    expect(store.tasks()[0]?.title).toBe(before.title);
+    gate.resolve(resultOf(task()));
+    await reopening;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(gateway.tasks.list).toHaveBeenCalledTimes(2);
+    expect(store.tasks()).toEqual([fresh]);
+  });
+
+  it.each(['success', 'failure'] as const)('does not let an older reopen %s overwrite a newer title edit', async (outcome) => {
+    const before = task({ status: 'done', completedAt: AT });
+    const gate = deferred<TaskWriteResult>();
+    const update = vi.fn<WorkManagerGateway['tasks']['update']>(async (_id, input) =>
+      input.status === 'todo' ? gate.promise : resultOf(task({ title: 'Newer title', updatedAt: '2026-08-27T18:00:00.000Z' })),
+    );
+    const { store } = setup({ tasks: [before], update });
+    await store.load(section());
+
+    const reopening = store.reopen(before.id);
+    await store.updateTitle(before.id, 'Newer title');
+    if (outcome === 'failure') gate.reject(new GatewayError('unreachable', 0, 'offline'));
+    else gate.resolve(resultOf(task({ title: 'Stale title' })));
+    await reopening;
+    expect(store.tasks()[0]).toMatchObject({
+      title: 'Newer title',
+      status: outcome === 'success' ? 'todo' : 'done',
+      updatedAt: '2026-08-27T18:00:00.000Z',
+    });
+    if (outcome === 'failure') expect(store.tasks()[0]?.completedAt).toBe(AT);
+    else expect(store.tasks()[0]).not.toHaveProperty('completedAt');
+  });
+
+  it('reports the response task’s own project receipt', async () => {
+    const reporter = provideRecordingReporter();
+    const before = task({ status: 'done', completedAt: AT });
+    const response = resultOf(task({ projectId: 'project-b' }));
+    const { store } = setup({ tasks: [before], update: vi.fn(async () => response) });
+    await store.load(section());
+
+    expect(await store.reopen(before.id)).toBe(true);
+    expect(reporter.events).toEqual(['begin', { projectId: 'project-b', receipt: response.operation }, 'end']);
+  });
+});
+
+describe('TaskListStore completion toggles are bound to their section', () => {
+  it.each([
+    ['reopen', 'success'], ['reopen', 'failure'], ['complete', 'success'], ['complete', 'failure'],
+  ] as const)('drops a late %s %s after loading another section', async (action, outcome) => {
+    const before = task(action === 'reopen' ? { status: 'done', completedAt: AT } : {});
+    const gate = deferred<TaskWriteResult>();
+    const { store, gateway } = setup({
+      tasks: [before], update: vi.fn(() => gate.promise), complete: vi.fn(() => gate.promise),
+    });
+    await store.load(section());
+    const writing = store[action](before.id);
+    expect(action === 'reopen' ? gateway.tasks.update : gateway.tasks.complete).toHaveBeenCalledOnce();
+    // Same id makes an accidental field patch observable even across the section switch.
+    const current = task({ sectionId: 'section-project-b-tasks', projectId: 'project-b', title: 'Current section' });
+    vi.mocked(gateway.tasks.list).mockResolvedValue([current]);
+    await store.load(section('project-b'));
+
+    if (outcome === 'failure') gate.reject(new GatewayError('unreachable', 0, 'old section failed'));
+    else gate.resolve(resultOf(task({ status: 'done', completedAt: AT, updatedAt: '2026-08-27T18:00:00.000Z' })));
+    expect(await writing).toBe(false);
+    expect(store.tasks()).toEqual([current]);
+    expect(store.error()).toBeNull();
+  });
+});
+
 describe('TaskListStore.refresh (§62)', () => {
   it('quietly re-reads the project’s tasks, without a loading flicker', async () => {
     const { store, gateway } = setup();

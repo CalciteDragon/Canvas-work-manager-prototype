@@ -133,6 +133,7 @@ const meta: Meta<ArchivePage> = {
     projectLayoutMode: 'flow',
     restoreBlocked: false,
     shortcutsAllowed: false,
+    rootProjectId: PROJECT,
     onProjectDataChange: () => undefined,
     onProjectHierarchyChange: () => undefined,
   },

@@ -19,8 +19,8 @@ nobody could regenerate.
   session — so every builder's output is parsed by the document schema in a test.
 - **The tokens have no security value** (§51) and the contract must never grow a
   secret-shaped field (§52, §80).
-- **A real data file eventually becomes worth keeping.** By schema version 3 the
-  developer's `.prototype/data.json` had a fortnight of real use in it.
+- **Local data is disposable.** Keeping usable current seeds matters more than preserving
+  a developer's old file.
 
 ## The shape, and the alternatives rejected
 
@@ -41,23 +41,15 @@ edits take effect on the next call. A token whose connection is absent from the 
 seed simply fails to authenticate
 ([decision](../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)).
 
-**Bounded converters, not a migration runner.** Version 1 → 2 reset; version 2 → 3
-shipped `upgradeProjectPages`; version 3 → 4 shipped `upgradeOperationHistory`. Each reads its
-input shape as plain data (re-declaring it as a schema would put a second definition of every
-entity in the repository). When version 4 arrived, the v2 step was **frozen** at a literal version
-3 and stopped validating — it had imported `SCHEMA_VERSION` and would otherwise have stamped a
-version-3 shape as version 4 and rejected every version-3 input — and the v3 step subsequently froze at literal 4. The v4 → v5 Activity step now
-validates the final document before a byte is written. The CLI sniffs the version and runs the
-steps in order: three named functions, still registered nowhere (§14, §71). Version-3 Undo receipts
-are retired rather than translated, because they hold no cursor, placement or generation to
-translate. The version-5 step preserves every version-4 history/action field and backfills only
-validated Activity identity
-([version 4](../../decisions/2026-09-schema-version-4-conversion.md),
-[version 5](../../decisions/2026-09-schema-version-5-conversion.md)).
+**Reset or reseed, rather than carry old files forward.** Local prototype data is disposable
+until the user says otherwise. The earlier conversion pipeline, fixtures and legacy prose encoder
+have been removed. Seeds use hand-authored Markdown and capture Activity identity through the
+seed-owned `activity-identity.ts` module; every seeded config is checked against its type
+([policy](../../decisions/2026-10-prototype-data-is-disposable.md),
+[retirement](../../decisions/2026-10-retiring-the-sub-projects-section.md)).
 
-**Paths resolve from where the command was run.** `pnpm --filter` runs a script with the
-package as its cwd, so the CLIs resolve a path argument against `INIT_CWD` — a trap
-every path-taking passthrough shares.
+**The seed CLI uses the repo-anchored file.** The library writer accepts an explicit target path
+for isolated tests. Both keep the same atomic temp-and-rename write.
 
 ## Consequences
 
@@ -74,14 +66,15 @@ every path-taking passthrough shares.
 
 ## Decisions that shape this system
 
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../decisions/2026-10-retiring-the-sub-projects-section.md)
+
 - [Persona workspace topology in seeds](../../decisions/2026-08-persona-workspace-topology.md)
-- [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](../../decisions/2026-09-schema-version-4-conversion.md) — the frozen v2 step, the validating v3 step, the chained CLI
-- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate, preserved histories and final validation
-- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — what the final converter captures and validates
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — what seed Activity capture validates
+- [Prototype data is disposable until further notice; working seeds are what must survive](../../decisions/2026-10-prototype-data-is-disposable.md) — seeds must load; the old pipeline has been removed
 - [Where §51's bearer tokens live](../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
-- [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — the v2 → v3 converter
+- [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — the current project/page model
 
 ## Spec sections
 
 §16 prototype seeds · §17 personas · §45 time (scenario-relative dates) · §51 prototype
-MCP authentication · §76 prototype reset · §14 the one converter.
+MCP authentication · §76 prototype reset · §14 disposable local storage.

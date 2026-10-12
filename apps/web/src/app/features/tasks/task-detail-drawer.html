@@ -1,4 +1,4 @@
-<aside data-task-drawer class="drawer" role="complementary" aria-labelledby="task-drawer-title">
+<aside data-task-drawer class="drawer" role="complementary" aria-labelledby="task-drawer-title" (keydown.escape)="closed.emit()">
   <header class="drawer__header">
     <div>
       <span class="drawer__eyebrow">Task details</span>
@@ -12,6 +12,23 @@
   <p data-task-description class="drawer__description">
     {{ task().description || 'No description yet.' }}
   </p>
+
+  <label class="drawer__field">
+    <span>Title</span>
+    <input
+      data-task-drawer-title
+      type="text"
+      [value]="draft()"
+      [attr.aria-invalid]="titleError() !== null"
+      (input)="updateDraft($any($event.target).value)"
+      (blur)="commitTitle(true)"
+      (keydown.enter)="commitTitle()"
+      (keydown.escape)="escapeTitle($event)"
+    />
+    @if (titleError(); as error) {
+      <span class="drawer__error" role="alert">{{ error }}</span>
+    }
+  </label>
 
   <label class="drawer__field">
     <span>Priority</span>

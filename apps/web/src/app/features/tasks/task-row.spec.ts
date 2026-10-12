@@ -37,101 +37,159 @@ const render = async (
 };
 
 describe('TaskRow', () => {
-  it('emits completion intent immediately and disables a pending checkbox', async () => {
+  it('emits completion or reopen and resets the native box to its model', async () => {
     const { fixture, component, element } = await render();
+    const completed = vi.fn();
+    component.completionRequested.subscribe(completed);
+    const checkbox = element.querySelector<HTMLInputElement>('[data-task-complete]')!;
+    checkbox.click();
+    expect(completed).toHaveBeenCalledWith(task().id);
+    expect(checkbox.checked).toBe(false);
+    fixture.componentRef.setInput('task', task({ status: 'done', completedAt: AT }));
+    await fixture.whenStable();
+    const reopened = vi.fn();
+    component.reopenRequested.subscribe(reopened);
+    expect(checkbox.disabled).toBe(false);
+    expect(checkbox.getAttribute('aria-label')).toBe('Reopen task Write the first draft');
+    checkbox.click();
+    expect(reopened).toHaveBeenCalledWith(task().id);
+    expect(checkbox.checked).toBe(true);
+  });
+
+  it('keeps a pending checkbox focusable, refuses intents and resets it', async () => {
+    const { component, element } = await render(task({ status: 'done', completedAt: AT }), { pending: true });
+    const emitted = vi.fn();
+    component.reopenRequested.subscribe(emitted);
+    const checkbox = element.querySelector<HTMLInputElement>('[data-task-complete]')!;
+    expect(checkbox.disabled).toBe(false);
+    expect(checkbox.getAttribute('aria-disabled')).toBe('true');
+    checkbox.focus();
+    checkbox.click();
+    expect(document.activeElement).toBe(checkbox);
+    expect(checkbox.checked).toBe(true);
+    expect(emitted).not.toHaveBeenCalled();
+  });
+
+  it('selects once from title or background and leaves nested controls alone', async () => {
+    const { fixture, component, element } = await render();
+    const emitted = vi.fn();
+    component.selectedRequested.subscribe(emitted);
+    const title = element.querySelector<HTMLButtonElement>('[data-task-title]')!;
+    expect(title.getAttribute('aria-label')).toBe('Write the first draft, open details');
+    title.click();
+    expect(emitted).toHaveBeenCalledTimes(1);
+    fixture.componentRef.setInput('selected', true);
+    await fixture.whenStable();
+    expect(title.getAttribute('aria-current')).toBe('true');
+    expect(title.hasAttribute('aria-pressed')).toBe(false);
+    title.click();
+    element.querySelector<HTMLElement>('.task-row__metadata')!.click();
+    expect(emitted).toHaveBeenCalledTimes(3);
+    element.querySelector<HTMLInputElement>('[data-task-complete]')!.click();
+    element.querySelector<HTMLButtonElement>('[data-task-delete]')!.click();
+    expect(emitted).toHaveBeenCalledTimes(3);
+    expect(element.querySelector('[data-task-row]')?.getAttribute('data-task-id')).toBe(task().id);
+  });
+
+  it('ignores moved mouse or pen gestures, allows touch slop and keyboard activation', async () => {
+    const { component, element } = await render();
+    const emitted = vi.fn();
+    component.selectedRequested.subscribe(emitted);
+    const title = element.querySelector<HTMLElement>('[data-task-title]')!;
+    const down = (pointerType: string) => {
+      const event = new Event('pointerdown', { bubbles: true });
+      Object.defineProperties(event, { pointerType: { value: pointerType }, clientX: { value: 10 }, clientY: { value: 10 } });
+      title.dispatchEvent(event);
+    };
+    down('mouse');
+    title.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1, clientX: 16, clientY: 10 }));
+    down('pen');
+    element.querySelector<HTMLElement>('.task-row__metadata')!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1, clientX: 10, clientY: 16 }));
+    expect(emitted).not.toHaveBeenCalled();
+    down('touch');
+    title.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1, clientX: 16, clientY: 10 }));
+    expect(emitted).toHaveBeenCalledOnce();
+    down('mouse');
+    title.click(); // Native keyboard activation has detail 0, regardless of old pointer data.
+    expect(emitted).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores a gesture-created text selection but permits a selection left beforehand', async () => {
+    const { component, element } = await render();
+    const emitted = vi.fn();
+    component.selectedRequested.subscribe(emitted);
+    const background = element.querySelector<HTMLElement>('.task-row__metadata')!;
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    background.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    const range = document.createRange();
+    range.selectNodeContents(background);
+    selection.addRange(range);
+    background.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    expect(emitted).not.toHaveBeenCalled();
+    background.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    background.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    element.querySelector<HTMLElement>('[data-task-title]')!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    expect(emitted).toHaveBeenCalledTimes(2);
+    selection.removeAllRanges();
+  });
+
+  it('removes Details and inline title editing', async () => {
+    const { element } = await render();
+    element.querySelector<HTMLButtonElement>('[data-task-title]')!.click();
+    expect(element.querySelector('[data-task-details]')).toBeNull();
+    expect(element.querySelector('[data-task-title-editor]')).toBeNull();
+  });
+
+  it('recognizes a new row text selection even when a selection previously existed elsewhere', async () => {
+    const { component, element } = await render();
+    const emitted = vi.fn();
+    component.selectedRequested.subscribe(emitted);
+    const selection = window.getSelection()!;
+    const outside = document.createElement('span');
+    outside.textContent = 'Outside selection';
+    document.body.append(outside);
+    const previous = document.createRange();
+    previous.selectNodeContents(outside);
+    selection.removeAllRanges();
+    selection.addRange(previous);
+    const background = element.querySelector<HTMLElement>('.task-row__metadata')!;
+    background.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    const range = document.createRange();
+    range.selectNodeContents(background);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    background.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    expect(emitted).not.toHaveBeenCalled();
+    selection.removeAllRanges();
+    outside.remove();
+  });
+
+  it('keeps cancelled-task completion available in a Task List', async () => {
+    const { component, element } = await render(task({ status: 'cancelled' }));
     const emitted = vi.fn();
     component.completionRequested.subscribe(emitted);
-
-    element.querySelector<HTMLInputElement>('[data-task-complete]')?.click();
-
+    const checkbox = element.querySelector<HTMLInputElement>('[data-task-complete]')!;
+    expect(checkbox.checked).toBe(false);
+    checkbox.click();
     expect(emitted).toHaveBeenCalledWith(task().id);
-
-    fixture.componentRef.setInput('pending', true);
-    await fixture.whenStable();
-    expect(element.querySelector<HTMLInputElement>('[data-task-complete]')?.disabled).toBe(true);
+    expect(checkbox.checked).toBe(false);
   });
 
-  it('hides every row mutation in read-only mode and ignores intent methods', async () => {
-    const { fixture, component, element } = await render(task(), { readOnly: true });
-    const completed = vi.fn();
+  it('keeps read-only rows free of mutation and selection', async () => {
+    const { component, element } = await render(task(), { readOnly: true });
+    const selected = vi.fn();
     const deleted = vi.fn();
-    const edited = vi.fn();
-    component.completionRequested.subscribe(completed);
+    component.selectedRequested.subscribe(selected);
     component.deleteRequested.subscribe(deleted);
-    component.titleEdited.subscribe(edited);
-
     expect(element.querySelector('[data-task-complete]')).toBeNull();
-    expect(element.querySelector('[data-task-details]')).toBeNull();
     expect(element.querySelector('[data-task-delete]')).toBeNull();
     expect(element.querySelector('[data-task-title]')?.tagName).toBe('SPAN');
-
-    component.requestCompletion();
+    element.querySelector<HTMLElement>('[data-task-row]')!.click();
     component.requestDelete();
-    component.beginEditing();
-    fixture.detectChanges();
-
-    expect(completed).not.toHaveBeenCalled();
+    expect(selected).not.toHaveBeenCalled();
     expect(deleted).not.toHaveBeenCalled();
-    expect(edited).not.toHaveBeenCalled();
-    expect(component.editing()).toBe(false);
-    expect(element.querySelector('[data-task-title-editor]')).toBeNull();
   });
-
-  it('commits a trimmed inline title', async () => {
-    const { fixture, component, element } = await render();
-    const emitted = vi.fn();
-    component.titleEdited.subscribe(emitted);
-
-    element.querySelector<HTMLButtonElement>('[data-task-title]')?.click();
-    await fixture.whenStable();
-    const editor = element.querySelector<HTMLInputElement>('[data-task-title-editor]')!;
-    expect(document.activeElement).toBe(editor);
-    expect(editor.getAttribute('aria-label')).toContain('Write the first draft');
-    editor.value = '  Revised title  ';
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-    editor.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-    await fixture.whenStable();
-
-    expect(emitted).toHaveBeenCalledWith({ id: task().id, title: 'Revised title' });
-    expect(element.querySelector('[data-task-title-editor]')).toBeNull();
-  });
-
-  it('keeps editing and emits nothing for a blank title', async () => {
-    const { fixture, component, element } = await render();
-    const emitted = vi.fn();
-    component.titleEdited.subscribe(emitted);
-
-    element.querySelector<HTMLButtonElement>('[data-task-title]')?.click();
-    await fixture.whenStable();
-    const editor = element.querySelector<HTMLInputElement>('[data-task-title-editor]')!;
-    editor.value = '   ';
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await fixture.whenStable();
-
-    expect(emitted).not.toHaveBeenCalled();
-    expect(element.querySelector('[data-task-title-editor]')).not.toBeNull();
-    expect(element.querySelector('[data-title-error]')?.textContent).toContain('required');
-  });
-
-  it('discards an Escape draft even when removing the editor dispatches blur', async () => {
-    const { fixture, component, element } = await render();
-    const emitted = vi.fn();
-    component.titleEdited.subscribe(emitted);
-
-    element.querySelector<HTMLButtonElement>('[data-task-title]')?.click();
-    await fixture.whenStable();
-    const editor = element.querySelector<HTMLInputElement>('[data-task-title-editor]')!;
-    editor.value = 'Discarded draft';
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    editor.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-    await fixture.whenStable();
-
-    expect(emitted).not.toHaveBeenCalled();
-    expect(element.querySelector('[data-task-title]')?.textContent).toContain('Write the first draft');
-  });
-
   it('exposes the normal state only for an unmodified row', async () => {
     const { element } = await render();
     expect(element.querySelector('[data-task-row]')?.classList.contains('task-row--normal')).toBe(true);

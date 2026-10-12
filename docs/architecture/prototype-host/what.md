@@ -88,4 +88,4 @@ sequenceDiagram
 | Persistence | `persistence/store.ts` | `loadPersistence`, the repo-anchored default path, `CWM_DATA_FILE` |
 | Acceptance scripts | `scripts/acceptance.mjs`, `agent-acceptance.mjs`, `mcp-acceptance.mjs`, `live-acceptance.mjs` | Slices 5, 13, 15 and 16's *done when*, run against a second host on a temp file |
 | Cross-cutting tests | `main.test.ts`, `router.test.ts`, `concurrency.test.ts`, `live-updates.test.ts` | Start/stop and drain-before-release shutdown, routing, concurrent units of work, end-to-end frame delivery in-process |
-| Ownership suite | `data-file-ownership.test.ts`, `test/owner-child.ts` | Slice 54 across real processes: host, stdio, a second host, the seed and upgrade wrappers, hard-kill reclaim and the stdio seeding race |
+| Ownership suite | `data-file-ownership.test.ts`, `test/owner-child.ts` | Slice 54 across real processes: host, stdio, a second host, the seed/reset writer, hard-kill reclaim and the stdio seeding race |

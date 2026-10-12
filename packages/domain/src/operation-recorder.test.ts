@@ -127,7 +127,7 @@ describe('RepositoryOperationRecorder', () => {
 
   describe('outstandingRemovalFor', () => {
     const retained = async (harness: Harness) => {
-      const section = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Prose' } });
+      const section = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'Prose' } });
       const { operation } = await harness.sectionWriteService.remove(harness.actor, section.id);
       return { section: (await harness.sections.find(section.id))!, operation };
     };

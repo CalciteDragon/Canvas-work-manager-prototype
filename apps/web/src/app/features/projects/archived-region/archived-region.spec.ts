@@ -89,6 +89,7 @@ describe('ArchivedRegion', () => {
   it('renders only ready owner entries and the exact cascade count', async () => {
     const fixture = await render();
     expect(all(fixture, '[data-archived-item]')).toHaveLength(2);
+    expect(all(fixture, '[data-archived-kind="subproject"] [data-archived-type]')[0]?.textContent?.trim()).toBe('Workstream');
     expect(all(fixture, '[data-archived-kind="section"] [data-archived-name]')[0]?.textContent).toContain('Backlog');
     expect(all(fixture, '[data-archived-origin]')[0]?.textContent).toContain('Website launch');
     expect(all(fixture, '[data-archived-origin-link]')[0]?.textContent).toContain('Home');
@@ -281,9 +282,9 @@ describe('ArchivedRegion', () => {
       expect(fixture.nativeElement.querySelector('[data-archived-recovery-guidance]')).toBeNull();
     });
 
-    it('labels rich-text and unknown content without counts', async () => {
+    it('labels markdown and unknown content without counts', async () => {
       const fixture = await render([
-        sectionEntry({ section: { ...section, id: 'section-notes', type: 'rich-text', title: undefined }, cascadeCount: undefined, recovery: { kind: 'config' } }),
+        sectionEntry({ section: { ...section, id: 'section-notes', type: 'markdown', title: undefined }, cascadeCount: undefined, recovery: { kind: 'config' } }),
         sectionEntry({ section: { ...section, id: 'section-calendar', type: 'calendar', title: undefined }, cascadeCount: undefined, recovery: { kind: 'unknown' } }),
       ]);
 

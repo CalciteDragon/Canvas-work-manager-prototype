@@ -10,7 +10,7 @@ Restore writes retain their own current-state validation. See
 Contracts have no runtime of their own; they are parsed at boundaries.
 
 1. **Host load** — `loadPersistence` parses `.prototype/data.json` with
-   `PrototypeDocumentSchema`; the literal `schemaVersion: 5` is part of the schema, so a
+   `PrototypeDocumentSchema`; the literal `SCHEMA_VERSION` (currently 6) is part of the schema, so a
    stale file fails here with a message rather than mid-session.
 2. **Every unit of work** — the repositories validate the whole document again at commit
    (`validateDocumentIntegrity`, in [repositories](../repositories/how.md)), so a rule the
@@ -76,28 +76,45 @@ MCP carries only the message, which starts with the same `reason`.
 
 `RemoveSectionInputSchema` is deliberately `z.strictObject({})`: transports need only the section
 id, and old `policy` or `reassignToSectionId` fields fail parsing rather than being silently
-stripped. The stored removal union stays unchanged so schema-v5 histories that captured a reassign
-still parse and can be stepped.
+stripped. The stored removal union stays unchanged so histories that captured a reassign still
+parse and can be stepped.
 
 `PrototypeDocumentSchema` has `operationHistories` and `operationActions`, defaulted to `[]`, and no
-`undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 5; an older file needs
-`pnpm prototype:upgrade` ([decision](../../decisions/2026-09-schema-version-5-conversion.md)).
+`undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 6; an older file needs
+`pnpm prototype:reset` or reseeding ([decision](../../decisions/2026-10-prototype-data-is-disposable.md)).
+
+`RETIRED_SECTION_TYPES` maps `rich-text` and `sub-projects` to their replacement guidance: Markdown
+and creating a workstream under the project. The section `type` stays an open string (§30);
+`isRetiredSectionType` checks exact own keys and `retiredSectionReplacement` returns their
+surface-neutral sentence. Domain creation and store integrity consult the same record.
+
+`SECTION_CONFIG_SCHEMAS` holds the config shape of each type that owns one. Today that is only
+Markdown, whose `MarkdownConfigSchema` is strict `{ markdown: string }`. `sectionConfigRefusal`
+returns the sentence `SectionService` refuses with, or `undefined`. An empty config always passes;
+a type with no schema, registered or not, is never checked
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
 
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `PrototypeDocumentSchema` | const | The whole `data.json` | [API](../../api/miscellaneous/variables.html#PrototypeDocumentSchema) |
-| `SCHEMA_VERSION` | const | `5`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
+| `SCHEMA_VERSION` | const | `6`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
 | `IsoDateTimeSchema` | const | `z.iso.datetime()`; seconds may be omitted, fractions any length — see `Instant` in domain | [API](../../api/miscellaneous/variables.html#IsoDateTimeSchema) |
 | `PositionSchema` | const | Non-negative zero-based position for list, canvas or dashboard order | [API](../../api/miscellaneous/variables.html#PositionSchema) |
 | `isRootProject` | function | Type guard on `Project.kind` | [API](../../api/miscellaneous/variables.html#isRootProject) |
 | `NAVIGABLE_PAGE_KINDS` | const | `home`, `todos`, `archive`, `reflections` — `work` is a page but not a tab | [API](../../api/miscellaneous/variables.html#NAVIGABLE_PAGE_KINDS) |
-| `SECTION_CAPABILITIES` | const | The one per-type declaration: owned rows and recovery capability (`owned-content`, `config`, `none`) | [API](../../api/miscellaneous/variables.html#SECTION_CAPABILITIES) |
+| `SECTION_CAPABILITIES` | const | The one per-type declaration: owned rows, recovery capability (`owned-content`, `config`, `none`), and the prose key for `config` | [API](../../api/miscellaneous/variables.html#SECTION_CAPABILITIES) |
+| `SectionCapabilitySchema` | const | Owns rows exactly for `owned-content`; declares a non-empty `proseKey` exactly for `config` | [API](../../api/miscellaneous/variables.html#SectionCapabilitySchema) |
+| `RETIRED_SECTION_TYPES`, `isRetiredSectionType`, `retiredSectionReplacement` | const, functions | Retired types and replacement guidance; exact own-key match only | [API](../../api/miscellaneous/variables.html#RETIRED_SECTION_TYPES) |
+| `retiredSectionReplacement` | function | Surface-neutral replacement sentence for a retired type, or `undefined` | [API](../../api/miscellaneous/variables.html#retiredSectionReplacement) |
+| `MarkdownConfigSchema`, `SECTION_CONFIG_SCHEMAS` | const | Markdown's strict config shape, and the per-type map of the shapes the domain enforces on write | [API](../../api/miscellaneous/variables.html#SECTION_CONFIG_SCHEMAS) |
+| `sectionConfigRefusal` | function | Why a config cannot be written to a type, as a sentence naming the keys; `undefined` for `{}`, a fitting config or an undeclared type | [API](../../api/miscellaneous/variables.html#sectionConfigRefusal) |
 | `sectionCapabilityOf` | function | Own-property lookup; `undefined` means unknown, never disposable | [API](../../api/miscellaneous/variables.html#sectionCapabilityOf) |
 | `SECTION_OWNERSHIP` | const | Container type → owned row kind, derived from the capabilities; absence makes a type a view | [API](../../api/miscellaneous/variables.html#SECTION_OWNERSHIP) |
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
 | `nameOf` | function | A section's display name: `title` override, else derived from `type` | [API](../../api/miscellaneous/variables.html#nameOf) |
+| `shortcutNameOf` | function | A shortcut's display name: chosen title alone, otherwise type name with its trimmed owner; null or blank owner falls back to `nameOf` | [API](../../api/miscellaneous/variables.html#shortcutNameOf) |
 | `ProjectArchiveSectionRecoverySchema` | const | Archive section entry's recovery metadata union | [API](../../api/miscellaneous/variables.html#ProjectArchiveSectionRecoverySchema) |
 | `ProjectArchiveResultSchema` | const | Ready-only root Archive result | [API](../../api/miscellaneous/variables.html#ProjectArchiveResultSchema) |
 | `ArchivedProjectsResultSchema` | const | Workspace archived-project recovery result | [API](../../api/miscellaneous/variables.html#ArchivedProjectsResultSchema) |
@@ -161,10 +178,13 @@ pnpm --filter @cwm/contracts lint   # tsc --noEmit
   may set it, then follow the type errors: seeds (`packages/prototype-data/src/seeds.ts`),
   the JSON repositories' integrity checks if it is a reference, the routes, the gateway,
   the tool. Decide whether an existing `data.json` becomes wrong; if so, bump
-  `SCHEMA_VERSION` and either reset or write a bounded converter (§14).
+  `SCHEMA_VERSION`, update seeds and reset or reseed (§14).
 - **Adding a section type:** one line in the web registry and one entry in
-  `SECTION_CAPABILITIES` declaring its owned rows (if any) and recovery capability —
-  `registry.spec.ts` fails without it; if its display name is not derivable from its `type`, one
+  `SECTION_CAPABILITIES` declaring its owned rows (if any), recovery capability, and `proseKey`
+  exactly when recovery is `config` — `registry.spec.ts` fails without it and checks that a config
+  type's default has its declared key. A type that owns config also declares its schema in
+  `SECTION_CONFIG_SCHEMAS`, so the domain refuses any other; `registry.spec.ts` checks that every
+  default passes. A type that reads no config declares none. If its display name is not derivable from its `type`, one
   entry in `SECTION_DISPLAY_NAMES` — `registry.spec.ts` fails at the moment a type incurs
   that cost.
 - **Adding a derived read model:** its own file, exported from `index.ts`, with the rule

@@ -6,6 +6,11 @@ import {
   SectionIdSchema,
   SectionAlreadyRemovedDetailsSchema,
   containerTypeFor,
+  displayNameOf,
+  isRetiredSectionType,
+  retiredSectionReplacement,
+  sectionConfigRefusal,
+  type SectionConfig,
   nameOf,
   normaliseSectionTitle,
   ownedKindOf,
@@ -68,7 +73,7 @@ export interface ResolvedContainer {
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
-  /** §27: section writes share one dense order with Home shortcut placements. */
+  /** §27: section writes share one dense order with the shortcut placements on a canonical page. */
   shortcuts: SectionShortcutRepository;
   projects: ProjectRepository;
   /** §27: a section belongs to a page, so adding one has to resolve or check that page. */
@@ -119,6 +124,15 @@ const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position 
  */
 const byPositionThenId = (a: ProjectSection, b: ProjectSection): number =>
   a.position === b.position ? a.id.localeCompare(b.id) : a.position - b.position;
+
+/**
+ * Refuses an incoming config its type does not take (§29; Slice 64). Only new input is checked:
+ * Undo, Redo, Restore and Duplicate reproduce state that already exists.
+ */
+const assertConfigFits = (type: string, config: SectionConfig | undefined): void => {
+  const refusal = config === undefined ? undefined : sectionConfigRefusal(type, config);
+  if (refusal !== undefined) throw new DomainRuleError(refusal);
+};
 
 const sectionChangesFor = (current: ProjectSection, input: UpdateSectionInput): SectionFieldChange[] => {
   const changes: SectionFieldChange[] = [];
@@ -215,6 +229,17 @@ export class SectionService {
   async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<SectionAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
+    // Input validation, ahead of any lookup so it confirms nothing about the project. The type
+    // stays open (§30); retired types are the narrow exception, refused here so every caller —
+    // browser, HTTP and MCP — gets the same answer (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
+    if (isRetiredSectionType(input.type)) {
+      throw new DomainRuleError(
+        `${displayNameOf(input.type)} sections are retired and can no longer be created; ${retiredSectionReplacement(input.type)}.`,
+      );
+    }
+    // A type that declares its config shape refuses any other, on the same terms
+    // (docs/decisions/2026-10-section-config-validated-on-write.md).
+    assertConfigFits(input.type, input.config);
 
     return this.dependencies.unitOfWork.run(async () => {
       const created = await this.addWithin(actor, projectId, input, { announce: true });
@@ -456,6 +481,9 @@ export class SectionService {
       const current = await this.require(actor, id);
       assertLive(current);
       await this.assertProjectWritable(current.projectId);
+      // Every incoming config is checked, even one equal to what is stored: a write accepts only
+      // what the type takes, whatever a hand edit or an older converter left behind.
+      assertConfigFits(current.type, input.config);
       const changes = sectionChangesFor(current, input);
       const next = { ...current };
       // A blank name means the same thing `null` does — fall back to the derived default —
@@ -589,7 +617,7 @@ export class SectionService {
    *
    * Archive inclusion and deletion safety are separate checks. `sectionRecoveryOf` keeps
    * meaningful or uncertain content recoverable; a second canonical-reference check keeps rows
-   * and Home shortcuts from dangling. Old tombstones are never purged by this operation.
+   * and shortcuts from dangling. Old tombstones are never purged by this operation.
    *
    * Deliberately **not** idempotent: a repeated removal is still a refusal, but the exact actor
    * may recover its removal receipt while that removal is still their applied, unexpired action and

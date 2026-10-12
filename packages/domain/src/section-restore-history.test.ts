@@ -64,8 +64,8 @@ describe('section restore history (§§27, 31–32)', () => {
     const h = buildHarness();
     // Prose with content is the retained case: a disposable view or an empty container is deleted
     // by removal, so there is no tombstone for Restore to act on at all.
-    const empty = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Notes' });
-    await h.sectionWriteService.update(h.actor, empty.section.id, { config: { text: 'Worth keeping' } });
+    const empty = await h.sectionWriteService.add(h.actor, MINE, { type: 'markdown', title: 'Notes' });
+    await h.sectionWriteService.update(h.actor, empty.section.id, { config: { markdown: 'Worth keeping' } });
     await h.sectionWriteService.remove(h.actor, empty.section.id);
 
     const restore = await h.sectionWriteService.restoreSection(h.actor, empty.section.id);
@@ -83,13 +83,13 @@ describe('section restore history (§§27, 31–32)', () => {
 
   it('appends densely on a hand-edited sparse page and replays its committed placement on Redo', async () => {
     const h = buildHarness();
-    const first = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'First' });
-    const middle = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Middle' });
-    const last = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Last' });
+    const first = await h.sectionWriteService.add(h.actor, MINE, { type: 'markdown', title: 'First' });
+    const middle = await h.sectionWriteService.add(h.actor, MINE, { type: 'markdown', title: 'Middle' });
+    const last = await h.sectionWriteService.add(h.actor, MINE, { type: 'markdown', title: 'Last' });
     for (const section of [middle.section, last.section]) {
-      await h.sectionWriteService.update(h.actor, section.id, { config: { text: 'Worth keeping' } });
+      await h.sectionWriteService.update(h.actor, section.id, { config: { markdown: 'Worth keeping' } });
     }
-    await h.sectionWriteService.update(h.actor, first.section.id, { config: { text: 'Worth keeping' } });
+    await h.sectionWriteService.update(h.actor, first.section.id, { config: { markdown: 'Worth keeping' } });
     await h.sectionWriteService.remove(h.actor, middle.section.id);
     // Hand-edit the surviving order into a sparse one, which §14 permits.
     await h.sections.update({ ...(await h.sections.find(first.section.id))!, position: 0 });
@@ -133,8 +133,8 @@ describe('section restore history (§§27, 31–32)', () => {
 
   it('retires when a later removal advanced the generation, in either direction', async () => {
     const h = buildHarness();
-    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Notes' });
-    await h.sectionWriteService.update(h.actor, add.section.id, { config: { text: 'Worth keeping' } });
+    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'markdown', title: 'Notes' });
+    await h.sectionWriteService.update(h.actor, add.section.id, { config: { markdown: 'Worth keeping' } });
     await h.sectionWriteService.remove(h.actor, add.section.id);
     const restore = await h.sectionWriteService.restoreSection(h.actor, add.section.id);
 
@@ -171,8 +171,8 @@ describe('section restore history (§§27, 31–32)', () => {
 
   it('retires rather than wedges the stack when the section itself was deleted', async () => {
     const h = buildHarness();
-    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Notes' });
-    await h.sectionWriteService.update(h.actor, add.section.id, { config: { text: 'Worth keeping' } });
+    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'markdown', title: 'Notes' });
+    await h.sectionWriteService.update(h.actor, add.section.id, { config: { markdown: 'Worth keeping' } });
     const removed = await h.sectionWriteService.remove(h.actor, add.section.id);
     const restore = await h.sectionWriteService.restoreSection(h.actor, add.section.id);
 
@@ -186,8 +186,8 @@ describe('section restore history (§§27, 31–32)', () => {
 
   it('survives expiry as an ordinary write while its own transitions expire', async () => {
     const h = buildHarness();
-    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Notes' });
-    await h.sectionWriteService.update(h.actor, add.section.id, { config: { text: 'Worth keeping' } });
+    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'markdown', title: 'Notes' });
+    await h.sectionWriteService.update(h.actor, add.section.id, { config: { markdown: 'Worth keeping' } });
     await h.sectionWriteService.remove(h.actor, add.section.id);
     advance(h, 25 * 60 * 60 * 1000);
 

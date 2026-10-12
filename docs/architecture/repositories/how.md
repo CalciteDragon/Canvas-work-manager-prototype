@@ -8,7 +8,11 @@ store itself never does.
 
 1. The host calls `loadPersistence`, which opens the path from `CWM_DATA_FILE` (default
    `.prototype/data.json`, repo-anchored) with `JsonDataStore` and parses it through
-   `validateDocumentIntegrity`. A missing file or a wrong `schemaVersion` fails the start.
+   `validateDocumentIntegrity`. A missing file or a wrong `schemaVersion` fails the start, and so
+   does a retired section type (`isRetiredSectionType`, today `rich-text` and `sub-projects`) in `sections` or in any
+   snapshot that can recreate a section — a `section.add` or `section.remove` section, or a
+   `task.add`/`reflection.add` created container — with a message naming
+   `pnpm prototype:reset` or reseeding. A `section.update` is not checked: it never brings a type back.
 2. A domain service asks the store for a unit of work. Units are queued: the next starts
    when the previous commits or discards, so provisional state is never visible to a
    concurrent operation.
@@ -110,7 +114,10 @@ flowchart TB
   unchanged and still has no rows, cascade markers or shortcuts; `reapplySectionRemoval` only when
   Redo replays a removal that deleted the section. Shortcut placements, pruned or discarded
   history actions are the other deletions. The integrity checks still reject dangling row and
-  shortcut references.
+  shortcut references. A placement must also sit on its destination project's canonical page — a
+  root's Home or, since Slice 65, a workstream's Work canvas ("must be placed on its project's
+  canonical page") — with its source in the same workspace and root tree, comparing the roots of
+  both ends ("crosses root project trees").
 - **Project deletion is limited to creation Undo.** `ProjectRepository.remove` is used only by
   `revertProjectAdd`, after preflight proves the captured project and canonical page are unchanged
   and no page, section, row, child, reflection subject, shortcut or other actor's history refers to

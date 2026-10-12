@@ -63,7 +63,7 @@ export class ArchivedRegion {
   typeLabel(item: ProjectArchiveItem): string {
     switch (item.kind) {
       case 'subproject':
-        return 'Sub-project';
+        return 'Workstream';
       case 'section':
         return 'Section';
       case 'task':

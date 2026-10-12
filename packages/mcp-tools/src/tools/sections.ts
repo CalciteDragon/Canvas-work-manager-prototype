@@ -27,7 +27,7 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'list_sections',
     description:
-      'List a project’s canvas sections in the order they are laid out, grouped by the page each sits on. Name a pageId to read one page. Container sections (task-list, reflections) own the rows they render; view sections (progress, timeline, recent-activity, sub-projects) render data they do not own. Removed sections do not appear here; content-bearing sections remain recoverable in Archive, while disposable views may be deleted.',
+      'List a project’s canvas sections in the order they are laid out, grouped by the page each sits on. Name a pageId to read one page. Container sections (task-list, reflections) own the rows they render; view sections (progress, timeline, recent-activity) render data they do not own. Removed sections do not appear here; content-bearing sections remain recoverable in Archive, while disposable views may be deleted.',
     permission: 'projects.read',
     inputSchema: SectionQuerySchema.pick({ pageId: true }).extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...query }, { actor, services }) => services.sections.list(actor, projectId, query),
@@ -35,7 +35,7 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'create_section',
     description:
-      'Add a section at the optional zero-based position in the page’s combined section and shortcut order. Clamp positions past the end; if omitted, append. Give a section type such as task-list, reflections, rich-text, progress or timeline. Without a pageId it lands on the project’s canonical canvas — a root’s Home, a sub-project’s sole work canvas. With one, it lands there, provided that page holds that kind of section: Home and a work canvas take every type, a Reflections page takes only a reflections container, and Todos and Archive hold none because they project rows they do not own. A disabled page takes nothing new. The result is { section, operation }: section is the created section and operation is the receipt { historyId, actionId, revision, … } that undo_operation takes.',
+      'Add a section at the optional zero-based position in the page’s combined section and shortcut order. Clamp positions past the end; if omitted, append. Give a section type such as task-list, reflections, markdown, progress or timeline. A markdown section stores source in config: { markdown: "# Notes" }, never rendered HTML; its config is exactly that one key or empty, and any other key is refused. Rich Text is retired: a rich-text create is refused, so write prose as a markdown section. The work-hierarchy section is retired: create nested work with create_project and a parent instead. Without a pageId it lands on the project’s canonical canvas — a root’s Home, a workstream’s sole work canvas. With one, it lands there, provided that page holds that kind of section: Home and a work canvas take every type, a Reflections page takes only a reflections container, and Todos and Archive hold none because they project rows they do not own. A disabled page takes nothing new. The result is { section, operation }: section is the created section and operation is the receipt { historyId, actionId, revision, … } that undo_operation takes.',
     permission: 'projects.write',
     inputSchema: CreateSectionInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.sections.add(actor, projectId, input),
@@ -51,7 +51,7 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'update_section',
     description:
-      'Change a section’s frame title, width, collapsed state or config. Omitted fields are left alone; a null title falls back to the type’s default. A changed write returns { section, operation }, where operation is the receipt undo_operation takes; an unchanged write returns operation: null and records nothing to undo.',
+      'Change a section’s frame title, width, collapsed state or config. Omitted fields are left alone; a null title falls back to the type’s default. Config is replaced whole. For a markdown section pass config: { markdown: "# Notes" } with Markdown source, never rendered HTML; that is its only key, and a config with any other key (or a non-string markdown) is refused. A changed write returns { section, operation }, where operation is the receipt undo_operation takes; an unchanged write returns operation: null and records nothing to undo.',
     permission: 'projects.write',
     inputSchema: UpdateSectionInputSchema.extend({ sectionId: SectionIdSchema }),
     execute: ({ sectionId, ...input }, { actor, services }) => services.sections.update(actor, sectionId, input),

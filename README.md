@@ -40,21 +40,19 @@ pnpm dev:host
 
 Order does not matter — the web app retries the host until it answers.
 
-If the host refuses to start with a schema-version error, an existing `.prototype/data.json`
-predates the current shape. Convert it, keeping its contents:
+If the host refuses to start with a schema-version or retired-section error, the local file is
+no longer readable. Local prototype data is disposable: stop the host, then replace it with a
+working seed:
 
 ```bash
-pnpm prototype:upgrade .prototype/data.json
+pnpm prototype:reset
+# or: pnpm prototype:seed nested-projects
 ```
 
-It validates the result before writing anything, leaves the original beside it as a
-`.backup-*.json`, and does nothing to a file already at the current version. It converts a
-version-2, version-3 or version-4 file to version 5. Version-4 histories and actions are preserved
-while Activity gains captured identity. Version-3 Undo receipts are retired rather than translated,
-so history starts empty for those older files, and the command reports the retired count. Run it on an absolute path,
-or on one relative to where you typed the command. `pnpm prototype:reset` remains the other option —
-it discards the file and reseeds. The e2e suite's own `.prototype/e2e-data.json` is disposable:
-delete a stale one and it reseeds itself.
+The schema version remains 6. Rich Text and Sub-Projects sections are refused both live and in
+history; older schema versions are refused too. No conversion path preserves these files. The
+e2e suite's own `.prototype/e2e-data.json` is disposable and reseeds itself. See
+[the disposable-data policy](docs/decisions/2026-10-prototype-data-is-disposable.md).
 
 | Process | URL | What it is |
 |---|---|---|
@@ -68,7 +66,7 @@ mounted at `/mcp`; `pnpm mcp:stdio` serves the identical registry for local chil
 clients. Both use the fake agent credentials and real domain services. See
 [docs/guides/mcp-setup.md](docs/guides/mcp-setup.md) for client configuration and the JSON
 store's one-writer rule: a stdio call is refused with `data_file_in_use:` while the host owns the
-same file, and so are `prototype:seed`, `prototype:reset` and `prototype:upgrade`.
+same file, and so are `prototype:seed` and `prototype:reset`.
 
 Archived roots and currently restorable subprojects are available at
 `/settings/archived-projects`, independent of a project's optional Archive page. The page uses

@@ -68,3 +68,6 @@ required historical Activity context from canonical targets, refuses rather than
 missing or cross-workspace identity, and validates the final version-5 document. The CLI chains
 2 → 3 → 4 → 5 as needed; only version-3 receipts are retired
 ([decision](2026-09-schema-version-5-conversion.md)).
+
+**Amended, 2026-10-09 (Slice 66).** The conversion pipeline and its old-version fixtures are removed. Schema version remains 6; unreadable local files are reset or reseeded, never converted.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

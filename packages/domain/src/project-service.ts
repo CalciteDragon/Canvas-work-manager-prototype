@@ -19,7 +19,14 @@ import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import type { OperationRecorder } from './operation-recorder';
-import { captureProjectAdd, captureProjectWrite, projectAddLabel, projectWriteLabel, shortcutsCarriedAcrossRoots } from './project-history';
+import {
+  captureProjectAdd,
+  captureProjectWrite,
+  carriedShortcutsSentence,
+  projectAddLabel,
+  projectWriteLabel,
+  shortcutsCarriedAcrossRoots,
+} from './project-history';
 import { archivedAncestry } from './project-visibility';
 
 /**
@@ -35,8 +42,8 @@ export interface ProjectServiceDependencies {
    */
   pages: ProjectPageRepository;
   /**
-   * Read, never written, to refuse a reparent that would carry a Home shortcut's source out of its
-   * root (§27) — the check `project-history.ts` shares with a reparent's Undo and Redo. Repositories
+   * Read, never written, to refuse a reparent that would split a shortcut's canvas and source across
+   * roots (§27) — the check `project-history.ts` shares with a reparent's Undo and Redo. Repositories
    * for the same reason `pages` is one: a placement service here would be a new edge for a read.
    */
   sections: SectionRepository;
@@ -91,10 +98,8 @@ export class ProjectService {
    * (§31), so reparenting or reactivating can leave one live inside something someone has put
    * away — hidden from the tree a person navigates while every write to it is refused. It is
    * the trap state, and it is the only thing dropped: a project archived in its own right is
-   * still returned, so `status: ['archived']` keeps working and an archived project's
-   * Sub-Projects section still lists the descendants that were archived with it — which, since
-   * archiving requires its children archived first, is all of them on a document built through
-   * these operations.
+   * still returned, so `status: ['archived']` keeps working. Archive and workspace Settings
+   * apply their own recovery eligibility when presenting archived projects.
    *
    * The ancestry is built over the **unfiltered** workspace, then the query is applied. Built
    * over the filtered result it would be looking for ancestors that are no longer in the array,
@@ -303,17 +308,16 @@ export class ProjectService {
   }
 
   /**
-   * A move to another root must not take a section an old-root Home shortcut places: that
-   * placement would cross root trees, which commit-time integrity rejects as a defect rather than
-   * a refusal. Naming each placement lets the caller remove it and retry (§§26, 27, 61).
+   * A move to another root must not split a shortcut — its canvas on one side, its source on the
+   * other: that placement would cross root trees, which commit-time integrity rejects as a defect
+   * rather than a refusal. Naming each placement, with the page it sits on and the section it
+   * places, lets the caller remove it in one step and retry (§§26, 27, 61). The sentence is the one
+   * a reparent's Undo or Redo uses, from `carriedShortcutsSentence` (Slice 68).
    */
   private async assertNoShortcutCarriedAcrossRoots(subject: Project, parentId: ProjectId): Promise<void> {
-    const carried = await shortcutsCarriedAcrossRoots(this.dependencies, subject, parentId);
-    if (carried.length === 0) return;
-    const named = carried.map(({ id }) => `"${id}"`).join(', ');
-    throw new DomainRuleError(
-      `project "${subject.id}" cannot move to another root while Home shortcut ${named} on its current root places a section from it; remove that placement first`,
-    );
+    const sentence = carriedShortcutsSentence(await shortcutsCarriedAcrossRoots(this.dependencies, subject, parentId));
+    if (sentence === undefined) return;
+    throw new DomainRuleError(`project "${subject.id}" cannot move to another root: ${sentence}`);
   }
 
   /** An implicit cascade would archive work the caller never named (§58 flags archive). */
@@ -325,7 +329,7 @@ export class ProjectService {
       parentProjectId: id,
     });
     if (children.some((child) => child.status !== 'archived')) {
-      throw new DomainRuleError(`project "${id}" still has active sub-projects`);
+      throw new DomainRuleError(`project "${id}" still has active workstreams`);
     }
   }
 

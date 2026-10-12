@@ -101,6 +101,7 @@ interface SetupOptions {
   items?: ProjectTodoItem[];
   todosGet?: (projectId: ProjectId) => Promise<{ projectId: ProjectId; items: ProjectTodoItem[] }>;
   completeTask?: (id: TaskId) => Promise<TaskWriteResult>;
+  updateTask?: WorkManagerGateway['tasks']['update'];
   archiveTask?: (id: TaskId) => Promise<TaskWriteResult>;
   updateProject?: (id: ProjectId, input: Record<string, unknown>) => Promise<unknown>;
 }
@@ -115,6 +116,7 @@ const setup = (options: SetupOptions = {}) => {
   const archiveTask = vi.fn(
     options.archiveTask ?? (async (id: TaskId) => taskWrite(task(id, { archivedAt: AT }))),
   );
+  const updateTask = vi.fn(options.updateTask ?? (async (id: TaskId) => taskWrite(task(id))));
   const updateProject = vi.fn(
     options.updateProject ??
       // The Slice 39 write envelope: the store reconciles from `project` and ignores the receipt.
@@ -129,7 +131,7 @@ const setup = (options: SetupOptions = {}) => {
   );
   const gateway = {
     todos: { get: todosGet },
-    tasks: { complete: completeTask, archive: archiveTask },
+    tasks: { complete: completeTask, archive: archiveTask, update: updateTask },
     projects: { update: updateProject },
   } as unknown as WorkManagerGateway;
   const live = new FakeLiveUpdates();
@@ -142,7 +144,7 @@ const setup = (options: SetupOptions = {}) => {
     ],
   });
 
-  return { store: TestBed.inject(TodosPageStore), live, todosGet, completeTask, archiveTask, updateProject };
+  return { store: TestBed.inject(TodosPageStore), live, todosGet, completeTask, archiveTask, updateProject, updateTask };
 };
 
 /** The store's own microtask chain, drained the way every other live-refresh spec drains it. */
@@ -321,6 +323,187 @@ describe('TodosPageStore — deleting tasks (§34)', () => {
     expect(failed.store.items()).toEqual(original);
     expect(failed.store.deleting()).toBeNull();
     expect(failed.store.writeError()).toContain('cannot be archived');
+  });
+});
+
+describe('TodosPageStore — reopening tasks (§34, §62, §63)', () => {
+  it('paints todo without completedAt, then adopts the server record and reports its owner', async () => {
+    const reporter = provideRecordingReporter();
+    const gate = deferred<TaskWriteResult>();
+    const item = taskItem('task-done', { projectId: 'project-kitchen', status: 'done', completedAt: AT });
+    const { store, updateTask } = setup({ items: [item], updateTask: () => gate.promise });
+    await store.load(ROOT);
+
+    const reopening = store.reopen(item);
+    const optimistic = store.items()[0]!;
+    expect(optimistic.kind === 'task' && optimistic.task.status).toBe('todo');
+    expect(optimistic.kind === 'task' && optimistic.task).not.toHaveProperty('completedAt');
+    expect(store.completing()).toBe('task-done');
+    expect(updateTask).toHaveBeenCalledWith('task-done', { status: 'todo' });
+    expect(reporter.events).toEqual(['begin']);
+
+    const canonical = task('task-done', { projectId: 'project-kitchen', title: 'Server title', updatedAt: '2026-08-27T18:00:00.000Z' });
+    const operation = OperationReceiptSchema.parse({ ...receipt(), operation: 'task.update', label: 'Updated "Server title"' });
+    gate.resolve({ task: canonical, operation });
+    expect(await reopening).toBe(true);
+    expect(store.items()).toEqual([{ ...item, task: canonical }]);
+    expect(store.completing()).toBeNull();
+    expect(reporter.events).toEqual(['begin', { projectId: 'project-kitchen', receipt: operation }, 'end']);
+  });
+
+  it('restores the exact item and completion timestamp with a visible write error after rejection', async () => {
+    const before = taskItem('task-done', { status: 'done', completedAt: AT, priority: 'high' });
+    const gate = deferred<TaskWriteResult>();
+    const { store } = setup({ items: [before], updateTask: () => gate.promise });
+    await store.load(ROOT);
+
+    const reopening = store.reopen(before);
+    gate.reject(new GatewayError('conflict', 409, 'the task is archived'));
+    expect(await reopening).toBe(false);
+    expect(store.items()).toEqual([before]);
+    expect(store.writeError()).toContain('the task is archived');
+    expect(store.completing()).toBeNull();
+  });
+
+  it.each(['success', 'failure'] as const)('drops a late reopen %s after another root is loaded', async (outcome) => {
+    const gate = deferred<TaskWriteResult>();
+    const before = taskItem('task-done', { status: 'done', completedAt: AT });
+    const current = taskItem('task-current', { projectId: OTHER_ROOT });
+    const { store, updateTask } = setup({
+      todosGet: async (projectId) => ({ projectId, items: projectId === ROOT ? [before] : [current] }),
+      updateTask: () => gate.promise,
+    });
+    await store.load(ROOT);
+    const reopening = store.reopen(before);
+    expect(updateTask).toHaveBeenCalledOnce();
+    await store.load(OTHER_ROOT);
+    if (outcome === 'success') gate.resolve(taskWrite(task('task-done')));
+    else gate.reject(new GatewayError('unreachable', 0, 'old root failed'));
+    expect(await reopening).toBe(false);
+    expect(store.items()).toEqual([current]);
+    expect(store.writeError()).toBeNull();
+    expect(store.completing()).toBeNull();
+  });
+
+  it('discards a read already running when reopen starts, and coalesces frames behind the write', async () => {
+    const staleRead = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
+    const write = deferred<TaskWriteResult>();
+    const before = taskItem('task-done', { status: 'done', completedAt: AT });
+    const after = taskItem('task-done');
+    let reads = 0;
+    const { store, live, todosGet } = setup({
+      updateTask: () => write.promise,
+      todosGet: async (projectId) => {
+        reads += 1;
+        if (reads === 1) return { projectId, items: [before] };
+        if (reads === 2) return staleRead.promise;
+        return { projectId, items: [after] };
+      },
+    });
+    await store.load(ROOT);
+    const frame: LiveEvent = { type: 'task.updated', entityId: 'task-done', projectId: ROOT, rootProjectId: ROOT };
+    live.emit(frame);
+    await settleLive();
+    const reopening = store.reopen(before);
+    live.emit(frame);
+    live.emit(frame);
+    staleRead.resolve({ projectId: ROOT, items: [before] });
+    await settleLive();
+    expect(store.items()).toEqual([after]);
+    expect(todosGet).toHaveBeenCalledTimes(2);
+
+    write.resolve(taskWrite(task('task-done')));
+    expect(await reopening).toBe(true);
+    await settleLive();
+    expect(todosGet).toHaveBeenCalledTimes(3);
+    expect(store.items()).toEqual([after]);
+  });
+
+  it('refuses reopen before load, for non-done tasks and for workstreams', async () => {
+    const done = taskItem('task-done', { status: 'done', completedAt: AT });
+    const { store, updateTask } = setup({ items: [done] });
+    expect(await store.reopen(done)).toBe(false);
+    await store.load(ROOT);
+    for (const status of ['todo', 'in_progress', 'blocked', 'cancelled']) {
+      expect(await store.reopen(taskItem('task-open', { status }))).toBe(false);
+    }
+    expect(await store.reopen(subprojectItem('project-done', { status: 'completed' }))).toBe(false);
+    expect(updateTask).not.toHaveBeenCalled();
+    expect(await store.reopen(done)).toBe(true);
+  });
+
+  it('discards a pre-reopen read even when it answers after the write settled', async () => {
+    const staleRead = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
+    const write = deferred<TaskWriteResult>();
+    const before = taskItem('task-done', { status: 'done', completedAt: AT });
+    const after = taskItem('task-done');
+    let reads = 0;
+    const { store, live, todosGet } = setup({
+      updateTask: () => write.promise,
+      todosGet: async (projectId) => {
+        reads += 1;
+        if (reads === 1) return { projectId, items: [before] };
+        if (reads === 2) return staleRead.promise;
+        return { projectId, items: [after] };
+      },
+    });
+    await store.load(ROOT);
+    live.emit({ type: 'task.updated', entityId: 'task-done', projectId: ROOT, rootProjectId: ROOT });
+    await settleLive();
+    const reopening = store.reopen(before);
+    expect(todosGet).toHaveBeenCalledTimes(2);
+    write.resolve(taskWrite(task('task-done')));
+    expect(await reopening).toBe(true);
+    staleRead.resolve({ projectId: ROOT, items: [before] });
+    await settleLive();
+    expect(store.items()).toEqual([after]);
+    expect(todosGet).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['complete', 'delete'] as const)('refuses reopen while a %s holds the write slot', async (action) => {
+    const gate = deferred<TaskWriteResult>();
+    const open = taskItem('task-open');
+    const done = taskItem('task-done', { status: 'done', completedAt: AT });
+    const { store, updateTask } = setup({ items: [open, done], completeTask: () => gate.promise, archiveTask: () => gate.promise });
+    await store.load(ROOT);
+    const writing = store[action](open);
+    expect(await store.reopen(done)).toBe(false);
+    expect(updateTask).not.toHaveBeenCalled();
+    gate.resolve(taskWrite(task('task-open', { status: 'done', completedAt: AT })));
+    await writing;
+    expect(await store.reopen(done)).toBe(true);
+  });
+
+  it('holds the same write slot against another reopen, completion and Delete', async () => {
+    const gate = deferred<TaskWriteResult>();
+    const done = taskItem('task-done', { status: 'done', completedAt: AT });
+    const open = taskItem('task-open');
+    const { store, updateTask, completeTask, archiveTask } = setup({ items: [done, open], updateTask: () => gate.promise });
+    await store.load(ROOT);
+    const reopening = store.reopen(done);
+    expect(await store.reopen(done)).toBe(false);
+    expect(await store.complete(open)).toBe(false);
+    expect(await store.delete(open)).toBe(false);
+    expect(updateTask).toHaveBeenCalledTimes(1);
+    expect(completeTask).not.toHaveBeenCalled();
+    expect(archiveTask).not.toHaveBeenCalled();
+    gate.resolve(taskWrite(task('task-done')));
+    await reopening;
+  });
+
+  it('suppresses an outstanding reopen after the page is destroyed', async () => {
+    const gate = deferred<TaskWriteResult>();
+    const before = taskItem('task-done', { status: 'done', completedAt: AT });
+    const { store, updateTask } = setup({ items: [before], updateTask: () => gate.promise });
+    await store.load(ROOT);
+    const reopening = store.reopen(before);
+    expect(updateTask).toHaveBeenCalledOnce();
+    const snapshot = store.items();
+    TestBed.resetTestingModule();
+    gate.resolve(taskWrite(task('task-done', { title: 'Late title' })));
+    expect(await reopening).toBe(false);
+    expect(store.items()).toEqual(snapshot);
+    expect(store.writeError()).toBeNull();
   });
 });
 

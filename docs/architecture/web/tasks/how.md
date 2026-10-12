@@ -6,12 +6,22 @@
    for its container and tells it which `sectionId` it owns; the store lists the rows
    through `tasks.list({ sectionId })`.
 2. Each row renders as `TaskRow` with the task and its flags; the section wires the row's
-   callbacks to store methods and opens `TaskDetailDrawer` for a selected row.
+   callbacks to store methods. Title or background clicks select idempotently and open
+   `TaskDetailDrawer`; title Enter/Space are the keyboard path. A moved mouse/pen gesture or a
+   new background text selection does not select. Checkbox and Delete never select.
 3. A quick create posts `{ projectId, sectionId, title }` and unwraps `result.task`; a completion
    paints first, posts second and reconciles from the same strict envelope, guarded as drawn in
-   [what](what.md). Title Escape closes editing before the ensuing blur, so it records no write.
+   [what](what.md). Reopen uses `tasks.update(id, { status: 'todo' })`, clears `completedAt`
+   optimistically and restores the exact saved fields on failure. Both toggle answers are
+   guarded by the load generation, so a late answer cannot paint another section.
+   The drawer's Title commits on Enter/blur, refuses blank text and keeps dirty drafts through
+   live refreshes. Dirty compares against its last synced base title. Escape discards a dirty
+   draft before blur; otherwise it closes. Blur after Enter does not send a second PATCH;
+   explicit Enter retries a failed write.
 4. Live frames naming a task the store holds trigger a quiet re-read unless a write is in
-   flight, in which case the re-read waits; a read whose epoch is stale is discarded.
+   flight, in which case the re-read waits. `pendingMutations` coalesces those reads;
+   `loadGeneration` rejects answers crossing a container switch, and a read crossed by a
+   mutation is queued again. Per-field revisions keep an old write from reverting a newer edit.
 5. TaskRow's **Delete** emits the task id to the section, which calls `tasks.archive`. The
    section captures the title before the write and announces the committed archive in a polite
    status outside the rows. It clears the cue on a new attempt or section switch and rejects a
@@ -24,8 +34,13 @@
    the drawer cannot cover a row's Delete. A container rather than a media query, because a
    Grid-layout section is narrow at desktop width too; the drawer is not scrolled into view
    ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
-7. Todos does not render `TaskRow`: `TodosPageStore` serializes its own Complete and Delete
-   writes, removes a task subtree optimistically and reports the task's receipt to its project.
+7. Closing the drawer returns focus to the selected row title, or quick-create if the row has
+   gone, only when focus was in the drawer or on the body. Opening leaves focus in place.
+8. Todos does not render `TaskRow`: `TodosPageStore` serializes task complete, reopen and Delete
+   writes on one slot. Task toggles reset synchronously from the optimistic store value, before
+   awaiting the request. Workstreams keep their one-way Complete button; cancelled tasks have
+   no toggle. Both surfaces use `aria-disabled` for pending toggles and refuse intents without
+   losing keyboard focus.
 
 ## Key symbols
 
@@ -58,7 +73,8 @@
 
 - **Optimistic writes are guarded and revert visibly** — `task-list-store.spec.ts`,
   including a delayed response and a failed one.
-- **A stale read never paints** — the write-epoch test.
+- **A stale read never paints** — TaskListStore's pending-mutation/load-generation cases;
+  TodosPageStore separately uses a write epoch for its projected chronology.
 - **Six variants, pinned by stories and `task-row.spec.ts`.**
 - **Tokens only** in `task-row.scss` and `task-detail-drawer.scss`.
 - **The `42rem` stacking literal is in two stylesheets** — `task-list-section.scss` and
@@ -84,6 +100,8 @@ tick another, watch it revert with the error and no `completedAt` in `data.json`
 - **Subtasks (Slice 20):** the `subtasks` flag already exists in `PrototypeSettings`;
   `parentTaskId` already exists on the contract; the host already follows a parent's
   section.
-- **The trap:** a `[checked]` binding after a refused toggle. The browser owns that
-  state; the row has to put it back explicitly, which is how a refused permission
-  toggle once left a checkbox visually moved.
+- **The trap:** a `[checked]` binding alone cannot undo a refused native toggle. TaskRow resets
+  immediately after emitting to its model's value; Todos resets after the store's synchronous
+  optimistic prefix and before awaiting, then reads the current row again after settlement to
+  handle an immediate refusal that skips an optimistic render. A late reset from a captured item
+  can paint stale status onto a settled box.

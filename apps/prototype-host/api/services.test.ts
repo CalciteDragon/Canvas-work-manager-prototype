@@ -102,7 +102,7 @@ describe('createApi and the live event hub (§62)', () => {
     const projectId = 'project-work-manager' as ProjectId;
     const pageId = 'page-project-work-manager' as ProjectPageId;
 
-    await api.sections.add(actor, projectId, { type: 'rich-text' });
+    await api.sections.add(actor, projectId, { type: 'markdown' });
     await api.shortcuts.list(actor, projectId, { pageId });
 
     // SectionService needs this read to append after a placement; ShortcutService needs it to

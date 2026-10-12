@@ -10,13 +10,18 @@ the displayed project's controls remain the only browser Undo and Redo surface.
 that serves both project routes, the project navigation column with its page toggles,
 the header rendered once per project with its Undo and Redo, the page renderers — a section canvas for Home and
 for a subproject's work page, and the Todos, Archive and Reflections projections for a
-root — the section registry and its seven section types, Home shortcuts, and the shared
+root — the section registry and its six section types, shortcuts on Home and Work canvases, and the shared
 archive list. It is the largest feature and where most of the product learning happens.
 
 **Code:** `apps/web/src/app/features/projects` and its `history/`, `pages/`, `sections/`,
 `shortcuts/`, `archived-region/` · **Tests:** `*.spec.ts` beside each file; stories for
 the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 [web](../overview.md)
+
+Markdown renders and edits source through a deferred body and presentational source editor, and
+is the first type in the picker. Rich Text is retired and absent from the registry. Live and
+recreating history copies are refused on load with reset or reseed guidance; the historical
+schema-version-6 converter was removed in Slice 66.
 
 ## Responsibilities
 
@@ -37,14 +42,16 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   inside the workspace reports its receipts to it; it holds the server summary, the pending
   state that covers each write's owed re-read, transitions and one feedback line, and words
   all of it through the pure `history-feedback.ts`.
-- `ProjectPageNavigation`: the column — pages, optional-page toggles, the work tree —
+- `ProjectPageNavigation`: the column — pages, the root-name page-settings gear, the Work plus and work tree —
   placed beside the sidebar by one `:has()` rule.
+- `WorkCreateDialog`: Name and an explicit live Parent for a new workstream, with draft retention
+  on refusal. The shell supplies the callback; the workspace store uses the existing project create.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
   flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
   one-gesture removal (live rows cascade with their owner), plus canonical navigation to
   `#section-<id>`. Every canvas write reports its receipt to the header's history; the canvas
   holds no receipt.
-- `SECTION_REGISTRY` and the section types: Rich Text, Task List, Sub-Projects,
+- `SECTION_REGISTRY` and the section types: Markdown, Task List,
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.
 - The three root pages: `TodosPage`, `ArchivePage`, `ReflectionsPage`, each with its
@@ -52,7 +59,7 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   Todos and Archive link descendant owners to their header controls. After a committed
   Delete, Todos keeps a polite recovery status outside the chronology, with root Archive
   access and the task owner's header guidance.
-- Home shortcuts: `ShortcutFrame` (read-only source content), `ShortcutPicker`,
+- Shortcuts on a canonical page (Home or a workstream's Work): `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
 - `SectionRecoveryNotice`: the canvas's recovery the header cannot offer — Open Archive after a
   removal Archive lists, Retry remove after an uncertain removal, Retry refresh after a committed

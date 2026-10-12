@@ -65,7 +65,7 @@ the fix would be the sync infrastructure §62 forbids
 ## Consequences
 
 - An agent's `complete_task` over HTTP reaches an open page in tens of milliseconds
-  with the write readable; Progress, Timeline, Reflections, Sub-projects and the sidebar
+  with the write readable; Progress, Timeline, Reflections and the sidebar
   all follow because the browser re-reads derived views on a frame.
 - Undo and Redo of task and reflection writes follow the same projection route as the forward
   write. A compound Add also refreshes the open canvas or Reflections page, so removing or

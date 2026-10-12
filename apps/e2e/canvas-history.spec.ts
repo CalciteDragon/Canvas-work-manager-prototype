@@ -45,7 +45,7 @@ test('shortcut gestures record once and HTTP history reconciles both open canvas
   const root = await createRoot('Shortcut history');
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'task-list', title: 'Shortcut candidate' });
-  await addSection(root.id, { type: 'rich-text', title: 'Local prose' });
+  await addSection(root.id, { type: 'markdown', title: 'Local prose' });
   const home = await pageId(root.id);
 
   await page.goto(`/projects/${root.id}`);
@@ -106,8 +106,8 @@ test('Archive Restore records its own action and the canvas follows Undo and Red
   await setClock('2026-09-20T12:00:00.000Z');
   const root = await createRoot('Restore history');
   await api.patch(`/api/projects/${root.id}/pages/archive`, { enabled: true });
-  const prose = await addSection(root.id, { type: 'rich-text', title: 'Worth keeping' });
-  await api.patch(`/api/sections/${prose.id}`, { config: { text: 'Prose worth keeping' } });
+  const prose = await addSection(root.id, { type: 'markdown', title: 'Worth keeping' });
+  await api.patch(`/api/sections/${prose.id}`, { config: { markdown: 'Prose worth keeping' } });
 
   await page.goto(`/projects/${root.id}`);
   const frame = page.locator(`[data-section-item][data-section-id="${prose.id}"]`);
@@ -147,8 +147,8 @@ test('duplication records the add it is, and Undo and Redo keep the copy’s ide
   await seed('empty');
   await setClock('2026-09-20T12:00:00.000Z');
   const root = await createRoot('Duplicate history');
-  const original = await addSection(root.id, { type: 'rich-text', title: 'Original' });
-  await api.patch(`/api/sections/${original.id}`, { config: { text: 'Copy me' } });
+  const original = await addSection(root.id, { type: 'markdown', title: 'Original' });
+  await api.patch(`/api/sections/${original.id}`, { config: { markdown: 'Copy me' } });
   await page.goto(`/projects/${root.id}`);
   await expect(page.locator(`[data-section-item][data-section-id="${original.id}"]`)).toBeVisible();
 
@@ -162,7 +162,7 @@ test('duplication records the add it is, and Undo and Redo keep the copy’s ide
   // The copy is directly below its original, with a detached config and no rows of its own.
   const order = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections`);
   expect(order.map(({ id }) => id)).toEqual([original.id, copy.section.id]);
-  expect(copy.section.config).toEqual({ text: 'Copy me' });
+  expect(copy.section.config).toEqual({ markdown: 'Copy me' });
 
   await step(root.id, 'undo');
   await expect(page.locator(`[data-section-item][data-section-id="${copy.section.id}"]`)).toHaveCount(0);

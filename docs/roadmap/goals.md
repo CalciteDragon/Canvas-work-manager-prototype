@@ -45,6 +45,57 @@ ownership seams hold. It is **not yet evidence from sustained use** that the ful
 belongs in the MVP. Decision:
 [project workspaces and subproject work units](../decisions/2026-09-project-workspaces-and-subproject-work-units.md).
 
+### Done — Markdown and work navigation (Slices 59–67)
+
+A **user-requested direction** (2026-09-30), planned in the
+[Slice 59 umbrella](completed/59-markdown-and-work-navigation.md): Markdown source and safe
+rendering in place of Rich Text, task checkbox reopening and click selection, the page-settings
+gear beside the root name, the Work creation plus, **workstream** as the user-facing noun, and
+section shortcuts on Work canvases in place of the Sub-Projects section view. Closed 2026-10-09 by
+[Slice 67](completed/67-markdown-and-work-navigation-closure.md), whose evidence ledger names a
+passing unit, browser and SDK/real-HTTP assertion for every acceptance row, with all 109 browser
+journeys green. The umbrella's same-file conversion evidence was superseded by the
+[disposable-data decision](../decisions/2026-10-prototype-data-is-disposable.md), not proven.
+Like the multi-page direction, this is evidence the model is evaluable, **not yet evidence from
+sustained use**. The child records:
+
+[Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
+**workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
+explicit parent. Three independent reviewers' diff findings are resolved, all 95 integrated
+browser tests passed, and the final 40 targeted checks passed after review repairs.
+[Slice 61](completed/61-task-reopen-and-selection.md) completed Stage B: reversible task
+checkboxes in Task Lists and Todos, title or row click selection, and title editing in the
+task drawer. Independent correctness/spec and boundaries/documentation review findings are
+resolved; 2,870 offline tests and all 102 browser tests passed, with real browser and MCP use
+recorded. Stage C (Markdown) is split in two:
+[Slice 62](completed/62-markdown-section.md) completed C1: Markdown source authoring and safe lazy
+rendering beside Rich Text. Independent review findings are resolved; 2,913 offline tests, all
+104 browser tests and actual browser/HTTP MCP use passed. The approved panel-control deferral
+keeps the initial bundle at 1,032,388 bytes under the unchanged ceiling.
+[Slice 63](completed/63-rich-text-to-markdown-conversion.md) completed C2: every Rich Text section and
+history copy converted to Markdown at schema v6 by an exactly reversible escape-everything rule,
+with Undo/Redo, labels and Archive recovery intact, and Rich Text refused on create and load.
+Independent review findings are resolved; 3,056 offline tests, all 104 browser tests and the four
+host acceptance scripts passed, the developer's data file was converted in real use, and the
+initial bundle is about 1,028 kB under the unchanged ceiling. Stage C is complete.
+[Slice 64](completed/64-section-config-validation.md) validated every section config exactly
+on write, refusing malformed Markdown and other configs before anything is stored.
+[Slice 65](completed/65-work-canvas-shortcuts.md) completed Stage D: a workstream's Work canvas takes
+same-root shortcuts recorded in its own history, and a cross-root move refuses any placement with
+exactly one end in the moving subtree. Independent review findings are resolved; 3,111 offline
+tests, the targeted browser journey and both acceptance scripts passed, with real browser and HTTP
+MCP use recorded. [Slice 66](completed/66-retire-sub-projects-section.md) completed Stage E on
+2026-10-09: the Sub-Projects type is refused on create and load and
+removed from the seeds. Because [local prototype data is now disposable](../decisions/2026-10-prototype-data-is-disposable.md),
+there is no converter: old files are reset, and the v2→v6 upgrade pipeline is removed. The rewritten
+plan and independent diff reviews are closed. All 2,957 offline tests, all 106 browser journeys,
+the four host acceptance scripts and the required build/documentation gates passed. All six seeds
+were served by the host, and real browser/MCP use recorded the accepted loss of Work-row details.
+[Slice 67](completed/67-markdown-and-work-navigation-closure.md) completed Stage F: four missing
+proofs (reopen over both MCP transports, MCP Markdown read-back, themed phone and narrow-Grid
+Markdown, the browser picker) each seen to fail under a reverted fault, real touch and SDK use,
+all nine child friction notes triaged and the documentation audited for drift.
+
 ### Candidate — Second Prototype Milestone (§82)
 
 Not a plan. A list of things that become slices **only when observed use justifies them**.
@@ -53,11 +104,21 @@ would implement and the scope guards it inherits.
 
 ## Now
 
+**Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
+after the Markdown and work navigation direction; both are now resolved:
+- [Slice 68 — cross-root move refusal names each placement](completed/68-cross-root-refusal-names-placements.md),
+  completed 2026-10-09: the refusal now describes each placement's page and source
+  (`note-2026-10-03-002`);
+- [Slice 69 — distinguishable names for untitled shortcut sources](completed/69-distinguishable-shortcut-names.md),
+  completed 2026-10-09: untitled shortcut frames, controls and new history labels include the
+  source owner, with independent diff reviews and real browser/MCP use (`note-2026-10-03-001`).
+  No implementation plan remains active; sustained use can choose the next candidate.
+
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
 the review findings after Stage E; Slice 46 links each finding to current tests, browser and
 MCP journeys, records all required green gates, and corrects the six-family and bundle-budget
-documentation. No implementation slice is active. The historical Stage E notes below remain
+documentation. No Slice 34 follow-up remains active. The historical Stage E notes below remain
 the evidence and limits recorded on 2026-09-27; later repairs and proofs are linked from
 Slice 46. Recovery-focus friction remains a candidate for a later UX phase.
 
@@ -225,7 +286,19 @@ Known friction not yet promoted to a slice, carried in `.prototype/notes.json`:
   forms; inline editing is the obvious shape
   ([entry](../decisions/2026-08-project-create-edit-archive-surface.md)).
 - At 375 px a stacked Task List details drawer opens below the fold after quick create, so
-  nothing visible confirms it opened (`note-2026-09-29-005`).
+  nothing visible confirms it opened (`note-2026-09-29-005`); after a title selection its lower
+  fields sit below the fold too (`note-2026-10-01-002`).
+- A task reopen's generic Updated history label is less explicit than Reopened
+  (`note-2026-10-01-002`).
+- Markdown Preview retains the same label when pressed, obscuring the return to source
+  (`note-2026-10-02-001`).
+- Retiring the hierarchy section leaves Work rows without its dates/status detail; sustained
+  use must decide whether richer rows are needed (`note-2026-10-09-001`).
+- Untitled shortcuts owned by different projects are distinguished by
+  [Slice 69](completed/69-distinguishable-shortcut-names.md) (`note-2026-10-03-001`), and placement-only
+  move refusals were resolved by [Slice 68](completed/68-cross-root-refusal-names-placements.md)
+  (`note-2026-10-03-002`). Two untitled sources owned by one project can still share a name;
+  the naming decision leaves page qualifiers for further use.
 - §46's failure-rate injection applies to reads as well as writes (`note-2026-09-06-009`).
 - Storybook is limited to a handful of story sets; the Design Lab's *primitive* panels are
   the evidence for a shared component library that has not been extracted.

@@ -16,7 +16,7 @@ get wrong.
   per-row check would.
 - **Two writers can race** — the browser and an MCP client share one host — and a
   half-applied operation must never persist. Separate *processes* can race too: the host, a
-  stdio MCP process and the seed, reset and upgrade commands each hold their own copy of the file.
+  stdio MCP process and the seed and reset commands each hold their own copy of the file.
 - **A crash mid-write must not corrupt the file.** Temp-and-rename is atomic on the
   platforms this runs on.
 - **Nothing may be deleted casually.** Canonical references remain strict. Missing task or
@@ -68,6 +68,11 @@ they carry matching captured target and project/root identity; other missing tar
 history owners still fail whole-document validation
 ([decision](../../decisions/2026-09-historical-activity-identity.md)).
 
+**A retired section type is refused at load, not coerced.** Rich Text and Sub-Projects are
+refused in `sections` and in snapshots that could recreate a section. The refusal names reset
+or reseed, as does a schema-version mismatch; local files are disposable
+([decision](../../decisions/2026-10-prototype-data-is-disposable.md)).
+
 **A history's integrity is checked across collections, not inside one schema.** "One history per
 actor and project" and "an action's order is within its history's high-water mark" need two
 collections, so they live in `validateDocumentIntegrity`; the contract keeps only what one object
@@ -92,7 +97,7 @@ domain, tool and host test runs on.
 - A read inside a unit of work sees provisional state; a read outside sees the last
   commit. Live frames are held until commit for the same reason (the host's hub).
 - A stale `data.json` fails at load with the schema-version message rather than half
-  way through a session; `pnpm prototype:upgrade` or a reset is the remedy.
+  way through a session; `pnpm prototype:reset` or reseeding is the remedy.
 - The whole document is cloned and validated twice per unit of work. Fine on a JSON
   document; it is why rows keep `projectId` beside `sectionId` rather than joining.
 - Two processes cannot hold divergent copies of the file at once: a writer is refused with
@@ -101,6 +106,8 @@ domain, tool and host test runs on.
   leaves a record that the next acquirer reclaims; a reused pid needs the named file deleted by hand.
 
 ## Decisions that shape this system
+
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../decisions/2026-10-retiring-the-sub-projects-section.md)
 
 - [One writer per data file](../../decisions/2026-09-one-writer-per-data-file.md) — the owner record, its wait, refusal and nonce-guarded reclaim
 
@@ -112,10 +119,12 @@ domain, tool and host test runs on.
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — why actions delete routinely and histories never
 - [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — the captured-generation integrity rule
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — the same generation rule now covers `section.restore`
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../decisions/2026-10-work-canvas-shortcut-destinations.md) — integrity accepts a placement on its project's canonical page and refuses any other
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the canonical-reference gate before section deletion
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — task/reflection removal seams used only after Add-Undo preflight
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — the bounded missing-target integrity exception
-- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — why older files are rejected until converted
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — historical cutover; older files now require reset or reseed (Slice 66)
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — integrity refuses a retired section type in sections and recreating snapshots
 - [Optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md) (amended in Slice 38) — the one page removal seam
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `ProjectPageRepository.remove`, used only after first-enable Undo's preflight
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `ProjectRepository.remove`, independent anchors bound to the exact creator identity

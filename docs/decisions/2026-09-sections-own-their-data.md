@@ -168,3 +168,6 @@ in [disposable removal and immediate canvas Undo](2026-09-disposable-removal-and
 
 
 **Amended, 2026-09-24 (Slice 43).** Removing a container no longer reparents its rows. The one-step removal archives its live owned rows with the section; independently archived rows keep their original markers. A person or agent who wants a task in another container uses the ordinary task update, which records its own history action.
+
+**Amended, 2026-10-09 (Slice 66).** The Sub-Projects view is retired and its capability declaration removed. The six current types retain the container/view ownership model; the display-name map keeps the retired type for refusal messages.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

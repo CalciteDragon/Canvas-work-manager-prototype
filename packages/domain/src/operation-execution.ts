@@ -82,6 +82,23 @@ const repairWords = (conflict: UndoConflict, willRetire: boolean): string => {
 };
 
 /**
+ * The plain-language list of conflicts every refusal shows: the first five, each with its repair
+ * words, then a count of the rest. Exported so an executor that describes some conflicts in its own
+ * words (the project executor's carried placements, Slice 68) still renders the others the same way.
+ */
+export const conflictListText = (conflicts: readonly UndoConflict[], willRetire: boolean): string => {
+  const shown = conflicts
+    .slice(0, 5)
+    .map((conflict) => {
+      const title = conflict.title === undefined ? '' : ` "${conflict.title}"`;
+      return `${conflict.problem}: ${conflict.entityType}${title} [${conflict.id}] — ${repairWords(conflict, willRetire)}`;
+    })
+    .join('; ');
+  const more = conflicts.length > 5 ? `; and ${conflicts.length - 5} more` : '';
+  return `${shown}${more}`;
+};
+
+/**
  * Throws a conflict refusal when there is anything to report. `permanentProblems` names the
  * conflicts on `subjectId` that make this action unsatisfiable for good.
  */
@@ -92,17 +109,9 @@ export const refuseOnConflicts = (
 ): void => {
   if (conflicts.length === 0) return;
   const willRetire = conflicts.some(permanent);
-  const shown = conflicts
-    .slice(0, 5)
-    .map((conflict) => {
-      const title = conflict.title === undefined ? '' : ` "${conflict.title}"`;
-      return `${conflict.problem}: ${conflict.entityType}${title} [${conflict.id}] — ${repairWords(conflict, willRetire)}`;
-    })
-    .join('; ');
-  const more = conflicts.length > 5 ? `; and ${conflicts.length - 5} more` : '';
   throw new OperationExecutionRefused(
     { kind: 'conflict', conflicts: [...conflicts], permanent: willRetire },
-    sentence(`${shown}${more}`),
+    sentence(conflictListText(conflicts, willRetire)),
   );
 };
 

@@ -8,7 +8,13 @@ import {
   SectionColumnSpanSchema,
   containerTypeFor,
   displayNameOf,
+  isRetiredSectionType,
+  retiredSectionReplacement,
+  MarkdownConfigSchema,
   nameOf,
+  SECTION_CONFIG_SCHEMAS,
+  sectionConfigRefusal,
+  RETIRED_SECTION_TYPES,
   normaliseSectionTitle,
   ownedKindOf,
   sectionKindOf,
@@ -84,8 +90,8 @@ describe('section ownership', () => {
     expect(ownedKindOf('reflections')).toBe('reflections');
   });
 
-  it('leaves rich-text out of the map — it owns config.text, not rows', () => {
-    expect(sectionKindOf('rich-text')).toBe('view');
+  it('leaves markdown out of the map — it owns config.markdown, not rows', () => {
+    expect(sectionKindOf('markdown')).toBe('view');
   });
 
   it('names the container type to create for each owned kind, from the same map', () => {
@@ -101,15 +107,14 @@ describe('section ownership', () => {
 });
 
 describe('section capabilities (Refactor §§6–8)', () => {
-  it('declares exactly the seven registered types, each with one recovery capability', () => {
+  it('declares exactly the six registered types, each with one recovery capability', () => {
     expect(Object.keys(SECTION_CAPABILITIES).sort()).toEqual(
-      ['progress', 'recent-activity', 'reflections', 'rich-text', 'sub-projects', 'task-list', 'timeline'],
+      ['markdown', 'progress', 'recent-activity', 'reflections', 'task-list', 'timeline'],
     );
     expect(SECTION_CAPABILITIES).toEqual({
       'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
       reflections: { ownedData: 'reflections', recovery: 'owned-content' },
-      'rich-text': { recovery: 'config' },
-      'sub-projects': { recovery: 'none' },
+      markdown: { recovery: 'config', proseKey: 'markdown' },
       progress: { recovery: 'none' },
       timeline: { recovery: 'none' },
       'recent-activity': { recovery: 'none' },
@@ -117,6 +122,22 @@ describe('section capabilities (Refactor §§6–8)', () => {
     for (const capability of Object.values(SECTION_CAPABILITIES)) {
       expect(SectionCapabilitySchema.parse(capability)).toEqual(capability);
     }
+  });
+
+  it('markdown is config prose keyed by markdown', () => {
+    expect(sectionCapabilityOf('markdown')).toEqual({ recovery: 'config', proseKey: 'markdown' });
+    expect(sectionKindOf('markdown')).toBe('view');
+    expect(ownedKindOf('markdown')).toBeUndefined();
+    expect(displayNameOf('markdown')).toBe('Markdown');
+  });
+
+  it('proseKey is present exactly for config recovery', () => {
+    expect(SectionCapabilitySchema.parse({ recovery: 'config', proseKey: 'markdown' }))
+      .toEqual({ recovery: 'config', proseKey: 'markdown' });
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'config' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'config', proseKey: '' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'none', proseKey: 'markdown' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ ownedData: 'tasks', recovery: 'owned-content', proseKey: 'markdown' }).success).toBe(false);
   });
 
   it('refuses a capability whose owned data and recovery disagree', () => {
@@ -130,9 +151,8 @@ describe('section capabilities (Refactor §§6–8)', () => {
     expect(SECTION_OWNERSHIP).toEqual({ 'task-list': 'tasks', reflections: 'reflections' });
   });
 
-  it('answers undefined — unknown, never disposable — for an unregistered or inherited type', () => {
-    expect(sectionCapabilityOf('rich-text')).toEqual({ recovery: 'config' });
-    for (const type of ['something-nobody-registered', 'constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+  it('answers undefined — unknown, never disposable — for an unregistered, retired or inherited type', () => {
+    for (const type of ['something-nobody-registered', 'rich-text', 'constructor', 'toString', '__proto__', 'hasOwnProperty']) {
       expect(sectionCapabilityOf(type)).toBeUndefined();
       expect(ownedKindOf(type)).toBeUndefined();
       expect(sectionKindOf(type)).toBe('view');
@@ -140,12 +160,74 @@ describe('section capabilities (Refactor §§6–8)', () => {
   });
 });
 
+describe('section configs validated by type (Slice 64)', () => {
+  it('declares a schema for markdown only, a capability-declared type', () => {
+    expect(Object.keys(SECTION_CONFIG_SCHEMAS)).toEqual(['markdown']);
+    expect(Object.hasOwn(SECTION_CAPABILITIES, 'markdown')).toBe(true);
+  });
+
+  it('accepts an empty config and exactly { markdown: string } for markdown', () => {
+    expect(sectionConfigRefusal('markdown', {})).toBeUndefined();
+    expect(sectionConfigRefusal('markdown', { markdown: '' })).toBeUndefined();
+    expect(sectionConfigRefusal('markdown', { markdown: '# Notes' })).toBeUndefined();
+    expect(MarkdownConfigSchema.parse({ markdown: 'x' })).toEqual({ markdown: 'x' });
+  });
+
+  it('names every key markdown does not take', () => {
+    expect(sectionConfigRefusal('markdown', { markdown: 'x', summary: 'y', tone: 'calm' })).toBe(
+      'A Markdown section’s config takes only "markdown", or nothing; it does not take "summary", "tone".',
+    );
+  });
+
+  it('names a markdown value that is not a string, and one that is missing', () => {
+    expect(sectionConfigRefusal('markdown', { markdown: 5 })).toBe(
+      'A Markdown section’s config takes only "markdown", or nothing; "markdown" must be a string.',
+    );
+    expect(sectionConfigRefusal('markdown', { text: 'x' })).toBe(
+      'A Markdown section’s config takes only "markdown", or nothing; "markdown" must be a string; it does not take "text".',
+    );
+  });
+
+  it('checks nothing for a type that declares no schema, unregistered or inherited', () => {
+    for (const type of ['progress', 'task-list', 'calendar', 'toString', 'constructor', '__proto__']) {
+      expect(sectionConfigRefusal(type, { anything: ['goes'] })).toBeUndefined();
+    }
+  });
+});
+
+describe('retired section types (Slice 63)', () => {
+  it('sub-projects is retired with a workstream replacement (Slice 66)', () => {
+    expect(RETIRED_SECTION_TYPES).toEqual({
+      'rich-text': 'add a Markdown section instead',
+      'sub-projects': 'create a workstream under the project instead',
+    });
+    expect(Object.isFrozen(RETIRED_SECTION_TYPES)).toBe(true);
+    expect(isRetiredSectionType('sub-projects')).toBe(true);
+    expect(sectionCapabilityOf('sub-projects')).toBeUndefined();
+    expect(retiredSectionReplacement('sub-projects')).toBe('create a workstream under the project instead');
+    expect(retiredSectionReplacement('rich-text')).toBe('add a Markdown section instead');
+    expect(retiredSectionReplacement('toString')).toBeUndefined();
+  });
+
+  it('retires Rich Text and Sub-Projects, which no capability declares any more', () => {
+    expect(Object.keys(RETIRED_SECTION_TYPES)).toEqual(['rich-text', 'sub-projects']);
+    for (const type of Object.keys(RETIRED_SECTION_TYPES)) expect(Object.hasOwn(SECTION_CAPABILITIES, type)).toBe(false);
+  });
+
+  it('answers by exact type, never for a registered, unknown or inherited one', () => {
+    expect(isRetiredSectionType('rich-text')).toBe(true);
+    for (const type of ['markdown', 'task-list', 'something-nobody-registered', 'Rich-Text', 'toString', 'constructor']) {
+      expect(isRetiredSectionType(type)).toBe(false);
+    }
+  });
+});
+
 describe('what a section is called', () => {
   it('derives every registered display name, and overrides the one it cannot', () => {
-    // The seven registered types, against `SECTION_REGISTRY`'s own display names. Six derive
-    // from the kebab type; `sub-projects` is the entry the overrides table exists for, and
-    // the spec (line 1109) spells it with the hyphen.
+    // The six registered types derive from their kebab types. Retired Sub-Projects keeps
+    // its display-name override for refusals; Rich Text still derives its historical name.
     expect(displayNameOf('rich-text')).toBe('Rich Text');
+    expect(displayNameOf('markdown')).toBe('Markdown');
     expect(displayNameOf('task-list')).toBe('Task List');
     expect(displayNameOf('progress')).toBe('Progress');
     expect(displayNameOf('reflections')).toBe('Reflections');
@@ -198,13 +280,13 @@ describe('ProjectSectionSchema archivedAt', () => {
   it('accepts an archived section, keeping its config', () => {
     const parsed = ProjectSectionSchema.parse({
       ...section,
-      type: 'rich-text',
-      config: { text: 'Measure the hallway shelf' },
+      type: 'markdown',
+      config: { markdown: 'Measure the hallway shelf' },
       archivedAt: '2026-09-02T06:13:32.422Z',
     });
     expect(parsed.archivedAt).toBe('2026-09-02T06:13:32.422Z');
     // The whole point of archiving a view rather than deleting it: the prose survives.
-    expect(parsed.config).toEqual({ text: 'Measure the hallway shelf' });
+    expect(parsed.config).toEqual({ markdown: 'Measure the hallway shelf' });
   });
 
   it('parses a section that has never been archived', () => {

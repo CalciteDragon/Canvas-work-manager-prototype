@@ -1,5 +1,9 @@
 <article
+  #row
   data-task-row
+  [attr.data-task-id]="task().id"
+  [class.task-row--read-only]="readOnly()"
+  (click)="selectBackground($event)"
   class="task-row"
   [class.task-row--normal]="normal()"
   [class.task-row--overdue]="overdue()"
@@ -16,33 +20,24 @@
       class="task-row__checkbox"
       type="checkbox"
       [checked]="completed()"
-      [disabled]="pending() || completed()"
-      [attr.aria-label]="'Complete ' + task().title"
-      (change)="requestCompletion()"
+      [attr.aria-disabled]="pending()"
+      [attr.aria-label]="(completed() ? 'Reopen task ' : 'Complete ') + task().title"
+      (change)="toggleCompletion($event)"
     />
   }
 
   <div class="task-row__body">
-    @if (editing()) {
-      <input
-        data-task-title-editor
-        #titleEditor
-        class="task-row__title-editor"
-        [value]="draftTitle()"
-        [attr.aria-label]="'Edit title for ' + task().title"
-        [attr.aria-invalid]="titleError() !== null"
-        (input)="updateDraft($any($event.target).value)"
-        (blur)="commitTitle()"
-        (keydown.enter)="commitTitle()"
-        (keydown.escape)="cancelEditing()"
-      />
-      @if (titleError(); as error) {
-        <span data-title-error class="task-row__error">{{ error }}</span>
-      }
-    } @else if (readOnly()) {
+    @if (readOnly()) {
       <span data-task-title class="task-row__title">{{ task().title }}</span>
     } @else {
-      <button data-task-title class="task-row__title" type="button" (click)="beginEditing()">
+      <button
+        data-task-title
+        class="task-row__title"
+        type="button"
+        [attr.aria-label]="task().title + ', open details'"
+        [attr.aria-current]="selected() ? true : null"
+        (click)="selectTitle($event)"
+      >
         {{ task().title }}
       </button>
     }
@@ -59,17 +54,6 @@
   </div>
 
   @if (!readOnly()) {
-    <button
-      data-task-details
-      class="task-row__details"
-      type="button"
-      [attr.aria-pressed]="selected()"
-      [attr.aria-label]="'Open details for ' + task().title"
-      (click)="selectedRequested.emit(task().id)"
-    >
-      Details
-    </button>
-
     <button
       data-task-delete
       class="task-row__delete"

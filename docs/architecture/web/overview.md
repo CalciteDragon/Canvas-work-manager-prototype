@@ -15,7 +15,7 @@ properties, and it depends on the host **only** through gateway interfaces and o
 **Code:** `apps/web/src/app` · **Styles:** `apps/web/src/styles/_tokens.scss`,
 `_base.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
 `@angular/build:unit-test`); `*.stories.ts` for Storybook · **Package:** `web` ·
-**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`
+**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`
 
 ## Responsibilities
 
@@ -61,6 +61,7 @@ Smaller features that do not earn a folder of their own:
   permission grid and revoke (`AgentConnectionsPage`, `AgentConnectionsStore`).
 - `features/calendar`, `features/search` — placeholders until Slices 18 and 21.
 - `shared/components/placeholder-page` — `PlaceholderPage`, `NotFoundPage`.
+- `shared/components/markdown-renderer` — safe source presentation, lazy with the Markdown body.
 - `shared/components/icon` — `Icon`, the decorative SVG marks used by canvas chrome, history
   controls and the task Delete buttons in `TaskRow` and Todos.
 

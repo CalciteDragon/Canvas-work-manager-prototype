@@ -16,8 +16,13 @@ export interface ProjectPageRendererInputs extends Record<string, unknown> {
   pageId: ProjectPageId;
   projectLayoutMode: ProjectLayoutMode;
   restoreBlocked: boolean;
-  /** Shortcut placement is a Home-only root capability (§27). */
+  /** Shortcut placement belongs to a project's canonical page: a root's Home or a workstream's Work (§27). */
   shortcutsAllowed: boolean;
+  /**
+   * The root of the rendered project's tree — the project itself for a root. Live frames name
+   * their tree by root, and a Work canvas's shortcuts may point anywhere in it (Slice 65).
+   */
+  rootProjectId: ProjectId;
   /** Something on this page may have moved §39's progress — the header re-reads it. */
   onProjectDataChange: () => void;
   /** Something on this page may have moved the work hierarchy — the column re-reads it. */
@@ -37,6 +42,7 @@ export interface ProjectPageRenderer {
   readonly projectLayoutMode: unknown;
   readonly restoreBlocked: unknown;
   readonly shortcutsAllowed: unknown;
+  readonly rootProjectId: unknown;
   readonly onProjectDataChange: unknown;
   readonly onProjectHierarchyChange: unknown;
   readonly onOpenArchive: unknown;

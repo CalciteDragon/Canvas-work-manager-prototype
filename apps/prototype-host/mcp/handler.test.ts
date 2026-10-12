@@ -484,9 +484,20 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
       await grantProjectsWrite(api);
 
       try {
-        const created = await client.callTool({
+        // Slice 63: a retired Rich Text create is a tool error that writes and records nothing.
+        const sectionsBefore = persistence.store.snapshot().sections.length;
+        const retired = await client.callTool({
           name: 'create_section',
           arguments: { projectId: PROJECT, type: 'rich-text', title: 'Handler original', config: { text: 'before' } },
+        });
+        expect(retired.isError).toBe(true);
+        expect(retired.content).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringMatching(/retired.*Markdown/) }));
+        expect(persistence.store.snapshot().sections).toHaveLength(sectionsBefore);
+        expect((await history(client)).undo).toBeNull();
+
+        const created = await client.callTool({
+          name: 'create_section',
+          arguments: { projectId: PROJECT, type: 'markdown', title: 'Handler original', config: { markdown: 'before' } },
         });
         expect(created.isError).not.toBe(true);
         const section = (created.structuredContent as { section: { id: string } }).section;

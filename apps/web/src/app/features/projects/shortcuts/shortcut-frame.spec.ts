@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ProjectSectionSchema, ResolvedSectionShortcutSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
@@ -20,11 +20,11 @@ const shortcut = (overrides: Record<string, unknown> = {}) =>
       id: 'section-source',
       projectId: 'project-a',
       pageId: 'page-project-a-work',
-      type: 'rich-text',
+      type: 'markdown',
       position: 0,
       columnSpan: 12,
       collapsed: false,
-      config: { text: 'Canonical source' },
+      config: { markdown: 'Canonical source' },
       createdAt: AT,
       updatedAt: AT,
     }),
@@ -49,15 +49,32 @@ const query = (fixture: ReturnType<typeof render>, selector: string) =>
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('ShortcutFrame (§27)', () => {
-  it('renders source identity and content read-only, without section writes', () => {
+  it('renders source identity and content read-only, without section writes', async () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     const fixture = render();
+    for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(query(fixture, '[data-shortcut-source]')?.textContent).toContain('Website launch / Kitchen');
-    expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
-    expect(query(fixture, '[data-rich-text-body]')?.hasAttribute('readonly')).toBe(true);
+    expect(query(fixture, 'app-markdown-renderer')?.textContent).toContain('Canonical source');
+    expect(query(fixture, '[data-markdown-edit]')).toBeNull();
     expect(query(fixture, '[data-shortcut-open-source]')).not.toBeNull();
-    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Rich Text');
+    expect(query(fixture, 'h2')?.textContent?.replace('↗', '').trim()).toBe('Markdown (Website launch)');
+    expect(query(fixture, '[data-shortcut-drag-handle]')?.getAttribute('aria-label')).toBe('Move shortcut to Markdown (Website launch)');
+    expect(query(fixture, '[data-shortcut-collapse]')?.getAttribute('aria-label')).toBe('Collapse Markdown (Website launch)');
+    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Markdown (Website launch)');
+  });
+
+  it('uses a titled source name alone in its heading and controls', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const value = shortcut();
+    const fixture = render(shortcut({ source: { ...value.source, title: 'Launch brief' } }));
+
+    expect(query(fixture, 'h2')?.textContent?.replace('↗', '').trim()).toBe('Launch brief');
+    expect(query(fixture, '[data-shortcut-drag-handle]')?.getAttribute('aria-label')).toBe('Move shortcut to Launch brief');
+    expect(query(fixture, '[data-shortcut-collapse]')?.getAttribute('aria-label')).toBe('Collapse Launch brief');
+    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Launch brief');
   });
 
   it('keeps layout controls available without exposing source editing or sizing controls', () => {
@@ -97,4 +114,29 @@ describe('ShortcutFrame (§27)', () => {
     expect(first.readOnly).toBe(true);
     expect(first.onConfigChange).toBe(fixture.componentInstance.contentInputs().onConfigChange);
   });
+});
+
+it('markdown shortcut is read-only', async () => {
+  TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  const value = shortcut();
+  const fixture = render(shortcut({ source: { ...value.source, type: 'markdown', config: { markdown: '# Canonical source' } } }));
+  for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(query(fixture, 'h3')?.textContent).toBe('Canonical source');
+  expect(query(fixture, '[data-markdown-edit]')).toBeNull();
+  expect(await fixture.componentInstance.contentInputs().onConfigChange({ markdown: 'ignored' })).toBe(false);
+});
+
+it('a shortcut to a Markdown section holding an extra key shows only the guidance (Slice 64)', async () => {
+  TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  const value = shortcut();
+  const fixture = render(shortcut({ source: { ...value.source, type: 'markdown', config: { markdown: 'Autumn planting only\\.', extra: 'kept' } } }));
+  for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).not.toContain('Autumn planting only');
+  expect(query(fixture, '[data-markdown-unreadable]')).not.toBeNull();
+  expect(query(fixture, '[data-markdown-edit]')).toBeNull();
+  expect(query(fixture, 'app-markdown-source-editor')).toBeNull();
 });

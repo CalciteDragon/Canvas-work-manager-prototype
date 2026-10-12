@@ -39,7 +39,7 @@ const meta: Meta<ShortcutPicker> = {
               },
               {
                 sourceSectionId: 'section-notes' as SectionId,
-                type: 'rich-text',
+                type: 'markdown',
                 name: 'Launch notes',
                 projectId: 'project-story' as ProjectId,
                 projectName: 'Website launch',
@@ -85,7 +85,7 @@ export const AlreadyPlaced: Story = {
             shortcutSources: [
               {
                 sourceSectionId: 'section-notes' as SectionId,
-                type: 'rich-text',
+                type: 'markdown',
                 name: 'Launch notes',
                 projectId: PROJECT,
                 projectName: 'Website launch',

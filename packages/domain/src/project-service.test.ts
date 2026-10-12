@@ -1,4 +1,5 @@
-import { ProjectSchema, isSubproject, type CreateProjectInput, type CreateSubprojectInput, type ProjectId, type ProjectPageId } from '@cwm/contracts';
+import { ProjectSchema, isSubproject, type CreateProjectInput, type CreateSubprojectInput, type ProjectId, type ProjectPageId, type SectionId, type SectionShortcutId } from '@cwm/contracts';
+import { buildSeed } from '@cwm/prototype-data';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
@@ -136,7 +137,7 @@ describe('ProjectService.archive', () => {
     const harness = buildHarness();
     const child = await create(harness, { name: 'Child', parentProjectId: MINE });
 
-    await expect(harness.projectService.archive(harness.actor, MINE)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.projectService.archive(harness.actor, MINE)).rejects.toThrow(`project "${MINE}" still has active workstreams`);
 
     await harness.projectService.archive(harness.actor, child.id);
     expect((await harness.projectService.archive(harness.actor, MINE)).status).toBe('archived');
@@ -477,7 +478,7 @@ describe('ProjectService write results and history (Slices 39 and 42, §31)', ()
  * placing one of them would cross root trees — which commit-time integrity rejects as a defect, not a
  * refusal. The forward write refuses first, the same rule a reparent reversal applies (§§26, 27, 61).
  */
-describe('ProjectService.update refuses a reparent that would carry a Home shortcut across roots', () => {
+describe('ProjectService.update refuses a reparent that would carry a shortcut across roots', () => {
   const setUp = async () => {
     const harness = buildHarness();
     const other = await create(harness, { name: 'Other root' });
@@ -488,7 +489,7 @@ describe('ProjectService.update refuses a reparent that would carry a Home short
     return { harness, other, child, grandchild, staying, home };
   };
   const place = async (harness: ReturnType<typeof buildHarness>, projectId: ProjectId, pageId: ProjectPageId) => {
-    const { section } = await harness.sectionWriteService.add(harness.actor, projectId, { type: 'rich-text', title: 'Notes' });
+    const { section } = await harness.sectionWriteService.add(harness.actor, projectId, { type: 'markdown', title: 'Notes' });
     return (await harness.sectionShortcutWriteService.create(harness.actor, MINE, { pageId, sourceSectionId: section.id })).shortcut;
   };
   const written = (harness: ReturnType<typeof buildHarness>) => {
@@ -538,5 +539,124 @@ describe('ProjectService.update refuses a reparent that would carry a Home short
 
     const mover = await create(harness, { name: 'Mover', parentProjectId: MINE });
     expect((await harness.projectWriteService.update(harness.actor, mover.id, { parentProjectId: other.id })).project.parentProjectId).toBe(other.id);
+  });
+});
+
+/**
+ * Slice 65: with Work canvases as destinations a placement has two ends that can each sit inside
+ * the moving subtree. A cross-root move refuses each placement with **exactly one** end inside it;
+ * one with both ends inside travels with the subtree and stays same-root.
+ */
+describe('ProjectService.update applies the one-end-inside rule to Work canvas placements (Slice 65)', () => {
+  const KITCHEN = 'project-kitchen' as ProjectId;
+  const GARDEN = 'project-garden' as ProjectId;
+  const CABINETS = 'project-cabinets' as ProjectId;
+  const GARDEN_BRIEF = 'section-project-garden-brief' as SectionId;
+
+  const setUp = async () => {
+    const harness = buildHarness(buildSeed('nested-projects'));
+    const other = await create(harness, { name: 'Other root' });
+    return { harness, other };
+  };
+  const placeOn = async (harness: ReturnType<typeof buildHarness>, projectId: ProjectId, sourceSectionId: SectionId) =>
+    (await harness.sectionShortcutWriteService.create(harness.actor, projectId, { pageId: `page-${projectId}` as ProjectPageId, sourceSectionId })).shortcut;
+  const cabinetsSection = async (harness: ReturnType<typeof buildHarness>) =>
+    (await harness.sectionWriteService.add(harness.actor, CABINETS, { type: 'markdown', title: 'Hinges' })).section.id;
+  const messageOf = async (promise: Promise<unknown>): Promise<string> => {
+    try {
+      await promise;
+    } catch (error) {
+      if (error instanceof DomainRuleError) return error.message;
+      throw error;
+    }
+    throw new Error('expected a refusal');
+  };
+
+  it('S-dest: refuses moving a workstream whose Work places a section that stays behind, naming only that placement', async () => {
+    const { harness, other } = await setUp();
+    const shortcut = await placeOn(harness, CABINETS, GARDEN_BRIEF);
+    const before = harness.store.snapshot();
+
+    const message = await messageOf(harness.projectWriteService.update(harness.actor, CABINETS, { parentProjectId: other.id }));
+    expect(message).toContain(shortcut.id);
+    expect(message).not.toMatch(/shortcut-renovation/);
+    // Slice 68: the refusal says where the placement sits and what it places, so it can be removed in one step.
+    expect(message).toContain('on the Work page of "Cabinets", placing "Markdown" from "Garden"');
+    expect(message).toContain('remove it from that page, then retry');
+    expect(harness.store.snapshot()).toEqual(before);
+
+    // Within the root nothing crosses, whichever end moves.
+    expect((await harness.projectWriteService.update(harness.actor, CABINETS, { parentProjectId: GARDEN })).project.parentProjectId).toBe(GARDEN);
+  });
+
+  it('S-src: refuses moving a workstream whose section another Work canvas places, naming only that placement', async () => {
+    const { harness, other } = await setUp();
+    const shortcut = await placeOn(harness, GARDEN, await cabinetsSection(harness));
+
+    const message = await messageOf(harness.projectWriteService.update(harness.actor, CABINETS, { parentProjectId: other.id }));
+    expect(message).toContain(shortcut.id);
+    expect(message).not.toMatch(/shortcut-renovation/);
+    expect(message).toContain('on the Work page of "Garden", placing "Hinges" from "Cabinets"');
+  });
+
+  /** Slice 68: the seeded placements, described from the seed's own names. */
+  const renovationHome = async (harness: ReturnType<typeof buildHarness>) =>
+    (await harness.pages.list({ projectId: 'project-renovation' as ProjectId })).find(({ kind }) => kind === 'home')!;
+  const SEEDED = ['shortcut-renovation-kitchen-tasks', 'shortcut-renovation-kitchen-reflections'];
+
+  it('describes both seeded Home placements when Kitchen moves, with the plural repair', async () => {
+    const { harness, other } = await setUp();
+
+    const message = await messageOf(harness.projectWriteService.update(harness.actor, KITCHEN, { parentProjectId: other.id }));
+
+    expect(message).toMatch(/^project "project-kitchen" cannot move to another root: shortcuts /);
+    expect(message).toContain(`"${SEEDED[0]}" (on the Home page of "Home renovation", placing "Task List" from "Kitchen")`);
+    expect(message).toContain(`"${SEEDED[1]}" (on the Home page of "Home renovation", placing "Reflections" from "Kitchen")`);
+    expect(message).toContain('remove each from its page, then retry');
+  });
+
+  it('names all five carried placements, describes the first three, and writes nothing', async () => {
+    const { harness, other } = await setUp();
+    const home = await renovationHome(harness);
+    const added: string[] = [];
+    for (const title of ['Tiles', 'Lighting', 'Plumbing']) {
+      const { section } = await harness.sectionWriteService.add(harness.actor, KITCHEN, { type: 'markdown', title });
+      added.push((await harness.sectionShortcutWriteService.create(harness.actor, 'project-renovation' as ProjectId, { pageId: home.id, sourceSectionId: section.id })).shortcut.id);
+    }
+    const before = harness.store.snapshot();
+
+    const message = await messageOf(harness.projectWriteService.update(harness.actor, KITCHEN, { parentProjectId: other.id }));
+
+    for (const id of [...SEEDED, ...added]) expect(message).toContain(`"${id}"`);
+    expect(message).toContain(`"${added[0]}" (on the Home page of "Home renovation", placing "Tiles" from "Kitchen")`);
+    expect(message).not.toContain('placing "Lighting"');
+    expect(message).not.toContain('placing "Plumbing"');
+    expect(message).toContain(`and "${added[1]}", "${added[2]}" would cross root trees`);
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('gives a projects.write-only actor the same described refusal (the accepted disclosure)', async () => {
+    const { harness, other } = await setUp();
+    await placeOn(harness, CABINETS, GARDEN_BRIEF);
+    const writer = agentActorFor(0, ['projects.write']);
+
+    const message = await messageOf(harness.projectWriteService.update(writer, CABINETS, { parentProjectId: other.id }));
+
+    expect(message).toContain('on the Work page of "Cabinets", placing "Markdown" from "Garden"');
+  });
+
+  it('S-both: moves a workstream whose Work places a descendant section, and the placement stays valid', async () => {
+    const { harness, other } = await setUp();
+    for (const id of ['shortcut-renovation-kitchen-tasks', 'shortcut-renovation-kitchen-reflections']) {
+      await harness.sectionShortcutWriteService.remove(harness.actor, id as SectionShortcutId);
+    }
+    const shortcut = await placeOn(harness, KITCHEN, await cabinetsSection(harness));
+
+    const moved = await harness.projectWriteService.update(harness.actor, KITCHEN, { parentProjectId: other.id });
+
+    expect(moved.project.parentProjectId).toBe(other.id);
+    expect(await harness.sectionShortcutService.list(harness.actor, KITCHEN)).toEqual([
+      expect.objectContaining({ id: shortcut.id, availability: 'available', breadcrumb: ['Other root', 'Kitchen', 'Cabinets'] }),
+    ]);
   });
 });

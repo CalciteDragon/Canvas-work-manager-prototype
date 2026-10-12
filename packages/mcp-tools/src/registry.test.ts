@@ -129,7 +129,7 @@ describe('the tool registry', () => {
         { projectId: subproject.id, kind: 'todos', enabled: true },
         agent(['projects.write']),
       ),
-    ).rejects.toThrow(/one work canvas and no pages to configure/);
+    ).rejects.toThrow('a workstream has one work canvas and no pages to configure');
     await expect(
       harness.registry.call(
         'set_project_page_enabled',

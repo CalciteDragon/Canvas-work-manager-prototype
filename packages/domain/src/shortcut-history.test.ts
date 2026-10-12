@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { OperationHistoryDirection, OperationReceipt, ProjectPageId } from '@cwm/contracts';
+import type { OperationHistoryDirection, OperationReceipt, ProjectId, ProjectPageId, SectionId } from '@cwm/contracts';
+import { buildSeed } from '@cwm/prototype-data';
 import { agentActorFor, buildHarness, MINE } from '../test/test-support';
+import { DomainRuleError } from './errors';
 import { listPlacements } from './page-placements';
 import { shortcutWriteLabel } from './shortcut-history';
 
@@ -205,6 +207,82 @@ describe('shortcut placement history (§§27, 31)', () => {
     await expect(step(h, created.operation, 'redo', agentActorFor(0, ['tasks.write']))).rejects.toThrow();
     // And the person's own history never saw the agent's placement at all.
     expect((await h.operationHistoryService.summary(h.actor, MINE)).historyId).toBeNull();
+  });
+});
+
+/** Slice 65: the same executors on a workstream's Work canvas, recorded in that workstream. */
+describe('shortcut placement history on a Work canvas (Slice 65; §§27, 31)', () => {
+  const KITCHEN = 'project-kitchen' as ProjectId;
+  const CABINETS = 'project-cabinets' as ProjectId;
+  const KITCHEN_WORK = 'page-project-kitchen' as ProjectPageId;
+  const GARDEN_BRIEF = 'section-project-garden-brief' as SectionId;
+  const GARDEN_TASKS = 'section-project-garden-tasks' as SectionId;
+
+  const nested = () => buildHarness(buildSeed('nested-projects'));
+  const workOrder = async (h: Harness) => (await listPlacements(h, KITCHEN_WORK)).map(({ value }) => value.id);
+
+  const conflictsOf = async (promise: Promise<unknown>): Promise<unknown> => {
+    try {
+      await promise;
+    } catch (error) {
+      if (error instanceof DomainRuleError) return (error as DomainRuleError & { details?: { conflicts?: unknown } }).details?.conflicts;
+      throw error;
+    }
+    throw new Error('expected a refusal');
+  };
+
+  it('reverses and replays add, resize, collapse, move and remove in the workstream history', async () => {
+    const h = nested();
+    const original = await workOrder(h);
+    const created = await h.sectionShortcutWriteService.create(h.actor, KITCHEN, { pageId: KITCHEN_WORK, sourceSectionId: GARDEN_BRIEF, position: 0 });
+    const id = created.shortcut.id;
+    expect((await h.operationHistories.find(created.operation.historyId))?.projectId).toBe(KITCHEN);
+    const resize = await h.sectionShortcutWriteService.update(h.actor, id, { columnSpan: 6 });
+    const collapse = await h.sectionShortcutWriteService.update(h.actor, id, { collapsed: true });
+    const moved = await h.sectionShortcutWriteService.move(h.actor, id, 2);
+    expect((await workOrder(h)).indexOf(id)).toBe(2);
+    const removed = await h.sectionShortcutWriteService.remove(h.actor, id);
+
+    for (const receipt of [removed.operation, moved.operation!, collapse.operation!, resize.operation!, created.operation]) {
+      await step(h, receipt);
+    }
+    expect(await workOrder(h)).toEqual(original);
+
+    for (const receipt of [created.operation, resize.operation!, collapse.operation!, moved.operation!]) {
+      await step(h, receipt, 'redo');
+    }
+    expect((await workOrder(h)).indexOf(id)).toBe(2);
+    expect(await h.shortcuts.find(id)).toMatchObject({ columnSpan: 6, collapsed: true, pageId: KITCHEN_WORK });
+    await step(h, removed.operation, 'redo');
+    expect(await workOrder(h)).toEqual(original);
+  });
+
+  it('refuses recreating a placement whose source has since left the root, at the section', async () => {
+    const h = nested();
+    const cabinets = await h.sectionWriteService.add(h.actor, CABINETS, { type: 'markdown' });
+    const created = await h.sectionShortcutWriteService.create(h.actor, KITCHEN, { pageId: KITCHEN_WORK, sourceSectionId: cabinets.section.id });
+    const removed = await h.sectionShortcutWriteService.remove(h.actor, created.shortcut.id);
+    const other = await h.projectService.create(h.actor, { workspaceId: h.actor.workspaceId, kind: 'root', name: 'Other root' });
+    await h.projectService.update(h.actor, CABINETS, { parentProjectId: other.id });
+    const before = JSON.stringify(h.store.snapshot().sectionShortcuts);
+
+    const conflicts = await conflictsOf(step(h, removed.operation));
+    expect(conflicts).toEqual([expect.objectContaining({ entityType: 'section', id: cabinets.section.id, problem: 'page-changed' })]);
+    expect(JSON.stringify(h.store.snapshot().sectionShortcuts)).toBe(before);
+  });
+
+  it('brings a Work placement back as the placeholder when its source is now archived', async () => {
+    const h = nested();
+    const created = await h.sectionShortcutWriteService.create(h.actor, KITCHEN, { pageId: KITCHEN_WORK, sourceSectionId: GARDEN_TASKS });
+    await step(h, created.operation);
+    // Garden's task keeps the removed section retained, so it is archived rather than deleted.
+    await h.sectionWriteService.remove(h.actor, GARDEN_TASKS);
+
+    await step(h, created.operation, 'redo');
+
+    expect(await h.sectionShortcutService.list(h.actor, KITCHEN)).toEqual([
+      expect.objectContaining({ id: created.shortcut.id, availability: 'source_archived' }),
+    ]);
   });
 });
 

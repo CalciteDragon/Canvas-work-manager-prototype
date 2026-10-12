@@ -31,7 +31,7 @@ set. Rejected: `Entity.partial()` as the update input — it would let a caller 
 **Section and shortcut creation carry an optional insertion position.** Both write inputs use
 the shared `PositionSchema`, so a browser request and an MCP call can ask for the same place
 without a transport-specific field or a second move operation. The existing combined canvas
-order for sections and Home shortcuts remains the ordering base
+order for sections and shortcuts on a canonical page remains the ordering base
 ([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)); the
 optional insertion behavior follows the approved direct-editing direction
 ([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)), with the create-position
@@ -50,14 +50,26 @@ is derived from it ([ownership](../../decisions/2026-09-sections-own-their-data.
 [recovery](../../decisions/2026-09-content-oriented-archive-policy.md)). The cost: every
 registered type declares a capability, which `registry.spec.ts` enforces. An undeclared type
 is *unknown*, never disposable. The capability is a declaration, not a verdict — the domain
-combines it with the content that actually remains.
+combines it with the content that actually remains. Config recovery declares a non-empty
+`proseKey`: `markdown` for Markdown, the only config-recovery type. Recovery and history labels need
+that name, and the registry checks it against the folder's default config
+([Markdown decision](../../decisions/2026-10-markdown-source-and-rendering.md)).
 
 **Section names are derived, with an optional stored override.** `nameOf` over the
 `type` string plus a one-entry display-name table; `title` is optional
 ([decision](../../decisions/2026-09-a-section-has-a-name.md)).
 
-**Section config is an opaque object replaced whole.** Only the section's own folder
-parses it ([decision](../../decisions/2026-08-section-config-ownership.md)).
+**An untitled shortcut names its source's owner.** `shortcutNameOf` supplies the same pure
+rule to web and domain: a chosen title stays alone, while an untitled source adds its owning
+project in parentheses. It derives text from existing identity, with no shape or stored-name
+change ([decision](../../decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
+
+**Section config is an object replaced whole, opaque unless its type declares a schema.** Only
+Markdown declares one, because agents write it: `SECTION_CONFIG_SCHEMAS` lets the domain refuse a
+malformed config for every caller rather than store a section no one can edit. Other types' configs
+stay opaque to everything but their own folder
+([ownership](../../decisions/2026-08-section-config-ownership.md),
+[validation](../../decisions/2026-10-section-config-validated-on-write.md)).
 
 **Edit Undo records a field footprint, not a whole snapshot.** Title, config, collapse and span
 are the only explicit settings fields; config is still one structural replacement. A move stores
@@ -120,12 +132,15 @@ owning project/root context, but no executable inverse
 list and every slice adds verbs. `LiveEvent.type` reuses it so a frame is the
 announcement of the activity record that was just written, not a parallel type.
 
-**Versioning without a migration runner.** `SCHEMA_VERSION` went 1 → 2 (rows name their
-section) with a reset, and 2 → 3 (kinds and pages) with one bounded converter because a
-real file was by then worth keeping. Version 4 introduced operation histories; version 5 requires
-captured Activity identity. Three bounded, named steps are chained by the CLI without becoming a
-general migration framework
-([decision](../../decisions/2026-09-schema-version-5-conversion.md)).
+**Local data is disposable.** `SCHEMA_VERSION` is 6; older versions and retired types are
+refused with reset/reseed guidance. Seed builders follow the current contracts. The earlier
+conversion pipeline has been deleted rather than extended
+([decision](../../decisions/2026-10-prototype-data-is-disposable.md)).
+
+**A retired type is a named exception, not a closed set.** `RETIRED_SECTION_TYPES` names the two
+types nothing may create or store any more, so the domain and the store refuse it with the same
+list while `type` stays open for new types
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
 ## Consequences
 
@@ -138,6 +153,14 @@ general migration framework
 
 ## Decisions that shape this system
 
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../decisions/2026-10-retiring-the-sub-projects-section.md)
+
+- [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — capability metadata names the source key while its shape stays in the section folder.
+
+- [A Markdown section's config is validated on every write](../../decisions/2026-10-section-config-validated-on-write.md) — `MarkdownConfigSchema`, `SECTION_CONFIG_SCHEMAS`, `sectionConfigRefusal`.
+
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `SCHEMA_VERSION = 6`, `RETIRED_SECTION_TYPES`, no Rich Text capability.
+
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — parsed read results distinguish current structural readiness from meaningful section content.
 
 - [Persona contract fields](../../decisions/2026-08-persona-contract-fields.md)
@@ -149,16 +172,17 @@ general migration framework
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md) — `sectionId`, `SECTION_OWNERSHIP`
 - [A section has a name, and the default is derived rather than stored](../../decisions/2026-09-a-section-has-a-name.md) — `nameOf`, `title`
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../decisions/2026-10-work-canvas-shortcut-destinations.md) — `SectionShortcut.pageId` names a canonical page, Home or Work; no schema change
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — `kind`, `ProjectPage`, schema v3
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `undo.ts` removal payload (records became history actions in Slice 35)
 - [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `operation-history.ts`
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — cursor, revision and state shapes
 - [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — `ProjectSection.archiveGeneration`, `retired`, the conflict vocabulary
-- [Schema version 4 converted explicitly and froze the v3 → v4 step](../../decisions/2026-09-schema-version-4-conversion.md) — retained as the intermediate step before v5
+- [Schema version 4 converted explicitly and froze the v3 → v4 step](../../decisions/2026-09-schema-version-4-conversion.md) — historical cutover; converter removed in Slice 66
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — typed row payloads and `{ task|reflection, operation }` results
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — required captured context
-- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate and final validating step
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — historical cutover; converter removed in Slice 66
 - [Undo and Redo advertise their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md) — the shared static/family declaration
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family

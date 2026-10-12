@@ -53,3 +53,6 @@ retains its undone `project.add`. These anchors do not depend on one another or 
 ([project creation history](2026-09-project-creation-history.md)). `projectName` also falls back to
 the captured label only for a project-targeted event whose `projectId` is that same absent project;
 a task event inside it does not inherit a guessed project label.
+
+**Amended, 2026-10-09 (Slice 66).** Seed identity capture now lives in `packages/prototype-data/src/activity-identity.ts`. The old conversion backfill and its tests are removed; current-domain Activity capture and integrity rules remain unchanged.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).

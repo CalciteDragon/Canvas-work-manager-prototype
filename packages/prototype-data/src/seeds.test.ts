@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PrototypeDocumentSchema, ownedKindOf, type PrototypeDocument } from '@cwm/contracts';
+import { PrototypeDocumentSchema, ownedKindOf, sectionConfigRefusal, type PrototypeDocument } from '@cwm/contracts';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PERSONAS } from './personas';
@@ -63,6 +63,28 @@ describe('seed registry and validation', () => {
   it.each(SEED_NAMES)('matches the committed %s snapshot', async (seedName) => {
     const snapshot = await readFile(join(seedSnapshotsDirectory, `${seedName}.json`), 'utf8');
     expect(snapshot).toBe(serialized(buildSeed(seedName)));
+  });
+
+  it.each(SEED_NAMES)('%s seeds no retired Rich Text section (Slice 63)', (seedName) => {
+    expect(serialized(buildSeed(seedName))).not.toContain('rich-text');
+  });
+
+  it.each(SEED_NAMES)('%s has no retired Sub-Projects view and a dense combined live order (Slice 66)', (seedName) => {
+    const document = buildSeed(seedName);
+    expect(serialized(document)).not.toContain('sub-projects');
+    for (const page of document.projectPages) {
+      const placements = [
+        ...document.sections.filter(({ pageId, archivedAt }) => pageId === page.id && archivedAt === undefined),
+        ...document.sectionShortcuts.filter(({ pageId }) => pageId === page.id),
+      ].sort((left, right) => left.position - right.position);
+      expect(placements.map(({ position }) => position), page.id).toEqual(placements.map((_, index) => index));
+    }
+  });
+
+  it.each(SEED_NAMES)('%s seeds only section configs their type takes (Slice 64)', (seedName) => {
+    for (const section of buildSeed(seedName).sections) {
+      expect(sectionConfigRefusal(section.type, section.config), section.id).toBeUndefined();
+    }
   });
 
   it.each(SEED_NAMES)('includes all isolated personas in %s', (seedName) => {
@@ -129,7 +151,7 @@ describe('seed scenarios', () => {
         .filter(({ projectId }) => projectId === launch?.id)
         .sort((left, right) => left.position - right.position)
         .map(({ type }) => type),
-    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
+    ).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline']);
 
     const launchTasks = document.tasks.filter(({ projectId }) => projectId === launch?.id);
     expect(launchTasks.some(({ estimate }) => estimate !== undefined && estimate > 0)).toBe(true);
@@ -179,7 +201,7 @@ describe('seed scenarios', () => {
           projectId === renovation?.id && pageId === `page-${renovation?.id}` && archivedAt === undefined)
         .sort((left, right) => left.position - right.position)
         .map(({ type }) => type),
-    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
+    ).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
     expect(
       document.tasks.some(
         ({ projectId, startAt, dueAt }) =>
@@ -316,22 +338,22 @@ describe('seed file writer', () => {
 describe('seeded project canvases (§30)', () => {
   const sectionsByPage = (document: PrototypeDocument) => {
     const grouped = new Map<string, typeof document.sections>();
-    for (const section of document.sections) {
+    for (const section of document.sections.filter(({ archivedAt }) => archivedAt === undefined)) {
       grouped.set(section.pageId, [...(grouped.get(section.pageId) ?? []), section]);
     }
     return grouped;
   };
 
   it.each(['personal-workspace', 'busy-week', 'nested-projects', 'overdue-chaos', 'agent-heavy'] as const)(
-    '%s gives every seeded canvas a rich-text brief above its task list',
+    '%s gives every seeded canvas a Markdown brief above its task list',
     (seedName) => {
       const document = buildSeed(seedName);
 
       expect(document.sections.length).toBeGreaterThan(0);
       for (const sections of sectionsByPage(document).values()) {
-        if (sections.some(({ type }) => type === 'rich-text')) {
+        if (sections.some(({ type }) => type === 'markdown')) {
           expect(sections.slice(0, 2).map((section) => [section.type, section.position])).toEqual([
-            ['rich-text', 0],
+            ['markdown', 0],
             ['task-list', 1],
           ]);
         }
@@ -489,18 +511,16 @@ describe('seeded owner kinds and pages', () => {
       ['reflections', true],
     ]);
     expect(document.sections.filter(({ pageId, archivedAt }) => pageId === home.id && archivedAt === undefined).map(({ type }) => type)).toEqual([
-      'rich-text',
+      'markdown',
       'task-list',
-      'sub-projects',
       'progress',
       'reflections',
       'timeline',
       'recent-activity',
     ]);
     expect(document.sections.filter(({ pageId }) => pageId === kitchenWork.id).map(({ type }) => type)).toEqual([
-      'rich-text',
+      'markdown',
       'task-list',
-      'sub-projects',
       'progress',
       'reflections',
       'timeline',

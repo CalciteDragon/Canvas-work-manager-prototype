@@ -198,6 +198,9 @@ ProjectSection
 
 Storybook's Angular integration supports controls, actions, interaction testing, viewport testing, and related design-development workflows.
 
+*Amended 2026-10-01, Slice 61:* TaskRow component tests cover completion, reopen, selection
+and Delete; the six implemented variants remain unchanged.
+
 ---
 
 # 5. Prototype Runtime Architecture
@@ -570,7 +573,7 @@ Example:
 
 ```json
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "users": [],
   "workspaces": [],
   "projects": [],
@@ -596,14 +599,14 @@ JSON is preferable during this phase because:
 - AI agents can inspect test fixtures
 - prototype data volume is tiny
 
-"No migrations are initially necessary" held while a stale `schemaVersion` could simply be
-reset. It stops holding the first time a real file is worth keeping. The multi-page cutover is
-that first time, so it gets **one bounded converter with its own explicit CLI entry** —
-validate, back up, write atomically, no-op on an already-converted file, fail loudly on
-anything else. It is deliberately not a migration runner, a registry or a rollback framework;
-each later cutover writes its own named converter or resets, and either is cheaper than a
-framework nothing else uses. See
-`docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`.
+Local prototype data is disposable until further notice. A stored-shape or section-type change
+updates the seed builders and snapshots. A file this build cannot read is refused with a message
+naming `pnpm prototype:reset` or reseeding; no converter, migration or compatibility path carries
+old local files forward. See [the disposable-data policy](docs/decisions/2026-10-prototype-data-is-disposable.md).
+
+The following cutover notes record earlier implementations; **Slice 66 removes every conversion
+step, the legacy prose encoder, conversion fixtures and the old conversion command**. Schema
+version remains 6, and current seeds use Markdown. These notes no longer describe a runnable path.
 
 *Amended in Slice 35:* the second cutover wrote its own converter, so the CLI now runs **two named
 steps in a fixed order** — version 2 → 3, frozen at its version-3 output, then version 3 → 4 —
@@ -611,7 +614,7 @@ after sniffing the file's version. That is a chain of two explicit functions cal
 still not a runner or registry; the earlier wording "not … a version chain" described the single
 step that existed then ([decision](docs/decisions/2026-09-schema-version-4-conversion.md)).
 
-*Landed in Slice 25.1: `pnpm prototype:upgrade <path>` converts a version-2 file in place,
+*Landed in Slice 25.1: the former explicit conversion CLI converts a version-2 file in place,
 keeping a backup beside it.*
 
 *Slice 30 added `undoRecords` inside version 3 as a defaulted collection
@@ -620,8 +623,7 @@ keeping a backup beside it.*
 *Landed in Slice 35: `SCHEMA_VERSION` is 4.* Single-use Undo records gave way to per-actor,
 per-project **operation histories**: the document holds `operationHistories` (a cursor, an order
 high-water mark and a revision per exact actor and project) and `operationActions` (typed, ordered
-actions), and every section carries an `archiveGeneration`. `undoRecords` is gone. `pnpm
-prototype:upgrade` converts a version-2 or version-3 file, retiring any version-3 receipts with a
+actions), and every section carries an `archiveGeneration`. `undoRecords` is gone. the former explicit conversion CLI converts a version-2 or version-3 file, retiring any version-3 receipts with a
 notice rather than translating them, and validates the version-4 result before writing a byte.
 Integrity checks a history's scope and ordering and never resolves the ids an action's payload names
 ([conversion](docs/decisions/2026-09-schema-version-4-conversion.md),
@@ -632,6 +634,17 @@ preserves histories/actions and backfills Activity with captured project/root sc
 title or reflection label needed if Undo Add later removes its target. The earlier converters stay
 frozen at their literal output versions
 ([decision](docs/decisions/2026-09-schema-version-5-conversion.md)).
+
+*Amended in Slice 63: `SCHEMA_VERSION` is 6.* A fourth explicit converter, version 5 → 6, retires
+Rich Text: every Rich Text section — live, archived, and every `section.add`/`section.remove`
+snapshot and `section.update` config edit history keeps — becomes Markdown whose source is the old
+prose escaped by one fixed, reversible rule, so it renders as the same prose and never as structure.
+Whitespace-only prose is stored raw. *Amended in Slice 64:* only a config Markdown takes is written,
+so extra keys are dropped and a config with no string `text` becomes empty; the drops are counted
+([decision](docs/decisions/2026-10-section-config-validated-on-write.md)). An edit to a section no record holds is left as recorded. The version 4 → 5 step is now
+frozen at literal 5 as well, and only the last step validates. Re-running the upgrade on a version-6
+file that still holds Rich Text converts it; a clean file is a byte-identical no-op
+([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
 *Amended in Slice 42:* project creation Undo adds no collection or schema version. A stored project
 may be absent only when its workspace retains the lifecycle Activity that proves creation Undo and
@@ -963,6 +976,14 @@ Project hierarchy should optionally expand inline.
 
 ## The project navigation column
 
+*Corrected in Slice 60 (2026-09-30).* The gear beside the root name opens the same root-scoped
+page settings from every route. It is a disclosure with fixed Home, optional Todos/Archive/
+Reflections, pending/refusal/retry states and Escape focus return. The plus beside **Work** opens
+**Add workstream**, with Name and explicit Parent, root by default. Completed parents are marked;
+archived ancestry is unavailable. Creation is awaited, keeps the current route, refreshes the
+tree and uses the header's existing child's-history feedback and Open link. An archived root's
+plus stays focusable with its reason. No Work page toggle is added.
+
 A root project is a workspace with pages (§26), so opening one adds a **second navigation
 column** between the sidebar and the main workspace:
 
@@ -1135,12 +1156,13 @@ More
 
 **Section creation belongs to the canvas, not the project header.** Contextual insertion points
 open one creation dialog at the selected location; they do not use a Quick Add header or controls
-row. Root Home's dialog also offers **Add shortcut**. The project **More** menu keeps the
+row. A canonical canvas's dialog — a root's Home or a workstream's Work canvas (*Slice 65*) — also
+offers **Add shortcut**. The project **More** menu keeps the
 project-level actions, including **Open archive** when the Archive page is disabled
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 *Landed in Slice 27.* The former Quick Add and Edit Layout controls are removed; the canvas
-owns section and Home shortcut creation at the point where each will appear.
+owns section and shortcut creation at the point where each will appear.
 
 The header itself is rendered **once per project** — at the top of the workspace track, beside
 §23's full-height navigation column and above whichever page is showing. It describes the
@@ -1174,7 +1196,7 @@ promise Delete remains the next step after opening a disabled Archive page, whic
 record its own enable action ([why](docs/decisions/2026-09-task-delete-recovery-feedback.md)).
 
 *Since Slice 55,* a newly recorded section update's header label names a lone rename (including
-the resulting default after a title clear), Rich Text prose edit, collapse or expand, or resize to
+the resulting default after a title clear), Markdown edit (`Edited Markdown in …`), collapse or expand, or resize to
 its saved column count. Mixed updates and other configuration changes use one general "Updated"
 label for their one action. Undo and Redo reuse that stored label after reload; older action labels
 are left as recorded ([why](docs/decisions/2026-09-section-update-history-labels.md)).
@@ -1187,6 +1209,14 @@ gain the child action; it names the child's history and links to it
 ([why](docs/decisions/2026-09-project-creation-history.md)).
 
 ## Two kinds of project
+
+*Terminology correction, Slice 60 (2026-09-30).* People and agents call the nested
+`kind: 'subproject'` a **workstream**. Roots remain projects. The identifier, ids, routes, tool
+names and recorded history labels remain unchanged; this is a prose change
+([decision](docs/decisions/2026-09-workstream-user-terminology.md)).
+
+*Slice 66 removes the former Sub-Projects section; Work navigation and Add workstream remain the
+hierarchy surface.*
 
 A project is one of two things, and the difference is structural rather than cosmetic:
 
@@ -1393,8 +1423,9 @@ Sections reorder within their page. Reordering one page never renumbers another,
 duplicating a section leaves the copy on the page that owned the original.
 
 Subprojects are not sections and do not live on a page: they belong to the parent's work
-hierarchy. A Sub-Projects section is a *view* of that hierarchy, which is why removing one
-takes no work down with it.
+hierarchy. The project column's **Work** list shows it and **Add workstream** creates nested work.
+The former Sub-Projects section is retired in Slice 66; no hierarchy view remains on the canvas
+([decision](docs/decisions/2026-10-retiring-the-sub-projects-section.md)).
 
 *Landed in Slices 25.1 and 25.2. Sections carry `pageId`, `validateDocumentIntegrity` holds a
 section's page and project in agreement, and positions are dense **per page**: adding,
@@ -1430,7 +1461,7 @@ moving a row into a container there — while everything already there
 stays readable, editable, reorderable, removable and restorable. Undo is never behind a toggle
 ([why](docs/decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)).*
 
-*Landed in Slice 27.* Section and Home shortcut creation may include an optional `position`.
+*Landed in Slice 27.* Section and shortcut creation may include an optional `position`.
 The domain inserts at that point and densely renumbers the page's combined section/shortcut
 order in the same operation. The canvas remembers an insertion anchor by placement ID and
 resolves its current position when the dialog is submitted; a missing anchor is reported instead
@@ -1469,21 +1500,24 @@ so Undo/Redo removes and restores the row and container together with stable ids
 
 ## Shortcuts on Home
 
-A root's Home may show a section that canonically lives somewhere else in the same root tree —
-another of its pages, or any subproject at any depth. This is a **placement**: a stored
+A project's **canonical page** — a root's Home or, since Slice 65, a workstream's Work canvas — may
+show a section that canonically lives somewhere else in the same root tree: another of the root's
+pages, or any subproject at any depth, ancestors and siblings included. A root's optional pages
+(Reflections, Projects, Todos, Archive) never hold shortcuts. This is a **placement**: a stored
 reference to a source section ID plus its own position, span and collapse state. No rows are
 copied and the source's configuration is not duplicated; there is exactly one owner of the
 data, and it is the source.
 
-Home holds one combined ordering of its own sections and its shortcut placements — a shortcut
+The canvas holds one combined ordering of its own sections and its shortcut placements — a shortcut
 sits in the canvas like anything else.
 
 Rules the model enforces rather than the UI suggesting:
 
 - source and destination are in the same root tree, and the same workspace — and they stay so:
-  moving a sub-project to another root is refused while a Home shortcut on its current root places a
-  section from anywhere in its subtree, naming each placement to remove first (*Slice 40*,
-  [why](docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md))
+  moving a sub-project to another root is refused while any placement has exactly one end — its
+  canvas or its source — inside the moving subtree, naming each placement to remove first
+  (*Slice 40*, [why](docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md);
+  *amended in Slice 65*, which added the canvas end, [why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md))
 - no shortcut to a shortcut, and no shortcut to itself
 - removing a placement never archives the source
 - an archived source shows an unavailable placeholder — not its content — and restoring the
@@ -1495,6 +1529,14 @@ The first pass renders source content **read-only**, identifies where it came fr
 **Open source** for editing. The placement's own layout stays editable. Whether embedded
 editing is worth the ambiguity of two live views of one section is a question for later use,
 not an assumption to build in now.
+
+*Since Slice 69* an untitled source's shortcut is named with its owning project:
+`Markdown (Garden)`, including a same-project source on another page (`Reflections (Home renovation)`).
+A titled source keeps its chosen title alone. The frame, its control names, canvas placement
+labels, newly recorded history labels and the add's Activity summary share this rule. The frame
+follows the owner's current name on a resolved read; each recorded label and summary freezes at
+write time. Local section names and existing historical text are unchanged
+([decision](docs/decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
 
 The control that creates one is labelled **Add shortcut**.
 
@@ -1518,11 +1560,20 @@ Home and project-write rules; archived source sections show `source_archived`, w
 project or ancestor archived beneath it shows `source_hidden`. A disabled source page remains a
 valid source because disabling hides navigation, not data.*
 
+*Amended in Slice 65.* A workstream's Work canvas is a destination with exactly Home's rules: same
+root and workspace, never its own page, any depth. Its placement writes are recorded in the
+**workstream's** history — the destination project's, never the root's or the source's. Undo and
+Redo of a reparent apply the same one-end-inside rule as the forward move. There is no new tool or
+grant ([why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md)).
+
 *The integrated 25.8 showcase put all seven registered section kinds and four shortcut placements
 on root Home, used a Reflections-page source and a nested work source, and observed source updates
 without copying rows. The source frame stayed read-only and identified its canonical owner; removal
 changed only the placement. This is browser/MCP evidence for the ownership boundary, not a decision
 that embedded shortcuts are yet an MVP requirement.*
+
+*Slice 66 removes the retired Sub-Projects view from those seeds; Home now has six registered
+section kinds with the same four shortcut placements.*
 
 ---
 
@@ -1577,12 +1628,17 @@ SECTION_REGISTRY
 
 *Landed in Slice 29.* Every registered type also declares one capability in the contracts
 package's `SECTION_CAPABILITIES`: which rows it owns, if any, and what removing it could leave
-worth recovering — owned rows (Task List, Reflections), config prose (Rich Text) or nothing
-(Sub-Projects, Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
+worth recovering — owned rows (Task List, Reflections), config prose (Markdown, with a declared `proseKey`) or nothing
+(Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
 from it, and the registry test fails when a registered type has no declaration, so adding a type
 now touches its folder, one registry line and one capability line. A type nothing declares — a
 stale or hand-edited `type` — has *unknown* recovery, never "nothing to recover"
 ([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
+
+*Amended in Slice 64:* a type that owns config also declares its schema in contracts
+(`SECTION_CONFIG_SCHEMAS`), and `SectionService` refuses any other config on create and update for
+every caller. Only Markdown declares one; a type without one stays opaque
+([decision](docs/decisions/2026-10-section-config-validated-on-write.md)).
 
 ---
 
@@ -1591,7 +1647,7 @@ stale or hand-edited `type` — has *unknown* recovery, never "nothing to recove
 Prototype:
 
 ```text
-Rich Text
+Markdown
 
 Task List
 
@@ -1612,17 +1668,32 @@ AI Summary
 Recent Activity
 ```
 
+*Slice 66 retires Sub-Projects from the historical Prototype list above; the current registered
+types are the six listed below.*
+
 Adding a new section type should require minimal changes outside its own feature folder.
 
 ## Which pages accept sections
 
-Seven of the types above are registered today: Rich Text, Task List, Sub-Projects, Progress,
-Reflections, Timeline and Recent Activity.
+Six types are registered today: Markdown, Task List, Progress, Reflections,
+Timeline and Recent Activity. Markdown stores exact source in `config.markdown`;
+its deferred body offers Edit, Source/Preview and explicit Save/Cancel. Unchanged Save and
+Cancel write nothing, refusal keeps the draft, and live updates retain it with a replacement
+notice. Unreadable config cannot be overwritten here and shows only the guidance note. *Amended in Slice
+64:* every write refuses a Markdown config other than `{}` or exactly `{ markdown }`, so only a hand
+edit, or history replaying state recorded before it, can store one. *Amended in Slice 63:* Rich Text is retired — converted to
+Markdown at schema version 6, refused on create through every surface, and refused on load
+([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)). *Amended in Slice 66:*
+Sub-Projects is retired too, with workstream creation under the project as its replacement.
+The retired-type record supplies each type's replacement guidance, while unreadable local files
+are reset or reseeded. Schema version stays 6
+([decision](docs/decisions/2026-10-retiring-the-sub-projects-section.md)). The type stays an open
+string; retired types are the narrow exception.
 
 | Page | Sections |
 |---|---|
 | Home (root) | all registered types, plus shortcut placements (§27) |
-| Work canvas (subproject) | all registered types |
+| Work canvas (subproject) | all registered types, plus shortcut placements (§27, *Slice 65*) |
 | Reflections | its own reflections container, and the journal feed |
 | Todos | none — derived (§34) |
 | Archive | none — derived (§31) |
@@ -1638,7 +1709,7 @@ capability out of `SECTION_OWNERSHIP` (derived from `SECTION_CAPABILITIES` since
 later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
 request first renders it. Slice 25.4 adds the Home-only shortcut placement beside the registered
-types. Slice 25.5 registers the Todos renderer — a derived list that holds no sections, so nothing
+types; Slice 65 extends it to a workstream's Work canvas. Slice 25.5 registers the Todos renderer — a derived list that holds no sections, so nothing
 about this table changes for it. Slice 25.6 adds the Archive renderer and Slice 25.7 adds the
 Reflections renderer; both remain derived/page-owned surfaces as shown above.*
 
@@ -1681,7 +1752,7 @@ ordinary update. Independently archived rows are not changed by removal, so thei
 markers and restore steps remain intact. The domain then retains the section when
 recoverable or uncertain content remains, or when any canonical task, reflection or Home
 shortcut still references it. Otherwise it deletes the section: known disposable views,
-empty containers and whitespace-only Rich Text do not need permanent tombstones. Archived
+empty containers and whitespace-only Markdown do not need permanent tombstones. Archived
 rows and shortcut source ids count in the reference audit. Existing tombstones are not purged
 by this operation. No row or shortcut is silently deleted.
 
@@ -1728,12 +1799,12 @@ More menu is the single recovery entry point from root and nested work routes.
 
 *Landed in Slice 29, amended in Slice 43: Archive lists **recoverable content**, not every section tombstone.* A
 removed or hidden section is listed only when something in it remains to recover: a Task List
-or Reflections container with any rows still assigned to it (archived rows included), Rich Text
-whose only config is prose that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
-empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
-Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
+or Reflections container with any rows still assigned to it (archived rows included), Markdown
+whose only config is its declared string prose key that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
+empty (listed conservatively as unknown content). Removed Progress, Timeline and Recent Activity
+views — and a container with no remaining rows, or blank prose — are deleted
 when no canonical row or shortcut references them. Historical tombstones remain unlisted;
-shortcut-backed disposable sections keep an internal tombstone, leaving Home's source
+shortcut-backed disposable sections keep an internal tombstone, leaving the shortcut's source
 unavailable placeholder intact. Only currently restorable archived sub-projects, tasks and
 reflections are listed. Each section entry carries the domain's recovery metadata: the total
 rows still in the container, apart from the exact count that restores with it and the number of
@@ -1757,7 +1828,7 @@ still restores the rows it moved. Redo re-removes exactly what the removal remov
 recorded state. The history is **bidirectional and per exact actor**: a person or agent connection
 steps only its own stack, only the next action in either direction, for 24 hours per action and 50
 actions per history. A transition requires the stored action family's one write grant —
-`projects.write` for a section, a Home shortcut placement, an optional page or an existing
+`projects.write` for a section, a shortcut placement, an optional page or an existing
 project's own write, `tasks.write` for a
 task, `reflections.write` for a reflection; a new write discards what was waiting to be redone. A
 transition refuses rather than overwrite a later change (a moved row, a new subtask under a moved
@@ -1848,8 +1919,8 @@ it are not the same rule. **Archived owners** are excluded by the `status` filte
 read already had — the dashboard, workspace search and upcoming work — and by the unscoped task
 list, which had none. **Live work beneath an archived ancestor** is excluded by all of those and
 by the project list too, which still returns a project archived in its own right so that
-`status: ['archived']` keeps working and an archived project's own Sub-Projects section still
-lists what is under it. A read that names a project or a section always answers, because an
+`status: ['archived']` keeps working. Archived descendants are reached through root Archive
+and workspace Settings recovery (Slices 44 and 47). A read that names a project or a section always answers, because an
 archived project's own page keeps rendering.*
 
 *Writes beneath an archived ancestor are refused naming the ancestor, and the two operations
@@ -1889,7 +1960,7 @@ tombstone; section content is preserved by refusing while any remains
 # 32. Section Editing
 
 Canvas organization uses contextual controls rather than a separate layout-editing mode.
-Sections and Home shortcut placements share the page's ordered layout. Their drag handles,
+Sections and shortcut placements share the page's ordered layout. Their drag handles,
 collapse controls, rename affordance, resize handles and removal controls are reserved in the
 frame but revealed on hover or keyboard focus. Controls remain visible on hoverless or coarse-
 pointer devices. Revealing them does not shift content, and the overlays are inert while a drag
@@ -1901,8 +1972,9 @@ opportunity in the existing ordered layout, not a reserved cell. Selecting one o
 creation dialog at that location. The dialog provides section types permitted on the current
 page, a name field, Create and Cancel; a blank name uses the type's default. Cancel or Escape
 creates nothing, and a pending submission cannot create duplicates. A failed write preserves
-the entered values and displays an error. Root Home additionally offers the eligible-source
-picker for **Add shortcut**; subproject work canvases do not. A shortcut's source remains
+the entered values and displays an error. A canonical canvas — a root's Home or a workstream's
+Work canvas — additionally offers the eligible-source picker for **Add shortcut**; a root's optional
+pages do not (*amended in Slice 65*, which reversed "subproject work canvases do not"). A shortcut's source remains
 read-only and is edited through **Open source** (§27).
 
 Widths snap to the supported 4, 6, 8 or 12 column spans in Flow and Grid. Dragging previews the
@@ -1940,7 +2012,8 @@ read-only; removing the placement does not archive its source.*
 
 *Landed in Slice 27.* Root Home's contextual creation dialog adds eligible shortcuts at the
 selected position; the shortcut frame exposes remove in place. Neither action is gated by an
-editing mode, and subproject work canvases do not offer shortcut creation.
+editing mode, and subproject work canvases do not offer shortcut creation. *Reversed in Slice 65:*
+a workstream's Work canvas offers the same dialog, picker and frame ([why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md)).
 
 Angular CDK should be used for reorderable drag/drop interactions rather than implementing pointer sorting from scratch.
 
@@ -1995,7 +2068,7 @@ quick create
 
 inline completion
 
-inline title editing
+title editing in the detail drawer
 
 detail drawer
 
@@ -2029,6 +2102,14 @@ announce success before commit; a refused write restores the row and leaves the 
 visible. New attempts and navigation clear stale success.
 
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
+
+*Amended 2026-10-01, Slice 61:* Clicking a Task List row background or its title selects the task
+and opens the drawer; the title button supports Enter and Space. Selection is idempotent and the
+separate Details button is removed. A mouse/pen drag or a background text-selection gesture does
+not select. Checkbox and Delete retain their own intents. A done task's checkbox reopens it to
+`todo`, and the domain clears `completedAt`; completion time is never invented in the browser.
+Title editing lives in the drawer, where a blank draft is refused and Escape discards a dirty draft
+before it closes the drawer. Close and closing Escape return focus to the selected row title.
 
 ## The Todos page
 
@@ -2068,9 +2149,11 @@ Two instants are compared as **text** — a fixed-width whole-second prefix plus
 fractional digits — because §11's `IsoDateTimeSchema` admits omitted seconds and arbitrary
 fractional precision that `Date.parse` would collapse; ties then use kind (a unit of work before a
 task) and the ordinal id. Reading the chronology does not require the Todos tab to be switched on:
-enabling a page is navigation state, not a content permission. Completion is one-way — finished
-rows stay on the list with no control, and reopening uses the canonical canvas the row lives on,
-which is also where a row's link lands, at its own container
+enabling a page is navigation state, not a content permission. *Amended 2026-10-01, Slice 61:*
+task completion is reversible through a checkbox on Todos as well as the Task List. Done tasks
+can be unchecked to reopen to `todo`; cancelled tasks have no toggle. Workstream completion
+remains one-way on Todos and reopening uses its header. Rows still link to their canonical canvas,
+at the owning container for a task
 ([entry](docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
 
 *The 25.8 showcase deliberately inserted a dated work/task tie, completed and cancelled rows, and
@@ -2458,6 +2541,10 @@ This makes dashboard and calendar testing dramatically easier.
 
 Create a development-only panel.
 
+Since Slice 62, its keyboard handler and modal chrome load eagerly; shared controls load
+when the panel opens. Close and the focus trap remain immediately available. A loading
+line and an explicit page reload after chunk failure keep the panel usable.
+
 Suggested shortcut:
 
 ```text
@@ -2745,6 +2832,16 @@ get_dashboard_context
 
 ## Roots, work units and pages
 
+*Terminology correction, Slice 60 (2026-09-30).* Agent descriptions call `kind "subproject"`
+a **workstream**; `create_project` and `get_project` define the mapping explicitly. Tool and
+field names are unchanged, including the legacy `sub-projects` section identifier.
+
+*Slice 66:* `list_sections` describes Progress, Timeline and Recent Activity as computed views,
+alongside Markdown and the Task List/Reflections containers. `create_section` refuses the retired
+hierarchy view through the domain; nested work is created with `create_project` and a parent.
+Tool names, grants and input shapes stay unchanged. The legacy identifier above remains the
+stored name of a retired type.
+
 Once projects split into roots and subprojects (§26), an agent must be able to say which it
 means. Creating a root and creating a unit of work are **distinct, discoverable operations**,
 not one call whose meaning depends on whether a parent happened to be passed. A call whose
@@ -2798,7 +2895,10 @@ being enabled. Since Slice 29 its section entries are the recoverable-content pr
 with `recovery` metadata (`owned-content` with `contentCount` and `separateRestoreCount`, `config`, or `unknown`) beside the
 exact `cascadeCount`; the tool's shape is otherwise unchanged. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
-placement and source identity only, never source rows. Canonical archive/restore tools remain
+placement and source identity only, never source rows. *Amended in Slice 65:* the three tools and
+`undo_operation` describe a destination as a project's canonical page — a root's Home or a
+workstream's Work canvas — recorded in that destination project's history. There is no new tool
+and no grant change. Canonical archive/restore tools remain
 the same operations used by the UI: `archive_project` / `restore_project`, `remove_section` /
 `restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /
 `restore_reflection`. Project restoration requires an explicit non-archived status. Slice 25.7
@@ -2828,7 +2928,8 @@ though the removal response snapshot carries `archivedAt`. `get_operation_histor
 Redo, the revision and any archived blocker. *Since Slice 41* each of the two entries carries its own
 `blockedBy` — the archived project a transition of **that step** would refuse for, or `null` — while
 the top-level `blockedBy` describes the project; history labels name what changed ("Collapsed the
-Tasks shortcut", `Renamed "Old" to "New"`). `undo_operation` and `redo_operation`
+Tasks shortcut", `Renamed "Old" to "New"`); since Slice 69 an untitled source's shortcut name
+includes its owner (§27). `undo_operation` and `redo_operation`
 (`projects.write`, input `{ historyId, actionId, expectedRevision }`) run exactly the next action in
 their direction for the exact actor whose history it is.
 MCP errors carry no structured details, so refusal text starts with its reason. Repeating a
@@ -3276,6 +3377,11 @@ one frame apiece, and so does each of their transitions. Placement frames target
 project**, which is what makes an open Home canvas — in this tab and in another — re-read both its
 combined order and its shortcuts' source identity after a transition it did not make itself.*
 
+*Extended in Slice 65:* HTTP routes are unchanged. A workstream's Work canvas refreshes its
+shortcuts the way Home does: on a live frame anywhere in its project's root tree, matched by the
+frame's `rootProjectId` and not by the canvas's own project, and on reconnect
+([why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md)).*
+
 *Extended in Slice 38:* each optional-page toggle that changes something, and each of its Undo
 and Redo steps, publishes one frame targeted at the page's **root project**; a no-op toggle
 publishes none. An open project context re-reads its pages, so a tab removed or disabled by a
@@ -3493,7 +3599,7 @@ features/projects/sections/
 │
 ├── section-frame/
 │
-├── rich-text/
+├── markdown/
 │
 ├── tasks/
 │
@@ -3620,7 +3726,7 @@ seed/state inspector
 *Both project routes landed in Slice 25.3, resolving to one `ProjectWorkspaceShell` — Angular
 re-uses the instance across a parameter change, so moving between a root's pages keeps its
 context loaded once. `/projects/:projectId` **stays valid** rather than redirecting: it is what
-the sidebar, project creation and every Sub-Projects section link to. Resolution is a positive
+the sidebar and project creation link to. Resolution is a positive
 rule — the project is a root, the kind is navigable, the root has it enabled, and this build can
 render it — so `/pages/work` on a root falls back like any other kind that is not a tab. A
 fallback replaces the URL and carries its reason in navigation state, which is what lets the
@@ -3670,7 +3776,7 @@ permission checks
 Test important reusable interactions:
 
 ```text
-TaskRow completion and Delete
+TaskRow completion, reopen, selection and Delete
 
 ProjectSection collapse
 
@@ -3736,7 +3842,8 @@ open browser aggregate
 
 *Slice 42 adds a creation-history journey: create a root in the sidebar, Undo it, reload at its
 same URL into creator-only recovery, Redo the same project and Home page ids, then create a child
-from its Sub-Projects section and repeat Undo, cross-owner not-found and recovery. The parent tree
+through **Add workstream** in the Work column and repeat Undo, cross-owner not-found and recovery
+(the original Sub-Projects creation surface was retired in Slice 66). The parent tree
 receives the child's committed Undo/Redo frames. Domain and HTTP/MCP checks also refuse Undo when
 the project gained content, children, references, changed fields or another actor's history, with
 no partial mutation; a retired creation remains absent after reload and history expiry.*
@@ -3767,8 +3874,8 @@ use, not whether these paths can be exercised.
 
 *Slice 33 closed the Archive, removal and Undo refactor the same way.* Each Refactor §26
 criterion is traced to a named assertion at the lowest layer that can observe it — domain
-preconditions and pruning, commit-before-publish against the bytes on disk, converter and reopen
-over temp copies of the committed fixtures — and then joined through the browser (nested pointer
+preconditions and pruning, commit-before-publish against the bytes on disk, seed-file persistence and reopen
+over fresh nested-projects seed files — and then joined through the browser (nested pointer
 move and resize Undo, an injected client failure with retry, an agent's overlapping edit, Archive
 Restore appending where Undo returns between neighbours) and both MCP transports (retired reassign
 inputs refused without writes, independent task update Undo/Redo, exact row ids through cascade, a foreign connection, a removed `projects.write` grant and a revoked
@@ -4232,8 +4339,8 @@ The first genuinely useful prototype should support:
 ### Sections
 
 - tasks
-- rich text
-- sub-projects
+- markdown
+- sub-projects (retired in Slice 66; Work list and Add workstream replace it)
 - progress
 - reflections
 - timeline

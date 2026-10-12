@@ -55,3 +55,7 @@ conflict for a placement action, while a source that has gone, left the root tre
 destination page is, because integrity would no longer allow the placement. Recreating a reference
 onto an archived or hidden source is allowed and produces the existing unavailable placeholder; it
 never unarchives the source ([decision](2026-09-section-restore-and-shortcut-history.md)).
+
+**Amended, 2026-10-03 — Slice 65.** The rule holds unchanged for placements on a workstream's Work
+canvas. The resolver reads identity and layout only, whichever canonical page the placement is on.
+See [Work canvas shortcut destinations](2026-10-work-canvas-shortcut-destinations.md).

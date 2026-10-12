@@ -62,8 +62,8 @@ so no presentational component knows a receipt (Slice 41, [decision](../../decis
 
 **Eager feature routes, lazy prototype routes.** Lazy boundaries are one more thing to
 move when a feature moves; the two `prototype/*` routes are lazy because most sessions
-never open them — and the honest limit is that the dev panel stays eager because `App`
-mounts it globally ([decision](../../decisions/2026-08-initial-bundle-budget.md)).
+never open them. `App` mounts the eager development-panel shell globally; its controls
+load only when it opens ([decision](../../decisions/2026-08-initial-bundle-budget.md)).
 
 **Tokens structured around the knobs.** Each theme block holds only base literals and
 every derived token is expressed once under `:root`, so a Design Lab knob moves both
@@ -81,6 +81,8 @@ themes; the token lint permits literals in exactly one file
   optimistic write — the defect class that closed Slice 16 and Slice 17.
 
 ## Decisions that shape this system
+
+- [Markdown source and rendering](../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling.
 
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — workspace Settings provides root recovery independently of any project page.
 

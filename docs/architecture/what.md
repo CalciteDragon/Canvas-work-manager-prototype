@@ -29,7 +29,7 @@ C4Container
     Container(web, "web", "Angular 22, :4200", "Shell, dashboard, project workspaces, development tooling")
     Container(stdio, "mcp:stdio", "Node child process", "The same tool registry over stdio, with its own store")
     Container(host, "prototype-host", "Node, 127.0.0.1:4310", "Fake API, MCP endpoint, event stream, rig controls")
-    ContainerDb(data, ".prototype/data.json", "JSON document, schema version 5", "The whole workspace")
+    ContainerDb(data, ".prototype/data.json", "JSON document, schema version 6", "The whole workspace")
   }
   UpdateLayoutConfig($c4ShapeInRow="2")
   Rel(person, web, "Uses")
@@ -56,7 +56,7 @@ flowchart TB
     repositories["@cwm/repositories<br/>interfaces, unit of work, JSON store"]
     domain["@cwm/domain<br/>services, clock, actor, permissions"]
     mcp["@cwm/mcp-tools<br/>tool registry"]
-    data["@cwm/prototype-data<br/>seeds, personas, tokens, converter"]
+    data["@cwm/prototype-data<br/>seeds, personas, tokens"]
   end
   subgraph apps["apps/"]
     web["web<br/>Angular"]

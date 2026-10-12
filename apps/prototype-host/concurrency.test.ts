@@ -103,7 +103,7 @@ describe('concurrent history transitions', () => {
   /** A section update whose receipt the transitions below step. */
   const updatedSection = async (base: string, projectId: string) => {
     const created = (await (await fetch(`${base}/api/projects/${projectId}/sections`, {
-      method: 'POST', headers: json, body: JSON.stringify({ type: 'rich-text', title: 'Before' }),
+      method: 'POST', headers: json, body: JSON.stringify({ type: 'markdown', title: 'Before' }),
     })).json()) as { section: { id: string } };
     const updated = (await (await fetch(`${base}/api/sections/${created.section.id}`, {
       method: 'PATCH', headers: json, body: JSON.stringify({ title: 'After' }),

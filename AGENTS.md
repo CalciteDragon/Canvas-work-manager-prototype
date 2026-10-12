@@ -46,7 +46,7 @@ decisions and the roadmap — as a browsable site with search and rendered Merma
   CSS custom properties — [web](docs/architecture/web/overview.md)
 - **Host:** `apps/prototype-host` — Node/TypeScript on `127.0.0.1:4310`. Fake API + MCP
   server + fake auth + mock AI — [prototype-host](docs/architecture/prototype-host/overview.md)
-- **Persistence:** one file, `.prototype/data.json`, schema version 5. No SQLite, no
+- **Persistence:** one file, `.prototype/data.json`, schema version 6. No SQLite, no
   Postgres (§14, §80) — [repositories](docs/architecture/repositories/overview.md)
 - **Contracts:** Zod schemas in `packages/contracts`, shared by UI, API, MCP tools, tests
   and seeds (§11) — [contracts](docs/architecture/contracts/overview.md)
@@ -99,6 +99,12 @@ Each has a mechanical check or a named review pass; the list is in
 Do not over-engineer, do not add abstraction layers to, do not write exhaustive tests
 for: the host's HTTP implementation, JSON repositories, prototype auth, fake users and
 tokens, the mock AI provider, the event stream, the dev panel, the seed loader.
+
+**Local prototype data is disposable until further notice.** When a stored shape or a section type
+changes, update the seeds. Do not write a converter or a migration for existing
+`.prototype/*.json` files; a file the new build cannot read is refused with a hint to reset or
+reseed. What must keep working is a few seeds the user can load and play with
+([decision](docs/decisions/2026-10-prototype-data-is-disposable.md)).
 
 ### Never build (§80)
 

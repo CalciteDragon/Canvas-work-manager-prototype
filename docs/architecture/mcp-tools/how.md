@@ -29,7 +29,13 @@ do not filter either projection.
 combined section/shortcut order. A position beyond the current end is clamped to the end, and
 omitting it appends. Both tools keep their declared `projects.write` permission and call the
 matching domain service, which commits the insert and renumbering together. The contract tests
-exercise each tool at a specified position under exactly that grant.
+exercise each tool at a specified position under exactly that grant. `create_section`'s
+description teaches `markdown` with a source config and says Rich Text is retired: a `rich-text`
+create is refused by `SectionService.add` with the same `DomainRuleError` HTTP and the browser get
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). The retired hierarchy view is refused too; nested work uses `create_project` with a parent.
+`create_section` and `update_section` also say a Markdown config is exactly `{ markdown }` or empty. `SectionService`
+refuses any other with a `DomainRuleError` that names the offending key, and the tools only relay it
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
 
 ## Write receipts and the history tools
 
@@ -70,7 +76,8 @@ live section: Archive Restore still needs no receipt to invoke and still never e
 recording it only means the same connection can take it back. `add_section_shortcut` returns
 `{ shortcut, operation }` and `remove_section_shortcut` returns
 `{ shortcutId, projectId, pageId, operation }` — there is no placement left to return — and both
-record into the **destination** root project's history, never the source's. Section duplication and
+record into the **destination** project's history — the root for Home, the workstream for Work —
+never the source's. Section duplication and
 shortcut resize, collapse and move have no tool of their own; they stay HTTP-and-domain operations,
 so the registry holds thirty-eight tools, including the workspace-scoped
 `list_archived_projects` read under `projects.read`.
@@ -149,6 +156,10 @@ chain and revocation over the real transport.
 
 ## Invariants and lints
 
+- **Agent prose names the `subproject` kind a workstream.** `create_project` and
+  `get_project` define `kind "subproject" is a workstream`. The vocabulary case in
+  `contract.test.ts` pins both definitions and rejects "sub-project" and "unit of work"
+  prose in every description. Tool names, schemas and grants retain their existing identifiers.
 - **Imports:** only contracts, domain and zod — `check-package-imports.mjs --allow
   @cwm/contracts,@cwm/domain,zod` in `pnpm --filter @cwm/mcp-tools lint`.
 - **Every tool has a contract case** — `contract.test.ts` iterates `registry.list()` and

@@ -28,6 +28,8 @@ export class ReflectionsPage implements ProjectPageRenderer {
   readonly projectLayoutMode = input<ProjectLayoutMode>('flow');
   readonly restoreBlocked = input<boolean>(false);
   readonly shortcutsAllowed = input<boolean>(false);
+  /** Declared because the shell sets every renderer input; this page has no shortcuts to refresh. */
+  readonly rootProjectId = input<ProjectId | null>(null);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
   readonly onOpenArchive = input<() => void>(() => {});
@@ -57,7 +59,7 @@ export class ReflectionsPage implements ProjectPageRenderer {
   }
 
   subjectLabel(subject: ReflectionSubjectView): string {
-    return `${subject.name} · ${subject.kind === 'task' ? 'Task' : 'Unit of work'}`;
+    return `${subject.name} · ${subject.kind === 'task' ? 'Task' : 'Workstream'}`;
   }
 
   removeSubject(): void {

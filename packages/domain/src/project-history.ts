@@ -5,6 +5,7 @@ import {
   ProjectReactivateOperationSchema,
   ProjectSchema,
   ProjectUpdateOperationSchema,
+  nameOf,
   type OperationHistoryDirection,
   type OperationHistoryId,
   type Project,
@@ -12,6 +13,7 @@ import {
   type ProjectFieldChange,
   type ProjectId,
   type ProjectPage,
+  type ProjectSection,
   type ProjectUndoOperation,
   type RedoResult,
   type SectionShortcut,
@@ -31,7 +33,7 @@ import type {
 } from '@cwm/repositories';
 import type { Clock } from './clock';
 import { EntityNotFoundError } from './errors';
-import { OperationExecutionRefused, directionWord, refuseOnConflicts } from './operation-execution';
+import { OperationExecutionRefused, conflictListText, directionWord, refuseOnConflicts } from './operation-execution';
 
 /**
  * **Capture, Undo and Redo for existing-project writes** (Slice 39, §§26, 31, 39;
@@ -51,7 +53,7 @@ import { OperationExecutionRefused, directionWord, refuseOnConflicts } from './o
  * captured business state, not something to regenerate from the transition's clock.
  *
  * The dependency type holds the project repository — the only one written — plus pages, sections
- * and placements, read to refuse a move that would carry a Home shortcut's source out of its root.
+ * and placements, read to refuse a move that would split a shortcut's two ends across roots.
  * No task or reflection repository appears, so a reviewer can see from the signature that a
  * project transition cannot reach a row.
  */
@@ -381,13 +383,35 @@ const conflict = (id: string, problem: UndoConflict['problem'], title?: string):
   nextStep: nextStepFor(problem),
 });
 
-/** Refuses on conflicts. None is permanent: every one describes a tree someone can put back. */
-const refuse = (direction: OperationHistoryDirection, operation: ProjectWriteOperation, subject: string, conflicts: readonly UndoConflict[]): void =>
+/**
+ * Refuses on conflicts. None is permanent: every one describes a tree someone can put back.
+ *
+ * Carried `placements` are described by the sentence the forward refusal uses (Slice 68), in place
+ * of their generic `shortcut-reference` entries; any other conflict follows in the generic list, so
+ * the text never omits what the typed payload carries.
+ */
+const refuse = (
+  direction: OperationHistoryDirection,
+  operation: ProjectWriteOperation,
+  subject: string,
+  conflicts: readonly UndoConflict[],
+  placements: readonly CarriedShortcut[] = [],
+): void => {
+  const opener = `${directionWord(direction)} of the ${operation.type.replace('project.', '')} on ${subject} was refused: `;
+  const described = carriedShortcutsSentence(placements);
+  if (described === undefined) {
+    refuseOnConflicts(conflicts, (shown) => `${opener}${shown}`, () => false);
+    return;
+  }
+  const others = conflicts.filter(({ problem }) => problem !== 'shortcut-reference');
+  // The generic `shown` list is deliberately unused: it would repeat the placements and could push
+  // the other conflicts past its five-item cap. The typed payload still carries every conflict.
   refuseOnConflicts(
     conflicts,
-    (shown) => `${directionWord(direction)} of the ${operation.type.replace('project.', '')} on ${subject} was refused: ${shown}`,
+    () => `${opener}${described}${others.length === 0 ? '' : `; ${conflictListText(others, false)}`}`,
     () => false,
   );
+};
 
 /**
  * The destination parent's problems, as the forward service would find them: absent or foreign
@@ -445,23 +469,41 @@ const rootOf = async (repositories: ProjectHistoryRepositories, projectId: Proje
 };
 
 /**
- * The Home shortcuts moving `subject` under `destinationParentId` would carry across root trees.
+ * One placement a move would carry across roots, with what the check read to find it: its page and
+ * source section, and each one's project — `undefined` only for a project the workspace list did
+ * not hold, which integrity rules out (the placement is still counted). A domain-local read result
+ * built from contract types, not a contract.
+ */
+export interface CarriedShortcut {
+  shortcut: SectionShortcut;
+  page: ProjectPage;
+  pageProject: Project | undefined;
+  source: ProjectSection;
+  sourceProject: Project | undefined;
+}
+
+/**
+ * The shortcuts moving `subject` under `destinationParentId` would carry across root trees, in
+ * storage order.
  *
- * A move to another root carries every section in the subject's subtree with it, so a Home
- * shortcut on the **old** root that places one of them would cross root trees — a state
- * commit-time integrity rejects. Both the forward write (`ProjectService.update`) and a reparent's
- * Undo or Redo refuse on a non-empty answer, typed, before any write: the placement has to go
- * first. A move within one root, a placement already on the destination root and a broken or
- * cyclic chain (refused elsewhere as not found) all answer empty.
+ * A move to another root carries the subject's whole subtree — its sections and its Work canvases
+ * — with it. Since Slice 65 a placement's destination can be a workstream's Work canvas as well as
+ * a root's Home, so either end may be inside: a placement with **exactly one** end in the subtree
+ * would cross root trees, a state commit-time integrity rejects. Both the forward write
+ * (`ProjectService.update`) and a reparent's Undo or Redo refuse on a non-empty answer, typed,
+ * before any write: the placement has to go first. A move within one root, a placement with both
+ * ends inside or both outside, and a broken or cyclic chain (refused elsewhere as not found) all
+ * answer empty.
  */
 export const shortcutsCarriedAcrossRoots = async (
   repositories: ProjectHistoryRepositories,
   subject: Project,
   destinationParentId: ProjectId,
-): Promise<SectionShortcut[]> => {
+): Promise<CarriedShortcut[]> => {
   const [from, to] = await Promise.all([rootOf(repositories, subject.id), rootOf(repositories, destinationParentId)]);
   if (from === undefined || to === undefined || from === to) return [];
   const projects = await repositories.projects.list({ workspaceId: subject.workspaceId });
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
   const subtree = new Set<ProjectId>([subject.id]);
   for (let grew = true; grew;) {
     grew = false;
@@ -472,25 +514,66 @@ export const shortcutsCarriedAcrossRoots = async (
       }
     }
   }
-  const carried: SectionShortcut[] = [];
+  const carried: CarriedShortcut[] = [];
   for (const shortcut of await repositories.shortcuts.list()) {
-    // A placement's destination is its Home page's root; one already on the new root stays legal.
-    if ((await repositories.pages.find(shortcut.pageId))?.projectId === to) continue;
-    const source = await repositories.sections.find(shortcut.sourceSectionId);
-    if (source !== null && subtree.has(source.projectId)) carried.push(shortcut);
+    // Integrity keeps every stored placement same-root, so a cross-root move breaks exactly the
+    // ones it splits: both ends inside travel together, both outside stay together.
+    const [page, source] = await Promise.all([
+      repositories.pages.find(shortcut.pageId),
+      repositories.sections.find(shortcut.sourceSectionId),
+    ]);
+    if (page === null || source === null) continue;
+    if (subtree.has(page.projectId) !== subtree.has(source.projectId)) {
+      carried.push({
+        shortcut,
+        page,
+        pageProject: projectsById.get(page.projectId),
+        source,
+        sourceProject: projectsById.get(source.projectId),
+      });
+    }
   }
   return carried;
 };
 
+/** A page named by its kind, as a person reads it: "Home", "Work". Wording, not a type. */
+const pageWord = (kind: ProjectPage['kind']): string => `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`;
+
+/** A project by its name, or by its id when the read did not find it. */
+const projectWord = (project: Project | undefined, id: ProjectId): string => (project === undefined ? `[${id}]` : `"${project.name}"`);
+
+/** At most this many placements are described; any further ones are still named by id. */
+const DESCRIBED_PLACEMENTS = 3;
+
+/**
+ * The one sentence both refusals use for carried placements (Slice 68; §§26, 27, 54, 61): each
+ * placement's id, the page it sits on and that page's project, and the section it places and that
+ * section's project — enough to remove it in one step without searching the tree. Every id is
+ * named; only the first three are described, so the sentence stays bounded. Surface-neutral: it
+ * names no control and no tool. `undefined` for an empty list, so no caller checks emptiness.
+ */
+export const carriedShortcutsSentence = (carried: readonly CarriedShortcut[]): string | undefined => {
+  if (carried.length === 0) return undefined;
+  const described = carried
+    .slice(0, DESCRIBED_PLACEMENTS)
+    .map(({ shortcut, page, pageProject, source, sourceProject }) =>
+      `"${shortcut.id}" (on the ${pageWord(page.kind)} page of ${projectWord(pageProject, page.projectId)}, placing "${nameOf(source)}" from ${projectWord(sourceProject, source.projectId)})`);
+  const listed = carried.slice(DESCRIBED_PLACEMENTS).map(({ shortcut }) => `"${shortcut.id}"`);
+  const named = listed.length > 0
+    ? `${described.join(', ')}, and ${listed.join(', ')}`
+    : described.length === 1
+      ? described[0]
+      : `${described.slice(0, -1).join(', ')} and ${described.at(-1)}`;
+  return carried.length === 1
+    ? `shortcut ${named} would cross root trees; remove it from that page, then retry`
+    : `shortcuts ${named} would cross root trees; remove each from its page, then retry`;
+};
+
 /** The history executor's reading of the same check: one `shortcut-reference` conflict per placement. */
-const crossRootShortcutConflicts = async (
-  repositories: ProjectHistoryRepositories,
-  subject: Project,
-  destinationParentId: ProjectId,
-): Promise<UndoConflict[]> =>
-  (await shortcutsCarriedAcrossRoots(repositories, subject, destinationParentId)).map(({ id }) => ({
+const crossRootShortcutConflicts = (carried: readonly CarriedShortcut[]): UndoConflict[] =>
+  carried.map(({ shortcut }) => ({
     entityType: 'shortcut',
-    id,
+    id: shortcut.id,
     problem: 'shortcut-reference',
     nextStep: 'remove-reference-and-retry',
   }));
@@ -517,6 +600,7 @@ const writeProject = async (
   }
 
   let next: Project | undefined;
+  let carried: CarriedShortcut[] = [];
   if (current !== null && conflicts.length === 0) {
     const draft: Record<string, unknown> = { ...current };
     for (const change of operation.changes) {
@@ -536,7 +620,8 @@ const writeProject = async (
       conflicts.push(...(await parentConflicts(repositories, current, next.parentProjectId, true)));
     }
     if (reparenting && conflicts.length === 0) {
-      conflicts.push(...(await crossRootShortcutConflicts(repositories, current, next.parentProjectId!)));
+      carried = await shortcutsCarriedAcrossRoots(repositories, current, next.parentProjectId!);
+      conflicts.push(...crossRootShortcutConflicts(carried));
     }
     if (next.status === 'archived' && current.status !== 'archived') {
       const children = await repositories.projects.list({ workspaceId: current.workspaceId, parentProjectId: current.id });
@@ -544,7 +629,7 @@ const writeProject = async (
     }
   }
 
-  refuse(direction, operation, current === null ? `project [${operation.projectId}]` : `"${current.name}"`, conflicts);
+  refuse(direction, operation, current === null ? `project [${operation.projectId}]` : `"${current.name}"`, conflicts, carried);
   if (current === null || next === undefined) throw new EntityNotFoundError('project', operation.projectId);
 
   const written = ProjectSchema.parse({ ...next, updatedAt: clock.now().toISOString() });

@@ -3,7 +3,7 @@ import { NgComponentOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import {
-  nameOf,
+  shortcutNameOf,
   type ProjectPageKind,
   type ResolvedSectionShortcut,
   type SectionConfig,
@@ -33,7 +33,7 @@ export class ShortcutFrame {
   readonly moveRequested = output<'previous' | 'next'>();
   readonly removeRequested = output<SectionShortcutId>();
 
-  readonly sourceName = computed(() => nameOf(this.shortcut().source));
+  readonly name = computed(() => shortcutNameOf(this.shortcut().source, this.shortcut().sourceProjectName));
   readonly sourceDefinition = computed(() => definitionFor(this.shortcut().source.type));
   readonly sourceRoute = computed(() => {
     const shortcut = this.shortcut();
@@ -43,15 +43,13 @@ export class ShortcutFrame {
   });
   readonly pageLabel = computed(() => pageLabel(this.shortcut().sourcePageKind));
 
-  private readonly noopConfig = (_config: SectionConfig): void => {};
+  private readonly noopConfig = async (_config: SectionConfig): Promise<boolean> => false;
   private readonly noopProjectData = (): void => {};
-  private readonly noopProjectHierarchy = (): void => {};
 
   readonly contentInputs = computed<SectionContentInputs>(() => ({
     section: this.shortcut().source,
     onConfigChange: this.noopConfig,
     onProjectDataChange: this.noopProjectData,
-    onProjectHierarchyChange: this.noopProjectHierarchy,
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
     readOnly: true,

@@ -172,7 +172,7 @@ export class ProjectJournalService {
     const root = projects.find(({ id }) => id === projectId);
     if (root === undefined) throw new EntityNotFoundError('project', projectId);
     if (!isRootProject(root)) {
-      throw new DomainRuleError(`project "${projectId}" is a unit of work; only a root project has a Reflections page`);
+      throw new DomainRuleError(`project "${projectId}" is a workstream; only a root project has a Reflections page`);
     }
     const descendants = this.descendants(root.id, projects);
     return {

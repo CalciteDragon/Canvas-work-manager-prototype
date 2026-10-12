@@ -75,6 +75,17 @@ a current read, so a race is verified against the canonical write refusal too.
     archived container; the acceptance script's clock-driven Archive Restore after a removal's
     history expired runs on Streamable HTTP. `mcp/stdio.test.ts` independently proves the stdio
     expiry, Restore and same-file restart through an SDK client with an injected test clock.
+    Slice 65 adds a shortcut on a created workstream's Work canvas, recorded and undone in that
+    workstream's history, to `acceptance`; `mcp-acceptance` places an ancestor section on a
+    workstream's Work canvas (page id read with `list_project_pages`), lists and undoes it, and
+    proves a forward cross-root `update_project` is refused naming a placement it would split, then
+    succeeds once the placement is removed — on both transports. Slice 67 reads updated and Undone
+    Markdown source back through `list_sections` and disk, and reopens a descendant task with
+    owner-history isolation and exact `completedAt` Undo/Redo on both transports. Slice 68 checks
+    that the forward refusal describes the placement's Work page and source, removes it by the id
+    parsed from that text, and has the second connection place a new-root section on the mover's
+    Work canvas so the agent's Undo of the move is refused with the same description, writes
+    nothing, and succeeds once the placement is gone — on both transports.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first takes the scratch file's owner
    record and copies the current empty seed over it — refused with `data_file_in_use:` if a
    leftover e2e host still owns `.prototype/e2e-data.json`, reclaimed if a hard-killed one left a
@@ -91,10 +102,15 @@ a current read, so a race is verified against the canonical write refusal too.
    archive that stays on its project, pending state through a held write, a gated second tab refused
    `history_revision_stale`, an agent's conflicting edit, and expiry after a clock move. The older
    journeys that clicked the notice's Undo now go through `history-controls.ts`.
-   Slice 42's `project-creation-history.spec.ts` creates from the sidebar and a Sub-Projects section,
+   `work-navigation.spec.ts` checks gear and plus behavior in both themes, live parent loss,
+   create refusal, archived-root blocking and a second tab's Work/Todos refresh. The touch
+   path and dialog containment are in `phone-layout.spec.ts`. Slice 67 adds the literal six-type
+   picker in `canvas-editing.spec.ts` and Markdown rendering, exact touch source save, code scrolling
+   and containment at 375 px and desktop span-4 Grid in both themes.
+   Slice 42's `project-creation-history.spec.ts` creates from the sidebar and Work plus,
    Undoes and Redoes the same ids, reloads the creator's recovery route, and confirms another actor
    sees *Project unavailable*. A nested-project journey checks the root Work tree, Todos, Archive
-   and the parent's Sub-Projects section after create, Undo and Redo, then verifies the expired
+   and the parent's Work column after create, Undo and Redo, then verifies the expired
    creation route has no stale recovery offer.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
@@ -119,7 +135,7 @@ paths are in [what](what.md).
 
 - Every system, by construction. Test-only dependencies: `vitest`, `@playwright/test`,
   `@modelcontextprotocol/client`, `storybook`, `@storybook/angular-vite`,
-  `@storybook/addon-themes`, `jsdom`.
+  `@storybook/addon-themes` and `jsdom`.
 - [prototype-data](../prototype-data/overview.md) — seeds for every suite and script.
 - [prototype-runtime](../prototype-host/prototype-runtime/overview.md) — `/prototype/seed`
   for the e2e specs.
@@ -187,6 +203,14 @@ pnpm storybook                                        # :6006
   journeys check header Undo, guarded Archive opening and Restore, keyboard/touch activation,
   failure and 375 px themes. The focused web component specs drive pending, refusal, final-row
   and route-generation boundaries before those browser journeys.
+- **Task interaction** lives in `task-interaction.spec.ts`: isolated `nested-projects` scratch
+  roots exercise both task checkbox surfaces, reload, progress and reflection projections, exact
+  owner Undo/Redo timestamps, routed/injected refusals, repeated Space with retained focus,
+  title/background selection and drawer title validation/commit/Escape. Shortcut rows remain
+  read-only. `canvas-editing.spec.ts` proves a title drag opens no drawer, sends no task PATCH
+  and does not move a section. HTTP and MCP reopen cases in `api/routes.test.ts` and
+  `contract.test.ts` were proved sensitive by temporarily preserving `completedAt`, then
+  immediately restoring the domain line and rerunning green.
 - **Phone layout** lives in `phone-layout.spec.ts`. Isolated `nested-projects` data, 375 × 812
   with `hasTouch`/`isMobile` in both `colorScheme` values (the persona's `data-theme` is set with
   the toggle), plus a separate non-mobile context for resize, because `isMobile` emulation does
@@ -194,7 +218,10 @@ pnpm storybook                                        # :6006
   project main track: the shell's `100vh` `<main>` scrolls internally, so a document check alone
   misses content that overflows inside it. Every journey waits for the persona before toggling
   the theme: the identity's arrival re-seeds `data-theme`, and a create sent before it finds no
-  workspace. `row-history.spec.ts` taps Delete with the details drawer open.
+  workspace. `row-history.spec.ts` taps Delete with the details drawer open. Title taps open
+  the stacked Task List drawer, Close returns focus to that title, and a done task reopens by
+  touch with API and reload evidence. Tap slop is proved in TaskRow's unit test, because
+  Playwright's `tap()` has no movement. Opening intentionally does not scroll the drawer into view.
 - **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
   the canvas and Archive and return with their saved config/order; live task and reflection rows
   cascade in one gesture; independently archived rows keep their markers; an independent task
@@ -202,8 +229,19 @@ pnpm storybook                                        # :6006
   preserves Archive and section state.
 - **Section edit Undo acceptance** lives in `section-edit-undo.spec.ts`: explicit HTTP
   add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
-  rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and
+  rename, a Markdown Edit → Save, collapse, keyboard resize and keyboard move Undo with reload, and
   the Reflections-page container add, Undo and refusal once a reflection is authored.
+- **Markdown acceptance** lives in `canvas-editing.spec.ts`: `markdown section saves source,
+  renders safely and undoes` creates from the picker, previews a heading and list, saves exact
+  source, then reloads to check links, fenced code and escaped script text without a script
+  element. Cancel after typing and unchanged Save send no PATCH; an awaited changed Save
+  settles both gestures before the recorded PATCH list is asserted to contain only that write.
+  Header Undo/Redo are checked against exact API source. `markdown shortcut renders read-only`
+  projects a child canvas's source onto Home with no Edit control. The HTTP round-trip case in
+  `api/routes.test.ts` and the `create_section` / `update_section` cases in `contract.test.ts`
+  preserve source and replace config whole; `get_project_archive` checks non-blank Markdown's
+  `config` recovery. Temporary source-dropping faults in tool and PATCH forwarding were
+  reverted after those source assertions failed.
 - **Optional-page history** lives in `page-history.spec.ts`: a first enable through the page
   manager, undone to an absent record and redone to the same page id with a second tab watching the
   live frames and a reload proving persistence; Open archive from More recording one action while
@@ -217,11 +255,19 @@ pnpm storybook                                        # :6006
   same user's history endpoint with a second tab watching; an Archive Restore that records its own
   action, is undone back into Archive and redone, with the removal beneath it still its own step;
   and duplication, which stays an HTTP action because the frame has no Duplicate control yet.
+- **Untitled shortcut names (Slice 69)** are checked in `canvas-editing.spec.ts` with
+  `toHaveAccessibleName` on `[data-shortcut-frame]`: Kitchen's local `Rename Markdown` control
+  sits beside `Markdown (Garden)`, and the seeded Home distinguishes `Reflections (Kitchen)`
+  from `Reflections (Home renovation)`. `project-history.spec.ts` checks the qualified Progress
+  shortcut's captured labels. Both MCP transports check the untitled Work Manager source's
+  receipt and following history label. The `ShortcutFrame` story's play function finds
+  `Remove shortcut to Markdown (Website launch)`; `pnpm test` does not execute that play function,
+  so run its Interactions in Storybook separately.
 - **Integrated recovery acceptance (Slice 33)** is a matrix, not one journey. The Refactor §26
   ledger in [the Slice 33 record](../../roadmap/completed/33-recovery-undo-integrated-acceptance.md)
   names each assertion. To rerun the failure and reopen evidence: `recovery-undo-acceptance.test.ts`
-  copies the committed fixtures under `packages/prototype-data/test/fixtures/` to temp files, runs
-  `upgrade-cli.ts` through `node --import tsx`, and reopens with `loadPersistence` each time;
+  writes current seeds to temp files through `writeSeedFile` and reopens with `loadPersistence`
+  each time; old-file conversion cases were removed in Slice 66;
   `live-updates.test.ts` swaps `store.persist` or `operationActions.insert` for a throwing function,
   checks the bytes on disk are unchanged and no frame was delivered, then restores the original
   and retries once. `section-edit-undo.spec.ts` sets the dev panel's failure rate to 100% only

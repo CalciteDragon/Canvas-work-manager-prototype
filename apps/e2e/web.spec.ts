@@ -63,7 +63,7 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await page.locator('[data-quick-create] button[type="submit"]').click();
   await expect(page.locator('[data-task-row]')).toHaveCount(1);
 
-  await page.locator('[data-task-details]').first().click();
+  await page.locator('[data-task-title]').first().click();
   await expect(page.locator('[data-task-drawer]')).toBeVisible();
   await page.locator('[data-task-due-date]').fill(DUE_DATE);
 
@@ -135,7 +135,7 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
   await expect(page.locator('[data-work-project-id="project-kitchen"]')).toBeVisible();
   await expect(page.locator('[data-work-project-id="project-kitchen"] [data-work-project-id="project-cabinets"]')).toBeVisible();
   await expect(page.locator('[data-shortcut-frame]')).toHaveCount(4);
-  await expect(page.locator('[data-section-item]')).toHaveCount(7);
+  await expect(page.locator('[data-section-item]')).toHaveCount(6);
 
   // The committed seed, not a test-only fixture, drives the exact chronology. The equality at
   // 23:59:59.999Z includes Kitchen (a date-only unit) and two tasks, then ids settle the tasks.
@@ -252,8 +252,7 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
     return pages.find((candidate) => candidate.kind === kind);
   };
 
-  const manager = page.locator('[data-project-page-manager]');
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   for (const kind of ['todos', 'archive', 'reflections'] as const) {
     await pageToggle(kind).click();
     await expect(pageToggle(kind)).toBeChecked();
@@ -267,13 +266,13 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await expect.poll(async () => (await pageRecord('todos'))?.enabled).toBe(false);
   await page.reload();
   await expect(pageToggle('todos')).not.toBeChecked();
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await pageToggle('todos').click();
   await expect(pageToggle('todos')).toBeChecked();
   await page.reload();
   await expect(page.locator('[data-project-page-tab][data-page-kind="todos"]')).toBeVisible();
 
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await pageToggle('reflections').click();
   await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
   await page.goto(`/projects/${projectId}/pages/reflections`);
@@ -299,6 +298,7 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await page.goto(`/projects/${grandchild.id}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Nested unit');
   await expect(page.locator('[data-project-nav-root]')).toContainText('Page management journey');
+  await page.locator('[data-project-settings-toggle]').click();
   await expect(page.locator('[data-project-page-manager]')).toBeVisible();
   await expect(page.locator('[data-page-toggle-kind="work"]')).toHaveCount(0);
   await expect(page.locator('[data-page-toggle-kind="home"] input')).toBeDisabled();
@@ -333,11 +333,12 @@ test('injected gateway failures roll back a task but preserve confirmed optional
   await closeDevPanel();
   try {
     const task = page.locator('[data-todo-id="task-renovation-budget"]');
-    await task.locator('[data-todo-complete]').click();
+    await task.locator('[data-todo-toggle]').click();
     await expect(task).not.toHaveClass(/todos__row--finished/);
     await expect(page.locator('[data-todo-write-error]')).toContainText('prototype failure injection');
+    await expect(task.locator('[data-todo-toggle]')).not.toBeChecked();
 
-    await page.locator('[data-project-page-manager] summary').click();
+    await page.locator('[data-project-settings-toggle]').click();
     const todosToggle = page.locator('[data-page-toggle-kind="todos"] input');
     await todosToggle.click();
     await expect(todosToggle).toBeChecked();

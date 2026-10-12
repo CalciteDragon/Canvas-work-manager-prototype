@@ -30,8 +30,8 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
 - **Activity.** One `ActivityEvent` per state-changing operation, with the actor, through
   `ActivityService.record` — which is also where a live frame is published, after commit.
 - **Undo and Redo.** Section add (duplication included), move, settings, removal and Archive
-  Restore; task and reflection create, update, archive and restore; the four Home shortcut
-  placement writes; the optional-page toggle; project creation; and every changed update, archive
+  Restore; task and reflection create, update, archive and restore; the four shortcut
+  placement writes, on a root's Home or a workstream's Work canvas; the optional-page toggle; project creation; and every changed update, archive
   or reactivation of an existing project each record one action into the acting actor's
   per-project operation history through `OperationRecorder`, in their caller-owned unit, and return
   an operation receipt. A placement's action belongs to the **destination** root project, never the

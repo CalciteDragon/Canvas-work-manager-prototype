@@ -9,6 +9,7 @@ import {
   ResolvedSectionShortcutSchema,
   TaskSchema,
   type Project,
+  type ProjectId,
   type ProjectSection,
   type SectionWriteResult,
   type ResolvedSectionShortcut,
@@ -23,6 +24,7 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { ProjectCanvas } from './project-canvas';
+import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { ProjectPageStore } from './project-page-store';
 import { SECTION_REGISTRY } from './sections/registry';
 
@@ -57,7 +59,7 @@ const section = (
     position,
     columnSpan: 12,
     collapsed: false,
-    config: type === 'rich-text' ? { text: 'Launch week notes' } : {},
+    config: type === 'markdown' ? { markdown: 'Launch week notes' } : {},
     createdAt: AT,
     updatedAt: AT,
     ...overrides,
@@ -121,6 +123,7 @@ const render = async (
     project?: Project;
     pageId?: string;
     shortcutsAllowed?: boolean;
+    rootProjectId?: ProjectId;
     restoreBlocked?: boolean;
     sections?: ProjectSection[];
     shortcuts?: ResolvedSectionShortcut[];
@@ -139,7 +142,7 @@ const render = async (
   const gateway = new FakeWorkManagerGateway({
     projects: [renderedProject],
     sections: options.sections ?? [
-      section('section-text', 'rich-text', 0),
+      section('section-text', 'markdown', 0),
       section('section-tasks', 'task-list', 1),
     ],
     tasks: renderedTasks,
@@ -172,6 +175,7 @@ const render = async (
   // The shell owns the project record; the canvas is handed only what it renders with.
   fixture.componentRef.setInput('projectLayoutMode', renderedProject.projectLayoutMode);
   fixture.componentRef.setInput('shortcutsAllowed', options.shortcutsAllowed ?? false);
+  fixture.componentRef.setInput('rootProjectId', options.rootProjectId ?? renderedProject.id);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
   fixture.detectChanges();
   // A gated read is deliberately still in flight, so waiting for stability here would hang:
@@ -212,8 +216,15 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       fixture.componentRef.setInput('pageId', 'page-next');
       fixture.detectChanges();
       await fixture.whenStable();
-      expect(load).toHaveBeenLastCalledWith('project-a', 'page-next', false);
+      expect(load).toHaveBeenLastCalledWith('project-a', 'page-next', false, 'project-a');
       expect(load).toHaveBeenCalledTimes(2);
+
+      // A cross-root move changes a workstream's root; its canvas reloads under the new one (Slice 65).
+      fixture.componentRef.setInput('rootProjectId', 'project-other-root');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(load).toHaveBeenLastCalledWith('project-a', 'page-next', false, 'project-other-root');
+      expect(load).toHaveBeenCalledTimes(3);
     } finally {
       load.mockRestore();
     }
@@ -221,14 +232,15 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('renders every registered section inside one frame, in position order', async () => {
     const { fixture } = await render();
+    await completeDeferredBlocks(fixture);
 
     const frames = queryAll(fixture, '[data-section-frame]');
     expect(frames.map((frame) => frame.getAttribute('data-section-type'))).toEqual([
-      'rich-text',
+      'markdown',
       'task-list',
     ]);
     // The two content components, each inside the shared §31 chrome.
-    expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
+    expect(query(fixture, '[data-markdown-edit]')).not.toBeNull();
     expect(query(fixture, '[data-quick-create]')).not.toBeNull();
   });
 
@@ -247,7 +259,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   // Acceptance 3, as a test rather than a claim: §30 says Home and a work canvas take "all
   // registered types", including ones registered after that sentence was written — so the case
-  // iterates the registry instead of naming seven types it would then have to be kept in step
+  // iterates the registry instead of naming six types it would then have to be kept in step
   // with. Both canvases, because a sub-project's page is the one whose id is not canonical.
   it.each([
     ['a root’s Home', 'page-project-a'],
@@ -270,7 +282,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   // so the collapse toggle is it.
   it('rolls a failed collapse back onto the canvas and names the reason', async () => {
     const { fixture } = await render({
-      sections: [section('section-text', 'rich-text', 0)],
+      sections: [section('section-text', 'markdown', 0)],
       failOn: { 'sections.update': new GatewayError('unreachable', 0, 'the host is not running') },
     });
     const collapse = query(fixture, '[data-section-collapse]')!;
@@ -305,7 +317,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     fixture.detectChanges();
 
     expect(gateway.argumentTo('sections.create')).toMatchObject({
-      input: { type: 'rich-text', pageId: 'page-project-a', position: 0, columnSpan: 12 },
+      input: { type: 'markdown', pageId: 'page-project-a', position: 0, columnSpan: 12 },
     });
     expect(queryAll(fixture, '[data-section-item]')).toHaveLength(1);
     expect(query(fixture, '[data-section-create-dialog]')).toBeNull();
@@ -332,7 +344,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     const { fixture, gateway } = await render({
       project: project({ projectLayoutMode: 'grid' }),
       sections: [
-        section('section-wide', 'rich-text', 0, { columnSpan: 8 }),
+        section('section-wide', 'markdown', 0, { columnSpan: 8 }),
         section('section-next-row', 'task-list', 1, { columnSpan: 6 }),
       ],
     });
@@ -350,7 +362,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('resolves the remembered anchor after a live placement is added', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)],
     });
     fixture.nativeElement.querySelector(
       'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
@@ -368,15 +380,69 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect((creates.at(-1)?.argument as { input: { position: number } }).input.position).toBe(1);
   });
 
+  describe('on a workstream Work page (Slice 65)', () => {
+    const workstream = () => project({ kind: 'subproject', parentProjectId: 'project-root' });
+    const WORK_PAGE = 'page-project-a-work' as ProjectSection['pageId'];
+    const onWork = (id: string, type: string, position: number) => section(id, type, position, { pageId: WORK_PAGE });
+
+    it('offers a shortcut at an insertion anchor that survives a refresh, onto the Work page', async () => {
+      const { fixture, gateway } = await render({
+        project: workstream(),
+        pageId: WORK_PAGE,
+        rootProjectId: 'project-root' as ProjectId,
+        shortcutsAllowed: true,
+        shortcutSources: [shortcutSource],
+        sections: [onWork('section-text', 'markdown', 0), onWork('section-tasks', 'task-list', 1)],
+      });
+      fixture.nativeElement.querySelector(
+        'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
+      ).click();
+      fixture.detectChanges();
+      query(fixture, '[data-create-shortcut-mode]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      gateway.options.sections = [
+        onWork('section-new', 'progress', 0),
+        onWork('section-text', 'markdown', 1),
+        onWork('section-tasks', 'task-list', 2),
+      ];
+      await fixture.componentInstance.store.load('project-a' as Project['id'], WORK_PAGE, true, 'project-root' as ProjectId);
+      fixture.detectChanges();
+      query(fixture, '[data-shortcut-add]')!.click();
+      await fixture.whenStable();
+
+      expect(gateway.argumentTo('shortcuts.create')).toMatchObject({
+        projectId: 'project-a',
+        input: { pageId: WORK_PAGE, sourceSectionId: 'section-source', position: 2 },
+      });
+    });
+
+    it('blocks insertion and moves while its combined order is incomplete', async () => {
+      const { fixture } = await render({
+        project: workstream(),
+        pageId: WORK_PAGE,
+        rootProjectId: 'project-root' as ProjectId,
+        shortcutsAllowed: true,
+        sections: [onWork('section-text', 'markdown', 0)],
+        failOn: { 'shortcuts.list': new GatewayError('unreachable', 0, 'shortcut placements unavailable') },
+      });
+
+      expect(query(fixture, '[data-placement-order-incomplete]')).not.toBeNull();
+      expect(queryAll(fixture, 'app-insertion-point')).toHaveLength(0);
+      expect(query(fixture, '[data-section-drag-handle]')?.getAttribute('aria-disabled')).toBe('true');
+    });
+  });
+
   it('keeps the dialog open and reports when its remembered anchor disappeared', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)],
     });
     fixture.nativeElement.querySelector(
       'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
     ).click();
     fixture.detectChanges();
-    gateway.options.sections = [section('section-text', 'rich-text', 0)];
+    gateway.options.sections = [section('section-text', 'markdown', 0)];
     await fixture.componentInstance.store.load('project-a' as Project['id'], 'page-project-a' as ProjectSection['pageId'], false);
     fixture.detectChanges();
 
@@ -469,8 +535,30 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       'section-tasks',
       'section-text',
     ]);
-    expect(query(fixture, '[data-canvas-live-region]')?.textContent).toContain('Moved Rich Text to position 2 of 2');
+    expect(query(fixture, '[data-canvas-live-region]')?.textContent).toContain('Moved Markdown to position 2 of 2');
     expect(document.activeElement).toBe(query(fixture, '[data-section-item][data-section-id="section-text"] [data-section-drag-handle]'));
+  });
+
+  it('qualifies shortcut resize, insertion and keyboard move names with the source owner', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-text', 'markdown', 0)],
+      shortcutsAllowed: true,
+      shortcuts: [shortcut('shortcut-a', 1)],
+    });
+    const item = '[data-shortcut-id="shortcut-a"]';
+
+    expect(query(fixture, `${item} app-section-resize-handle[data-edge="end"] [data-resize-handle]`)?.getAttribute('aria-label')).toBe('Resize Task List (Website launch)');
+    expect(query(fixture, `${item} [data-insertion-point="before"] button`)?.getAttribute('aria-label')).toBe('Insert before Task List (Website launch)');
+    expect(query(fixture, '[data-section-id="section-text"] app-section-resize-handle[data-edge="end"] [data-resize-handle]')?.getAttribute('aria-label')).toBe('Resize Markdown');
+
+    const grip = query(fixture, `${item} [data-shortcut-drag-handle]`)!;
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('shortcuts.move')).toEqual({ id: 'shortcut-a', input: { position: 0 } });
+    expect(query(fixture, '[data-canvas-live-region]')?.textContent?.trim()).toBe('Moved Task List (Website launch) to position 1 of 2.');
+    expect(document.activeElement).toBe(query(fixture, `${item} [data-shortcut-drag-handle]`));
   });
 
   it('moves focus from the removed section to the recovery notice’s Open Archive, and offers no Undo here', async () => {
@@ -486,7 +574,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
     // Slice 41: Undo is the header's; the notice keeps only recovery the header cannot offer.
     expect(query(fixture, '[data-undo-action]')).toBeNull();
-    expect(query(fixture, '[data-recovery-message]')?.textContent).toBe('Removed the Rich Text section. Undo is in the header.');
+    expect(query(fixture, '[data-recovery-message]')?.textContent).toBe('Removed the Markdown section. Undo is in the header.');
     const archive = query(fixture, '[data-open-archive]') as HTMLButtonElement;
     expect(archive).not.toBeNull();
     expect(document.activeElement).toBe(archive);
@@ -584,7 +672,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('inserts a named section before the selected anchor from the contextual dialog', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)],
     });
     const beforeTasks = fixture.nativeElement.querySelector(
       'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
@@ -592,7 +680,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     beforeTasks.click();
     fixture.detectChanges();
     const type = query(fixture, '[data-create-section-type]') as HTMLSelectElement;
-    type.value = 'rich-text';
+    type.value = 'markdown';
     type.dispatchEvent(new Event('change'));
     const name = query(fixture, '[data-create-section-name]') as HTMLInputElement;
     name.value = 'Release notes';
@@ -603,7 +691,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
     expect(gateway.argumentTo('sections.create')).toMatchObject({
       projectId: 'project-a',
-      input: { type: 'rich-text', pageId: 'page-project-a', position: 1, columnSpan: 12, title: 'Release notes' },
+      input: { type: 'markdown', pageId: 'page-project-a', position: 1, columnSpan: 12, title: 'Release notes' },
     });
     expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual([
       'section-text',
@@ -617,7 +705,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('creates on a sub-project’s work page and does not offer shortcut mode', async () => {
     const { fixture, gateway } = await render({
       pageId: 'page-work',
-      sections: [section('section-work', 'rich-text', 0, { pageId: 'page-work' })],
+      sections: [section('section-work', 'markdown', 0, { pageId: 'page-work' })],
     });
 
     query(fixture, '[data-insertion-point-button]')!.click();
@@ -760,7 +848,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('keeps every section, including an unknown type, in the same draggable order', async () => {
     const { fixture } = await render({
       sections: [
-        section('section-text', 'rich-text', 0),
+        section('section-text', 'markdown', 0),
         section('section-unknown', 'unknown-future-type', 1),
         section('section-tasks', 'task-list', 2),
       ],
@@ -805,7 +893,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('sends section and shortcut drops as positions in the same combined sequence', async () => {
     const { fixture, gateway } = await render({
       shortcutsAllowed: true,
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 2)],
       shortcuts: [shortcut('shortcut-a', 1)],
       tasks: [task('task-source', 'todo', 'section-source')],
     });
@@ -833,7 +921,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('dispatches a drop by the dragged section id and complete-list index', async () => {
     const { fixture, gateway } = await render({
       sections: [
-        section('section-text', 'rich-text', 0),
+        section('section-text', 'markdown', 0),
         section('section-unknown', 'unknown-future-type', 1),
         section('section-tasks', 'task-list', 2),
       ],
@@ -876,9 +964,9 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     const gate = deferred<SectionWriteResult>();
     const { fixture, gateway } = await render({
       sections: [
-        section('section-text', 'rich-text', 0),
+        section('section-text', 'markdown', 0),
         section('section-tasks', 'task-list', 1),
-        section('section-b', 'rich-text', 0, { pageId: 'page-b' }),
+        section('section-b', 'markdown', 0, { pageId: 'page-b' }),
       ],
     });
     gateway.sections.move = vi.fn(() => gate.promise);
@@ -942,7 +1030,7 @@ describe('ProjectCanvas — the gridProjectLayout flag (§47)', () => {
 describe('ProjectCanvas — Archive boundary (§31, §32)', () => {
   it('does not render a page-local archive region, even when an archived section is returned', async () => {
     const { fixture } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-backlog', 'task-list', 2, { archivedAt: AT })],
+      sections: [section('section-text', 'markdown', 0), section('section-backlog', 'task-list', 2, { archivedAt: AT })],
     });
 
     expect(query(fixture, '[data-archived-region]')).toBeNull();
@@ -975,7 +1063,7 @@ describe('ProjectCanvas — arriving at a container (§27, §34)', () => {
 
   it('opens a collapsed target for the visit, and writes nothing to get there', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1, { collapsed: true })],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1, { collapsed: true })],
       fragment: new BehaviorSubject<string | null>('section-section-tasks'),
     });
 
@@ -1022,4 +1110,16 @@ describe('ProjectCanvas — arriving at a container (§27, §34)', () => {
       expect(query(fixture, '[data-section-target-missing]') === null).toBe(!fragment.startsWith('section-'));
     }
   });
+});
+
+it('section config save resolves false and shows the error on refusal', async () => {
+  const { fixture } = await render({
+    sections: [section('section-text', 'markdown', 0)],
+    failOn: { 'sections.update': new GatewayError('unreachable', 0, 'source could not be saved') },
+  });
+  const frame = fixture.debugElement.query(By.directive(ProjectSectionFrame)).componentInstance as ProjectSectionFrame;
+  expect(await frame.contentInputs().onConfigChange({ markdown: 'kept draft' })).toBe(false);
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(query(fixture, '[data-section-error]')?.textContent).toContain('source could not be saved');
 });

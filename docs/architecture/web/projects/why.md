@@ -2,6 +2,12 @@
 
 ## The problem it solves
 
+The root-name gear and Work plus put settings and creation beside the navigation they affect,
+with an explicit root-default parent and the child's existing history feedback
+([navigation controls](../../../decisions/2026-09-project-navigation-gear-and-work-create.md)).
+Nested `subproject` work is called a workstream in user prose
+([terminology](../../../decisions/2026-09-workstream-user-terminology.md)).
+
 The project page is the central product experience and where most learning happens
 (§26). It has to let a person try answers to §2's page questions — Notion-like or
 widget-like, columns or not, resizable or not, which section types deserve to exist —
@@ -73,7 +79,7 @@ header decides availability from **each entry's own** `blockedBy`, never the pro
 an archived project could not undo its own archive
 ([decision](../../../decisions/2026-09-project-header-history-controls.md)).
 
-**Ownership is read from `historyId`, not guessed at the write site.** A task list inside a Home
+**Ownership is read from `historyId`, not guessed at the write site.** A task list inside a
 shortcut writes a row its source sub-project owns, and a restore from root Archive can record in a
 descendant; so a writer reports the response's own project only for wording, and the store compares
 the receipt's history with the one it holds — re-reading when it cannot tell — before saying a step
@@ -100,6 +106,11 @@ section, synced against the page's data revision — because under
 [sections own their data](../../../decisions/2026-09-sections-own-their-data.md) two
 Task Lists must differ. A shortcut never gets a writable store: `ShortcutFrame` mounts
 the source read-only ([decision](../../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)).
+
+**Untitled shortcut names identify the owner on the frame itself.** A breadcrumb alone leaves
+a local `Markdown` beside an indistinguishable shortcut. The shared `shortcutNameOf` makes the
+latter `Markdown (Garden)` throughout its controls without inventing a stored override or
+changing a chosen title ([decision](../../../decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
 
 **Section removal is one gesture with a recoverable result.** The canvas sends only the section
 id; the domain archives live owned rows with it and leaves independently archived rows alone.
@@ -154,6 +165,12 @@ Undo action or imply the row is the next action
 
 ## Decisions that shape this system
 
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../../decisions/2026-10-retiring-the-sub-projects-section.md)
+
+- [Markdown source and rendering](../../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling.
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../../decisions/2026-10-schema-version-6-markdown-conversion.md) — historical cutover; the registry omits Rich Text and Slice 66 removed the converter. Unreadable local files require reset or reseed.
+- [A Markdown section's config is validated on every write](../../../decisions/2026-10-section-config-validated-on-write.md) — the schema comes from contracts; unreadable config shows only the guidance note.
+
 - [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — Todos names the owner and points to the existing header and root Archive.
 - [Descendant rows link to their owner's existing header history](../../../decisions/2026-09-descendant-history-discovery.md) — owner route and fragment focus without a merged cursor.
 
@@ -172,6 +189,7 @@ Undo action or imply the row is the next action
 - [Container sections own their rows](../../../decisions/2026-09-sections-own-their-data.md)
 - [A shortcut resolves source identity, not source content](../../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)
 - [Home orders sections and shortcuts together](../../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../../decisions/2026-10-work-canvas-shortcut-destinations.md)
 - [What the Todos page decides for itself](../../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
 - [Root Archive recovery guidance](../../../decisions/2026-09-root-archive-recovery-guidance.md)
 - [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md)

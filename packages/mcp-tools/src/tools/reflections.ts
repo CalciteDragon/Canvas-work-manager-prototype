@@ -23,7 +23,7 @@ export const reflectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'add_reflection',
     description:
-      'Add a reflection to a project: a body, and optionally a title, the prompt it answers, and a subject naming completed work in the same root tree. Returns { reflection, operation } — the created reflection and its Undo receipt. A subject must be a currently completed task or sub-project, and the link is retained if that work is later reopened or archived. It lands in a reflections container on the project’s canonical canvas unless a pageId or sectionId says otherwise, and one is created if there is none, in which case undoing this one action removes the reflection and that container together; a root with its Reflections page enabled can take one there directly.',
+      'Add a reflection to a project: a body, and optionally a title, the prompt it answers, and a subject naming completed work in the same root tree. Returns { reflection, operation } — the created reflection and its Undo receipt. A subject must be a currently completed task or workstream, and the link is retained if that work is later reopened or archived. It lands in a reflections container on the project’s canonical canvas unless a pageId or sectionId says otherwise, and one is created if there is none, in which case undoing this one action removes the reflection and that container together; a root with its Reflections page enabled can take one there directly.',
     permission: 'reflections.write',
     inputSchema: CreateReflectionInputSchema,
     execute: (input, { actor, services }) => services.reflections.create(actor, input),

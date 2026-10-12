@@ -84,8 +84,8 @@ export const HomeOnly: Story = {
   args: { pages: HOME_ONLY },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByText('Manage pages'));
-    await expect(canvas.getByRole('checkbox', { name: 'Show Home page' })).toBeDisabled();
+    await userEvent.click(canvas.getByRole('button', { name: 'Project page settings for Home renovation' }));
+    await expect(canvas.getByRole('checkbox', { name: 'Home page is required' })).toBeDisabled();
   },
 };
 
@@ -123,6 +123,9 @@ export const NoWorkYet: Story = {
 /** The manager stays usable while a non-optimistic page write is in flight. */
 export const Pending: Story = {
   args: { pages: HOME_ONLY, pageWritePending: true },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Project page settings for Home renovation' }));
+  },
 };
 
 /** A failed write or context read is visible beside the controls. */
@@ -131,6 +134,9 @@ export const Refused: Story = {
     pages: HOME_ONLY,
     pageWriteError: 'The Archive page could not be saved.',
   },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Project page settings for Home renovation' }));
+  },
 };
 
 /** The disclosure and its event binding are real, even though the story has no gateway. */
@@ -138,8 +144,22 @@ export const ToggleOptionalPage: Story = {
   args: { pages: HOME_ONLY, pageToggleRequested: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByText('Manage pages'));
+    await userEvent.click(canvas.getByRole('button', { name: 'Project page settings for Home renovation' }));
     await userEvent.click(canvas.getByRole('checkbox', { name: 'Show Todos page' }));
     await expect(args.pageToggleRequested).toHaveBeenCalledWith({ kind: 'todos', enabled: true });
+  },
+};
+
+/** The root's archived state leaves the plus focusable and spells out the refusal. */
+export const ArchivedRoot: Story = {
+  args: { workCreateBlocked: 'unavailable while Home renovation is archived' },
+};
+
+/** A disclosure Escape returns focus to its gear; opening is a real local toggle. */
+export const SettingsOpen: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Project page settings for Home renovation' }));
+    await expect(canvas.getByRole('heading', { name: 'Pages' })).toBeVisible();
   },
 };

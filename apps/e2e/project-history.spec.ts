@@ -99,9 +99,9 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await list.locator('[data-quick-create] button[type="submit"]').click();
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Created "Order grout"');
   await list.locator('[data-task-row]', { hasText: 'Order grout' }).locator('button[data-task-title]').click();
-  // The row's text leaves with its title once the editor opens, so find the editor itself.
-  await list.locator('[data-task-title-editor]').fill('Order tile grout');
-  await list.locator('[data-task-title-editor]').press('Enter');
+  // Selection opens the drawer, where the title is committed once.
+  await list.locator('[data-task-drawer-title]').fill('Order tile grout');
+  await list.locator('[data-task-drawer-title]').press('Enter');
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Updated "Order tile grout"');
   const renamedRow = list.locator('[data-task-row]', { hasText: 'Order tile grout' });
   await renamedRow.locator('[data-task-complete]').click();
@@ -109,7 +109,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await renamedRow.locator('[data-task-delete]').click();
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Archived "Order tile grout"');
 
-  // Sections: resize, move, and remove a Rich Text section with prose.
+  // Sections: resize, move, and remove a Markdown section with prose.
   const progress = page.locator('[data-section-item][data-section-id="section-project-renovation-progress"]');
   const resize = progress.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
   await resize.focus();
@@ -121,9 +121,9 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
   await brief.locator('[data-section-remove]').click();
   await expect(brief).toHaveCount(0);
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Markdown section');
   // 8. The recovery notice keeps Archive and says where Undo lives; it has no Undo of its own.
-  await expect(page.locator('[data-recovery-message]')).toHaveText('Removed the Rich Text section. Undo is in the header.');
+  await expect(page.locator('[data-recovery-message]')).toHaveText('Removed the Markdown section. Undo is in the header.');
   await expect(page.locator('[data-recovery-notice] [data-open-archive]')).toBeVisible();
   await page.locator('[data-dismiss-recovery-notice]').click();
 
@@ -136,12 +136,12 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await option.locator('[data-shortcut-add]').click();
   const shortcutId = ((await (await created).json()) as { shortcut: { id: string } }).shortcut.id;
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Added the Progress shortcut');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Added the Progress (Kitchen) shortcut');
   const shortcut = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcutId}"]`);
   await shortcut.locator('[data-shortcut-collapse]').click();
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Collapsed the Progress shortcut');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Collapsed the Progress (Kitchen) shortcut');
   await shortcut.locator('[data-shortcut-remove]').click();
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Progress shortcut');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Progress (Kitchen) shortcut');
   // A shortcut removal leaves nothing for Archive, so there is no notice at all.
   await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
 
@@ -155,7 +155,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
 
   const progressSpan = async () => (await sectionsOf(ROOT, HOME)).find(({ id }) => id === 'section-project-renovation-progress')?.columnSpan;
   const progressIndex = async () => (await sectionsOf(ROOT, HOME)).sort((a, b) => a.position - b.position).findIndex(({ id }) => id === 'section-project-renovation-progress');
-  const originalIndex = 3;
+  const originalIndex = 2;
   /** Where the page itself draws Progress among the canvas's sections. */
   const renderedProgressIndex = () => page.locator('[data-section-canvas] > [data-section-item]')
     .evaluateAll((items) => items.map((item) => item.getAttribute('data-section-id')).indexOf('section-project-renovation-progress'));
@@ -163,16 +163,16 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
     { label: 'Renamed "Home renovation" to "House renovation"',
       undone: () => expect(page.locator('[data-project-name]')).toHaveText('Home renovation'),
       redone: () => expect(page.locator('[data-project-name]')).toHaveText('House renovation') },
-    { label: 'Removed the Progress shortcut',
+    { label: 'Removed the Progress (Kitchen) shortcut',
       undone: () => expect(shortcut).toBeVisible(),
       redone: () => expect(shortcut).toHaveCount(0) },
-    { label: 'Collapsed the Progress shortcut',
+    { label: 'Collapsed the Progress (Kitchen) shortcut',
       undone: () => expect(shortcut.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-expanded', 'true'),
       redone: () => expect(shortcut.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-expanded', 'false') },
-    { label: 'Added the Progress shortcut',
+    { label: 'Added the Progress (Kitchen) shortcut',
       undone: () => expect(shortcut).toHaveCount(0),
       redone: () => expect(shortcut).toBeVisible() },
-    { label: 'Removed the Rich Text section',
+    { label: 'Removed the Markdown section',
       undone: () => expect(brief).toBeVisible(),
       redone: () => expect(brief).toHaveCount(0) },
     { label: 'Moved the Progress section',
@@ -252,7 +252,7 @@ test('2. an optional page toggle is undone and redone from the header', async ({
   const pages = await api.get<ProjectPage[]>('/api/projects/project-personal/pages');
   expect(pages.map(({ kind }) => kind)).toEqual(['home']);
   await page.goto('/projects/project-personal');
-  await page.locator('[data-project-page-manager] summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
   const tab = page.locator('[data-project-page-tab][data-page-kind="reflections"]');
   await expect(tab).toBeVisible();
@@ -269,7 +269,7 @@ test('4. a write recorded in another project’s history says so, and its link l
   await page.goto(`/projects/${ROOT}/pages/todos`);
   await expectEmptyControls(page, 'Todos');
   const row = page.locator('[data-todo-row][data-todo-id="task-kitchen-appliances"]');
-  await row.locator('[data-todo-complete]').click();
+  await row.locator('[data-todo-toggle]').click();
   await expect(historyFeedback(page)).toHaveText('Completed "Choose appliance finishes" was recorded in Kitchen’s history.');
   await expectEmptyControls(page, 'Todos after a cross-owner write');
 
@@ -373,12 +373,12 @@ test('6. controls are pending through a write and its re-read, and a stale tab i
   const before = { undo: await historyControl(page, 'undo').getAttribute('aria-label'), redo: await historyControl(page, 'redo').getAttribute('aria-label') };
   const client = await connectMcp('prototype-user-a-readwrite', 'cwm-slice-41-agent');
   try {
-    const written = await client.callTool({ name: 'update_section', arguments: { sectionId: 'section-project-renovation-brief', config: { text: 'An agent’s plan.' } } });
+    const written = await client.callTool({ name: 'update_section', arguments: { sectionId: 'section-project-renovation-brief', config: { markdown: 'An agent’s plan.' } } });
     expect(written.isError).not.toBe(true);
   } finally {
     await client.close();
   }
-  await expect(page.locator('[data-section-item][data-section-id="section-project-renovation-brief"] [data-rich-text-body]')).toHaveValue('An agent’s plan.');
+  await expect(page.locator('[data-section-item][data-section-id="section-project-renovation-brief"] app-markdown-renderer')).toHaveText('An agent’s plan.');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', before.undo!);
   await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', before.redo!);
 });
@@ -387,8 +387,8 @@ test('7. a conflicting later edit refuses with its subject and next step, and ex
   await page.goto(`/projects/${ROOT}`);
   const list = page.locator('[data-section-item][data-section-id="section-project-renovation-tasks"]');
   await list.locator('[data-task-row]', { hasText: 'Call the salvage yard' }).locator('button[data-task-title]').click();
-  await list.locator('[data-task-title-editor]').fill('Call the reclamation yard');
-  await list.locator('[data-task-title-editor]').press('Enter');
+  await list.locator('[data-task-drawer-title]').fill('Call the reclamation yard');
+  await list.locator('[data-task-drawer-title]').press('Enter');
   const label = 'Updated "Call the reclamation yard"';
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', `Undo: ${label}`);
 
@@ -460,6 +460,7 @@ test('Slice 45 · 1. the controls work with Archive disabled, populated off Home
     // The toggle is session-only: every full load applies the persona's stored theme again.
     const visit = async (url: string) => {
       await page.goto(url);
+      await expect(page.locator('[data-identity-name]')).toBeVisible();
       await expect(page.locator('[data-theme-toggle]')).toBeVisible();
       if (await page.locator('html').getAttribute('data-theme') !== colorScheme) await page.locator('[data-theme-toggle]').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
@@ -546,8 +547,8 @@ test('Slice 45 · 2. add → complete → rename → Delete undo and redo with t
   expect(inMinute(states[2]!.completedAt, 1), 'completedAt comes from the Clock').toBe(true);
   await setClock(at(2));
   await list.locator('[data-task-row]', { hasText: 'Seal the tub' }).locator('button[data-task-title]').click();
-  await list.locator('[data-task-title-editor]').fill('Seal the bathtub');
-  await list.locator('[data-task-title-editor]').press('Enter');
+  await list.locator('[data-task-drawer-title]').fill('Seal the bathtub');
+  await list.locator('[data-task-drawer-title]').press('Enter');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Updated "Seal the bathtub"');
   states.push(businessOf(await taskOrNull(id)));
   await setClock(at(3));
@@ -637,15 +638,15 @@ test('Slice 45 · 3. layout, progress and shortcut moves undo and redo from the 
   // Remove retained prose, let its history expire, then recover it through Archive.
   const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
   await brief.locator('[data-section-remove]').click();
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Markdown section');
   await setClock(at(25 * 60 + 5));
   await page.reload();
-  await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-label', 'Undo: Removed the Markdown section');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-disabled', 'true');
   await page.goto(`/projects/${ROOT}/pages/archive`);
   const entry = page.locator('[data-archived-item][data-archived-id="section-project-renovation-brief"]');
   await entry.locator('[data-archived-restore]').click();
   await expect(entry).toHaveCount(0);
   expect((await sectionsOf(ROOT, HOME)).some(({ id }) => id === 'section-project-renovation-brief')).toBe(true);
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Restored the Rich Text section');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Restored the Markdown section');
 });

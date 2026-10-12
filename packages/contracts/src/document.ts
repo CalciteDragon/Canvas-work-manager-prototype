@@ -17,18 +17,16 @@ import { OperationActionSchema, OperationHistorySchema } from './operation-histo
  * sub-projects and gives every project pages that own its sections. 4 replaces version 3's
  * single-use Undo records with per-actor operation histories and gives every section an
  * `archiveGeneration`. 5 makes every activity event carry the captured identity of its target, so
- * an audit line survives the Undo that deletes the row it describes. Bump it whenever a change
+ * an audit line survives the Undo that deletes the row it describes. 6 retires the Rich Text section:
+ * every Rich Text section and every history copy of one becomes Markdown. Bump it whenever a change
  * would make an existing file wrong — a mismatch is fatal rather than silently coerced, so a stale
  * file fails at load instead of halfway through a session.
  *
- * There is still no migration *runner* or registry. `pnpm prototype:upgrade` runs three explicit
- * converters in a fixed order — version 2 → 3 (`upgradeProjectPages`, frozen at its version-3
- * output), version 3 → 4 (`upgradeOperationHistory`, now frozen at its version-4 output) and
- * version 4 → 5 (`upgradeActivityIdentity`) — and validates the version-5 result before writing a
- * byte (docs/decisions/2026-09-schema-version-4-conversion.md,
- * docs/decisions/2026-09-schema-version-5-conversion.md).
+ * Versions 2–5 are no longer readable. Local prototype data is disposable: reset or reseed an
+ * incompatible file; no converter or migration preserves it
+ * (docs/decisions/2026-10-prototype-data-is-disposable.md).
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /**
  * §14's document. Not strict: an unknown top-level key in a hand-edited file is stripped
@@ -55,7 +53,7 @@ export const PrototypeDocumentSchema = z.object({
   /**
    * Per-actor, per-project Undo/Redo cursors and the typed actions they step through — never
    * inside `activityEvents`. Defaulted, so a hand-written document with no history parses to
-   * empty stacks; the version-4 converter and every seed write both collections explicitly.
+   * empty stacks; every seed writes both collections explicitly.
    */
   operationHistories: z.array(OperationHistorySchema).default(() => []),
   operationActions: z.array(OperationActionSchema).default(() => []),

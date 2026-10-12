@@ -73,6 +73,7 @@ export class TaskListStore {
    * reader that needs to know "are these tasks trustworthy" has to ask this instead.
    */
   readonly loadFailed = this.loadFailedState.asReadonly();
+  /** The rows with a completion toggle in flight. */
   readonly completingIds = this.completingIdsState.asReadonly();
   readonly archivingIds = this.archivingIdsState.asReadonly();
   readonly selectedTask = computed(() => {
@@ -231,7 +232,8 @@ export class TaskListStore {
   complete(id: TaskId): Promise<boolean> {
     return this.track(() => this.mutating(async () => {
       const previous = this.tasksState().find((task) => task.id === id);
-      if (previous === undefined || previous.status === 'done') return false;
+      if (previous === undefined || previous.status === 'done' || this.completingIdsState().has(id)) return false;
+      const generation = this.loadGeneration;
 
       this.errorState.set(null);
       const fields: MutableTaskField[] = ['status', 'completedAt', 'updatedAt'];
@@ -241,9 +243,46 @@ export class TaskListStore {
 
       try {
         const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.complete(id), taskReport);
+        if (generation !== this.loadGeneration) return false;
         this.patchCurrent(id, task, fields, operationRevision);
         return true;
       } catch (error) {
+        if (generation !== this.loadGeneration) return false;
+        this.patchCurrent(id, previous, fields, operationRevision);
+        this.errorState.set(messageOf(error));
+        return false;
+      } finally {
+        this.completingIdsState.update((ids) => {
+          const next = new Set(ids);
+          next.delete(id);
+          return next;
+        });
+      }
+    }));
+  }
+
+  /** Optimistically reopens a done task; a failure restores its exact completion timestamp. */
+  reopen(id: TaskId): Promise<boolean> {
+    return this.track(() => this.mutating(async () => {
+      const previous = this.tasksState().find((task) => task.id === id);
+      if (previous === undefined || previous.status !== 'done' || this.completingIdsState().has(id)) return false;
+      const generation = this.loadGeneration;
+
+      this.errorState.set(null);
+      const fields: MutableTaskField[] = ['status', 'completedAt', 'updatedAt'];
+      const operationRevision = this.claim(id, fields);
+      const optimistic = { ...previous, status: 'todo' as const };
+      delete optimistic.completedAt;
+      this.patchCurrent(id, optimistic, fields, operationRevision);
+      this.completingIdsState.update((ids) => new Set([...ids, id]));
+
+      try {
+        const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.update(id, { status: 'todo' }), taskReport);
+        if (generation !== this.loadGeneration) return false;
+        this.patchCurrent(id, task, fields, operationRevision);
+        return true;
+      } catch (error) {
+        if (generation !== this.loadGeneration) return false;
         this.patchCurrent(id, previous, fields, operationRevision);
         this.errorState.set(messageOf(error));
         return false;

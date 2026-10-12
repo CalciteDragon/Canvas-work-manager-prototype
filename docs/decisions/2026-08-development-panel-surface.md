@@ -81,3 +81,6 @@ question they raised is answered above: the reload stays for host-state changes,
 `sessionStorage` is still load-bearing and these settings do not go back to session-only.
 Revisit if the panel ever gains a control that changes *one* thing — Layout Mode was that
 control, and it needed no reload once a frame could reach the page.
+
+
+**Amended, 2026-10-02 — Slice 62.** The approved bundle remedy keeps the overlay shell, chord, Close, backdrop and focus trap eager, while shared DevPanelControls loads through a deferred block inside the open branch. Loading has a polite placeholder; chunk failure retains modal dismissal and offers explicit Reload page. Closing destroys the view; reopening creates a fresh one over the same root-provided store. The route and controls remain shared. Focus and lifecycle tests cover loading, completion, error and reopen.

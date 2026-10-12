@@ -335,7 +335,7 @@ describe('MCP stdio entry (§59)', () => {
       return client;
     };
     const state = async () => JSON.parse(await readFile(path, 'utf8')) as {
-      sections: Array<{ id: string; archivedAt?: string; config: { text?: string } }>;
+      sections: Array<{ id: string; archivedAt?: string; config: { markdown?: string } }>;
       operationHistories: Array<{ id: string; revision: number }>;
       operationActions: Array<{ id: string; state: string }>;
       activityEvents: Array<{ id: string; action: string; entityId: string; actor: string; actorAgentConnectionId?: string }>;
@@ -344,8 +344,8 @@ describe('MCP stdio entry (§59)', () => {
     const archive = async (client: Client, sectionId: string) => {
       const result = await client.callTool({ name: 'get_project_archive', arguments: { projectId } });
       expect(result.isError).not.toBe(true);
-      expect((result.structuredContent as { items: Array<{ section?: { id: string; config: { text?: string } } }> }).items)
-        .toContainEqual(expect.objectContaining({ section: expect.objectContaining({ id: sectionId, config: { text: prose } }) }));
+      expect((result.structuredContent as { items: Array<{ section?: { id: string; config: { markdown?: string } } }> }).items)
+        .toContainEqual(expect.objectContaining({ section: expect.objectContaining({ id: sectionId, config: { markdown: prose } }) }));
     };
     const history = async (client: Client) => {
       const result = await client.callTool({ name: 'get_operation_history', arguments: { projectId } });
@@ -363,13 +363,18 @@ describe('MCP stdio entry (§59)', () => {
     let removalEventId!: string;
     const first = await clockClient('first');
     try {
-      const created = await first.callTool({ name: 'create_section', arguments: { projectId, type: 'rich-text', title: 'Retained prose', config: { text: prose } } });
+      // Slice 63: a retired Rich Text create is the domain's tool error over stdio too.
+      const retired = await first.callTool({ name: 'create_section', arguments: { projectId, type: 'rich-text', config: { text: prose } } });
+      expect(retired.isError).toBe(true);
+      expect(retired.content).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringMatching(/retired.*Markdown/) }));
+      expect((await state()).sections.filter(({ config }) => config.markdown === prose || 'text' in config)).toEqual([]);
+      const created = await first.callTool({ name: 'create_section', arguments: { projectId, type: 'markdown', title: 'Retained prose', config: { markdown: prose } } });
       expect(created.isError).not.toBe(true);
-      sectionId = (created.structuredContent as { section: { id: string; config: { text: string } } }).section.id;
-      expect((created.structuredContent as { section: { config: { text: string } } }).section.config.text).toBe(prose);
+      sectionId = (created.structuredContent as { section: { id: string; config: { markdown: string } } }).section.id;
+      expect((created.structuredContent as { section: { config: { markdown: string } } }).section.config.markdown).toBe(prose);
       const removed = await first.callTool({ name: 'remove_section', arguments: { sectionId } });
       expect(removed.isError).not.toBe(true);
-      expect(removed.structuredContent).toMatchObject({ archiveListed: true, section: { id: sectionId, config: { text: prose } } });
+      expect(removed.structuredContent).toMatchObject({ archiveListed: true, section: { id: sectionId, config: { markdown: prose } } });
       removal = (removed.structuredContent as { operation: typeof removal }).operation;
       expect(removal).toMatchObject({ operation: 'section.remove', expiresAt: expect.any(String) });
       expect(Date.parse(removal.expiresAt) - Date.parse(removal.createdAt)).toBe(86_400_000);
@@ -414,7 +419,7 @@ describe('MCP stdio entry (§59)', () => {
       const before = await state();
       const restored = await second.callTool({ name: 'restore_section', arguments: { sectionId } });
       expect(restored.isError).not.toBe(true);
-      expect(restored.structuredContent).toMatchObject({ section: { id: sectionId, config: { text: prose } }, operation: { operation: 'section.restore' } });
+      expect(restored.structuredContent).toMatchObject({ section: { id: sectionId, config: { markdown: prose } }, operation: { operation: 'section.restore' } });
       restoreActionId = (restored.structuredContent as { operation: { actionId: string } }).operation.actionId;
       const after = await state();
       expect(after.sections.find(({ id }) => id === sectionId)?.archivedAt).toBeUndefined();
@@ -435,7 +440,7 @@ describe('MCP stdio entry (§59)', () => {
     const third = await clockClient('reopen');
     try {
       const final = await third.callTool({ name: 'list_sections', arguments: { projectId } });
-      expect((final.structuredContent as Array<{ id: string; config: { text?: string } }>)).toContainEqual(expect.objectContaining({ id: sectionId, config: { text: prose } }));
+      expect((final.structuredContent as Array<{ id: string; config: { markdown?: string } }>)).toContainEqual(expect.objectContaining({ id: sectionId, config: { markdown: prose } }));
       expect((await history(third)).undo?.actionId).toBe(restoreActionId);
       expect((await state()).activityEvents.map(({ id }) => id)).toEqual(expect.arrayContaining([removalEventId, restoreEventId]));
     } finally {

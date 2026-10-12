@@ -60,6 +60,16 @@ const openMore = async (fixture: Awaited<ReturnType<typeof render>>) => {
 };
 
 describe('ProjectHeader (§26)', () => {
+  it('names the archive action for the displayed project kind', async () => {
+    const rootFixture = await render();
+    await openMore(rootFixture);
+    expect(query(rootFixture, '[data-project-archive]')?.textContent?.trim()).toBe('Archive project');
+
+    const workFixture = await render({ project: workUnit() });
+    await openMore(workFixture);
+    expect(query(workFixture, '[data-project-archive]')?.textContent?.trim()).toBe('Archive workstream');
+  });
+
   it('renders §26’s header: icon, name, status, progress and target date', async () => {
     const fixture = await render();
 

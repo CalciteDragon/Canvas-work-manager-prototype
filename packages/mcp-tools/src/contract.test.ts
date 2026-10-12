@@ -1,4 +1,4 @@
-import { AgentPermissionSchema, type AgentPermission } from '@cwm/contracts';
+import { AgentPermissionSchema, OperationHistorySummarySchema, SectionAddResultSchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
 import { requiredPermissions, toolPermission } from './tool';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -10,6 +10,7 @@ import {
   PROJECT,
   SEEDED_SHORTCUT,
   SHORTCUT_DESTINATION_PAGE,
+  SHORTCUT_SOURCE_PAGE,
   SHORTCUT_SOURCE_PROJECT,
   SHORTCUT_SOURCE_SECTION,
   TASK_CONTAINER,
@@ -19,6 +20,7 @@ import {
 
 const ALL_PERMISSIONS = AgentPermissionSchema.options;
 const CONTENT_SECTION = 'section-project-work-manager-brief';
+const MARKDOWN_SOURCE = '# Agent notes\n\n- Preserve source\n- Keep **formatting**\n\n<script>opaque source</script>\n';
 
 /**
  * One case per tool. `mutates` says which half of the store assertion applies; `verify` is
@@ -147,8 +149,10 @@ const CASES: Record<string, ToolCase> = {
     prepare: async (harness) => {
       const writer = agent(['projects.write', 'tasks.write']);
       await harness.services.sections.remove(writer, VIEW_SECTION);
-      const notes = await harness.services.sections.add(writer, PROJECT, { type: 'rich-text', config: { text: 'Keep me' } });
+      const notes = await harness.services.sections.add(writer, PROJECT, { type: 'markdown', config: { markdown: 'Keep me' } });
       await harness.services.sections.remove(writer, notes.section.id);
+      const markdown = await harness.services.sections.add(writer, PROJECT, { type: 'markdown', config: { markdown: MARKDOWN_SOURCE } });
+      await harness.services.sections.remove(writer, markdown.section.id);
       await harness.services.sections.remove(writer, TASK_CONTAINER);
     },
     verify: (result) => {
@@ -156,7 +160,11 @@ const CASES: Record<string, ToolCase> = {
       expect(result.root.id).toBe(PROJECT);
       const sections = result.items.filter((item: { kind: string }) => item.kind === 'section');
       expect(sections.map((item: { section: { id: string } }) => item.section.id)).not.toContain(VIEW_SECTION);
-      expect(sections).toContainEqual(expect.objectContaining({ section: expect.objectContaining({ type: 'rich-text' }), recovery: { kind: 'config' } }));
+      expect(sections).toContainEqual(expect.objectContaining({ section: expect.objectContaining({ type: 'markdown', config: { markdown: 'Keep me' } }), recovery: { kind: 'config' } }));
+      expect(sections).toContainEqual(expect.objectContaining({
+        section: expect.objectContaining({ type: 'markdown', config: { markdown: MARKDOWN_SOURCE } }),
+        recovery: { kind: 'config' },
+      }));
       expect(sections).toContainEqual(
         expect.objectContaining({
           section: expect.objectContaining({ id: TASK_CONTAINER }),
@@ -266,7 +274,7 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT },
     verify: async (result, harness) => {
       expect(result.map((section: { type: string }) => section.type)).toEqual([
-        'rich-text',
+        'markdown',
         'task-list',
         'recent-activity',
       ]);
@@ -278,12 +286,13 @@ const CASES: Record<string, ToolCase> = {
     },
   },
   create_section: {
-    input: { projectId: PROJECT, type: 'progress', position: 1 },
+    input: { projectId: PROJECT, type: 'markdown', config: { markdown: MARKDOWN_SOURCE }, position: 1 },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ section: { projectId: PROJECT, type: 'progress', position: 1 }, operation: { operation: 'section.add' } });
+      expect(result).toMatchObject({ section: { projectId: PROJECT, type: 'markdown', position: 1, config: { markdown: MARKDOWN_SOURCE } }, operation: { operation: 'section.add' } });
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.find(({ id }) => id === result.section.id)?.position).toBe(1);
+      expect(listed.find(({ id }) => id === result.section.id)?.config).toEqual({ markdown: MARKDOWN_SOURCE });
       expect(await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, { pageId: SHORTCUT_DESTINATION_PAGE })).toMatchObject([
         { id: SEEDED_SHORTCUT, position: 4 },
       ]);
@@ -298,11 +307,19 @@ const CASES: Record<string, ToolCase> = {
     },
   },
   update_section: {
-    input: { sectionId: TASK_CONTAINER, title: 'This week' },
+    input: { sectionId: 'section-1', title: 'This week', config: { markdown: MARKDOWN_SOURCE } },
     mutates: true,
+    prepare: async (harness) => {
+      await harness.services.sections.add(agent(['projects.write']), PROJECT, {
+        type: 'markdown', config: { markdown: 'Old source' },
+      });
+    },
     verify: async (result, harness) => {
       expect(result.section.title).toBe('This week');
-      expect((await harness.services.sections.get(agent(['projects.read']), TASK_CONTAINER)).title).toBe('This week');
+      expect(result.section.config).toEqual({ markdown: MARKDOWN_SOURCE });
+      const stored = await harness.services.sections.get(agent(['projects.read']), result.section.id);
+      expect(stored.title).toBe('This week');
+      expect(stored.config).toEqual({ markdown: MARKDOWN_SOURCE });
     },
   },
   remove_section: {
@@ -463,6 +480,74 @@ const CASES: Record<string, ToolCase> = {
   },
 };
 
+describe('agent-facing workstream vocabulary (§26, §54)', () => {
+  it('defines workstream with the unchanged subproject kind and avoids retired prose', () => {
+    const { registry } = buildHarness();
+    for (const name of ['create_project', 'get_project']) {
+      expect(registry.list().find((tool) => tool.name === name)?.description).toContain('kind "subproject" is a workstream');
+    }
+    for (const tool of registry.list()) {
+      const prose = tool.description;
+      expect(prose).not.toMatch(/sub-project|units? of work/i);
+    }
+  });
+});
+
+describe('shortcuts on a workstream Work canvas over MCP (Slice 65)', () => {
+  const WORK_PAGE = SHORTCUT_SOURCE_PAGE;
+  const minimal = () => agent(['projects.read', 'projects.write']);
+
+  it('adds, lists, removes and undoes on a workstream with only projects.read and projects.write', async () => {
+    const { registry } = buildHarness();
+    const added = (await registry.call(
+      'add_section_shortcut',
+      { projectId: SHORTCUT_SOURCE_PROJECT, pageId: WORK_PAGE, sourceSectionId: CONTENT_SECTION },
+      minimal(),
+    )) as { shortcut: { id: string; pageId: string }; operation: { historyId: string; actionId: string; revision: number } };
+    expect(added.shortcut.pageId).toBe(WORK_PAGE);
+
+    const listed = (await registry.call('list_section_shortcuts', { projectId: SHORTCUT_SOURCE_PROJECT }, minimal())) as { id: string }[];
+    expect(listed.map(({ id }) => id)).toEqual([added.shortcut.id]);
+
+    const undone = (await registry.call(
+      'undo_operation',
+      { historyId: added.operation.historyId, actionId: added.operation.actionId, expectedRevision: added.operation.revision },
+      minimal(),
+    )) as { result: { operation: string; outcome: string } };
+    expect(undone.result).toMatchObject({ operation: 'shortcut.add', outcome: 'removed' });
+
+    const again = (await registry.call(
+      'add_section_shortcut',
+      { projectId: SHORTCUT_SOURCE_PROJECT, pageId: WORK_PAGE, sourceSectionId: CONTENT_SECTION },
+      minimal(),
+    )) as { shortcut: { id: string } };
+    await expect(registry.call('remove_section_shortcut', { shortcutId: again.shortcut.id }, minimal())).resolves.toMatchObject({
+      projectId: SHORTCUT_SOURCE_PROJECT,
+      pageId: WORK_PAGE,
+    });
+    expect(await registry.call('list_section_shortcuts', { projectId: SHORTCUT_SOURCE_PROJECT }, minimal())).toEqual([]);
+  });
+
+  it('refuses add_section_shortcut on a workstream with projects.read alone, writing nothing', async () => {
+    const { registry, store } = buildHarness();
+    const before = store.snapshot();
+
+    await expect(
+      registry.call('add_section_shortcut', { projectId: SHORTCUT_SOURCE_PROJECT, pageId: WORK_PAGE, sourceSectionId: CONTENT_SECTION }, agent(['projects.read'])),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it('no longer describes shortcuts as Home-only', () => {
+    const { registry } = buildHarness();
+    for (const name of ['list_section_shortcuts', 'add_section_shortcut', 'remove_section_shortcut', 'undo_operation']) {
+      const description = registry.list().find((tool) => tool.name === name)!.description;
+      expect(description).not.toMatch(/root project’s Home page|destination Home page|Home shortcut/);
+    }
+    expect(registry.list().find((tool) => tool.name === 'add_section_shortcut')!.description).toContain('Work canvas');
+  });
+});
+
 describe('every §54 tool, on its success and permission-denied paths', () => {
   let harness: ReturnType<typeof buildHarness>;
 
@@ -551,12 +636,77 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
 
     expect(harness.store.snapshot()).toEqual(before);
   });
+
+  it('refuses a retired Rich Text create through the domain, writing nothing (Slice 63)', async () => {
+    const harness = buildHarness();
+    const before = harness.store.snapshot();
+
+    await expect(
+      harness.registry.call('create_section', { projectId: PROJECT, type: 'rich-text', config: { text: 'Old' } }, agent(['projects.write'])),
+    ).rejects.toThrow(expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/retired.*Markdown/) }));
+    // The grant is still checked first: a reader is refused for permission, not for the type.
+    await expect(
+      harness.registry.call('create_section', { projectId: PROJECT, type: 'rich-text' }, agent(['projects.read'])),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('create_section refuses sub-projects through the domain, writing nothing (Slice 66)', async () => {
+    const harness = buildHarness();
+    const before = harness.store.snapshot();
+    await expect(harness.registry.call('create_section', { projectId: PROJECT, type: 'sub-projects' }, agent(['projects.write'])))
+      .rejects.toThrow(expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/retired.*workstream/) }));
+    await expect(harness.registry.call('create_section', { projectId: PROJECT, type: 'sub-projects' }, agent(['projects.read'])))
+      .rejects.toThrow(PermissionDeniedError);
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('refuses a Markdown config with a key Markdown does not take, on create and update, writing nothing (Slice 64)', async () => {
+    const harness = buildHarness();
+    const writer = agent(['projects.write']);
+    const { section } = SectionAddResultSchema.parse(await harness.registry.call('create_section', { projectId: PROJECT, type: 'markdown', config: { markdown: '# Notes' } }, writer));
+    const before = harness.store.snapshot();
+    const refusal = expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/does not take "summary"/) });
+
+    await expect(
+      harness.registry.call('create_section', { projectId: PROJECT, type: 'markdown', config: { markdown: 'x', summary: 'y' } }, writer),
+    ).rejects.toThrow(refusal);
+    await expect(
+      harness.registry.call('update_section', { sectionId: section.id, config: { markdown: 'x', summary: 'y' } }, writer),
+    ).rejects.toThrow(refusal);
+
+    expect(harness.store.snapshot()).toEqual(before);
+  });
 });
 
 /**
  * MCP carries a refusal's message and nothing else, so an agent tells history refusals apart by
  * the reason token each message starts with (docs/decisions/2026-09-operation-history-scope.md).
  */
+describe('task reopening over MCP', () => {
+  it('update_task reopens a done task with tasks.write and records it in the owner’s history', async () => {
+    const harness = buildHarness();
+    const tasker = agent(['tasks.write']);
+    const completed = TaskWriteResultSchema.parse(await harness.registry.call('complete_task', { taskId: OPEN_TASK }, tasker));
+    expect(completed.task.completedAt).toBeDefined();
+    const before = harness.store.persistCalls;
+
+    const reopened = TaskWriteResultSchema.parse(await harness.registry.call('update_task', { taskId: OPEN_TASK, status: 'todo' }, tasker));
+
+    expect(reopened.task).toMatchObject({ id: OPEN_TASK, projectId: PROJECT, status: 'todo' });
+    expect(reopened.task).not.toHaveProperty('completedAt');
+    expect(reopened.operation).toMatchObject({ operation: 'task.update', label: `Updated "${completed.task.title}"` });
+    expect(harness.store.persistCalls).toBe(before + 1);
+    expect(harness.store.snapshot().tasks.find(({ id }) => id === OPEN_TASK)).toEqual(reopened.task);
+    expect(harness.store.snapshot().activityEvents.at(-1)).toMatchObject({ action: 'task.updated', entityId: OPEN_TASK, actor: 'agent' });
+    const history = OperationHistorySummarySchema.parse(await harness.registry.call('get_operation_history', { projectId: PROJECT }, agent(['projects.read'])));
+    expect(history.undo).toMatchObject({ actionId: reopened.operation!.actionId, operation: 'task.update' });
+    expect(history.historyId).toBe(reopened.operation!.historyId);
+    // The generic update_task grant loop above already proves missing tasks.write refuses without persistence.
+  });
+});
+
 describe('undo_operation and redo_operation refusals, as an agent sees them', () => {
   const writer = () => agent(['projects.read', 'projects.write']);
   const removed = async (harness: ReturnType<typeof buildHarness>) =>

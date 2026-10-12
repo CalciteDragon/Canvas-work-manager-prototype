@@ -44,7 +44,7 @@ tool-level create-then-move sequence was rejected because it would record two mu
 placement. The caller-selected insertion follows the approved direct-editing direction
 ([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)), with its atomic
 positioning rule recorded in [contextual insertion names its position](../../decisions/2026-09-contextual-insertion-names-its-position.md).
-Sections and Home shortcuts still share one ordering rule
+Sections and shortcuts still share one ordering rule on a canonical page
 ([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)).
 
 **Permission metadata is namespaced.** Every tool advertises
@@ -88,6 +88,10 @@ unknown-tool response.
 
 ## Decisions that shape this system
 
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../decisions/2026-10-retiring-the-sub-projects-section.md)
+
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `create_section` names `markdown` and says a `rich-text` create is refused.
+- [The nested project kind is called a workstream in user and agent prose](../../decisions/2026-09-workstream-user-terminology.md) — descriptions teach the unchanged `subproject` identifier through the same noun the browser uses.
 - [MCP history conflicts explain their repair in words](../../decisions/2026-09-mcp-history-conflict-guidance.md) — the shared formatter serves text-only agents without changing typed browser feedback.
 
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — a read tool exposes the domain's workspace projection without widening Restore grants.
@@ -107,14 +111,16 @@ unknown-tool response.
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
 - [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `restore_section` and the shortcut tools' envelopes, and the fourth family in both history tools' map
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../decisions/2026-10-work-canvas-shortcut-destinations.md) — the shortcut and undo tools describe canonical-page destinations; no new tool or grant
 - [An existing project's writes are one action family](../../decisions/2026-09-project-update-operation-history.md) — the three project-update tools' envelopes and the sixth family in both history tools' map
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `create_project` receipt, guarded Undo and creator-only absent-project summary
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `set_project_page_enabled`'s envelope and the fifth family in both history tools' map
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
 - [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
+- [A Markdown section's config is validated on every write](../../decisions/2026-10-section-config-validated-on-write.md) — `create_section`/`update_section` relay the domain's refusal of a malformed Markdown config.
 
 ## Spec sections
 
-§48 goals · §49 architecture · §54 initial tools (and the roots/work-units/pages
+§48 goals · §49 architecture · §54 initial tools (and the roots/workstreams/pages
 additions) · §55 experimental tool registry · §56 tool experiments · §60 tests without a
 server.

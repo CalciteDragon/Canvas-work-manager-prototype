@@ -1,4 +1,5 @@
-import type { ProjectPageId } from '@cwm/contracts';
+import type { ProjectId, ProjectPageId, SectionId, SectionShortcutId } from '@cwm/contracts';
+import { buildSeed } from '@cwm/prototype-data';
 import { describe, expect, it } from 'vitest';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
@@ -32,7 +33,7 @@ const homeOrder = async (harness: ReturnType<typeof buildHarness>, pageId: Proje
 const setupPlacedHome = async () => {
   const state = await setupNestedSource();
   const section = await state.harness.sectionService.add(state.harness.actor, MINE, {
-    type: 'rich-text',
+    type: 'markdown',
     pageId: state.home.id,
   });
   const shortcut = await state.harness.sectionShortcutService.create(state.harness.actor, MINE, {
@@ -74,7 +75,7 @@ describe('SectionShortcutService', () => {
 
   it('orders sections and shortcuts together and renumbers both kinds on every move', async () => {
     const { harness, source, home } = await setupNestedSource();
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
     const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
       pageId: home.id,
       sourceSectionId: source.id,
@@ -97,7 +98,7 @@ describe('SectionShortcutService', () => {
 
   it('creates a shortcut at a position among sections in the combined order', async () => {
     const { harness, source, home } = await setupNestedSource();
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
     const second = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', pageId: home.id });
     const eventsBefore = harness.store.snapshot().activityEvents.length;
 
@@ -119,7 +120,7 @@ describe('SectionShortcutService', () => {
 
   it('shifts sections for a positioned shortcut without changing their updatedAt', async () => {
     const { harness, source, home } = await setupNestedSource();
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
     harness.clock.setNow(new Date('2026-12-01T09:00:00.000Z'));
 
     await harness.sectionShortcutService.create(harness.actor, MINE, {
@@ -159,7 +160,7 @@ describe('SectionShortcutService', () => {
     });
     const otherHome = (await harness.pages.list({ projectId: otherRoot.id, kind: 'home' }))[0]!;
     const foreignSource = await harness.sectionService.add(harness.actor, otherRoot.id, {
-      type: 'rich-text',
+      type: 'markdown',
       pageId: otherHome.id,
     });
     const before = await homeOrder(harness, home.id);
@@ -276,21 +277,44 @@ describe('SectionShortcutService', () => {
     expect(await harness.sections.find(source.id)).toEqual(before);
   });
 
-  it('labels each recorded placement write with the source section’s name; Activity keeps its text (Slice 41)', async () => {
+  it('labels each placement write and the add Activity with the shortcut name (Slice 69)', async () => {
     const { harness, source, home } = await setupNestedSource();
     const writes = harness.sectionShortcutWriteService;
     const added = await writes.create(harness.actor, MINE, { pageId: home.id, sourceSectionId: source.id });
     const id = added.shortcut.id;
-    expect(added.operation.label).toBe('Added the Task List shortcut');
-    expect((await writes.update(harness.actor, id, { collapsed: true })).operation?.label).toBe('Collapsed the Task List shortcut');
-    expect((await writes.update(harness.actor, id, { collapsed: false })).operation?.label).toBe('Expanded the Task List shortcut');
-    expect((await writes.update(harness.actor, id, { columnSpan: 6 })).operation?.label).toBe('Resized the Task List shortcut');
-    expect((await writes.update(harness.actor, id, { columnSpan: 12, collapsed: true })).operation?.label).toBe('Updated the Task List shortcut');
-    await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
-    expect((await writes.move(harness.actor, id, 1)).operation?.label).toBe('Moved the Task List shortcut');
-    expect((await writes.remove(harness.actor, id)).operation.label).toBe('Removed the Task List shortcut');
+    expect(added.operation.label).toBe('Added the Task List (Kitchen) shortcut');
+    expect((await writes.update(harness.actor, id, { collapsed: true })).operation?.label).toBe('Collapsed the Task List (Kitchen) shortcut');
+    expect((await writes.update(harness.actor, id, { collapsed: false })).operation?.label).toBe('Expanded the Task List (Kitchen) shortcut');
+    expect((await writes.update(harness.actor, id, { columnSpan: 6 })).operation?.label).toBe('Resized the Task List (Kitchen) shortcut');
+    expect((await writes.update(harness.actor, id, { columnSpan: 12, collapsed: true })).operation?.label).toBe('Updated the Task List (Kitchen) shortcut');
+    await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
+    expect((await writes.move(harness.actor, id, 1)).operation?.label).toBe('Moved the Task List (Kitchen) shortcut');
+    expect((await writes.remove(harness.actor, id)).operation.label).toBe('Removed the Task List (Kitchen) shortcut');
     const summaries = (await harness.activity.list(harness.actor)).map((event) => event.summary);
-    expect(summaries).toEqual(expect.arrayContaining(['Updated a shortcut', 'Moved a shortcut', 'Removed a shortcut']));
+    expect(summaries).toEqual(expect.arrayContaining(['Added a shortcut to Task List (Kitchen)', 'Updated a shortcut', 'Moved a shortcut', 'Removed a shortcut']));
+  });
+
+  it('keeps a titled source name without an owner qualifier', async () => {
+    const { harness, source, home } = await setupNestedSource();
+    await harness.sectionService.update(harness.actor, source.id, { title: 'Prep' });
+    const added = await harness.sectionShortcutWriteService.create(harness.actor, MINE, {
+      pageId: home.id, sourceSectionId: source.id,
+    });
+    expect(added.operation.label).toBe('Added the Prep shortcut');
+  });
+
+  it('reads the current owner name for later writes while retaining historical labels', async () => {
+    const { harness, source, child, home } = await setupNestedSource();
+    const added = await harness.sectionShortcutWriteService.create(harness.actor, MINE, {
+      pageId: home.id, sourceSectionId: source.id,
+    });
+    await harness.projectService.update(harness.actor, child.id, { name: 'Prep kitchen' });
+    const updated = await harness.sectionShortcutWriteService.update(harness.actor, added.shortcut.id, { collapsed: true });
+    expect(updated.operation?.label).toBe('Collapsed the Task List (Prep kitchen) shortcut');
+    expect(updated.shortcut.sourceProjectName).toBe('Prep kitchen');
+    expect((await harness.operationActions.find(added.operation.actionId))?.label).toBe('Added the Task List (Kitchen) shortcut');
+    expect((await harness.activity.list(harness.actor)).map(({ summary }) => summary))
+      .toContain('Added a shortcut to Task List (Kitchen)');
   });
 
   it('removes and labels a shortcut whose source is archived, or hidden under an archived subproject', async () => {
@@ -300,7 +324,7 @@ describe('SectionShortcutService', () => {
     });
     await archived.harness.sectionService.remove(archived.harness.actor, archived.source.id);
     await expect(archived.harness.sectionShortcutWriteService.remove(archived.harness.actor, first.shortcut.id))
-      .resolves.toMatchObject({ operation: { label: 'Removed the Task List shortcut' } });
+      .resolves.toMatchObject({ operation: { label: 'Removed the Task List (Kitchen) shortcut' } });
 
     const hidden = await setupNestedSource();
     const second = await hidden.harness.sectionShortcutWriteService.create(hidden.harness.actor, MINE, {
@@ -308,6 +332,153 @@ describe('SectionShortcutService', () => {
     });
     await hidden.harness.projectService.update(hidden.harness.actor, hidden.child.id, { status: 'archived' });
     await expect(hidden.harness.sectionShortcutWriteService.remove(hidden.harness.actor, second.shortcut.id))
-      .resolves.toMatchObject({ operation: { label: 'Removed the Task List shortcut' } });
+      .resolves.toMatchObject({ operation: { label: 'Removed the Task List (Kitchen) shortcut' } });
+  });
+});
+
+/**
+ * Slice 65: a workstream's Work canvas is a destination exactly as a root's Home is — same root,
+ * same workspace, never its own page — with the action in the **workstream's** history.
+ */
+describe('SectionShortcutService on a workstream Work canvas (Slice 65)', () => {
+  const RENOVATION = 'project-renovation' as ProjectId;
+  const KITCHEN = 'project-kitchen' as ProjectId;
+  const GARDEN = 'project-garden' as ProjectId;
+  const CABINETS = 'project-cabinets' as ProjectId;
+  const LEGACY_CHILD = 'project-legacy-child' as ProjectId;
+  const KITCHEN_WORK = 'page-project-kitchen' as ProjectPageId;
+  const CABINETS_WORK = 'page-project-cabinets' as ProjectPageId;
+  const LEGACY_CHILD_WORK = 'page-project-legacy-child' as ProjectPageId;
+  const GARDEN_BRIEF = 'section-project-garden-brief' as SectionId;
+  const RENOVATION_BRIEF = 'section-project-renovation-brief' as SectionId;
+
+  type Harness = ReturnType<typeof buildHarness>;
+  const nested = () => buildHarness(buildSeed('nested-projects'));
+
+  const actionIdsIn = async (harness: Harness, projectId: ProjectId) => {
+    const histories = await harness.operationHistories.list({ projectId });
+    return (await Promise.all(histories.map(({ id }) => harness.operationActions.list({ historyId: id })))).flat().map(({ id }) => id);
+  };
+
+  it('places a sibling section on the Work canvas and records it in the workstream history only', async () => {
+    const harness = nested();
+
+    const { shortcut, operation } = await harness.sectionShortcutWriteService.create(harness.actor, KITCHEN, {
+      pageId: KITCHEN_WORK,
+      sourceSectionId: GARDEN_BRIEF,
+      position: 1,
+    });
+
+    expect(shortcut).toMatchObject({
+      pageId: KITCHEN_WORK,
+      position: 1,
+      sourceProjectId: GARDEN,
+      breadcrumb: ['Home renovation', 'Garden'],
+      availability: 'available',
+    });
+    expect((await harness.operationHistories.find(operation.historyId))?.projectId).toBe(KITCHEN);
+    expect(await actionIdsIn(harness, KITCHEN)).toContain(operation.actionId);
+    for (const elsewhere of [RENOVATION, GARDEN]) {
+      expect(await actionIdsIn(harness, elsewhere)).not.toContain(operation.actionId);
+    }
+  });
+
+  it('lists the Work page placements when no pageId is given', async () => {
+    const harness = nested();
+    const created = await harness.sectionShortcutService.create(harness.actor, KITCHEN, {
+      pageId: KITCHEN_WORK,
+      sourceSectionId: GARDEN_BRIEF,
+    });
+
+    expect(await harness.sectionShortcutService.list(harness.actor, KITCHEN)).toEqual([created]);
+  });
+
+  it('offers the root pages, a disabled page, siblings and descendants as sources, never its own page or hidden work', async () => {
+    const harness = nested();
+    await harness.projectPageService.setEnabled(harness.actor, RENOVATION, { kind: 'reflections', enabled: false });
+    const cabinets = await harness.sectionService.add(harness.actor, CABINETS, { type: 'markdown' });
+    // Legacy is archived and owns no sections, so the hidden source is inserted the way a stored one exists.
+    const hidden = { ...cabinets, id: 'section-legacy-hidden' as SectionId, projectId: LEGACY_CHILD, pageId: LEGACY_CHILD_WORK };
+    await harness.sections.insert(hidden);
+
+    const sources = (await harness.sectionShortcutService.listSources(harness.actor, KITCHEN, { pageId: KITCHEN_WORK })).map(
+      ({ sourceSectionId }) => sourceSectionId,
+    );
+
+    expect(sources).toEqual(
+      expect.arrayContaining([RENOVATION_BRIEF, 'section-project-renovation-reflections-page', GARDEN_BRIEF, cabinets.id]),
+    );
+    const kitchenOwn = (await harness.sections.list({ pageId: KITCHEN_WORK })).map(({ id }) => id);
+    expect(kitchenOwn.length).toBeGreaterThan(0);
+    for (const excluded of [...kitchenOwn, hidden.id]) expect(sources).not.toContain(excluded);
+  });
+
+  it('refuses another root, another workspace and an optional page, writing nothing', async () => {
+    const harness = nested();
+    const otherRoot = await harness.projectService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId,
+      kind: 'root',
+      name: 'Other root',
+    });
+    const otherRootSource = await harness.sectionService.add(harness.actor, otherRoot.id, { type: 'markdown' });
+    const foreignSource = await harness.sectionService.add(harness.other, 'project-alex-private' as ProjectId, { type: 'markdown' });
+    const before = harness.store.snapshot();
+
+    for (const sourceSectionId of [otherRootSource.id, foreignSource.id]) {
+      await expect(
+        harness.sectionShortcutService.create(harness.actor, KITCHEN, { pageId: KITCHEN_WORK, sourceSectionId }),
+      ).rejects.toBeInstanceOf(EntityNotFoundError);
+    }
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, RENOVATION, {
+        pageId: 'page-project-renovation-reflections' as ProjectPageId,
+        sourceSectionId: GARDEN_BRIEF,
+      }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+
+    const after = harness.store.snapshot();
+    expect(after.sectionShortcuts).toEqual(before.sectionShortcuts);
+    expect(after.activityEvents).toEqual(before.activityEvents);
+    expect(after.operationActions).toEqual(before.operationActions);
+    expect(after.operationHistories).toEqual(before.operationHistories);
+  });
+
+  it('freezes a placement on an archived workstream, or one under an archived ancestor, except for removal', async () => {
+    const harness = nested();
+    const placed = await harness.sectionShortcutService.create(harness.actor, CABINETS, {
+      pageId: CABINETS_WORK,
+      sourceSectionId: GARDEN_BRIEF,
+    });
+    await harness.sectionService.add(harness.actor, CABINETS, { type: 'markdown' });
+    await harness.projectService.update(harness.actor, CABINETS, { status: 'archived' });
+
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, CABINETS, { pageId: CABINETS_WORK, sourceSectionId: RENOVATION_BRIEF }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.update(harness.actor, placed.id, { collapsed: true })).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.move(harness.actor, placed.id, 1)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.remove(harness.actor, placed.id)).resolves.toBeUndefined();
+
+    // Legacy is archived and frozen, so its child's placement is inserted the way a stored one exists.
+    const stored = { ...(await harness.shortcuts.list())[0]!, id: 'shortcut-legacy-child' as SectionShortcutId, pageId: LEGACY_CHILD_WORK, sourceSectionId: GARDEN_BRIEF, position: 0 };
+    await harness.shortcuts.insert(stored);
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, LEGACY_CHILD, { pageId: LEGACY_CHILD_WORK, sourceSectionId: RENOVATION_BRIEF }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.update(harness.actor, stored.id, { columnSpan: 6 })).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.move(harness.actor, stored.id, 0)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.remove(harness.actor, stored.id)).resolves.toBeUndefined();
+  });
+
+  it('lets projects.write create on a Work canvas and refuses projects.read alone', async () => {
+    const harness = nested();
+    const input = { pageId: KITCHEN_WORK, sourceSectionId: GARDEN_BRIEF };
+
+    await expect(
+      harness.sectionShortcutService.create(agentActorFor(0, ['projects.read']), KITCHEN, input),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+    await expect(
+      harness.sectionShortcutService.create(agentActorFor(0, ['projects.read', 'projects.write']), KITCHEN, input),
+    ).resolves.toMatchObject({ pageId: KITCHEN_WORK });
   });
 });

@@ -19,7 +19,7 @@ import {
   type Task,
 } from '@cwm/contracts';
 import { PERSONAS } from './personas';
-import { captureActivityIdentities } from './upgrade-activity-identity';
+import { captureActivityIdentities } from './activity-identity';
 
 export const SEED_NAMES = [
   'empty',
@@ -183,8 +183,8 @@ const agentConnection = (
  * something this seed actually creates.
  *
  * It returns the event **without** its version-5 `context`: `document` below derives every
- * captured identity from the finished collections through the one function the converter uses,
- * so a seed cannot disagree with a conversion about what an audit line captured.
+ * captured identity from the finished collections through the seed-owned capture helper,
+ * so every seed uses the same rule for what an audit line captured.
  */
 const activityEvent = (
   id: string,
@@ -210,21 +210,20 @@ const activityEvent = (
 });
 
 /**
- * The canvas every seeded project gets: a Rich Text brief above its Task List (§30's first
- * two section types). Positions are dense *within a project* — the canvas orders by
+ * The canvas every seeded project gets: a Markdown brief above its Task List (§30's prose and
+ * task sections). Positions are dense *within a project* — the canvas orders by
  * `position`, and a gap or a repeat has no meaning any renderer could use.
  */
 const projectCanvas = (projectId: string, brief: string) => [
-  section(`section-${projectId}-brief`, projectId, 'rich-text', 0, { text: brief }),
+  section(`section-${projectId}-brief`, projectId, 'markdown', 0, { markdown: brief }),
   section(tasksSectionId(projectId), projectId, 'task-list', 1),
 ];
 
 const sliceTenCanvas = (projectId: string, brief: string) => [
   ...projectCanvas(projectId, brief),
-  section(`section-${projectId}-sub-projects`, projectId, 'sub-projects', 2),
-  section(`section-${projectId}-progress`, projectId, 'progress', 3),
-  section(reflectionsSectionId(projectId), projectId, 'reflections', 4),
-  section(`section-${projectId}-timeline`, projectId, 'timeline', 5),
+  section(`section-${projectId}-progress`, projectId, 'progress', 2),
+  section(reflectionsSectionId(projectId), projectId, 'reflections', 3),
+  section(`section-${projectId}-timeline`, projectId, 'timeline', 4),
 ];
 
 const sectionShortcut = (
@@ -309,7 +308,7 @@ const document = (collections: SeedCollections = {}): PrototypeDocument => {
     // canonical page (§26), so listing them by hand would be six chances to forget one.
     projectPages: collections.projectPages ?? (collections.projects ?? []).map(canonicalPage),
   } as Record<string, unknown>;
-  // One derivation for every seed, shared with the version-5 converter: the captured identity of
+  // One derivation for every seed: the captured identity of
   // each event's target, read from the collections the seed just wrote.
   return PrototypeDocumentSchema.parse({ ...assembled, ...captureActivityIdentities(assembled) });
 };
@@ -509,12 +508,12 @@ const nestedProjects = (): PrototypeDocument => {
     ],
     sections: [
       ...sliceTenCanvas(renovation.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
-      section(`section-${renovation.id}-recent-activity`, renovation.id, 'recent-activity', 6),
-      section(`section-${renovation.id}-archived-notes`, renovation.id, 'rich-text', 7, { text: 'Old attic notes' }, {
+      section(`section-${renovation.id}-recent-activity`, renovation.id, 'recent-activity', 5),
+      section(`section-${renovation.id}-archived-notes`, renovation.id, 'markdown', 7, { markdown: 'Old attic notes' }, {
         archivedAt: '2026-08-20T16:00:00.000Z',
       }),
       ...sliceTenCanvas(kitchen.id, 'Appliances and finishes before cabinets are ordered.'),
-      section(`section-${kitchen.id}-recent-activity`, kitchen.id, 'recent-activity', 6),
+      section(`section-${kitchen.id}-recent-activity`, kitchen.id, 'recent-activity', 5),
       ...projectCanvas(garden.id, 'Autumn planting only. Structural work waits for next year.'),
       section(renovationReflectionsPageSectionId, renovation.id, 'reflections', 0, {}, { pageId: reflectionsPageId }),
     ],
@@ -582,10 +581,10 @@ const nestedProjects = (): PrototypeDocument => {
       }),
     ],
     sectionShortcuts: [
-      sectionShortcut('shortcut-renovation-kitchen-tasks', homePageId, kitchenTaskSectionId, 7, { columnSpan: 8 }),
-      sectionShortcut('shortcut-renovation-kitchen-reflections', homePageId, `section-${kitchen.id}-reflections`, 8),
-      sectionShortcut('shortcut-renovation-reflections-page', homePageId, renovationReflectionsPageSectionId, 9, { columnSpan: 8 }),
-      sectionShortcut('shortcut-renovation-garden-brief', homePageId, `section-${garden.id}-brief`, 10),
+      sectionShortcut('shortcut-renovation-kitchen-tasks', homePageId, kitchenTaskSectionId, 6, { columnSpan: 8 }),
+      sectionShortcut('shortcut-renovation-kitchen-reflections', homePageId, `section-${kitchen.id}-reflections`, 7),
+      sectionShortcut('shortcut-renovation-reflections-page', homePageId, renovationReflectionsPageSectionId, 8, { columnSpan: 8 }),
+      sectionShortcut('shortcut-renovation-garden-brief', homePageId, `section-${garden.id}-brief`, 9),
     ],
     agentConnections: [
       agentConnection('agent-claude', 'Claude', [

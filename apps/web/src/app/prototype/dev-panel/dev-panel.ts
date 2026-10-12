@@ -8,7 +8,7 @@ import { DevPanelControls } from './dev-panel-controls';
  * Mounted once by `App`, the bootstrap component — not by `AppShell`, because `core/`
  * must not import from `prototype/`. From there it is available on every route, including
  * `/prototype/state`, which renders the same controls inline as §68's seed/state
- * inspector.
+ * inspector. Its controls load on opening while the modal chrome remains eager.
  *
  * `code === 'KeyD'` rather than `key === 'd'`: with Shift held the browser reports `D`,
  * and on a non-US layout `key` is whatever that layout produces. The physical key is what
@@ -45,6 +45,11 @@ export class DevPanel {
     if (event.key === 'Escape' && this.open()) {
       this.open.set(false);
     }
+  }
+
+  /** Explicit recovery when the controls chunk could not load. */
+  protected reloadPage(): void {
+    location.reload();
   }
 
   protected close(): void {

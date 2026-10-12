@@ -18,7 +18,7 @@ before returning a root's archived items. Each canonical Restore validates again
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. A supported section, task, reflection, Home shortcut, optional-page or project write applies its normalized change, records one typed
+5. A supported section, task, reflection, shortcut, optional-page or project write applies its normalized change, records one typed
    action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
    container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
    for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
@@ -40,10 +40,27 @@ before returning a root's archived items. Each canonical Restore validates again
    actor's visible projects, drop everything under an archived ancestor, and compute.
 
 `SectionService.update` passes its normalized changed fields and before/after section to
-`sectionUpdateLabel` when it records the action. A lone title, Rich Text prose, collapse or width
+`sectionUpdateLabel` when it records the action. A lone title, config prose, collapse or width
 change gets a specific stored label; combined and other config changes keep general wording.
 History summaries reuse the stored label through either transition and after reload. The separate
-Activity summary still uses its existing verb.
+Activity summary still uses its existing verb. A config edit is prose only when the type declares
+`config` recovery and its `proseKey` is the sole changed config key. The key chooses the noun:
+`markdown` says `Markdown`, and any other prose key falls back to `prose`. Labels stored before
+version 6 keep their Rich Text wording. The domain reads no Markdown or HTML syntax.
+
+`SectionService.add` refuses a retired type (`isRetiredSectionType` from contracts — today
+`rich-text` and `sub-projects`) with a `DomainRuleError` after the actor and grant checks and before any lookup, so
+browser, HTTP and MCP get the same refusal and it confirms nothing about the project
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+Replacement guidance comes from `retiredSectionReplacement`: Markdown for Rich Text and creating
+a workstream under the project for Sub-Projects.
+
+`add` and `update` also refuse a config that does not fit its type (`sectionConfigRefusal` from
+contracts). Today only Markdown is checked, and it takes `{}` or exactly `{ markdown }`. `add`
+checks right after the retired-type refusal. `update` checks after the not-found, archived-section
+and archived-project refusals, whenever a config is sent, including one equal to what is stored.
+Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
 
 ## Key symbols
 
@@ -63,13 +80,13 @@ Activity summary still uses its existing verb.
 | `SectionService` | class | Section lifecycle and container resolution; explicit add/update/move and removal return typed Undo results | [API](../../api/classes/SectionService.html) |
 | `OperationRecorder` | interface | Records one history action and recovers a still-outstanding removal receipt inside the caller's unit | [API](../../api/interfaces/OperationRecorder.html) |
 | `RepositoryOperationRecorder` | class | Finds or creates the actor's history, appends, discards the redo branch, prunes, returns the receipt | [API](../../api/classes/RepositoryOperationRecorder.html) |
-| `shortcutWriteLabel`, `projectWriteLabel` | functions | History labels that name the source section and the project edit (Slice 41) | [API](../../api/miscellaneous/variables.html#shortcutWriteLabel) |
+| `shortcutWriteLabel`, `projectWriteLabel` | functions | History labels receiving the shortcut's display name and naming the project edit | [API](../../api/miscellaneous/variables.html#shortcutWriteLabel) |
 | `sectionUpdateLabel` | function | Captures an update's history wording from its normalized field footprint | [API](../../api/miscellaneous/variables.html#sectionUpdateLabel) |
 | `OperationHistoryService` | class | The caller's summary under `projects.read`; one transition under its stored family’s write grant | [API](../../api/classes/OperationHistoryService.html) |
 | `captureTaskAdd`, `revertTaskAdd`, `reapplyTaskAdd` | functions | Representative task capture and both-direction row executors; update/archive/restore follow the same seam | [API](../../api/miscellaneous/variables.html#captureTaskAdd) |
 | `captureReflectionAdd`, `revertReflectionAdd`, `reapplyReflectionAdd` | functions | Representative reflection capture and both-direction row executors | [API](../../api/miscellaneous/variables.html#captureReflectionAdd) |
 | `nextOperationAction`, `recordOperationAction`, `transitionOperationHistory`, `retireOperationAction`, `pruneOperationHistory` | functions | The pure cursor state machine | [API](../../api/miscellaneous/variables.html#nextOperationAction) |
-| `SectionShortcutService` | class | Home shortcut placements | [API](../../api/classes/SectionShortcutService.html) |
+| `SectionShortcutService` | class | Shortcut placements on a canonical page (Home or Work) | [API](../../api/classes/SectionShortcutService.html) |
 | `TaskService` | class | Task lifecycle | [API](../../api/classes/TaskService.html) |
 | `ReflectionService` | class | Reflection lifecycle | [API](../../api/classes/ReflectionService.html) |
 | `AgentConnectionService` | class | Permissions, revocation, `lastUsedAt` | [API](../../api/classes/AgentConnectionService.html) |
@@ -154,20 +171,29 @@ Activity summary still uses its existing verb.
   verbatim and stamps only `updatedAt`. The permanently unsatisfiable conflicts retire the action
   ([decision](../../decisions/2026-09-operation-history-retired-actions.md)). Every refusal message
   starts with its reason token (`history_conflict: …`), because MCP carries message text only.
-  The shared conflict formatter appends words from each typed `nextStep` and suppresses retry advice
-  for a retiring list ([decision](../../decisions/2026-09-mcp-history-conflict-guidance.md)).
+  The shared conflict formatter, `conflictListText` in `operation-execution.ts`, appends words from
+  each typed `nextStep` and suppresses retry advice for a retiring list
+  ([decision](../../decisions/2026-09-mcp-history-conflict-guidance.md)); `refuseOnConflicts` uses it
+  for every executor.
 - **A project step is reversed under today's tree.** `project-history.ts` compares every recorded
   field against the value the other direction left (a parent mismatch reads `reparented`), then
   re-runs `ProjectService.update`'s rules for the resulting change: a destination parent in the
   workspace, not beneath the subject and with no archived ancestry (`archive-state-changed` names the
   archived one); no live child when the direction archives (`new-dependent`); no manual formula
-  without its value; and, for a move to another root, no old-root Home shortcut placing a section in
-  the subject's subtree (`shortcut-reference`) — commit-time integrity would reject it otherwise.
+  without its value; and, for a move to another root, no placement with exactly one end — its
+  canvas or its source — in the subject's subtree (`shortcut-reference`): since Slice 65 a
+  workstream's Work canvas can hold placements, so both ends count, and a placement with both ends
+  inside travels with the subtree. Commit-time integrity would reject a split one otherwise.
   `ProjectHistoryRepositories` therefore also reads pages, sections and placements, and writes only
   projects. That last check is one exported function, `shortcutsCarriedAcrossRoots`, which
   `ProjectService.update` runs too: after the parent is known usable and before `commit` (afterwards
   both roots read the same and it would pass), a forward move refuses with a `DomainRuleError` naming
-  each placement to remove, so the host answers 409 rather than a 500 from integrity. `ProjectService`
+  each placement to remove, so the host answers 409 rather than a 500 from integrity. It returns
+  `CarriedShortcut`s — each placement with the page and source section it read, and their projects —
+  and `carriedShortcutsSentence` turns them into the one sentence both paths use: every id, the first
+  three described by page and source (Slice 68). The history executor still emits one typed
+  `shortcut-reference` conflict per placement, unchanged; its text puts the sentence in place of their
+  generic entries and lists any other conflict after it with `conflictListText`. `ProjectService`
   reads `SectionRepository` and `SectionShortcutRepository` for it — repositories, not a new service
   edge ([decision](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md)). `completedAt` is written back verbatim. The archived-subject exception lives
   only in `OperationHistoryService.transitionBlocker` and only for the three steps
@@ -197,12 +223,14 @@ Activity summary still uses its existing verb.
   `SectionService.remove` has no policy or target input: it archives only live owned rows with
   the section, and preserves independently archived rows and their markers. Ordinary task moves
   use `TaskService.update` and have their own receipts. `section-removal-undo.ts` retains the
-  reassign branch solely for schema-v5 actions already stored with that policy. After settlement,
+  reassign branch solely for historical actions already stored with that policy. After settlement,
   `sectionRecoveryOf` decides whether
-  content must remain recoverable. Canonical task/reflection references and Home shortcut sources
+  content must remain recoverable. Canonical task/reflection references and shortcut sources
   independently prevent deletion. New disposable sections with no such reference are deleted;
   historical tombstones are never purged. Archive projects retained content only and never
-  decides deletion eligibility by itself.
+  decides deletion eligibility by itself. For `config` recovery it reads the capability's
+  declared `proseKey`: an empty config or blank string holds nothing; a sole non-blank string
+  is recoverable config; any extra, foreign or non-string value is kept as unknown content.
 - **Section and shortcut creation positions** are optional zero-based indexes in the page's
   combined placement order. Each service resolves and validates its target (and, for a shortcut,
   its source) before insertion, clamps a position past the end, inserts and calls

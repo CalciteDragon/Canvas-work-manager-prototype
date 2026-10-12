@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskId } from '@cwm/contracts';
+import { ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskId, type TaskWriteResult } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
@@ -47,7 +47,6 @@ const render = async (
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', vi.fn());
   fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
-  fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.componentRef.setInput('readOnly', readOnly);
@@ -63,6 +62,111 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('TaskListSection (§30, §66)', () => {
+  it('reopens through the row, resets its checkbox and tells the page only after success', async () => {
+    const completed = { ...task('task-1'), status: 'done' as const, completedAt: AT };
+    const gateway = new FakeWorkManagerGateway({ tasks: [completed] });
+    gateway.tasks.update = vi.fn(async () => ({ task: task('task-1'), operation: null }));
+    const { fixture, onProjectDataChange } = await render(gateway);
+    const box = query(fixture, '[data-task-complete]') as HTMLInputElement;
+    box.checked = false;
+    box.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(gateway.tasks.update).toHaveBeenCalledWith('task-1', { status: 'todo' });
+    expect(box.checked).toBe(false);
+    expect(onProjectDataChange).toHaveBeenCalledOnce();
+  });
+
+  it('does not notify the page for a refused reopen or a completion answered in another section', async () => {
+    const { fixture, store, onProjectDataChange } = await render();
+    vi.spyOn(store, 'reopen').mockResolvedValue(false);
+    await fixture.componentInstance.reopen('task-1' as TaskId);
+    expect(onProjectDataChange).not.toHaveBeenCalled();
+    let release!: (applied: boolean) => void;
+    vi.spyOn(store, 'complete').mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const completion = fixture.componentInstance.complete('task-1' as TaskId);
+    fixture.componentRef.setInput('section', { ...section(), id: 'section-other' });
+    fixture.detectChanges();
+    release(true);
+    await completion;
+    expect(onProjectDataChange).not.toHaveBeenCalled();
+  });
+
+  it('does not notify the page for a reopen answered after the section changes', async () => {
+    const { fixture, store, onProjectDataChange } = await render();
+    let release!: (applied: boolean) => void;
+    vi.spyOn(store, 'reopen').mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const reopening = fixture.componentInstance.reopen('task-1' as TaskId);
+    fixture.componentRef.setInput('section', { ...section(), id: 'section-other' });
+    fixture.detectChanges();
+    release(true);
+    await reopening;
+    expect(onProjectDataChange).not.toHaveBeenCalled();
+  });
+
+  it('selects by title, edits through the drawer and returns Close focus to the title', async () => {
+    const { fixture, gateway } = await render();
+    const title = query(fixture, 'button[data-task-title]') as HTMLButtonElement;
+    title.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const editor = query(fixture, '[data-task-drawer-title]') as HTMLInputElement;
+    editor.value = 'Renamed task';
+    editor.dispatchEvent(new Event('input'));
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(gateway.argumentTo('tasks.update')).toEqual({ id: 'task-1', input: { title: 'Renamed task' } });
+    const close = query(fixture, '[data-close-drawer]') as HTMLButtonElement;
+    close.focus();
+    close.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-task-drawer]')).toBeNull();
+    expect(document.activeElement).toBe(title);
+  });
+
+  it('returns drawer Close focus to quick-create when the selected row has gone', async () => {
+    const { fixture, store } = await render();
+    store.selectTask('task-1' as TaskId);
+    fixture.detectChanges();
+    const close = query(fixture, '[data-close-drawer]') as HTMLButtonElement;
+    close.focus();
+    fixture.componentInstance.closeDrawer();
+    vi.spyOn(store, 'tasks').mockReturnValue([]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(query(fixture, '[data-quick-task-title]'));
+  });
+
+  it('keeps a refused title draft and explicit Enter retries it without a duplicate blur write', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    let reject!: (error: unknown) => void;
+    gateway.tasks.update = vi.fn(() => new Promise<TaskWriteResult>((_, refuse) => { reject = refuse; }));
+    const { fixture } = await render(gateway);
+    query(fixture, 'button[data-task-title]')!.click();
+    fixture.detectChanges();
+    const editor = query(fixture, '[data-task-drawer-title]') as HTMLInputElement;
+    editor.value = 'Retain this draft';
+    editor.dispatchEvent(new Event('input'));
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-task-drawer] h2')?.textContent).toBe('Task task-1');
+    reject(new GatewayError('conflict', 409, 'Title refused'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(editor.value).toBe('Retain this draft');
+    expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('Title refused');
+    editor.dispatchEvent(new FocusEvent('blur'));
+    expect(gateway.tasks.update).toHaveBeenCalledOnce();
+    gateway.tasks.update = vi.fn(async () => ({ task: { ...task('task-1'), title: 'Retain this draft' }, operation: null }));
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(gateway.tasks.update).toHaveBeenCalledOnce();
+    expect(query(fixture, '[data-task-drawer] h2')?.textContent).toBe('Retain this draft');
+  });
+
   it('asks the gateway for only its own container’s tasks', async () => {
     const { gateway } = await render();
 

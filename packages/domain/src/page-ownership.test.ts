@@ -160,7 +160,7 @@ describe('ordering is per page (§27)', () => {
   const stage = async (harness: Harness) => {
     const { home, reflections } = await rootWithReflections(harness);
     const first = await harness.sectionService.add(harness.actor, MINE, {
-      type: 'rich-text', pageId: home.id, config: { text: 'Keep this section for the ordering test' },
+      type: 'markdown', pageId: home.id, config: { markdown: 'Keep this section for the ordering test' },
     });
     const second = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', pageId: home.id });
     const journal = await harness.sectionService.add(harness.actor, MINE, {
@@ -222,7 +222,7 @@ describe('ordering is per page (§27)', () => {
     const source = await harness.sectionService.add(harness.actor, sourceProject.id, { type: 'task-list' });
     const { home } = await rootWithReflections(harness);
     const own = await harness.sectionService.add(harness.actor, MINE, {
-      type: 'rich-text', pageId: home.id, config: { text: 'Keep this canvas note' },
+      type: 'markdown', pageId: home.id, config: { markdown: 'Keep this canvas note' },
     });
     const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
       pageId: home.id,

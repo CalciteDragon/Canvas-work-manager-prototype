@@ -64,17 +64,19 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    empty tabs — they have not been enabled yet.
 5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. Its project
    column shows Home, Todos, Archive and Reflections, followed by a three-level work tree:
-   **Kitchen → Cabinets**, plus **Garden**. Home contains the seven registered section kinds and
+   **Kitchen → Cabinets**, plus **Garden**. Home contains the six seeded section kinds and
    four seeded shortcut frames, so this is the useful starting point for the rest of the pass.
-6. **Manage pages.** Open **Manage pages** in the project column. Home is checked and disabled;
+6. **Page settings and work creation.** Open the gear beside the root name in the project column. Home is checked and disabled;
    Todos, Archive and Reflections are ordinary persisted toggles. Disable Todos, visit its old
    URL, and use **Enable Todos** in the Home fallback; the tab and route return only after the
    setting has been saved and fresh page context has arrived. Reload to confirm the setting.
-7. **Root context on a work unit.** Open **Kitchen**, then **Cabinets**. The root's project
+   Use the plus beside **Work** to add a workstream; choose Parent and check the "Inside …"
+   line before Create. The route stays put, and the header's Open link reaches its own history.
+7. **Root context on a workstream.** Open **Kitchen**, then **Cabinets**. The root's project
    column and manager remain visible, but there is no Work toggle and no `/pages/work` tab. The
-   main area is the work unit's one canvas, and its breadcrumbs lead back through Home renovation
+   main area is the workstream's one canvas, and its breadcrumbs lead back through Home renovation
    and Kitchen.
-8. **Edit work metadata.** Open **⋯** in a root or work-unit header. Set a name, description,
+8. **Edit work metadata.** Open **⋯** in a root or workstream header. Set a name, description,
    status or target/due date, reload, and confirm the stored value. Archive is a deliberate
    action with confirmation; archiving Home renovation while live children remain is refused.
 9. **Recover archived work.** On the showcase's **Archive** page, inspect the independently
@@ -114,15 +116,31 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 13. **Switch Flow/Grid mode.** Use the development panel's **project layout** control, or
     `/prototype/state`. The choice is per project: Home renovation and Kitchen can be inspected
     independently in Flow and Grid. In Grid, a half-width section sits beside its neighbour.
-14. **Seven section kinds.** On both the root Home and Kitchen's work canvas, inspect Rich Text,
-    Task List, Sub-Projects, Progress, Reflections, Timeline and Recent Activity. Home may also
-    contain shortcuts; Todos and Archive are derived pages and hold no sections.
+14. **Six section kinds.** On both the root Home and Kitchen's work canvas, inspect Markdown,
+    Task List, Progress, Reflections, Timeline and Recent Activity. Home and a
+    workstream's Work canvas may also contain shortcuts; Todos and Archive are derived pages and
+    hold no sections.
+    The picker has six types with **Markdown** first; Rich Text and Sub-Projects are retired. Each seeded
+    project's brief is a Markdown section that shows its prose rendered. Choose **Edit** on a brief
+    to see its source, then **Cancel**. Add a Markdown section, choose **Edit**, and type a heading,
+    a list, a link and fenced code.
+    Choose **Preview**, then **Save**; reload and confirm the rendered notes survive. Edit a
+    second draft and **Cancel**: the saved source stays. Edit and Save without a change: nothing
+    is written. Save a real change, then use the header's **Undo: Edited Markdown in the Markdown
+    section** and **Redo** to restore and reapply it. Non-blank Markdown removed from the canvas
+    appears in Archive; Restore returns the same source.
 15. **Shortcuts are placements.** On Home, choose an insertion plus, then **Add shortcut** in
     the creation popup to choose an eligible nested Task List or a section on another root page.
     The frame identifies its source and has **Open source**; its embedded content is read-only.
     Remove the placement and confirm the source section and its rows remain unchanged. Every
     placement write — add, resize, collapse, move, remove — is undoable, and each one belongs to
-    this root project's history rather than the sub-project the source lives in.
+    this root project's history rather than the workstream the source lives in.
+    Add Markdown notes on Kitchen's work canvas, then place a shortcut to them on Home. It
+    renders the notes with no **Edit** control; **Open source** reaches the editable original.
+    Then open Kitchen's work canvas and **Add shortcut** to Garden's brief there: the action is
+    Kitchen's, so Kitchen's header offers **Undo: Added the Markdown (Garden) shortcut**.
+    Its frame reads **Markdown (Garden)** beside Kitchen's own **Markdown** brief, and the
+    shortcut's controls use that same name. A titled source keeps its chosen title alone.
 
 ---
 
@@ -132,23 +150,25 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 
 16. **Tasks.** A **Task List** owns the task rows and quick-add field. The root Home and Kitchen
     work canvas each have their own canonical list; a shortcut never copies either list.
-17. **Rich text and progress.** Rich Text shows stored prose and grows with its wrapped content.
-    Progress shows the percentage and its formula explanation; its settings control exposes
+17. **Markdown and progress.** The Markdown brief shows its prose rendered and grows with its
+    wrapped content; **Edit** opens the source and **Save** writes it. Progress shows the percentage and its formula explanation; its settings control exposes
     count, weighted and manual settings without changing modes.
-18. **Sub-projects and timeline.** The Sub-Projects frame mirrors the work hierarchy and links
-    into it. Timeline shows the project's dated records in order.
+18. **Workstreams and timeline.** The project column's Work list shows and links the work hierarchy;
+    **Add workstream** creates nested work with an explicit parent. Timeline shows the project's
+    dated records in order.
 19. **Todos.** Open the root's Todos tab. It is one chronological projection across root tasks,
-    nested work units and their tasks: due dates first, equal instants by kind then ID, completed
+    nested workstreams and their tasks: due dates first, equal instants by kind then ID, completed
     and cancelled rows retained, and undated work last. Follow **Choose appliance finishes** to
     its canonical Kitchen Task List; the link opens the owning container rather than copying it.
 20. **Reflections.** Open the root's Reflections tab. The journal combines general entries with
-    entries about the completed Garden subproject and lighting task. Complete **Confirm
-    renovation budget**, choose it in the completed-work picker, and add a reflection. Reopen the
-    task; the reflection stays in the journal and shows its current Todo state.
+    entries about the completed Garden workstream and lighting task. Complete **Confirm
+    renovation budget**, choose it in the completed-work picker, and add a reflection. Uncheck
+    the task on Todos or its Task List; it leaves the picker, while the reflection stays in the
+    journal and shows its current Todo state.
 21. **Archive.** The root Archive page lists currently restorable archived sections, tasks,
-    reflections and subprojects across the tree, including content whose page is disabled. Each
+    reflections and workstreams across the tree, including content whose page is disabled. Each
     row names its origin. Restore the highest owner first; independently archived children then
-    appear as their own next steps. Settings lists archived roots and subprojects ready for
+    appear as their own next steps. Settings lists archived roots and workstreams ready for
     project Restore throughout the workspace.
 22. **Reflections sections.** A Reflections section on an ordinary canvas shows its own entries;
     the Reflections page owns its dedicated container and composer. The page feed is read-only and
@@ -163,9 +183,13 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 23. **Create.** Type a title in a Task List quick-add field and press **Add task**. The row
     appears in its owning section.
 24. **Complete.** Click a task's checkbox. It ticks and strikes through immediately, and the
-    owning project's progress moves. Completing a subproject does not complete its children.
-25. **Edit.** Open a task's title or **Details**, change the text, and press Enter. The new title
-    survives reload; an empty title is refused with a message.
+    owning project's progress moves. Uncheck it to reopen to Todo, including on Todos; progress
+    drops again. Space works in both directions while focus stays on the checkbox. Completing a
+    workstream does not complete its children, and its Todos Complete remains one-way.
+25. **Edit.** Click a Task List title or row background to open the drawer. Edit its **Title**
+    field and press Enter or blur. The new title survives reload; an empty title is refused with a
+    message. Escape discards a dirty draft; Close or another Escape closes and returns focus to
+    the row title. Enter and Space on the title also select the task.
 26. **Due date and priority.** In the drawer set **Due date** and then **Priority** to *high*.
     The row shows the date and priority; a past due date reads overdue.
 27. **Failure path.** Set the development panel's failure rate to 100%, try a completion, and
@@ -236,7 +260,7 @@ standalone connection matrix. Both processes still running. Full setup in
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
     remains queryable even when its navigation page is disabled. Call `list_archived_projects`
     under `projects.read`, then `restore_project` with an explicit non-archived status under
-    `projects.write` to recover an archived root or ready subproject.
+    `projects.write` to recover an archived root or ready workstream.
 41. **Agent permissions.** Go to **Settings → AI & Agents**. Each connection lists its grants as
     checkboxes. Uncheck a write permission for Claude and ask the agent to create another task:
     it is refused, and the refusal **names the missing permission**. For a derived read, the

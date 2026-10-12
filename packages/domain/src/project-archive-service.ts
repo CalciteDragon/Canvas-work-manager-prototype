@@ -59,7 +59,7 @@ export class ProjectArchiveService {
     const root = projects.find(({ id }) => id === projectId);
     if (root === undefined) throw new EntityNotFoundError('project', projectId);
     if (!isRootProject(root)) {
-      throw new DomainRuleError(`project "${projectId}" is a unit of work; only a root project has an Archive page`);
+      throw new DomainRuleError(`project "${projectId}" is a workstream; only a root project has an Archive page`);
     }
 
     const tree = this.tree(root.id, projects);

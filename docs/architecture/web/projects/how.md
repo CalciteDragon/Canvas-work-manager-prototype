@@ -15,6 +15,37 @@ each option binds `[selected]`, because a `[value]` on the select runs before it
 
 ## Runtime flow
 
+`ShortcutFrame.name` and the shortcut branch of `ProjectCanvas.placementName` call contracts'
+`shortcutNameOf(source, sourceProjectName)`. Untitled sources gain their owning project in
+parentheses, while a title override stays alone. The same name reaches frame controls, resize
+handles, insertion labels and keyboard move announcements. Local sections still use `nameOf`.
+The frame follows current resolved identity; the header displays the server's captured history
+label, so an owner rename does not rewrite older steps.
+
+The root-name gear opens a hidden, root-scoped page-settings disclosure. Its local state survives
+page-kind changes while the column stays mounted; Escape closes and focuses the gear, and a live
+root change closes it. The Work plus requests the shell's deferred `WorkCreateDialog`, with an
+inner `@if` so closing destroys its draft. Parent options flatten the live tree, root first;
+completed parents are marked. A disappearing parent resets to the root with a named polite note,
+deferred until a pending submit settles. The shell closes on `store.loading()` or a root change;
+chosen closes focus the visible plus or the narrow column toggle after rendering.
+`ProjectWorkspaceStore.createWorkstream` trims and validates the draft, guards a single flight per
+load generation, reports the child's creation receipt and requests a quiet context read only in
+the generation that started it. Creation keeps the URL and uses the header's existing cross-owner
+history feedback. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
+The column itself is deferred inside the loaded-root branch, alongside the deferred create dialog;
+the loaded context triggers it immediately. Loading reserves the navigation grid track; a failed
+chunk keeps that track and offers Reload page at the current URL. This keeps the initial graph
+under the unchanged 1050 kB error ceiling (the final measurement is in the Slice 60 record).
+
+Todos task checkboxes complete or reopen to `todo` through the canonical task gateway. Reopen
+clears `completedAt` optimistically and failure restores the exact item; generation/disposal
+guards discard late responses, and a queued live read runs after the shared write slot settles.
+Pending toggles use `aria-disabled` and the handler resets native checked state from the store
+before its first await, then reconciles again from the current row after settlement so an immediate
+refusal cannot leave the browser's own state changed. Cancelled tasks have no toggle, and
+workstreams retain one-way Complete.
+
 Todos captures the task title and owner before its optimistic Delete removes the row. It
 shows no success while the write is pending; a committed answer paints a polite status
 outside the chronology, even after the final row leaves. The status offers the shell's
@@ -43,13 +74,23 @@ The cue holds no receipt and cannot promise the next Undo step.
 3. `ProjectCanvas` provides `ProjectPageStore`, which loads the page's sections and
    shortcut placements as one combined order, renders each section inside
    `ProjectSectionFrame` with the registry's content component, and each shortcut inside
-   `ShortcutFrame`. Container sections provide their own row stores.
+   `ShortcutFrame`. Container sections provide their own row stores. The shell sets
+   `shortcutsAllowed` for the rendered project's canonical page — a root's Home or, since
+   Slice 65, a workstream's Work canvas — and passes the tree's root as the `rootProjectId`
+   renderer input, which the canvas hands to `ProjectPageStore.load`. Every renderer declares
+   `rootProjectId` because `NgComponentOutlet` sets every key; the derived pages ignore it. The
+   store's shortcut live filter compares a frame's `rootProjectId` with that root, not with the
+   canvas's project — on a Work canvas the two differ, and comparing the project silently missed
+   every same-root change ([why](../../../decisions/2026-10-work-canvas-shortcut-destinations.md)).
+   The content contract no longer carries a hierarchy-change callback. The canvas retains the
+   page renderer's callback input but does not call it; pages still use theirs. Timeline receives
+   `projectHierarchyRevision` to refresh its dated hierarchy after project writes.
 4. Canvas controls are available without a mode: grip drag and keyboard movement reorder
    placements, inline title edits report write results to the frame, resize handles snap
    to supported widths, and insertion points open `SectionCreateDialog`. The canvas keeps
    a placement ID as the insertion anchor and resolves its current position at submit;
    `ProjectPageStore.orderComplete` withholds insertion points and blocks move writes
-   when Home's combined section/shortcut order could not be fully read. Writes go through
+   when a canonical page's combined section/shortcut order could not be fully read. Writes go through
    the gateway behind the store's in-flight guards. One remove action sends only the section id;
    the domain cascades live owned rows and the canvas has no policy dialog. Every canvas write — section add, move,
    update and removal, and every shortcut placement write — runs through `reportedWrite`, which
@@ -70,7 +111,7 @@ The cue holds no receipt and cannot promise the next Undo step.
    eager route graph under the 1050 kB initial-bundle error ceiling.
 5. **Undo and Redo** (Slice 41). The shell provides `ProjectHistoryStore` and binds
    `OPERATION_HISTORY_REPORTER` to it in `providers` (not `viewProviders`), so the page store, a
-   task list inside a Home shortcut and the Todos, Archive and Reflections stores mounted through
+   task list inside a shortcut and the Todos, Archive and Reflections stores mounted through
    `NgComponentOutlet` all report to it; `project-workspace-shell.spec.ts` asserts that binding,
    because the core token's inert default would hide a wiring mistake. The shell calls
    `load(projectId)` from its project effect; Home ↔ other root pages cross route shapes and
@@ -103,7 +144,8 @@ The cue holds no receipt and cannot promise the next Undo step.
    overflowing (Slice 45). Since Slice 58 the global sidebar is a drawer there, so the header has
    the full width.
    The accessible `Undo: …` and `Redo: …` names use the server summary's captured action label;
-   section rename, Rich Text prose, collapse and resize now name their edit without a browser mapper.
+   section rename, Markdown source, collapse and resize now name their edit without a browser mapper;
+   labels stored before version 6 keep their Rich Text wording.
    `ProjectHistoryFeedback` is the always-present polite
    region under the header's facts. `confirmArchive` stays on the project and `announce`s "X is
    archived. Undo is available here."; the More menu does not offer Archive on an archived project.
@@ -142,6 +184,22 @@ to see *Project unavailable*. If the history summary itself is unavailable, that
 generic Retry for the summary read; it does not expose an Undo/Redo entry until the read confirms it
 ([decision](../../../decisions/2026-09-project-creation-history.md)).
 
+MarkdownSection is an eager shell with a deferred body and escaped source placeholder.
+`placeholderTextOf` simplifies the placeholder for converted prose: it drops a backslash before
+ASCII punctuation or a line break and the `&#32;`/`&#9;`/`&#13;` references the conversion writes,
+so the escapes do not flash before the body renders. It is display-only, not a decoder.
+The frame supplies a stable `saveConfig(id, config): Promise<boolean>` callback through
+`SectionContentInputs`; the canvas delegates to `ProjectPageStore.updateConfig`. Shortcuts
+pass a false-returning no-op. The body mounts a fresh `MarkdownSourceEditor` for each Edit;
+Save replaces the whole config after an awaited result, while Cancel and unchanged Save write
+nothing. A failed Save keeps the draft, and pending protects it from further edits or dismissal.
+A live source update keeps the draft and announces replacement; unreadable config blocks Save
+and shows only the guidance note. `MarkdownConfigSchema` comes from contracts, where the domain
+enforces it on every write, so only a hand edit, or Undo/Redo replaying state recorded before Slice 64,
+can store an unreadable config
+([decision](../../../decisions/2026-10-section-config-validated-on-write.md)).
+Successful Save and Cancel restore focus to Edit. Preview renders only the local draft.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -149,6 +207,8 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
 | `ProjectWorkspaceShell` | component | Both routes, header, page resolution | [API](../../../api/components/ProjectWorkspaceShell.html) |
 | `ProjectWorkspaceStore` | injectable | Project-level state and writes | [API](../../../api/injectables/ProjectWorkspaceStore.html) |
 | `ProjectPageNavigation` | component | The column; page toggles | [API](../../../api/components/ProjectPageNavigation.html) |
+| `WorkCreateDialog` | component | Workstream draft, explicit parent, pending/refusal and modal focus | [API](../../../api/components/WorkCreateDialog.html) |
+| `WorkCreateParent` | interface | Live parent option view state | [API](../../../api/interfaces/WorkCreateParent.html) |
 | `ProjectHeader`, `ProjectMoreMenu` | components | Header and its menu | [API](../../../api/components/ProjectHeader.html) |
 | `PROJECT_PAGE_REGISTRY` | const | Navigable kinds → renderers | [API](../../../api/miscellaneous/variables.html#PROJECT_PAGE_REGISTRY) |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | interfaces | Renderer contract | [API](../../../api/interfaces/ProjectPageRenderer.html) |
@@ -161,16 +221,19 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
 | `SECTION_REGISTRY`, `SectionDefinition` | const / interface | §29 | [API](../../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
 | `SectionContentComponent`, `SectionContentInputs` | interfaces | Content contract | [API](../../../api/interfaces/SectionContentComponent.html) |
 | `ProjectSectionFrame` | component | §31's chrome | [API](../../../api/components/ProjectSectionFrame.html) |
-| `SectionCreateDialog` | component | Section and Home shortcut creation; owns pending/error state | [API](../../../api/components/SectionCreateDialog.html) |
+| `SectionCreateDialog` | component | Section and shortcut creation; owns pending/error state | [API](../../../api/components/SectionCreateDialog.html) |
 | `InsertionPoint`, `SectionResizeHandle` | components | Canvas insertion and resize controls; their marks come from the shared `Icon` | [API](../../../api/components/InsertionPoint.html) |
 | `gridInsertionGaps` | function | Sparse grid gaps that can fit a supported width | [API](../../../api/miscellaneous/variables.html#gridInsertionGaps) |
 | `CanvasWriteResult` | type | Success or displayed canvas-write failure | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
-| `TaskListSection`, `RichTextSection`, `SubProjectsSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The seven types | [API](../../../api/components/TaskListSection.html) |
-| `ProgressStore`, `ReflectionsStore`, `SubProjectsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
+| `TaskListSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The five registered types beside Markdown | [API](../../../api/components/TaskListSection.html) |
+| `MarkdownSection`, `MarkdownSectionBody` | components | Eager shell, deferred source rendering and awaited authoring | [API](../../../api/components/MarkdownSection.html) |
+| `placeholderTextOf` | function | Display-only simplification of escaped source for the eager placeholder | [API](../../../api/miscellaneous/variables.html#placeholderTextOf) |
+| `MarkdownSourceEditor` | component | Presentational draft, Preview and Save/Cancel requests | [API](../../../api/components/MarkdownSourceEditor.html) |
+| `ProgressStore`, `ReflectionsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |
 | `ArchivedRegion` | component | Presentational archive list; labels domain-supplied recovery metadata, two-step guidance and the placement Restore actually produces | [API](../../../api/components/ArchivedRegion.html) |
-| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | components / injectable | Home shortcuts | [API](../../../api/components/ShortcutFrame.html) |
+| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | components / injectable | Shortcuts on Home and Work canvases | [API](../../../api/components/ShortcutFrame.html) |
 
 ## Dependencies
 
@@ -183,7 +246,7 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
 - [tasks](../tasks/overview.md) — `TaskListStore`, `TaskRow`, `TaskDetailDrawer` inside
   the Task List section. Todos owns its separate task row and store.
 - `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section.
-- [contracts](../../contracts/overview.md) — `nameOf`, `SECTION_OWNERSHIP` (through the
+- [contracts](../../contracts/overview.md) — `nameOf`, `shortcutNameOf`, `SECTION_OWNERSHIP` (through the
   registry's `kind`), `NAVIGABLE_PAGE_KINDS`, `isRootProject`, and every shape.
 - `@angular/cdk/drag-drop`.
 
@@ -230,9 +293,9 @@ pnpm e2e                                # project-history (header Undo/Redo), we
 
 ## Changing it
 
-- **A new section type:** copy `sections/rich-text/` (a view) or `sections/tasks/` (a
+- **A new section type:** copy `sections/markdown/` (a view) or `sections/tasks/` (a
   container). Implement `SectionContentComponent`; add one line to `SECTION_REGISTRY`;
-  if it owns rows, the contracts map; a spec and, if it renders states worth seeing, a
+  declare its recovery capability in contracts (and `proseKey` for config prose); a spec and, if it renders states worth seeing, a
   story. A view that needs data provides its own store at the content boundary.
 - **A new root page kind:** the contract's `ProjectPage` kinds, a renderer implementing
   `ProjectPageRenderer`, one line in `PROJECT_PAGE_REGISTRY`, the host's derived read.

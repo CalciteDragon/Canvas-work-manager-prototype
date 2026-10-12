@@ -36,7 +36,7 @@ const render = (options: {
     ],
   });
   const fixture = TestBed.createComponent(SectionCreateDialog);
-  fixture.componentRef.setInput('types', SECTION_REGISTRY.slice(0, 2));
+  fixture.componentRef.setInput('types', SECTION_REGISTRY);
   fixture.componentRef.setInput('projectId', PROJECT);
   fixture.componentRef.setInput('pageId', PAGE);
   fixture.componentRef.setInput('shortcutsAllowed', options.shortcutsAllowed ?? false);
@@ -62,7 +62,7 @@ describe('SectionCreateDialog (§27)', () => {
     query(fixture, '[data-create-section-submit]')!.click();
     await fixture.whenStable();
 
-    expect([...type.options].map((option) => option.value)).toEqual(['rich-text', 'task-list']);
+    expect([...type.options].map((option) => option.value)).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
     expect(create).toHaveBeenCalledWith('task-list', null);
     expect(closed).toHaveBeenCalledTimes(1);
   });
@@ -112,15 +112,15 @@ describe('SectionCreateDialog (§27)', () => {
     await root.whenStable();
 
     TestBed.resetTestingModule();
-    const work = render({ shortcutsAllowed: false });
-    expect(query(work, '[data-create-shortcut-mode]')).toBeNull();
+    const optional = render({ shortcutsAllowed: false });
+    expect(query(optional, '[data-create-shortcut-mode]')).toBeNull();
   });
 
   it('keeps shortcut mode open and blocks back, cancel and Escape while a create is pending', async () => {
     let finish!: (message: string | null) => void;
     const source: ShortcutSource = {
       sourceSectionId: 'section-source' as SectionId,
-      type: 'rich-text',
+      type: 'markdown',
       name: 'Source notes',
       projectId: PROJECT,
       projectName: 'Website launch',

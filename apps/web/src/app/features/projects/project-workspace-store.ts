@@ -56,6 +56,7 @@ export class ProjectWorkspaceStore {
 
   private requestedProjectId: ProjectId | undefined;
   private loadGeneration = 0;
+  private workCreateGeneration: number | null = null;
   /** Writes to the project record in flight; see `writeProject`. */
   private projectWrites = 0;
   private projectRefreshQueued = false;
@@ -269,6 +270,36 @@ export class ProjectWorkspaceStore {
           if (this.projectState() !== null) await this.readProgress(projectId, generation);
           if (current()) this.loadingState.set(false);
         }
+      }
+    });
+  }
+
+  /** Creates named work through the existing project gateway; the new child's history owns it. */
+  createWorkstream(parentId: ProjectId, rawName: string): Promise<string | null> {
+    const name = rawName.trim();
+    if (name === '') return Promise.resolve('A workstream name is required.');
+    const root = this.root();
+    if (this.destroyed || this.loading() || root === null || this.project()?.id !== this.requestedProjectId) {
+      return Promise.resolve('Load a project before adding a workstream.');
+    }
+    const contains = (nodes: WorkTreeNode[]): boolean => nodes.some((node) => node.project.id === parentId || contains(node.children));
+    if (parentId !== root.id && !contains(this.subprojectTree())) {
+      return Promise.resolve('Choose an available parent for this workstream.');
+    }
+    const generation = this.loadGeneration;
+    if (this.workCreateGeneration === generation) return Promise.resolve('A workstream is already being created.');
+    this.workCreateGeneration = generation;
+    return this.track(async () => {
+      try {
+        await reportedWrite(this.reporter,
+          () => this.gateway.projects.create({ workspaceId: root.workspaceId, kind: 'subproject', parentProjectId: parentId, name }),
+          ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
+        if (!this.destroyed && generation === this.loadGeneration) this.refreshContext();
+        return null;
+      } catch (error) {
+        return messageOf(error);
+      } finally {
+        if (this.workCreateGeneration === generation) this.workCreateGeneration = null;
       }
     });
   }
@@ -488,9 +519,9 @@ export class ProjectWorkspaceStore {
   }
 
   /**
-   * A Sub-Projects section created a unit of work. §62's own frame will say so too, but the
-   * canvas that made the write knows first, and waiting for the round trip would leave the
-   * column a step behind the section beside it.
+   * A project page changed the work hierarchy. §62's own frame will say so too, but the
+   * page that made the write knows first, and waiting for the round trip would leave the
+   * column a step behind the page beside it.
    */
   notifyHierarchyChanged(): void {
     this.refreshContext();

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, effect, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { Project, ProjectId, ProjectPage, ProjectPageKind } from '@cwm/contracts';
 import type { WorkTreeNode } from './project-workspace-store';
@@ -8,6 +8,7 @@ import {
   type OptionalProjectPageKind,
 } from './project-page-registry';
 import { ProjectWorkItem } from './project-work-item';
+import { Icon } from '../../shared/components/icon/icon';
 
 /**
  * §23's second navigation column: a root's pages, then the work hierarchy beneath it.
@@ -17,14 +18,14 @@ import { ProjectWorkItem } from './project-work-item';
  * keeps `Sidebar` from quietly becoming `Component → Gateway` (§19).
  *
  * Active state comes from `activeKind` rather than from `routerLinkActive`. The app's own
- * links — the global sidebar, project creation, every Sub-Projects section — use the short
+ * links — the global sidebar, project creation, Work navigation — use the short
  * `/projects/:id` form, and `routerLinkActive` on the Home tab's `/pages/home` would not match
  * it, so Home would render as current only for the users who typed the long URL.
  */
 @Component({
   selector: 'app-project-page-navigation',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectWorkItem, RouterLink],
+  imports: [ProjectWorkItem, RouterLink, Icon],
   templateUrl: './project-page-navigation.html',
   styleUrl: './project-page-navigation.scss',
 })
@@ -43,6 +44,10 @@ export class ProjectPageNavigation {
   readonly pageWritePending = input<boolean>(false);
   readonly pageWriteError = input<string | null>(null);
   readonly pageWriteRetryKind = input<OptionalProjectPageKind | null>(null);
+  /** A focusable unavailable plus spells out this reason without requesting a write. */
+  readonly workCreateBlocked = input<string | null>(null);
+  /** A disclosure belongs to this mounted column; a live root change closes it. */
+  readonly settingsOpen = signal(false);
 
   readonly visiblePages = () => navigablePages(this.pages());
   readonly optionalPageDefinitions = OPTIONAL_PROJECT_PAGE_DEFINITIONS;
@@ -50,6 +55,7 @@ export class ProjectPageNavigation {
   readonly toggleRequested = output<void>();
   readonly pageToggleRequested = output<{ kind: OptionalProjectPageKind; enabled: boolean }>();
   readonly retryPageRequested = output<void>();
+  readonly workCreateRequested = output<void>();
   /**
    * A destination in the column was chosen, with the URL it leads to (Slice 58). One delegated
    * listener on the host covers every link here, `ProjectWorkItem`'s recursive ones included,
@@ -59,6 +65,12 @@ export class ProjectPageNavigation {
   readonly linkSelected = output<string>();
 
   constructor() {
+    let rootId: ProjectId | null = null;
+    effect(() => {
+      const nextRootId = this.root().id;
+      if (rootId !== nextRootId) this.settingsOpen.set(false);
+      rootId = nextRootId;
+    });
     // Captured on the host, not a `(click)` host listener: a link to the other project route
     // makes the router replace the workspace shell — and this column with it — synchronously
     // inside `RouterLink`'s own click handler, which removes a bubbling listener before the
@@ -67,6 +79,22 @@ export class ProjectPageNavigation {
     const onClick = (event: MouseEvent): void => this.reportLink(event);
     host.addEventListener('click', onClick, { capture: true });
     inject(DestroyRef).onDestroy(() => host.removeEventListener('click', onClick, { capture: true }));
+  }
+
+  requestWorkCreate(): void {
+    if (this.workCreateBlocked() === null) this.workCreateRequested.emit();
+  }
+
+  toggleSettings(): void {
+    this.settingsOpen.update((open) => !open);
+  }
+
+  settingsKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    this.settingsOpen.set(false);
+    (event.currentTarget as HTMLElement).closest('nav')
+      ?.querySelector<HTMLButtonElement>('[data-project-settings-toggle]')?.focus();
   }
 
   private reportLink(event: MouseEvent): void {

@@ -141,3 +141,11 @@ keeps the entered text available for correction or retry. The optional `title` o
 
 
 **Amended, 2026-09-24 (Slice 43).** Section names remain useful in receipts, history labels and Archive. The former `section_not_empty` refusal, row-count copy and cascade/reassign dialog are retired because removal now cascades live owned rows in one gesture; `SectionRemovalRefusalDetailsSchema` is no longer a public contract.
+
+**Amended, 2026-10-09 (Slice 66).** The Sub-Projects section is retired. `SECTION_DISPLAY_NAMES` retains its name for refusal messages, although no registered component needs that override. Section names and recorded history labels are unchanged.
+See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).
+
+**Amended, 2026-10-09 (Slice 69).** Shortcut frames, controls and newly recorded labels use
+`shortcutNameOf`: a titled source keeps its chosen name, while an untitled source includes its
+owning project in parentheses. `nameOf` and local section naming are unchanged. See
+[untitled shortcut source naming](2026-10-untitled-shortcut-sources-name-their-owner.md).

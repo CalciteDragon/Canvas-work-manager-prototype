@@ -7,6 +7,7 @@ flowchart TB
   shell["ProjectWorkspaceShell<br/>both project routes; header once; page resolution"]
   wstore["ProjectWorkspaceStore<br/>record, progress, writes, work tree"]
   nav["ProjectPageNavigation<br/>pages, toggles, work tree (ProjectWorkItem)"]
+  workcreate["WorkCreateDialog<br/>Name, live Parent, awaited create"]
   header["ProjectHeader → ProjectMoreMenu"]
   hist["ProjectHistoryStore<br/>summary, pending, transitions; OPERATION_HISTORY_REPORTER"]
   controls["ProjectHistoryControls · ProjectHistoryFeedback<br/>projected into the header"]
@@ -24,9 +25,8 @@ flowchart TB
   frame["ProjectSectionFrame<br/>chrome: drag, inline title, collapse, settings, remove"]
   sreg["SECTION_REGISTRY"]
   subgraph sections["Section contents (SectionContentComponent)"]
-    rt["RichTextSection"]
+    md["MarkdownSection → deferred MarkdownSectionBody<br/>MarkdownSourceEditor + shared MarkdownRenderer"]
     tl["TaskListSection → TaskListStore (tasks)"]
-    sp["SubProjectsSection → SubProjectsStore"]
     pg["ProgressSection → ProgressStore"]
     rf["ReflectionsSection → ReflectionsStore, ReflectionComposer"]
     tm["TimelineSection → TimelineStore"]
@@ -37,6 +37,8 @@ flowchart TB
   create["SectionCreateDialog · InsertionPoint · SectionResizeHandle"]
   shell --> wstore
   shell --> nav
+  shell --> workcreate
+  workcreate -. "create callback" .-> wstore
   shell --> header
   shell --> hist
   header --> controls --> hist
@@ -94,13 +96,13 @@ sequenceDiagram
 | `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
 | `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, ID-only removal/retry, write reporting and recovery-notice state |
 | `SectionRecoveryNotice` | `section-recovery-notice.ts` | Archive for a removal the server listed there, explicit retry after an uncertain removal, read-only refresh retry; no Undo |
-| `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
+| `SectionCreateDialog` | `section-create-dialog.ts` | Section or shortcut creation at the selected canvas position |
 | `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
-| `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with its own task row, inline completion and Delete writes, canonical content links, descendant owner-history links and committed Delete recovery status |
+| `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with task complete/reopen checkboxes, one-way workstream Complete, serialized writes and Delete, canonical content links, descendant owner-history links and committed Delete recovery status |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy, restores and descendant owner-history links |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
 | `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |
-| Seven section types | `sections/{rich-text,tasks,sub-projects,progress,reflections,timeline,activity}/` | Content components and their stores |
-| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's Home shortcuts |
+| Six section types | `sections/{markdown,tasks,progress,reflections,timeline,activity}/` | Content components and their stores |
+| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's shortcuts, on Home or a workstream's Work canvas |

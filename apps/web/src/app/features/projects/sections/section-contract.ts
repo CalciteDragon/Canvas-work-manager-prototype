@@ -20,9 +20,8 @@ import type { ProjectSection, SectionConfig } from '@cwm/contracts';
  */
 export interface SectionContentInputs extends Record<string, unknown> {
   section: ProjectSection;
-  onConfigChange: (config: SectionConfig) => void;
+  onConfigChange: (config: SectionConfig) => Promise<boolean>;
   onProjectDataChange: () => void;
-  onProjectHierarchyChange: () => void;
   projectDataRevision: number;
   projectHierarchyRevision: number;
   /** A shortcut is a read-only projection of this same content component (§27). */
@@ -38,7 +37,6 @@ export interface SectionContentComponent {
   readonly section: unknown;
   readonly onConfigChange: unknown;
   readonly onProjectDataChange: unknown;
-  readonly onProjectHierarchyChange: unknown;
   readonly projectDataRevision: unknown;
   readonly projectHierarchyRevision: unknown;
   readonly readOnly: unknown;

@@ -53,3 +53,7 @@ index before writing; Undo inserts after the surviving previous neighbour, else 
 surviving next, else at the clamped index, and renumbers so that only the restored section's
 `updatedAt` moves. A neighbour archived, removed or moved to another page has not survived
 ([section removal Undo records](2026-09-section-removal-undo-records.md), rule 7).
+
+**Amended, 2026-10-03 — Slice 65.** The same combined order now applies on a workstream's Work
+canvas, which can also hold shortcuts. Nothing about the ordering changed. See
+[Work canvas shortcut destinations](2026-10-work-canvas-shortcut-destinations.md).

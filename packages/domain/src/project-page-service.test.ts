@@ -139,7 +139,7 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
   it('records against the root, never against a descendant project', async () => {
     const harness = buildHarness();
     const subproject = await subprojectOf(harness);
-    await harness.sectionWriteService.add(harness.actor, subproject.id, { type: 'rich-text' });
+    await harness.sectionWriteService.add(harness.actor, subproject.id, { type: 'markdown' });
 
     const created = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'archive', enabled: true });
 
@@ -200,7 +200,7 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
     for (const kind of ['home', 'work', 'todos', 'archive', 'reflections'] as const) {
       await expect(
         harness.projectPageService.setEnabled(harness.actor, subproject.id, { kind, enabled: true }),
-      ).rejects.toThrow(/one work canvas and no pages to configure/);
+      ).rejects.toThrow('a workstream has one work canvas and no pages to configure');
     }
   });
 

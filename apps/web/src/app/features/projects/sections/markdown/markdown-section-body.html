@@ -1,0 +1,20 @@
+<div class="markdown-section-body">
+  @if (content().state === 'unreadable') {
+    <p data-markdown-unreadable class="markdown-section-body__note">
+      This section's stored content isn't Markdown source, so it can't be edited here.
+    </p>
+  }
+  @if (editing()) {
+    @if (readOnly()) {
+      <p class="markdown-section-body__note">This section is read-only. Your draft is kept; you can copy it or Cancel.</p>
+    }
+    <app-markdown-source-editor #editor [initialSource]="base()" [name]="name()"
+      [pending]="pending()" [failed]="failed()" [changedElsewhere]="changedElsewhere()" [saveBlocked]="!canEdit()"
+      (ready)="editor.focusSource()" (saveRequested)="saveDraft($event)" (cancelRequested)="cancel()" />
+  } @else if (content().state !== 'unreadable') {
+    <app-markdown-renderer [source]="source()" />
+    @if (canEdit()) {
+      <button data-markdown-edit type="button" [attr.aria-label]="'Edit Markdown for ' + name()" (click)="edit()">Edit</button>
+    }
+  }
+</div>

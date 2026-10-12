@@ -1,4 +1,4 @@
-import { SECTION_CAPABILITIES, displayNameOf, sectionCapabilityOf, sectionKindOf } from '@cwm/contracts';
+import { SECTION_CAPABILITIES, displayNameOf, sectionCapabilityOf, sectionConfigRefusal, sectionKindOf, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { SECTION_REGISTRY, definitionFor } from './registry';
 
@@ -10,7 +10,7 @@ import { SECTION_REGISTRY, definitionFor } from './registry';
  */
 describe('SECTION_REGISTRY (§29)', () => {
   it('ships the §30 section types that exist', () => {
-    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
+    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
   });
 
   it('gives every definition the members §29 pins', () => {
@@ -19,6 +19,12 @@ describe('SECTION_REGISTRY (§29)', () => {
       expect(definition.icon.length).toBeGreaterThan(0);
       expect(typeof definition.component).toBe('function');
       expect(typeof definition.createDefaultConfig()).toBe('object');
+    }
+  });
+
+  it('creates a default config every type takes, so a new section is never refused (Slice 64)', () => {
+    for (const definition of SECTION_REGISTRY) {
+      expect(sectionConfigRefusal(definition.type, definition.createDefaultConfig() as SectionConfig), definition.type).toBeUndefined();
     }
   });
 
@@ -52,6 +58,18 @@ describe('SECTION_REGISTRY (§29)', () => {
     // A real state: `data.json` is hand-editable and outlives any one registry.
     expect(definitionFor('calendar')).toBeUndefined();
     expect(definitionFor('timeline')?.displayName).toBe('Timeline');
-    expect(definitionFor('rich-text')?.displayName).toBe('Rich Text');
+    expect(definitionFor('markdown')?.displayName).toBe('Markdown');
+    // Retired at schema version 6 (Slice 63): no stored document holds one, and none can be created.
+    expect(definitionFor('rich-text')).toBeUndefined();
+    expect(definitionFor('sub-projects')).toBeUndefined();
   });
+});
+
+it('config types declare a prose key their default holds', () => {
+  for (const definition of SECTION_REGISTRY) {
+    const capability = sectionCapabilityOf(definition.type)!;
+    if (capability.recovery === 'config') {
+      expect(Object.keys(definition.createDefaultConfig() as object)).toContain(capability.proseKey);
+    }
+  }
 });

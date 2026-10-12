@@ -4,7 +4,9 @@ import {
   ResolvedSectionShortcutSchema,
   SectionShortcutSchema,
   ShortcutSourceSchema,
+  canonicalPageKindFor,
   nameOf,
+  shortcutNameOf,
   type CreateSectionShortcutInput,
   type MoveSectionShortcutInput,
   type Project,
@@ -174,13 +176,14 @@ export class SectionShortcutService {
       const ordered = [...placements];
       ordered.splice(position, 0, { kind: 'shortcut', value: shortcut });
       await renumberPlacements(this.dependencies, this.dependencies.clock, ordered);
-      await this.record(actor, destination.project, 'project.shortcut_added', `Added a shortcut to ${nameOf(source)}`);
+      const name = shortcutNameOf(source, byProject.get(source.projectId)?.name ?? null);
+      await this.record(actor, destination.project, 'project.shortcut_added', `Added a shortcut to ${name}`);
       const stored = await this.requireShortcut(actor, shortcut.id);
       const operation = await this.dependencies.history.record(actor, {
-        // The **destination** root, always: the action belongs to the canvas the placement is on,
-        // never to the sub-project the source happens to live in.
+        // The **destination** project, always — the root for Home, the workstream for Work: the
+        // action belongs to the canvas the placement is on, never to the project the source lives in.
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.add', [], nameOf(source)),
+        label: shortcutWriteLabel('shortcut.add', [], name),
         operation: captureShortcutAdd(
           destination.project.id,
           stored,
@@ -226,7 +229,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_updated', 'Updated a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.update', changes, await this.sourceNameOf(updated)),
+        label: shortcutWriteLabel('shortcut.update', changes, await this.shortcutNameFor(updated)),
         operation: captureShortcutUpdate({
           shortcutId: updated.id,
           projectId: destination.project.id,
@@ -275,7 +278,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_moved', 'Moved a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.move', [], await this.sourceNameOf(updated)),
+        label: shortcutWriteLabel('shortcut.move', [], await this.shortcutNameFor(updated)),
         operation: captureShortcutMove({
           shortcutId: id,
           projectId: destination.project.id,
@@ -314,7 +317,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_removed', 'Removed a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: shortcutWriteLabel('shortcut.remove', [], await this.sourceNameOf(current)),
+        label: shortcutWriteLabel('shortcut.remove', [], await this.shortcutNameFor(current)),
         operation: captureShortcutRemove(destination.project.id, current, placement),
       });
       return { shortcutId: id, projectId: destination.project.id, pageId: current.pageId, operation };
@@ -322,13 +325,15 @@ export class SectionShortcutService {
   }
 
   /**
-   * The source section's name for a history label, read with a plain `find` — deliberately not
+   * The shortcut's name for a history label, read with plain repository `find`s — deliberately not
    * `requireSource`/`assertSourceScope`, because a removal may run while the source is archived or
    * hidden, and a label must never add a refusal. `null` when the source cannot be read.
    */
-  private async sourceNameOf(placement: SectionShortcut): Promise<string | null> {
+  private async shortcutNameFor(placement: SectionShortcut): Promise<string | null> {
     const source = await this.dependencies.sections.find(placement.sourceSectionId);
-    return source === null ? null : nameOf(source);
+    if (source === null) return null;
+    const owner = await this.dependencies.projects.find(source.projectId);
+    return shortcutNameOf(source, owner?.name ?? null);
   }
 
   private async resolveCurrent(
@@ -380,18 +385,17 @@ export class SectionShortcutService {
     if (project === null || project.workspaceId !== actor.workspaceId) {
       throw new EntityNotFoundError('project', projectId);
     }
-    if (project.kind !== 'root') {
-      throw new DomainRuleError('shortcuts can only be placed on a root project\'s Home page');
-    }
+    // A root's Home or a workstream's Work canvas (Slice 65): the one canvas every project has.
+    const canonical = canonicalPageKindFor(project.kind);
     const page =
       pageId === undefined
-        ? (await this.dependencies.pages.list({ projectId, kind: 'home' }))[0]
+        ? (await this.dependencies.pages.list({ projectId, kind: canonical }))[0]
         : await this.dependencies.pages.find(pageId);
     if (page === undefined || page === null || page.projectId !== projectId) {
-      throw new EntityNotFoundError('projectPage', pageId ?? `home:${projectId}`);
+      throw new EntityNotFoundError('projectPage', pageId ?? `${canonical}:${projectId}`);
     }
     ProjectPageSchema.parse(page);
-    if (page.kind !== 'home') throw new DomainRuleError('shortcuts can only be placed on a root project\'s Home page');
+    if (page.kind !== canonical) throw new DomainRuleError('shortcuts can only be placed on a project\'s canonical page');
     return { project, page };
   }
 
@@ -438,8 +442,9 @@ export class SectionShortcutService {
     destination: Destination,
     byProject: Map<ProjectId, Project>,
   ): Promise<void> {
+    // Roots of **both** ends: a Work canvas's project is not its own root.
     const sourceProject = byProject.get(source.projectId);
-    if (sourceProject === undefined || this.rootOf(sourceProject, byProject) !== destination.project.id) {
+    if (sourceProject === undefined || this.rootOf(sourceProject, byProject) !== this.rootOf(destination.project, byProject)) {
       throw new EntityNotFoundError('section', source.id);
     }
     if (source.pageId === destination.page.id) {

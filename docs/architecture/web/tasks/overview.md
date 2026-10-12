@@ -13,16 +13,16 @@ projection, completion lock and project-scoped receipts have different state.
 ## Responsibilities
 
 - `TaskRow`: normal, overdue, completed, high priority, selected and compact variants;
-  inline completion; inline title editing; and an icon-only **Delete** control that calls the
+  reversible completion; title or background selection; and an icon-only **Delete** control that calls the
   existing soft-archive behavior.
   The seventh §4 variant, *Agent Modified*, has no data behind it and is deliberately
   absent ([decision](../../../decisions/2026-08-agent-modified-has-no-data-behind-it.md)).
-- `TaskDetailDrawer`: title, status, priority, due date, and the fields a drawer can
-  edit without a modal.
-- `TaskListStore`: quick create, complete, update, archive and restore for the rows one
-  container owns; optimistic completion with revert on failure; quiet re-reads on live
+- `TaskDetailDrawer`: title, priority, due date and estimate editing, committed task facts,
+  dirty-draft protection and Escape handling in a non-modal drawer.
+- `TaskListStore`: quick create, complete, reopen, update and archive for the rows one
+  container owns; optimistic completion toggles with exact field revert on failure; quiet re-reads on live
   frames deferred behind a write in flight. Every write reports to the header's history through
-  core's `OPERATION_HISTORY_REPORTER` with the **task's** own project — a list inside a Home shortcut
+  core's `OPERATION_HISTORY_REPORTER` with the **task's** own project — a list inside a shortcut
   writes rows its source sub-project owns (Slice 41).
 - `TaskListSection`: after a committed Delete, keeps a polite archive/recovery cue outside the
   rows, including when the last task leaves. A refused write shows only the existing error.

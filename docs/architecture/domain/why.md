@@ -128,10 +128,16 @@ describes the project, but an archive's own Undo, a reactivation's Redo and an a
 edit may run while their subject is archived; a header reading only the project-level blocker could
 never undo an archive. `summaryOf` therefore computes each entry's `blockedBy` with the very
 `transitionBlocker` a transition of that step runs, so availability and execution cannot drift.
-Labels are captured at record time and name the change: shortcut labels read the source section's
-name with a plain `find` (never the scope checks, so a label adds no refusal), and project labels
+Labels are captured at record time and name the change: shortcut labels derive `shortcutNameOf`
+from plain source and owner repository `find` calls (never the scope checks, so archived or hidden
+source removal gains no refusal), and project labels
 name the one edit and its result, or say `Edited` for several
 ([decision](../../decisions/2026-09-project-header-history-controls.md)).
+
+Untitled shortcut names include the source's owning project, even for a same-project source on
+another page. A frame follows an owner rename on its next read, while each placement write
+captures the current name and leaves older labels and add Activity summaries frozen
+([decision](../../decisions/2026-10-untitled-shortcut-sources-name-their-owner.md)).
 
 **Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
 and owning project/root while the entity is readable in the caller's unit. Feeds prefer current
@@ -179,6 +185,11 @@ ISO string so ordering stays lossless without a clock or timezone
 
 ## Decisions that shape this system
 
+- [The Sub-Projects section is retired; Work is the hierarchy surface](../../decisions/2026-10-retiring-the-sub-projects-section.md)
+
+- [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — pure recovery and history label functions read capability metadata, without parsing source or adding a service edge.
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `SectionService.add` refuses retired types; historical conversion evidence predates the pipeline removal in Slice 66.
+
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — pure read eligibility is shared by two projections while canonical Restore writes recheck blockers.
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
@@ -190,6 +201,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md)
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md)
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md)
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../decisions/2026-10-work-canvas-shortcut-destinations.md) — canonical-page destinations, both-root source scope, destination-owned history and the one-end-inside reparent rule
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md)
 - [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
@@ -214,6 +226,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [A disabled page refuses new content and keeps everything already on it](../../decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)
 - [A root's optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)
+- [The nested project kind is called a workstream in user and agent prose](../../decisions/2026-09-workstream-user-terminology.md) — domain refusals use the product noun while the stored kind and rules stay unchanged.
 - [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)
 - [A section has a name, and the default is derived rather than stored](../../decisions/2026-09-a-section-has-a-name.md)
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md)
@@ -230,7 +243,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [Task status transitions, `completedAt`, and how a task is archived](../../decisions/2026-08-task-status-transitions-and-archive.md)
 - [Project nesting rules and what archiving a parent does](../../decisions/2026-08-project-nesting-and-archive-rules.md)
 - [An existing project's writes are one action family, and its own archive can be undone while archived](../../decisions/2026-09-project-update-operation-history.md)
-- [A forward reparent refuses a Home shortcut it would carry across roots](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md)
+- [A forward reparent refuses a shortcut it would carry across roots](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md) — Slice 68 describes each placement's page and source
 - [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
 
 ## Spec sections
@@ -243,9 +256,20 @@ live-update emission.
 **Archive projects recoverable content, judged on current state.** `sectionRecoveryOf`
 (`section-recovery-policy.ts`, package-internal) is a pure function: contracts capability plus the
 rows still assigned to the section. `ProjectArchiveService` applies it to section entries only;
-retained disposable view tombstones stay stored but unlisted, uncertain rich-text config and
+retained disposable view tombstones stay stored but unlisted, uncertain Markdown config and
 unknown types are kept, and a container holding only independently archived rows stays listed as
 the first step of their recovery. New removal consults this policy after settling rows, then makes
 a separate canonical-reference check before deleting. Archive remains a projection, not the
 deletion gate ([content policy](../../decisions/2026-09-content-oriented-archive-policy.md),
 [disposable removal](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+Config prose uses the key declared by contracts: `markdown` for Markdown.
+The domain trims source directly, so literal markup remains content and no renderer is part of
+recovery. A prose-only history update uses that same key and a small noun table: new Markdown edits
+say `Edited Markdown`, while labels stored before version 6 keep their Rich Text wording. Version 6
+converted Rich Text to Markdown and retired it; `SectionService.add` refuses a retired type itself,
+so every transport gets one answer
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). It refuses a
+malformed Markdown config on the same terms, because agents write sections too and a refusal naming
+the key beats a section no one can edit
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).

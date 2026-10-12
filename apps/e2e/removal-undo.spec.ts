@@ -25,35 +25,35 @@ test('disposable sections stay out of Archive and Undo restores config, layout, 
   const home = pages.find(({ kind }) => kind === 'home');
   if (home === undefined) throw new Error('The root has no Home page');
   const source = await addSection(child.id, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'Shortcut source',
-    config: { text: 'Retained source content.' },
+    config: { markdown: 'Retained source content.' },
   });
   const before = await addSection(root.id, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'Before removed views',
     position: 0,
     columnSpan: 6,
-    config: { text: 'Before.' },
+    config: { markdown: 'Before.' },
   });
   const sections = [
     await addSection(root.id, { type: 'progress', title: 'Progress', position: 1, columnSpan: 4, config: {} }),
     await addSection(root.id, { type: 'timeline', title: 'Timeline', position: 2, columnSpan: 8, config: {} }),
     await addSection(root.id, { type: 'recent-activity', title: 'Recent Activity', position: 3, columnSpan: 6, config: {} }),
     await addSection(root.id, {
-      type: 'rich-text',
+      type: 'markdown',
       title: 'Empty notes',
       position: 4,
       columnSpan: 12,
-      config: { text: '  \n ' },
+      config: { markdown: '  \n ' },
     }),
   ];
   const after = await addSection(root.id, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'After removed views',
     position: 5,
     columnSpan: 4,
-    config: { text: 'After.' },
+    config: { markdown: 'After.' },
   });
   await api.patch('/api/sections/' + sections[1]!.id, { collapsed: true });
   await api.patch('/api/sections/' + sections[3]!.id, { collapsed: true });
@@ -265,10 +265,10 @@ test('retained content survives reload and Archive restore, while independently 
   await setClock(PINNED_NOW);
   const root = await createRoot('Content and Undo journey');
   const notes = await addSection(root.id, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'Project brief',
     position: 0,
-    config: { text: 'Keep the design notes.' },
+    config: { markdown: 'Keep the design notes.' },
   });
   const cascade = await addSection(root.id, { type: 'task-list', title: 'Saved tasks', position: 1, config: {} });
   const cascadeTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
@@ -331,7 +331,7 @@ test('retained content survives reload and Archive restore, while independently 
   await expect(notesRow).toHaveCount(0);
   await page.reload();
   expect(await archiveHasSection(root.id, notes.id)).toBe(false);
-  expect(await sectionById(root.id, notes.id)).toMatchObject({ config: { text: 'Keep the design notes.' } });
+  expect(await sectionById(root.id, notes.id)).toMatchObject({ config: { markdown: 'Keep the design notes.' } });
 
   await cascadeRow.locator('[data-archived-restore]').click();
   await expect(cascadeRow).toHaveCount(0);
@@ -614,9 +614,9 @@ test('Retry remove repeats an uncertain ID-only removal and recovers the same re
   await setClock(PINNED_NOW);
   const root = await createRoot('Uncertain removal retry');
   const section = await addSection(root.id, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'Retry this removal',
-    config: { text: 'The host commits before the response is lost.' },
+    config: { markdown: 'The host commits before the response is lost.' },
   });
   await page.goto(`/projects/${root.id}`);
 
@@ -656,7 +656,7 @@ test('Retry refresh performs only a read after removal commits but its canvas re
   await seed('empty');
   await setClock(PINNED_NOW);
   const root = await createRoot('Removal refresh retry');
-  const section = await addSection(root.id, { type: 'rich-text', title: 'Refresh after removal', config: { text: 'Saved.' } });
+  const section = await addSection(root.id, { type: 'markdown', title: 'Refresh after removal', config: { markdown: 'Saved.' } });
   await page.goto(`/projects/${root.id}`);
 
   let committed = false;
@@ -778,6 +778,7 @@ test('live task-container removal keeps its focus and recovery behavior at a nar
     title: 'Narrow live task',
   })).task;
   await page.goto(`/projects/${root.id}`);
+  await expect(page.locator('[data-identity-name]')).toBeVisible();
 
   const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
   for (const [index, theme] of (['dark', 'light'] as const).entries()) {

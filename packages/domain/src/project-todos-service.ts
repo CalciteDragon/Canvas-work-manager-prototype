@@ -64,7 +64,7 @@ export class ProjectTodosService {
     if (!isRootProject(root)) {
       // §26: pages belong to roots. A unit of work has one canvas, and asking it for Todos is a
       // mistake about the model rather than a missing record.
-      throw new DomainRuleError(`project "${projectId}" is a unit of work; only a root project has a Todos page`);
+      throw new DomainRuleError(`project "${projectId}" is a workstream; only a root project has a Todos page`);
     }
     // §31: an archived project hides its live contents from ordinary reads. Answering with its
     // work would leak exactly what archiving put away.

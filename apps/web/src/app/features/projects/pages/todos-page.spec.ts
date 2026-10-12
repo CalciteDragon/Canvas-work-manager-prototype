@@ -99,6 +99,7 @@ interface RenderOptions {
   gateComplete?: boolean;
   archiveRejects?: GatewayError;
   gateArchive?: boolean;
+  reopenRejects?: GatewayError;
   onOpenArchive?: () => void;
 }
 
@@ -125,6 +126,13 @@ const render = async (options: RenderOptions = {}) => {
     const row = items.find((item) => item.kind === 'task' && item.task.id === id);
     return { task: { ...(row as Extract<ProjectTodoItem, { kind: 'task' }>).task, archivedAt: AT }, operation: null };
   });
+  const taskUpdate = vi.fn(async (id: string, input: { status: string }) => {
+    if (options.reopenRejects !== undefined) throw options.reopenRejects;
+    const row = items.find((item) => item.kind === 'task' && item.task.id === id) as Extract<ProjectTodoItem, { kind: 'task' }>;
+    const reopened = { ...row.task, status: input.status };
+    delete reopened.completedAt;
+    return { task: reopened, operation: null };
+  });
   const update = vi.fn(async (id: ProjectId) => {
     if (options.completeRejects !== undefined) throw options.completeRejects;
     const row = items.find((item) => item.kind === 'subproject' && item.project.id === id);
@@ -132,7 +140,7 @@ const render = async (options: RenderOptions = {}) => {
   });
   const gateway = {
     todos: { get: todosGet },
-    tasks: { complete, archive },
+    tasks: { complete, archive, update: taskUpdate },
     projects: { update },
   } as unknown as WorkManagerGateway;
   const dataChanged = vi.fn();
@@ -151,6 +159,7 @@ const render = async (options: RenderOptions = {}) => {
   fixture.componentRef.setInput('pageId', 'page-todos' as ProjectPageId);
   fixture.componentRef.setInput('projectLayoutMode', 'flow');
   fixture.componentRef.setInput('shortcutsAllowed', false);
+  fixture.componentRef.setInput('rootProjectId', ROOT);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
   fixture.componentRef.setInput('onProjectDataChange', dataChanged);
   fixture.componentRef.setInput('onProjectHierarchyChange', hierarchyChanged);
@@ -163,6 +172,7 @@ const render = async (options: RenderOptions = {}) => {
     fixture,
     todosGet,
     complete,
+    taskUpdate,
     archive,
     update,
     dataChanged,
@@ -181,6 +191,53 @@ const rowFor = (fixture: Fixture, id: string) =>
   queryAll(fixture, '[data-todo-row]').find((row) => row.getAttribute('data-todo-id') === id)!;
 
 describe('TodosPage (§34)', () => {
+  it('renders reversible task toggles, cancelled tasks without a toggle, and workstream Complete', async () => {
+    const { fixture } = await render({ items: [taskItem('task-done', { status: 'done', completedAt: AT }), taskItem('task-cancelled', { status: 'cancelled' }), subprojectItem('project-kitchen')] });
+    const toggle = rowFor(fixture, 'task-done').querySelector<HTMLInputElement>('[data-todo-toggle]')!;
+    expect(toggle.checked).toBe(true);
+    expect(toggle.getAttribute('aria-label')).toBe('Reopen task Task task-done');
+    expect(rowFor(fixture, 'task-cancelled').querySelector('[data-todo-toggle]')).toBeNull();
+    expect(rowFor(fixture, 'project-kitchen').querySelector('[data-todo-complete]')).not.toBeNull();
+  });
+
+  it('unchecks after a successful reopen and refreshes project data', async () => {
+    const { fixture, taskUpdate, dataChanged } = await render({ items: [taskItem('task-done', { status: 'done', completedAt: AT })] });
+    const toggle = rowFor(fixture, 'task-done').querySelector<HTMLInputElement>('[data-todo-toggle]')!;
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(taskUpdate).toHaveBeenCalledWith('task-done', { status: 'todo' });
+    expect(toggle.checked).toBe(false);
+    expect(dataChanged).toHaveBeenCalledOnce();
+  });
+
+  it('resets a refused reopen and exposes the error without refreshing progress', async () => {
+    const { fixture, dataChanged } = await render({ items: [taskItem('task-done', { status: 'done', completedAt: AT })], reopenRejects: new GatewayError('conflict', 409, 'Reopen refused') });
+    const toggle = rowFor(fixture, 'task-done').querySelector<HTMLInputElement>('[data-todo-toggle]')!;
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(toggle.checked).toBe(true);
+    expect(query(fixture, '[data-todo-write-error]')?.textContent).toContain('Reopen refused');
+    expect(dataChanged).not.toHaveBeenCalled();
+  });
+
+  it('keeps blocked toggles focusable and resets their native state without writing', async () => {
+    const { fixture, taskUpdate } = await render({ items: [taskItem('task-done', { status: 'done', completedAt: AT })], restoreBlocked: true });
+    const toggle = rowFor(fixture, 'task-done').querySelector<HTMLInputElement>('[data-todo-toggle]')!;
+    expect(toggle.disabled).toBe(false);
+    expect(toggle.getAttribute('aria-disabled')).toBe('true');
+    toggle.focus();
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    expect(toggle.checked).toBe(true);
+    expect(document.activeElement).toBe(toggle);
+    expect(taskUpdate).not.toHaveBeenCalled();
+  });
+
   it('renders the chronology it was given, with dates, status and origin', async () => {
     const { fixture } = await render();
 
@@ -196,6 +253,7 @@ describe('TodosPage (§34)', () => {
     // UTC, as stored: the calendar day of the instant, with no local conversion.
     expect(rowFor(fixture, 'task-early').querySelector('[data-todo-due]')?.textContent?.trim()).toBe('2026-09-01');
     expect(rowFor(fixture, 'project-kitchen').querySelector('[data-todo-due]')?.textContent?.trim()).toBe('2026-09-01');
+    expect(rowFor(fixture, 'project-kitchen').querySelector('.todos__kind')?.textContent?.trim()).toBe('Workstream');
     expect(rowFor(fixture, 'task-undated').querySelector('[data-todo-due]')?.textContent?.trim()).toBe('No due date');
     expect(rowFor(fixture, 'task-cancelled').querySelector('[data-todo-status]')?.textContent?.trim()).toBe('Cancelled');
     expect(rowFor(fixture, 'task-nested').querySelector('[data-todo-origin]')?.textContent).toContain('Kitchen');
@@ -232,7 +290,7 @@ describe('TodosPage (§34)', () => {
   it('completes each kind and tells the shell what moved', async () => {
     const { fixture, complete, update, dataChanged, hierarchyChanged } = await render();
 
-    (rowFor(fixture, 'task-early').querySelector('[data-todo-complete]') as HTMLButtonElement).click();
+    (rowFor(fixture, 'task-early').querySelector('[data-todo-toggle]') as HTMLInputElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -272,11 +330,11 @@ describe('TodosPage (§34)', () => {
     expect(document.activeElement).toBe(rowFor(fixture, 'task-undated').querySelector('[data-todo-link]'));
   });
 
-  it('offers a labelled native control that a keyboard reaches, and none on a finished row', async () => {
+  it('offers a labelled native checkbox that a keyboard reaches, and none on a cancelled row', async () => {
     const { fixture, complete } = await render();
 
-    const control = rowFor(fixture, 'task-early').querySelector('[data-todo-complete]') as HTMLButtonElement;
-    expect(control.tagName).toBe('BUTTON');
+    const control = rowFor(fixture, 'task-early').querySelector('[data-todo-toggle]') as HTMLInputElement;
+    expect(control.tagName).toBe('INPUT');
     expect(control.getAttribute('aria-label')).toContain('Task task-early');
     control.focus();
     expect(document.activeElement).toBe(control);
@@ -288,15 +346,17 @@ describe('TodosPage (§34)', () => {
 
   it('freezes every control while one completion is in flight, and while the shell blocks writes', async () => {
     const inFlight = await render({ gateComplete: true });
-    (rowFor(inFlight.fixture, 'task-early').querySelector('[data-todo-complete]') as HTMLButtonElement).click();
+    (rowFor(inFlight.fixture, 'task-early').querySelector('[data-todo-toggle]') as HTMLInputElement).click();
     inFlight.fixture.detectChanges();
 
     const controls = queryAll(inFlight.fixture, '[data-todo-complete], [data-todo-delete]') as HTMLButtonElement[];
     expect(controls.every((control) => control.disabled)).toBe(true);
+    expect(queryAll(inFlight.fixture, '[data-todo-toggle]').every((control) => control.getAttribute('aria-disabled') === 'true')).toBe(true);
     inFlight.release();
 
     const blocked = await render({ restoreBlocked: true });
     expect((queryAll(blocked.fixture, '[data-todo-complete], [data-todo-delete]') as HTMLButtonElement[]).every((c) => c.disabled)).toBe(true);
+    expect(queryAll(blocked.fixture, '[data-todo-toggle]').every((control) => control.getAttribute('aria-disabled') === 'true')).toBe(true);
   });
 
   it('serializes Delete with Complete and reports a failed delete without removing the row', async () => {
@@ -309,7 +369,7 @@ describe('TodosPage (§34)', () => {
     // until the reversible archive settles.
     expect(query(inFlight.fixture, '[data-todo-id="task-early"]')).toBeNull();
     expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-delete]') as HTMLButtonElement).disabled).toBe(true);
-    expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-complete]') as HTMLButtonElement).disabled).toBe(true);
+    expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-toggle]') as HTMLInputElement).getAttribute('aria-disabled')).toBe('true');
     expect(document.activeElement).toBe(rowFor(inFlight.fixture, 'project-kitchen').querySelector('[data-todo-link]'));
     inFlight.releaseArchive();
     await inFlight.fixture.whenStable();
@@ -442,7 +502,7 @@ describe('TodosPage (§34)', () => {
   it('reports a rejected completion, restores the row and does not tell the shell', async () => {
     const { fixture, dataChanged } = await render({ completeRejects: new GatewayError('conflict', 409, 'the task is archived') });
 
-    (rowFor(fixture, 'task-early').querySelector('[data-todo-complete]') as HTMLButtonElement).click();
+    (rowFor(fixture, 'task-early').querySelector('[data-todo-toggle]') as HTMLInputElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -450,7 +510,7 @@ describe('TodosPage (§34)', () => {
     expect(rowFor(fixture, 'task-early').querySelector('[data-todo-status]')?.textContent?.trim()).toBe('To do');
     expect(dataChanged).not.toHaveBeenCalled();
     // Retryable: the control is back rather than stuck pending.
-    expect((rowFor(fixture, 'task-early').querySelector('[data-todo-complete]') as HTMLButtonElement).disabled).toBe(false);
+    expect((rowFor(fixture, 'task-early').querySelector('[data-todo-toggle]') as HTMLInputElement).disabled).toBe(false);
   });
 
   it('keeps an unreadable page, an empty one and a full one distinct', async () => {
@@ -465,6 +525,7 @@ describe('TodosPage (§34)', () => {
 
     const empty = await render({ items: [] });
     expect(query(empty.fixture, '[data-todos-empty]')).not.toBeNull();
+    expect(query(empty.fixture, '[data-todos-empty]')?.textContent).toContain('no tasks, and no workstreams.');
     expect(query(empty.fixture, '[data-todos-list]')).toBeNull();
     expect(query(empty.fixture, '[data-todos-error]')).toBeNull();
   });
@@ -477,7 +538,7 @@ describe('TodosPage (§34)', () => {
       '[data-layout-edit-toggle]',
       '[cdkDrag]',
       '[data-section-frame]',
-      'input',
+      'input:not([data-todo-toggle])',
       'select',
     ]) {
       expect(query(fixture, selector), selector).toBeNull();

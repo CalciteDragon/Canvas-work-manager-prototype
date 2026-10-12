@@ -1,7 +1,7 @@
 import { PrototypeDocumentSchema, type ProjectId, type SectionId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
-import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
+import { EntityNotFoundError, PermissionDeniedError } from './errors';
 import { ProjectTodosService } from './project-todos-service';
 
 const AT = '2026-08-01T16:00:00.000Z';
@@ -447,7 +447,7 @@ describe('ProjectTodosService.derive — permission and addressing (§53, §54)'
       EntityNotFoundError,
     );
     await expect(service.derive(harness.actor, THEIRS)).rejects.toBeInstanceOf(EntityNotFoundError);
-    await expect(service.derive(harness.actor, 'project-kitchen' as ProjectId)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(service.derive(harness.actor, 'project-kitchen' as ProjectId)).rejects.toThrow('project "project-kitchen" is a workstream; only a root project has a Todos page');
   });
 
   it('does not depend on the Todos page existing or being enabled', async () => {

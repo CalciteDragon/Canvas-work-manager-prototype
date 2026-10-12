@@ -103,7 +103,7 @@ const shortcut = (
     collapsed: false,
     createdAt: AT,
     updatedAt: AT,
-    source: section(`source-${id}`, 'rich-text', 0, {
+    source: section(`source-${id}`, 'markdown', 0, {
       projectId: 'project-source',
       pageId: `page-source-${id}`,
     }),
@@ -178,7 +178,7 @@ const setup = (
 ) => {
   // Mutated by the write fakes, so a spec sees what a re-listing host would answer.
   let sections = options.sections ?? [
-    section('section-text', 'rich-text', 0),
+    section('section-text', 'markdown', 0),
     section('section-tasks', 'task-list', 1),
   ];
   let shortcuts = options.shortcuts ?? [];
@@ -372,17 +372,17 @@ const setup = (
 };
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
-  type: 'rich-text',
+  type: 'markdown',
   kind: 'view',
-  displayName: 'Rich Text',
+  displayName: 'Markdown',
   icon: '📝',
-  createDefaultConfig: () => ({ text: '' }),
+  createDefaultConfig: () => ({ markdown: '' }),
   // Satisfies the content contract `SectionDefinition.component` requires; never rendered.
   component: class {
     readonly section = undefined;
     readonly onConfigChange = undefined;
     readonly onProjectDataChange = undefined;
-    readonly onProjectHierarchyChange = undefined;
+
     readonly projectDataRevision = undefined;
     readonly projectHierarchyRevision = undefined;
     readonly readOnly = undefined;
@@ -428,7 +428,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
   it('loads its page’s sections in position order, and reads no rows itself', async () => {
     const { store, gateway } = setup({
-      sections: [section('section-tasks', 'task-list', 1), section('section-text', 'rich-text', 0)],
+      sections: [section('section-tasks', 'task-list', 1), section('section-text', 'markdown', 0)],
     });
 
     await store.load(PROJECT, PAGE);
@@ -442,7 +442,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
   it('merges sections and shortcuts into one ordered placement list', async () => {
     const { store } = setup({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 2)],
       shortcuts: [shortcut('shortcut-a', 1)],
     });
 
@@ -471,8 +471,8 @@ describe('ProjectPageStore (§19, §26)', () => {
       sectionOverrides: {
         list: vi.fn(async (projectId: ProjectId) =>
           projectId === PROJECT
-            ? [section('section-text', 'rich-text', 0)]
-            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })],
+            ? [section('section-text', 'markdown', 0)]
+            : [section('section-b', 'markdown', 0, { projectId: other, pageId: OTHER_PAGE })],
         ),
       },
       shortcutList: vi.fn(async (projectId: ProjectId) => {
@@ -629,7 +629,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     await store.load(PROJECT, PAGE);
     await tasks.load(section('section-tasks', 'task-list', 1));
 
-    // One container's failure must not blank the Rich Text section beside it.
+    // One container's failure must not blank the Markdown section beside it.
     expect(store.sections()).toHaveLength(2);
     expect(store.error()).toBeNull();
     expect(tasks.error()).toContain('could not reach');
@@ -643,8 +643,8 @@ describe('ProjectPageStore (§19, §26)', () => {
         list: vi.fn(async (projectId: ProjectId) => {
           await new Promise<void>((resolve) => gates.set(projectId, resolve));
           return projectId === PROJECT
-            ? [section('section-text', 'rich-text', 0)]
-            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })];
+            ? [section('section-text', 'markdown', 0)]
+            : [section('section-b', 'markdown', 0, { projectId: other, pageId: OTHER_PAGE })];
         }),
       },
     });
@@ -669,7 +669,7 @@ describe('ProjectPageStore (§19, §26)', () => {
           if (listCalls > 1)
             throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
           return [
-            section('section-text', 'rich-text', 0),
+            section('section-text', 'markdown', 0),
             section('section-tasks', 'task-list', 1),
           ];
         }),
@@ -713,9 +713,9 @@ describe('ProjectPageStore (§19, §26)', () => {
     // The registry's default *and* the canvas's own page: §27 resolves an unnamed write onto
     // the project's canonical page, which is the wrong answer for any other page a root shows.
     expect(gateway.sections.create).toHaveBeenCalledWith(PROJECT, {
-      type: 'rich-text',
+      type: 'markdown',
       pageId: PAGE,
-      config: { text: '' },
+      config: { markdown: '' },
     });
     expect(store.sections()).toHaveLength(3);
   });
@@ -737,13 +737,13 @@ describe('ProjectPageStore (§19, §26)', () => {
   it('adds a section at its requested position before reconciling the canonical combined order', async () => {
     const reconcile = deferred<ProjectSection[]>();
     const existingSections = [
-      section('section-text', 'rich-text', 0),
+      section('section-text', 'markdown', 0),
       section('section-tasks', 'task-list', 2),
     ];
-    const inserted = section('section-new', 'rich-text', 1, {
+    const inserted = section('section-new', 'markdown', 1, {
       title: 'Research',
       columnSpan: 6,
-      config: { text: '' },
+      config: { markdown: '' },
     });
     const { store, gateway } = setup({
       sections: existingSections,
@@ -764,9 +764,9 @@ describe('ProjectPageStore (§19, §26)', () => {
     await settleLive();
 
     expect(gateway.sections.create).toHaveBeenCalledWith(PROJECT, {
-      type: 'rich-text',
+      type: 'markdown',
       pageId: PAGE,
-      config: { text: '' },
+      config: { markdown: '' },
       position: 1,
       columnSpan: 6,
       title: 'Research',
@@ -851,8 +851,8 @@ describe('ProjectPageStore (§19, §26)', () => {
       sectionOverrides: {
         list: vi.fn(async (projectId: ProjectId) =>
           projectId === PROJECT
-            ? [section('section-text', 'rich-text', 0)]
-            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })],
+            ? [section('section-text', 'markdown', 0)]
+            : [section('section-b', 'markdown', 0, { projectId: other, pageId: OTHER_PAGE })],
         ),
         create: vi.fn(() => gate.promise),
       },
@@ -860,7 +860,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     await stale.store.load(PROJECT, PAGE);
     const adding = stale.store.addSection(definition(), { position: 1, columnSpan: 6 });
     await stale.store.load(other, OTHER_PAGE);
-    gate.resolve(section('section-created', 'rich-text', 1));
+    gate.resolve(section('section-created', 'markdown', 1));
 
     expect(await adding).toEqual({ ok: true });
     expect(stale.store.sections().map(({ id }) => id)).toEqual(['section-b']);
@@ -869,7 +869,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   it('adds a shortcut at its requested position before reconciling, and reports a refusal as a result', async () => {
     const reconcile = deferred<ResolvedSectionShortcut[]>();
     const initialSections = [
-      section('section-text', 'rich-text', 0),
+      section('section-text', 'markdown', 0),
       section('section-tasks', 'task-list', 2),
     ];
     const inserted = shortcut('shortcut-new', 1, {
@@ -931,17 +931,17 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(await store.setCollapsed('section-text' as SectionId, true)).toBe(true);
     expect(await store.setColumnSpan('section-text' as SectionId, 6)).toBe(true);
-    expect(await store.updateConfig('section-text' as SectionId, { text: 'edited' })).toBe(true);
+    expect(await store.updateConfig('section-text' as SectionId, { markdown: 'edited' })).toBe(true);
 
     expect(gateway.sections.update).toHaveBeenNthCalledWith(1, 'section-text', { collapsed: true });
     expect(gateway.sections.update).toHaveBeenNthCalledWith(2, 'section-text', { columnSpan: 6 });
     expect(gateway.sections.update).toHaveBeenNthCalledWith(3, 'section-text', {
-      config: { text: 'edited' },
+      config: { markdown: 'edited' },
     });
     expect(store.sections()[0]).toMatchObject({
       collapsed: true,
       columnSpan: 6,
-      config: { text: 'edited' },
+      config: { markdown: 'edited' },
     });
   });
 
@@ -961,14 +961,14 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(calls(gateway.sections.list)).toBe(sectionReads);
     expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(8);
 
-    resize.resolve(section('section-text', 'rich-text', 0, { columnSpan: 8 }));
+    resize.resolve(section('section-text', 'markdown', 0, { columnSpan: 8 }));
     expect(await saving).toBe(true);
     expect(gateway.sections.update).toHaveBeenCalledWith('section-text', { columnSpan: 8 });
   });
 
   it('rolls back only the section width after a failure, preserving a concurrent collapse and rename', async () => {
     const resize = deferred<ProjectSection>();
-    let persisted = section('section-text', 'rich-text', 0);
+    let persisted = section('section-text', 'markdown', 0);
     const update = vi.fn(async (
       _id: SectionId,
       input: Parameters<WorkManagerGateway['sections']['update']>[1],
@@ -1014,7 +1014,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(await first).toBe(false);
     expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(4);
 
-    newer.resolve(section('section-text', 'rich-text', 0, { columnSpan: 4 }));
+    newer.resolve(section('section-text', 'markdown', 0, { columnSpan: 4 }));
     expect(await second).toBe(true);
     expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(4);
   });
@@ -1100,7 +1100,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     ]);
     expect(reporter.events).toEqual(['begin', expect.objectContaining({ projectId: PROJECT, receipt: expect.objectContaining({ actionId: 'undo-section-text' }) }), 'end']);
     expect(store.recoveryNotice()).toEqual({
-      message: 'Removed the Rich Text section. Undo is in the header.',
+      message: 'Removed the Markdown section. Undo is in the header.',
       removal: { sectionId: 'section-text', archiveListed: true },
     });
   });
@@ -1120,7 +1120,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   });
 
   it('shows no notice for a removal Archive will not list: the header label confirms it', async () => {
-    const first = section('section-text', 'rich-text', 0);
+    const first = section('section-text', 'markdown', 0);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-unlisted'), archiveListed: false });
     const { store, reporter } = setup({ sectionOverrides: { remove } });
@@ -1134,7 +1134,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   it('reports the same actor’s receipt recovered from a repeated-removal refusal', async () => {
     const undo = receipt('undo-lost-response');
     const list = vi.fn()
-      .mockResolvedValueOnce([section('section-text', 'rich-text', 0)])
+      .mockResolvedValueOnce([section('section-text', 'markdown', 0)])
       .mockResolvedValue([]);
     const remove = vi.fn(async () => {
       throw new GatewayError('rule_violation', 409, 'section_already_removed: retry with undo', {
@@ -1155,7 +1155,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   });
 
   it('recovers its receipt for the header after a committed remove response is lost', async () => {
-    const first = section('section-text', 'rich-text', 0);
+    const first = section('section-text', 'markdown', 0);
     const undo = receipt('undo-lost-response');
     let removalCommitted = false;
     const list = vi.fn(async () => (!removalCommitted ? [first] : []));
@@ -1183,7 +1183,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   });
 
   it('does not replace an unresolved removal retry with another request', async () => {
-    const first = section('section-text', 'rich-text', 0);
+    const first = section('section-text', 'markdown', 0);
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'))
@@ -1208,7 +1208,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   });
 
   it('keeps the prior notice after a failed remove and retries the same section explicitly', async () => {
-    const first = section('section-text', 'rich-text', 0);
+    const first = section('section-text', 'markdown', 0);
     const next = section('section-tasks', 'task-list', 1);
     let listed = [first, next];
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
@@ -1236,7 +1236,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   });
 
   it('dismissing either notice leaves the other standing', async () => {
-    const first = section('section-text', 'rich-text', 0);
+    const first = section('section-text', 'markdown', 0);
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-first'), archiveListed: true })
@@ -1265,7 +1265,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       if (listCallCount === 2) throw new GatewayError('unreachable', 0, 'read after remove failed');
       // After the removal the host no longer lists it; a read that did would withdraw the notice.
       return listCallCount === 1
-        ? [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]
+        ? [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)]
         : [section('section-tasks', 'task-list', 0)];
     });
     const { store, gateway } = setup({ sectionOverrides: { list } });
@@ -1290,7 +1290,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(await store.removeSection('section-tasks' as SectionId)).toBe(false);
     await store.load('project-b' as ProjectId, OTHER_PAGE);
-    pending.resolve({ section: { ...section('section-text', 'rich-text', 0), archivedAt: AT }, operation: receipt('undo-stale'), archiveListed: true });
+    pending.resolve({ section: { ...section('section-text', 'markdown', 0), archivedAt: AT }, operation: receipt('undo-stale'), archiveListed: true });
     await first;
 
     expect(store.recoveryNotice()).toBeNull();
@@ -1305,7 +1305,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const removal = store.removeSection('section-text' as SectionId);
 
     TestBed.resetTestingModule();
-    pending.resolve({ section: { ...section('section-text', 'rich-text', 0), archivedAt: AT }, operation: receipt('undo-destroyed'), archiveListed: true });
+    pending.resolve({ section: { ...section('section-text', 'markdown', 0), archivedAt: AT }, operation: receipt('undo-destroyed'), archiveListed: true });
     await removal;
 
     expect(store.sections()).toEqual(before);
@@ -1318,7 +1318,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       sectionOverrides: {
         list: vi.fn(async () => {
           if (listCalls++ === 0)
-            return [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+            return [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)];
           throw new GatewayError('unreachable', 0, 're-read failed');
         }),
       },
@@ -1428,14 +1428,14 @@ describe('ProjectPageStore (§19, §26)', () => {
   it('moves through the gateway and reconciles every authoritative sibling position (§32)', async () => {
     const movedSections = [
       section('section-tasks', 'task-list', 0),
-      section('section-text', 'rich-text', 1),
+      section('section-text', 'markdown', 1),
     ];
     let listCalls = 0;
     const { store, gateway } = setup({
       sectionOverrides: {
         list: vi.fn(async () =>
           listCalls++ === 0
-            ? [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]
+            ? [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)]
             : movedSections,
         ),
         move: vi.fn(async () => movedSections[1]!),
@@ -1488,8 +1488,8 @@ describe('ProjectPageStore (§19, §26)', () => {
       sectionOverrides: {
         list: vi.fn(async (projectId: ProjectId) =>
           projectId === PROJECT
-            ? [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]
-            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })],
+            ? [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)]
+            : [section('section-b', 'markdown', 0, { projectId: other, pageId: OTHER_PAGE })],
         ),
         move: vi.fn(() => gate.promise),
       },
@@ -1498,7 +1498,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     const move = store.moveSection('section-text' as SectionId, 1);
     await store.load(other, OTHER_PAGE);
-    gate.resolve(section('section-text', 'rich-text', 1));
+    gate.resolve(section('section-text', 'markdown', 1));
     await move;
 
     expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
@@ -1513,8 +1513,8 @@ describe('ProjectPageStore (§19, §26)', () => {
       sectionOverrides: {
         list: vi.fn(async (projectId: ProjectId) =>
           projectId === PROJECT
-            ? [section('section-text', 'rich-text', 0)]
-            : [section('section-b', 'rich-text', 0, { projectId: other })],
+            ? [section('section-text', 'markdown', 0)]
+            : [section('section-b', 'markdown', 0, { projectId: other })],
         ),
         create: vi.fn(() => gate.promise),
       },
@@ -1523,7 +1523,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     const add = store.addSection(definition());
     await store.load(other, OTHER_PAGE);
-    gate.resolve(section('section-created', 'rich-text', 1));
+    gate.resolve(section('section-created', 'markdown', 1));
     expect(await add).toEqual({ ok: true });
 
     expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
@@ -1537,8 +1537,8 @@ describe('ProjectPageStore (§19, §26)', () => {
       sectionOverrides: {
         list: vi.fn(async (projectId: ProjectId) =>
           projectId === PROJECT
-            ? [section('section-text', 'rich-text', 0)]
-            : [section('section-b', 'rich-text', 0, { projectId: other })],
+            ? [section('section-text', 'markdown', 0)]
+            : [section('section-b', 'markdown', 0, { projectId: other })],
         ),
         update: vi.fn(() => updateGate.promise),
       },
@@ -1565,7 +1565,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       ['section-tasks', 1],
       ['section-text', 0],
     ]);
-    gate.resolve(section('section-text', 'rich-text', 1));
+    gate.resolve(section('section-text', 'markdown', 1));
     await move;
   });
 });
@@ -1621,6 +1621,70 @@ describe('ProjectPageStore and live updates (§62)', () => {
     });
     await settleLive();
     expect(withShortcut.store.projectDataRevision()).toBe(1);
+  });
+
+  describe('on a workstream Work canvas (Slice 65)', () => {
+    const WORKSTREAM = 'project-kitchen' as ProjectId;
+    const WORK_PAGE = 'page-project-kitchen' as ProjectPageId;
+    const ROOT = 'project-renovation' as ProjectId;
+    const SIBLING = 'project-garden' as ProjectId;
+
+    const loadWork = async () => {
+      const state = setup({ shortcuts: [shortcut('shortcut-a', 0)] });
+      await state.store.load(WORKSTREAM, WORK_PAGE, true, ROOT);
+      return state;
+    };
+
+    it('re-reads its shortcuts for a same-root section frame and ignores another root', async () => {
+      const { gateway, live } = await loadWork();
+      const shortcutReads = calls(gateway.shortcuts.list);
+
+      live.emit({ type: 'project.section_updated', entityType: 'project', entityId: SIBLING, projectId: SIBLING, rootProjectId: 'project-other' as ProjectId });
+      await settleLive();
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads);
+
+      live.emit({ type: 'project.section_updated', entityType: 'project', entityId: SIBLING, projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads + 1);
+      expect(gateway.shortcuts.list).toHaveBeenLastCalledWith(WORKSTREAM, { pageId: WORK_PAGE });
+    });
+
+    it('re-reads its shortcuts when the source workstream is archived', async () => {
+      const { gateway, live } = await loadWork();
+      const shortcutReads = calls(gateway.shortcuts.list);
+
+      live.emit({ type: 'project.archived', entityType: 'project', entityId: SIBLING, projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads + 1);
+    });
+
+    it('bumps the data revision for a task in a same-root sibling', async () => {
+      const { store, live } = await loadWork();
+
+      live.emit({ type: 'task.updated', entityType: 'task', entityId: 'task-garden-plan', projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+
+      expect(store.projectDataRevision()).toBe(1);
+    });
+
+    it('re-reads its shortcuts on reconnect and on a prototype reload, keeping the root', async () => {
+      const { store, gateway, live } = await loadWork();
+      const shortcutReads = calls(gateway.shortcuts.list);
+
+      live.emitConnected();
+      await settleLive();
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads + 1);
+
+      live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+      await settleLive();
+      // After the reload, a same-root sibling frame must still reach the canvas: the root survived.
+      const revisionAfterReload = store.projectDataRevision();
+      live.emit({ type: 'task.updated', entityType: 'task', entityId: 'task-garden-plan', projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+      expect(store.projectDataRevision()).toBe(revisionAfterReload + 1);
+      expect(gateway.shortcuts.list).toHaveBeenLastCalledWith(WORKSTREAM, { pageId: WORK_PAGE });
+    });
   });
 
   it('re-reads placements, not the section list, for a project frame elsewhere in the root tree', async () => {
@@ -1700,7 +1764,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
 
   it('removes only the placement and leaves the source section collection visible', async () => {
     const { store } = setup({
-      sections: [section('section-text', 'rich-text', 0)],
+      sections: [section('section-text', 'markdown', 0)],
       shortcuts: [shortcut('shortcut-a', 1)],
     });
     await store.load(PROJECT, PAGE);
@@ -1713,7 +1777,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
 
   it('restores the combined order after a rejected section move past a shortcut', async () => {
     const { store } = setup({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 2)],
       shortcuts: [shortcut('shortcut-a', 1)],
       sectionOverrides: {
         move: vi.fn(async () => {
@@ -1743,8 +1807,8 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(store.projectHierarchyRevision()).toBe(1);
   });
 
-  // The hierarchy revision is the one signal that ignores `projectId`: a Sub-Projects section
-  // is a *view* of the work tree, so a sibling's creation has to move it.
+  // The hierarchy revision is the one signal that ignores `projectId`: Timeline reads
+  // the work tree, so a sibling's creation has to move it.
   it('invalidates hierarchy only for a project event naming another workspace project', async () => {
     const { store, gateway, live } = setup();
     await store.load(PROJECT, PAGE);
@@ -1775,7 +1839,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
   it('recovers a failed first canvas load when the live connection opens', async () => {
     const list = vi.fn()
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
-      .mockResolvedValue([section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]);
+      .mockResolvedValue([section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)]);
     const listTasks = vi.fn()
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
       .mockResolvedValue([task('task-recovered')]);
@@ -1809,7 +1873,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
   it('is writable again after a quiet recovery, not merely readable', async () => {
     const list = vi.fn()
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
-      .mockResolvedValue([section('section-text', 'rich-text', 0)]);
+      .mockResolvedValue([section('section-text', 'markdown', 0)]);
     const { store, gateway, live } = setup({ sectionOverrides: { list } });
 
     await store.load(PROJECT, PAGE);
@@ -1827,12 +1891,12 @@ describe('ProjectPageStore and live updates (§62)', () => {
     const first = deferred<ProjectSection[]>();
     const list = vi.fn()
       .mockImplementationOnce(() => first.promise)
-      .mockResolvedValue([section('section-recovered', 'rich-text', 0)]);
+      .mockResolvedValue([section('section-recovered', 'markdown', 0)]);
     const { store, gateway, live } = setup({ sectionOverrides: { list } });
 
     const loading = store.load(PROJECT, PAGE);
     live.emit({ type: 'project.updated', entityId: PROJECT, projectId: PROJECT });
-    first.resolve([section('section-text', 'rich-text', 0)]);
+    first.resolve([section('section-text', 'markdown', 0)]);
     await loading;
     await settleLive();
 
@@ -1844,9 +1908,9 @@ describe('ProjectPageStore and live updates (§62)', () => {
   it('coalesces a second full recovery behind one already in flight', async () => {
     const firstRecovery = deferred<ProjectSection[]>();
     const list = vi.fn()
-      .mockResolvedValueOnce([section('section-text', 'rich-text', 0)])
+      .mockResolvedValueOnce([section('section-text', 'markdown', 0)])
       .mockImplementationOnce(() => firstRecovery.promise)
-      .mockResolvedValue([section('section-trailing', 'rich-text', 0)]);
+      .mockResolvedValue([section('section-trailing', 'markdown', 0)]);
     const { store, gateway, live } = setup({ sectionOverrides: { list } });
     await store.load(PROJECT, PAGE);
 
@@ -1856,7 +1920,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await settleLive();
     expect(calls(gateway.sections.list)).toBe(2);
 
-    firstRecovery.resolve([section('section-first', 'rich-text', 0)]);
+    firstRecovery.resolve([section('section-first', 'markdown', 0)]);
     await settleLive();
     expect(calls(gateway.sections.list)).toBe(3);
     await settleLive();
@@ -1942,7 +2006,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
   });
 
   it('discards a live re-read that was already in flight when a write began, and reads again', async () => {
-    const text = section('section-text', 'rich-text', 0);
+    const text = section('section-text', 'markdown', 0);
     const tasks = section('section-tasks', 'task-list', 1);
     let hostOrder = [text, tasks];
     let heldRead: ReturnType<typeof deferred<ProjectSection[]>> | null = null;
@@ -2019,7 +2083,7 @@ describe('ProjectPageStore — every canvas write reports to the header’s hist
   });
 
   it('begins before the request, reports the section’s own project and receipt, and ends in finally', async () => {
-    const text = section('section-text', 'rich-text', 0);
+    const text = section('section-text', 'markdown', 0);
     let resolveUpdate!: (result: SectionWriteResult) => void;
     const update = vi.fn<WorkManagerGateway['sections']['update']>()
       .mockImplementationOnce(() => new Promise((resolve) => { resolveUpdate = resolve; }))
@@ -2082,7 +2146,7 @@ describe('ProjectPageStore — every canvas write reports to the header’s hist
   });
 
   it('offers read-only Retry refresh when the read after a committed move fails', async () => {
-    const text = section('section-text', 'rich-text', 0);
+    const text = section('section-text', 'markdown', 0);
     const tasks = section('section-tasks', 'task-list', 1);
     const list = vi.fn<WorkManagerGateway['sections']['list']>()
       .mockResolvedValueOnce([text, tasks])

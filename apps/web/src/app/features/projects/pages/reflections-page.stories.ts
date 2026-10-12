@@ -166,6 +166,7 @@ const meta: Meta<ReflectionsPage> = {
     projectLayoutMode: 'flow',
     restoreBlocked: false,
     shortcutsAllowed: false,
+    rootProjectId: PROJECT,
     onProjectDataChange: () => undefined,
     onProjectHierarchyChange: () => undefined,
   },

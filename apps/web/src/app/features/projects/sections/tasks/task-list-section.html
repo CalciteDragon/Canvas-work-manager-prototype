@@ -63,7 +63,7 @@
               [archiving]="store.archivingIds().has(task.id)"
               [readOnly]="false"
               (completionRequested)="complete($event)"
-              (titleEdited)="editTitle($event)"
+              (reopenRequested)="reopen($event)"
               (deleteRequested)="archive($event)"
               (selectedRequested)="store.selectTask($event)"
             />
@@ -74,10 +74,11 @@
       @if (store.selectedTask(); as selectedTask) {
         <app-task-detail-drawer
           [task]="selectedTask"
+          (titleChanged)="editTitle($event)"
           (priorityChanged)="changePriority($event)"
           (dueDateChanged)="changeDueDate($event)"
           (estimateChanged)="changeEstimate($event)"
-          (closed)="store.selectTask(null)"
+          (closed)="closeDrawer()"
         />
       }
     }

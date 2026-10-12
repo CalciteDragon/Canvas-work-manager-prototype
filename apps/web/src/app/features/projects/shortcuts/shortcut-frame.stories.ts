@@ -28,11 +28,11 @@ const shortcut = (overrides: Record<string, unknown> = {}): ResolvedSectionShort
       id: 'section-source',
       projectId: 'project-story',
       pageId: 'page-work',
-      type: 'rich-text',
+      type: 'markdown',
       position: 0,
       columnSpan: 12,
       collapsed: false,
-      config: { text: 'The source stays canonical.' },
+      config: { markdown: 'The source stays canonical.' },
       createdAt: AT,
       updatedAt: AT,
     }),
@@ -131,7 +131,7 @@ export const RemovePlacement: Story = {
   args: { removeRequested: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Remove shortcut to Rich Text' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Remove shortcut to Markdown (Website launch)' }));
     await expect(args.removeRequested).toHaveBeenCalledWith('shortcut-story');
   },
 };

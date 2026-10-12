@@ -14,7 +14,7 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
 ## Responsibilities
 
 - `DevPanel` (the overlay mounted once by `App`) and `StateInspectorPage` both render
-  `DevPanelControls`, so no control exists twice; the inspector adds §28's per-project
+  `DevPanelControls`, deferred inside the open overlay, so no control exists twice; the inspector adds §28's per-project
   layout list, which needs every project.
 - `DevPanelStore`: the panel's state, `sessionStorage` for delay, failure and flags
   (not the theme), the **Add Prototype Note** action stamped with `CURRENT_SLICE`, and

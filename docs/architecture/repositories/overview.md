@@ -27,8 +27,9 @@ canonical-page removal is available only to that preflighted domain inverse.
   optional-page ones — each documented for the single preflighted caller it exists for.
 - Validate the document as a whole on load and on every commit
   (`validateDocumentIntegrity`): schema, duplicate ids, dangling references, workspace
-  scope, the ownership invariants the archive phase added, and operation histories' scope and
-  ordering (never their payloads' references). Activity identity is also checked: a removed
+  scope, the ownership invariants the archive phase added, retired section types in sections and
+  in recreating history snapshots, and operation histories' scope and ordering (never their
+  payloads' references). Activity identity is also checked: a removed
   task/reflection target is valid only with complete matching captured context and canonical
   owning project/root records.
 - Provide the narrow task/reflection removal seams used after row-add Undo has preflighted every
@@ -49,7 +50,7 @@ canonical-page removal is available only to that preflighted domain inverse.
 - Seeds: [prototype-data](../prototype-data/overview.md) builds documents; this package
   only holds them.
 - When to take ownership: entrypoints decide — the host for its lifetime, stdio per call, the
-  seed, reset, upgrade and e2e-preparation commands around their write. `JsonDataStore` and the
+  seed, reset and e2e-preparation commands around their write. `JsonDataStore` and the
   library functions never acquire.
 
 ## Read next

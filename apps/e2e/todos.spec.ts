@@ -65,7 +65,7 @@ test('root projections lead to descendant history without merging actor or proje
   await api('PATCH', `/api/projects/${root}`, { description: 'Root action for history isolation' });
   await addTask({ projectId: child, title: 'History route task', dueAt: '2026-09-18T12:00:00.000Z' });
   const saved = await api<{ section: { id: string } }>('POST', `/api/projects/${child}/sections`, {
-    type: 'rich-text', title: 'History route notes', config: { text: 'Saved for Archive' },
+    type: 'markdown', title: 'History route notes', config: { markdown: 'Saved for Archive' },
   });
   await api('DELETE', `/api/sections/${saved.section.id}`);
   const rootBefore = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
@@ -250,7 +250,7 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
     // ─── completing both kinds, read back canonically ──────────────────────────────────────
     const completeRow = async (title: string) => {
       const row = page.locator('[data-todo-row]', { has: page.locator('[data-todo-link]', { hasText: title }) });
-      await row.locator('[data-todo-complete]').click();
+      await row.locator(title === 'Cabinets' ? '[data-todo-complete]' : '[data-todo-toggle]').click();
       await expect(row.locator('[data-todo-status]')).toHaveText(title === 'Cabinets' ? 'Completed' : 'Done');
     };
     await completeRow('Later');
@@ -364,7 +364,7 @@ test.describe('coarse pointer task Delete', () => {
 
     await page.goto(`/projects/${root.id}/pages/todos`);
     const row = page.locator(`[data-todo-row][data-todo-id="${task.id}"]`);
-    const complete = row.locator('[data-todo-complete]');
+    const complete = row.locator('[data-todo-toggle]');
     await expect(complete).toBeVisible();
     await complete.tap();
     const deleteButton = row.locator('[data-todo-delete]');

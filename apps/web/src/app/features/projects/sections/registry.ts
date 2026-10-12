@@ -1,12 +1,11 @@
 import type { Type } from '@angular/core';
 import { sectionKindOf, type SectionKind } from '@cwm/contracts';
 import type { SectionContentComponent } from './section-contract';
-import { RichTextSection } from './rich-text/rich-text-section';
-import { richTextDefaultConfig } from './rich-text/rich-text-config';
+import { MarkdownSection } from './markdown/markdown-section';
+import { markdownDefaultConfig } from './markdown/markdown-config';
 import { TaskListSection } from './tasks/task-list-section';
 import { ProgressSection } from './progress/progress-section';
 import { ReflectionsSection } from './reflections/reflections-section';
-import { SubProjectsSection } from './sub-projects/sub-projects-section';
 import { TimelineSection } from './timeline/timeline-section';
 import { RecentActivitySection } from './activity/recent-activity-section';
 
@@ -44,23 +43,26 @@ export interface SectionDefinition {
  * §30's list. **Adding a section type is one line here plus the type's own folder** — that
  * claim is what §30 asks the prototype to prove, so nothing type-specific belongs anywhere
  * else. Two conditional costs in `packages/contracts/src/section.ts` have since been
- * measured and are recorded rather than argued away: a *container* needs an entry in
+ * measured and are recorded rather than argued away: recovery prose needs a `proseKey` in
+ * `SECTION_CAPABILITIES`; a *container* needs an entry in
  * `SECTION_OWNERSHIP`, and a type whose display name the derivation cannot produce needs one
- * in `SECTION_DISPLAY_NAMES` (`sub-projects` is the only one today). `registry.spec.ts`
+ * in `SECTION_DISPLAY_NAMES`. `registry.spec.ts`
  * fails when this file and that derivation disagree, so the second cost is paid at the
  * moment it is incurred rather than discovered later in a dialog.
  *
  * `type` values match what the seeds and `data.json` already write, so a registry rename is
- * a data migration and not a free choice.
+ * a data migration and not a free choice. Rich Text was exactly that: retired at schema
+ * version 6. Files containing retired Rich Text or Sub-Projects sections need a reset
+ * (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
  */
 export const SECTION_REGISTRY: readonly SectionDefinition[] = [
   {
-    type: 'rich-text',
-    displayName: 'Rich Text',
-    icon: '📝',
-    kind: sectionKindOf('rich-text'),
-    createDefaultConfig: richTextDefaultConfig,
-    component: RichTextSection,
+    type: 'markdown',
+    displayName: 'Markdown',
+    icon: '📄',
+    kind: sectionKindOf('markdown'),
+    createDefaultConfig: markdownDefaultConfig,
+    component: MarkdownSection,
   },
   {
     type: 'task-list',
@@ -70,7 +72,6 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
     createDefaultConfig: () => ({}),
     component: TaskListSection,
   },
-  { type: 'sub-projects', kind: sectionKindOf('sub-projects'), displayName: 'Sub-Projects', icon: '🗂️', createDefaultConfig: () => ({}), component: SubProjectsSection },
   { type: 'progress', kind: sectionKindOf('progress'), displayName: 'Progress', icon: '📈', createDefaultConfig: () => ({}), component: ProgressSection },
   { type: 'reflections', kind: sectionKindOf('reflections'), displayName: 'Reflections', icon: '💭', createDefaultConfig: () => ({}), component: ReflectionsSection },
   { type: 'timeline', kind: sectionKindOf('timeline'), displayName: 'Timeline', icon: '🗓️', createDefaultConfig: () => ({}), component: TimelineSection },

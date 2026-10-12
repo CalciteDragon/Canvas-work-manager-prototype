@@ -139,8 +139,8 @@ deliberate ([why](../decisions/2026-09-a-section-has-a-name.md)).
 ### Insert a section at a chosen position
 
 `create_section` accepts an optional zero-based `position` in the destination page's combined
-placement order. On a root Home page, that order includes both sections and shortcuts; on other
-section-bearing pages it includes the sections there. Omit `position` to append, or give a value
+placement order. On a canonical page — a root's Home or a workstream's Work canvas — that order
+includes both sections and shortcuts; on other section-bearing pages it includes the sections there. Omit `position` to append, or give a value
 beyond the current end to insert at the end. For example, `position: 0` inserts before the first
 placement. The insertion and renumbering happen as one `projects.write` operation.
 
@@ -155,16 +155,56 @@ fields recorded by that update; Redo reapplies exactly what the write did. Recei
 revision, not inverse data. Automatic Reflections/Tasks container creation is intentionally
 receipt-free.
 
+### Write Markdown source
+
+Enable Claude's `projects.write` grant in **Settings → AI & Agents** before these calls;
+the seeded Claude token does not hold it initially. On the `agent-heavy` seed, call
+`create_section` with:
+
+```json
+{
+  "projectId": "project-work-manager",
+  "type": "markdown",
+  "title": "Plan notes",
+  "config": { "markdown": "# Plan\n\n- Confirm the scope\n- Review the result\n" }
+}
+```
+
+Use the returned `section.id` in `update_section`:
+
+```json
+{
+  "sectionId": "section-…",
+  "config": { "markdown": "# Plan\n\nScope confirmed. [Docs](https://example.com)\n" }
+}
+```
+
+Config is replaced whole, so supply the complete `{ markdown: source }` object. Both write
+results and `list_sections` return the exact source in `config.markdown`, never generated HTML.
+Home and work canvases accept Markdown; a shortcut renders its source read-only.
+The picker has six types, with Markdown first, and every seeded project's brief is a Markdown
+section. Rich Text and Sub-Projects are retired: `create_section` refuses `rich-text` with Markdown
+guidance and `sub-projects` with workstream guidance. Create nested work through `create_project`
+with a parent. A file holding either retired type, or an older schema, needs `pnpm prototype:reset`
+or reseeding; local files are disposable.
+
+In the browser, **Edit** opens source, **Preview** renders the draft, and **Save** commits one
+config write. **Cancel** and an unchanged Save write nothing. Reload retains saved source;
+the history label says `Edited Markdown in the Plan notes section`, and the project header’s
+Undo/Redo restores exact source for that person. For agent writes, the same connection uses
+`undo_operation`/`redo_operation` with its own receipts to restore exact source. After removal, non-blank Markdown appears in
+`get_project_archive` with recovery `{ "kind": "config" }`; `restore_section` preserves it.
+
 ### Say which kind of project, and which page
 
 `create_project` takes a required `kind`. A **root** is a workspace: it starts with a Home page
-and can turn on Todos, Archive and Reflections. A **subproject** is a unit of work with exactly
+and can turn on Todos, Archive and Reflections. A **workstream**, stored as `kind: "subproject"`, has exactly
 one work canvas, requires `parentProjectId`, and has no pages to configure — nesting goes to any
-depth. A root naming a parent, or a subproject without one, is refused rather than reinterpreted,
+depth. A root naming a parent, or a workstream without one, is refused rather than reinterpreted,
 so a call that means one of the two cannot quietly produce the other.
 
 Creation returns `{ project, operation }`; the receipt is the first `project.add` action in that
-project's history. For a root, its canonical page is Home; for a subproject, it is Work. Undo removes
+project's history. For a root, its canonical page is Home; for a workstream, it is Work. Undo removes
 the project and page only while both are unchanged and nothing refers to them, and Redo recreates
 the same ids:
 
@@ -205,7 +245,7 @@ rows and layout survive both directions. A toggle still works while the project 
 
 `update_project`, `archive_project` and `restore_project` answer `{ project, operation }` too. The
 receipt says how the status moved, and it belongs to **that project's** own history — a
-sub-project's, not its root's, even when the call moved it to another root:
+workstream's, not its root's, even when the call moved it to another root:
 
 ```jsonc
 // A rename, a completion, a move or a layout/progress change. The label names the edit:
@@ -229,7 +269,7 @@ Undo writes back exactly the fields that call changed, completion time included,
 field someone changed since alone; a later change to one of the same fields refuses. Reversing a move
 re-checks the destination the way a new move would: it must still exist, must not sit beneath the
 project, and must not be under anything archived. Redoing an archive — or undoing a reactivation —
-refuses while the project has a live sub-project, because archiving never cascades. One narrow
+refuses while the project has a live workstream, because archiving never cascades. One narrow
 exception to the archive freeze applies here and nowhere else: a project's **own** archive can be
 undone, its reactivation redone, and an edit made while it was archived undone or redone, while that
 same project is archived — but an archived **ancestor** still answers `history_blocked:`.
@@ -241,9 +281,11 @@ summary at the absent project's id and Redo from that summary.
 
 ### Todos
 
+To reopen a done task, call `update_task` with `{ taskId, status: "todo" }` under `tasks.write`; it clears `completedAt` and returns the owning history receipt.
+
 Slice 25.5 adds `get_project_todos` (`projects.read` **and** `tasks.read`): the whole chronology
-under one root project — its own tasks plus every descendant unit of work and every descendant
-task — ordered by due date, undated last, ties broken by kind then id. A unit of work's date-only
+under one root project — its own tasks plus every descendant workstream and every descendant
+task — ordered by due date, undated last, ties broken by kind then id. A workstream's date-only
 due date sorts at the end of that UTC day.
 
 Rows keep their status and stay on the list once finished, done and cancelled alike; archived rows,
@@ -255,26 +297,26 @@ chronology neither creates the Todos page nor depends on it being switched on.
 ### Archive
 
 `get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`) returns the
-root-wide, **ready-only** recovery projection. It lists archived subprojects, sections, tasks
+root-wide, **ready-only** recovery projection. It lists archived workstreams, sections, tasks
 and reflections whose Restore is structurally available now, highest owner first. An archived
 project suppresses descendants, an archived section suppresses its rows, and an archived task
 suppresses archived subtasks. Live content hidden solely by an archived project and blocked
 descendants are omitted. Listed items keep their owning breadcrumb, cause, cascade and restore
 metadata. The query works while the optional Archive page is disabled.
 
-Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
-and Sub-Projects views, blank Notes (including one created with no `config`, which stores `{}`),
+Since Slice 29 section entries are **content-only**: removed Progress, Timeline and Recent Activity
+views, blank Markdown (including one created with no `config`, which stores `{}`),
 and empty containers after their tasks are moved through `update_task` are not listed. Each listed section
 carries `recovery` — `owned-content` (with `ownedData`; `contentCount`, every row still in the
 container; and `separateRestoreCount`, the row restores still needed after the section's own),
-`config` (Notes prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
+`config` (Markdown prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
 `cascadeCount`, exactly the rows that `restore_section` brings back. A listed archived container
 with a `separateRestoreCount` above zero holds rows archived on
 their own: call `restore_section` first, then `restore_task` / `restore_reflection` for each row
 entry that becomes ready (a parent task brings back the subtasks archived with it).
 
 `list_archived_projects` needs only `projects.read` and lists archived roots plus archived
-subprojects whose ancestors are live across the actor's workspace. It is independent of any
+workstreams whose ancestors are live across the actor's workspace. It is independent of any
 project's Archive page. A root archived with a child appears first; after `restore_project` on
 the root, the independently archived child becomes the next listed project. The same recovery
 is available to a person under **Settings → Archived projects**.
@@ -304,7 +346,7 @@ never undo someone else's change, and nobody can undo yours.
   `historyId` is `null` until the connection's first undoable write in that project.
 - `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
   exactly that action, which must be the next one in that direction. They require only the stored
-  action family's grant: `projects.write` for a section, a Home shortcut placement, an optional
+  action family's grant: `projects.write` for a section, a shortcut placement, an optional
   page or a project's creation, update, archive or reactivation, `tasks.write` for a task,
   `reflections.write` for a reflection. Discovery publishes
   that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
@@ -373,25 +415,30 @@ transition's returned `summary` without calling `get_operation_history`.
 Slice 25.7 adds `get_project_journal` (`projects.read`, `tasks.read` and `reflections.read`). It
 returns the root-wide newest-first reflection feed across Home, the Reflections page and nested
 work canvases, with each entry's canonical origin. A subject-linked entry retains only its task or
-subproject ID in the write; the journal resolves the current name, status, archive state and
+workstream ID in the write; the journal resolves the current name, status, archive state and
 breadcrumb when the caller has the declared read grants. A subject can therefore remain visible
 after its work is reopened or archived. The separate completed-work picker is a page/API read,
 not another MCP tool, and the journal does not require the Reflections tab to be enabled.
 
-### Home shortcuts
+### Shortcuts
 
-Slice 25.4 adds three placement tools:
+Slice 25.4 adds three placement tools. A shortcut sits on a project's **canonical page**: a root's
+Home or, since Slice 65, a workstream's Work canvas. A root's optional pages never take one.
 
-- `list_section_shortcuts` (`projects.read`) lists Home placements with source project, page,
-  section and breadcrumb identity, plus availability; it returns no task or reflection rows.
+- `list_section_shortcuts` (`projects.read`) lists a canonical page's placements with source
+  project, page, section and breadcrumb identity, plus availability; it returns no task or
+  reflection rows. `pageId` is optional and defaults to the project's canonical page.
 - `add_section_shortcut` (`projects.write`) places a read-only reference to a source section in
-  the same root tree. It accepts the same optional zero-based `position` in Home's combined
-  section/shortcut order; omission appends. It answers `{ shortcut, operation }`.
+  the same root tree — the root's pages or any workstream at any depth, ancestors and siblings
+  included, but never the destination page itself. It accepts the same optional zero-based
+  `position` in the canvas's combined section/shortcut order; omission appends. It answers
+  `{ shortcut, operation }`. Read a workstream's Work page id with `list_project_pages`.
 - `remove_section_shortcut` (`projects.write`) deletes only the placement; the source section and
   its rows remain. It answers `{ shortcutId, projectId, pageId, operation }` — there is no
   placement left to return.
 
-Both record in the **destination** root project's history, never the source's, and their Undo and
+Both record in the **destination** project's history — the root for Home, the workstream for Work
+— never the source's, and their Undo and
 Redo write the placement only: the source section, its configuration and its rows are never
 written, so an edit to the source is not a conflict for a placement action. Putting a placement back
 does check the source against §27's rules — same root tree, not the destination page itself — so a
@@ -402,10 +449,14 @@ archived or hidden — it returns as the unavailable placeholder rather than una
 The source content still uses its own grant. For example, discovering a Task List shortcut does
 not grant `tasks.read`; call `list_tasks` with that permission to read the source rows.
 
+A move to another root (`update_project` with a new `parentProjectId`, or its Undo or Redo) is
+refused while any placement has exactly one end — its canvas or its source — inside the moving
+workstream's subtree. The refusal names each placement; remove it and retry.
+
 Once a root has more than one canvas, **where a write lands** stops being a single answer, so
 say it:
 
-- Nothing named — the project's canonical canvas takes it: a root's Home, a subproject's work
+- Nothing named — the project's canonical canvas takes it: a root's Home, a workstream's work
   canvas.
 - `pageId` named — it lands there, provided that page holds that kind of section. A Reflections
   page holds only a reflections container; Todos and Archive hold none, because they project rows
@@ -419,7 +470,7 @@ whole project, grouped by page.
 
 For the multi-page showcase, seed `nested-projects` and open the root Home or a nested work canvas
 in the browser. Over Streamable HTTP, use the same fake Claude token to create/update/complete a
-nested task, add and remove a Home shortcut, attach a subject-linked reflection, archive and restore
+nested task, add and remove a shortcut on Home or a Work canvas, attach a subject-linked reflection, archive and restore
 the task, and toggle an optional page. The open browser surface receives each committed write through
 the host event stream; verify each result with its canonical read rather than treating a projection as
 another copy of the row. Page toggles likewise appear only after the host has persisted the setting and
@@ -446,8 +497,8 @@ The stdio process stays connected, still lists its tools, and its next call afte
 host succeeds and sees everything the host wrote. Use the HTTP endpoint whenever the host is
 running. Two stdio clients on one file take turns: a call behind another client's call prints
 `canvas-work-manager stdio waiting for data file owned by stdio pid <pid>` to stderr, waits up to
-5 s, and then returns a `data_file_in_use:` tool error — retry it. `pnpm prototype:reset`,
-`pnpm prototype:seed` and `pnpm prototype:upgrade` are refused the same way while anything owns
+5 s, and then returns a `data_file_in_use:` tool error — retry it. `pnpm prototype:reset` and
+`pnpm prototype:seed` are refused the same way while anything owns
 the file. A host started while another process owns the file prints
 `prototype-host waiting for data file owned by <kind> pid <pid>`, starts as soon as that owner lets
 go, and otherwise exits after 5 s with `prototype-host failed to start … — data_file_in_use: …` —

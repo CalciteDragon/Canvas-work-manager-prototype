@@ -40,9 +40,9 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
   const homePageId = 'page-project-renovation';
 
   const added = await api.post<SectionAddResult>(`/api/projects/${projectId}/sections`, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'Added through HTTP',
-    config: { text: 'Initial prose' },
+    config: { markdown: 'Initial prose' },
   });
   expect(added.operation.operation).toBe('section.add');
   const addUndo = await step(projectId, added.operation);
@@ -54,14 +54,14 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
   await step(projectId, added.operation);
 
   const editable = await addSection(projectId, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'Original title',
     columnSpan: 12,
-    config: { text: 'Original prose', tone: 'calm' },
+    config: { markdown: 'Original prose' },
   });
   const updated = await api.patch<SectionWriteResult>(`/api/sections/${editable.id}`, {
     title: 'Edited title',
-    config: { text: 'Edited prose', tone: 'loud' },
+    config: { markdown: 'Edited prose' },
     collapsed: true,
     columnSpan: 8,
   });
@@ -80,20 +80,20 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
   const client = await connectMcp('prototype-user-a-readwrite', 'cwm-section-edit-undo-e2e');
   try {
     const disjoint = await addSection(projectId, {
-      type: 'rich-text',
+      type: 'markdown',
       title: 'User title',
-      config: { text: 'User prose' },
+      config: { markdown: 'User prose' },
     });
     const userUpdate = await api.patch<SectionWriteResult>(`/api/sections/${disjoint.id}`, { title: 'User renamed' });
     const agentUpdate = await client.callTool({
       name: 'update_section',
-      arguments: { sectionId: disjoint.id, config: { text: 'Agent prose' } },
+      arguments: { sectionId: disjoint.id, config: { markdown: 'Agent prose' } },
     });
     expect(agentUpdate.isError).not.toBe(true);
     const disjointUndo = await step(projectId, userUpdate.operation!);
     expect(disjointUndo).toMatchObject({ operation: 'section.update', section: { id: disjoint.id, title: 'User title' } });
     const disjointAfter = (await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ id }) => id === disjoint.id);
-    expect(disjointAfter).toMatchObject({ title: 'User title', config: { text: 'Agent prose' } });
+    expect(disjointAfter).toMatchObject({ title: 'User title', config: { markdown: 'Agent prose' } });
 
     const overlapping = await api.patch<SectionWriteResult>(`/api/sections/${editable.id}`, { title: 'User change' });
     const agentOverlap = await client.callTool({
@@ -146,19 +146,20 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   await setLayout(projectId, 'grid');
 
   const notes = await addSection(projectId, {
-    type: 'rich-text',
+    type: 'markdown',
     title: 'Undo notes',
     columnSpan: 12,
-    config: { text: 'Keep this prose' },
+    config: { markdown: 'Keep this prose' },
   });
   const beforeOrder = await orderOf(projectId, homePageId);
   await page.goto(`/projects/${projectId}`);
 
   const endInsertion = page.locator('app-insertion-point[data-insertion-point="end"] [data-insertion-point-button]');
   await endInsertion.click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Contextual add');
   await page.locator('[data-create-section-submit]').click();
+  await expect(page.locator('[data-section-item] [data-section-title-edit]').filter({ hasText: 'Contextual add' })).toBeVisible();
   const added = (await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ title }) => title === 'Contextual add');
   if (added === undefined) throw new Error('The contextual section was not created');
   // Slice 41: a forward write shows no notice; the header's label is its confirmation.
@@ -175,12 +176,14 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   await page.reload();
   await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Renamed the Undo notes section to Renamed notes');
 
-  await notesFrame.locator('[data-rich-text-body]').fill('Changed prose');
-  await notesFrame.locator('[data-rich-text-body]').press('Tab');
-  await undoFromHeader(page, 'Edited prose in the Undo notes section');
-  expect((await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ id }) => id === notes.id)?.config).toEqual({ text: 'Keep this prose' });
+  await notesFrame.locator('[data-markdown-edit]').click();
+  await notesFrame.locator('[data-markdown-source]').fill('Changed prose');
+  await notesFrame.locator('[data-markdown-save]').click();
+  await expect(notesFrame.locator('[data-markdown-source]')).toHaveCount(0);
+  await undoFromHeader(page, 'Edited Markdown in the Undo notes section');
+  expect((await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ id }) => id === notes.id)?.config).toEqual({ markdown: 'Keep this prose' });
   await page.reload();
-  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Edited prose in the Undo notes section');
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Edited Markdown in the Undo notes section');
 
   await notesFrame.locator('[data-section-collapse]').click();
   await expect(notesFrame.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'false');
@@ -315,7 +318,7 @@ for (const mode of ['flow', 'grid'] as const) {
     await setLayout(KITCHEN, mode);
     await page.setViewportSize({ width: 1440, height: 1200 });
     const brief = 'section-project-kitchen-brief';
-    const subProjects = 'section-project-kitchen-sub-projects';
+    const progress = 'section-project-kitchen-progress';
     const originalOrder = await kitchenOrder();
     await page.goto(`/projects/${KITCHEN}`);
     await expect(page.locator('[data-project-name]')).toHaveText('Kitchen');
@@ -323,14 +326,14 @@ for (const mode of ['flow', 'grid'] as const) {
     await pointerResize(page, brief, 12, 6, mode);
     await expect.poll(() => spanOf(brief)).toBe(6);
     await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-6/);
-    await undoFromHeader(page, 'Resized the Rich Text section to 6 columns');
+    await undoFromHeader(page, 'Resized the Markdown section to 6 columns');
     await expect.poll(() => spanOf(brief)).toBe(12);
     await page.reload();
     await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-12/);
     expect(await spanOf(brief)).toBe(12);
 
-    await pointerMoveBefore(page, subProjects, brief);
-    await expect.poll(async () => (await kitchenOrder()).indexOf(subProjects)).toBe(0);
+    await pointerMoveBefore(page, progress, brief);
+    await expect.poll(async () => (await kitchenOrder()).indexOf(progress)).toBe(0);
     await undoFromHeader(page, /^Undo: Moved the .+ section$/);
     await expect.poll(() => kitchenOrder()).toEqual(originalOrder);
     await page.reload();
@@ -388,7 +391,7 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   await frame.locator('[data-section-title-edit]').click();
   await frame.locator('[data-section-name]').fill('User heading');
   await frame.locator('[data-section-name]').press('Enter');
-  const label = /^Undo: Renamed the Rich Text section to User heading$/;
+  const label = /^Undo: Renamed the Markdown section to User heading$/;
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', label);
 
   const client = await connectMcp('prototype-user-a-readwrite', 'cwm-slice-33-overlap');

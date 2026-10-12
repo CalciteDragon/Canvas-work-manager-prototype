@@ -18,7 +18,7 @@ one transition across reconnection; HTTP also checks frame count and persisted s
 
 Slice 53 adds an SDK stdio expiry journey on one isolated `agent-heavy` file. A shared injected
 clock advances beyond the removal receipt's 24-hour expiry; the refused Undo leaves settled bytes,
-history and Activity unchanged. Archive retains the exact rich-text prose through restart, and
+history and Activity unchanged. Archive retains the exact Markdown prose through restart, and
 canonical Restore records once and remains readable after another reopen.
 
 How the prototype is verified (§69): fast offline unit and contract suites in every
@@ -42,7 +42,7 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
 - **Contract tests** for schemas (accept/reject) and for every MCP tool (success under
   minimal grants, denial per grant, store assertion) with no socket.
 - **Host tests**: routes, errors, auth, hub, SSE, MCP handler and stdio, all in-process; plus
-  integrated recovery acceptance that composes the converter, services and JSON
+  integrated recovery acceptance that composes seed builders, services and JSON
   store over temp files, and the compound row Add fault matrix.
 - **Component tests** for stores and components with fake gateways; **Storybook** for
   the variant sets §4 names, with a theme toolbar.
@@ -50,7 +50,7 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
   file.
 - **End-to-end**: the web path, direct canvas editing, section and row Undo/Redo, MCP, and the
   todos, archive and reflections journeys, each seeding the host itself from a freshly prepared
-  version-5 scratch document. Slice 43 covers one-gesture cascade removal, old-input rejection,
+  current-version (6) scratch document. Slice 43 covers one-gesture cascade removal, old-input rejection,
   independent task moves, and task Delete on Task List and Todos. Slice 57 checks the committed
   recovery cue, owner route and root Archive path after those Deletes.
 - **Root tooling tests**: roadmap Outcome and built Compodoc anchor guards, using Node's built-in test runner.

@@ -63,7 +63,6 @@ test('a first enable is reversible in the browser, and its page returns under th
 
   await page.goto(`/projects/${root.id}`);
   await expect(page.locator('[data-project-page-tab]')).toHaveCount(1);
-  const manager = page.locator('[data-project-page-manager]');
   const toggle = (kind: 'todos' | 'archive' | 'reflections') => page.locator(`[data-page-toggle-kind="${kind}"] input`);
   const tab = (kind: string) => page.locator(`[data-project-page-tab][data-page-kind="${kind}"]`);
 
@@ -72,7 +71,7 @@ test('a first enable is reversible in the browser, and its page returns under th
   await watcher.goto(`/projects/${root.id}`);
   await expect(watcher.locator('[data-project-page-tab]')).toHaveCount(1);
 
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await toggle('reflections').click();
   await expect(tab('reflections')).toBeVisible();
   const created = (await pageOf(root.id, 'reflections'))!;
@@ -121,8 +120,7 @@ test('Open archive records one action, and reversing it sends a viewer of that p
 
   // A toggle from a nested work route still belongs to the root's history.
   await page.goto(`/projects/${child.id}`);
-  const manager = page.locator('[data-project-page-manager]');
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await page.locator('[data-page-toggle-kind="archive"] input').click();
   await expect.poll(async () => (await pageOf(root.id, 'archive'))?.enabled).toBe(false);
   const afterNested = await history(root.id);
@@ -158,8 +156,7 @@ test('a dependent added by another actor blocks the first-enable Undo and change
   await setClock('2026-09-21T12:00:00.000Z');
   const root = await createRoot('Blocked page Undo');
   await page.goto(`/projects/${root.id}`);
-  const manager = page.locator('[data-project-page-manager]');
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
   await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toBeVisible();
   const created = (await pageOf(root.id, 'reflections'))!;
@@ -208,7 +205,7 @@ test('a dependent added by another actor blocks the first-enable Undo and change
   await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toBeVisible();
 
   // The ordinary disable is still available, and is what the person actually wants here.
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
   await expect.poll(async () => (await pageOf(root.id, 'reflections'))?.enabled).toBe(false);
   const disabled = await api.patch<ProjectPageWriteResult>(`/api/projects/${root.id}/pages/reflections`, { enabled: false });

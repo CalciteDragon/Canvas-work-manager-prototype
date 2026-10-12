@@ -9,7 +9,7 @@ edges. First the shell — what composes the app, and the only parts that speak 
 C4Component
   title web — the shell and its edges
   Container_Boundary(web, "web (Angular 22, :4200)") {
-    Component(app, "App + app.config.ts", "composition root", "Provides the four adapters; mounts the dev panel globally")
+    Component(app, "App + app.config.ts", "composition root", "Provides the four adapters; mounts the dev panel shell globally, deferring controls on opening")
     Component(core, "core/", "boundary and shell", "gateway, identity, live, config, shell, theme")
     Component(proto, "prototype/", "tooling", "dev panel, state inspector, design lab, control port")
   }
@@ -99,6 +99,7 @@ header's history (Slice 41).
 | Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore`; current-name display with captured-label fallback supplied by the host |
 | Settings | `src/app/features/settings/` | `SettingsPage`; `agents/AgentConnectionsPage`, `AgentConnectionsStore`; `archived-projects/ArchivedProjectsPage`, `ArchivedProjectsStore` |
 | Placeholders | `src/app/features/calendar/`, `features/search/`, `shared/components/placeholder-page/` | `CalendarPage`, `SearchPage`, `PlaceholderPage`, `NotFoundPage` |
+| Markdown renderer | `src/app/shared/components/markdown-renderer/` | `renderMarkdown` and `MarkdownRenderer`, loaded with the section body |
 | Icons | `src/app/shared/components/icon/` | `Icon`: decorative SVG marks shared by features; the owning button carries the accessible name |
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |
 | Storybook | `.storybook/` | `@storybook/angular-vite`; stories beside components |

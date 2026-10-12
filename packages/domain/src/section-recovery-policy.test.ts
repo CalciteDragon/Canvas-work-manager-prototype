@@ -30,7 +30,7 @@ const row = (
 const none = { tasks: [], reflections: [] };
 
 describe('sectionRecoveryOf — disposable views', () => {
-  it.each(['progress', 'timeline', 'recent-activity', 'sub-projects'])(
+  it.each(['progress', 'timeline', 'recent-activity'])(
     'leaves %s out, whatever display config it carries',
     (type) => {
       expect(sectionRecoveryOf(section(type), none)).toEqual({ include: false });
@@ -90,14 +90,30 @@ describe('sectionRecoveryOf — containers, by the rows still assigned', () => {
   });
 });
 
-describe('sectionRecoveryOf — rich text is meaningful plain prose', () => {
+describe('sectionRecoveryOf — Markdown source', () => {
+  it('markdown source with content is recoverable config', () => {
+    expect(sectionRecoveryOf(section('markdown', { markdown: '# x' }), none))
+      .toEqual({ include: true, recovery: { kind: 'config' } });
+    expect(sectionRecoveryOf(section('markdown', { markdown: ' \n' }), none)).toEqual({ include: false });
+    expect(sectionRecoveryOf(section('markdown'), none)).toEqual({ include: false });
+  });
+
+  it('markdown with a foreign or non-string key is unknown', () => {
+    for (const config of [{ text: 'x' }, { markdown: 1 }, { markdown: 'x', extra: 1 }]) {
+      expect(sectionRecoveryOf(section('markdown', config), none))
+        .toEqual({ include: true, recovery: { kind: 'unknown' } });
+    }
+  });
+});
+
+describe('sectionRecoveryOf — prose rules through the declared key', () => {
   it.each([
     ['plain prose', 'Measure the hallway shelf'],
-    ['literal markup, read as prose', '<p></p>'],
+    ['literal markup, read as source', '<p></p>'],
     ['text around whitespace', '\n  Call the plumber \t'],
     ['a zero-width space, which trim does not strip', '​'],
   ])('includes %s', (_label, text) => {
-    expect(sectionRecoveryOf(section('rich-text', { text }), none)).toEqual({ include: true, recovery: { kind: 'config' } });
+    expect(sectionRecoveryOf(section('markdown', { markdown: text }), none)).toEqual({ include: true, recovery: { kind: 'config' } });
   });
 
   it.each([
@@ -106,21 +122,25 @@ describe('sectionRecoveryOf — rich text is meaningful plain prose', () => {
     ['tabs and newlines', '\t\n\r\n'],
     ['Unicode whitespace', '  　﻿'],
   ])('leaves out %s text', (_label, text) => {
-    expect(sectionRecoveryOf(section('rich-text', { text }), none)).toEqual({ include: false });
+    expect(sectionRecoveryOf(section('markdown', { markdown: text }), none)).toEqual({ include: false });
   });
 
   it('leaves out a Notes section created with no config at all — an empty object holds nothing', () => {
-    // `create_section` without `config` stores `{}`; the web's default is `{ text: '' }`.
-    expect(sectionRecoveryOf(section('rich-text', {}), none)).toEqual({ include: false });
+    // `create_section` without `config` stores `{}`; the web's default is `{ markdown: '' }`.
+    expect(sectionRecoveryOf(section('markdown', {}), none)).toEqual({ include: false });
   });
 
   it.each([
-    ['non-string text', { text: 42 }],
-    ['null text', { text: null }],
-    ['an extra key beside empty text', { text: '', format: 'html' }],
-    ['an extra key beside prose', { text: 'Notes', pinned: true }],
+    ['non-string source', { markdown: 42 }],
+    ['null source', { markdown: null }],
+    ['an extra key beside empty source', { markdown: '', format: 'html' }],
+    ['an extra key beside prose', { markdown: 'Notes', pinned: true }],
   ])('keeps %s conservatively, as unknown content', (_label, config) => {
-    expect(sectionRecoveryOf(section('rich-text', config), none)).toEqual({ include: true, recovery: { kind: 'unknown' } });
+    expect(sectionRecoveryOf(section('markdown', config), none)).toEqual({ include: true, recovery: { kind: 'unknown' } });
+  });
+
+  it('reads retired Rich Text as unknown, never as disposable', () => {
+    expect(sectionRecoveryOf(section('rich-text', { text: '' }), none)).toEqual({ include: true, recovery: { kind: 'unknown' } });
   });
 });
 
@@ -139,11 +159,11 @@ describe('sectionRecoveryOf — unknown types', () => {
 
 describe('sectionRecoveryOf — purity', () => {
   it('reads frozen inputs without mutating them', () => {
-    const frozenSection = Object.freeze({ ...section('rich-text', Object.freeze({ text: '  ' })) });
+    const frozenSection = Object.freeze({ ...section('markdown', Object.freeze({ markdown: '  ' })) });
     const content = Object.freeze({ tasks: Object.freeze([Object.freeze(row(SECTION_ID))]), reflections: Object.freeze([]) });
 
     expect(sectionRecoveryOf(frozenSection, content)).toEqual({ include: false });
     expect(sectionRecoveryOf(Object.freeze(section('task-list')), content)).toMatchObject({ include: true });
-    expect(frozenSection.config).toEqual({ text: '  ' });
+    expect(frozenSection.config).toEqual({ markdown: '  ' });
   });
 });
