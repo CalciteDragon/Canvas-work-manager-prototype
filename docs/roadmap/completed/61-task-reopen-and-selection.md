@@ -260,7 +260,7 @@ On isolated data, in a browser, at desktop width and at 375 px with touch:
   - the API reads `status: "todo"` and no `completedAt`;
   - header progress returns to its value before the completion;
   - the task is absent from the Reflections completed-work picker;
-  - a reflection already linked to it still shows "About <task> · Todo" (the Reflections page's label for `todo`).
+  - a reflection already linked to it still shows "About &lt;task&gt; · Todo" (the Reflections page's label for `todo`).
 - **Todos reopen.** The same check, uncheck and reload works on Todos. A cancelled task has no
   control, and a workstream's Complete is unchanged.
 - **History.** The owning project's header Undo after a reopen restores the exact earlier

@@ -190,7 +190,7 @@ section, so renaming it now would be churn on a view that is going away.
       This is the same `@for` timing trap `how.md` records for Archive.
     - If a live refresh removes the chosen parent from `parents` (archived, reparented or
       creation-undone in another tab), the selection resets to the root. A polite note then
-      says "<name> is no longer available; choose another parent." It can name the parent
+      says "&lt;name&gt; is no longer available; choose another parent." It can name the parent
       because the dialog keeps the selected option's name alongside its id. The next change
       clears the note.
     - While a submit is pending, the reset is deferred: the in-flight request's own success or
@@ -218,7 +218,7 @@ section, so renaming it now would be churn on a view that is going away.
 - The route does not change after a create.
   - The header's existing cross-history feedback (`crossOwnerFeedback` in `history-feedback.ts`)
     says, with a curly apostrophe, `Created "<name>" was recorded in <name>’s history.` and
-    offers **Open <name>**. That is the child-history receipt and the offer to open the child;
+    offers **Open &lt;name&gt;**. That is the child-history receipt and the offer to open the child;
     this slice adds no new notice.
   - The tree gains the child from the context re-read, and a second tab gains it from §62's
     `project.*` frame (`rootProjectId`).
