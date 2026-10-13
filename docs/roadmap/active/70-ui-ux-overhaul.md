@@ -176,7 +176,7 @@ targeted fixtures or stories rather than an assumption that a seed reaches them.
 
 ## Outcome
 
-**Gate 0 checkpoint (2026-10-13), awaiting user inventory confirmation.** The code-derived
+**Gate 0 checkpoint (2026-10-13), inventory approved by the user.** The code-derived
 inventory has 38 rows and names all 19 Storybook files. The opt-in harness produced 182
 successful selected capture cells, with screenshots, axe scans, console logs, ARIA snapshots
 and layout measurements. A subsequent run added scroll-region frames for busy-week,
@@ -211,4 +211,121 @@ and this plan. No taste decision or spec amendment is recorded before user selec
 
 **Final checks (2026-10-13):** pnpm test passed: 2,969 workspace tests plus nine root tooling tests, zero skipped. pnpm lint passed including docs:check. A first concurrent lint saw the documentation test's intentional temporary broken-link fixture; the sequential rerun passed after its cleanup. Private publication initially hit automatic-review rejection; the user explicitly approved the exact destination and seeded artifacts on 2026-10-13. Publication status is recorded below.
 
-**Private Gate 0 publication:** [Baseline contact sheet](https://canvas-ux-baseline-oct12.wholecup17.chatgpt.site), verified succeeded on 2026-10-13. Site appgprj_6acdf2662edc8191881a5b7ef190e42a remains owner-private. Source packaging used installed Git Bash and TAR_OPTIONS=--force-local for the Windows drive path. Gate 0 awaits the user's inventory confirmation; publication approval was not inventory approval.
+**Private Gate 0 publication:** [Baseline contact sheet](https://canvas-ux-baseline-oct12.wholecup17.chatgpt.site), verified succeeded on 2026-10-13. Site appgprj_6acdf2662edc8191881a5b7ef190e42a remains owner-private. Source packaging used installed Git Bash and TAR_OPTIONS=--force-local for the Windows drive path. The user subsequently confirmed "the inventory looks good" on 2026-10-13. Gate 0 inventory approval is recorded; it does not certify uncaptured states or approve a redesign.
+
+## Next-chat handoff — begin Phase 1
+
+**User authorization:** Gate 0 inventory is approved (2026-10-13). Continue Phases 1–2 of
+this umbrella and stop at Gate 1 for the user's direction, priority and alternative choice.
+Do not ask for Gate 0 again. Do not create or implement redesign slices before Gate 1.
+
+### Read and resume
+
+Read AGENTS.md first, then the [overhaul protocol](../../guides/ui-ux-overhaul-protocol.md),
+this entire active plan, [goals](../goals.md), [board](../progress.md), and relevant architecture
+and spec sections before touching code. Continue branch `codex/ui-ux-overhaul` from the
+Gate 0 implementation commit `587c2f8` and its handoff documentation commit. CURRENT_SLICE
+is already 70. Keep this umbrella active; do not open a second active plan or close the
+umbrella at Gate 1. Check working-tree changes before editing.
+
+### Evidence and execution
+
+- Private baseline: https://canvas-ux-baseline-oct12.wholecup17.chatgpt.site . Its static
+  report still says inventory approval was pending at publication; this plan records the
+  later user approval. That historical label is not a reason to repeat the gate.
+- Machine evidence: `apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/`.
+  Read index.json, coverage.json, per-cell PNG/axe/ARIA/console/layout files and scroll PNGs,
+  plus tasks/tasks.json and task snapshots. This directory is git-ignored and may need
+  regeneration in another checkout. The tracked [baseline ledger](../70-ui-ux/baseline.json)
+  preserves task steps, counts and limits.
+- `pnpm --filter @cwm/e2e ux:capture` regenerates captures and scripted baseline, keyed by
+  current HEAD. `UX_SMOKE=1` selects three smoke cells; `UX_MATCH` selects a regex subset
+  and requires an existing current-HEAD index to merge. To render the report from apps/e2e:
+  `node --import tsx ux/report.ts ux-output/<captured-HEAD>`.
+- Existing app ports 4200/4310 were occupied. Capture tooling owns scratch servers at
+  4201/4311, reuses prepare-data.ts and e2e-data.json with ownership guards, and forwards
+  browser requests while preserving the 4200 origin for CORS. Read ux-capture.config.ts,
+  ux/isolation.ts and seed.ts before arranging interactive walkthrough servers. Do not
+  reuse/reseed the user's live host. Automated servers terminate when Playwright exits.
+- All six seeds, both themes, 1440×900 / 1024×768 / 375×812 touch are represented in 182
+  selected cells. Host/browser seed date is 2026-08-24T16:00:00.000Z. Full-page screenshots
+  alone miss internally scrolled content; inspect scroll frames and take new crops as needed.
+- Inventory approval is not coverage certification: Storybook variants, transient dragging
+  and rare fault/race states remain uncaptured. Every inventory target is listed explicitly
+  as individually unverified. Reconcile relevant targets to evidence during audits; capture
+  missing states instead of calling an absent screenshot evidence.
+- Nine of ten expert task scripts completed. T10's Connect-agent attempt is blocked because
+  the current page manages seeded connections. This is not yet an accepted UX finding.
+  Discoverability is unmeasured; native date physical keystrokes are unavailable. Do not
+  mistake script success or raw axe diagnostics for user-walkthrough results.
+
+### Phase 1 — independent comb
+
+Use fresh-context subagents (`fork_turns: none`), briefed cold per the guide appendix. Each
+gets the inventory, its task or one lens, finding schema, evidence locations, seeds/personas,
+server instructions and an explicit instruction not to propose fixes or see other findings.
+Do not reuse the inventory builder, plan reviewer or task-script author as independent auditors.
+Run bounded waves within available concurrency; tasks sharing a scratch host must not reseed
+concurrently. One previous helper hit a usage limit; do not count an interrupted audit as done.
+
+Run every core task for every persona (Demo, Alex, Sam), with explicit completed/blocked/
+inapplicable outcomes. Run a distinct 375 px touch pass and keyboard-only attempts for all
+core tasks. Auditors must drive the running app and narrate expectations before actions;
+screenshots and scripts do not replace that work. Keep honest interaction, surface and
+dead-end records, with focus/visibility evidence.
+
+Seven independent lens passes: visual hierarchy/layout; consistency (including SCSS token
+escapes); affordance/feedback; states; accessibility; copy/vocabulary; information architecture.
+Inspect full-resolution crops, trees and computed styles, not only thumbnails. Audit both
+themes, busiest backing content, reduced motion/transparency and unsupported-filter fallback,
+long busy-week/agent-heavy canvases and 375 px touch with blur-layer/performance concerns.
+Existing opaque styling is the baseline, not an implemented glass system.
+
+Write protocol-shaped finding JSON in `docs/roadmap/70-ui-ux/`, with evidence, fresh-seed repro,
+expected/actual, heuristic, severity and confidence, and no fix. Check decisions before filing
+and cite any decision reopened. The orchestrator must reproduce every admitted finding and
+record reproduction evidence; keep rejected/unreproduced claims out of synthesis. Record
+actual-use friction in .prototype/notes.json without inventing observations.
+
+### Phase 2 — orchestrator-owned synthesis and direction
+
+Do not delegate synthesis or taste direction. Dedupe reproduced findings into roughly 8–15
+root-cause themes, ordered tokens → primitives → patterns → shell/navigation → page-specific.
+Write 5–8 concrete principles grounded in captures. Preserve the user's brief: a real modern,
+clean frosted-glass redesign; a few coherent surface levels; calm layering rather than heavy
+borders/shadows; purposeful fast motion; clear reading order and one primary action per surface.
+
+Constraints: WCAG AA over busiest backing content in dark/light; prefers-reduced-motion and
+prefers-reduced-transparency; solid no-backdrop-filter fallback; limited stacked blur; animate
+only transform/opacity; test long canvases and phone. Any prototype app styling values belong
+in apps/web/src/styles/_tokens.scss, with translucency, blur, elevation, duration/easing tokens
+and live Design Lab tuning (§21, §22, §67). Architectural §1 boundaries remain untouched;
+web-only scope. No host/domain/contracts/product-behavior expansion.
+
+Show 2–3 distinct alternatives side by side, preferably isolated Design Lab token settings or
+Storybook variants, otherwise static mockups, and at least one motion demonstration. Map each
+substantially changing theme to the alternatives that illustrate it. These are throwaway
+proposals, not permission to apply an unselected design to product pages. Update this plan's
+exact file list and use AGENTS.md review/TDD process for any prototype tooling implementation.
+
+**Stop at Gate 1:** present prioritized themes, direction document, alternatives and motion,
+with executed verification and limitations. Ask the user to choose. Only then record the
+answered taste decisions and amend the spec as appropriate; no redesign slice planning now.
+
+### Verified checkpoint and operational traps
+
+2,969 workspace tests plus nine root tooling tests passed, zero skipped; seven explicit harness
+checks and 11 focused dev-panel tests passed; captures/task runs, e2e tsc, lint and docs checks
+passed. Full ordinary e2e, Storybook, production build, independent walkthroughs and glass
+contrast/performance have not been run. Do not rerun unchanged checks just to repeat them.
+Run docs lint sequentially after root documentation tests: the latter temporarily creates an
+intentionally invalid Compodoc link and can race concurrent docs:check.
+
+For an update to the existing private Site, preserve project
+`appgprj_6acdf2662edc8191881a5b7ef190e42a` and its owner-private audience; never create a duplicate.
+The local Site checkout is
+`C:/Users/tyler/.codex/visualizations/2026/10/12/01a13253-83b1-7121-a954-78b856ecf293/canvas-baseline`.
+Use the currently installed Sites skill and obtain a fresh in-memory credential; none is saved
+in the repo. Windows source packaging needed Git/bin prepended to PATH and
+TAR_OPTIONS=--force-local. The user explicitly approved uploading seeded baseline screenshots
+and audit summaries to this exact private Site/source repository; do not broaden its audience.

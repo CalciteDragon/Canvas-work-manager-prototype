@@ -4,7 +4,7 @@
   "selectedCells": 182,
   "capturedCells": 182,
   "inventoryRows": 38,
-  "gate": "Gate 0 presented for inventory review, not approved",
+  "gate": "Gate 0 inventory approved by user on 2026-10-13; capture gaps remain explicit",
   "artifactDirectory": "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc",
   "tasks": [
     {
