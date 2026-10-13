@@ -315,3 +315,27 @@ pnpm storybook                                        # :6006
 
 The Compodoc fragment regression runs when generated API output exists; otherwise Node
 reports it skipped. Run `pnpm docs:api` before `pnpm test` to exercise it.
+
+## Opt-in UI evidence (Slice 70)
+
+`pnpm --filter @cwm/e2e ux:capture` runs the selected matrix and ten scripted core-task
+paths outside `pnpm test` and `pnpm e2e`. It reuses the e2e server definitions and
+ownership-guarded `prepare-data.ts`, with scratch servers at 4201/4311. Browser routing
+preserves the app's original origin for CORS while forwarding every request to those
+servers; it never reuses the developer's host. `seed.ts` accepts `CWM_E2E_HOST` only for
+this test process; normal e2e retains 4310.
+
+Outputs live in git-ignored `apps/e2e/ux-output/<HEAD>/`: index/contact sheet, PNGs, axe
+JSON, console errors, ARIA snapshots and layout measurements. The index discloses the
+working-tree capture and coverage gaps. `SEED_NOW` fixes host/browser time; animation is
+disabled. A held loading read is explicitly exempt from network-idle waiting. Partial
+artifact failures remain incomplete and fail the capture assertion. Task completion and
+blocked outcomes are recorded separately from novice discoverability, which requires
+independent walkthroughs. Run `node --test apps/e2e/ux/harness.test.mjs` and
+`pnpm --filter @cwm/e2e exec node --import tsx --test ux/tasks.test.ts ux/matrix.test.ts ux/coverage.test.ts` for the helper checks.
+
+This harness is an evidence collector, not an accessibility or performance certification.
+Its selected matrix and unresolved coverage are recorded in the
+[umbrella](../../roadmap/active/70-ui-ux-overhaul.md).
+
+After a capture, run the report generator with node --import tsx ux/report.ts ux-output/<HEAD> from apps/e2e. It creates the contact sheet, a raw axe summary and the explicit inventory denominator. UX_MATCH selects a subset for recapture and merges its cells into an existing index. Scroll frames expose nested scroll regions on long canvases; their presence is recorded per cell.

@@ -104,6 +104,9 @@ would implement and the scope guards it inherits.
 
 ## Now
 
+**User-requested — UI/UX overhaul (2026-10-12).** [Slice 70](active/70-ui-ux-overhaul.md) starts the [overhaul protocol](../guides/ui-ux-overhaul-protocol.md): a real redesign toward a coherent frosted-glass system, calm layering, purposeful motion and clear action hierarchy. This session covers baseline, independent audits and alternatives through Gate 1 only. AA contrast in both themes over busy backing content, reduced motion/transparency, solid fallback, restrained blur on long canvases and touch, and token-based live tuning are constraints. The user chooses direction and alternatives before any redesign slices are planned.
+
+
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:
 - [Slice 68 — cross-root move refusal names each placement](completed/68-cross-root-refusal-names-placements.md),
@@ -112,7 +115,7 @@ after the Markdown and work navigation direction; both are now resolved:
 - [Slice 69 — distinguishable names for untitled shortcut sources](completed/69-distinguishable-shortcut-names.md),
   completed 2026-10-09: untitled shortcut frames, controls and new history labels include the
   source owner, with independent diff reviews and real browser/MCP use (`note-2026-10-03-001`).
-  No implementation plan remains active; sustained use can choose the next candidate.
+  That direction is closed; Slice 70 above is the current user-requested work.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed

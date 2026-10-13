@@ -6,9 +6,12 @@
   "scripts": {
     "pree2e": "node --import tsx prepare-data.ts",
     "e2e": "playwright test",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "preux:capture": "node --import tsx prepare-data.ts",
+    "ux:capture": "playwright test --config ux-capture.config.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@cwm/repositories": "workspace:*",
     "@modelcontextprotocol/client": "^2.0.0",
     "@playwright/test": "^1.57.0",

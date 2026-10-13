@@ -69,3 +69,5 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
 - [Why it exists and is shaped this way](why.md)
 - [What it is made of](what.md)
 - [How it works and how to change it](how.md)
+
+Slice 70 adds an opt-in Playwright/axe capture harness in apps/e2e/ux, separate from ordinary tests. Its selected surface matrix and explicitly uncaptured states support the UI/UX audit; generated evidence stays git-ignored. See [operation](how.md#opt-in-ui-evidence-slice-70).

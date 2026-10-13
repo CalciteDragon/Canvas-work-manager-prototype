@@ -27,7 +27,7 @@ import type {
   SectionShortcutAddResult,
 } from '@cwm/contracts';
 
-const HOST = 'http://127.0.0.1:4310';
+const HOST = process.env['CWM_E2E_HOST'] ?? 'http://127.0.0.1:4310';
 
 /** The prototype's fake persona header (§48). No security value; the host binds locally. */
 const PERSONA_HEADERS = { 'content-type': 'application/json', 'x-prototype-user': 'user-demo' };

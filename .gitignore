@@ -41,3 +41,6 @@ docs/api/
 .vitepress/dist/
 .vitepress/cache/
 .vitepress/public/
+
+# Slice 70 reproducible, commit-keyed visual audit artifacts.
+apps/e2e/ux-output/

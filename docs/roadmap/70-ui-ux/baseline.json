@@ -1,0 +1,537 @@
+{
+  "capturedFromCommit": "c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc",
+  "includesUncommittedCaptureTooling": true,
+  "selectedCells": 182,
+  "capturedCells": 182,
+  "inventoryRows": 38,
+  "gate": "Gate 0 presented for inventory review, not approved",
+  "artifactDirectory": "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Create a root project",
+      "seed": "empty",
+      "route": "/app",
+      "spec": "§23, §26",
+      "status": "completed",
+      "clicks": 3,
+      "keystrokes": 16,
+      "surfaces": [
+        "Sidebar",
+        "Create project"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "New project",
+          "surface": "Sidebar",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Focus text field",
+          "surface": "Create project",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Type Baseline project",
+          "surface": "Create project",
+          "clicks": 0,
+          "keystrokes": 16,
+          "status": "passed"
+        },
+        {
+          "action": "Create",
+          "surface": "Create project",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T02",
+      "title": "Create a workstream under Kitchen",
+      "seed": "nested-projects",
+      "route": "/projects/project-kitchen",
+      "spec": "§26",
+      "status": "completed",
+      "clicks": 3,
+      "keystrokes": 19,
+      "surfaces": [
+        "Project navigation",
+        "Workstream dialog"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Add workstream",
+          "surface": "Project navigation",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Type Baseline workstream",
+          "surface": "Workstream dialog",
+          "clicks": 0,
+          "keystrokes": 19,
+          "status": "passed"
+        },
+        {
+          "action": "Choose Kitchen as parent",
+          "surface": "Workstream dialog",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Create",
+          "surface": "Workstream dialog",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T03",
+      "title": "Add a Task List and complete two tasks",
+      "seed": "nested-projects",
+      "route": "/projects/project-kitchen",
+      "spec": "§31",
+      "status": "completed",
+      "clicks": 10,
+      "keystrokes": 38,
+      "surfaces": [
+        "Work canvas",
+        "Section dialog",
+        "Task List"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Insert at end",
+          "surface": "Work canvas",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Choose Task List",
+          "surface": "Section dialog",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Focus text field",
+          "surface": "Section dialog",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Type Baseline tasks",
+          "surface": "Section dialog",
+          "clicks": 0,
+          "keystrokes": 14,
+          "status": "passed"
+        },
+        {
+          "action": "Create",
+          "surface": "Section dialog",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Focus text field",
+          "surface": "Task List",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Type Baseline one",
+          "surface": "Task List",
+          "clicks": 0,
+          "keystrokes": 12,
+          "status": "passed"
+        },
+        {
+          "action": "Add task",
+          "surface": "Task List",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Complete task",
+          "surface": "Task List",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Focus text field",
+          "surface": "Task List",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Type Baseline two",
+          "surface": "Task List",
+          "clicks": 0,
+          "keystrokes": 12,
+          "status": "passed"
+        },
+        {
+          "action": "Add task",
+          "surface": "Task List",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Complete task",
+          "surface": "Task List",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T04",
+      "title": "Find an overdue task and reschedule it",
+      "seed": "overdue-chaos",
+      "route": "/projects/project-client-migration",
+      "spec": "§31",
+      "status": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "surfaces": [
+        "Task List",
+        "Task drawer"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Open overdue task details",
+          "surface": "Task List",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Set due date using native date input (physical key count unavailable)",
+          "surface": "Task drawer",
+          "clicks": 0,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Verify saved due date after reload (verification actions excluded from task cost)",
+          "surface": "Task drawer",
+          "clicks": 0,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T05",
+      "title": "Remove a section and undo removal",
+      "seed": "nested-projects",
+      "route": "/projects/project-kitchen",
+      "spec": "§26",
+      "status": "completed",
+      "clicks": 2,
+      "keystrokes": 0,
+      "surfaces": [
+        "Work canvas",
+        "Project history"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Remove first section",
+          "surface": "Work canvas",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Verify exact section left the canvas",
+          "surface": "Work canvas",
+          "clicks": 0,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Undo removal",
+          "surface": "Project history",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Verify removed section returns",
+          "surface": "Work canvas",
+          "clicks": 0,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T06",
+      "title": "Edit and save Markdown",
+      "seed": "nested-projects",
+      "route": "/projects/project-kitchen",
+      "spec": "§30",
+      "status": "completed",
+      "clicks": 2,
+      "keystrokes": 16,
+      "surfaces": [
+        "Markdown",
+        "Markdown editor"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Edit Markdown",
+          "surface": "Markdown",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Select source",
+          "surface": "Markdown editor",
+          "clicks": 0,
+          "keystrokes": 1,
+          "status": "passed"
+        },
+        {
+          "action": "Type # Baseline edit",
+          "surface": "Markdown editor",
+          "clicks": 0,
+          "keystrokes": 15,
+          "status": "passed"
+        },
+        {
+          "action": "Save Markdown",
+          "surface": "Markdown editor",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T07",
+      "title": "Place a shortcut on Work",
+      "seed": "nested-projects",
+      "route": "/projects/project-kitchen",
+      "spec": "§26",
+      "status": "completed",
+      "clicks": 3,
+      "keystrokes": 0,
+      "surfaces": [
+        "Work canvas",
+        "Section dialog",
+        "Shortcut picker"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Insert at end",
+          "surface": "Work canvas",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Add shortcut",
+          "surface": "Section dialog",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Add source shortcut",
+          "surface": "Shortcut picker",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T08",
+      "title": "Hide and re-enable Reflections",
+      "seed": "nested-projects",
+      "route": "/projects/project-renovation",
+      "spec": "§26",
+      "status": "completed",
+      "clicks": 3,
+      "keystrokes": 0,
+      "surfaces": [
+        "Project navigation",
+        "Page settings"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Page settings",
+          "surface": "Project navigation",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Hide Reflections",
+          "surface": "Page settings",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Enable Reflections",
+          "surface": "Page settings",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T09",
+      "title": "Restore an archived item",
+      "seed": "nested-projects",
+      "route": "/projects/project-renovation/pages/archive",
+      "spec": "§26",
+      "status": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "surfaces": [
+        "Archive"
+      ],
+      "deadEnds": 0,
+      "steps": [
+        {
+          "action": "Restore first ready item",
+          "surface": "Archive",
+          "clicks": 1,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Verify exact restored entry leaves Archive",
+          "surface": "Archive",
+          "clicks": 0,
+          "keystrokes": 0,
+          "status": "passed"
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    },
+    {
+      "id": "T10",
+      "title": "Inspect permissions and connect an agent",
+      "seed": "agent-heavy",
+      "route": "/settings/agents",
+      "spec": "§53",
+      "status": "blocked",
+      "error": "Error: No Connect agent control exists; this page manages seeded connections.",
+      "clicks": 0,
+      "keystrokes": 0,
+      "surfaces": [
+        "Agent settings"
+      ],
+      "deadEnds": 1,
+      "steps": [
+        {
+          "action": "Inspect permission labels",
+          "surface": "Agent settings",
+          "clicks": 0,
+          "keystrokes": 0,
+          "status": "passed"
+        },
+        {
+          "action": "Find Connect agent control",
+          "surface": "Agent settings",
+          "clicks": 0,
+          "keystrokes": 0,
+          "status": "blocked",
+          "error": "No Connect agent control exists; this page manages seeded connections."
+        }
+      ],
+      "discoverability": "pending independent walkthrough",
+      "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+      "persona": "user-demo",
+      "viewport": "1440x900"
+    }
+  ],
+  "gaps": [
+    {
+      "surface": "Storybook: 19 files",
+      "status": "not-captured",
+      "reason": "Component-state capture pending separate Storybook server; Design Lab is captured."
+    },
+    {
+      "surface": "rare races / lazy-import failure / stale-anchor / source permission / unsupported registry",
+      "status": "not-captured",
+      "reason": "Need controlled story or fault fixtures; ordinary seed routes do not establish these states."
+    },
+    {
+      "surface": "dragging and keyboard resize/move",
+      "status": "not-captured",
+      "reason": "Transient gesture frames need a dedicated action capture; ordinary screenshots are insufficient."
+    }
+  ],
+  "independentAudits": "Not started",
+  "directionAndAlternatives": "Not started",
+  "privateContactSheet": "https://canvas-ux-baseline-oct12.wholecup17.chatgpt.site"
+}

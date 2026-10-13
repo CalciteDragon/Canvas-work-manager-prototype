@@ -1,0 +1,19 @@
+import { defineConfig } from '@playwright/test';
+import existing from './playwright.config';
+
+// Separate ports preserve a developer's live workspace; the same ownership-guarded
+// prepare-data.ts and server definitions still own the scratch document.
+process.env['CWM_E2E_HOST'] = 'http://127.0.0.1:4311';
+process.env['CWM_E2E_WEB'] = 'http://localhost:4200';
+const original = Array.isArray(existing.webServer) ? existing.webServer : [];
+/** Opt-in visual evidence, deliberately excluded from the ordinary e2e suite. */
+export default defineConfig({
+  ...existing,
+  testDir: './ux', testIgnore: [], testMatch: 'capture.ts', timeout: 900_000,
+  use: { ...existing.use, baseURL: 'http://localhost:4201', viewport: { width: 1440, height: 900 } },
+  webServer: [
+    { ...original[0]!, command: 'pnpm --filter @cwm/prototype-host start', url: 'http://127.0.0.1:4311/prototype/state', env: { ...original[0]!.env, CWM_HOST_PORT: '4311' } },
+    { ...original[1]!, command: 'pnpm --filter web start --port 4201', url: 'http://localhost:4201' },
+  ],
+});
+

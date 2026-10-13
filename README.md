@@ -228,3 +228,7 @@ the click-path for every item in §81's First Prototype Milestone — fifty numb
 across eight groups, each naming the seed it needs and what you should see. That document
 is what "demonstrable" means here. What comes next is in
 [docs/roadmap/goals.md](docs/roadmap/goals.md).
+
+## UI/UX audit captures
+
+Run pnpm --filter @cwm/e2e ux:capture explicitly to generate the selected baseline and task ledger in git-ignored apps/e2e/ux-output, using isolated servers on ports 4201/4311. It is separate from test and e2e. See [capture operation](docs/architecture/testing/how.md#opt-in-ui-evidence-slice-70) and the [overhaul umbrella](docs/roadmap/active/70-ui-ux-overhaul.md).

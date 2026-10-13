@@ -29,6 +29,7 @@ const dataFile = fileURLToPath(new URL('../../.prototype/e2e-data.json', import.
 
 export default defineConfig({
   testDir: '.',
+  testIgnore: ['**/ux/**'],
   fullyParallel: false,
   // The two specs seed the same host, so they must not race each other.
   workers: 1,
