@@ -21,6 +21,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
+| [Connecting an agent becomes a product surface in Settings › AI & Agents](2026-10-agent-connections-are-a-product-surface.md) | The five S1 findings; its own cross-system slice within §80 | current (Slice 70 Gate 1) |
+| [Prototype scaffolding stays visible during the redesign](2026-10-prototype-scaffolding-stays-for-now.md) | TH12 is restyled, not removed; its findings stay open | current (Slice 70 Gate 1) |
 | [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | amended; Slice 66 |
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
@@ -43,7 +45,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 ## Domain
 
 - [Nested project work is called a workstream](2026-09-workstream-user-terminology.md) — current; prose changes, identifiers stay intact.
-- [Page settings and work creation live beside their navigation](2026-09-project-navigation-gear-and-work-create.md) — current; root-name gear and explicit-parent Work plus.
+- [Page settings and work creation live beside their navigation](2026-09-project-navigation-gear-and-work-create.md) — amended (Slice 70 Gate 1: Parent defaults to the open workstream; gear moves with one tree); root-name gear and explicit-parent Work plus.
 
 | Entry | Settled | Status |
 |---|---|---|
@@ -69,7 +71,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | amended; Slice 38 gives the creation a restricted inverse |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | amended; Slice 36 history may restore captured content; Slice 43 removes removal-time reassign |
 | [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33; new reassign requests retired in Slice 43 |
-| [Section removal is one cascade gesture, and task Delete is reversible](2026-09-one-step-section-removal-and-task-delete.md) | ID-only cascade for live owned rows; keep legacy reassign history; expose soft archive as task Delete | current |
+| [Section removal is one cascade gesture, and task Delete is reversible](2026-09-one-step-section-removal-and-task-delete.md) | ID-only cascade for live owned rows; keep legacy reassign history; expose soft archive as task Delete | amended; Undo beside the change (Slice 70 Gate 1) |
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | amended; Slice 66 |
 | [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | amended; Slice 37 extends the rule to placement inverses; Slice 65 to Work canvases |
 | [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | amended (Undo restores by neighbours, Slice 30; Work canvases, Slice 65) |
@@ -118,7 +120,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The Sub-Projects section is retired; Work is the hierarchy surface](2026-10-retiring-the-sub-projects-section.md) | Six types; Work navigation/creation; unreadable local files reset or reseed | current; Slice 66 |
 | [Persona workspace topology in seeds](2026-08-persona-workspace-topology.md) | Three personas with separately owned workspaces in every seed | current |
-| [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | current |
+| [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | amended; Slice 70 Gate 1 makes connecting a product surface |
 | [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 and v3 → v4 steps; only v3 receipts retire | amended; Slice 66 |
 | [Schema version 5 backfills durable Activity identity without changing history](2026-09-schema-version-5-conversion.md) | Validated v4 → v5 Activity-context backfill preserves operation history | amended; Slice 66 |
 | [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md) | Historical escape-everything v5 → v6 cutover; converter removed in Slice 66, Rich Text still refused on create and load | historical / amended; Slice 66 |
@@ -136,15 +138,20 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
-| [Below 48rem the global sidebar is a modal drawer, and a chosen link hands focus to what it opened](2026-09-phone-navigation-drawer.md) | Phone drawer semantics, focus after route choice and resize, project-column re-collapse, Task List details stacking | current (Slice 58) |
-| [Task Delete names its existing recovery routes](2026-09-task-delete-recovery-feedback.md) | Committed Task List and Todos Delete show archive status and point to root Archive and the owner's header history | current (Slice 57) |
+| [The redesign follows direction B, Depth, held to the eight principles and the glass constraints](2026-10-frosted-glass-depth-direction.md) | Depth aesthetic; principles and AA win where they conflict; blur budget settled by a spike | current (Slice 70 Gate 1) |
+| [The theme follows the device preference, and an explicit choice persists](2026-10-theme-follows-device-and-persists.md) | prefers-color-scheme by default; explicit choice in localStorage; persona no longer seeds | current (Slice 70 Gate 1) |
+| [The accent stays orange in dark and blue in light](2026-10-accents-stay-split-per-theme.md) | Split accents kept; state cues by shape (principle 4) | current (Slice 70 Gate 1) |
+| [Navigation condenses into one tree](2026-10-one-navigation-tree.md) | One hierarchy with root pages and workstreams; one current marker; shell-layer slice | current (Slice 70 Gate 1) |
+| [Add workstream defaults to the open workstream, and adding a task does not open its details](2026-10-creation-defaults-follow-the-open-work.md) | Parent = open workstream; add keeps focus in the field | current (Slice 70 Gate 1) |
+| [Below 48rem the global sidebar is a modal drawer, and a chosen link hands focus to what it opened](2026-09-phone-navigation-drawer.md) | Phone drawer semantics, focus after route choice and resize, project-column re-collapse, Task List details stacking | amended; reopened by one navigation tree (Slice 70 Gate 1) |
+| [Task Delete names its existing recovery routes](2026-09-task-delete-recovery-feedback.md) | Committed Task List and Todos Delete show archive status and point to root Archive and the owner's header history | amended; feedback at the point of action (Slice 70 Gate 1) |
 | [Descendant rows link to their owner's existing header history](2026-09-descendant-history-discovery.md) | Root Todos and Archive offer a named owner route to the existing header; focus and actor scope stay there | current (Slice 56) |
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
-| [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes, complete-order movement guards and browser-review reveal and handle fixes, slider handle and script-fitted Rich Text amended | amended |
+| [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes, complete-order movement guards and browser-review reveal and handle fixes, slider handle and script-fitted Rich Text amended | amended; at-rest emphasis reopened (Slice 70 Gate 1) |
 | [A recovery route is offered only when it leads somewhere](2026-09-recovery-routes-name-what-is-actually-there.md) | Archive offered on the removal's own verdict, Archive rows state the append | amended (Slice 35 removes `supersededBy`; Slice 41 moves Open Archive to the recovery notice; Slice 44 adds Settings recovery) |
 | [The project header offers Undo and Redo of the displayed project's history, and nothing else does](2026-09-project-header-history-controls.md) | Displayed-project scope, per-step `blockedBy`, header-only action surface, cross-owner guidance, frames reconcile content, archive stays on the project | amended; Slice 42 adds creator recovery at an absent project's URL |
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
-| [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
+| [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | superseded (Slice 70 Gate 1) |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |
 | [The activity feed composes its line; `summary` stays a log line](2026-08-activity-feed-composes-from-parts.md) | The feed renders live names or captured historical fallback labels | amended; Slice 36 handles removed targets; Slice 42 uses a captured project-target label only for that absent project |
 | [The dashboard splits layout from content](2026-08-dashboard-layout-and-content-split.md) | Widgets from `IdentityProvider`, content from one read | current |
@@ -155,11 +162,11 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history; Slice 41 keeps the archived project on screen; Slice 42 records create and keeps its recovery at the project URL; Slice 61 retires the inline-task-edit comparison |
 | [Task checkboxes reopen and task titles select](2026-09-task-checkbox-reopen-and-selection.md) | Reopen to todo on both task surfaces; idempotent selection, drawer title editing, focus and pointer guards | current; Slice 61 |
 | [§4's *Agent Modified* task row has no data behind it](2026-08-agent-modified-has-no-data-behind-it.md) | Six of seven `TaskRow` variants; the seventh is a §58 question | current |
-| [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended |
-| [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | amended; Slice 60 adds the gear and workstream terminology |
+| [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended; reopened by one navigation tree (Slice 70 Gate 1) |
+| [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | amended; moves with one navigation tree (Slice 70 Gate 1) |
 | [The development panel is an overlay and a route, sharing one control set](2026-08-development-panel-surface.md) | `DevPanelControls` is the one implementation of every control | amended; Slice 62 defers controls inside the eager modal |
-| [What §46's Agent Connection control is](2026-08-agent-connection-panel-control-is-a-roster.md) | A read-only roster with copyable tokens | current |
-| [The Design Lab is a route with live knobs, not a third theme](2026-08-design-lab-tokens-are-session-knobs.md) | Seven inline custom properties, session-only | current |
+| [What §46's Agent Connection control is](2026-08-agent-connection-panel-control-is-a-roster.md) | A read-only roster with copyable tokens | amended; connecting moves into Settings (Slice 70 Gate 1) |
+| [The Design Lab is a route with live knobs, not a third theme](2026-08-design-lab-tokens-are-session-knobs.md) | Seven inline custom properties, session-only | extended; glass and motion knobs (Slice 70 Gate 1) |
 
 ## Testing
 

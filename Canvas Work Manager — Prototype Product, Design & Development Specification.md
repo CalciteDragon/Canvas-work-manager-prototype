@@ -895,6 +895,8 @@ Example categories:
 
 Do not scatter literal styling values throughout components.
 
+*Corrected at Slice 70 Gate 1 (2026-10-14).* The redesign adds token families for the frosted-glass **Depth** direction: plane tints and alphas (ground, pane, sheet, lift), blur radii, lift elevation, focus ring, durations and easings, plus the z-index, breakpoint and font-weight values that escape tokens today. Every one lives in `_tokens.scss`. Glass surfaces must keep text and muted text at WCAG AA over the worst backing, in both themes. They fall back to solid token surfaces under reduced transparency, without `backdrop-filter`, and in forced colours ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md), [direction](docs/roadmap/70-ui-ux/direction.md)).
+
 ---
 
 # 22. Prototype Themes
@@ -934,6 +936,8 @@ sidebar width
 ```
 
 This allows broad visual experiments without rewriting component CSS.
+
+*Corrected at Slice 70 Gate 1 (2026-10-14).* With no explicit choice, the theme follows `prefers-color-scheme`. An explicit choice persists in the browser, and the persona preference no longer sets it ([decision](docs/decisions/2026-10-theme-follows-device-and-persists.md)). Dark keeps an orange accent and light a blue one ([decision](docs/decisions/2026-10-accents-stay-split-per-theme.md)). The Design Lab gains knobs for the glass and motion tokens.
 
 ---
 
@@ -1047,6 +1051,8 @@ a resize resets it. While the project column is collapsible (≤ 60rem), choosin
 collapses it again and focuses its toggle, so the chosen canvas is not pushed under an open list.
 A 768 px tablet keeps the inline sidebar
 ([why](docs/decisions/2026-09-phone-navigation-drawer.md)).
+
+*Corrected at Slice 70 Gate 1 (2026-10-14): one navigation tree.* The global sidebar and the project column condense into one hierarchy. Each root expands to its enabled pages and its workstreams, exactly one current item is marked, and phones get one pattern. The two-column layout above remains the implemented state until the shell-layer redesign slice lands ([decision](docs/decisions/2026-10-one-navigation-tree.md)).
 
 ---
 
@@ -1338,6 +1344,13 @@ Enabling a page is still allowed while the project is archived, so §31's Open a
 reachable. Reversing one through history is **not**: a page transition is blocked on an archived
 root in either direction, like every other family, so history is not a way around the freeze
 ([why](docs/decisions/2026-09-optional-page-operation-history.md)).
+
+*Corrected at Slice 70 Gate 1 (2026-10-14).* The decisions below change the project page.
+
+- Add workstream proposes the open workstream as Parent, and the root only on root pages.
+- Adding a task keeps focus in the add field and does not open its details ([decision](docs/decisions/2026-10-creation-defaults-follow-the-open-work.md)).
+- Section tools stay visible at low emphasis at rest, and adding a section is a persistent affordance.
+- Confirmation and Undo for a removal appear beside the change ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
 
 ---
 
@@ -2780,6 +2793,8 @@ Last used: 4 minutes ago
 
 Changes should immediately affect subsequent MCP tool calls.
 
+*Corrected at Slice 70 Gate 1 (2026-10-14).* AI & Agents also lets a person connect a new agent: name it, choose its permissions, and see how to point an MCP client at the prototype. It stays inside the prototype fake auth, with no production OAuth (§80) ([decision](docs/decisions/2026-10-agent-connections-are-a-product-surface.md)).
+
 ---
 
 # 54. Initial MCP Tools
@@ -3657,6 +3672,8 @@ errors
 ```
 
 This supplements Storybook with a full-app design environment.
+
+*Corrected at Slice 70 Gate 1 (2026-10-14).* The Lab shows the three planes and the lifts (drawer, dialog, menu, toast) over a busy backing. It has live knobs for tints, blur and motion, and toggles for reduced transparency, the no-filter fallback and reduced motion ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
 
 ---
 

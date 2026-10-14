@@ -35,3 +35,5 @@ the root default still need sustained use.
 ## Revisit when
 
 People choose the wrong parent repeatedly, miss the gear, or expect creation to open its canvas.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Two parts are reopened. Add workstream's Parent now defaults to the open workstream, and to the root only on root pages ([decision](2026-10-creation-defaults-follow-the-open-work.md)). The gear's placement moves with [one navigation tree](2026-10-one-navigation-tree.md).

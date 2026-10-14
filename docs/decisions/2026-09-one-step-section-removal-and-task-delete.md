@@ -51,3 +51,5 @@ fit in both row surfaces; revisit after using it in the integrated prototype.
 Real use shows that moving a task as part of removing its container is a common, distinct intention
 that ordinary task movement cannot make clear, or people mistake reversible **Delete** for a
 permanent purge. Any reconsideration must preserve exact-actor history and Archive recovery.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** One-step removal stands. Under principle 6 of the [Depth direction](2026-10-frosted-glass-depth-direction.md), the removal's confirmation and Undo appear beside the removed section, not only in the header (W1-036, L4-026).

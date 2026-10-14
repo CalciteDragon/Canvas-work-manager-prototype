@@ -97,3 +97,5 @@ defaults, not measured preferences.
 A tablet-specific layout is wanted, a phone surface needs a persistent drawer preference, or
 real use shows the stacked details drawer is missed below the fold, which would argue for
 scrolling it into view after quick create.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Reopened by [one navigation tree](2026-10-one-navigation-tree.md): phones get one navigation pattern instead of the drawer plus the separate project-column toggle (L7-006). The focus rules here (trap, Escape, focus to what was opened) remain the bar for the replacement.

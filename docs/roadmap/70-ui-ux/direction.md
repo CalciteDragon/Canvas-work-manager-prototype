@@ -1,8 +1,11 @@
 # Slice 70 — proposed design direction (Gate 1 draft)
 
-**Status: proposed, awaiting the user's Gate 1 choice.** Nothing here is approved. This file
-is not a decision record and changes no product behaviour. When the user chooses, the answers
-become `docs/decisions/` entries and the spec (§21, §22, §26, §67) is amended there.
+**Status: approved at Gate 1 (2026-10-14).** The user chose **B, Depth**, kept the theme
+priority below, and kept all eight principles. Where B's mockup conflicted with a principle or
+a glass constraint, the principle wins: AA tuning is required, and section tools stay quiet but
+visible. See the [Depth direction decision](../../decisions/2026-10-frosted-glass-depth-direction.md)
+and the other Gate 1 entries it links. This file still changes no product behaviour by itself.
+Redesign slices implement it.
 
 The direction is built from the reproduced Phase 1 evidence in [`themes.json`](themes.json)
 and [`reproduction.json`](reproduction.json). It also follows the user's brief: a real,

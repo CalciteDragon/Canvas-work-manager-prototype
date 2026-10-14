@@ -89,6 +89,13 @@ deliberately under-engineered. Adding abstraction to them is the wrong direction
 Each subsystem's `why.md` lists the decisions that shape it; the
 [decision index](../decisions/README.md) lists them all.
 
+## Product scope decided at Slice 70 Gate 1 (2026-10-14)
+
+Connecting an agent becomes a product surface. It is a cross-system slice within §80
+([decision](../decisions/2026-10-agent-connections-are-a-product-surface.md)). Prototype
+scaffolding stays visible during the redesign
+([decision](../decisions/2026-10-prototype-scaffolding-stays-for-now.md)).
+
 ## Spec sections
 
 §1–§3 purpose and philosophy · §5–§8 runtime architecture and the core boundary ·

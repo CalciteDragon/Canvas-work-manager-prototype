@@ -135,3 +135,5 @@ that is the first candidate for a follow-up slice, and it needs a decision about
 two themes' accent-contrast pairings can be unified before a mix can derive them. Also revisit
 if the primitive panels accumulate enough repeat re-styling to justify extracting a component
 library, which is deliberately **not** this slice.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Extended by the [Depth direction](2026-10-frosted-glass-depth-direction.md): the redesign's plane tints, alphas, blur radii, lift elevation, durations and easings become tokens with live Lab knobs. Persistence stays session-only, as here.

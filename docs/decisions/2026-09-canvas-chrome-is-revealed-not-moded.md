@@ -108,3 +108,5 @@ the arrows. The start edge is a pointer-only grip outside the tab order and the 
 tree. Rich Text fits its height to its content in script — on typing, on a saved-text change and
 on a width change — instead of CSS `field-sizing: content`, so Flow resizing reflows in every
 browser, not only Chromium.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Only the at-rest emphasis is reopened. Under principle 5 of the [Depth direction](2026-10-frosted-glass-depth-direction.md), section tools and insertion stay visible at low emphasis at rest on pointer devices and rise on hover or focus, and adding a section is a persistent affordance. The evidence: insertion appears only inside a 16 px gap, and only the top strip of its plus is clickable (W1-017, W1-018, L3-001). The reserved space, the no-mode rule and touch behaviour stand.

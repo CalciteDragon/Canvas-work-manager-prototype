@@ -75,3 +75,5 @@ recovery action is in the project's More menu on root and nested work routes. Th
 fills the available workspace height below the top bar and scrolls its own long contents while
 the canvas scrolls independently. These changes keep the original feature ownership decision;
 see [the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md).
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Reopened: navigation condenses into one tree ([decision](2026-10-one-navigation-tree.md)). The separate project column is expected to go when the shell-layer slice lands. Until then this entry describes the code as it is.

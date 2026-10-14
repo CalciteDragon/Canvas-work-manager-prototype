@@ -50,3 +50,5 @@ High. This is throwaway prototype auth (§71) and the shape is doing the one job
 Slice 15 points a real MCP client at the host and someone has to get a token out of the
 panel and into a client config. If copy-and-paste from the roster is awkward,
 `docs/guides/mcp-setup.md` may want the tokens written out instead.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** The user decided that connecting an agent becomes a product surface ([decision](2026-10-agent-connections-are-a-product-surface.md)). Whether a connection created in the product gets a fixture token beside the seeds or a token reference on the record is that slice's first question. This entry stands until the slice answers it, and is then amended again.

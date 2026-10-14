@@ -48,3 +48,5 @@ nested work routes.
 beside the root name. It is a disclosure: Escape closes and focuses the gear, outside clicks
 leave it open, and Home/Work scope and confirmed-state writes are unchanged. See
 [navigation controls](2026-09-project-navigation-gear-and-work-create.md).
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Reopened by [one navigation tree](2026-10-one-navigation-tree.md): page management moves with the tree. Where it sits, labelled with its root scope, is decided in the shell slice. Auditors also found the gear hard to discover (W1-044, W2-026, W4-017).

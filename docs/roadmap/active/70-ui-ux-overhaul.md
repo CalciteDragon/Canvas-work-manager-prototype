@@ -281,122 +281,98 @@ the app as a person, and inventing friction is barred. The other checks not run,
 on the Gate 1 page under "Method and limits". No redesign slice has been planned. No decision
 entry or spec amendment was written before the user's choice.
 
-## Next-chat handoff — begin Phase 1
+**Gate 1 approved (2026-10-14).** The user chose **B, Depth**, kept the theme priority and all
+eight principles, and answered the six product questions. The answers are recorded as seven
+decision entries, amendments to ten reopened entries, and corrections to §21, §22, §23, §26, §53
+and §67:
 
-*Superseded by the Gate 1 checkpoint above: Phase 1 and Phase 2 are complete. The next action is
-the user's Gate 1 choice. After it, record decisions, amend §21/§22/§26/§67, then plan slices.*
+- [Depth direction](../../decisions/2026-10-frosted-glass-depth-direction.md)
+- [agent connections are a product surface](../../decisions/2026-10-agent-connections-are-a-product-surface.md)
+- [prototype scaffolding stays](../../decisions/2026-10-prototype-scaffolding-stays-for-now.md)
+- [split accents stay](../../decisions/2026-10-accents-stay-split-per-theme.md)
+- [the theme follows the device and persists](../../decisions/2026-10-theme-follows-device-and-persists.md)
+- [one navigation tree](../../decisions/2026-10-one-navigation-tree.md)
+- [creation defaults](../../decisions/2026-10-creation-defaults-follow-the-open-work.md)
 
-**User authorization:** Gate 0 inventory is approved (2026-10-13). Continue Phases 1–2 of
-this umbrella and stop at Gate 1 for the user's direction, priority and alternative choice.
-Do not ask for Gate 0 again. Do not create or implement redesign slices before Gate 1.
+[direction.md](../70-ui-ux/direction.md) is marked approved. The Gate 1 page is unchanged and
+still records the options as they were presented.
 
-### Read and resume
+## Next-chat handoff — Phase 3 (slice plan)
 
-Read AGENTS.md first, then the [overhaul protocol](../../guides/ui-ux-overhaul-protocol.md),
-this entire active plan, [goals](../goals.md), [board](../progress.md), and relevant architecture
-and spec sections before touching code. Continue branch `codex/ui-ux-overhaul` from the
-Gate 0 implementation commit `587c2f8` and its handoff documentation commit. CURRENT_SLICE
-is already 70. Keep this umbrella active; do not open a second active plan or close the
-umbrella at Gate 1. Check working-tree changes before editing.
+**State.** Phases 0–2 are complete and Gate 1 is answered. No redesign slice has been planned or
+started; the user asked to stop here. The umbrella stays active.
 
-### Evidence and execution
+### Read first
 
-- Private baseline: https://canvas-ux-baseline-oct12.wholecup17.chatgpt.site . Its static
-  report still says inventory approval was pending at publication; this plan records the
-  later user approval. That historical label is not a reason to repeat the gate.
-- Machine evidence: `apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/`.
-  Read index.json, coverage.json, per-cell PNG/axe/ARIA/console/layout files and scroll PNGs,
-  plus tasks/tasks.json and task snapshots. This directory is git-ignored and may need
-  regeneration in another checkout. The tracked [baseline ledger](../70-ui-ux/baseline.json)
-  preserves task steps, counts and limits.
-- `pnpm --filter @cwm/e2e ux:capture` regenerates captures and scripted baseline, keyed by
-  current HEAD. `UX_SMOKE=1` selects three smoke cells; `UX_MATCH` selects a regex subset
-  and requires an existing current-HEAD index to merge. To render the report from apps/e2e:
-  `node --import tsx ux/report.ts ux-output/<captured-HEAD>`.
-- Existing app ports 4200/4310 were occupied. Capture tooling owns scratch servers at
-  4201/4311, reuses prepare-data.ts and e2e-data.json with ownership guards, and forwards
-  browser requests while preserving the 4200 origin for CORS. Read ux-capture.config.ts,
-  ux/isolation.ts and seed.ts before arranging interactive walkthrough servers. Do not
-  reuse/reseed the user's live host. Automated servers terminate when Playwright exits.
-- All six seeds, both themes, 1440×900 / 1024×768 / 375×812 touch are represented in 182
-  selected cells. Host/browser seed date is 2026-08-24T16:00:00.000Z. Full-page screenshots
-  alone miss internally scrolled content; inspect scroll frames and take new crops as needed.
-- Inventory approval is not coverage certification: Storybook variants, transient dragging
-  and rare fault/race states remain uncaptured. Every inventory target is listed explicitly
-  as individually unverified. Reconcile relevant targets to evidence during audits; capture
-  missing states instead of calling an absent screenshot evidence.
-- Nine of ten expert task scripts completed. T10's Connect-agent attempt is blocked because
-  the current page manages seeded connections. This is not yet an accepted UX finding.
-  Discoverability is unmeasured; native date physical keystrokes are unavailable. Do not
-  mistake script success or raw axe diagnostics for user-walkthrough results.
+1. AGENTS.md.
+2. The [overhaul protocol](../../guides/ui-ux-overhaul-protocol.md), §6–§8.
+3. This plan's Gate 1 checkpoint and the paragraph above.
+4. [direction.md](../70-ui-ux/direction.md), [themes.json](../70-ui-ux/themes.json) and the seven
+   Gate 1 decision entries.
 
-### Phase 1 — independent comb
+Each redesign slice is an ordinary roadmap slice under this umbrella. Create it with
+`roadmap.mjs new`, run the five AGENTS.md steps, and add the protocol §6 extras: findings
+closed, capture scope, visual acceptance, and behaviour versus appearance.
 
-Use fresh-context subagents (`fork_turns: none`), briefed cold per the guide appendix. Each
-gets the inventory, its task or one lens, finding schema, evidence locations, seeds/personas,
-server instructions and an explicit instruction not to propose fixes or see other findings.
-Do not reuse the inventory builder, plan reviewer or task-script author as independent auditors.
-Run bounded waves within available concurrency; tasks sharing a scratch host must not reseed
-concurrently. One previous helper hit a usage limit; do not count an interrupted audit as done.
+### Proposed slice sequence (layer order; re-confirm at planning)
 
-Run every core task for every persona (Demo, Alex, Sam), with explicit completed/blocked/
-inapplicable outcomes. Run a distinct 375 px touch pass and keyboard-only attempts for all
-core tasks. Auditors must drive the running app and narrate expectations before actions;
-screenshots and scripts do not replace that work. Keep honest interaction, surface and
-dead-end records, with focus/visibility evidence.
+1. **Depth tokens, Lab and blur spike** (TH01, TH02 token part, TH03).
+   - Plane, glass, motion, focus-ring, z-index, breakpoint and font-weight tokens; fix the
+     undefined `--font-weight-medium`.
+   - Design Lab knobs and plane specimens over busy backing.
+   - **First, a measured spike on per-sheet blur**: busy-week and agent-heavy at 1440 and at a
+     375 px touch emulation. It answers the Depth decision's open budget question, and its
+     result goes to the user.
+   - The theme follows the device and persists (a behaviour change with tests first).
+2. **Primitives** (TH04, TH05). Buttons (primary, secondary, ghost, danger), icon button,
+   field, select, checkbox, pill and tool. Replace browser-default controls. Targets of 24 px or
+   more (44 px on touch); one focus ring.
+3. **Lifts and focus** (TH06). The task drawer becomes a lift that takes focus and closes on
+   Escape. More becomes a menu. A page-settings popover. Focus returns after dialogs, menus and
+   route changes.
+4. **Feedback pattern** (TH07, plus the task-add part of TH15). An inline Undo toast at the point
+   of action, pending within 100 ms, new items scrolled into view and focused, a saved
+   indicator, transform/opacity motion. Adding a task does not open its drawer.
+5. **Section chrome** (TH08). Tools quiet at rest, a persistent add-section affordance, the full
+   insertion hit area, headings that name their section (not "Rename X").
+6. **Objects and states** (TH09, TH10). One task-row shape across surfaces; inert-looking rows
+   become openable or stop looking openable; designed empty, loading, error and archived states;
+   errors that clear.
+7. **One navigation tree** (TH11, TH13, and the Add workstream part of TH15). Shell alternatives
+   first, since the decision leaves the exact shape open; then implement with §77 test changes.
+   Includes the phone pattern, document titles, a skip link and breadcrumbs.
+8. **Agent connections** (the five S1 findings). A cross-system slice: contracts, domain, host,
+   seeds and web, within §80. Its token mechanism is the first design question. It can run
+   before slice 7 if the user wants the S1 closed sooner, but it needs slice 2's form primitives.
+9. **Vocabulary** (TH14). Product words for ids, enums, dates and casing. Leave TH12 untouched,
+   because scaffolding stays.
 
-Seven independent lens passes: visual hierarchy/layout; consistency (including SCSS token
-escapes); affordance/feedback; states; accessibility; copy/vocabulary; information architecture.
-Inspect full-resolution crops, trees and computed styles, not only thumbnails. Audit both
-themes, busiest backing content, reduced motion/transparency and unsupported-filter fallback,
-long busy-week/agent-heavy canvases and 375 px touch with blur-layer/performance concerns.
-Existing opaque styling is the baseline, not an implemented glass system.
+After each layer group: re-capture (`pnpm --filter @cwm/e2e ux:capture`), run a fresh comb with
+new auditors (the rig in `apps/e2e/ux/walk/`), and hold Gate 3 if the direction needs amending.
+Stop rule: protocol §8. Keep TH12's open S2 findings visible in that count; they are open by
+decision.
 
-Write protocol-shaped finding JSON in `docs/roadmap/70-ui-ux/`, with evidence, fresh-seed repro,
-expected/actual, heuristic, severity and confidence, and no fix. Check decisions before filing
-and cite any decision reopened. The orchestrator must reproduce every admitted finding and
-record reproduction evidence; keep rejected/unreproduced claims out of synthesis. Record
-actual-use friction in .prototype/notes.json without inventing observations.
+### Waiting on the user
 
-### Phase 2 — orchestrator-owned synthesis and direction
+- **Creation defaults.** Confirm the reading of "adding a workstream should default open" as
+  "the Parent defaults to the open workstream". Say whether a newly created workstream should
+  also open itself (W1-014, W2-007, not yet decided).
+- **Agent connections.** Whether that slice runs before the shell slice.
 
-Do not delegate synthesis or taste direction. Dedupe reproduced findings into roughly 8–15
-root-cause themes, ordered tokens → primitives → patterns → shell/navigation → page-specific.
-Write 5–8 concrete principles grounded in captures. Preserve the user's brief: a real modern,
-clean frosted-glass redesign; a few coherent surface levels; calm layering rather than heavy
-borders/shadows; purposeful fast motion; clear reading order and one primary action per surface.
+### Operational traps (carry forward)
 
-Constraints: WCAG AA over busiest backing content in dark/light; prefers-reduced-motion and
-prefers-reduced-transparency; solid no-backdrop-filter fallback; limited stacked blur; animate
-only transform/opacity; test long canvases and phone. Any prototype app styling values belong
-in apps/web/src/styles/_tokens.scss, with translucency, blur, elevation, duration/easing tokens
-and live Design Lab tuning (§21, §22, §67). Architectural §1 boundaries remain untouched;
-web-only scope. No host/domain/contracts/product-behavior expansion.
-
-Show 2–3 distinct alternatives side by side, preferably isolated Design Lab token settings or
-Storybook variants, otherwise static mockups, and at least one motion demonstration. Map each
-substantially changing theme to the alternatives that illustrate it. These are throwaway
-proposals, not permission to apply an unselected design to product pages. Update this plan's
-exact file list and use AGENTS.md review/TDD process for any prototype tooling implementation.
-
-**Stop at Gate 1:** present prioritized themes, direction document, alternatives and motion,
-with executed verification and limitations. Ask the user to choose. Only then record the
-answered taste decisions and amend the spec as appropriate; no redesign slice planning now.
-
-### Verified checkpoint and operational traps
-
-2,969 workspace tests plus nine root tooling tests passed, zero skipped; seven explicit harness
-checks and 11 focused dev-panel tests passed; captures/task runs, e2e tsc, lint and docs checks
-passed. Full ordinary e2e, Storybook, production build, independent walkthroughs and glass
-contrast/performance have not been run. Do not rerun unchanged checks just to repeat them.
-Run docs lint sequentially after root documentation tests: the latter temporarily creates an
-intentionally invalid Compodoc link and can race concurrent docs:check.
-
-For an update to the existing private Site, preserve project
-`appgprj_6acdf2662edc8191881a5b7ef190e42a` and its owner-private audience; never create a duplicate.
-The local Site checkout is
-`C:/Users/tyler/.codex/visualizations/2026/10/12/01a13253-83b1-7121-a954-78b856ecf293/canvas-baseline`.
-Use the currently installed Sites skill and obtain a fresh in-memory credential; none is saved
-in the repo. Windows source packaging needed Git/bin prepended to PATH and
-TAR_OPTIONS=--force-local. The user explicitly approved uploading seeded baseline screenshots
-and audit summaries to this exact private Site/source repository; do not broaden its audience.
+- Run docs lint after the root documentation tests, never concurrently. The documentation test
+  temporarily creates an intentionally invalid Compodoc link.
+- Audit and capture servers must never use 4200/4310. The rig uses 4201 and 4320 and up.
+- In rig page routes, use `route.fallback()`, never `route.continue()`.
+- This machine has 8 GB. Run at most about four rig browsers at once, and serve a production
+  build statically instead of running one `ng serve` per auditor.
+- The production build is 1.02 MB initial, above the 850 kB warning and under the 1050 kB hard
+  ceiling ([budget](../../decisions/2026-08-initial-bundle-budget.md)). Glass work must not
+  push it over.
+- **Gate 0 baseline.** The private Gate 0 baseline is a ChatGPT Site (project
+  `appgprj_6acdf2662edc8191881a5b7ef190e42a`). It can only be updated from the Codex environment
+  with its Sites skill, and its audience must not be broadened.
+- **Gate 1 page.** Gate 1 is a private Claude artifact:
+  https://claude.ai/artifact/SZ5TSfguMziAvFtRNEjYBq . Rebuild it with
+  `node docs/roadmap/70-ui-ux/tooling/build-gate1.mjs`; rebuild the ledger with `build-ledger.mjs`.

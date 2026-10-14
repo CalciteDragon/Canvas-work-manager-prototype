@@ -1,5 +1,7 @@
 # A theme change lasts the session, not the persona
 
+> **Superseded by [the theme follows the device preference, and an explicit choice persists](2026-10-theme-follows-device-and-persists.md)** (Slice 70 Gate 1, 2026-10-14).
+
 **Question**
 
 §22 wants dark and light. `UserPreferences.theme` stores a persona's choice and the seeds

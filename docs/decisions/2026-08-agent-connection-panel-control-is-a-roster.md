@@ -53,3 +53,5 @@ straight to that connection in Settings, which was noted as friction while using
 Slice 15, when a real MCP client is being configured for the first time — that is the moment
 this control either pays for itself or turns out to want the whole `docs/guides/mcp-setup.md`
 snippet on the clipboard rather than a bare token.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Connecting moves into product Settings › AI & Agents ([decision](2026-10-agent-connections-are-a-product-surface.md)). The panel roster may remain as prototype tooling, but it is no longer the only way to reach a token.

@@ -98,6 +98,24 @@ themes; the token lint permits literals in exactly one file
 
 Each subsystem's `why.md` carries its own.
 
+## The Slice 70 redesign direction (Gate 1, 2026-10-14)
+
+The user chose the frosted-glass **Depth** direction. The eight principles and the glass
+constraints act as its acceptance rules: AA over the worst backing, solid fallbacks, motion only
+through transform and opacity, and every value a token
+([decision](../../decisions/2026-10-frosted-glass-depth-direction.md),
+[direction](../../roadmap/70-ui-ux/direction.md)).
+
+The same gate also decided four more things. None is implemented yet; each lands in its own
+redesign slice.
+
+- The theme follows the device preference and persists an explicit choice
+  ([decision](../../decisions/2026-10-theme-follows-device-and-persists.md)).
+- The split accents stay ([decision](../../decisions/2026-10-accents-stay-split-per-theme.md)).
+- Navigation condenses into one tree ([decision](../../decisions/2026-10-one-navigation-tree.md)).
+- Two creation defaults change: Add workstream defaults to the open workstream, and adding a task
+  does not open its details ([decision](../../decisions/2026-10-creation-defaults-follow-the-open-work.md)).
+
 ## Spec sections
 
 §4 stack · §8–§10 boundary, gateway, adapter · §18 identity · §19–§23 UI architecture,

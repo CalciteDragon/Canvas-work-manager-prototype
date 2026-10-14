@@ -25,3 +25,5 @@ Medium: focused component and browser checks cover commit timing, failed writes,
 **Revisit when**
 
 People cannot find root Archive from a Task List, or read the header guidance as a guarantee that Delete remains the next step.
+
+**Amended, 2026-10-14 (Slice 70 Gate 1).** Principle 6 of the [Depth direction](2026-10-frosted-glass-depth-direction.md) moves recovery feedback to the point of action. The notice offers Undo itself instead of pointing to the header icon ('Undo is in the header', W1-036, L3-009). The routes this entry names still exist, but the wording and placement change in the pattern-layer slice.
