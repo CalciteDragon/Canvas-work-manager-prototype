@@ -401,8 +401,12 @@ The spike script is a measurement, not a test.
 
 ## Open questions
 
-1. **"Match device" control shape** (the theme decision leaves it to this slice). Default, which
-   needs your confirmation:
+**Answered 2026-10-14:** the user approved the plan and every default below. These are
+questions 1, 3 and 4, and the "no persona first-visit default" in acceptance 15. Each is recorded
+in the decision entries the change list names, when its part lands. Only question 2, the blur
+rule, stays open until the checkpoint after part A.
+
+1. **"Match device" control shape** (the theme decision leaves it to this slice). Default:
    - the top-bar button stays a dark/light flip that sets an explicit choice;
    - `/settings` gains an **Appearance** group with *Match device · Dark · Light*;
    - the dev panel's Theme control gains `device`.
@@ -450,3 +454,35 @@ The spike script is a measurement, not a test.
   - The token lint sees only declarations, never selectors, and the scrims hold no literal colour. One rule replaces both: no literal `opacity` other than 0 or 1.
   - Minors: the outline count, the Storybook script name, and naming where the `@supports` comparison lives.
 - **Round 3 (2026-10-14):** No substantive findings; all round-2 items confirmed against the code. Two notes folded into the lint test row: the opacity rule allows `100%` and `0%` and ignores custom properties, and the breakpoint check skips when its files are absent under the self-test root.
+
+## Next-chat handoff — implementation
+
+**State (2026-10-14).** The plan was reviewed over three rounds and approved with all of its
+defaults. Nothing is implemented yet. `CURRENT_SLICE` is still 70.
+
+**Read first:**
+1. AGENTS.md.
+2. This plan, in full.
+3. The umbrella's "Operational traps" in [70](70-ui-ux-overhaul.md).
+4. The [Depth](../../decisions/2026-10-frosted-glass-depth-direction.md) and
+   [theme](../../decisions/2026-10-theme-follows-device-and-persists.md) decisions.
+5. The `how.md` of web, web/core and web/prototype-tooling.
+
+**Order:**
+1. Bump `CURRENT_SLICE` to 71.
+2. **Part A, the spike**: acceptance steps 1–5. Then **stop and bring the result to the user**,
+   with a table and paired captures of V2, V3 and V4.
+3. Part C may be built test-first while the user decides.
+4. Then the capture-harness change (acceptance 9). Commit it, and take the "before" capture.
+5. Part B, under the chosen blur rule.
+6. Re-capture from a commit, build the sheet and hold Gate 2.
+
+**Traps:**
+- Never use 4200/4310. The spike uses 4201 and 4321, so never run it alongside `ux:capture`,
+  which also uses 4201.
+- In rig routes, use `route.fallback()`, never `route.continue()`.
+- Run at most about four browsers (8 GB), and serve a static production build.
+- The initial bundle is 1.02 MB against a 1050 kB ceiling.
+- Run `pnpm lint` (with `docs:check`) after `pnpm test`, never at the same time.
+- Do not link files that do not exist yet. `docs:check` fails on a link to a future file, as it
+  did on `blur-spike.json` in this plan.
