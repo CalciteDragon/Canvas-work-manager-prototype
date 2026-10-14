@@ -46,3 +46,5 @@ again.
 
 Revisit when that slice's plan is reviewed, or if the token mechanism would require anything
 §80 forbids.
+
+**Amended, 2026-10-14.** The user moved this slice ahead of the navigation-tree slice. It follows the primitives slice, whose form controls it needs.

@@ -65,3 +65,5 @@ tuning. The spike and the first before/after sheet will show it.
 Revisit at Gate 2 of the first token slice, if AA-compliant tints remove most of B's character,
 or if the blur spike shows jank on the long canvases or on phone emulation. Either outcome goes
 back to the user as a Gate 3 amendment rather than a silent switch to A or C.
+
+**Amended, 2026-10-14 (user decision on contrast).** The user judged the Depth mockup readable as shown and does not want visual quality traded for contrast. The worst-case-composite AA rule above is therefore **not a gate**. The demo tints are the target, and contrast is not raised at the expense of the look. What remains: contrast is still measured and reported on every before/after sheet, so the user sees the numbers; the reduced-transparency, no-filter and forced-colours fallbacks still resolve to solid surfaces; and principles 4 and 5 (state in shape and words, chrome quiet but visible) still apply. Note: the protocol stop rule (zero serious axe violations in either theme) may then be met only with recorded, accepted exceptions. Those exceptions are listed explicitly, never hidden.

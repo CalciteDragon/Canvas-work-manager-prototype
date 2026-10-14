@@ -322,7 +322,7 @@ closed, capture scope, visual acceptance, and behaviour versus appearance.
    - Design Lab knobs and plane specimens over busy backing.
    - **First, a measured spike on per-sheet blur**: busy-week and agent-heavy at 1440 and at a
      375 px touch emulation. It answers the Depth decision's open budget question, and its
-     result goes to the user.
+     result goes to the user. Implement Depth's demo tints as shown; contrast is reported, not tuned up.
    - The theme follows the device and persists (a behaviour change with tests first).
 2. **Primitives** (TH04, TH05). Buttons (primary, secondary, ghost, danger), icon button,
    field, select, checkbox, pill and tool. Replace browser-default controls. Targets of 24 px or
@@ -352,7 +352,13 @@ new auditors (the rig in `apps/e2e/ux/walk/`), and hold Gate 3 if the direction 
 Stop rule: protocol §8. Keep TH12's open S2 findings visible in that count; they are open by
 decision.
 
-### Waiting on the user
+### Answered after Gate 1 (2026-10-14)
+
+- **Creation defaults.** The interpretation is confirmed: Parent defaults to the open workstream. A newly created workstream also opens itself.
+- **Agent connections** move ahead of the navigation-tree slice, so the order becomes 1–6, then 8, then 7, then 9.
+- **Contrast.** The user accepted Depth's demo tints. Worst-case AA is reported on every sheet but no longer gates the work. The fallbacks and principles 4–5 still hold ([decision](../../decisions/2026-10-frosted-glass-depth-direction.md)).
+
+### Previously waiting on the user (now answered)
 
 - **Creation defaults.** Confirm the reading of "adding a workstream should default open" as
   "the Parent defaults to the open workstream". Say whether a newly created workstream should

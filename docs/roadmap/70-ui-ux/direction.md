@@ -56,6 +56,8 @@ action per surface.
 
 ## Glass constraints (apply to every alternative)
 
+> **Amended 2026-10-14:** the user accepted Depth's demo tints. The worst-case AA rule in the first bullet below is reported, not gating ([decision](../../decisions/2026-10-frosted-glass-depth-direction.md)). The fallbacks, the blur budget question, motion and tokens still apply.
+
 - Text never relies on blur for legibility. Each translucent surface's tint and alpha must keep
   body text at or above 4.5:1 and muted text at or above 4.5:1 against the *worst* backing
   colour: the composite of the surface over the lightest and darkest pixel that can sit beneath
