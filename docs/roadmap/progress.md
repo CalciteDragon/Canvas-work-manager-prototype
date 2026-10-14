@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 71 | Slice 71 — Depth tokens, Lab knobs, blur spike and device theme | Redesign slice 1 under 70: Depth plane/glass/motion/focus/z-index/breakpoint/weight tokens, Lab knobs, measured blur spike, theme follows device and persists | [71-depth-tokens-and-theme.md](active/71-depth-tokens-and-theme.md) |
 
 ### Planned
 
