@@ -71,3 +71,7 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
 - [How it works and how to change it](how.md)
 
 Slice 70 adds an opt-in Playwright/axe capture harness in apps/e2e/ux, separate from ordinary tests. Its selected surface matrix and explicitly uncaptured states support the UI/UX audit; generated evidence stays git-ignored. See [operation](how.md#opt-in-ui-evidence-slice-70).
+
+Slice 71 adds an isolated blur measurement in `apps/e2e/ux/spike`, also outside ordinary
+tests. It compares injected glass variants on realistic seeds before the user chooses a
+product blur rule.

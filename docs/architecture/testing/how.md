@@ -318,6 +318,14 @@ reports it skipped. Run `pnpm docs:api` before `pnpm test` to exercise it.
 
 ## Opt-in UI evidence (Slice 70)
 
+Slice 71's standalone `node apps/e2e/ux/spike/blur-spike.mjs` measures injected glass
+variants against the static production build on 4201 and one scratch-data host on 4321.
+Build with `pnpm --filter web build` first. Never run the spike alongside `ux:capture`.
+It owns its servers and runs one Chromium browser at a time; no developer data is read.
+Results are written to `docs/roadmap/70-ui-ux/blur-spike.json`; traces and paired captures
+stay in git-ignored `apps/e2e/ux-output/spike/`. This is a measurement outside every test
+command, with a baseline sanity gate and explicit emulation limits.
+
 `pnpm --filter @cwm/e2e ux:capture` runs the selected matrix and ten scripted core-task
 paths outside `pnpm test` and `pnpm e2e`. It reuses the e2e server definitions and
 ownership-guarded `prepare-data.ts`, with scratch servers at 4201/4311. Browser routing

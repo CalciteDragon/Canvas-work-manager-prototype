@@ -75,6 +75,7 @@ sequenceDiagram
 |---|---|---|
 | Package suites | `packages/*/src/*.test.ts`, `apps/prototype-host/**/*.test.ts` | vitest, in-process |
 | Root tooling suite | `scripts/roadmap.test.mjs`, `scripts/check-docs.test.mjs` | node:test, roadmap Outcome and built Compodoc anchor validation |
+| Blur spike | `apps/e2e/ux/spike/blur-spike.mjs`, `variants.css` | Opt-in Slice 71 measurement, injected V0–V4, isolated static build and host, raw traces and paired captures outside every test command |
 | Test support | `packages/domain/test/test-support.ts`, `packages/mcp-tools/test/harness.ts` | Store, clock, actor builders; persist counting; foreign-workspace injection |
 | MCP transport fault child | `apps/prototype-host/mcp/test/fault-stdio.ts` | `startStdio` composition for one-shot persist failure and post-commit/pre-reply child exit; driven by the SDK stdio client in `stdio.test.ts` |
 | Data-file ownership | `packages/repositories/src/data-file-ownership.test.ts`, `apps/prototype-host/data-file-ownership.test.ts`, `apps/prototype-host/test/owner-child.ts`, `packages/prototype-data/src/seed-cli.test.ts` | Slice 54: the owner-record primitive with injected liveness and filesystem errors, then real host, stdio, owner-child and CLI processes on temp files |

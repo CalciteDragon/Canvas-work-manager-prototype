@@ -299,6 +299,9 @@ still records the options as they were presented.
 
 ## Next-chat handoff — Phase 3 (slice plan)
 
+**Slice 71 implementation:** [Depth tokens and theme](71-depth-tokens-and-theme.md) is
+reviewed and approved; its part A blur spike runs before the user's blur checkpoint.
+
 **State.** Phases 0–2 are complete and Gate 1 is answered. No redesign slice has been planned or
 started; the user asked to stop here. The umbrella stays active.
 

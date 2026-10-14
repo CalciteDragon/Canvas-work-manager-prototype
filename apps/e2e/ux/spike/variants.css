@@ -1,0 +1,69 @@
+/* Disposable measurement injection. Gate 1 Depth values; no geometry changes. */
+:root[data-blur-variant] {
+  --spike-ground: #0c0f1a;
+  --spike-art: radial-gradient(45% 55% at 10% 10%, rgba(255,140,90,.55), transparent 70%), radial-gradient(55% 55% at 95% 20%, rgba(120,90,255,.50), transparent 70%), radial-gradient(60% 50% at 55% 105%, rgba(40,200,180,.45), transparent 70%);
+  --spike-pane: rgba(18,22,34,.48);
+  --spike-pane-solid: #161a26;
+  --spike-sheet: rgba(22,26,40,.74);
+  --spike-sheet-solid: #1a1f2e;
+  --color-background: #0c0f1a;
+  --color-surface: #1a1f2e;
+  --color-surface-raised: #20253a;
+  --surface-base: #1a1f2e;
+  --surface-raised-base: #20253a;
+  --color-text: #f2f4fa;
+  --color-text-muted: #b4bccc;
+  --color-accent: #ffad7f;
+  --color-accent-contrast: #1a1208;
+  --color-accent-surface: rgba(255,173,127,.18);
+  --color-success: #86e0a8;
+  --color-success-surface: rgba(134,224,168,.16);
+  --color-danger: #ff9c9c;
+  --color-danger-surface: rgba(255,156,156,.16);
+}
+:root[data-blur-variant][data-theme='light'] {
+  --spike-ground: #e9edf7;
+  --spike-art: radial-gradient(45% 55% at 10% 10%, rgba(255,150,100,.45), transparent 70%), radial-gradient(55% 55% at 95% 20%, rgba(110,90,255,.38), transparent 70%), radial-gradient(60% 50% at 55% 105%, rgba(30,190,170,.35), transparent 70%);
+  --spike-pane: rgba(255,255,255,.50);
+  --spike-pane-solid: #f5f7fb;
+  --spike-sheet: rgba(255,255,255,.72);
+  --spike-sheet-solid: #ffffff;
+  --color-background: #e9edf7;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --surface-base: #ffffff;
+  --surface-raised-base: #ffffff;
+  --color-text: #121620;
+  --color-text-muted: #4c5464;
+  --color-accent: #1f4fd0;
+  --color-accent-contrast: #ffffff;
+  --color-accent-surface: rgba(31,79,208,.12);
+  --color-success: #05683f;
+  --color-success-surface: rgba(5,104,63,.12);
+  --color-danger: #a51f15;
+  --color-danger-surface: rgba(165,31,21,.10);
+}
+:root[data-blur-variant] body {
+  background: var(--spike-art), var(--spike-ground) !important;
+  background-attachment: fixed !important;
+}
+:root[data-blur-variant='V1'] body { background: var(--spike-ground) !important; }
+:root[data-blur-variant] :is(app-top-bar .top-bar, app-sidebar .sidebar, app-project-page-navigation) {
+  background: var(--spike-pane) !important;
+  backdrop-filter: blur(30px) saturate(140%) !important;
+}
+:root[data-blur-variant] :is(.section-frame, .shortcut-frame, app-dashboard-widget-frame, .project-header) {
+  background: var(--spike-sheet) !important;
+  backdrop-filter: none !important;
+}
+:root[data-blur-variant='V1'] :is(app-top-bar .top-bar, app-sidebar .sidebar, app-project-page-navigation) {
+  background: var(--spike-pane-solid) !important;
+  backdrop-filter: none !important;
+}
+:root[data-blur-variant='V1'] :is(.section-frame, .shortcut-frame, app-dashboard-widget-frame, .project-header) {
+  background: var(--spike-sheet-solid) !important;
+}
+:root[data-blur-variant='V3'] :is(.section-frame, .shortcut-frame, app-dashboard-widget-frame, .project-header),
+:root[data-blur-variant='V4'] :is(.section-frame, .shortcut-frame, app-dashboard-widget-frame, .project-header)[data-spike-blur='active'] {
+  backdrop-filter: blur(18px) saturate(140%) !important;
+}

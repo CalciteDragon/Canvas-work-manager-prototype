@@ -457,8 +457,33 @@ rule, stays open until the checkpoint after part A.
 
 ## Next-chat handoff — implementation
 
-**State (2026-10-14).** The plan was reviewed over three rounds and approved with all of its
-defaults. Nothing is implemented yet. `CURRENT_SLICE` is still 70.
+**State (2026-10-14).** Part A is implemented and measured; `CURRENT_SLICE` is 71.
+The 90-run matrix recommends **V2**, blurred panes with translucent unblurred sheets.
+Every V0 cell passed the sanity gate, and V2 passed every smoothness threshold. V3 and
+V4 failed the desktop thresholds. These are pessimistic SwiftShader/software-compositor
+measurements, not physical-phone results. The [result JSON](../70-ui-ux/blur-spike.json)
+retains per-run metrics and trace references. Paired dark/light captures and the local
+checkpoint sheet are in git-ignored `apps/e2e/ux-output/spike/`.
+
+**Acceptance deviations:** the two specified projects are seed roots, so their canonical
+canvas is labelled Home, not Work. The exact requested project routes were measured.
+Dashboard task titles have no drawer action: its cells measure scroll only; both canonical
+canvas surfaces exercise the real drawer. The host is launched with `env.sh`'s port/data
+configuration directly, without its extra walkthrough daemon/browser.
+
+**Review and verification:** the diff reviewer confirmed no substantive findings after
+fixing V4's marker, its scroll-region observer root and duplicate scheduler trace-event
+counting. A smoke run also exposed and fixed the Windows `--import` URL. Production build:
+1,020.99 kB initial, below 1,050 kB. `pnpm test`: 2,969 workspace tests and nine root tooling
+tests passed; sequential `pnpm lint` passed. Raw traces include independent `DroppedFrame`
+events. All scratch servers were stopped after the run.
+The final checkpoint documents also passed `pnpm docs:check`. Full e2e, Storybook and
+before/after product captures remain for parts B/C; no whole-slice completion is claimed.
+
+**Checkpoint:** the user's blur choice is still pending. No part B token work or part C
+theme behaviour has started. Next: user chooses the rule; C may proceed independently,
+then the layout collector must land in a commit before the before-capture. Slice 71 remains
+active and no findings are claimed closed yet.
 
 **Read first:**
 1. AGENTS.md.

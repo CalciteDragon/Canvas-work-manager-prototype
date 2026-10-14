@@ -18,6 +18,10 @@ boundaries are the entire point (§8, §12, §70) and cannot be left to good int
   own workspace by accident.
 - **Reviews find what suites cannot.** Every slice's record lists defects the browser
   pass or a diff review found that a green suite had missed.
+- **Blur needs measurement before adoption.** Slice 71 keeps its injected variants and
+  scratch servers outside product styling and ordinary tests. A noisy baseline prevents
+  a performance ranking; desktop and throttled touch emulation inform the user's choice
+  without claiming real-phone performance.
 
 ## The shape, and the alternatives rejected
 
