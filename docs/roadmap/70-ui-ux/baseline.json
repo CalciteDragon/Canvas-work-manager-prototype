@@ -531,7 +531,7 @@
       "reason": "Transient gesture frames need a dedicated action capture; ordinary screenshots are insufficient."
     }
   ],
-  "independentAudits": "Not started",
-  "directionAndAlternatives": "Not started",
+  "independentAudits": "Completed 2026-10-13: 12 independent auditors; see findings/, walkthroughs/ and reproduction.json",
+  "directionAndAlternatives": "Proposed 2026-10-13, awaiting Gate 1: see direction.md, themes.json and alternatives/gate1.html",
   "privateContactSheet": "https://canvas-ux-baseline-oct12.wholecup17.chatgpt.site"
 }

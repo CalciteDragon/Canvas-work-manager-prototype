@@ -50,6 +50,11 @@ Change domain, contracts, host, persistence, gateway behavior or production page
 | `docs/architecture/testing/overview.md`, `docs/architecture/testing/how.md`, `docs/architecture/testing/what.md` | Capture harness responsibility, operation, dependency |
 | `README.md` | Explicit opt-in capture command |
 | `.prototype/notes.json` | Only observations made during actual use |
+| `apps/e2e/ux/walk/` (`walkd.mjs`, `walk.mjs`, `static.mjs`, `env.sh`, `repro/r1–r10.js`) | Phase 1 interactive audit rig: per-auditor isolated hosts, persistent headless page, orchestrator reproduction scripts; outside every test command |
+| `docs/roadmap/70-ui-ux/findings/*.json`, `walkthroughs/*.json` | Raw independent auditor output: eleven finding files, four walkthrough ledgers |
+| `docs/roadmap/70-ui-ux/reproduction.json`, `themes.json` | Orchestrator verdict per finding; admitted findings clustered into ordered themes |
+| `docs/roadmap/70-ui-ux/direction.md` | Proposed principles and glass constraints, awaiting Gate 1 |
+| `docs/roadmap/70-ui-ux/alternatives/gate1.html`, `tooling/` | Generated Gate 1 page (alternatives, contrast readout, motion study) and the builders that regenerate it and the ledgers |
 
 If feasible, alternatives use existing Lab exported tokens; otherwise isolated static mockups with an interactive motion study avoid implementing an unchosen design. Any necessary prototype-only source/token files are named here and reviewed before editing. Decisions/spec changes await actual user choices.
 
@@ -83,6 +88,13 @@ Gate 0 inventory completeness and Gate 1 direction/priority/alternative choice b
 **Round 1 (2026-10-12):** Reviewer required a full task × persona ledger rather than sparse persona coverage, explicit keyboard-only core-task attempts, and alternatives mapped to every substantially changing theme. Acceptance now names all three. The final first-round finding added a fault-injection test for incomplete screenshot/axe/tree evidence reporting. **Round 2:** Reviewer confirmed all four findings resolved with no remaining substantive findings; inventory has now been appended from code. harness implementation has not begun.
 
 **Diff review round 1 (2026-10-12):** Reviewer found missing Undo/Restore postconditions, uncatalogued assertion failures, browser-clock drift in tasks, and unreconciled state coverage. Tasks now assert restored controls/removed Archive entries and record any failing postcondition; browser Date is fixed. Coverage exports every inventory row and semicolon-separated target state as individually unverified rather than inferring coverage from page presence. Matrix tests reject missing axes/duplicate paths. Internal scrolling now gets additional captures because fullPage cannot expose the shell's nested scroll regions. Diff review round 2 required settled disappearance before Undo and persisted date after reload; both were added. Round 3 returned no remaining substantive correctness or boundary findings, contingent on the corrected run. The first task execution exposed two script assumptions (root default parent and Rename-prefixed region name), corrected without treating them as accepted UX findings.
+
+**Phase 1 execution (2026-10-13):**
+
+- **Rig.** Playwright-MCP and the built-in browser are each a single shared browser, so parallel auditors could not use them. A small interactive rig (`apps/e2e/ux/walk/`) gave every auditor its own host and a persistent page instead. The production build was served statically, because the machine has 8 GB and `ng serve` per auditor did not fit.
+- **Rig fault.** It crashed twice when an auditor's `page.route` raced the forwarding route. The daemon was hardened and the rule is now documented.
+- **Interruptions.** Four auditors hit a usage limit mid-run and were resumed with their own context. None was replaced or merged into another.
+- **Exclusions.** The orchestrator reproduced findings with ten scripts on its own host. Claims that did not reproduce were excluded rather than softened.
 
 ## Surface inventory
 
@@ -213,7 +225,66 @@ and this plan. No taste decision or spec amendment is recorded before user selec
 
 **Private Gate 0 publication:** [Baseline contact sheet](https://canvas-ux-baseline-oct12.wholecup17.chatgpt.site), verified succeeded on 2026-10-13. Site appgprj_6acdf2662edc8191881a5b7ef190e42a remains owner-private. Source packaging used installed Git Bash and TAR_OPTIONS=--force-local for the Windows drive path. The user subsequently confirmed "the inventory looks good" on 2026-10-13. Gate 0 inventory approval is recorded; it does not certify uncaptured states or approve a redesign.
 
+**Gate 1 checkpoint (2026-10-13), awaiting the user's choice.**
+
+*Phase 1 (independent comb).* Twelve fresh-context auditors drove the running app or read the
+captures. Each got only its brief, the inventory, the capture locations and the finding schema,
+and none saw another's output.
+
+- **Walkthroughs:** Demo with mouse at 1440, plus T02 and T07 at 1024; a 375 px touch pass; a
+  keyboard-only pass; Alex and Sam with mouse.
+- **Lenses:** hierarchy, consistency, affordance, states, accessibility, copy and IA.
+- **Persona ledger.** All ten tasks were run for every persona. Demo completed T01–T09 in all
+  three input modes, and T10 (connect an agent) was blocked every time. For Alex and Sam,
+  T01 completed and T02–T10 were inapplicable, because their workspaces lack the referenced
+  objects. Their own-content equivalents completed, except T10, which was blocked.
+- **No leaks.** No Demo data reached the other personas.
+
+*Reproduction.* Every finding received an orchestrator verdict from live scripts r1–r10, from
+full-resolution captures or from source.
+
+- **Totals:** 318 filed, 296 admitted (5 S1, 142 S2, 149 S3), and 22 excluded: 3 not reproduced,
+  1 not reached and 18 unverified. [reproduction.json](../70-ui-ux/reproduction.json) gives the
+  method and verdict for each.
+- **S1:** all five S1 findings are one problem. Connecting an agent exists only in the dev panel.
+- **Corrections to auditor claims:** restoring is not silent (a header status appears, out of
+  view of the row). The placeholder passes contrast at 4.56:1. The "body required" error clears
+  on a filled save.
+
+*Phase 2 (orchestrator synthesis).* [themes.json](../70-ui-ux/themes.json) clusters the admitted
+findings into fifteen root-cause themes, in layer order:
+
+- tokens: TH01–03
+- primitives: TH04–06
+- patterns: TH07–10
+- shell: TH11–13
+- content and page: TH14–15
+
+[direction.md](../70-ui-ux/direction.md) holds eight principles and the glass constraints.
+
+*The Gate 1 page.* [alternatives/gate1.html](../70-ui-ux/alternatives/gate1.html), published as a
+private Claude artifact (https://claude.ai/artifact/SZ5TSfguMziAvFtRNEjYBq), shows:
+
+- three alternatives side by side: A Frost, B Depth and C Pane;
+- dark/light, desktop/phone, busy-backing, reduced-transparency and no-backdrop-filter toggles;
+- a worst-case contrast readout for each alternative;
+- a transform/opacity motion study with slow-motion and reduced-motion modes;
+- a theme-to-alternative map and six product questions.
+
+*Measured result.* Under the strict worst-case model, frosted surfaces need a tint alpha of
+0.82–0.88 for AA on muted text. A and C meet it in both themes. B does not, and is presented
+with that cost. The private ChatGPT Site from Gate 0 could not be updated from this tool
+environment, so Gate 1 is a separate private page.
+
+*Not done.* No `.prototype/notes.json` entries were added, because the orchestrator did not use
+the app as a person, and inventing friction is barred. The other checks not run, and why, are
+on the Gate 1 page under "Method and limits". No redesign slice has been planned. No decision
+entry or spec amendment was written before the user's choice.
+
 ## Next-chat handoff — begin Phase 1
+
+*Superseded by the Gate 1 checkpoint above: Phase 1 and Phase 2 are complete. The next action is
+the user's Gate 1 choice. After it, record decisions, amend §21/§22/§26/§67, then plan slices.*
 
 **User authorization:** Gate 0 inventory is approved (2026-10-13). Continue Phases 1–2 of
 this umbrella and stop at Gate 1 for the user's direction, priority and alternative choice.

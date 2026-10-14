@@ -1,0 +1,29 @@
+// Orchestrator reproduction 3: focus, hit areas, layout shift, picker, alignment.
+const facts = {};
+const host = 'http://127.0.0.1:4320';
+const post = (p, b) => fetch(host + p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-prototype-user': 'user-demo' }, body: JSON.stringify(b) });
+const seed = async s => { await post('/prototype/seed', { seed: s }); await post('/prototype/clock', { now: '2026-08-24T16:00:00.000Z' }); };
+const go = async p => { await page.goto('http://localhost:4200' + p); await page.waitForLoadState('networkidle'); await page.waitForTimeout(300); };
+const active = () => page.evaluate(() => { const e = document.activeElement; return e === document.body ? 'BODY' : `${e.tagName} ${e.getAttribute('aria-label') || e.textContent.trim().slice(0, 30)}`; });
+const tryit = async (k, fn) => { try { facts[k] = await fn(); } catch (e) { facts[k] = 'ERROR ' + String(e.message).slice(0, 160); } };
+await page.setViewportSize({ width: 1440, height: 900 });
+await seed('nested-projects');
+await go('/projects/project-renovation');
+await tryit('focusAfterColumnLink', async () => { await page.getByRole('link', { name: 'Todos' }).focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(600); return await active(); });
+await tryit('focusAfterSidebarLink', async () => { await page.getByRole('navigation').first().getByRole('link', { name: 'Kitchen' }).first().focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(600); return await active(); });
+await go('/projects/project-kitchen');
+await tryit('focusRings', async () => { const r = {}; for (const n of [/^(Undo|Nothing to undo)/, /More project actions/, /New project/]) { const b = page.getByRole('button', { name: n }).first(); await b.focus(); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab'); r[String(n)] = await b.evaluate(e => { const s = getComputedStyle(e); return `${s.outlineStyle} ${s.outlineWidth} ${s.outlineColor} off ${s.outlineOffset} | ${s.boxShadow}`; }); } return r; });
+await tryit('drawerDomOrder', async () => { await page.getByRole('button', { name: /Choose appliance finishes, open details/ }).click(); await page.waitForTimeout(400); return page.evaluate(() => { const rows = [...document.querySelectorAll('[aria-label$=", open details"]')]; const drawer = [...document.querySelectorAll('*')].find(e => /^TASK DETAILS$/i.test(e.textContent.trim()) && e.children.length === 0); return { rows: rows.length, drawerAfterLastRow: drawer && rows.length ? !!(rows[rows.length - 1].compareDocumentPosition(drawer) & Node.DOCUMENT_POSITION_FOLLOWING) : null }; }); });
+await go('/projects/project-kitchen');
+await tryit('plusHitArea', async () => { const sec = page.getByRole('region').nth(2); const b = await sec.boundingBox(); await page.mouse.move(b.x + b.width / 2, b.y - 8); await page.waitForTimeout(200); const btn = page.getByRole('button', { name: /^Insert/ }).filter({ visible: true }).first(); const bb = await btn.boundingBox(); return { buttonBox: bb, hits: await page.evaluate(({ x, y }) => [0, 12, 20].map(d => { const e = document.elementFromPoint(x, y + d); return `${d}:${e?.tagName}${e?.closest('button') ? ' in-button ' + e.closest('button').getAttribute('aria-label') : ''}`; }), { x: 952, y: 560 }) }; });
+// new section at end: position, focus, activity shift
+await tryit('newSectionAtEnd', async () => { await page.getByRole('button', { name: 'Insert at the end' }).click(); const d = page.getByRole('dialog'); await d.getByRole('combobox', { name: 'Section type' }).selectOption('task-list'); await d.getByRole('textbox').fill('Shopping'); await d.getByRole('button', { name: 'Create', exact: true }).click(); await page.waitForTimeout(900); const region = page.getByRole('region', { name: 'Rename Shopping' }); const box = await region.boundingBox(); const r = { newSectionY: box && Math.round(box.y), viewportH: 900, focus: await active() }; await region.scrollIntoViewIfNeeded(); await page.waitForTimeout(200); const y0 = (await region.boundingBox()).y; await region.getByRole('textbox', { name: 'Task title' }).fill('Tape'); await region.getByRole('button', { name: 'Add task', exact: true }).click(); await page.waitForTimeout(900); r.shiftAfterAddTask = Math.round((await region.boundingBox()).y - y0); r.drawerOpenedOnAdd = await region.getByText(/Task details/i).count(); return r; });
+// shortcut picker
+await go('/projects/project-kitchen');
+await tryit('picker', async () => { await page.getByRole('button', { name: 'Insert at the end' }).click(); const d = page.getByRole('dialog'); const r = { dialogButtons: await d.getByRole('button').allInnerTexts() }; await d.getByRole('button', { name: /shortcut/i }).first().click(); await page.waitForTimeout(500); r.options = (await d.innerText()).split('\n').filter(Boolean).slice(0, 24); await page.keyboard.press('Escape'); return r; });
+// task delete wording and notice
+await go('/projects/project-kitchen');
+await tryit('taskDelete', async () => { const b = page.getByRole('button', { name: /^Delete task|^Delete / }).first(); const name = await b.getAttribute('aria-label'); await b.click(); await page.waitForTimeout(800); return { name, notice: (await page.locator('body').innerText()).match(/[^\n]*(Deleted|deleted|archived|Archive)[^\n]*/g)?.slice(0, 4) }; });
+// content start edges across routes
+await tryit('contentEdges', async () => { const r = {}; for (const p of ['/app', '/settings', '/calendar', '/projects/project-renovation/pages/todos', '/projects/project-renovation/pages/archive', '/projects/project-renovation/pages/reflections']) { await go(p); r[p] = await page.evaluate(() => { const h = [...document.querySelectorAll('main h1, main h2')].find(h => h.offsetParent && h.getBoundingClientRect().x > 250); const b = h?.getBoundingClientRect(); return b ? `${h.textContent.trim().slice(0, 18)} x=${Math.round(b.x)}` : null; }); } return r; });
+return facts;

@@ -1,0 +1,491 @@
+<title>Canvas Gate 1</title>
+<meta name="description" content="Slice 70 Gate 1: reproduced UX findings, themes, direction and three frosted-glass alternatives with a motion study.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column for the evidence, widening to full width for the mockup stage. */
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --ink: #16191f; --muted: #5a6270; --line: #dfe2e8;
+  --accent: #3a5bd9; --accent-soft: #e8edfc; --good: #0a7a4b; --warn: #a15c00; --bad: #b42318;
+  --s1: #b42318; --s2: #a15c00; --s3: #5a6270;
+  --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111317; --panel: #1a1d23; --ink: #eceff4; --muted: #9aa3b2; --line: #2b3039;
+  --accent: #8ea6ff; --accent-soft: #1f2740; --good: #5fd49a; --warn: #f0b45a; --bad: #ff8a8a;
+  --s1: #ff8a8a; --s2: #f0b45a; --s3: #9aa3b2; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #111317; --panel: #1a1d23; --ink: #eceff4; --muted: #9aa3b2; --line: #2b3039;
+  --accent: #8ea6ff; --accent-soft: #1f2740; --good: #5fd49a; --warn: #f0b45a; --bad: #ff8a8a;
+  --s1: #ff8a8a; --s2: #f0b45a; --s3: #9aa3b2; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font); margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 32px 80px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; font-weight: 600; margin-top: 56px; }
+h3 { font-size: 1rem; font-weight: 600; }
+p { max-width: 70ch; margin: 0; }
+.eyebrow { font: 500 0.75rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.stack { display: grid; gap: 12px; }
+.lede { color: var(--muted); font-size: 1.02rem; }
+.stats { display: flex; flex-wrap: wrap; gap: 24px 40px; margin-top: 20px; }
+.stat b { display: block; font: 600 1.6rem/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 0.85rem; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+.ask { display: grid; gap: 10px; counter-reset: q; margin-top: 16px; }
+.ask li { list-style: none; display: grid; grid-template-columns: 2rem 1fr; gap: 8px; }
+.ask li::before { counter-increment: q; content: counter(q); font: 600 0.95rem/1.5 var(--mono); color: var(--accent); }
+.table-wrap { overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; background: var(--panel); position: sticky; top: 0; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.layer { font: 500 0.72rem/1 var(--mono); padding: 3px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.sev { font: 500 0.75rem var(--mono); white-space: nowrap; }
+.sev .s1 { color: var(--s1); } .sev .s2 { color: var(--s2); } .sev .s3 { color: var(--s3); }
+details summary { cursor: pointer; color: var(--accent); font-size: 0.82rem; }
+details code { font: 0.78rem/1.6 var(--mono); color: var(--muted); word-break: break-word; }
+.ok { color: var(--good); } .fail { color: var(--bad); } .warn { color: var(--warn); }
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 16px; }
+.principles .card h3 { display: flex; gap: 10px; align-items: baseline; }
+.principles .card h3 span { font: 600 0.85rem var(--mono); color: var(--accent); }
+.principles .card p { margin-top: 6px; color: var(--muted); font-size: 0.9rem; }
+.evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 16px; }
+.evidence figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.evidence img { display: block; width: 100%; height: 190px; object-fit: cover; object-position: top left; }
+.evidence figcaption { padding: 10px 12px; font-size: 0.82rem; color: var(--muted); }
+.evidence figcaption b { color: var(--ink); font-weight: 600; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Mockup stage ── */
+.stage-head { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; margin-top: 16px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button, .toggle { font: 500 0.82rem var(--font); color: var(--ink); background: var(--panel); border: 0; padding: 7px 12px; cursor: pointer; min-height: 34px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.toggle { border: 1px solid var(--line); border-radius: 8px; }
+.toggle[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+@media (max-width: 900px) { .trio { grid-template-columns: 1fr; } }
+.alt-col { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.alt-col h3 { display: flex; gap: 8px; align-items: baseline; }
+.alt-col h3 small { font: 400 0.82rem var(--font); color: var(--muted); }
+.frame { position: relative; width: 100%; overflow: hidden; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+.frame > .scaler { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.readout { font: 0.78rem/1.5 var(--mono); color: var(--muted); }
+.readout b { color: var(--ink); font-weight: 500; }
+.focus-stage { margin-top: 28px; display: grid; gap: 12px; }
+.motion-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.motion-bar .label { font-size: 0.82rem; color: var(--muted); margin-right: 4px; }
+.map td:first-child { white-space: nowrap; }
+
+/* ===== The mock app. Fixed design size; everything inside reads from --m-* plane tokens. ===== */
+.mock { --dur: 180ms; --dur-fast: 120ms; --dur-slow: 240ms; --ease-out: cubic-bezier(.2,.8,.2,1); --ease-in: cubic-bezier(.4,0,1,1);
+  width: 1000px; height: 640px; position: relative; overflow: hidden; font: 13px/1.45 var(--font); color: var(--m-text);
+  background: var(--m-ground); isolation: isolate; }
+.mock.phone { width: 390px; height: 780px; }
+.mock.slow { --dur: 720ms; --dur-fast: 480ms; --dur-slow: 960ms; }
+.mock.still { --dur: 0ms; --dur-fast: 0ms; --dur-slow: 0ms; }
+.mock .ground { position: absolute; inset: 0; z-index: -1; background: var(--m-ground-art); }
+.mock .busy-art { position: absolute; inset: 0; z-index: -1; display: none; opacity: .9;
+  background: repeating-linear-gradient(115deg, var(--m-busy-a) 0 14px, var(--m-busy-b) 14px 28px); }
+.mock.busy .busy-art { display: block; }
+.mock .glass { background: var(--tint); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%); backdrop-filter: blur(var(--blur)) saturate(140%); }
+.mock.solid .sheet, .mock.nofilter .sheet { background: var(--m-sheet-solid); }
+.mock.solid .glass, .mock.nofilter .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--solid); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .mock .glass { background: var(--solid); } }
+@media (prefers-reduced-transparency: reduce) { .mock .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--solid); } }
+.mock .topbar { position: absolute; left: 0; right: 0; top: 0; height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 18px; z-index: 5;
+  --tint: var(--m-pane); --solid: var(--m-pane-solid); --blur: var(--m-blur-pane); box-shadow: inset 0 -1px 0 var(--m-hairline); }
+.mock .brand { font-weight: 600; font-size: 14px; }
+.mock .topbar .spacer { flex: 1; }
+.mock .chip-btn { font: inherit; font-size: 12px; color: var(--m-text); background: transparent; border: 1px solid var(--m-control-line); border-radius: 999px; padding: 4px 10px; }
+.mock .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--m-accent-soft); color: var(--m-accent); display: grid; place-items: center; font-weight: 600; font-size: 11px; }
+.mock .menu-btn { display: none; }
+.mock .side { position: absolute; top: 48px; bottom: 0; left: 0; width: 232px; padding: 18px 12px; z-index: 4; overflow: hidden;
+  --tint: var(--m-pane); --solid: var(--m-pane-solid); --blur: var(--m-blur-pane); box-shadow: inset -1px 0 0 var(--m-hairline); }
+.mock .nav-group { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--m-muted); margin: 16px 10px 6px; display: flex; justify-content: space-between; }
+.mock .nav a { display: flex; align-items: center; gap: 8px; color: var(--m-text); text-decoration: none; padding: 7px 10px; border-radius: 8px; position: relative; min-height: 32px; }
+.mock .nav a.d1 { padding-left: 26px; } .mock .nav a.d2 { padding-left: 42px; }
+.mock .nav a.current { background: var(--m-current-bg); font-weight: 600; }
+.mock .nav a.current::before { content: ''; position: absolute; left: 2px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--m-accent); }
+.mock .nav .tick { color: var(--m-success); font-size: 11px; margin-left: auto; }
+.mock .nav .dot { width: 8px; height: 8px; border-radius: 3px; background: var(--m-dot, var(--m-muted)); flex: none; }
+.mock .main { position: absolute; top: 0; bottom: 0; left: 232px; right: 0; overflow: hidden; padding: 64px 28px 28px; }
+.mock .canvas { display: grid; gap: var(--m-gap); align-content: start; position: relative; }
+.mock .sheet { background: var(--m-sheet); border-radius: var(--m-radius); box-shadow: var(--m-sheet-shadow); padding: 16px 18px; position: relative; }
+.mock .sheet.glass { --tint: var(--m-sheet); --solid: var(--m-sheet-solid); --blur: var(--m-blur-sheet); }
+.mock .phead { padding: 18px 20px 16px; }
+.mock .crumbs { font-size: 11.5px; color: var(--m-muted); }
+.mock .ptitle { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.mock .ptitle h4 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+.mock .ptitle .spacer { flex: 1; }
+.mock .meta { display: flex; gap: 22px; margin-top: 10px; font-size: 12px; color: var(--m-muted); }
+.mock .meta b { color: var(--m-text); font-weight: 500; margin-left: 4px; }
+.mock .bar { height: 4px; border-radius: 4px; background: var(--m-track); margin-top: 12px; overflow: hidden; }
+.mock .bar i { display: block; height: 100%; width: 50%; background: var(--m-accent); border-radius: 4px; }
+.mock .btn { font: 500 12.5px var(--font); border-radius: 8px; padding: 0 12px; height: 32px; border: 1px solid transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.mock .btn.primary { background: var(--m-accent); color: var(--m-on-accent); }
+.mock .btn.secondary { background: var(--m-control); color: var(--m-text); border-color: var(--m-control-line); }
+.mock .btn.ghost { background: transparent; color: var(--m-text); }
+.mock .btn.danger-ghost { background: transparent; color: var(--m-danger); }
+.mock .btn .k { font-size: 14px; line-height: 1; }
+.mock .shead { display: flex; align-items: center; gap: 10px; }
+.mock .shead h5 { margin: 0; font-size: 14px; font-weight: 600; }
+.mock .tools { margin-left: auto; display: flex; gap: 2px; opacity: var(--m-chrome-rest); transition: opacity var(--dur-fast) var(--ease-out); }
+.mock .sheet:hover .tools, .mock .sheet:focus-within .tools { opacity: 1; }
+.mock .tool { width: 28px; height: 28px; border-radius: 7px; border: 0; background: transparent; color: var(--m-muted); display: grid; place-items: center; cursor: pointer; font-size: 13px; }
+.mock .tool:hover { background: var(--m-control); color: var(--m-text); }
+.mock .grip { color: var(--m-muted); opacity: var(--m-chrome-rest); width: 14px; text-align: center; letter-spacing: -2px; }
+.mock .prose { margin: 8px 0 0; color: var(--m-text); max-width: 60ch; }
+.mock .addrow { display: flex; gap: 8px; margin-top: 10px; }
+.mock .field { flex: 1; height: 32px; border-radius: 8px; background: var(--m-field); border: 1px solid var(--m-field-line); padding: 0 10px; display: flex; align-items: center; color: var(--m-placeholder); }
+.mock .tasks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px; }
+.mock .task { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 9px; position: relative; cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.mock .task:hover { background: var(--m-row-hover); }
+.mock .task.selected { box-shadow: inset 0 0 0 2px var(--m-accent); }
+.mock .check { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--m-check-line); display: grid; place-items: center; font-size: 10px; color: var(--m-on-accent); }
+.mock .task.done .check { background: var(--m-success); border-color: var(--m-success); }
+.mock .task.done .tt { text-decoration: line-through; color: var(--m-muted); }
+.mock .tmeta { font-size: 11.5px; color: var(--m-muted); }
+.mock .pill { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.mock .pill.overdue { color: var(--m-danger); background: var(--m-danger-soft); }
+.mock .pill.overdue::before { content: '! '; font-weight: 700; }
+.mock .pill.done { color: var(--m-success); background: var(--m-success-soft); }
+.mock .pill.done::before { content: '✓ '; }
+.mock .insert { display: flex; align-items: center; gap: 10px; color: var(--m-muted); font-size: 12px; padding: 4px 6px; }
+.mock .insert { justify-content: center; }
+.mock .insert button { font: inherit; color: var(--m-text); background: var(--m-sheet-solid); box-shadow: var(--m-sheet-shadow); border: 1px solid var(--m-control-line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+/* Lifts */
+.mock .scrim { position: absolute; inset: 0; background: var(--m-scrim); opacity: 0; pointer-events: none; z-index: 8; transition: opacity var(--dur) var(--ease-out); }
+.mock .scrim.on { opacity: 1; pointer-events: auto; }
+.mock .drawer { position: absolute; top: 60px; right: 12px; bottom: 12px; width: 300px; border-radius: calc(var(--m-radius) + 2px); z-index: 9; padding: 18px;
+  --tint: var(--m-lift); --solid: var(--m-lift-solid); --blur: var(--m-blur-lift); box-shadow: var(--m-lift-shadow);
+  transform: translateX(calc(100% + 24px)); opacity: 0; transition: transform var(--dur) var(--ease-in), opacity var(--dur) var(--ease-in); }
+.mock .drawer.on { transform: none; opacity: 1; transition-timing-function: var(--ease-out); }
+.mock .drawer h5 { font-size: 16px; margin: 4px 0 14px; }
+.mock .dl { display: grid; gap: 10px; }
+.mock .dl label { display: grid; gap: 4px; font-size: 11.5px; color: var(--m-muted); }
+.mock .dl .field { color: var(--m-text); }
+.mock .saved { font-size: 11.5px; color: var(--m-success); margin-top: 10px; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.mock .saved.on { opacity: 1; }
+.mock .dialog { position: absolute; left: 50%; top: 50%; width: 420px; margin: -150px 0 0 -210px; border-radius: calc(var(--m-radius) + 4px); z-index: 10; padding: 20px;
+  --tint: var(--m-lift); --solid: var(--m-lift-solid); --blur: var(--m-blur-lift); box-shadow: var(--m-lift-shadow);
+  transform: scale(.96) translateY(6px); opacity: 0; pointer-events: none; transition: transform var(--dur) var(--ease-in), opacity var(--dur-fast) var(--ease-in); }
+.mock .dialog.on { transform: none; opacity: 1; pointer-events: auto; transition-timing-function: var(--ease-out); }
+.mock .dialog h5 { font-size: 16px; margin: 0 0 12px; }
+.mock .tabs { display: flex; gap: 4px; padding: 3px; border-radius: 9px; background: var(--m-control); width: max-content; }
+.mock .tabs span { padding: 5px 10px; border-radius: 7px; font-size: 12px; }
+.mock .tabs span.on { background: var(--m-sheet-solid); box-shadow: 0 1px 2px var(--m-shadow-c); font-weight: 500; }
+.mock .types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 14px 0; }
+.mock .types span { border-radius: 8px; padding: 10px; background: var(--m-control); font-size: 12px; }
+.mock .types span.on { box-shadow: inset 0 0 0 2px var(--m-accent); }
+.mock .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.mock .toast { position: absolute; z-index: 7; left: 50%; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 14px; border-radius: 12px; white-space: nowrap;
+  --tint: var(--m-lift); --solid: var(--m-lift-solid); --blur: var(--m-blur-lift); box-shadow: var(--m-lift-shadow);
+  transform: translate(-50%, 8px); opacity: 0; pointer-events: none; transition: transform var(--dur) var(--ease-in), opacity var(--dur-fast) var(--ease-in); }
+.mock .toast.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; transition-timing-function: var(--ease-out); }
+.mock .flip { transition: transform var(--dur-slow) var(--ease-out), opacity var(--dur) var(--ease-out); }
+.mock .leaving { opacity: 0; transform: scale(.98); transition: transform var(--dur) var(--ease-in), opacity var(--dur) var(--ease-in); }
+.mock .entering { animation: m-enter var(--dur-slow) var(--ease-out) both; }
+@keyframes m-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Phone layout */
+.mock.phone .side { transform: translateX(-100%); width: 280px; z-index: 9; transition: transform var(--dur) var(--ease-in); --tint: var(--m-lift); --solid: var(--m-lift-solid); --blur: var(--m-blur-lift); }
+.mock.phone .side.on { transform: none; transition-timing-function: var(--ease-out); }
+.mock.phone .menu-btn { display: inline-flex; }
+.mock.phone .topbar .chip-btn.theme { display: none; }
+.mock.phone .main { left: 0; padding: 60px 12px 12px; }
+.mock.phone .meta { flex-wrap: wrap; gap: 6px 16px; }
+.mock.phone .ptitle h4 { font-size: 19px; }
+.mock.phone .hide-phone { display: none; }
+.mock.phone .drawer { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 62%; border-radius: 18px 18px 0 0; transform: translateY(100%); }
+.mock.phone .drawer.on { transform: none; }
+.mock.phone .dialog { width: 360px; margin-left: -180px; }
+.mock.phone .types { grid-template-columns: repeat(2, 1fr); }
+.mock.phone .tool { width: 36px; height: 36px; }
+.mock.phone .task { padding: 11px 10px; }
+.mock .reduce-note { display: none; }
+</style>
+
+<div class="wrap">
+  <header class="stack">
+    <span class="eyebrow">Canvas Work Manager · Slice 70 · Gate 1</span>
+    <h1>Choose the redesign direction</h1>
+    <p class="lede" id="lede"></p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <section class="card" style="margin-top:28px">
+    <h3>What I need from you</h3>
+    <ol class="ask">
+      <li><span><b>Pick a direction</b>: A Frost, B Depth, C Pane, or a named mix (for example "A's planes with C's sheets"). Try them in both themes with the transparency and fallback toggles below.</span></li>
+      <li><span><b>Confirm or reorder the theme priority.</b> The order follows the protocol's layers (tokens → primitives → patterns → shell → content/page). Redesign slices will be planned in that order after Gate 1.</span></li>
+      <li><span><b>Approve or amend the eight principles</b>, including the decisions they would reopen (listed under each).</span></li>
+      <li><span><b>Answer the product questions the evidence raised</b> (end of page). Several are not visual and change what the slices contain.</span></li>
+    </ol>
+  </section>
+
+  <h2>Evidence at a glance</h2>
+  <p class="lede" style="margin-top:8px">Screenshots the orchestrator took while reproducing findings on a fresh seed. They show the opaque baseline, not a proposal.</p>
+  <div class="evidence" id="evidence"></div>
+
+  <h2>Themes, by layer</h2>
+  <p class="lede" style="margin-top:8px">Fifteen root causes behind the <span id="admitted-n"></span> reproduced findings. Each finding belongs to exactly one theme; ids open beneath each row. Severity: S1 blocks a task, S2 slows or confuses, S3 polish.</p>
+  <div class="table-wrap"><table id="themes"><thead><tr><th>Theme</th><th>Layer</th><th>Root cause</th><th>Findings</th><th>Auditors</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Task walkthroughs</h2>
+  <p class="lede" style="margin-top:8px">Independent auditors drove the running app as first-time users, narrating what they expected before each action. Counts include wrong turns. The scripted expert baseline from Gate 0 is shown for comparison. Native date entry is unmeasured.</p>
+  <div class="table-wrap"><table id="tasks"><thead><tr><th>Task</th><th>Baseline script</th><th>Demo · mouse 1440</th><th>Demo · touch 375</th><th>Demo · keyboard only</th><th>Alex</th><th>Sam</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Direction</h2>
+  <p class="lede" style="margin-top:8px">Eight principles, each grounded in reproduced evidence. They hold for every alternative.</p>
+  <div class="principles" id="principles"></div>
+
+  <h2 id="alternatives">Three frosted-glass alternatives</h2>
+  <p class="lede" style="margin-top:8px">The same Kitchen workspace drawn three ways. These are throwaway mockups, not product code. The readout under each mock is computed live: it composites each translucent surface over the worst colour that can sit beneath it (including busy text), then measures text contrast.</p>
+  <div class="stage-head">
+    <div class="controls" role="group" aria-label="Mockup controls">
+      <div class="seg" role="group" aria-label="Mock theme"><button type="button" data-set="theme" data-val="dark" aria-pressed="true">Dark</button><button type="button" data-set="theme" data-val="light" aria-pressed="false">Light</button></div>
+      <div class="seg" role="group" aria-label="Mock width"><button type="button" data-set="width" data-val="desktop" aria-pressed="true">Desktop</button><button type="button" data-set="width" data-val="phone" aria-pressed="false">Phone</button></div>
+      <button type="button" class="toggle" data-flag="busy" aria-pressed="false">Busy backing</button>
+      <button type="button" class="toggle" data-flag="solid" aria-pressed="false">Reduced transparency</button>
+      <button type="button" class="toggle" data-flag="nofilter" aria-pressed="false">No backdrop-filter</button>
+    </div>
+  </div>
+  <div class="trio" id="trio"></div>
+
+  <section class="focus-stage" aria-labelledby="motion-h">
+    <h2 id="motion-h" style="margin-top:40px">Motion study</h2>
+    <p class="lede">Every transition uses only <code>transform</code> and <code>opacity</code>: 120 ms for feedback, 180 ms for lifts, 240 ms for reflow. Entering eases out and leaving eases in. With reduced motion everything is instant, and your system setting is respected by default. Use slow-motion to inspect.</p>
+    <div class="stage-head">
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Alternative in the motion study" id="focus-alt"><button type="button" data-val="a" aria-pressed="true">A Frost</button><button type="button" data-val="b" aria-pressed="false">B Depth</button><button type="button" data-val="c" aria-pressed="false">C Pane</button></div>
+        <button type="button" class="toggle" id="slow" aria-pressed="false">Slow motion ×4</button>
+        <button type="button" class="toggle" id="still" aria-pressed="false">Reduced motion</button>
+      </div>
+    </div>
+    <div class="motion-bar"><span class="label">Try:</span>
+      <button type="button" class="toggle" data-act="drawer">Open task details</button>
+      <button type="button" class="toggle" data-act="dialog">Add a section</button>
+      <button type="button" class="toggle" data-act="remove">Remove a section, then Undo</button>
+      <button type="button" class="toggle" data-act="add">Add a task</button>
+      <button type="button" class="toggle" data-act="nav">Phone menu</button>
+    </div>
+    <div class="frame" id="focus-frame"></div>
+    <p class="readout" id="focus-readout"></p>
+  </section>
+
+  <h2>Which alternative answers which theme</h2>
+  <p class="lede" style="margin-top:8px">The protocol asks for alternatives wherever a theme changes the look substantially. Themes that are mostly behaviour, copy or information architecture have no visual alternatives. The principles govern them, and the questions below decide their scope.</p>
+  <div class="table-wrap"><table class="map" id="map"><thead><tr><th>Theme</th><th>A · Frost</th><th>B · Depth</th><th>C · Pane</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Product questions the evidence raised</h2>
+  <div class="table-wrap"><table id="questions"><thead><tr><th>Question</th><th>Evidence</th><th>Decision it would reopen</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Method and limits</h2>
+  <div class="stack" style="margin-top:12px" id="limits"></div>
+</div>
+
+<!--DATA-->
+<script>
+(() => {
+const G = window.G1;
+const $ = (s, el = document) => el.querySelector(s);
+const h = (tag, attrs = {}, html = '') => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); e.innerHTML = html; return e; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ── Header ──
+$('#lede').textContent = `Twelve independent auditors drove the app on isolated scratch servers: four task walkthroughs and seven lenses, plus a persona pass. They filed ${G.totals.filed} findings, and I reproduced each one before admitting it. ${G.totals.admitted} were reproduced and ${G.totals.excluded} were excluded. Everything below is built from those ledgers.`;
+const stats = [[G.totals.filed, 'findings filed'], [G.totals.admitted, 'reproduced and admitted'], [G.themes.length, 'root-cause themes'], [G.totals.s1, 'S1 findings, all one problem'], [G.totals.excluded, 'excluded as not reproduced']];
+$('#stats').innerHTML = stats.map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+$('#admitted-n').textContent = G.totals.admitted;
+
+// ── Evidence ──
+$('#evidence').innerHTML = G.evidence.map(e => `<figure><img src="${e.src}" alt="${esc(e.alt)}" width="${e.w}" height="${e.h}"><figcaption><b>${esc(e.title)}</b> ${esc(e.caption)}</figcaption></figure>`).join('');
+
+// ── Themes ──
+const sevHtml = s => `<span class="sev">${['S1', 'S2', 'S3'].filter(k => s[k]).map(k => `<span class="${k.toLowerCase()}">${k}×${s[k]}</span>`).join(' ')}</span>`;
+$('#themes tbody').innerHTML = G.themes.map(t => `<tr><td><b>${t.id}</b><br>${esc(t.title)}</td><td><span class="layer">${t.layer}</span></td><td>${esc(t.rootCause)}<details><summary>${t.findings.length} finding ids</summary><code>${t.findings.join(' ')}</code></details></td><td class="num">${t.findings.length}<br>${sevHtml(t.severity)}</td><td class="num">${t.auditors.length}</td></tr>`).join('');
+
+// ── Tasks ──
+const cell = r => !r ? '—' : `<span class="${r.o === 'completed' ? 'ok' : r.o === 'blocked' ? 'fail' : 'warn'}">${r.o}</span><br><span class="readout">${r.c}c · ${r.k}k${r.d ? ` · <b>${r.d} dead end${r.d > 1 ? 's' : ''}</b>` : ''}</span>`;
+$('#tasks tbody').innerHTML = G.tasks.map(t => `<tr><td><b>${t.id}</b> ${esc(t.title)}</td><td class="readout">${t.base ? `${t.base.status}<br>${t.base.clicks}c · ${t.base.keystrokes}k` : '—'}</td>${['mouse', 'touch', 'keyboard', 'alex', 'sam'].map(k => `<td>${cell(t[k])}${t[k + 'Equiv'] ? `<br><span class="readout">own content: ${t[k + 'Equiv'].o}</span>` : ''}</td>`).join('')}</tr>`).join('');
+
+// ── Principles ──
+$('#principles').innerHTML = G.principles.map((p, i) => `<div class="card"><h3><span>P${i + 1}</span>${esc(p.title)}</h3><p>${esc(p.body)}</p><p><b style="color:var(--ink);font-weight:500">Evidence:</b> ${esc(p.evidence)}${p.reopens ? `<br><b style="color:var(--ink);font-weight:500">Reopens:</b> ${esc(p.reopens)}` : ''}</p></div>`).join('');
+
+// ── Map and questions and limits ──
+$('#map tbody').innerHTML = G.map.map(r => `<tr><td><b>${r.theme}</b><br>${esc(r.title)}</td>${r.cells.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('');
+$('#questions tbody').innerHTML = G.questions.map(q => `<tr><td>${esc(q.q)}</td><td class="readout">${esc(q.evidence)}</td><td class="readout">${esc(q.reopens)}</td></tr>`).join('');
+$('#limits').innerHTML = G.limits.map(l => `<p>${esc(l)}</p>`).join('');
+
+// ── Alternatives: plane tokens per alternative × theme ──
+const ALTS = {
+  a: { name: 'A · Frost', sub: 'quiet glass', blurNote: '2 persistent blur layers (top bar, navigation) + 1 transient',
+    dark: { ground: '#10131a', art: 'radial-gradient(60% 50% at 18% 12%, rgba(255,159,107,.20), transparent 70%), radial-gradient(50% 60% at 92% 30%, rgba(110,140,255,.18), transparent 70%), radial-gradient(70% 60% at 60% 110%, rgba(80,200,170,.12), transparent 70%), #10131a',
+      pane: 'rgba(24,28,36,.84)', paneSolid: '#1a1e26', sheet: 'rgba(28,32,41,.94)', sheetSolid: '#1c2029', lift: 'rgba(32,37,48,.88)', liftSolid: '#222733', blurPane: '22px', blurSheet: '0px', blurLift: '28px',
+      text: '#eef1f6', muted: '#a6afbe', accent: '#ff9f6b', onAccent: '#1a1208', accentSoft: 'rgba(255,159,107,.16)', success: '#79d49a', successSoft: 'rgba(121,212,154,.14)', danger: '#ff8f8f', dangerSoft: 'rgba(255,143,143,.14)',
+      control: 'rgba(255,255,255,.06)', controlLine: 'rgba(255,255,255,.14)', field: 'rgba(0,0,0,.22)', fieldLine: 'rgba(255,255,255,.34)', placeholder: '#9aa3b2', checkLine: '#8d97a8', track: 'rgba(255,255,255,.10)',
+      hairline: 'rgba(255,255,255,.07)', current: 'rgba(255,255,255,.07)', rowHover: 'rgba(255,255,255,.04)', scrim: 'rgba(6,8,12,.35)', shadowC: 'rgba(0,0,0,.35)',
+      sheetShadow: '0 1px 0 rgba(255,255,255,.04) inset, 0 1px 2px rgba(0,0,0,.30)', liftShadow: '0 24px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08) inset', radius: '14px', gap: '14px', chromeRest: '.45', busyA: '#eef1f6', busyB: '#10131a' },
+    light: { ground: '#eef1f6', art: 'radial-gradient(60% 50% at 18% 12%, rgba(37,99,235,.14), transparent 70%), radial-gradient(50% 60% at 92% 30%, rgba(255,140,90,.14), transparent 70%), radial-gradient(70% 60% at 60% 110%, rgba(16,160,120,.10), transparent 70%), #eef1f6',
+      pane: 'rgba(255,255,255,.84)', paneSolid: '#f8f9fb', sheet: 'rgba(255,255,255,.93)', sheetSolid: '#ffffff', lift: 'rgba(255,255,255,.85)', liftSolid: '#ffffff', blurPane: '22px', blurSheet: '0px', blurLift: '28px',
+      text: '#161a21', muted: '#545c6a', accent: '#2457d6', onAccent: '#ffffff', accentSoft: 'rgba(36,87,214,.10)', success: '#067647', successSoft: 'rgba(6,118,71,.10)', danger: '#b42318', dangerSoft: 'rgba(180,35,24,.08)',
+      control: 'rgba(22,26,33,.05)', controlLine: 'rgba(22,26,33,.14)', field: '#ffffff', fieldLine: 'rgba(22,26,33,.42)', placeholder: '#5d6573', checkLine: '#6b7381', track: 'rgba(22,26,33,.08)',
+      hairline: 'rgba(22,26,33,.08)', current: 'rgba(36,87,214,.08)', rowHover: 'rgba(22,26,33,.035)', scrim: 'rgba(20,24,32,.18)', shadowC: 'rgba(16,24,40,.12)',
+      sheetShadow: '0 1px 2px rgba(16,24,40,.06), 0 0 0 1px rgba(16,24,40,.03)', liftShadow: '0 24px 60px rgba(16,24,40,.18), 0 0 0 1px rgba(255,255,255,.6) inset', radius: '14px', gap: '14px', chromeRest: '.45', busyA: '#161a21', busyB: '#eef1f6' } },
+  b: { name: 'B · Depth', sub: 'layered glass', blurNote: '2 persistent + 1 per visible sheet (5 here; 10+ on busy-week)',
+    dark: { ground: '#0c0f1a', art: 'radial-gradient(45% 55% at 10% 10%, rgba(255,140,90,.55), transparent 70%), radial-gradient(55% 55% at 95% 20%, rgba(120,90,255,.50), transparent 70%), radial-gradient(60% 50% at 55% 105%, rgba(40,200,180,.45), transparent 70%), #0c0f1a',
+      pane: 'rgba(18,22,34,.48)', paneSolid: '#161a26', sheet: 'rgba(22,26,40,.74)', sheetSolid: '#1a1f2e', lift: 'rgba(28,32,48,.72)', liftSolid: '#20253a', blurPane: '30px', blurSheet: '18px', blurLift: '36px',
+      text: '#f2f4fa', muted: '#b4bccc', accent: '#ffad7f', onAccent: '#1a1208', accentSoft: 'rgba(255,173,127,.18)', success: '#86e0a8', successSoft: 'rgba(134,224,168,.16)', danger: '#ff9c9c', dangerSoft: 'rgba(255,156,156,.16)',
+      control: 'rgba(255,255,255,.08)', controlLine: 'rgba(255,255,255,.18)', field: 'rgba(0,0,0,.28)', fieldLine: 'rgba(255,255,255,.38)', placeholder: '#a3abbb', checkLine: '#98a2b4', track: 'rgba(255,255,255,.12)',
+      hairline: 'rgba(255,255,255,.10)', current: 'rgba(255,255,255,.10)', rowHover: 'rgba(255,255,255,.06)', scrim: 'rgba(6,8,16,.30)', shadowC: 'rgba(0,0,0,.40)',
+      sheetShadow: '0 1px 0 rgba(255,255,255,.10) inset, 0 12px 32px rgba(0,0,0,.35)', liftShadow: '0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.12) inset', radius: '20px', gap: '16px', chromeRest: '0', busyA: '#f2f4fa', busyB: '#0c0f1a' },
+    light: { ground: '#e9edf7', art: 'radial-gradient(45% 55% at 10% 10%, rgba(255,150,100,.45), transparent 70%), radial-gradient(55% 55% at 95% 20%, rgba(110,90,255,.38), transparent 70%), radial-gradient(60% 50% at 55% 105%, rgba(30,190,170,.35), transparent 70%), #e9edf7',
+      pane: 'rgba(255,255,255,.50)', paneSolid: '#f5f7fb', sheet: 'rgba(255,255,255,.72)', sheetSolid: '#ffffff', lift: 'rgba(255,255,255,.74)', liftSolid: '#ffffff', blurPane: '30px', blurSheet: '18px', blurLift: '36px',
+      text: '#121620', muted: '#4c5464', accent: '#1f4fd0', onAccent: '#ffffff', accentSoft: 'rgba(31,79,208,.12)', success: '#05683f', successSoft: 'rgba(5,104,63,.12)', danger: '#a51f15', dangerSoft: 'rgba(165,31,21,.10)',
+      control: 'rgba(18,22,32,.06)', controlLine: 'rgba(18,22,32,.16)', field: 'rgba(255,255,255,.85)', fieldLine: 'rgba(18,22,32,.42)', placeholder: '#535b6a', checkLine: '#646c7a', track: 'rgba(18,22,32,.10)',
+      hairline: 'rgba(18,22,32,.10)', current: 'rgba(255,255,255,.70)', rowHover: 'rgba(255,255,255,.45)', scrim: 'rgba(20,24,40,.15)', shadowC: 'rgba(16,24,40,.14)',
+      sheetShadow: '0 1px 0 rgba(255,255,255,.8) inset, 0 12px 32px rgba(16,24,40,.10)', liftShadow: '0 30px 80px rgba(16,24,40,.22), 0 0 0 1px rgba(255,255,255,.7) inset', radius: '20px', gap: '16px', chromeRest: '0', busyA: '#121620', busyB: '#e9edf7' } },
+  c: { name: 'C · Pane', sub: 'glass only for what moves', blurNote: '0 persistent (1 while scrolled under the header) + 1 transient',
+    dark: { ground: '#14161b', art: '#14161b',
+      pane: '#171a20', paneSolid: '#171a20', sheet: '#1c1f26', sheetSolid: '#1c1f26', lift: 'rgba(34,38,48,.89)', liftSolid: '#232733', blurPane: '0px', blurSheet: '0px', blurLift: '24px',
+      text: '#eef1f6', muted: '#a3acbb', accent: '#ff9f6b', onAccent: '#1a1208', accentSoft: 'rgba(255,159,107,.14)', success: '#79d49a', successSoft: 'rgba(121,212,154,.12)', danger: '#ff8f8f', dangerSoft: 'rgba(255,143,143,.12)',
+      control: 'rgba(255,255,255,.05)', controlLine: 'rgba(255,255,255,.13)', field: '#15181d', fieldLine: 'rgba(255,255,255,.34)', placeholder: '#99a2b1', checkLine: '#8d97a8', track: 'rgba(255,255,255,.09)',
+      hairline: 'rgba(255,255,255,.06)', current: 'rgba(255,255,255,.06)', rowHover: 'rgba(255,255,255,.035)', scrim: 'rgba(6,8,12,.45)', shadowC: 'rgba(0,0,0,.35)',
+      sheetShadow: 'none', liftShadow: '0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08) inset', radius: '12px', gap: '28px', chromeRest: '.45', busyA: '#eef1f6', busyB: '#14161b' },
+    light: { ground: '#f3f4f7', art: '#f3f4f7',
+      pane: '#eceef2', paneSolid: '#eceef2', sheet: '#ffffff', sheetSolid: '#ffffff', lift: 'rgba(255,255,255,.85)', liftSolid: '#ffffff', blurPane: '0px', blurSheet: '0px', blurLift: '24px',
+      text: '#161a21', muted: '#545c6a', accent: '#2457d6', onAccent: '#ffffff', accentSoft: 'rgba(36,87,214,.09)', success: '#067647', successSoft: 'rgba(6,118,71,.09)', danger: '#b42318', dangerSoft: 'rgba(180,35,24,.07)',
+      control: 'rgba(22,26,33,.045)', controlLine: 'rgba(22,26,33,.14)', field: '#ffffff', fieldLine: 'rgba(22,26,33,.42)', placeholder: '#5d6573', checkLine: '#6b7381', track: 'rgba(22,26,33,.08)',
+      hairline: 'rgba(22,26,33,.08)', current: 'rgba(36,87,214,.08)', rowHover: 'rgba(22,26,33,.03)', scrim: 'rgba(20,24,32,.22)', shadowC: 'rgba(16,24,40,.12)',
+      sheetShadow: 'none', liftShadow: '0 24px 60px rgba(16,24,40,.18), 0 0 0 1px rgba(16,24,40,.05)', radius: '12px', gap: '28px', chromeRest: '.45', busyA: '#161a21', busyB: '#f3f4f7' } },
+};
+const VARS = { ground: 'ground', art: 'ground-art', pane: 'pane', paneSolid: 'pane-solid', sheet: 'sheet', sheetSolid: 'sheet-solid', lift: 'lift', liftSolid: 'lift-solid', blurPane: 'blur-pane', blurSheet: 'blur-sheet', blurLift: 'blur-lift', text: 'text', muted: 'muted', accent: 'accent', onAccent: 'on-accent', accentSoft: 'accent-soft', success: 'success', successSoft: 'success-soft', danger: 'danger', dangerSoft: 'danger-soft', control: 'control', controlLine: 'control-line', field: 'field', fieldLine: 'field-line', placeholder: 'placeholder', checkLine: 'check-line', track: 'track', hairline: 'hairline', current: 'current-bg', rowHover: 'row-hover', scrim: 'scrim', shadowC: 'shadow-c', sheetShadow: 'sheet-shadow', liftShadow: 'lift-shadow', radius: 'radius', gap: 'gap', chromeRest: 'chrome-rest', busyA: 'busy-a', busyB: 'busy-b' };
+
+const MOCK = `
+<div class="ground"></div><div class="busy-art"></div>
+<div class="topbar glass"><button class="chip-btn menu-btn" type="button" data-act="nav" tabindex="-1">Menu</button><span class="brand">Canvas</span><span class="spacer"></span><span class="chip-btn theme">Light</span><span class="avatar">DU</span></div>
+<nav class="side glass" aria-hidden="true"><div class="nav"><a href="#" tabindex="-1">Home</a><div class="nav-group"><span>Projects</span><span>+</span></div>
+<a href="#" tabindex="-1"><span class="dot" style="--m-dot:#e0a050"></span>Home renovation</a><a href="#" class="d1 current" tabindex="-1"><span class="dot" style="--m-dot:#8b7cf6"></span>Kitchen</a><a href="#" class="d2" tabindex="-1"><span class="dot"></span>Cabinets</a><a href="#" class="d1" tabindex="-1"><span class="dot" style="--m-dot:#5fbf7f"></span>Garden<span class="tick">✓ done</span></a>
+<a href="#" tabindex="-1"><span class="dot" style="--m-dot:#5aa0e0"></span>Website launch</a><div class="nav-group"><span>Workspace</span></div><a href="#" tabindex="-1">Settings</a></div></nav>
+<div class="main"><div class="canvas">
+ <div class="sheet phead"><div class="crumbs">Home renovation › Kitchen</div><div class="ptitle"><h4>Kitchen</h4><span class="spacer"></span><button class="btn ghost hide-phone" type="button" tabindex="-1"><span class="k">↶</span>Undo</button><button class="btn primary" type="button" data-act="dialog" tabindex="-1"><span class="k">+</span>Add section</button><button class="btn secondary" type="button" tabindex="-1" aria-label="More">⋯</button></div>
+ <div class="meta"><span>Status<b>Active</b></span><span>Due<b>4 Sep 2026</b></span><span>Progress<b>1 of 2 tasks</b></span></div><div class="bar"><i></i></div></div>
+ <div class="sheet s-notes" data-section="Notes"><div class="shead"><span class="grip">⋮⋮</span><h5>Notes</h5><div class="tools"><button class="tool" type="button" tabindex="-1" aria-label="Collapse">⌄</button><button class="tool" type="button" tabindex="-1" aria-label="Section actions">⋯</button><button class="tool" type="button" data-act="remove" tabindex="-1" aria-label="Remove Notes">✕</button></div></div>
+ <p class="prose">Appliances and finishes before cabinets are ordered. Confirm the hob width with the fitter on Thursday.</p></div>
+ <div class="sheet s-tasks" data-section="Shopping"><div class="shead"><span class="grip">⋮⋮</span><h5>Shopping</h5><div class="tools"><button class="tool" type="button" tabindex="-1" aria-label="Collapse">⌄</button><button class="tool" type="button" tabindex="-1" aria-label="Section actions">⋯</button></div></div>
+ <div class="addrow"><span class="field">Add a task</span><button class="btn primary" type="button" data-act="add" tabindex="-1">Add</button></div>
+ <ul class="tasks"><li class="task overdue" data-act="drawer"><span class="check"></span><span><span class="tt">Order cabinet hardware</span><br><span class="tmeta">High · 20 Aug</span></span><span class="pill overdue">Overdue</span></li>
+ <li class="task"><span class="check"></span><span><span class="tt">Choose appliance finishes</span><br><span class="tmeta">Medium · due 18 Sep</span></span><span></span></li>
+ <li class="task done"><span class="check">✓</span><span><span class="tt">Approve the cabinet measurements</span><br><span class="tmeta">Medium</span></span><span class="pill done">Done</span></li></ul></div>
+ <div class="sheet s-activity"><div class="shead"><span class="grip">⋮⋮</span><h5>Recent activity</h5></div><p class="prose" style="color:var(--m-muted)">You completed “Approve the cabinet measurements” · 16:00</p></div>
+ <div class="insert"><button type="button" data-act="dialog" tabindex="-1">+ Add a section</button></div>
+</div></div>
+<div class="scrim"></div>
+<aside class="drawer glass" aria-hidden="true"><div class="crumbs">Task · Shopping</div><h5>Order cabinet hardware</h5><div class="dl"><label>Title<span class="field">Order cabinet hardware</span></label><label>Due date<span class="field">20 Aug 2026 · overdue</span></label><label>Priority<span class="field">High</span></label><label>Estimate<span class="field">2 points</span></label></div><div class="saved">✓ Saved</div><div class="dlg-actions" style="margin-top:14px"><button class="btn secondary" type="button" data-act="drawer" tabindex="-1">Close</button></div></aside>
+<div class="dialog glass" role="presentation"><h5>Add a section</h5><div class="tabs"><span class="on">New section</span><span>Shortcut to a section</span></div><div class="types"><span class="on">Task list</span><span>Notes</span><span>Progress</span><span>Timeline</span><span>Reflections</span><span>Activity</span></div><span class="field">Name (optional)</span><div class="dlg-actions" style="margin-top:14px"><button class="btn ghost" type="button" data-act="dialog" tabindex="-1">Cancel</button><button class="btn primary" type="button" data-act="dialog" tabindex="-1">Create section</button></div></div>
+<div class="toast glass"><span>Removed “Notes”. It is in Archive.</span><button class="btn secondary" type="button" data-act="undo" tabindex="-1">Undo</button></div>`;
+
+const state = { theme: matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark', width: 'desktop', busy: false, solid: false, nofilter: false, focus: 'a',
+  still: matchMedia('(prefers-reduced-motion: reduce)').matches, slow: false };
+
+function applyTokens(mock, alt) {
+  const t = ALTS[alt][state.theme];
+  for (const [k, v] of Object.entries(VARS)) mock.style.setProperty('--m-' + v, t[k]);
+  mock.classList.toggle('phone', state.width === 'phone');
+  for (const f of ['busy', 'solid', 'nofilter']) mock.classList.toggle(f, state[f]);
+  mock.classList.toggle('still', state.still);
+  mock.classList.toggle('slow', state.slow && !state.still);
+  mock.querySelectorAll('.sheet:not(.phead), .sheet.phead').forEach(s => s.classList.toggle('glass', alt === 'b'));
+  mock.querySelector('.chip-btn.theme').textContent = state.theme === 'dark' ? 'Light' : 'Dark';
+}
+
+// ── WCAG contrast, worst case over everything that can sit beneath a translucent surface ──
+const parse = c => { c = c.trim(); if (c.startsWith('#')) { const n = c.slice(1); return [0, 2, 4].map(i => parseInt(n.slice(i, i + 2), 16)).concat(1); } const m = c.match(/[\d.]+/g).map(Number); return [m[0], m[1], m[2], m[3] ?? 1]; };
+const over = (top, under) => { const [r, g, b, a] = parse(top); const [R, G2, B] = parse(under); return [r * a + R * (1 - a), g * a + G2 * (1 - a), b * a + B * (1 - a), 1]; };
+const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+function readout(alt) {
+  const t = ALTS[alt][state.theme];
+  const solid = state.solid || state.nofilter;
+  // Backings: ground, both gradient extremes approximated by the busy stripes and the content text itself.
+  const backings = [t.ground, t.busyA, t.busyB, t.text, t.sheetSolid];
+  const surf = (tint, solidC) => solid ? [parse(solidC)] : backings.map(b => over(tint, b));
+  const rows = [['pane', t.pane, t.paneSolid], ['sheet', alt === 'b' ? t.sheet : t.sheet, t.sheetSolid], ['lift', t.lift, t.liftSolid]];
+  const res = rows.map(([n, tint, sc]) => { const comps = surf(tint, sc); const txt = Math.min(...comps.map(c => ratio(parse(t.text), c))); const mut = Math.min(...comps.map(c => ratio(parse(t.muted), c))); return { n, txt, mut }; });
+  const fmt = v => `<span class="${v >= 4.5 ? 'ok' : 'fail'}">${v.toFixed(1)}</span>`;
+  return `Worst-case text / muted: ${res.map(r => `${r.n} ${fmt(r.txt)} / ${fmt(r.mut)}`).join(' · ')}<br>Blur budget: <b>${ALTS[alt].blurNote}</b>${solid ? '<br>Showing the solid fallback.' : ''}`;
+}
+
+function fit(frame, mock) {
+  const w = mock.offsetWidth, hgt = mock.offsetHeight; const s = Math.min(frame.clientWidth / w, state.width === 'phone' ? 640 / hgt : Infinity);
+  const left = Math.max(0, (frame.clientWidth - w * s) / 2); mock.parentElement.style.transform = `translateX(${left}px) scale(${s})`; frame.style.height = Math.round(hgt * s) + 'px';
+}
+function makeMock(alt) {
+  const frame = h('div', { class: 'frame' }); const scaler = h('div', { class: 'scaler' }); const mock = h('div', { class: 'mock', 'data-alt': alt, inert: '' }, MOCK);
+  scaler.appendChild(mock); frame.appendChild(scaler); return { frame, mock };
+}
+const trio = $('#trio'); const mocks = {};
+for (const alt of ['a', 'b', 'c']) {
+  const col = h('div', { class: 'alt-col' }); col.appendChild(h('h3', {}, `${ALTS[alt].name} <small>${ALTS[alt].sub}</small>`));
+  const { frame, mock } = makeMock(alt); col.appendChild(frame); const ro = h('p', { class: 'readout' }); col.appendChild(ro); col.appendChild(h('p', { class: 'readout' }, esc(G.altNotes[alt])));
+  trio.appendChild(col); mocks[alt] = { frame, mock, ro };
+}
+const focus = makeMock('a'); focus.mock.removeAttribute('inert'); $('#focus-frame').appendChild(focus.frame.firstChild); const focusFrame = $('#focus-frame');
+function render() {
+  for (const alt of ['a', 'b', 'c']) { const m = mocks[alt]; applyTokens(m.mock, alt); m.ro.innerHTML = readout(alt); fit(m.frame, m.mock); }
+  applyTokens(focus.mock, state.focus); focus.mock.dataset.alt = state.focus; $('#focus-readout').innerHTML = readout(state.focus); fit(focusFrame, focus.mock);
+}
+document.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => { state[b.dataset.set] = b.dataset.val; document.querySelectorAll(`[data-set="${b.dataset.set}"]`).forEach(x => x.setAttribute('aria-pressed', String(x === b))); render(); }));
+document.querySelectorAll('[data-flag]').forEach(b => b.addEventListener('click', () => { state[b.dataset.flag] = !state[b.dataset.flag]; b.setAttribute('aria-pressed', String(state[b.dataset.flag])); render(); }));
+document.querySelectorAll('#focus-alt button').forEach(b => b.addEventListener('click', () => { state.focus = b.dataset.val; document.querySelectorAll('#focus-alt button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); render(); }));
+for (const id of ['slow', 'still']) { const b = $('#' + id); b.setAttribute('aria-pressed', String(state[id])); b.addEventListener('click', () => { state[id] = !state[id]; b.setAttribute('aria-pressed', String(state[id])); render(); }); }
+document.querySelectorAll(`[data-set="theme"]`).forEach(x => x.setAttribute('aria-pressed', String(x.dataset.val === state.theme)));
+// ── Motion: transform/opacity only ──
+const M = focus.mock; const q = s => M.querySelector(s);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const dur = () => state.still ? 0 : (state.slow ? 960 : 240);
+function closeAll() { for (const s of ['.drawer', '.dialog', '.scrim', '.side']) q(s).classList.remove('on'); M.querySelectorAll('.task').forEach(t => t.classList.remove('selected')); q('.saved').classList.remove('on'); }
+async function flipRemove() {
+  const notes = q('.s-notes'); if (!notes || notes.hidden) return; const notesTop = notes.getBoundingClientRect().top;
+  const after = [...M.querySelectorAll('.canvas > *')].filter(e => e !== notes && notes.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const before = after.map(e => e.getBoundingClientRect().top);
+  notes.classList.add('leaving'); await wait(dur() * 0.75);
+  notes.hidden = true; notes.classList.remove('leaving');
+  const scale = M.parentElement.getBoundingClientRect().width / M.offsetWidth || 1;
+  after.forEach((e, i) => { const dy = (before[i] - e.getBoundingClientRect().top) / scale; e.style.transition = 'none'; e.style.transform = `translateY(${dy}px)`; });
+  requestAnimationFrame(() => requestAnimationFrame(() => after.forEach(e => { e.classList.add('flip'); e.style.transition = ''; e.style.transform = ''; })));
+  const toast = q('.toast'); const tasks = q('.s-tasks'); toast.style.top = Math.round((notesTop - M.getBoundingClientRect().top) / scale - 30) + 'px'; toast.classList.add('on');
+}
+async function undo() {
+  q('.toast').classList.remove('on'); const notes = q('.s-notes');
+  const after = [...M.querySelectorAll('.canvas > *')].filter(e => e !== notes && notes.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const before = after.map(e => e.getBoundingClientRect().top); notes.hidden = false;
+  const scale = M.parentElement.getBoundingClientRect().width / M.offsetWidth || 1;
+  after.forEach((e, i) => { const dy = (before[i] - e.getBoundingClientRect().top) / scale; e.style.transition = 'none'; e.style.transform = `translateY(${dy}px)`; });
+  notes.classList.remove('entering'); void notes.offsetWidth; notes.classList.add('entering');
+  requestAnimationFrame(() => requestAnimationFrame(() => after.forEach(e => { e.style.transition = ''; e.style.transform = ''; })));
+}
+async function addTask() {
+  const ul = q('.tasks'); const li = document.createElement('li'); li.className = 'task entering'; li.innerHTML = '<span class="check"></span><span><span class="tt">Measure the pantry wall</span><br><span class="tmeta">Adding…</span></span><span></span>';
+  ul.insertBefore(li, ul.firstChild); await wait(state.still ? 0 : 400); li.querySelector('.tmeta').textContent = 'Medium · no date'; if (ul.children.length > 5) ul.lastElementChild.remove();
+}
+const acts = {
+  drawer: () => { const open = !q('.drawer').classList.contains('on'); closeAll(); if (open) { q('.task.overdue').classList.add('selected'); q('.drawer').classList.add('on'); setTimeout(() => q('.saved').classList.add('on'), dur() + 300); } },
+  dialog: () => { const open = !q('.dialog').classList.contains('on'); closeAll(); if (open) { q('.dialog').classList.add('on'); q('.scrim').classList.add('on'); } },
+  remove: () => { closeAll(); if (q('.toast').classList.contains('on')) undo(); else flipRemove(); },
+  undo, add: () => { closeAll(); addTask(); },
+  nav: () => { if (state.width !== 'phone') { state.width = 'phone'; document.querySelectorAll('[data-set="width"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.val === 'phone'))); render(); } const open = !q('.side').classList.contains('on'); closeAll(); if (open) { q('.side').classList.add('on'); q('.scrim').classList.add('on'); } },
+};
+document.querySelectorAll('.motion-bar [data-act]').forEach(b => b.addEventListener('click', () => acts[b.dataset.act]()));
+M.addEventListener('click', e => { const t = e.target.closest('[data-act]'); if (t) { e.preventDefault(); acts[t.dataset.act](); } else if (e.target.closest('.scrim')) closeAll(); });
+addEventListener('resize', render); render();
+if (document.fonts) document.fonts.ready.then(render);
+})();
+</script>

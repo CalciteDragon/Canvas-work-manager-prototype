@@ -1,0 +1,16 @@
+const facts = {};
+const host = 'http://127.0.0.1:4320';
+const post = (p, b) => fetch(host + p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-prototype-user': 'user-demo' }, body: JSON.stringify(b) });
+const seed = async s => { await post('/prototype/seed', { seed: s }); await post('/prototype/clock', { now: '2026-08-24T16:00:00.000Z' }); };
+const go = async p => { await page.goto('http://localhost:4200' + p); await page.waitForLoadState('networkidle'); await page.waitForTimeout(300); };
+const tryit = async (k, fn) => { try { facts[k] = await fn(); } catch (e) { facts[k] = 'ERROR ' + String(e.message).slice(0, 200); } };
+await seed('nested-projects');
+await fetch(host + '/api/projects/project-renovation/pages/archive', { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-prototype-user': 'user-demo' }, body: JSON.stringify({ enabled: false }) });
+await go('/projects/project-renovation');
+await tryit('openArchiveUndo', async () => { await page.getByRole('button', { name: /^Remove section / }).first().click({ force: true }); await page.waitForTimeout(900); const undoBefore = await page.getByRole('button', { name: /^Undo:/ }).first().getAttribute('aria-label'); await page.getByRole('button', { name: 'Open Archive' }).click(); await page.waitForTimeout(1200); await go('/projects/project-renovation'); return { undoBefore, undoAfter: await page.getByRole('button', { name: /^Undo:/ }).first().getAttribute('aria-label').catch(() => null), archiveTab: await page.getByRole('link', { name: 'Archive', exact: true }).count() }; });
+await go('/app');
+await tryit('alexDirectUrl', async () => { await page.keyboard.press('Control+Shift+D'); await page.waitForTimeout(600); await page.locator('[data-persona-id="user-alex"]').click(); await page.waitForTimeout(1500); await page.waitForLoadState('networkidle'); await go('/projects/project-kitchen'); return { who: await page.locator('[data-identity-name]').innerText().catch(() => null), text: (await page.locator('main').first().innerText()).slice(0, 300), links: await page.locator('main').first().getByRole('link').allInnerTexts() }; });
+await tryit('shot', async () => { await page.screenshot({ path: out + '/r6-alex-kitchen.png' }); return 'ok'; });
+await go('/app');
+await page.keyboard.press('Control+Shift+D'); await page.waitForTimeout(600); await page.locator('[data-persona-id="user-demo"]').click().catch(() => {}); await page.waitForTimeout(1200);
+return facts;

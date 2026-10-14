@@ -1,0 +1,482 @@
+{
+  "tokenEscapes": {
+    "_summary": [
+      "Scope: every .scss/.css under apps/web/src/ except styles/_tokens.scss (52 files). Comments excluded.",
+      "color: 0, spacing: 0, shadow: 0 (all 13 box-shadow declarations use --shadow-sm/--shadow-md), fontSize: 0, duration: 0 (no transitions/animations declared at all)",
+      "radius: 1, zIndex: 12, fontWeight: 3 literal + 2 references to an undefined token, lineHeight: 2, opacity: 18, breakpoints: 12, otherLength: 8, undefinedTokenReferences: 2",
+      "Total literal escapes: 58 (plus 2 undefined-token references). _tokens.scss defines no z-index, opacity, font-weight, line-height, breakpoint or duration tokens, so every value in those categories is necessarily literal."
+    ],
+    "color": [],
+    "spacing": [],
+    "shadow": [],
+    "fontSize": [],
+    "duration": [],
+    "radius": [
+      "apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:70 border-radius: 50%"
+    ],
+    "zIndex": [
+      "apps/web/src/app/core/shell/app-shell.scss:59 z-index: 30",
+      "apps/web/src/app/core/shell/app-shell.scss:113 z-index: 31",
+      "apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:6 z-index: 1",
+      "apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:65 z-index: 1",
+      "apps/web/src/app/features/projects/canvas-chrome/section-resize-handle.scss:3 z-index: 2",
+      "apps/web/src/app/features/projects/section-create-dialog.scss:7 z-index: 20",
+      "apps/web/src/app/features/projects/section-create-dialog.scss:18 z-index: -1",
+      "apps/web/src/app/features/projects/section-recovery-notice.scss:6 z-index: 10",
+      "apps/web/src/app/features/projects/work-create-dialog.scss:5 z-index: 20",
+      "apps/web/src/app/features/projects/work-create-dialog.scss:16 z-index: -1",
+      "apps/web/src/app/prototype/dev-panel/dev-panel.scss:6 z-index: 40",
+      "apps/web/src/app/prototype/dev-panel/dev-panel.scss:19 z-index: 41"
+    ],
+    "fontWeight": [
+      "apps/web/src/app/core/shell/top-bar/top-bar.scss:22 font-weight: 600",
+      "apps/web/src/app/features/tasks/task-row.scss:73 font-weight: 600",
+      "apps/web/src/app/prototype/design-lab/panels/panels.scss:34 font-weight: normal"
+    ],
+    "undefinedTokenReferences": [
+      "apps/web/src/app/features/projects/project-page-navigation.scss:37 font-weight: var(--font-weight-medium)  (token not defined anywhere; declaration is invalid at computed-value time)",
+      "apps/web/src/app/features/projects/project-page-navigation.scss:112 font-weight: var(--font-weight-medium)  (same)"
+    ],
+    "lineHeight": [
+      "apps/web/src/app/core/shell/sidebar/sidebar.scss:89 line-height: 1",
+      "apps/web/src/styles/_base.scss:19 line-height: 1.5  (file header states it holds no literals)"
+    ],
+    "opacity": [
+      "apps/web/src/app/core/shell/app-shell.scss:63 opacity: 60%  (scrim)",
+      "apps/web/src/app/features/projects/section-create-dialog.scss:21 opacity: 72%  (scrim)",
+      "apps/web/src/app/features/projects/work-create-dialog.scss:19 opacity: 72%  (scrim)",
+      "apps/web/src/app/prototype/dev-panel/dev-panel.scss:10 opacity: 60%  (scrim)",
+      "apps/web/src/app/features/projects/project-canvas.scss:121 opacity: 0.35  (drag placeholder)",
+      "apps/web/src/app/features/projects/pages/todos-page.scss:92 opacity: 0.5  (disabled)",
+      "apps/web/src/app/features/projects/project-header.scss:76 opacity: 0.5  (disabled)",
+      "apps/web/src/app/features/tasks/task-row.scss:111 opacity: 0.5",
+      "apps/web/src/app/features/tasks/task-row.scss:116 opacity: 0.5",
+      "apps/web/src/app/prototype/design-lab/panels/primitive-panels.scss:27 opacity: 0.5  (disabled)",
+      "apps/web/src/app/prototype/dev-panel/dev-panel-controls.scss:47 opacity: 50%  (disabled)",
+      "apps/web/src/app/prototype/dev-panel/state-inspector-page.scss:79 opacity: 0.6  (disabled)",
+      "apps/web/src/app/features/projects/project-page-navigation.scss:151 opacity: 0.65  (disabled)",
+      "apps/web/src/app/features/projects/section-create-dialog.scss:93 opacity: 0.65  (disabled)",
+      "apps/web/src/app/features/projects/section-recovery-notice.scss:75 opacity: 0.65  (disabled)",
+      "apps/web/src/app/features/projects/sections/section-frame/project-section-frame.scss:133 opacity: 0.65  (disabled)",
+      "apps/web/src/app/features/projects/work-create-dialog.scss:74 opacity: 0.65  (disabled)",
+      "apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:9 opacity: 0  (hidden state)"
+    ],
+    "breakpoints": [
+      "apps/web/src/app/core/shell/app-shell.scss:100 @media (max-width: 48rem)",
+      "apps/web/src/app/core/shell/top-bar/top-bar.scss:79 @media (max-width: 48rem)",
+      "apps/web/src/app/features/projects/project-canvas.scss:203 @media (max-width: 48rem)",
+      "apps/web/src/app/features/projects/pages/reflections-page.scss:117 @media (max-width: 40rem)",
+      "apps/web/src/app/features/projects/pages/todos-page.scss:170 @media (max-width: 40rem)",
+      "apps/web/src/app/features/projects/project-header.scss:102 @media (max-width: 40rem)",
+      "apps/web/src/app/features/projects/project-page-navigation.scss:240 @media (max-width: 60rem)",
+      "apps/web/src/app/features/projects/project-workspace-shell.scss:117 @media (max-width: 60rem)",
+      "apps/web/src/app/features/dashboard/dashboard-page.scss:73 @media (width <= 60rem)",
+      "apps/web/src/app/features/projects/sections/tasks/task-list-section.scss:92 @container task-list (width < 42rem)",
+      "apps/web/src/app/features/tasks/task-detail-drawer.scss:95 @container task-list (width < 42rem)",
+      "apps/web/src/app/prototype/design-lab/design-lab-page.scss:3 grid-template-columns: minmax(0, 18rem) minmax(0, 1fr)"
+    ],
+    "otherLength": [
+      "apps/web/src/app/core/shell/app-shell.scss:9 height: 100vh",
+      "apps/web/src/app/core/shell/app-shell.scss:115 width: min(var(--layout-sidebar-width), calc(100vw - var(--size-hit-target)))",
+      "apps/web/src/app/features/projects/project-workspace-shell.scss:28 height: calc(100vh - var(--layout-top-bar-height))",
+      "apps/web/src/app/core/shell/sidebar/sidebar.scss:107 width: 1px  (visually-hidden)",
+      "apps/web/src/app/core/shell/sidebar/sidebar.scss:108 height: 1px  (visually-hidden)",
+      "apps/web/src/app/core/shell/top-bar/top-bar.scss:92 width: 1px  (visually-hidden, duplicate of sidebar rule)",
+      "apps/web/src/app/core/shell/top-bar/top-bar.scss:93 height: 1px  (visually-hidden, duplicate of sidebar rule)",
+      "apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:31 inset-inline-start: calc(100% + var(--gap-columns, 0px))  (literal fallback)"
+    ],
+    "nearDuplicatePrimitives": [
+      "Buttons: no shared button style exists (styles/_base.scss only resets font and color). Separate button rule sets in at least 19 files: app-shell.scss:75, archived-region.scss:85, insertion-point.scss:36, project-history-controls.scss:34, todos-page.scss:95, project-canvas.scss:135/149/170, project-header.scss:64, project-more-menu.scss:37/46, project-page-navigation.scss:24/127/208, project-workspace-shell.scss:95, section-create-dialog.scss:67/87, section-recovery-notice.scss:62, markdown-section-body.scss:4, markdown-source-editor.scss:22, reflection-composer.scss:22, project-section-frame.scss:36/80/127, task-list-section.scss:29/41, timeline-section.scss:3, shortcut-frame.scss:36/103, shortcut-picker.scss:33, work-create-dialog.scss:53/73, task-detail-drawer.scss:38, task-row.scss:64, sidebar.scss (.group__new, .create-project__submit). The Design Lab's .lab-button--primary/secondary/danger (primitive-panels.scss:14ff) is used by no product surface.",
+      "Templates that render <button> with no button rule in their own stylesheet (fall back to browser chrome): progress-section, reflections-section, reflection-composer (submit), todos-page (Complete), agent-connections-page (Revoke), archived-projects-page, timeline-section (row buttons get layout but no background/border reset).",
+      "Fields: input/select/textarea styled separately in 11 stylesheets (archived-region, section-create-dialog, markdown-source-editor, project-section-frame, task-list-section, work-create-dialog, task-detail-drawer, task-row, design-lab-page, primitive-panels, dev-panel-controls); templates with fields and no field rule: reflections-page, reflection-composer, reflections-section, progress-section, archived-projects-page, sidebar (new project input styled under a class), agent-connections-page and project-page-navigation (checkboxes).",
+      "Two near-identical dialog stylesheets: section-create-dialog.scss and work-create-dialog.scss each re-declare backdrop (z-index 20/-1, scrim 72%), panel shadow-md and button rules.",
+      "Two identical section-chrome stylesheets: project-section-frame.scss and shortcut-frame.scss re-declare controls row, remove button, not-allowed cursor and focus ring.",
+      "Visually-hidden helper duplicated in sidebar.scss:105ff and top-bar.scss:90ff.",
+      "Uppercase eyebrow label (font-size-sm, muted, uppercase, letter-spacing-wide) re-declared in sidebar.scss:53, activity-feed.scss:30, widget-content.scss:58, archived-region.scss:15, archive-page.scss:18, reflections-page.scss:29, project-header.scss:45, project-page-navigation.scss:222, agent-connections-page.scss:60, task-detail-drawer.scss:34, timeline-section.scss:4, panels.scss:36, dev-panel-controls.scss:19, dev-panel.scss:55, state-inspector-page.scss:24."
+    ]
+  },
+  "findings": [
+    {
+      "id": "L2-001",
+      "surface": "Progress section controls; Reflections section and Reflections page (Add reflection, Edit); Todos page (Complete); Settings › AI & Agents (Revoke); Timeline section rows",
+      "inventoryRow": "Progress section; Reflections section and composer; /projects/:root/pages/todos; /settings/agents; Timeline section",
+      "seed": "busy-week", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.scroll-0-1.png (Count / Weighted / Use manual and Add reflection render as grey browser-default buttons beside the app's bordered 44px icon buttons)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-light-1440.scroll-0-2.png (full-width grey native Edit buttons in reflections; timeline rows with native grey button fill and square-ish edges)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.png (Complete button on workstream rows is native grey)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-light-1440.png (Revoke is native grey)",
+        "busy-week-project-light-1440.layout.json / todos-light-1440.layout.json / settings-agents-light-1440.layout.json: these controls report background rgb(240, 240, 240) and height 29px; app-styled buttons on the same pages report the surface token background and 41-44px",
+        "Code: progress-section.scss, reflections-section.scss, todos-page.scss, agent-connections-page.scss have no button rule; timeline-section.scss:3 sets layout only"
+      ],
+      "repro": ["1. Seed busy-week as Demo User", "2. Open /projects/project-launch and scroll to Progress, Reflections and Timeline", "3. Compare their buttons with the section header buttons and the Add task button", "4. Open /settings/agents and /projects/project-renovation/pages/todos after seeding nested-projects"],
+      "expected": "Buttons of the same rank look like the same kind of control on every surface, in both themes.",
+      "actual": "Some sections show operating-system default buttons (grey fill, 29px tall, no radius token, OS dark-mode grey in dark theme) next to app-styled bordered buttons. Timeline entries are whole-row native buttons with grey fill, unlike every other list row.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-002",
+      "surface": "Reflections composer (section and Reflections page); Progress manual input; Archive 'Restore as' select",
+      "inventoryRow": "Reflections section and composer; /projects/:root/pages/reflections; Progress section",
+      "seed": "nested-projects", "theme": "dark", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-dark-1440.png (Optional title, No prompt and No subject fields are about 20px tall with thin native borders; the textarea placeholder is monospace)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.scroll-0-1.png (manual progress number input 21px tall)",
+        "reflections-light-1440.layout.json: composer fields 19-21px tall at 13.3333px font (browser default size, not a --font-size token); section-create dialog fields 44px at 13px; Task List quick-add 38px at 13px; More-menu fields 33px at 15px",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-section-create-light-1440.png (styled 44px fields in the dialog; native composer fields visible behind the scrim)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-renovation/pages/reflections", "3. Compare the composer fields with the fields in the Add a section dialog (canvas insertion point) and the Task List quick-add"],
+      "expected": "Text inputs, selects and textareas share one look (height, border, radius, font) wherever they appear.",
+      "actual": "Four distinct field treatments are in use: 44px dialog fields, 38px quick-add, 33px More-menu fields, and ~20px unstyled native fields with browser-default 13.33px text and a monospace textarea placeholder.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-003",
+      "surface": "Dates and times across project header, task rows, timeline, todos, dashboard widgets, activity feed, reflections journal, agents page, date inputs",
+      "inventoryRow": "Project header and More menu; Task row; Timeline section; Recent Activity section and shared feed; Reflections section; /settings/agents; Dashboard widgets",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png (header shows DUE DATE 2026-09-04 while the More panel date input directly below shows 09/04/2026)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-dark-1440.png (journal entry time shown as raw 2026-08-24T17:00:00.000Z)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-light-1440.scroll-0-2.png (reflection times 2026-08-22T18:00:00.000Z; timeline 2026-08-21 → 2026-08-28)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1440.scroll-0-1.png (activity '24 Aug, 15:32')",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/new-project-light-1440.png (Active Projects 'in 11 days'; Daily Digest 'due in 11 days, on 2026-09-04')",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-light-1440.png ('Last used: 28 minutes ago')",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.scroll-0-4.png (drawer due date input 09/03/2026)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen and open More: compare header date and date field", "3. Open /projects/project-renovation/pages/reflections and read a journal timestamp", "4. Seed agent-heavy and open /projects/project-work-manager Recent Activity, then /settings/agents"],
+      "expected": "A date reads the same way everywhere, and machine timestamps are never shown verbatim.",
+      "actual": "At least five formats coexist: ISO date (2026-09-04), raw ISO instant with milliseconds and Z, day-month with 24h time (24 Aug, 15:32), relative phrases (in 11 days / 28 minutes ago), and the browser's locale MM/DD/YYYY in date inputs — sometimes two of them on the same screen for the same value.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-004",
+      "surface": "Status / priority / kind values in Timeline, shortcut frames, task drawer, archive restore select, More menu, Todos, task rows",
+      "inventoryRow": "Timeline section; Shortcut frame; Task detail drawer; /projects/:root/pages/archive; /projects/:root/pages/todos; Task row",
+      "seed": "busy-week", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-light-1440.scroll-0-3.png (timeline statuses 'done', 'active', 'blocked', 'in_progress', 'upcoming' — lowercase, one with an underscore)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.png (same statuses shown as 'To do', 'Done', 'Active')",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.scroll-0-4.png (drawer: Priority 'medium', Status 'todo', Project 'project-lab' raw id; task row shows 'Medium Priority')",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.png (Restore as select shows 'active')",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-section-create-light-1440.png (shortcut rows behind the dialog show 'active', 'todo', 'upcoming')"
+      ],
+      "repro": ["1. Seed busy-week as Demo User", "2. Open /projects/project-launch, scroll to Timeline", "3. Seed nested-projects, open /projects/project-renovation/pages/todos and compare status text", "4. Open a task's details from a Task List"],
+      "expected": "The same status or priority is labelled with the same human wording wherever it appears.",
+      "actual": "Some surfaces print stored enum values (todo, in_progress, medium, project-lab) while others print human labels (To do, Medium Priority, Active) for the same data.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-005",
+      "surface": "More menu buttons; recovery notice; dashboard widget titles; section titles; page headings",
+      "inventoryRow": "Project header and More menu; Section removal/recovery feedback; Dashboard widgets; /projects/:root/pages/todos",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "more",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png (buttons read 'On Hold', 'Open Archive', 'Archive Workstream'; kitchen-more-light-1440.layout.json shows the underlying text is 'on hold', 'Open archive', 'Archive workstream' — capitalised by CSS, project-header.scss:54 text-transform: capitalize)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-remove-feedback-light-1440.png ('Open Archive')",
+        "Sentence case elsewhere: 'Add task', 'Add reflection', 'Restore saved content', 'Add a section', 'Copy CSS'",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png (widget titles 'Fun Fact', 'Daily Digest', 'Active Projects' in Title Case) vs todos-light-1440.png heading 'What is coming up' in sentence case"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen and open More project actions", "3. Compare button capitalisation with Add task and with the Add a section dialog"],
+      "expected": "Labels for comparable actions and headings follow one capitalisation pattern.",
+      "actual": "Title Case and sentence case are mixed for buttons and for headings; in the More menu the casing is imposed by styling so the visible label differs from the accessible text.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-006",
+      "surface": "Primary/confirm actions: Task List Add task, section and workstream dialogs Create, Markdown Save, More menu Rename/Save/Set, Reflections Add reflection, sidebar New project Create",
+      "inventoryRow": "Task List section; Section creation dialog; Workstream creation dialog; Markdown section and source editor; Project header and More menu; Global shell",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "section-create",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.png (Add task is the only accent-filled button in the product)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-section-create-light-1440.png and kitchen-work-create-light-1440.png (Create looks identical to Cancel)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-markdown-edit-dark-1440.png (Save looks identical to Preview and Cancel)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/new-project-light-1440.png (sidebar Create is a 13px small bordered button)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.scroll-0-5.png (Design Lab shows Primary / Secondary / Danger / Disabled variants that no product surface uses)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen; note the Add task button", "3. Use a canvas insertion point to open Add a section and compare Create with Cancel", "4. Click Edit on the Markdown section and compare Save with Cancel"],
+      "expected": "The committing action of a form or dialog carries the same visual emphasis everywhere.",
+      "actual": "Only one form (Task List quick-add) marks its commit action as primary; dialogs, editors and inline forms present commit and cancel with equal weight, and reflections uses a native button.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-007",
+      "surface": "Destructive controls: section remove, task delete (Task List and Todos), More › Archive workstream, Agents › Revoke",
+      "inventoryRow": "Canvas insertion and section chrome; Task row; /projects/:root/pages/todos; Project header and More menu; /settings/agents",
+      "seed": "nested-projects", "theme": "dark", "viewport": "1440x900", "state": "task-drawer",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-dark-1440.png (section remove: bordered 44px box with danger-coloured trash; task delete in the same frame: borderless muted trash)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.png (trash floats mid-row with no border, 444px-wide hit area per layout.json)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png (Archive Workstream: danger text inside a neutral bordered button)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-light-1440.png (Revoke: native grey button, no danger signal)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen, hover the Task List frame", "3. Compare the section remove control with a task's delete control", "4. Open More; then seed agent-heavy and open /settings/agents"],
+      "expected": "Controls that remove or revoke something share one recognisable destructive treatment.",
+      "actual": "Four treatments: danger-coloured bordered icon, muted borderless icon, danger text in neutral button, and neutral native button.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-008",
+      "surface": "Icon buttons: sidebar New project '+', project-nav Add workstream '+', canvas insertion '+', project header undo/redo/More",
+      "inventoryRow": "Global shell, desktop sidebar; Project navigation and page settings panel; Canvas insertion and section chrome; Project header and More menu",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.png (PROJECTS '+' is a small accent-coloured text glyph; WORK '+' is a larger muted SVG plus)",
+        "nested-projects-project-light-1440.layout.json / kitchen-more-light-1440.layout.json: New project hit area 26x15px, Add workstream 32x32px, undo/redo 44x44px, More 39x44px",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-375.png (canvas insertion '+' is a circular outlined button on a full-width rule — a third plus style)",
+        "Code: sidebar.html:33 renders '+' as text; project-header.html:68 renders '⋯' as text beside SVG undo/redo from shared/components/icon/icon.ts; insertion-point.scss:70 border-radius: 50%"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-renovation", "3. Compare the '+' beside PROJECTS, the '+' beside WORK, and the header's undo / redo / More buttons", "4. Narrow to 375px to see the insertion '+'"],
+      "expected": "Icon buttons for the same kind of action share one icon set, size, shape and hit area.",
+      "actual": "Three different 'add' affordances (text glyph, SVG, circled SVG) with hit areas from 26x15 to 44x44; the More button is a text ellipsis in a non-square 39x44 box next to square 44x44 SVG buttons.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-009",
+      "surface": "Control size scale across the app (buttons and fields)",
+      "inventoryRow": "Global shell; Project header and More menu; Section creation dialog; Markdown section and source editor; Task List section; Section removal/recovery feedback; /projects/:root/pages/archive",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "layout.json across kitchen-section-create-light-1440, kitchen-markdown-edit-light-1440, kitchen-more-light-1440, kitchen-remove-feedback-light-1440, new-project-light-1440, archive-light-1440, settings-agents-light-1440",
+        "Text buttons measured: 44px (dialog Cancel/Create, recovery notice), 41px (Edit, Preview/Save/Cancel, Add task), 33px (More menu, sidebar Create), 30px (theme toggle), 29px (native buttons), 20px (archive Restore text actions)",
+        "Fields measured: 44px (dialogs), 38px (Task List quick-add), 33px (More menu, sidebar new project), 29px (archive Restore as select), 19-21px (reflection composer, progress input)",
+        "Control text sizes: 15px, 13px and 13.3333px (browser default) for controls of the same rank"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen; open More, then click Edit on Markdown, then open Add a section", "3. Compare button and field heights between these surfaces"],
+      "expected": "Comparable buttons and fields share a small set of sizes.",
+      "actual": "Six button heights and five field heights are in use with three control font sizes, with no apparent mapping to importance or density.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-010",
+      "surface": "Secondary actions rendered as text links vs buttons: Archive Restore, task drawer Close, history 'Open … history' links, reflection subject clear vs dialog Cancel, notice Dismiss, phone drawer Close",
+      "inventoryRow": "/projects/:root/pages/archive and archived items; Task detail drawer; /projects/:root/pages/todos; Section removal/recovery feedback; Global shell, phone navigation drawer",
+      "seed": "nested-projects", "theme": "dark", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.png (Restore / Restore saved content are accent text, 20px tall; 'Open Legacy attic history' plain body text with no link styling)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-dark-1440.png (drawer Close is accent text)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/phone-menu-dark-375.png (navigation drawer Close is a bordered button)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-remove-feedback-light-1440.png (Dismiss / Open Archive are bordered buttons with muted text)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.png ('Open Kitchen history' plain text)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-renovation/pages/archive", "3. Open /projects/project-kitchen and open a task's details; compare Close", "4. At 375px open Menu and compare Close"],
+      "expected": "The same kind of action (close, restore, open) looks the same, and links look like links.",
+      "actual": "Close is a text link in the task drawer and a bordered button in the navigation drawer; Restore is accent text while other row actions are buttons; history links are indistinguishable from body text.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-011",
+      "surface": "Page headers and content width: Dashboard, Todos, Reflections, Archive, Settings, AI & Agents, Archived projects",
+      "inventoryRow": "/app dashboard; /projects/:root/pages/todos; /projects/:root/pages/reflections; /projects/:root/pages/archive; /settings; /settings/agents; /settings/archived-projects",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.png and reflections-dark-1440.png (eyebrow 'PROJECT RECOVERY' / 'PROJECT JOURNAL' + h1 + count at right)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.png (smaller 'What is coming up' heading, no eyebrow, no count)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png ('Home' heading with date at right, ~24px)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-light-1440.png, settings-agents-light-1440.png, settings-archived-projects-light-1440.png (page titles visibly larger, ~32px)",
+        "Content width: Archive list spans the full main column; Reflections column ~590px; Todos column ~640px; Agents cards full width"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Visit /app, then /projects/project-renovation/pages/todos, /reflections, /archive", "3. Visit /settings and /settings/agents", "4. Compare the heading block and content width of each page"],
+      "expected": "Peer pages introduce themselves with the same heading pattern, size and content measure.",
+      "actual": "Three heading patterns and at least two title sizes are used for peer pages; content widths differ page to page.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-012",
+      "surface": "Active navigation item in global sidebar and project navigation column",
+      "inventoryRow": "Global shell, desktop sidebar; Project navigation and page settings panel",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png (dark: active 'Home' has filled background + accent text)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/new-project-light-1440.png (light: active 'Home' is accent text only, no visible fill)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-light-1440.png (Settings accent text on /settings) vs settings-agents-light-1440.png and settings-archived-projects-light-1440.png (no item marked active on the Settings sub-pages)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /app in dark, then switch to light", "3. Open /settings, then /settings/agents", "4. Compare how the current location is marked"],
+      "expected": "The current location is marked the same way in both themes and on every route within a section.",
+      "actual": "The active marker is a filled pill in dark but text colour only in light; Settings sub-pages leave the sidebar with no active item.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-013",
+      "surface": "Icon usage across the app (emoji vs SVG vs text glyphs)",
+      "inventoryRow": "Global shell; Project navigation; Project header; Canvas section chrome; Dashboard widgets; Recent Activity",
+      "seed": "nested-projects", "theme": "dark", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.png (multicolour emoji for projects/pages; monochrome SVG gear, undo, redo; text '+' and '⋯'; a text '✓' after 'Garden' as a completed marker)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png (emoji widget icons 📌 💡 📅 🤖)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1440.scroll-0-1.png (activity 'AGENT'/'YOU' chips use emoji avatars)",
+        "Code: emoji in features/projects/sections/registry.ts, project-page-registry.ts, dashboard/widgets/registry.ts, activity-feed.ts; SVG set in shared/components/icon/icon.ts (9 names); text glyphs in sidebar.html:33 ('+'), project-header.html:68 ('⋯'), project-work-item.ts ('✓'), shortcut-frame.html ('↗')"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-renovation/pages/archive", "3. Compare icons in the sidebar, project column and header"],
+      "expected": "Icons of the same role come from one visual family with consistent weight and colour behaviour.",
+      "actual": "Three icon families are mixed: OS-rendered colour emoji (which vary by platform and ignore the theme), the app's monochrome SVG set, and Unicode text glyphs; status (completed ✓) is conveyed by a text glyph in one place only.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-014",
+      "surface": "List rows and cards: Task List rows, Todos rows, Timeline rows, Reflections entries, Today/Upcoming widget rows, Active Projects rows, activity rows, archive entries",
+      "inventoryRow": "Task row; /projects/:root/pages/todos; Timeline section; Reflections section; Dashboard widgets; Recent Activity section and shared feed; /projects/:root/pages/archive",
+      "seed": "busy-week", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.png (task rows: bordered raised cards, radius md, coloured left stripe for priority)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-light-1440.scroll-0-3.png (timeline rows: native grey fill + accent left rule; reflections: accent left rule, no fill, numbered)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png (Today/Upcoming rows: bordered pills)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/new-project-light-1440.png (Active Projects rows: sunken filled pills, no border)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1440.scroll-0-1.png (activity rows: sunken fill, radius md)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.png (archive entries: no row container at all inside one card)"
+      ],
+      "repro": ["1. Seed busy-week as Demo User", "2. Compare rows on /app with rows in /projects/project-launch (Task List, Timeline, Reflections)", "3. Seed nested-projects and compare /projects/project-renovation/pages/archive"],
+      "expected": "Lists of comparable items use a shared row treatment (container, border, radius, accent use).",
+      "actual": "At least six row treatments: bordered card with stripe, bordered pill, filled pill, grey native button row with left rule, left rule only, and unboxed text blocks. The accent left rule means 'priority' on task rows but is decoration on timeline and reflections.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-015",
+      "surface": "Task item rendered in Task List vs Todos page",
+      "inventoryRow": "Task row; /projects/:root/pages/todos",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.png (Task List: checkbox left of title, priority + due meta below, trash at right)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.png (Todos: 'Task' kind label, title, date and status at right, path line, then checkbox alone on a third line at bottom-left and trash centred mid-row)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-renovation and look at 'Confirm renovation budget' in Task List", "3. Open /projects/project-renovation/pages/todos and find the same task"],
+      "expected": "The same task looks and is operated the same way wherever it is listed.",
+      "actual": "The complete checkbox and delete control move to different positions, and the metadata changes (priority shown in one, status in the other), so the same object has two different shapes.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-016",
+      "surface": "Group headings in the two navigation columns (global PROJECTS vs project WORK, page-settings 'Pages')",
+      "inventoryRow": "Global shell, desktop sidebar; Project navigation and page settings panel",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "page-settings",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-page-settings-light-1440.png (PROJECTS: thin muted uppercase with accent text '+'; WORK: bold darker uppercase with grey SVG '+'; 'Pages' panel heading regular weight)",
+        "Code: project-page-navigation.scss:37 and :112 use var(--font-weight-medium), which is not defined in _tokens.scss, so the project root name and the 'Pages' heading fall back to normal weight"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen and open the page settings (gear) in the project column", "3. Compare the PROJECTS, WORK and Pages headings"],
+      "expected": "Section headings in side navigation share one style.",
+      "actual": "Adjacent columns style their group headings differently (weight, colour, add-button style), and two intended medium weights silently render as normal because the token they reference does not exist.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-017",
+      "surface": "Disabled and unavailable control states (code)",
+      "inventoryRow": "Project header and More menu; Project navigation; Section creation dialog; Workstream creation dialog; Section removal/recovery feedback; Canvas section chrome; Shortcut frame; Archived region; Todos; Markdown source editor",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "Disabled opacity values: 0.5 (todos-page.scss:92, project-header.scss:76, primitive-panels.scss:27), 50% (dev-panel-controls.scss:47), 0.6 (state-inspector-page.scss:79), 0.65 (project-page-navigation.scss:151, section-create-dialog.scss:93, section-recovery-notice.scss:75, project-section-frame.scss:133, work-create-dialog.scss:74); markdown-source-editor.scss:32 uses muted colour instead of opacity",
+        "Disabled cursor values: default (project-header.scss:75, project-page-navigation.scss:152, project-history-controls.scss:36, markdown-source-editor.scss:32), not-allowed (archived-region.scss:96, project-section-frame.scss:58, shortcut-frame.scss:58), progress (work-create-dialog.scss:74)",
+        "Scrim strength: 60% (app-shell.scss:63, dev-panel.scss:10) vs 72% (section-create-dialog.scss:21, work-create-dialog.scss:19)"
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen (undo/redo disabled at load)", "3. Archive the root from More and observe blocked controls in the project column, section frames and archive entries"],
+      "expected": "A disabled control looks and responds (cursor) the same on every surface; overlays dim the page by the same amount.",
+      "actual": "Code defines four disabled opacities, three disabled cursors and two scrim strengths for equivalent states.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency",
+      "severity": "S3",
+      "confidence": "inferred",
+      "decisionReopened": null
+    },
+    {
+      "id": "L2-018",
+      "surface": "Token coverage gaps (code): stacking order, breakpoints, weights",
+      "inventoryRow": "Global shell; Section creation dialog; Workstream creation dialog; Section removal/recovery feedback; Global development dialog; responsive layouts",
+      "seed": "nested-projects", "theme": "light", "viewport": "1440x900", "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "12 literal z-index values forming an implicit ladder (1, 2, 10, 20, 30, 31, 40, 41) spread across 7 files — see tokenEscapes.zIndex. The recovery notice (10) sits below dialogs (20) and the phone drawer (30/31) by convention only.",
+        "12 literal breakpoints: 40rem (3 files), 42rem container (2), 48rem (3), 60rem (3), plus an 18rem Design Lab column — see tokenEscapes.breakpoints. Header, Todos and Reflections reflow at 40rem while the shell and canvas reflow at 48rem and the project column at 60rem.",
+        "Font weights: two literal 600s, one 'normal', two references to an undefined --font-weight-medium; _tokens.scss defines no weight scale."
+      ],
+      "repro": ["1. Seed nested-projects as Demo User", "2. Open /projects/project-kitchen", "3. Resize the window between 1000px and 600px and watch header, canvas, project column and shell reflow at different widths"],
+      "expected": "Layers, responsive thresholds and type weights behave as one system so surfaces change together.",
+      "actual": "These values live outside the token file and differ per component, so comparable surfaces reflow at different widths and layer order depends on per-file numbers.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency",
+      "severity": "S3",
+      "confidence": "inferred",
+      "decisionReopened": null
+    }
+  ]
+}

@@ -1,0 +1,810 @@
+{
+  "siteMap": [
+    {
+      "route": "/",
+      "label": "(redirect)",
+      "reachedFrom": "address only",
+      "notes": "Redirects to /app."
+    },
+    {
+      "route": "/app",
+      "label": "Home (dashboard)",
+      "reachedFrom": "Global sidebar \"Home\"",
+      "notes": "Page heading \"Home\". Widgets link into projects (Active Projects lists roots and workstreams flat)."
+    },
+    {
+      "route": "(sidebar group) Projects",
+      "label": "Projects",
+      "reachedFrom": "Global sidebar",
+      "notes": "A toggle button, not a destination; there is no all-projects index page. \"+\" opens inline New project form. Tree shows every live root and every live workstream, fully expanded; archived items absent."
+    },
+    {
+      "route": "/projects/:rootId",
+      "label": "Root project workspace (= Home page)",
+      "reachedFrom": "Sidebar tree; project column root link; dashboard widgets",
+      "notes": "Adds a second navigation column (root link + page-settings gear, page tabs, Work tree with Add workstream). Header (name, status, progress, target date, Undo/Redo, More) on every page.",
+      "children": [
+        {
+          "route": "/projects/:rootId/pages/home",
+          "label": "Home (canvas)",
+          "reachedFrom": "Project column tab"
+        },
+        {
+          "route": "/projects/:rootId/pages/todos",
+          "label": "Todos",
+          "reachedFrom": "Project column tab (optional page)",
+          "notes": "Page heading reads \"What is coming up\"."
+        },
+        {
+          "route": "/projects/:rootId/pages/archive",
+          "label": "Archive",
+          "reachedFrom": "Project column tab (optional page); More › Open archive; section-removal notice",
+          "notes": "Region \"Archive\" containing a second region/heading \"Archive\"; points to Settings for whole projects."
+        },
+        {
+          "route": "/projects/:rootId/pages/reflections",
+          "label": "Reflections",
+          "reachedFrom": "Project column tab (optional page)"
+        },
+        {
+          "route": "(disclosure) Page settings",
+          "label": "Pages",
+          "reachedFrom": "Gear beside root name in project column",
+          "notes": "Inline panel inside the column."
+        },
+        {
+          "route": "(menu) More project actions",
+          "label": "More",
+          "reachedFrom": "Header ⋯",
+          "notes": "Rename, description, status, target/due date, Open archive, Archive project/workstream."
+        }
+      ]
+    },
+    {
+      "route": "/projects/:workstreamId",
+      "label": "Workstream Work canvas",
+      "reachedFrom": "Sidebar tree; project column Work tree; Todos/Archive rows; dashboard",
+      "notes": "Keeps the root's column; adds a 'Path to this workstream' breadcrumb inside the column. No page tabs belong to the workstream; the root's tabs stay visible with none current. Archived workstreams are reachable (Archive › Work canvas) but appear in no tree.",
+      "children": [
+        {
+          "route": "/projects/:id#history-controls",
+          "label": "Owner history (header Undo/Redo)",
+          "reachedFrom": "\"Open <owner> history\" links on root Todos and Archive"
+        }
+      ]
+    },
+    {
+      "route": "/calendar",
+      "label": "Calendar",
+      "reachedFrom": "Global sidebar",
+      "notes": "Placeholder: one sentence citing a future slice."
+    },
+    {
+      "route": "/search",
+      "label": "Search",
+      "reachedFrom": "Global sidebar",
+      "notes": "Placeholder: one sentence citing a future slice."
+    },
+    {
+      "route": "/settings",
+      "label": "Settings",
+      "reachedFrom": "Global sidebar (below separator)",
+      "notes": "Hub with two links only.",
+      "children": [
+        {
+          "route": "/settings/agents",
+          "label": "AI & Agents",
+          "reachedFrom": "Settings hub",
+          "notes": "Permissions and Revoke; no way to connect an agent."
+        },
+        {
+          "route": "/settings/archived-projects",
+          "label": "Archived projects",
+          "reachedFrom": "Settings hub; sentence on project Archive page",
+          "notes": "No sidebar item is active here; no route back to Settings except the sidebar."
+        }
+      ]
+    },
+    {
+      "route": "/prototype/design",
+      "label": "Design Lab (prototype tooling)",
+      "reachedFrom": "address only",
+      "notes": "Renders inside the product shell with the product sidebar."
+    },
+    {
+      "route": "/prototype/state",
+      "label": "Prototype state (prototype tooling)",
+      "reachedFrom": "address only; named in the \"Flow layout\" banner on every canvas",
+      "notes": "Renders inside the product shell; a main landmark nested in main."
+    },
+    {
+      "route": "(dialog) Development panel",
+      "label": "Development panel (prototype tooling)",
+      "reachedFrom": "Ctrl/Cmd+Shift+D; named in the \"Flow layout\" banner",
+      "notes": "Persona, seed, date, theme, layout, AI, delay/failure, flags, notes, agent connection tokens."
+    },
+    {
+      "route": "**",
+      "label": "No such page",
+      "reachedFrom": "any unknown address",
+      "notes": "Heading + one sentence citing §68; no onward link in the page body."
+    },
+    {
+      "route": "(top bar)",
+      "label": "Top bar",
+      "reachedFrom": "every route",
+      "notes": "Product name (not a link), theme toggle, identity (not interactive); \"Menu\" below 48rem."
+    }
+  ],
+  "conceptLocations": {
+    "projects": [
+      "Global sidebar › Projects tree (roots and workstreams, no active state)",
+      "Project column › root link row",
+      "Dashboard › Active Projects widget (roots and workstreams flat)",
+      "Dashboard › Daily Digest prose (\"The Kitchen project\")",
+      "Settings › Archived projects (archived roots only)",
+      "Development panel › layout control (current project)"
+    ],
+    "workstreams": [
+      "Global sidebar tree, nested under roots (labelled as Projects)",
+      "Project column › Work tree (+ Add workstream)",
+      "Project column › breadcrumb \"Path to this workstream\"",
+      "Root Todos rows (\"Workstream\" label, with Complete button)",
+      "Root Archive rows (archived workstreams, \"Work canvas\" link)",
+      "Dashboard › Active Projects (as projects)",
+      "Settings › Archived projects (live-ancestor subprojects)"
+    ],
+    "pages": [
+      "Project column tabs (Home, Todos, Archive, Reflections)",
+      "Project column › gear › Pages panel (toggles)",
+      "Page-off fallback notice in workspace (Enable / Dismiss)",
+      "More menu › Open archive (when Archive page disabled)"
+    ],
+    "tasks": [
+      "Task List sections on Home and Work canvases",
+      "Root Todos page (with workstreams interleaved)",
+      "Task detail drawer",
+      "Dashboard › Today, Upcoming, Recent Progress, Daily Digest",
+      "Shortcut frames (read-only projection)",
+      "Root Archive (deleted tasks)"
+    ],
+    "archive": [
+      "Project column › Archive tab (root content, archived workstreams)",
+      "Header More › Open archive",
+      "Header More › Archive project / Archive workstream",
+      "Section-removal notice › Open Archive",
+      "Settings › Archived projects (whole archived projects)",
+      "Archive page sentence pointing to Settings; Archived projects sentence pointing back to \"Archive\""
+    ],
+    "history/undo": [
+      "Project header › Undo/Redo (per displayed project only)",
+      "Header feedback line with Open link to another owner",
+      "Root Todos and Archive rows › \"Open <owner> history\" (navigates to owner #history-controls)",
+      "Creation-undone recovery at a removed project URL",
+      "Recent Activity section and dashboard Recent Agent Activity (read-only feeds, not undo)"
+    ],
+    "settings": [
+      "Global sidebar › Settings (hub of two links)",
+      "Theme: top bar toggle (not in Settings)",
+      "Project-level settings: header More menu and column gear (two different places)",
+      "Persona/seed/date/flags: development panel and /prototype/state only"
+    ],
+    "agents": [
+      "Settings › AI & Agents (permissions, revoke, last used)",
+      "Development panel › Agent connection (tokens, copy; read-only list)",
+      "Dashboard › Recent Agent Activity widget",
+      "Recent Activity section (agent actors)",
+      "Daily Digest footnote \"Composed locally by the prototype AI provider\""
+    ],
+    "archived projects": [
+      "Settings › Archived projects (roots, live-ancestor workstreams)",
+      "Root Archive page (archived workstreams of that root)",
+      "Directly by URL (archived workstream canvas, not in any tree)"
+    ],
+    "prototype tooling": [
+      "Development panel dialog (Ctrl/Cmd+Shift+D)",
+      "/prototype/state (inside product shell)",
+      "/prototype/design (inside product shell)",
+      "\"Flow layout\" banner on every product canvas",
+      "Daily Digest provider footnote",
+      "Placeholder and not-found copy citing slices and § numbers"
+    ]
+  },
+  "findings": [
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": "docs/decisions/2026-09-where-the-project-navigation-column-lives.md",
+      "id": "L7-001",
+      "surface": "project workspace › global sidebar + project navigation column",
+      "inventoryRow": "Project navigation and page settings panel",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png (sidebar lists Home renovation › Kitchen › Cabinets, Garden; the column 225px to the right lists Kitchen › Cabinets, Garden again under WORK)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.aria.yml (navigation \"Workspace\" and navigation \"Project navigation for Home renovation\" both contain links to /projects/project-kitchen, /projects/project-cabinets, /projects/project-garden)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-renovation at 1440x900",
+        "3. compare the global sidebar Projects tree with the project column Work tree"
+      ],
+      "expected": "One place that represents the work hierarchy of the open project, so a user knows which tree to use.",
+      "actual": "The same workstream tree is rendered twice side by side: the global sidebar expands every root to full depth, and the project column repeats the current root's workstreams beneath WORK. Two adjacent link lists lead to identical destinations, with different decoration (completion tick only in the column, current marker only in the column).",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design; Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-002",
+      "surface": "global shell › sidebar › Projects tree",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png (no sidebar row highlighted while Home renovation is open; Home, Calendar, Search, Settings show the active fill when their route is open, e.g. apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-dark-1440.png)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-dark-1440.aria.yml (sidebar links carry no current state; only the column's Kitchen link does)",
+        "apps/web/src/app/core/shell/sidebar/project-tree-item.ts (link has no routerLinkActive / aria-current)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-kitchen",
+        "3. look at the global sidebar"
+      ],
+      "expected": "The global navigation shows which project the user is in, as it does for Home, Calendar, Search and Settings.",
+      "actual": "On every project route nothing in the global sidebar is marked current; the sidebar looks identical whether the user is on the dashboard's neighbour or deep inside Cabinets. §23 asks that navigation links carry an active state.",
+      "heuristic": "Nielsen #1 Visibility of system status; internal consistency (other sidebar items show active state)",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-003",
+      "surface": "global sidebar \"Home\" / dashboard heading \"Home\" / project column \"Home\" tab",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png (sidebar \"Home\" at top-left and column \"Home\" tab 250px to its right, both visible at once, leading to /app and /projects/project-renovation/pages/home)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-dark-1440.png (dashboard h1 \"Home\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.aria.yml (Archive rows' origin links are also labelled \"Home\")"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-renovation",
+        "3. note two \"Home\" links on screen; choose each"
+      ],
+      "expected": "Each destination has a distinct name, so \"Home\" predicts where it goes.",
+      "actual": "Two different destinations are both called Home and are visible simultaneously on every root page: the workspace dashboard and the root's canvas page. Archive row links to the canvas also read just \"Home\".",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-004",
+      "surface": "project navigation column › root row + \"Path to this workstream\" breadcrumb",
+      "inventoryRow": "Project navigation and page settings panel",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-page-settings-dark-375.png (\"Home renovation\" root link immediately followed by \"Home renovation\" breadcrumb line)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-archived-dark-1440.png (same doubling at 1440)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-dark-1440.aria.yml (link \"Home renovation\" then navigation \"Path to this workstream\" with the single link \"Home renovation\")"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-kitchen",
+        "3. read the top of the project column"
+      ],
+      "expected": "The path to the current workstream reads as a trail ending at where the user is, near the page heading.",
+      "actual": "The breadcrumb sits inside the navigation column, under the root link, and for a first-level workstream it contains only the root, so the root name is printed twice in a row. The trail never names the current workstream; the page heading (h1) is the only place that does, in another column.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design; Nielsen #6 Recognition rather than recall",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": "docs/decisions/2026-09-phone-navigation-drawer.md",
+      "id": "L7-005",
+      "surface": "project workspace at 375px › collapsed project navigation",
+      "inventoryRow": "Project navigation and page settings panel",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-375.png (only \"Show project navigation\" above the header; no sign of which page — Home — is showing)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-dark-375.aria.yml (column collapsed; breadcrumb and Work tree hidden)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-375.png"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. set viewport 375x812",
+        "3. open /projects/project-renovation/pages/todos, then /projects/project-kitchen"
+      ],
+      "expected": "On a phone the user can still tell which page of the project and which workstream they are on.",
+      "actual": "The column starts collapsed behind \"Show project navigation\". With it collapsed, the active page tab, the workstream path and the Work tree are all hidden; the h1 is always the project/workstream name, so on root pages nothing visible says Home vs Todos vs Archive vs Reflections, and inside a workstream nothing shows its parent.",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "page-settings",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-006",
+      "surface": "project workspace at 375px › \"Menu\" drawer and \"Show project navigation\" disclosure",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/phone-menu-dark-375.png (global nav is a modal drawer from the left)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-page-settings-dark-375.png (project nav is an inline push-down that, with page settings open, fills the whole first viewport; the canvas starts below 760px)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-375.png (both \"Menu\" and \"Show project navigation\" controls stacked at the top)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. set viewport 375x812",
+        "3. open /projects/project-kitchen",
+        "4. press \"Menu\", close it, press \"Show project navigation\""
+      ],
+      "expected": "Navigation on a phone follows one pattern, and opening it does not bury the content it navigates.",
+      "actual": "Two navigation systems collapse in two different ways: the global one into a modal drawer behind \"Menu\" in the top bar, the project one into a full-width text toggle under the top bar that expands inline and pushes the canvas down. Both trees (sidebar in drawer, Work in column) list the same workstreams.",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1024x768",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-007",
+      "surface": "project workspace at 1024px › three-column layout",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1024.png (sidebar ~240px + project column ~225px = ~465px of 1024 for navigation; canvas ~510px; header facts wrap TARGET DATE onto a second row)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1024.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1024.png",
+        "apps/web/src/app/features/projects/project-workspace-shell.scss (column collapse only below 60rem)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. set viewport 1024x768",
+        "3. open /projects/project-renovation"
+      ],
+      "expected": "At a common laptop/tablet width the work content gets the majority of the screen.",
+      "actual": "Both navigation columns stay fully expanded at 1024px, taking roughly 45% of the width, much of it empty below the trees; the canvas is squeezed to about half the viewport. Neither column offers collapse at this width.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design; Nielsen #7 Flexibility and efficiency of use",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "archived",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": "docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md",
+      "id": "L7-008",
+      "surface": "project workspace › archived workstream reached from Archive",
+      "inventoryRow": "/projects/:projectId and /projects/:projectId/pages/:pageKind workspace",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-archived-dark-1440.png (Legacy attic open; neither the sidebar nor the Work tree lists it, nothing is highlighted in either column)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.aria.yml (Archive row link \"Work canvas\" → /projects/project-legacy)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png (Garden marked ✓ in the column, unmarked in the sidebar)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-renovation/pages/archive",
+        "3. choose \"Work canvas\" on the Legacy attic row"
+      ],
+      "expected": "Wherever the user lands, the navigation shows that place and its state.",
+      "actual": "An archived workstream is a reachable location that exists in no navigation tree; once open, both trees show siblings but nothing current, and the breadcrumb shows only the root. Item state is also presented differently per tree: Garden is ticked as completed in the column but plain in the sidebar.",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": "docs/decisions/2026-09-actionable-archive-and-archived-projects.md",
+      "id": "L7-009",
+      "surface": "Archive concept › project Archive page, More menu, Settings › Archived projects",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.aria.yml (\"Archived whole projects can be recovered from Settings.\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-archived-projects-dark-1440.png (\"Its separately archived contents remain in Archive.\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-dark-1440.aria.yml (More menu holds \"Open archive\" and \"Archive workstream\" beside the Archive tab)",
+        "archived workstream Legacy attic is listed on the root Archive page, archived roots only in Settings"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-renovation/pages/archive and read the intro",
+        "3. open Settings › Archived projects and read the intro",
+        "4. open More on /projects/project-kitchen"
+      ],
+      "expected": "One understandable answer to \"where do archived things go?\".",
+      "actual": "Archived material lives in two places with different scopes (per-root Archive page for content and archived workstreams; workspace Settings for archived projects), each page sending the user to the other in prose. Archive is reached from a tab, a More menu item and a removal notice, while \"archive this\" sits in More. Settings, a configuration area, holds recovery of content.",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "default",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-010",
+      "surface": "Settings › AI & Agents / Archived projects",
+      "inventoryRow": "/settings/archived-projects",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-archived-projects-dark-1440.png (no sidebar item highlighted; page has no link back to Settings)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-dark-1440.png",
+        "apps/web/src/app/core/shell/sidebar/sidebar.html (Settings link uses exact match)"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo User",
+        "2. open Settings",
+        "3. choose Archived projects"
+      ],
+      "expected": "Sub-pages of Settings show that the user is within Settings and offer a way back to it.",
+      "actual": "On both Settings sub-pages nothing in the sidebar is active and there is no breadcrumb or back link; the user loses the Settings context one click in.",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #3 User control and freedom",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "default",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-011",
+      "surface": "global sidebar › Calendar and Search",
+      "inventoryRow": "/calendar",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/calendar-dark-1440.aria.yml (h1 \"Calendar\" and one sentence: arrives in a future slice)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/search-dark-1440.aria.yml (same for Search)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/calendar-dark-375.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/search-light-1440.png"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo User",
+        "2. choose Calendar in the sidebar",
+        "3. choose Search"
+      ],
+      "expected": "Top-level navigation entries lead to something usable.",
+      "actual": "Two of the five permanent top-level entries are dead ends that show only a heading and a sentence about a future slice; they sit between Projects and Settings with the same weight as working destinations, on every route and in the phone drawer.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design; Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "default",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-012",
+      "surface": "not-found page",
+      "inventoryRow": "`**` not-found",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/not-a-route-dark-1440.aria.yml (h1 \"No such page\", paragraph \"That address is not one of §68's routes.\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/not-a-route-dark-375.png"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo User",
+        "2. open /not-a-route"
+      ],
+      "expected": "A missing page explains itself in user terms and points somewhere useful.",
+      "actual": "The page cites an internal spec section and offers no onward link in its body; the only way out is the global navigation (behind Menu on a phone).",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose and recover from errors",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-013",
+      "surface": "project canvas › \"Flow layout\" region",
+      "inventoryRow": "Home and workstream Work canvases",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png (full-width \"Flow layout — Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state.\" card between header and first section)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-archived-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-375.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-dark-1440.aria.yml (region \"Project layout\")"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open any project canvas"
+      ],
+      "expected": "Product surfaces contain product content; prototype tooling is reached through the tooling.",
+      "actual": "Every Home and Work canvas carries a prototype-tooling banner that names a keyboard chord and a /prototype route, at the top of the content, in product position and style. It is the first thing under the header on every project.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "default",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-014",
+      "surface": "/prototype/state and /prototype/design",
+      "inventoryRow": "/prototype/state",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-state-dark-1440.aria.yml (main › main; eyebrow \"Development panel\"; product Workspace navigation present)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.aria.yml (Design Lab inside the product shell)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-state-dark-375.png"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo User",
+        "2. open /prototype/state",
+        "3. open /prototype/design"
+      ],
+      "expected": "Prototype tooling reads as separate from the product, and the product shell's landmarks stay unambiguous.",
+      "actual": "Both tooling routes render inside the product shell with the product sidebar and top bar, are listed nowhere in navigation (reachable only by typed URL or the canvas banner), and the state inspector nests a second main landmark inside the shell's main.",
+      "heuristic": "Internal consistency; WCAG 2.2 SC 1.3.1 Info and Relationships (nested main)",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "default",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-015",
+      "surface": "Agents concept › Settings › AI & Agents vs development panel",
+      "inventoryRow": "/settings/agents",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/tasks/T10.png and tasks/tasks.json (T10 \"Inspect permissions and connect an agent\": step \"Find Connect agent control\" blocked, 1 dead end)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-dark-1440.aria.yml (permissions and Revoke only)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/dev-panel-dark-1440.aria.yml (region \"Agent connection\" with \"Copy token\"; \"Permissions and Revoke live in Settings → AI & Agents\")"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo User",
+        "2. open Settings › AI & Agents",
+        "3. look for a way to connect a new agent"
+      ],
+      "expected": "Everything about connecting and managing an agent is found in one product place.",
+      "actual": "The agent concept is split: product Settings manages permissions and revocation of existing connections, but connecting (tokens) exists only in the development panel. A user without knowledge of the hidden chord cannot connect an agent; the scripted task dead-ended.",
+      "heuristic": "Nielsen #6 Recognition rather than recall; Nielsen #7 Flexibility and efficiency of use",
+      "severity": "S1",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-016",
+      "surface": "Projects vs workstreams naming across sidebar, dashboard, Todos",
+      "inventoryRow": "Dashboard widgets",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-dark-1440.png (Active Projects lists Kitchen, Cabinets, Home renovation as peers; Daily Digest: \"The Kitchen project has the closest deadline\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-1440.png (row label \"Workstream Kitchen\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png (sidebar groups workstreams under \"PROJECTS\"; column calls them \"WORK\")"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /app and read Active Projects and Daily Digest",
+        "3. open /projects/project-renovation/pages/todos"
+      ],
+      "expected": "A nested unit of work has one name everywhere, matching the decided noun.",
+      "actual": "Kitchen is called a project (Daily Digest, Active Projects, sidebar group \"Projects\"), \"Work\" (column heading) and a \"Workstream\" (Todos, Add workstream, More › Archive workstream), depending on the surface.",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-017",
+      "surface": "dashboard › Active Projects widget",
+      "inventoryRow": "Dashboard widgets",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-dark-1440.png (Kitchen, Cabinets, Home renovation in one flat list; Cabinets shown with no parent)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /app",
+        "3. read Active Projects"
+      ],
+      "expected": "Items show where they sit in the hierarchy the rest of the app presents.",
+      "actual": "The widget flattens roots and nested workstreams into a single list without parent context, so \"Cabinets\" appears as a standalone project; the sidebar and column show it two levels down.",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-018",
+      "surface": "project pages › page identity (tab label vs page heading)",
+      "inventoryRow": "/projects/:root/pages/todos",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-1440.png (tab \"Todos\"; page heading \"What is coming up\"; h1 remains \"Home renovation\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.aria.yml (eyebrow \"Project recovery\", region \"Archive\" › h2 \"Archive\" › region \"Archive\" › h2 \"Archive\")",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-dark-1440.png"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-renovation/pages/todos",
+        "3. open the Archive tab"
+      ],
+      "expected": "The page a tab opens is titled with the tab's name, once.",
+      "actual": "The h1 on every root page is the project name, so the page is identified only by the highlighted tab; within the page, Todos is headed \"What is coming up\" and Archive repeats \"Archive\" as two nested regions and two h2s under a \"Project recovery\" eyebrow.",
+      "heuristic": "Nielsen #4 Consistency and standards; WCAG 2.2 SC 2.4.6 Headings and Labels",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-019",
+      "surface": "all routes › document title",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "evidence": [
+        "apps/web/src/index.html (<title>Canvas Work Manager</title>)",
+        "apps/web/src/app/app.routes.ts (no route defines a title; no TitleStrategy or Title service use found under apps/web/src/app)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /app, then /projects/project-kitchen, then /settings/agents",
+        "3. read the browser tab title on each"
+      ],
+      "expected": "The browser tab and history name the page and project the user is on.",
+      "actual": "Every route is expected to share the single title \"Canvas Work Manager\", so tabs, history entries and screen-reader page announcements cannot distinguish the dashboard, a project, a page or Settings.",
+      "heuristic": "WCAG 2.2 SC 2.4.2 Page Titled; Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "inferred"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": "docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md",
+      "id": "L7-020",
+      "surface": "workstream workspace › root page tabs in the column",
+      "inventoryRow": "Project navigation and page settings panel",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-dark-1440.aria.yml (while on Kitchen, tabs Home/Todos/Archive/Reflections link to /projects/project-renovation/pages/*; none current)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-page-settings-dark-1440.png (gear beside the root configures root pages while a workstream is open)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. open /projects/project-kitchen",
+        "3. choose \"Home\" in the project column"
+      ],
+      "expected": "Controls shown while inside a workstream make clear whether they act on the workstream or on its root.",
+      "actual": "Inside Kitchen the column still shows the root's page tabs and page-settings gear with no current tab; \"Home\" there leaves the workstream for the root canvas. The column mixes root-scoped pages with the workstream location without labelling the scope.",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #6 Recognition rather than recall",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": "docs/decisions/2026-09-project-header-history-controls.md",
+      "id": "L7-021",
+      "surface": "History/undo concept › per-project header only",
+      "inventoryRow": "Project history controls and feedback",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-1440.png (\"Open Kitchen history\" link on a root Todos row navigates to Kitchen's header)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.aria.yml (\"Open Legacy attic history\" → /projects/project-legacy#history-controls)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-dark-1440.aria.yml (Undo label names the step only in the displayed project's header)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo User",
+        "2. complete a task on /projects/project-kitchen",
+        "3. open /projects/project-renovation/pages/todos and look for a way to undo it"
+      ],
+      "expected": "Users can find what they changed and reverse it from where they are.",
+      "actual": "History has no place of its own: Undo/Redo exist only in the header of the project that owns the change, so reversing work seen on root Todos or Archive means following a link to another project's header. There is no list of past steps anywhere in the UI.",
+      "heuristic": "Nielsen #3 User control and freedom",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "lens": "ia",
+      "decisionReopened": null,
+      "id": "L7-022",
+      "surface": "global sidebar › Projects group",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png (all roots and nested workstreams expanded)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.aria.yml (button \"Projects\" toggles the group; no per-project expand control)",
+        "apps/web/src/app/core/shell/sidebar/sidebar.html (comment: no /projects route exists)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo User",
+        "2. open /app",
+        "3. try to collapse one project in the sidebar, or open a list of all projects"
+      ],
+      "expected": "A way to see all projects at a glance and to keep a growing tree manageable (§23: hierarchy \"optionally\" expands inline).",
+      "actual": "The Projects heading looks like a section label but is an all-or-nothing toggle; every root is always expanded to full depth with no per-project disclosure, and there is no projects index destination. Archived projects are only under Settings.",
+      "heuristic": "Nielsen #7 Flexibility and efficiency of use; Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed"
+    }
+  ]
+}

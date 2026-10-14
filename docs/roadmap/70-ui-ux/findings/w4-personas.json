@@ -1,0 +1,928 @@
+[
+  {
+    "id": "W4-001",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "/app dashboard (empty workspace)",
+    "inventoryRow": "/app dashboard",
+    "seed": "empty",
+    "theme": "light",
+    "state": "empty",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/001-w4-alex-T01-start.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/040-w4-sam-T01-start.png (Sam, dark)",
+      "task T01 step 1 (both personas)"
+    ],
+    "repro": [
+      "1. seed empty; switch persona to Alex in the development panel; goto /app",
+      "2. look at the main area for a way to start"
+    ],
+    "expected": "A brand-new, empty workspace tells the person what to do first and offers a way to create a first project from where they are looking.",
+    "actual": "Main area shows only \"nothing scheduled / nothing running\" widgets (Alex: Upcoming + Today; Sam: Daily Digest only). The only way to create a project is the small \"+\" beside the PROJECTS label in the sidebar, next to \"No projects yet\".",
+    "lens": "task:T01",
+    "heuristic": "Nielsen #10 Help and documentation (empty-state guidance); Nielsen #6 Recognition rather than recall",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-002",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Sidebar › inline New project form",
+    "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+    "seed": "empty",
+    "theme": "light",
+    "state": "form open",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/002-w4-alex-T01-form.png",
+      "document.activeElement after clicking \"+\" is the \"+\" button (aria-label \"New project\")",
+      "aria: textbox \"Project name\" has no visible label or placeholder"
+    ],
+    "repro": [
+      "1. seed empty; switch persona to Alex in the development panel; goto /app",
+      "2. click \"+\" beside PROJECTS"
+    ],
+    "expected": "The new field says what to type and is ready for typing.",
+    "actual": "An empty grey field and a \"Create\" button appear with no visible label or placeholder; focus stays on the \"+\" button, so the user must click into the field.",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 3.3.2 Labels or Instructions; Nielsen #7 Flexibility and efficiency",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-003",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Project workspace › canvas › \"Flow layout\" notice",
+    "inventoryRow": "Home and workstream Work canvases",
+    "seed": "empty",
+    "theme": "light",
+    "state": "populated",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/003-w4-alex-T01-created.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/042-w4-sam-T01-created.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/010-w4-alex-T03e-list.png",
+      "every project Home / Work page visited as Alex and Sam"
+    ],
+    "repro": [
+      "1. seed empty; switch persona to Alex in the development panel; goto /app",
+      "2. create any project",
+      "3. look above the canvas"
+    ],
+    "expected": "The canvas area of a project starts with the project's own content.",
+    "actual": "Every canvas page carries a full-width grey card \"Flow layout — Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state.\" between the header and the content, pushing sections down ~120px and speaking to developers rather than the user.",
+    "lens": "hierarchy",
+    "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-004",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Sidebar › Projects list (current project)",
+    "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+    "seed": "empty",
+    "theme": "light",
+    "state": "active route",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/003-w4-alex-T01-created.png",
+      "computed style of sidebar link \"Garage clear-out\" on its own page: aria-current null, color rgb(98,107,122), background transparent — identical to non-current links",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/046-w4-sam-T02e-done.png (Kitchen not marked in sidebar tree)"
+    ],
+    "repro": [
+      "1. seed empty; switch persona to Alex in the development panel; goto /app",
+      "2. create \"Garage clear-out\"",
+      "3. look at the sidebar Projects list"
+    ],
+    "expected": "The sidebar shows which project I am in, as it does for \"Home\" on the dashboard.",
+    "actual": "The current project/workstream in the global sidebar has no visual or programmatic current state; only the second (project navigation) column marks the current page.",
+    "lens": "ia",
+    "heuristic": "Nielsen #1 Visibility of system status; WCAG 2.2 SC 1.3.1 Info and Relationships",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-005",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Sidebar \"Home\" vs project navigation \"Home\"",
+    "inventoryRow": "Project navigation and page settings panel",
+    "seed": "empty",
+    "theme": "light",
+    "state": "populated",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/003-w4-alex-T01-created.png (two \"Home\" links ~50px apart, the project one highlighted)",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/001-w4-alex-T01-start.png (global Home highlighted on dashboard)"
+    ],
+    "repro": [
+      "1. seed empty; switch persona to Alex in the development panel; goto /app",
+      "2. create a project",
+      "3. compare the sidebar \"Home\" and the project navigation \"Home\""
+    ],
+    "expected": "Each navigation label names one place.",
+    "actual": "\"Home\" means the personal dashboard in the global sidebar and the project's landing canvas in the project navigation; on a project page both are visible side by side, and the dashboard's own heading is also \"Home\".",
+    "lens": "ia",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-006",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "/search placeholder; Dashboard › Daily Digest footer",
+    "inventoryRow": "/search",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "placeholder",
+    "persona": "user-alex",
+    "evidence": [
+      "aria /search: \"Workspace search arrives with the command palette in Slice 21 (§40, §41).\"",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/040-w4-sam-T01-start.png (Daily Digest footer \"Composed locally by the prototype AI provider\")",
+      "task T02 (Alex) step 2"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. click \"Search\" in the sidebar"
+    ],
+    "expected": "Product copy is written for the person using it.",
+    "actual": "Search shows internal planning references (slice number, spec section numbers). The Daily Digest card ends with \"Composed locally by the prototype AI provider\".",
+    "lens": "copy",
+    "heuristic": "Nielsen #2 Match between system and the real world",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-007",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Project header feedback after creating a workstream",
+    "inventoryRow": "Project history controls and feedback",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "successful transition",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/007-w4-alex-T02e-done.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/046-w4-sam-T02e-done.png",
+      "aria after create: parent header Undo \"Nothing to undo\" [disabled]"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. open Alex private plan",
+      "3. \"+\" beside WORK, name \"Lighting\", Create"
+    ],
+    "expected": "A plain confirmation that the workstream was created, and an obvious way to take it back from where I am.",
+    "actual": "The line reads 'Created \"Lighting\" was recorded in Lighting's history.' (ungrammatical, history jargon) while the visible header Undo stays disabled, so the user is told an action was recorded but cannot undo it here.",
+    "lens": "copy",
+    "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #3 User control and freedom",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-008",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Task List section › adding a task opens Task detail drawer",
+    "inventoryRow": "Task detail drawer",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "add draft",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/047-w4-sam-T03e-one-task.png (after first Enter)",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/011-w4-alex-T03e-tasks.png (Alex, light)",
+      "task T03-equiv both personas"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create a project and add a Task List section",
+      "3. type a task title, press Enter"
+    ],
+    "expected": "Quick-adding tasks keeps me in the list; details open when I ask for them.",
+    "actual": "Each added task is selected and a \"Task details\" drawer opens beside the list, squeezing task rows to half width while I continue typing new tasks.",
+    "lens": "states",
+    "heuristic": "Nielsen #3 User control and freedom",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-009",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Task List section header icon",
+    "inventoryRow": "Task List section",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "empty",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/010-w4-alex-T03e-list.png (green checked-checkbox glyph beside \"Shopping\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/048-w4-sam-T03e-done.png"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. add a Task List section to Alex private plan"
+    ],
+    "expected": "The section type icon does not look like a control or a completion state.",
+    "actual": "The Task List icon is a green, ticked checkbox placed right before the title, visually similar to the task completion checkboxes below and reading as \"this list is done\" on an empty list.",
+    "lens": "affordance",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-010",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Task detail drawer › Project field",
+    "inventoryRow": "Task detail drawer",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "state": "selected task",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/018-w4-alex-T04e-after.png (\"Project  project-85f703e3\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/011-w4-alex-T03e-tasks.png (\"project-alex-private\")"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. open Alex private plan, add a Task List and a task",
+      "3. open the task details, scroll to the bottom"
+    ],
+    "expected": "The drawer names the project the task belongs to.",
+    "actual": "It shows the internal id (e.g. \"project-85f703e3\"); the Status row also shows the raw value \"todo\".",
+    "lens": "copy",
+    "heuristic": "Nielsen #2 Match between system and the real world",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-011",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Task row › completed + selected",
+    "inventoryRow": "Task row",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "completed, selected",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/012-w4-alex-T03e-done.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/048-w4-sam-T03e-done.png"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. add a Task List with two tasks",
+      "3. complete both (the last added one is selected)"
+    ],
+    "expected": "Completed tasks look the same whether or not one is selected.",
+    "actual": "The completed rows are green except the selected one, which keeps the blue selected styling; only the strike-through shows it is done, so the two completed tasks look like different states.",
+    "lens": "states",
+    "heuristic": "Internal consistency",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-012",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Dashboard › Today widget › overdue item",
+    "inventoryRow": "Dashboard widgets",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "state": "populated",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/013-w4-alex-T04e-dash.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/014-w4-alex-T04e-click-item.png (no change after click)",
+      "aria: listitem text only, no link/button",
+      "task T04-equiv (Alex) step 2"
+    ],
+    "repro": [
+      "1. seed overdue-chaos; switch persona to Alex in the development panel; goto /app",
+      "2. create a project with a task due 2026-08-20",
+      "3. goto /app; click the overdue card in Today"
+    ],
+    "expected": "An item presented as a bordered, tinted card opens the task (or at least its project).",
+    "actual": "The red bordered card is plain text; clicking it does nothing, so the user must find the project in the sidebar and the task inside it.",
+    "lens": "affordance",
+    "heuristic": "Nielsen #7 Flexibility and efficiency of use; Nielsen #4 Consistency and standards",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-013",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Task detail drawer › Due date; project More panel › Target date",
+    "inventoryRow": "Task detail drawer",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "state": "editing",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/018-w4-alex-T04e-after.png (drawer input \"09/01/2026\", row \"Due 2026-09-01\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/034-w4-alex-T09e-more.png (target date placeholder \"mm/dd/yyyy\")"
+    ],
+    "repro": [
+      "1. seed overdue-chaos; switch persona to Alex in the development panel; goto /app",
+      "2. create a project, task, open details",
+      "3. set a due date and compare the drawer field with the row"
+    ],
+    "expected": "Dates appear in one format.",
+    "actual": "Rows, header and widgets use YYYY-MM-DD, while the date inputs show the browser locale format MM/DD/YYYY, so the same date is shown two ways side by side.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-014",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Project header › Undo / Redo buttons",
+    "inventoryRow": "Project history controls and feedback",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "undo available, redo unavailable",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/039-w4-history-mixed.png",
+      "computed: enabled Undo color rgb(26,29,35) vs aria-disabled Redo rgb(98,107,122), same border/background/opacity",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/020-w4-alex-T05e-removed.png (\"Undo is in the header\" next to icon-only buttons)"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. open Alex private plan, add a section",
+      "3. compare the two arrow buttons at top right"
+    ],
+    "expected": "I can tell at a glance which history action is available and what the arrows are.",
+    "actual": "The buttons are unlabeled arrow glyphs; the unavailable one differs only by a slightly lighter glyph, so enabled and unavailable look almost the same. Their meaning is only in tooltips/aria labels.",
+    "lens": "affordance",
+    "heuristic": "Nielsen #1 Visibility of system status; WCAG 2.2 SC 1.4.11 Non-text Contrast (state indication)",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-015",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Dialogs and editors › primary action",
+    "inventoryRow": "Section creation dialog",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "open",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/009-w4-alex-T03e-dialog.png (Create same style as Cancel and \"Add shortcut\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/023-w4-alex-T06e-editor.png (Save same as Preview/Cancel)",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/010-w4-alex-T03e-list.png (filled blue \"Add task\")"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. open Alex private plan, click \"Add a section\"",
+      "3. compare Create with Cancel; then add a Markdown section and click Edit"
+    ],
+    "expected": "The committing action is recognisable as the main one, consistently across the app.",
+    "actual": "Create, Save and Cancel are identical outlined buttons (Create also matches \"Add shortcut\" in the dialog header), while \"Add task\" in a Task List is a filled primary button — the emphasis pattern is inconsistent.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-016",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Section creation dialog › \"Add shortcut\" mode",
+    "inventoryRow": "Shortcut picker",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "section mode / shortcut mode",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/009-w4-alex-T03e-dialog.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/027-w4-alex-T07e-picker.png (header button now reads \"Add a section\")",
+      "task T07-equiv both personas (found only through prior exposure)"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. in Alex private plan add workstream \"Lighting\" with a Markdown section",
+      "3. go to Alex private plan Home and look for a way to show that section there"
+    ],
+    "expected": "Placing an existing section on another page is discoverable from the canvas or the section itself.",
+    "actual": "The only entry is an outlined \"Add shortcut\" button in the header corner of the \"Add a section\" dialog; nothing on the canvas or the source section mentions shortcuts. In shortcut mode the same corner button reads \"Add a section\", so the mode switch looks like an action.",
+    "lens": "task:T07",
+    "heuristic": "Nielsen #6 Recognition rather than recall",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-017",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-09-project-navigation-gear-and-work-create.md",
+    "surface": "Project navigation › page settings gear",
+    "inventoryRow": "Project navigation and page settings panel",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "settings closed",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/005-w4-alex-T02e-project.png (glyph right of project name)",
+      "button 32x32px with a ~10px gear glyph",
+      "task T08-equiv: found by elimination"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. open Alex private plan",
+      "3. look for where to show or hide project pages"
+    ],
+    "expected": "Page visibility controls are findable without guessing.",
+    "actual": "They sit behind a tiny, low-contrast gear glyph beside the project name with no label; nothing else on the page mentions that optional pages exist.",
+    "lens": "task:T08",
+    "heuristic": "Nielsen #6 Recognition rather than recall",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-018",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Project header › More project actions (⋯)",
+    "inventoryRow": "Project header and More menu",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "More open",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/034-w4-alex-T09e-more.png",
+      "task T09-equiv (Alex) step 2"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. open Alex private plan",
+      "3. click ⋯"
+    ],
+    "expected": "⋯ opens a menu of actions.",
+    "actual": "It expands an inline edit form inside the header card (Name/Rename, Description/Save, Status buttons, Target date/Set/Clear, Open Archive, Archive Project), pushing the canvas down.",
+    "lens": "affordance",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-019",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Project More panel › \"Open Archive\" and \"Archive Project\"",
+    "inventoryRow": "Project header and More menu",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "More open",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/034-w4-alex-T09e-more.png (two buttons stacked 40px apart)",
+      "task T09-equiv"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. open Alex private plan",
+      "3. click ⋯ and look at the last two buttons"
+    ],
+    "expected": "The way to look at archived items is clearly separate from the action that archives the whole project.",
+    "actual": "\"Open Archive\" and \"Archive Project\" are adjacent, same size and shape, with nearly the same wording; only red text marks the second. A user looking for the archive can easily hit the destructive one (it does ask for confirmation).",
+    "lens": "affordance",
+    "heuristic": "Nielsen #5 Error prevention",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-020",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-09-optional-page-operation-history.md",
+    "surface": "Open Archive (More panel and removal notice) › project history",
+    "inventoryRow": "Project history controls and feedback",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "successful transition",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/051-w4-sam-T05e-removed.png (\"Undo is in the header\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/052-w4-sam-T05e-archive.png (header Undo now \"Undo: Enabled the archive page\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/035-w4-alex-T09e-archive.png (same via More panel)"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create a project, add a Task List with a task",
+      "3. remove the section; in the notice click \"Open Archive\"",
+      "4. read the header Undo tooltip"
+    ],
+    "expected": "Opening the Archive to look at something does not change the project, and the Undo I was just pointed to still undoes my removal.",
+    "actual": "When the Archive page is off (default for Alex and Sam), \"Open Archive\" silently turns it on and records that as the newest undo step. The notice said \"Undo is in the header\", but the header Undo now undoes \"Enabled the archive page\" instead of the removal; the page also appears permanently in the project navigation.",
+    "lens": "states",
+    "heuristic": "Nielsen #3 User control and freedom; Nielsen #1 Visibility of system status",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-021",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Archive page restore; Settings › Archived projects restore",
+    "inventoryRow": "/projects/:root/pages/archive and archived items",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "restore success",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/036-w4-alex-T09e-restored.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/053-w4-sam-T05e-restored.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/060-w4-sam-T09e-restored.png (archived project restore)",
+      "aria: status region empty after restore"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. in Alex private plan add a Task List with a task, remove it",
+      "3. ⋯ › Open Archive › Restore saved content"
+    ],
+    "expected": "A confirmation that says what came back and where, with a way to go there.",
+    "actual": "The item just disappears and the list reads \"Nothing is ready to restore in this project.\" (or for projects, \"No archived projects are ready to restore\"). No message, no link; the restored section is at the end of another page.",
+    "lens": "states",
+    "heuristic": "Nielsen #1 Visibility of system status",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-022",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Settings › AI & Agents empty state",
+    "inventoryRow": "/settings/agents",
+    "seed": "agent-heavy",
+    "theme": "light",
+    "state": "empty",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/037-w4-alex-T10-agents.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/061-w4-sam-T10-agents.png",
+      "text: \"No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.\""
+    ],
+    "repro": [
+      "1. seed agent-heavy; switch persona to Alex in the development panel; goto /app",
+      "2. Settings › AI & Agents"
+    ],
+    "expected": "An empty state that is true for the current situation and says what the user can do next.",
+    "actual": "With agent-heavy already loaded, Alex and Sam are told to load agent-heavy to see an agent. Doing so would change nothing (the seeded agents belong to Demo User), so the advice is a loop; the copy also addresses developers (seed, development panel).",
+    "lens": "copy",
+    "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover; Nielsen #2 Match with the real world",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-023",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Settings › AI & Agents",
+    "inventoryRow": "/settings/agents",
+    "seed": "agent-heavy",
+    "theme": "light",
+    "state": "empty",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/037-w4-alex-T10-agents.png",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/061-w4-sam-T10-agents.png",
+      "checked against source apps/web/src/app/features/settings/agents/agent-connections-page.html: only permission checkboxes and Revoke per connection; no connect control",
+      "task T10-equiv blocked (both personas)"
+    ],
+    "repro": [
+      "1. seed agent-heavy; switch persona to Sam in the development panel; goto /app",
+      "2. Settings › AI & Agents",
+      "3. look for a way to connect a new agent"
+    ],
+    "expected": "The product offers a way to connect an agent to my workspace (or says how).",
+    "actual": "There is no connect / add / token control or instruction anywhere in the product UI; the page only points to the development panel. A person with no agent cannot complete the \"connect a new agent\" goal.",
+    "lens": "task:T10",
+    "heuristic": "Nielsen #7 Flexibility and efficiency of use (missing path); task blocked",
+    "severity": "S1"
+  },
+  {
+    "id": "W4-024",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "/projects/:projectId for a project the persona cannot see",
+    "inventoryRow": "/projects/:projectId and /projects/:projectId/pages/:pageKind workspace",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "missing",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/038-w4-alex-kitchen-direct.png",
+      "alert text: project \"project-kitchen\" was not found",
+      "console: 29 x \"Failed to load resource: 404\""
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. goto /projects/project-kitchen"
+    ],
+    "expected": "A clear, human message that the project cannot be shown (without revealing whose it is), and a way back.",
+    "actual": "Heading \"Project unavailable\" over a red alert with the raw lowercase error string including the internal id; no explanation, no link back to the dashboard or projects. (No Demo data leaks.)",
+    "lens": "states",
+    "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-025",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Canvas section frame › accessible names",
+    "inventoryRow": "Canvas insertion and section chrome",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "populated",
+    "persona": "user-alex",
+    "evidence": [
+      "aria: region \"Rename Shopping\" > heading \"Rename Shopping\" [level=2] > button \"Rename Shopping\"",
+      "same for \"Rename Notes\", \"Rename Packing\"; shortcut frames are named correctly (\"Wiring\")"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. add a Task List \"Shopping\" to Alex private plan",
+      "3. inspect the accessibility tree / headings list"
+    ],
+    "expected": "A section is announced and listed by its name.",
+    "actual": "Each section region and its heading are named \"Rename <title>\", so screen-reader heading and landmark lists read \"Rename Shopping, Rename Notes…\".",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 2.4.6 Headings and Labels; SC 1.3.1 Info and Relationships",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-026",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "/app dashboard landmarks",
+    "inventoryRow": "/app dashboard",
+    "seed": "agent-heavy",
+    "theme": "dark",
+    "state": "populated",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/062-w4-sam-dashboard.axe.json: landmark-main-is-top-level, landmark-no-duplicate-main, landmark-unique",
+      "aria: main > main"
+    ],
+    "repro": [
+      "1. seed agent-heavy; switch persona to Sam in the development panel; goto /app",
+      "2. run axe on /app"
+    ],
+    "expected": "One main landmark per page.",
+    "actual": "The dashboard nests a <main> inside the shell's <main> (other routes do not).",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-027",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Archive page count",
+    "inventoryRow": "/projects/:root/pages/archive and archived items",
+    "seed": "nested-projects",
+    "theme": "light",
+    "state": "populated",
+    "persona": "user-alex",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/035-w4-alex-T09e-archive.png (\"1 items\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/052-w4-sam-T05e-archive.png"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Alex in the development panel; goto /app",
+      "2. remove a section with a task in Alex private plan",
+      "3. ⋯ › Open Archive"
+    ],
+    "expected": "\"1 item\".",
+    "actual": "Shows \"1 items\". The page also repeats the heading \"Archive\" (page h2 and the list region h2).",
+    "lens": "copy",
+    "heuristic": "Internal consistency (grammar)",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-028",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Dashboard › Daily Digest overdue line",
+    "inventoryRow": "Dashboard widgets",
+    "seed": "overdue-chaos",
+    "theme": "dark",
+    "state": "populated",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/049-w4-sam-T04e-dash.png (\"1 task is overdue.\")",
+      "clicking the line does nothing",
+      "task T04-equiv (Sam) step 1–2"
+    ],
+    "repro": [
+      "1. seed overdue-chaos; switch persona to Sam in the development panel; goto /app",
+      "2. create a project with a task due 2026-08-20",
+      "3. goto /app"
+    ],
+    "expected": "When the dashboard says something is overdue, I can see which task and get to it.",
+    "actual": "Sam's only widget says \"1 task is overdue.\" with no task name, project or link; finding it means opening projects one by one.",
+    "lens": "task:T04",
+    "heuristic": "Nielsen #6 Recognition rather than recall; Nielsen #7 Flexibility and efficiency",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-029",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-09-project-navigation-gear-and-work-create.md",
+    "surface": "Workstream creation dialog › Parent default",
+    "inventoryRow": "Workstream creation dialog",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "draft",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/045-w4-sam-T02e-dialog.png (opened from Kitchen, Parent = Home renovation)",
+      "task T02-equiv (Sam) step 2"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create project \"Home renovation\" with workstream \"Kitchen\"",
+      "3. open Kitchen, click \"+\" beside WORK"
+    ],
+    "expected": "Starting \"add workstream\" while looking at Kitchen proposes Kitchen (or makes the parent choice prominent).",
+    "actual": "Parent defaults to the root project; the only cue is the small helper text \"Inside Home renovation\". Without noticing it, \"Lighting\" would be created beside Kitchen instead of under it.",
+    "lens": "task:T02",
+    "heuristic": "Nielsen #5 Error prevention",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-030",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Project header date label (root vs workstream)",
+    "inventoryRow": "Project header and More menu",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "populated",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/046-w4-sam-T02e-done.png (workstream \"DUE DATE / No due date\")",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/042-w4-sam-T01-created.png (root \"TARGET DATE / No target date\")"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create a project and a workstream",
+      "3. compare the header date labels"
+    ],
+    "expected": "The same concept carries the same name.",
+    "actual": "Root headers say \"Target date\", workstream headers say \"Due date\" in the same position.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-031",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Markdown source editor › Preview",
+    "inventoryRow": "Markdown section and source editor",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "edit/preview",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/054-w4-sam-T06e-preview.png",
+      "Preview button aria-pressed=\"true\" is the only indicator"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create a project with a Markdown section, click Edit, type text",
+      "3. click Preview"
+    ],
+    "expected": "A preview is clearly marked as unsaved.",
+    "actual": "Preview renders the draft in place exactly like saved content; only the pressed Preview button (and Save/Cancel still showing) hints it is not saved.",
+    "lens": "states",
+    "heuristic": "Nielsen #1 Visibility of system status",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-032",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Shortcut frame › remove control",
+    "inventoryRow": "Shortcut frame",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "populated",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/055-w4-sam-T07e-done.png",
+      "aria \"Remove shortcut to Plants\" uses the same red trash icon as \"Remove section …\""
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create a shortcut on a Work page",
+      "3. compare its remove icon with a normal section"
+    ],
+    "expected": "Removing a shortcut looks less final than deleting the content it points to.",
+    "actual": "Both use the identical red trash button, so it is not apparent that removing a shortcut leaves the source intact.",
+    "lens": "affordance",
+    "heuristic": "Nielsen #5 Error prevention",
+    "severity": "S3"
+  },
+  {
+    "id": "W4-033",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Reflections page (empty); Settings › Archived projects",
+    "inventoryRow": "/projects/:root/pages/reflections",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "empty / populated",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/056-w4-sam-T08e-reflections.png (\"Add reflections container\" grey UA button; 19px \"No subject\" select)",
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/059-w4-sam-T09e-archived-list.png (\"Choose status\" select, grey \"Restore\")",
+      "computed: button bg rgb(107,107,107), border-style outset, radius 0; select height 19px, font 13.33px, radius 0"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create a project; enable Reflections in the gear panel; open Reflections",
+      "3. archive the project and open Settings › Archived projects"
+    ],
+    "expected": "Buttons and selects look like the rest of the app.",
+    "actual": "These surfaces render browser-default controls: a flat grey full-width button that looks disabled (it is the only way to start), tiny native selects, and a \"Restore\" that is hard to tell enabled from disabled.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-034",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Sidebar Projects empty text when only archived projects exist",
+    "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "empty tree",
+    "persona": "user-sam",
+    "evidence": [
+      "aria after archiving Sam's only project: paragraph \"No projects yet\"",
+      "task T09-equiv (Sam) step 1"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create \"Move house\", archive it (⋯ › Archive Project › Archive it)",
+      "3. goto /app and read the sidebar"
+    ],
+    "expected": "The sidebar does not claim I have never had a project, and hints where archived ones are.",
+    "actual": "It says \"No projects yet\" — the first-run wording — with no pointer to Settings › Archived projects.",
+    "lens": "ia",
+    "heuristic": "Nielsen #2 Match between system and the real world",
+    "severity": "S2"
+  },
+  {
+    "id": "W4-035",
+    "viewport": "1440x900",
+    "confidence": "observed",
+    "decisionReopened": null,
+    "surface": "Settings › Archived projects card",
+    "inventoryRow": "/settings/archived-projects",
+    "seed": "nested-projects",
+    "theme": "dark",
+    "state": "populated",
+    "persona": "user-sam",
+    "evidence": [
+      "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/059-w4-sam-T09e-archived-list.png (heading \"Move house\", subtitle \"Move house\")"
+    ],
+    "repro": [
+      "1. seed nested-projects; switch persona to Sam in the development panel; goto /app",
+      "2. create and archive \"Move house\"",
+      "3. Settings › Archived projects"
+    ],
+    "expected": "Each line of the card adds information.",
+    "actual": "The project name is printed twice (heading and subtitle).",
+    "lens": "copy",
+    "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+    "severity": "S3"
+  }
+]

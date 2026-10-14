@@ -1,0 +1,469 @@
+{
+  "auditor": "w4-personas",
+  "inputMode": "mouse",
+  "viewport": "1440x900",
+  "theme": "light",
+  "themeNote": "Browser colour-scheme preference emulated as light. Alex rendered light (his persona preference). Sam rendered DARK with an orange accent despite the light OS preference, because the persona's own preference wins (docs/decisions/2026-08-theme-selection-is-session-only.md); Sam's rows are therefore dark-theme observations. Theme was not toggled.",
+  "evidenceRoot": "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w4-personas/",
+  "personas": ["user-alex", "user-sam"],
+  "tasks": [
+    {
+      "task": "T01", "persona": "user-alex", "outcome": "completed",
+      "clicks": 3, "keystrokes": 16, "surfaces": ["Dashboard (empty)", "Sidebar", "Sidebar inline New project form", "Project workspace (new project Home)"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "I looked in the empty dashboard first for a 'create your first project' entry and found nothing; the only control is a small '+' beside the PROJECTS label in the sidebar. Once found, the inline form is quick, but the field has no visible label or placeholder and is not focused.",
+      "steps": [
+        { "expect": "An empty dashboard for a new account offers a way to create a first project.", "action": "Looked at /app (setup) and scanned the main area.", "observed": "Two widgets (Upcoming full width, Today half width) with 'nothing scheduled' copy; no create action in the main area. Sidebar shows 'No projects yet' and a small '+' beside PROJECTS.", "mismatch": true, "evidence": "001-w4-alex-T01-start.png" },
+        { "expect": "'+' next to PROJECTS opens a project creation form or dialog with focus in the name field.", "action": "Click '+' (New project).", "observed": "An inline text field and 'Create' button appear in the sidebar. The field has no visible label or placeholder; focus stays on the '+' button.", "mismatch": true, "evidence": "002-w4-alex-T01-form.png" },
+        { "expect": "Clicking the field lets me type the name.", "action": "Click the field.", "observed": "Field focused.", "mismatch": false, "evidence": null },
+        { "expect": "Text appears.", "action": "Type 'Garage clear-out'.", "observed": "Text appears.", "mismatch": false, "evidence": null },
+        { "expect": "Project is created and opened.", "action": "Click 'Create'.", "observed": "Navigated to /projects/project-365559f7 showing 'Garage clear-out' header (Planning, Progress Not available), an empty canvas with 'Add a section', and a grey 'Flow layout' development notice above the canvas. The sidebar lists the project but does not mark it as current.", "mismatch": false, "evidence": "003-w4-alex-T01-created.png" }
+      ],
+      "verification": "Reloaded the project URL; heading 'Garage clear-out' and sidebar link persisted.",
+      "findings": ["W4-001", "W4-002", "W4-003", "W4-004", "W4-005"]
+    },
+    {
+      "task": "T02", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 1, "keystrokes": 0, "surfaces": ["Dashboard", "Sidebar", "Search placeholder"], "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Alex's sidebar lists only 'Alex private plan'. Nothing in the product indicates that Home renovation exists or belongs to someone else; this is consistent with isolated workspaces, so the task is simply not reachable. Trying Search led to a placeholder that cites internal slice and spec numbers.",
+      "steps": [
+        { "expect": "Home renovation appears in the sidebar project list.", "action": "Looked at sidebar after seeding nested-projects (setup).", "observed": "Only 'Alex private plan'. No Demo User data visible anywhere (dashboard widgets empty).", "mismatch": true, "evidence": "004-w4-alex-T02-start.png" },
+        { "expect": "Search finds 'Home renovation' or says it found nothing.", "action": "Click 'Search' in sidebar.", "observed": "/search placeholder: 'Workspace search arrives with the command palette in Slice 21 (§40, §41).'", "mismatch": true, "evidence": null }
+      ],
+      "verification": "n/a — persona owns no Home renovation; confirmed sidebar and dashboard contain no Demo-owned items.",
+      "findings": ["W4-006"]
+    },
+    {
+      "task": "T02-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 3, "keystrokes": 8, "surfaces": ["Sidebar", "Project navigation", "Workstream creation dialog", "Project header feedback"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "In Alex private plan the WORK heading with '+' was the obvious place; the dialog autofocuses the name and defaults the parent correctly. The success line afterwards is hard to parse.",
+      "steps": [
+        { "expect": "Clicking the project opens it.", "action": "Click 'Alex private plan' in sidebar.", "observed": "Project Home with empty canvas; project nav shows 'WORK +' and 'No workstreams yet'.", "mismatch": false, "evidence": "005-w4-alex-T02e-project.png" },
+        { "expect": "'+' beside WORK opens a workstream form.", "action": "Click 'Add workstream' (+).", "observed": "Modal 'Add workstream' with Name (focused), Parent select (Alex private plan), 'Inside Alex private plan', Cancel/Create.", "mismatch": false, "evidence": "006-w4-alex-T02e-dialog.png" },
+        { "expect": "Text appears.", "action": "Type 'Lighting'.", "observed": "Text appears.", "mismatch": false, "evidence": null },
+        { "expect": "Workstream created and listed under WORK.", "action": "Click 'Create'.", "observed": "Lighting listed under WORK and nested under the project in the sidebar. Header line: 'Created \"Lighting\" was recorded in Lighting's history. Open Lighting  Dismiss'. The parent's Undo stays disabled ('Nothing to undo').", "mismatch": true, "evidence": "007-w4-alex-T02e-done.png" }
+      ],
+      "verification": "Reloaded; 'Lighting' still listed under WORK.",
+      "findings": ["W4-007"]
+    },
+    {
+      "task": "T03", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Kitchen project in Alex's workspace (nested-projects); sidebar shows only Alex private plan.",
+      "steps": [
+        { "expect": "Kitchen reachable from sidebar.", "action": "Looked at sidebar (setup).", "observed": "Only 'Alex private plan', no workstreams.", "mismatch": true, "evidence": "004-w4-alex-T02-start.png" }
+      ],
+      "verification": "n/a",
+      "findings": []
+    },
+    {
+      "task": "T03-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 9, "keystrokes": 27, "surfaces": ["Project Home canvas", "Section creation dialog", "Task List section", "Task row", "Task detail drawer"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Run on Alex private plan's Home canvas (no Work page exists without a workstream). 'Add a section' is prominent; the type select defaults to Markdown so Task List must be chosen. Adding tasks with Enter keeps focus in the field, but the task detail drawer opened on its own and halved the list.",
+      "steps": [
+        { "expect": "Project opens.", "action": "Click 'Alex private plan' in sidebar.", "observed": "Empty canvas with 'Add a section'.", "mismatch": false, "evidence": null },
+        { "expect": "'Add a section' lets me choose a task list.", "action": "Click 'Add a section'.", "observed": "Modal 'Add a section' with 'Add shortcut' button at top right, Section type select (Markdown selected), Name (optional), Cancel/Create — Create not visually primary.", "mismatch": false, "evidence": "009-w4-alex-T03e-dialog.png" },
+        { "expect": "Task List is an option.", "action": "Open Section type select and choose 'Task List' (2 clicks).", "observed": "Task List selected.", "mismatch": false, "evidence": null },
+        { "expect": "Name field accepts text.", "action": "Click Name, type 'Shopping'.", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Section created.", "action": "Click 'Create'.", "observed": "'Shopping' section with a green checked-checkbox icon beside its title, 'Task title' field and blue 'Add task' button, 'No tasks yet.'", "mismatch": false, "evidence": "010-w4-alex-T03e-list.png" },
+        { "expect": "Typing and Enter adds a task and keeps focus in the field.", "action": "Click Task title, type 'Buy bulbs', press Enter.", "observed": "Task added, focus stays in field.", "mismatch": false, "evidence": null },
+        { "expect": "Second task added the same way.", "action": "Type 'Buy wire', press Enter.", "observed": "Task added; a 'Task details' drawer for Buy wire is open beside the list, squeezing the rows to half width; drawer shows 'Project: project-alex-private'.", "mismatch": true, "evidence": "011-w4-alex-T03e-tasks.png" },
+        { "expect": "Checkbox completes the task.", "action": "Click checkbox of Buy bulbs.", "observed": "Struck through, green row; progress 50%.", "mismatch": false, "evidence": null },
+        { "expect": "Checkbox completes the task.", "action": "Click checkbox of Buy wire.", "observed": "Struck through; row keeps blue 'selected' styling rather than the green completed styling; header progress 100% complete.", "mismatch": false, "evidence": "012-w4-alex-T03e-done.png" }
+      ],
+      "verification": "Reloaded; both checkboxes read 'Reopen task …' [checked].",
+      "findings": ["W4-008", "W4-009", "W4-010", "W4-011"]
+    },
+    {
+      "task": "T04", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Dashboard", "Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "overdue-chaos gives Alex no projects ('No projects yet'); dashboard shows only Upcoming and Today, both empty. No sign that Client migration exists.",
+      "steps": [
+        { "expect": "Client migration in sidebar.", "action": "Looked at dashboard (setup).", "observed": "'No projects yet'; Upcoming + Today widgets only.", "mismatch": true, "evidence": null }
+      ],
+      "verification": "n/a",
+      "findings": []
+    },
+    {
+      "task": "T04-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 4, "keystrokes": "unmeasured", "surfaces": ["Dashboard Today widget", "Sidebar", "Task List section", "Task detail drawer"], "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Setup (not counted): created project 'Errands' with a task 'Renew permit' due 2026-08-20. From the dashboard the overdue task is shown in Today as a red bordered card that looks clickable but is not. The due date in the drawer is below the fold and needs a scroll; the drawer's native date input shows MM/DD/YYYY while the row shows ISO dates.",
+      "steps": [
+        { "expect": "The dashboard tells me what is overdue.", "action": "Looked at /app (setup).", "observed": "Today widget: 'OVERDUE' with a red bordered card 'Renew permit · Errands · 2026-08-20'.", "mismatch": false, "evidence": "013-w4-alex-T04e-dash.png" },
+        { "expect": "Clicking the overdue card opens the task.", "action": "Click 'Renew permit' card.", "observed": "Nothing happens; it is plain text.", "mismatch": true, "evidence": "014-w4-alex-T04e-click-item.png" },
+        { "expect": "Project opens with the task.", "action": "Click 'Errands' in sidebar.", "observed": "Row 'Renew permit — Medium Priority Due 2026-08-20 Overdue'.", "mismatch": false, "evidence": "015-w4-alex-T04e-project.png" },
+        { "expect": "Clicking the title opens details with a due date field.", "action": "Click 'Renew permit'.", "observed": "Drawer opens beside the list; Due date is below the fold.", "mismatch": true, "evidence": "016-w4-alex-T04e-drawer.png" },
+        { "expect": "Scrolling reveals the field.", "action": "Mouse-wheel scroll (not counted as click).", "observed": "Due date visible.", "mismatch": false, "evidence": "017-w4-alex-T04e-scrolled.png" },
+        { "expect": "Changing the date saves it.", "action": "Click Due date and set 2026-09-01 (fill).", "observed": "Input shows 09/01/2026; row updates to 'Due 2026-09-01', Overdue label gone. No save confirmation.", "mismatch": false, "evidence": "018-w4-alex-T04e-after.png" }
+      ],
+      "verification": "Reloaded; row reads 'Due 2026-09-01' with no Overdue label.",
+      "findings": ["W4-012", "W4-013", "W4-010"]
+    },
+    {
+      "task": "T05", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Kitchen in Alex's workspace.",
+      "steps": [ { "expect": "Kitchen reachable.", "action": "Looked at sidebar (setup).", "observed": "Only Alex private plan.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T05-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 2, "keystrokes": 0, "surfaces": ["Section chrome", "Section recovery notice", "Project history controls"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): Task List 'Packing' with one task on Alex private plan Home. The red trash icon removes the section immediately (no confirm); a notice says 'Undo is in the header', and the header undo icon brings it back.",
+      "steps": [
+        { "expect": "Trash icon removes the section, maybe with confirmation.", "action": "Click 'Remove section Packing'.", "observed": "Section gone immediately; bottom-right notice 'Removed the Packing section. Undo is in the header.' with 'Open Archive' and 'Dismiss'.", "mismatch": false, "evidence": "020-w4-alex-T05e-removed.png" },
+        { "expect": "Header undo arrow restores it.", "action": "Click header Undo icon.", "observed": "Section back with its task; status 'Undid: Removed the Packing section.'", "mismatch": false, "evidence": "021-w4-alex-T05e-undone.png" }
+      ],
+      "verification": "Reloaded; 'Packing' section present.",
+      "findings": ["W4-014"]
+    },
+    {
+      "task": "T06", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Kitchen or Markdown section in Alex's workspace.",
+      "steps": [ { "expect": "Kitchen reachable.", "action": "Looked at sidebar (setup).", "observed": "Only Alex private plan with empty canvas.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T06-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 2, "keystrokes": 17, "surfaces": ["Markdown section", "Markdown source editor"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): empty Markdown section 'Notes'. 'Edit' is visible; the editor opens focused but is an empty grey box with no placeholder or Markdown hint; Save, Preview and Cancel have equal weight.",
+      "steps": [
+        { "expect": "Edit opens a text editor.", "action": "Click 'Edit'.", "observed": "Textarea focused; Preview / Save / Cancel below.", "mismatch": false, "evidence": "023-w4-alex-T06e-editor.png" },
+        { "expect": "Text appears.", "action": "Type 'Call the landlord'.", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Save renders the text.", "action": "Click 'Save'.", "observed": "Rendered paragraph 'Call the landlord'.", "mismatch": false, "evidence": "024-w4-alex-T06e-saved.png" }
+      ],
+      "verification": "Reloaded; paragraph persists.",
+      "findings": ["W4-015"]
+    },
+    {
+      "task": "T07", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Home renovation / Kitchen in Alex's workspace.",
+      "steps": [ { "expect": "Projects reachable.", "action": "Looked at sidebar (setup).", "observed": "Only Alex private plan.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T07-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 4, "keystrokes": 0, "surfaces": ["Section creation dialog", "Shortcut picker", "Shortcut frame"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): workstream 'Lighting' under Alex private plan with Markdown section 'Wiring'. Made Wiring appear on Alex private plan Home. I knew 'Add shortcut' only because I had noticed it in the section dialog during T03-equiv; nothing on the canvas mentions shortcuts.",
+      "steps": [
+        { "expect": "Project Home opens.", "action": "Click 'Alex private plan' in sidebar.", "observed": "Empty Home canvas.", "mismatch": false, "evidence": "025-w4-alex-T07e-home.png" },
+        { "expect": "'Add a section' has the shortcut option I saw before.", "action": "Click 'Add a section'.", "observed": "Dialog with 'Add shortcut' button top right.", "mismatch": false, "evidence": null },
+        { "expect": "Picker lists sections from elsewhere.", "action": "Click 'Add shortcut'.", "observed": "Dialog 'Add a shortcut' lists 'Wiring — Alex private plan / Lighting · Work canvas' with 'Add'; header button now reads 'Add a section'.", "mismatch": false, "evidence": "027-w4-alex-T07e-picker.png" },
+        { "expect": "Shortcut placed on Home.", "action": "Click 'Add'.", "observed": "Shortcut frame 'Wiring' with breadcrumb and 'Open source' link.", "mismatch": false, "evidence": "028-w4-alex-T07e-done.png" }
+      ],
+      "verification": "Reloaded; shortcut 'Wiring' present on Home with 'Open source' link.",
+      "findings": ["W4-016"]
+    },
+    {
+      "task": "T08", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Home renovation in Alex's workspace.",
+      "steps": [ { "expect": "Home renovation reachable.", "action": "Looked at sidebar (setup).", "observed": "Only Alex private plan.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T08-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 5, "keystrokes": 0, "surfaces": ["Project navigation", "Page settings panel"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Alex private plan's Reflections page is off by default, so I turned it on, hid it, and turned it on again. Page visibility lives behind a small gear glyph beside the project name in the project navigation; I found it by elimination.",
+      "steps": [
+        { "expect": "Project opens.", "action": "Click 'Alex private plan'.", "observed": "Project nav lists only Home.", "mismatch": false, "evidence": null },
+        { "expect": "The small gear by the project name holds page options.", "action": "Click gear (Project page settings).", "observed": "Inline 'Pages' panel: Home (Required, disabled), Todos, Archive, Reflections checkboxes — all optional pages unchecked.", "mismatch": false, "evidence": "029-w4-alex-T08e-settings.png" },
+        { "expect": "Reflections appears in nav.", "action": "Check 'Reflections'.", "observed": "'Reflections' link added under Home.", "mismatch": false, "evidence": "030-w4-alex-T08e-on1.png" },
+        { "expect": "Reflections disappears.", "action": "Uncheck 'Reflections'.", "observed": "Link removed.", "mismatch": false, "evidence": null },
+        { "expect": "Reflections returns.", "action": "Check 'Reflections'.", "observed": "Link back.", "mismatch": false, "evidence": null }
+      ],
+      "verification": "Reloaded; 'Reflections' link present in project nav.",
+      "findings": ["W4-017"]
+    },
+    {
+      "task": "T09", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 2, "keystrokes": 0, "surfaces": ["Settings", "Archived projects"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Home renovation in Alex's workspace. Settings › Archived projects shows 'No archived projects are ready to restore in this workspace.' — Demo User's archived Legacy project does not leak.",
+      "steps": [
+        { "expect": "Settings lists archive options.", "action": "Click 'Settings'.", "observed": "Links 'AI & Agents' and 'Archived projects'.", "mismatch": false, "evidence": "031-w4-alex-T09-settings.png" },
+        { "expect": "Archived projects for this workspace.", "action": "Click 'Archived projects'.", "observed": "Empty: 'No archived projects are ready to restore in this workspace.'", "mismatch": false, "evidence": "032-w4-alex-T09-archived.png" }
+      ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T09-equiv", "persona": "user-alex", "outcome": "completed",
+      "clicks": 4, "keystrokes": 0, "surfaces": ["Project header More panel", "Archive page", "Archived region"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Setup (not counted): Task List 'Packing' with one task removed to Archive, then left the project and came back so no notice was showing. The Archive page is not in Alex's project nav (off by default); I found 'Open Archive' in the ⋯ panel next to the destructive 'Archive Project'. Opening it quietly turned the Archive page on as an undoable change, and the restore gave no confirmation.",
+      "steps": [
+        { "expect": "Project opens; an Archive link is somewhere in the project nav.", "action": "Click 'Alex private plan'.", "observed": "Nav lists only Home and WORK; no Archive.", "mismatch": true, "evidence": "033-w4-alex-T09e-start.png" },
+        { "expect": "⋯ opens a menu of project actions.", "action": "Click '⋯' (More project actions).", "observed": "An inline form expands in the header: Name/Rename, Description/Save, Status buttons, Target date/Set/Clear, 'Open Archive', 'Archive Project' (red text) directly beneath.", "mismatch": true, "evidence": "034-w4-alex-T09e-more.png" },
+        { "expect": "Archive page opens listing Packing.", "action": "Click 'Open Archive'.", "observed": "Archive page lists Packing ('1 items', 'Restore saved content'). Archive link now in project nav. Header Undo now reads 'Undo: Enabled the archive page'.", "mismatch": true, "evidence": "035-w4-alex-T09e-archive.png" },
+        { "expect": "Restore brings it back and tells me where.", "action": "Click 'Restore saved content'.", "observed": "List empties to 'Nothing is ready to restore in this project.' No confirmation or link to the restored section; only the header Progress changes to 0%.", "mismatch": true, "evidence": "036-w4-alex-T09e-restored.png" }
+      ],
+      "verification": "Opened project Home; 'Packing' section present.",
+      "findings": ["W4-018", "W4-019", "W4-020", "W4-021"]
+    },
+    {
+      "task": "T10", "persona": "user-alex", "outcome": "inapplicable",
+      "clicks": 2, "keystrokes": 0, "surfaces": ["Settings", "AI & Agents"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Settings › AI & Agents is easy to find. With agent-heavy loaded, Alex sees 'No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.' — the seed it names is already loaded. No Demo agent data leaks.",
+      "steps": [
+        { "expect": "Settings holds agent settings.", "action": "Click 'Settings'.", "observed": "'AI & Agents' link with description.", "mismatch": false, "evidence": null },
+        { "expect": "List of connected agents and their permissions.", "action": "Click 'AI & Agents'.", "observed": "Empty state telling the user to load the agent-heavy seed (already loaded).", "mismatch": true, "evidence": "037-w4-alex-T10-agents.png" }
+      ],
+      "verification": "n/a",
+      "findings": ["W4-022"]
+    },
+    {
+      "task": "T10-equiv", "persona": "user-alex", "outcome": "blocked",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["AI & Agents"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Tried to connect a new agent to Alex's own workspace. The AI & Agents page has no connect / add / token control at all; the only pointer is to the development panel. (Absence checked against agent-connections-page.html: only per-permission checkboxes and a revoke button exist.)",
+      "steps": [
+        { "expect": "A 'Connect agent' (or similar) control on AI & Agents.", "action": "Scanned the page (no click available).", "observed": "None. Furthest point: the AI & Agents empty state.", "mismatch": true, "evidence": "037-w4-alex-T10-agents.png" }
+      ],
+      "verification": "n/a",
+      "findings": ["W4-023"]
+    },
+    {
+      "task": "T01", "persona": "user-sam", "outcome": "completed",
+      "clicks": 3, "keystrokes": 16, "surfaces": ["Dashboard (empty, Daily Digest only)", "Sidebar inline New project form", "Project workspace"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Same as Alex: Sam's empty dashboard shows only a Daily Digest card ('You completed 0 tasks…', 'Composed locally by the prototype AI provider') and no create entry; the sidebar '+' is the only way in.",
+      "steps": [
+        { "expect": "Empty dashboard offers a first-project action.", "action": "Looked at /app (setup).", "observed": "Only the Daily Digest widget; no create action in main area.", "mismatch": true, "evidence": "040-w4-sam-T01-start.png" },
+        { "expect": "'+' opens a form.", "action": "Click '+' (New project).", "observed": "Inline unlabeled field + Create.", "mismatch": false, "evidence": "041-w4-sam-T01-form.png" },
+        { "expect": "Field takes focus on click.", "action": "Click field, type 'Garage clear-out'.", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Project created and opened.", "action": "Click 'Create'.", "observed": "Project page with empty canvas and 'Flow layout' development notice.", "mismatch": false, "evidence": "042-w4-sam-T01-created.png" }
+      ],
+      "verification": "Reloaded; h1 'Garage clear-out'.",
+      "findings": ["W4-001", "W4-002", "W4-003", "W4-006"]
+    },
+    {
+      "task": "T02", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Dashboard", "Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "In nested-projects Sam owns nothing: sidebar 'No projects yet', dashboard Daily Digest says nothing scheduled. No trace of Home renovation or any Demo data.",
+      "steps": [ { "expect": "Home renovation in sidebar.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": "043-w4-sam-T02-start.png" } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T02-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 6, "keystrokes": 8, "surfaces": ["Sidebar tree", "Project navigation", "Workstream creation dialog"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): Sam project 'Home renovation' with workstream 'Kitchen'. Task mirrored exactly: add 'Lighting' under Kitchen. I opened Kitchen first, expecting the dialog to default to it, but the Parent select defaulted to the root, so I had to notice and change it.",
+      "steps": [
+        { "expect": "Kitchen opens.", "action": "Click 'Kitchen' in sidebar tree.", "observed": "Kitchen workstream page; project nav shows 'WORK +' with Kitchen highlighted.", "mismatch": false, "evidence": "044-w4-sam-T02e-kitchen.png" },
+        { "expect": "Add workstream from inside Kitchen defaults its parent to Kitchen.", "action": "Click '+' (Add workstream).", "observed": "Dialog: Parent = 'Home renovation' (root) selected; helper 'Inside Home renovation'.", "mismatch": true, "evidence": "045-w4-sam-T02e-dialog.png" },
+        { "expect": "Text appears.", "action": "Click Name, type 'Lighting'.", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Kitchen available as parent.", "action": "Open Parent select, choose 'Kitchen' (2 clicks).", "observed": "Helper updates to 'Inside Kitchen'.", "mismatch": false, "evidence": null },
+        { "expect": "Created under Kitchen.", "action": "Click 'Create'.", "observed": "Lighting nested under Kitchen in both trees; header line 'Created \"Lighting\" was recorded in Lighting's history.' Workstream header labels the date 'DUE DATE' while the root header says 'TARGET DATE'.", "mismatch": false, "evidence": "046-w4-sam-T02e-done.png" }
+      ],
+      "verification": "Reloaded; sidebar tree Home renovation › Kitchen › Lighting.",
+      "findings": ["W4-007", "W4-029", "W4-030"]
+    },
+    {
+      "task": "T03", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Sam has no projects in nested-projects.",
+      "steps": [ { "expect": "Kitchen reachable.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T03-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 9, "keystrokes": 20, "surfaces": ["Workstream Work canvas", "Section creation dialog", "Task List section", "Task detail drawer"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): Sam project 'Home renovation' with workstream 'Kitchen' — so this ran on a real workstream Work page. Confirmed the details drawer opens after the very first task is added.",
+      "steps": [
+        { "expect": "Kitchen opens.", "action": "Click 'Kitchen' in sidebar.", "observed": "Empty Work canvas.", "mismatch": false, "evidence": null },
+        { "expect": "Section dialog.", "action": "Click 'Add a section'.", "observed": "Dialog.", "mismatch": false, "evidence": null },
+        { "expect": "Choose Task List.", "action": "Open select, choose Task List (2 clicks).", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Name it.", "action": "Click Name, type 'Shopping'.", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Created.", "action": "Click 'Create'.", "observed": "Shopping section.", "mismatch": false, "evidence": null },
+        { "expect": "Task added, focus kept.", "action": "Click Task title, type 'Paint', Enter.", "observed": "Task added AND 'Task details' drawer opened for Paint, halving the list.", "mismatch": true, "evidence": "047-w4-sam-T03e-one-task.png" },
+        { "expect": "Second task added.", "action": "Type 'Tiles', Enter.", "observed": "Added; drawer switches to Tiles.", "mismatch": false, "evidence": null },
+        { "expect": "Complete.", "action": "Click checkbox Paint.", "observed": "Struck through, green.", "mismatch": false, "evidence": null },
+        { "expect": "Complete.", "action": "Click checkbox Tiles.", "observed": "Struck through; keeps selected (blue) styling; progress 100%.", "mismatch": false, "evidence": "048-w4-sam-T03e-done.png" }
+      ],
+      "verification": "Reloaded; both checkboxes 'Reopen task …' checked.",
+      "findings": ["W4-008", "W4-011"]
+    },
+    {
+      "task": "T04", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Dashboard", "Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "overdue-chaos: Sam has 'No projects yet'; Daily Digest 'Nothing is overdue.'",
+      "steps": [ { "expect": "Client migration reachable.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T04-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 4, "keystrokes": "unmeasured", "surfaces": ["Dashboard Daily Digest", "Sidebar", "Task List section", "Task detail drawer"], "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Setup (not counted): project 'Errands' with task 'Renew permit' due 2026-08-20. Sam's only widget, Daily Digest, says '1 task is overdue.' without naming the task or project and without a link, so finding it means opening each project.",
+      "steps": [
+        { "expect": "Dashboard tells me which task is overdue.", "action": "Looked at /app (setup).", "observed": "Daily Digest: '1 task is overdue.' — no name, project or link.", "mismatch": true, "evidence": "049-w4-sam-T04e-dash.png" },
+        { "expect": "Clicking the line opens the overdue task(s).", "action": "Click '1 task is overdue.'", "observed": "Nothing.", "mismatch": true, "evidence": null },
+        { "expect": "Project shows the task.", "action": "Click 'Errands' in sidebar.", "observed": "Row with Overdue label.", "mismatch": false, "evidence": null },
+        { "expect": "Details open.", "action": "Click 'Renew permit'.", "observed": "Drawer; due date below fold (scrolled with wheel).", "mismatch": false, "evidence": null },
+        { "expect": "Date saves.", "action": "Click Due date, set 2026-09-01 (fill).", "observed": "Row 'Due 2026-09-01'.", "mismatch": false, "evidence": "050-w4-sam-T04e-after.png" }
+      ],
+      "verification": "Reloaded; row text 'Renew permit / Medium Priority / Due 2026-09-01'.",
+      "findings": ["W4-028", "W4-013"]
+    },
+    {
+      "task": "T05", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Kitchen for Sam.",
+      "steps": [ { "expect": "Kitchen reachable.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T05-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 3, "keystrokes": 0, "surfaces": ["Section chrome", "Section recovery notice", "Archive page"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): project 'Move house' with Task List 'Packing' (one task). This time I took the notice's 'Open Archive' path instead of Undo. It worked, but opening the Archive recorded 'Enabled the archive page' as the newest undo step, so the header Undo the notice had just pointed to no longer undoes the removal.",
+      "steps": [
+        { "expect": "Section removed.", "action": "Click 'Remove section Packing'.", "observed": "Removed; notice 'Removed the Packing section. Undo is in the header.' with Open Archive / Dismiss.", "mismatch": false, "evidence": "051-w4-sam-T05e-removed.png" },
+        { "expect": "Archive shows the section.", "action": "Click 'Open Archive'.", "observed": "Archive page lists Packing; header Undo now 'Undo: Enabled the archive page'.", "mismatch": true, "evidence": "052-w4-sam-T05e-archive.png" },
+        { "expect": "Restored with confirmation.", "action": "Click 'Restore saved content'.", "observed": "List empties ('Nothing is ready to restore in this project.'); no confirmation or link.", "mismatch": true, "evidence": "053-w4-sam-T05e-restored.png" }
+      ],
+      "verification": "Opened project Home; 'Packing' present.",
+      "findings": ["W4-020", "W4-021", "W4-027"]
+    },
+    {
+      "task": "T06", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Kitchen / Markdown section for Sam.",
+      "steps": [ { "expect": "Kitchen reachable.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T06-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 3, "keystrokes": 16, "surfaces": ["Markdown section", "Markdown source editor (preview)"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): Markdown section 'Notes' containing 'Old note'. Replaced the text and used Preview before saving. In Preview the section looks exactly like saved content; only the pressed state of the 'Preview' button shows it is still an unsaved draft.",
+      "steps": [
+        { "expect": "Editor opens with the existing text.", "action": "Click 'Edit'.", "observed": "Textarea focused with 'Old note'.", "mismatch": false, "evidence": null },
+        { "expect": "Replace text.", "action": "Ctrl+A, type '**Book movers**'.", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Preview renders it, clearly marked as a preview.", "action": "Click 'Preview'.", "observed": "Bold 'Book movers' rendered in place, styled like saved content; Preview button shown pressed; Save / Cancel still there.", "mismatch": true, "evidence": "054-w4-sam-T06e-preview.png" },
+        { "expect": "Saved.", "action": "Click 'Save'.", "observed": "Rendered 'Book movers'.", "mismatch": false, "evidence": null }
+      ],
+      "verification": "Reloaded; bold 'Book movers' persists.",
+      "findings": ["W4-031", "W4-015"]
+    },
+    {
+      "task": "T07", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Home renovation for Sam.",
+      "steps": [ { "expect": "Reachable.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T07-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 4, "keystrokes": 0, "surfaces": ["Section creation dialog", "Shortcut picker", "Shortcut frame"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Setup (not counted): Sam 'Home renovation' with workstreams Kitchen and Garden; Garden has Task List 'Plants'. Shortcut to Plants placed on Kitchen's Work page, mirroring T07. Found immediately only because of earlier exposure (see Alex T07-equiv). The shortcut's remove control is the same red trash icon as a section's.",
+      "steps": [
+        { "expect": "Kitchen opens.", "action": "Click 'Kitchen' in sidebar.", "observed": "Empty Work canvas.", "mismatch": false, "evidence": null },
+        { "expect": "Section dialog.", "action": "Click 'Add a section'.", "observed": "Dialog with 'Add shortcut'.", "mismatch": false, "evidence": null },
+        { "expect": "Picker.", "action": "Click 'Add shortcut'.", "observed": "Lists 'Plants — Home renovation / Garden · Work canvas'.", "mismatch": false, "evidence": null },
+        { "expect": "Placed.", "action": "Click 'Add'.", "observed": "Shortcut frame 'Plants' with orange arrow, breadcrumb, 'No tasks yet.', 'Open source', and a red trash icon identical to section removal.", "mismatch": false, "evidence": "055-w4-sam-T07e-done.png" }
+      ],
+      "verification": "Reloaded; shortcut 'Plants' present on Kitchen.",
+      "findings": ["W4-016", "W4-032"]
+    },
+    {
+      "task": "T08", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Home renovation for Sam.",
+      "steps": [ { "expect": "Reachable.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T08-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 5, "keystrokes": 0, "surfaces": ["Project navigation", "Page settings panel", "Reflections page (empty)"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Setup (not counted): project 'Move house'. Same gear path as Alex; Reflections is off by default for a new project, so I turned it on, off, on. Opening the resulting Reflections page (verification) showed browser-default unstyled controls.",
+      "steps": [
+        { "expect": "Project opens.", "action": "Click 'Move house'.", "observed": "OK.", "mismatch": false, "evidence": null },
+        { "expect": "Gear has page options.", "action": "Click gear.", "observed": "Pages panel; Todos, Archive, Reflections unchecked.", "mismatch": false, "evidence": null },
+        { "expect": "On.", "action": "Check Reflections.", "observed": "Link added.", "mismatch": false, "evidence": null },
+        { "expect": "Off.", "action": "Uncheck Reflections.", "observed": "Link removed.", "mismatch": false, "evidence": null },
+        { "expect": "On.", "action": "Check Reflections.", "observed": "Link back.", "mismatch": false, "evidence": null }
+      ],
+      "verification": "Reloaded; Reflections link present; opened it (not counted): grey UA-styled 'Add reflections container' button and a 19px native 'No subject' select.",
+      "findings": ["W4-017", "W4-033"]
+    },
+    {
+      "task": "T09", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["Sidebar"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No Home renovation for Sam; same empty Settings › Archived projects as Alex (no leak of Demo's archived Legacy project).",
+      "steps": [ { "expect": "Reachable.", "action": "Looked at sidebar (setup).", "observed": "'No projects yet'.", "mismatch": true, "evidence": null } ],
+      "verification": "n/a", "findings": []
+    },
+    {
+      "task": "T09-equiv", "persona": "user-sam", "outcome": "completed",
+      "clicks": 5, "keystrokes": 0, "surfaces": ["Sidebar (empty)", "Settings", "Archived projects"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Setup (not counted): created 'Move house' and archived the whole project via ⋯ › Archive Project › Archive it. From the dashboard, the sidebar then claims 'No projects yet' with no hint that an archived project exists; I guessed Settings. Restore is disabled until a status is chosen from an unstyled native select; afterwards there is no confirmation beyond the list emptying and the sidebar refilling.",
+      "steps": [
+        { "expect": "The sidebar or dashboard hints that an archived project exists.", "action": "Looked at /app (setup).", "observed": "Sidebar 'No projects yet'.", "mismatch": true, "evidence": null },
+        { "expect": "Settings holds archive recovery.", "action": "Click 'Settings'.", "observed": "Link 'Archived projects'.", "mismatch": false, "evidence": null },
+        { "expect": "Archived project listed.", "action": "Click 'Archived projects'.", "observed": "Card 'Move house' / 'Move house' (repeated), 'Restore as [Choose status]', grey 'Restore' (disabled), 'Open project'. Controls are browser-default styled.", "mismatch": false, "evidence": "059-w4-sam-T09e-archived-list.png" },
+        { "expect": "Restore needs a status.", "action": "Open select, choose 'Planning' (2 clicks).", "observed": "Restore enabled.", "mismatch": false, "evidence": null },
+        { "expect": "Project returns with confirmation.", "action": "Click 'Restore'.", "observed": "Card disappears; 'No archived projects are ready to restore in this workspace.'; sidebar lists 'Move house'. No success message.", "mismatch": true, "evidence": "060-w4-sam-T09e-restored.png" }
+      ],
+      "verification": "Sidebar lists 'Move house' after restore.",
+      "findings": ["W4-034", "W4-033", "W4-021", "W4-035"]
+    },
+    {
+      "task": "T10", "persona": "user-sam", "outcome": "inapplicable",
+      "clicks": 2, "keystrokes": 0, "surfaces": ["Settings", "AI & Agents"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Identical to Alex: with agent-heavy loaded, the empty state tells Sam to load the agent-heavy seed. No Demo agent data leaks.",
+      "steps": [
+        { "expect": "Agent settings.", "action": "Click 'Settings'.", "observed": "AI & Agents link.", "mismatch": false, "evidence": null },
+        { "expect": "List of agents.", "action": "Click 'AI & Agents'.", "observed": "Empty state naming the already-loaded seed.", "mismatch": true, "evidence": "061-w4-sam-T10-agents.png" }
+      ],
+      "verification": "n/a", "findings": ["W4-022"]
+    },
+    {
+      "task": "T10-equiv", "persona": "user-sam", "outcome": "blocked",
+      "clicks": 0, "keystrokes": 0, "surfaces": ["AI & Agents"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "No product control to connect an agent to Sam's workspace; furthest point is the AI & Agents empty state.",
+      "steps": [ { "expect": "Connect control.", "action": "Scanned page.", "observed": "None.", "mismatch": true, "evidence": "061-w4-sam-T10-agents.png" } ],
+      "verification": "n/a", "findings": ["W4-023"]
+    }
+  ],
+  "setupObservations": [
+    {
+      "persona": "user-alex", "seed": "nested-projects",
+      "action": "goto /projects/project-kitchen (Demo-owned) directly",
+      "observed": "Shell renders as Alex; main shows heading 'Project unavailable' and red alert 'project \"project-kitchen\" was not found'. No Demo data leaks. No link back or explanation; console logs 29 'Failed to load resource: 404' errors.",
+      "evidence": "038-w4-alex-kitchen-direct.png",
+      "findings": ["W4-024"]
+    }
+  ]
+}

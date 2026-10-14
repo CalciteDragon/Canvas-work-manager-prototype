@@ -1,0 +1,16 @@
+const facts = {};
+const host = 'http://127.0.0.1:4320';
+const H = { 'content-type': 'application/json', 'x-prototype-user': 'user-demo' };
+const post = (p, b) => fetch(host + p, { method: 'POST', headers: H, body: JSON.stringify(b) });
+const seed = async s => { await post('/prototype/seed', { seed: s }); await post('/prototype/clock', { now: '2026-08-24T16:00:00.000Z' }); };
+const go = async p => { await page.goto('http://localhost:4200' + p); await page.waitForLoadState('networkidle').catch(() => {}); await page.waitForTimeout(300); };
+const tryit = async (k, fn) => { try { facts[k] = await fn(); } catch (e) { facts[k] = 'ERROR ' + String(e.message).slice(0, 200); } };
+await seed('nested-projects');
+await go('/projects/project-renovation');
+await tryit('archiveRootUi', async () => { await page.getByRole('button', { name: /More project actions/ }).click(); await page.waitForTimeout(300); const btns = await page.locator('main').first().getByRole('button').allInnerTexts(); await page.getByRole('button', { name: /archive project/i }).first().click(); await page.waitForTimeout(400); const text = (await page.locator('main').first().innerText()).match(/[^\n]*(sidebar|leave|confirm)[^\n]*/gi)?.slice(0, 4); const confirm = page.getByRole('button', { name: /confirm|yes|archive/i }).filter({ hasNotText: /Open/ }).last(); const label = await confirm.innerText(); await confirm.click(); await page.waitForTimeout(1200); return { menuButtons: btns.filter(b => /archive/i.test(b)), text, confirmLabel: label, alerts: (await page.getByRole('alert').allInnerTexts()).slice(0, 2) }; });
+await fetch(host + '/api/projects/project-kitchen', { method: 'PATCH', headers: H, body: JSON.stringify({ status: 'completed' }) });
+await fetch(host + '/api/projects/project-cabinets', { method: 'PATCH', headers: H, body: JSON.stringify({ status: 'completed' }) });
+await tryit('apiArchiveRoot', async () => { const r = await fetch(host + '/api/projects/project-renovation', { method: 'PATCH', headers: H, body: JSON.stringify({ status: 'archived' }) }); return r.status + ' ' + (await r.text()).slice(0, 120); });
+await go('/projects/project-renovation/pages/todos');
+await tryit('archivedRootTodos', async () => (await page.locator('main').first().innerText()).replace(/\n+/g, ' | ').slice(0, 600));
+return facts;

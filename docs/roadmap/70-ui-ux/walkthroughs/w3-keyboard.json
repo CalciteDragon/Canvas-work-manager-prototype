@@ -1,0 +1,685 @@
+{
+  "auditor": "w3-keyboard",
+  "inputMode": "keyboard",
+  "viewport": "1440x900",
+  "theme": "dark",
+  "personas": [
+    "user-demo"
+  ],
+  "evidenceRoot": "C:/Users/tyler/AppData/Local/Temp/claude/C--Users-tyler-Documents-VScode-Canvas-work-manager-prototype/73990d8f-7ae3-4ac3-87e9-809eff08ebc2/scratchpad/walk/w3-keyboard/",
+  "method": "After setup (seed + goto /app) only page.keyboard.press/type were used. After every key the focused element, its computed outline/box-shadow and rect were read with page.evaluate; focus rings were inspected in full-resolution clipped screenshots.",
+  "tasks": [
+    {
+      "task": "T01",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 25,
+      "surfaces": [
+        "Top bar",
+        "Sidebar",
+        "Sidebar inline New project form",
+        "Project workspace"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The sidebar '+' beside PROJECTS is the fourth tab stop and is named 'New project', so it is quick to find by keyboard, but the inline form does not take focus and creation drops focus to the page body.",
+      "steps": [
+        {
+          "expect": "First Tab lands on a skip link or the brand, then the sidebar.",
+          "action": "Tab x4",
+          "observed": "Theme button, Home, Projects toggle, New project '+'. No skip link. Browser default focus ring (outline:auto) visible on each.",
+          "mismatch": true,
+          "evidence": "t01-01-newproject-focus.png"
+        },
+        {
+          "expect": "One more Tab would go somewhere new inside the project area.",
+          "action": "Tab (overshoot) then Shift+Tab",
+          "observed": "Went to Calendar (empty project list), came back to New project.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Enter opens a name field with the caret in it.",
+          "action": "Enter",
+          "observed": "Inline form (Project name textbox + Create) appeared but focus stayed on the '+' button.",
+          "mismatch": true,
+          "evidence": null
+        },
+        {
+          "expect": "Tab reaches the name field.",
+          "action": "Tab, type 'Garage clear-out' (16 chars)",
+          "observed": "Textbox focused with visible white ring; text entered.",
+          "mismatch": false,
+          "evidence": "t01-02-input-focus.png"
+        },
+        {
+          "expect": "Enter creates the project and focus lands on the new project's heading or its sidebar entry.",
+          "action": "Enter",
+          "observed": "Project created and app navigated to /projects/project-…; document.activeElement became BODY (focus lost).",
+          "mismatch": true,
+          "evidence": "002-t01-03-after-create.png"
+        }
+      ],
+      "verification": "Reloaded the page: sidebar lists 'Garage clear-out' and the workspace h1 reads 'Garage clear-out'.",
+      "findings": [
+        "W3-001",
+        "W3-002",
+        "W3-003",
+        "W3-007",
+        "W3-008",
+        "W3-009"
+      ]
+    },
+    {
+      "task": "T02",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 27,
+      "surfaces": [
+        "Sidebar",
+        "Project navigation column",
+        "Add workstream dialog"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "I opened Kitchen expecting an add-workstream control near Kitchen; the only one is the '+' under the root's WORK heading, 13 tab stops after the Kitchen link. The dialog then defaults Parent to Home renovation, so Kitchen must be chosen explicitly.",
+      "steps": [
+        {
+          "expect": "Kitchen is reachable in the sidebar project tree.",
+          "action": "Tab x6, Enter",
+          "observed": "Kitchen page opened; focus stayed on the sidebar Kitchen link (good).",
+          "mismatch": false,
+          "evidence": "003-t02-01-kitchen.png"
+        },
+        {
+          "expect": "A control to add a workstream near Kitchen.",
+          "action": "Tab x13",
+          "observed": "Passed Cabinets, Garden, Calendar, Search, Settings, project nav root link, gear, breadcrumb, Home, Todos, Archive, Reflections, then 'Add workstream' (+). Focus ring changes from browser default to a 2px orange outline on the gear and +.",
+          "mismatch": true,
+          "evidence": "t02-02-addws-focus.png"
+        },
+        {
+          "expect": "Dialog opens with the name field focused.",
+          "action": "Enter",
+          "observed": "Dialog 'Add workstream' opened, Name focused with orange ring. Parent preset to 'Home renovation' although I was on Kitchen.",
+          "mismatch": true,
+          "evidence": "004-t02-03-dialog.png"
+        },
+        {
+          "expect": "Type name, Tab to Parent, ArrowDown picks Kitchen.",
+          "action": "type 'Lighting', Tab, ArrowDown",
+          "observed": "Parent became Kitchen; helper text updated to 'Inside Kitchen'.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Tab reaches Create.",
+          "action": "Tab x2, Enter",
+          "observed": "Cancel then Create; Enter created the workstream, dialog closed and focus returned to the Add workstream button. Inline notice 'Created \"Lighting\"…' appeared in the header.",
+          "mismatch": false,
+          "evidence": "005-t02-04-after.png"
+        }
+      ],
+      "verification": "Reloaded: project navigation and sidebar show Lighting indented under Kitchen.",
+      "findings": [
+        "W3-001",
+        "W3-002",
+        "W3-010"
+      ]
+    },
+    {
+      "task": "T03",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 69,
+      "surfaces": [
+        "Sidebar",
+        "Project navigation column",
+        "Project header",
+        "Canvas insertion point",
+        "Add a section dialog",
+        "Task List section",
+        "Task row",
+        "Task detail drawer"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "There is no 'add section' control visible until a hidden insertion point receives focus; I found 'Insert before Markdown' as the 20th tab stop after the Kitchen link. Each section adds Move/Collapse/Rename/Remove/Resize stops, so reaching anything in the canvas costs many Tabs.",
+      "steps": [
+        {
+          "expect": "Open Kitchen from the sidebar.",
+          "action": "Tab x6, Enter",
+          "observed": "Kitchen opened, focus kept on sidebar link.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "An 'Add section' control somewhere after the header.",
+          "action": "Tab x23",
+          "observed": "After sidebar, project nav, workstream links, disabled-looking 'Nothing to undo'/'Nothing to redo' (still focusable), More project actions, the 20th stop was 'Insert before Markdown' (a full-width line with a '+' that only appears on focus). I overshot by 3 into Move/Collapse/Rename Markdown.",
+          "mismatch": true,
+          "evidence": "t03-01-insert-focus.png"
+        },
+        {
+          "expect": "Go back to the insertion point.",
+          "action": "Shift+Tab x3",
+          "observed": "Back on 'Insert before Markdown'; orange outline clearly visible.",
+          "mismatch": false,
+          "evidence": "t03-01-insert-focus.png"
+        },
+        {
+          "expect": "Dialog with type choice focused.",
+          "action": "Enter",
+          "observed": "'Add a section' dialog; Section type select focused (Markdown preselected).",
+          "mismatch": false,
+          "evidence": "006-t03-02-dialog.png"
+        },
+        {
+          "expect": "Choose Task List, name it, create.",
+          "action": "ArrowDown, Tab, type 'Shopping', Enter",
+          "observed": "Section 'Shopping' created above Markdown; focus returned to the insertion point, which now sits below the new section.",
+          "mismatch": false,
+          "evidence": "007-t03-03-after-create.png"
+        },
+        {
+          "expect": "Shift+Tab reaches the new list's task field.",
+          "action": "Shift+Tab x3",
+          "observed": "Resize Shopping slider, Add task, then the 'Add a task' textbox (white ring visible).",
+          "mismatch": false,
+          "evidence": "t03-05-input-focus.png"
+        },
+        {
+          "expect": "Enter adds a task and keeps the caret in the field.",
+          "action": "type 'Paint', Enter, type 'Bulbs', Enter",
+          "observed": "Both tasks added; focus stayed in the field. Unrequested: a Task details drawer opened for the newly added task, narrowing the list.",
+          "mismatch": true,
+          "evidence": "008-t03-07-both-done.png"
+        },
+        {
+          "expect": "Tab reaches the first new task's checkbox.",
+          "action": "Tab x3 (overshoot to 'Paint, open details'), Shift+Tab",
+          "observed": "Add task button, Complete Paint checkbox, Paint title; back to checkbox.",
+          "mismatch": false,
+          "evidence": "t03-06-checkbox-focus.png"
+        },
+        {
+          "expect": "Space completes Paint.",
+          "action": "Space",
+          "observed": "Checked; label became 'Reopen task Paint'; focus kept.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Reach Bulbs checkbox.",
+          "action": "Tab x3, Space",
+          "observed": "Paint title, Delete task Paint, Complete Bulbs; Space checked it; progress rose to 75%.",
+          "mismatch": false,
+          "evidence": "008-t03-07-both-done.png"
+        }
+      ],
+      "verification": "Reloaded: checkboxes 'Reopen task Paint' and 'Reopen task Bulbs' are checked in the Shopping section. Separate verification on a fresh seed (focus set by script, not counted) confirmed that pressing Enter in a Task List's add field opens the details drawer for the new task.",
+      "findings": [
+        "W3-001",
+        "W3-011",
+        "W3-012"
+      ]
+    },
+    {
+      "task": "T04",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 61,
+      "surfaces": [
+        "Dashboard Today widget",
+        "Sidebar",
+        "Task List section",
+        "Task row",
+        "Task detail drawer"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "The dashboard lists the four overdue tasks but they are plain text, not focusable, so the keyboard user has to go through the sidebar and then tab through the whole canvas. After opening details, the drawer's fields come only after every remaining task row.",
+      "steps": [
+        {
+          "expect": "Overdue tasks on the dashboard are links to the task.",
+          "action": "(read) aria of main",
+          "observed": "Today › Overdue items are listitems with text and a time; no link or button. Tab never stops on them.",
+          "mismatch": true,
+          "evidence": "009-t04-00.png"
+        },
+        {
+          "expect": "Open Client migration from the sidebar.",
+          "action": "Tab x5, Enter",
+          "observed": "Workspace opened; focus kept on sidebar link.",
+          "mismatch": false,
+          "evidence": "010-t04-01-client.png"
+        },
+        {
+          "expect": "Reach the first overdue task title.",
+          "action": "Tab x30",
+          "observed": "26 stops to the 'Export legacy records, open details' title (sidebar 4, project nav 4, header 3, Markdown section 7, Task List section chrome 5, add field 2, checkbox 1); overshot by 3.",
+          "mismatch": true,
+          "evidence": null
+        },
+        {
+          "expect": "Back to the title.",
+          "action": "Shift+Tab x3",
+          "observed": "Title focused, white ring tight around text.",
+          "mismatch": false,
+          "evidence": "011-t04-02-title-focus.png"
+        },
+        {
+          "expect": "Enter opens details and the date field is near.",
+          "action": "Enter",
+          "observed": "Drawer opened beside the list; focus stayed on the title (by decision). Selected row loses its overdue red tint.",
+          "mismatch": false,
+          "evidence": "012-t04-03-drawer.png"
+        },
+        {
+          "expect": "Tab moves into the drawer.",
+          "action": "Tab x16",
+          "observed": "Tab first walked Delete + the 4 remaining rows (13 stops), then Close task details, Title, Priority.",
+          "mismatch": true,
+          "evidence": null
+        },
+        {
+          "expect": "Date field next.",
+          "action": "Tab",
+          "observed": "Native date input, month segment selected (mm/dd/yyyy).",
+          "mismatch": false,
+          "evidence": "013-t04-04-date-focus.png"
+        },
+        {
+          "expect": "Typing segments sets the date and saves.",
+          "action": "type '0901'",
+          "observed": "Value 2026-09-01; row immediately showed 'Due 2026-09-01' without Enter or blur; Undo labelled 'Updated \"Export legacy records\"'.",
+          "mismatch": false,
+          "evidence": null
+        }
+      ],
+      "verification": "Reloaded: first task row reads 'Due 2026-09-01'.",
+      "findings": [
+        "W3-001",
+        "W3-011",
+        "W3-013",
+        "W3-014",
+        "W3-015"
+      ]
+    },
+    {
+      "task": "T05",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 52,
+      "surfaces": [
+        "Sidebar",
+        "Project navigation column",
+        "Section chrome",
+        "Section removal/recovery notice",
+        "Archive page"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "'Remove section Markdown' is announced clearly once focus reaches the section, and focus moves straight to the notice's 'Open Archive'. Getting it back by keyboard means a route change that drops focus, a full re-walk of the project navigation, and a Restore control placed after the row's links.",
+      "steps": [
+        {
+          "expect": "Open Kitchen and Tab to the first section's remove control.",
+          "action": "Tab x6, Enter, Tab x25",
+          "observed": "Reached 'Remove section Markdown' at stop 24, overshot one to 'Edit Markdown for Markdown'.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Back to Remove.",
+          "action": "Shift+Tab",
+          "observed": "Remove (trash) focused with orange outline.",
+          "mismatch": false,
+          "evidence": "t05-01-remove-focus.png"
+        },
+        {
+          "expect": "Enter removes it and offers a way back.",
+          "action": "Enter",
+          "observed": "Section removed; floating notice 'Removed the Markdown section. Undo is in the header.' with focus on 'Open Archive'. The notice overlays the Progress section's content.",
+          "mismatch": false,
+          "evidence": "014-t05-02-after-remove.png"
+        },
+        {
+          "expect": "Open Archive shows the removed section with a restore action, focus on the page.",
+          "action": "Enter",
+          "observed": "Navigated to Home renovation Archive; activeElement = BODY.",
+          "mismatch": true,
+          "evidence": "015-t05-03-archive.png"
+        },
+        {
+          "expect": "Tab reaches the Markdown item's restore action.",
+          "action": "Tab x16",
+          "observed": "Tab restarted at the project navigation (root link, gear, 4 pages, Add workstream, 3 workstreams), header Undo/Redo/More, then 'Work canvas' and 'Open Kitchen history' links, then 'Restore saved content for Markdown' (top right of the row).",
+          "mismatch": true,
+          "evidence": "016-t05-04-restore-focus.png"
+        },
+        {
+          "expect": "Enter restores and keeps focus in the list.",
+          "action": "Enter",
+          "observed": "Restored; header notice 'Restored the Markdown section was recorded in Kitchen's history.'; activeElement = BODY.",
+          "mismatch": true,
+          "evidence": "017-t05-05-after-restore.png"
+        }
+      ],
+      "verification": "Opened /projects/project-kitchen: section headings now include Markdown (at the end of the page, as the archive row said).",
+      "findings": [
+        "W3-001",
+        "W3-003",
+        "W3-004",
+        "W3-011",
+        "W3-018",
+        "W3-019"
+      ]
+    },
+    {
+      "task": "T06",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 62,
+      "surfaces": [
+        "Sidebar",
+        "Project navigation column",
+        "Section chrome",
+        "Markdown section and source editor"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The 'Edit' button is visible and well named ('Edit Markdown for Markdown'), but it is the 25th stop after the Kitchen link because six chrome stops precede it. The editor is fully keyboard operable and focus returns to Edit after Save.",
+      "steps": [
+        {
+          "expect": "Reach the Markdown section's Edit button.",
+          "action": "Tab x6, Enter, Tab x26",
+          "observed": "Edit was stop 25; overshot to 'Resize Markdown' slider.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Edit opens a text editor with focus inside.",
+          "action": "Shift+Tab, Enter",
+          "observed": "Textarea 'Markdown source for Markdown' focused with orange outline; Preview / Save / Cancel below.",
+          "mismatch": false,
+          "evidence": "018-t06-01-editor.png"
+        },
+        {
+          "expect": "Replace text and reach Save.",
+          "action": "Ctrl+A, type 'Order appliances first.' (23), Tab x2",
+          "observed": "Preview then Save focused; orange ring visible.",
+          "mismatch": false,
+          "evidence": "t06-02-save-focus.png"
+        },
+        {
+          "expect": "Enter saves and returns to the rendered section.",
+          "action": "Enter",
+          "observed": "Rendered text updated; focus returned to Edit.",
+          "mismatch": false,
+          "evidence": "019-t06-03-saved.png"
+        }
+      ],
+      "verification": "Reloaded: 'Order appliances first.' present once on the Kitchen page.",
+      "findings": [
+        "W3-001",
+        "W3-011"
+      ]
+    },
+    {
+      "task": "T07",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 36,
+      "surfaces": [
+        "Canvas insertion point",
+        "Section creation dialog",
+        "Shortcut picker",
+        "Shortcut frame"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Nothing says 'shortcut' until the Add a section dialog is open; the 'Add shortcut' button sits before the focused Section type field, so it is reached with Shift+Tab. In the picker every button is just 'Add'.",
+      "steps": [
+        {
+          "expect": "Insertion point opens the add dialog.",
+          "action": "Tab x6, Enter, Tab x20, Enter",
+          "observed": "'Add a section' dialog, Section type focused.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Some option for 'shortcut' in the dialog.",
+          "action": "Shift+Tab",
+          "observed": "'Add shortcut' button in the dialog header.",
+          "mismatch": false,
+          "evidence": "020-t07-01-addshortcut-focus.png"
+        },
+        {
+          "expect": "A list of sections elsewhere in the project.",
+          "action": "Enter",
+          "observed": "Dialog switches to 'Add a shortcut' list of 9 sources; focus on 'Add a section' (toggle back).",
+          "mismatch": false,
+          "evidence": "021-t07-02-picker.png"
+        },
+        {
+          "expect": "Tab to the Task List from Home renovation · Home.",
+          "action": "Tab x5",
+          "observed": "Five buttons all announced as 'Add'; target row identifiable only visually. Browser default ring on Add vs orange on other dialog buttons.",
+          "mismatch": true,
+          "evidence": "022-t07-03-add-focus.png"
+        },
+        {
+          "expect": "Enter adds the shortcut and returns focus to where I started.",
+          "action": "Enter",
+          "observed": "Shortcut 'Task List (Home renovation)' added at the top of the canvas; focus returned to 'Insert before Markdown', now at y=1008, outside the 900 px viewport; no visible focus on screen.",
+          "mismatch": true,
+          "evidence": "023-t07-04-after.png"
+        }
+      ],
+      "verification": "Reloaded: Kitchen headings start with the 'Task List (Home renovation)' shortcut, then Markdown.",
+      "findings": [
+        "W3-002",
+        "W3-011",
+        "W3-016",
+        "W3-017"
+      ]
+    },
+    {
+      "task": "T08",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 26,
+      "surfaces": [
+        "Sidebar",
+        "Project navigation column",
+        "Page settings panel"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The gear is named 'Project page settings for Home renovation' and is the second stop in the project navigation, so it is found quickly; the panel opens below the four page links, and each checkbox toggle throws focus away.",
+      "steps": [
+        {
+          "expect": "Open Home renovation and reach a settings control.",
+          "action": "Tab x5, Enter, Tab x8",
+          "observed": "Gear button focused (orange outline).",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Enter opens page settings with focus inside.",
+          "action": "Enter",
+          "observed": "'Pages' panel opened beneath the page links; focus stayed on the gear (aria-expanded=true).",
+          "mismatch": false,
+          "evidence": "024-t08-01-settings.png"
+        },
+        {
+          "expect": "Tab reaches the Reflections toggle.",
+          "action": "Tab x7",
+          "observed": "Home, Todos, Archive, Reflections links, then Show Todos, Show Archive, Show Reflections checkboxes (default ring visible).",
+          "mismatch": false,
+          "evidence": "t08-02-checkbox-focus.png"
+        },
+        {
+          "expect": "Space hides Reflections, focus stays on the checkbox.",
+          "action": "Space",
+          "observed": "Reflections link removed from navigation; activeElement = BODY.",
+          "mismatch": true,
+          "evidence": "025-t08-03-hidden.png"
+        },
+        {
+          "expect": "Find the checkbox again.",
+          "action": "Tab, Shift+Tab",
+          "observed": "Tab went to Add workstream (after the panel); Shift+Tab back to Show Reflections page.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Space re-enables it.",
+          "action": "Space",
+          "observed": "Reflections link back; activeElement = BODY again.",
+          "mismatch": true,
+          "evidence": null
+        }
+      ],
+      "verification": "Reloaded: project navigation links are Home renovation, Home, Todos, Archive, Reflections, Kitchen, Cabinets, Garden.",
+      "findings": [
+        "W3-005"
+      ]
+    },
+    {
+      "task": "T09",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 36,
+      "surfaces": [
+        "Sidebar",
+        "Project navigation column",
+        "Archive page"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "'Archive' in the project navigation is an obvious first guess. Following it drops focus, Tab restarts at the top of the project navigation, and the Restore button is small and placed after the row's links.",
+      "steps": [
+        {
+          "expect": "Open Home renovation, then its Archive page.",
+          "action": "Tab x5, Enter, Tab x11, Enter",
+          "observed": "Archive page opened; activeElement = BODY.",
+          "mismatch": true,
+          "evidence": "026-t09-01-archive.png"
+        },
+        {
+          "expect": "Tab reaches the first archived item.",
+          "action": "Tab x14",
+          "observed": "Restarted at project navigation root link; 13 stops of navigation/header, then 'Work canvas' link of Legacy attic.",
+          "mismatch": true,
+          "evidence": null
+        },
+        {
+          "expect": "Reach Restore.",
+          "action": "Tab x3",
+          "observed": "'Open Legacy attic history', 'Restore as' select (active), 'Restore Legacy attic' (43x20 px).",
+          "mismatch": false,
+          "evidence": "t09-02-restore-focus.png"
+        },
+        {
+          "expect": "Enter restores and focus stays in the list.",
+          "action": "Enter",
+          "observed": "'Reactivated \"Legacy attic\"' notice; Legacy attic and Legacy shelving appear in navigation; activeElement = BODY.",
+          "mismatch": true,
+          "evidence": "027-t09-03-after.png"
+        }
+      ],
+      "verification": "Reloaded: sidebar lists Legacy attic and Legacy shelving under Home renovation; archive shows 2 items.",
+      "findings": [
+        "W3-001",
+        "W3-003",
+        "W3-004",
+        "W3-008",
+        "W3-018"
+      ]
+    },
+    {
+      "task": "T10",
+      "persona": "user-demo",
+      "outcome": "blocked",
+      "clicks": 0,
+      "keystrokes": 34,
+      "surfaces": [
+        "Sidebar",
+        "Settings",
+        "Settings › AI & Agents",
+        "Development panel (prototype tooling, checked only as last resort)"
+      ],
+      "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Settings › AI & Agents is easy to find and clearly shows each agent's permissions as checkboxes. There is no way in the product to connect a new agent; the development panel only lists existing tokens.",
+      "steps": [
+        {
+          "expect": "Settings in the sidebar.",
+          "action": "Tab x9, Enter",
+          "observed": "/settings with 'AI & Agents' and 'Archived projects' links; focus kept on sidebar Settings.",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "AI & Agents shows permissions and a connect button.",
+          "action": "Tab, Enter",
+          "observed": "/settings/agents lists Claude, Cursor, Retired assistant with permission checkboxes and Revoke; activeElement = BODY after the route change.",
+          "mismatch": true,
+          "evidence": "028-t10-01-agents.png"
+        },
+        {
+          "expect": "Somewhere on the page a 'Connect agent' control.",
+          "action": "Tab x20",
+          "observed": "Only 14 checkboxes and 2 Revoke buttons, then focus wraps to BODY and the top bar. Checkbox and Revoke names repeat per agent without the agent name.",
+          "mismatch": true,
+          "evidence": null
+        },
+        {
+          "expect": "Maybe the development panel can add one (dead end).",
+          "action": "Ctrl+Shift+D, Escape",
+          "observed": "Panel's Agent connection region is read-only (Copy token). Escape closed it and focus went to BODY.",
+          "mismatch": true,
+          "evidence": null
+        }
+      ],
+      "verification": "Seeing permissions: done (agent list visible). Connecting a new agent: not possible; a complete Tab pass of /settings/agents found no such control.",
+      "findings": [
+        "W3-003",
+        "W3-017",
+        "W3-020"
+      ]
+    }
+  ],
+  "probes": [
+    {
+      "what": "Add workstream dialog focus containment",
+      "observed": "Tab cycles Name, Parent, Cancel, Create and wraps to Name; Escape closes and returns focus to Add workstream.",
+      "findings": []
+    },
+    {
+      "what": "More project actions panel",
+      "observed": "Enter opens the inline panel, focus stays on the trigger; Escape closes it but focus goes to BODY.",
+      "evidence": "029-probe-more-menu.png, 030-probe-more-escape.png",
+      "findings": [
+        "W3-006"
+      ]
+    },
+    {
+      "what": "Keyboard section move",
+      "observed": "Enter on Move Markdown then ArrowDown moved the section; a status region announced \"Moved Markdown to position 2 of 6.\"; focus stayed on the grip and remained visible.",
+      "evidence": "031-probe-move.png",
+      "findings": []
+    }
+  ],
+  "keystrokeTotal": 428
+}

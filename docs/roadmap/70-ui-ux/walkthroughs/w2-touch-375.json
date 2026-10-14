@@ -1,0 +1,683 @@
+{
+  "auditor": "w2-touch-375",
+  "inputMode": "touch",
+  "viewport": "375x812",
+  "theme": "light",
+  "personas": [
+    "user-demo"
+  ],
+  "notes": "375x812 touch phone (hasTouch, isMobile, pointer:coarse, hover:none), prefers-color-scheme light. The app loaded dark on every seed/reload; switching to light with the top-bar theme button was done as setup and is not counted. The `clicks` field counts TAPS (locator.tap()); picking an option in a native <select> counts as one tap after the tap that opens it. Scrolling (swipes, done with scrollIntoViewIfNeeded) is not counted as a tap. Typing was pressSequentially into the focused field; keystrokes = characters typed. Screenshot paths are under S/walk/w2-touch/ where S is the session scratchpad.",
+  "tasks": [
+    {
+      "task": "T01",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 4,
+      "keystrokes": 16,
+      "surfaces": [
+        "Dashboard /app",
+        "Top bar Menu",
+        "Phone navigation drawer",
+        "Inline New project form",
+        "Project workspace (new project)"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The empty dashboard ('No projects are active right now.') offers no way to create anything, so the only lead is the Menu button. Inside the drawer the '+' beside PROJECTS is a small glyph with no text, but it is the only candidate. The form that opens is an unlabelled grey box with focus left on the '+'.",
+      "steps": [
+        {
+          "expect": "Dashboard offers a create action, or Menu holds navigation including New project",
+          "action": "look at /app (no tap)",
+          "observed": "Seven widgets, Active Projects says 'No projects are active right now.' with no action. Only Menu, theme button and avatar in the top bar.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/002-t01-01-light.png"
+        },
+        {
+          "expect": "Menu opens a navigation drawer with Projects and a New project control",
+          "action": "tap Menu (64x44)",
+          "observed": "Drawer 239px wide opens from left: Home, PROJECTS with a '+', 'No projects yet', Calendar, Search, Settings. Background is inert.",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/003-t01-02-menu.png"
+        },
+        {
+          "expect": "'+' opens a name field with the keyboard up",
+          "action": "tap '+' (New project, 44x44 target, glyph ~8px)",
+          "observed": "An empty grey input and a Create button appear, no visible label or placeholder; focus stays on the '+' button, so no keyboard would open.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/004-t01-03-newform.png"
+        },
+        {
+          "expect": "Tapping the box lets me type",
+          "action": "tap the input (140x44)",
+          "observed": "Field focused",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Name appears in the field",
+          "action": "type 'Garage clear-out'",
+          "observed": "Text fits the 140px field just barely",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/005-t01-04-typed.png"
+        },
+        {
+          "expect": "Project is created, appears in the tree, maybe opens",
+          "action": "tap Create (55x44)",
+          "observed": "Drawer closes and the new project's workspace opens: header 'Garage clear-out', Planning, Progress Not available, Undo 'Created \"Garage clear-out\"', a 'Flow layout' prototype notice, and an empty canvas with Add a section.",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/006-t01-05-created.png"
+        }
+      ],
+      "verification": "Reloaded the page, opened Menu: the drawer tree lists 'Garage clear-out' under PROJECTS. (Reload also reverted the theme to dark.)",
+      "findings": [
+        "W2-001",
+        "W2-002",
+        "W2-003"
+      ]
+    },
+    {
+      "task": "T02",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 7,
+      "keystrokes": 8,
+      "surfaces": [
+        "Top bar Menu",
+        "Phone navigation drawer",
+        "Kitchen workspace",
+        "Show project navigation strip",
+        "Project navigation column",
+        "Add workstream dialog"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "On Kitchen I first scanned the header and the canvas for an add-workstream control; the project navigation is collapsed behind a thin 'Show project navigation' text strip above the header. Once open, Work's '+' was the obvious control, but the dialog defaulted the parent to Home renovation even though I was on Kitchen.",
+      "steps": [
+        {
+          "expect": "Menu shows the project tree with Home renovation > Kitchen",
+          "action": "tap Menu",
+          "observed": "Tree: Home renovation > Kitchen > Cabinets, Garden",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/008-t02-01-menu.png"
+        },
+        {
+          "expect": "Kitchen opens and has a way to add a workstream",
+          "action": "tap Kitchen (199x44)",
+          "observed": "Kitchen workspace; header, Flow layout notice, sections. No add-workstream control visible; no visible link back to Home renovation in the header.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/009-t02-02-kitchen.png"
+        },
+        {
+          "expect": "Project navigation reveals workstreams and an add control",
+          "action": "tap 'Show project navigation' (375x38.5 text strip)",
+          "observed": "Column expands above the header: Home renovation (gear), breadcrumb 'Home renovation' again, Home/Todos/Archive/Reflections, WORK with '+', Kitchen > Cabinets, Garden ✓. Workstream rows are 30.5px tall; breadcrumb link is 17px tall.",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/010-t02-03-projnav.png"
+        },
+        {
+          "expect": "'+' opens a dialog to name the workstream and pick Kitchen as parent",
+          "action": "tap '+' Add workstream (44x44)",
+          "observed": "Modal 'Add workstream': Name (focused), Parent select defaulting to 'Home renovation', 'Inside Home renovation', Cancel, Create.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/011-t02-04-addws.png"
+        },
+        {
+          "expect": "Name typed",
+          "action": "type 'Lighting'",
+          "observed": "ok",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Native picker opens",
+          "action": "tap Parent select (293x44)",
+          "observed": "picker opens",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Kitchen chosen; note updates",
+          "action": "tap option 'Kitchen'",
+          "observed": "'Inside Kitchen'",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Workstream created; maybe opens it (as New project did)",
+          "action": "tap Create (69x44)",
+          "observed": "Dialog closes; Lighting appears under Kitchen in the navigation column; the page stays on Kitchen with no other confirmation.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/012-t02-05-created.png"
+        }
+      ],
+      "verification": "Reloaded Kitchen (project navigation was collapsed again), tapped Show project navigation: Lighting is listed under Kitchen.",
+      "findings": [
+        "W2-004",
+        "W2-005",
+        "W2-006",
+        "W2-007"
+      ]
+    },
+    {
+      "task": "T03",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 13,
+      "keystrokes": 43,
+      "surfaces": [
+        "Top bar Menu",
+        "Phone navigation drawer",
+        "Kitchen Work canvas",
+        "Insertion point",
+        "Add a section dialog",
+        "Task List section 'Shopping'",
+        "Task row",
+        "Task details (inline)",
+        "Recent Activity section"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The blue '+' insertion points between sections are visible on touch without hover, so adding a section was quick. After Create the new section was added off-screen with focus dropped to the page body, and each task added pushed the list down (Recent Activity above it grew) and opened a long inline Task details panel I had not asked for.",
+      "steps": [
+        {
+          "expect": "Kitchen opens via Menu (known from T02)",
+          "action": "tap Menu, tap Kitchen (2 taps)",
+          "observed": "Kitchen workspace",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "An add control at the end of the canvas",
+          "action": "swipe to bottom (not counted)",
+          "observed": "Blue lines with a '+' circle (44x44 icon in a 327x16 button) between every section and at the end. Timeline rows wrap awkwardly ('2026-09-08 → 2026-09-' / '18'); Recent Activity's delete button wraps to a second line under the drag/collapse buttons.",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/013-t03-01-end.png"
+        },
+        {
+          "expect": "Section creation dialog",
+          "action": "tap 'Insert at the end' +",
+          "observed": "Modal 'Add a section': Add shortcut, Section type (Markdown default), Name (optional), Cancel, Create",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/014-t03-02-dialog.png"
+        },
+        {
+          "expect": "Picker with Task List",
+          "action": "tap Section type select, tap 'Task List' (2 taps)",
+          "observed": "Task List selected",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Name field takes text",
+          "action": "tap Name field (y=437), type 'Shopping'",
+          "observed": "ok. With the field focused, Cancel/Create sit at y≈497-541, inside the bottom 300px where an on-screen keyboard would be.",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/015-t03-03-filled.png"
+        },
+        {
+          "expect": "Section created and shown to me",
+          "action": "tap Create",
+          "observed": "Dialog closes; viewport unchanged, focus on BODY; the new Shopping section is below the fold. Recent Activity now reads 'Section added “Kitchen”'.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/016-t03-04-created.png"
+        },
+        {
+          "expect": "Find Shopping by scrolling",
+          "action": "swipe down (not counted)",
+          "observed": "Shopping: Task title input (197x37.5) and Add task (84x40.5) at y≈650, bottom of the screen",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/017-t03-05-shopping.png"
+        },
+        {
+          "expect": "Task added to the list",
+          "action": "tap Task title, type 'Buy light bulbs', tap Add task (2 taps)",
+          "observed": "Recent Activity above grew by one entry and pushed Shopping below the fold; the task list was not visible after adding.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/018-t03-06-task1.png"
+        },
+        {
+          "expect": "Second task added",
+          "action": "swipe (not counted), tap Task title, type 'Fit pendant fixtures', tap Add task (2 taps)",
+          "observed": "Both tasks listed; the newest task is selected (blue) and a 'TASK DETAILS' panel with Title, Priority, Due date... opens inline below the list, making the section ~1019px tall. Panel's Close link is 36x22.5.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/019-t03-07-task2.png"
+        },
+        {
+          "expect": "Task marked done",
+          "action": "tap checkbox 'Complete Buy light bulbs' (44x44)",
+          "observed": "Checked, title struck through, row turns green",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/020-t03-08-done1.png"
+        },
+        {
+          "expect": "Second task marked done",
+          "action": "tap checkbox 'Complete Fit pendant fixtures'",
+          "observed": "Checked",
+          "mismatch": false,
+          "evidence": null
+        }
+      ],
+      "verification": "Reloaded: Shopping shows both tasks checked ('Reopen task ...'); Kitchen Progress section reads 75%, 3 of 4 tasks complete. Separately reseeded and repeated adding tasks to confirm the details panel opens on every add (and read task-list-store.ts: create sets selectedTaskId to the new task).",
+      "findings": [
+        "W2-008",
+        "W2-009",
+        "W2-010",
+        "W2-011",
+        "W2-012",
+        "W2-013",
+        "W2-005"
+      ]
+    },
+    {
+      "task": "T04",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 5,
+      "keystrokes": "unmeasured (date set with fill() on a native date input)",
+      "surfaces": [
+        "Dashboard Today widget",
+        "Phone navigation drawer",
+        "Client migration Work canvas",
+        "Task List rows",
+        "Task details panel (inline)"
+      ],
+      "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "The dashboard's Today widget lists the overdue tasks in bordered pink cards that look tappable but do nothing. Going through the project works, but tapping a task title only highlights the row: the details panel opens about 370px below the fold under all five tasks, with nothing on screen saying so.",
+      "steps": [
+        {
+          "expect": "Overdue tasks visible on the dashboard; tapping one opens it",
+          "action": "look at /app",
+          "observed": "Today › OVERDUE lists four Client migration tasks in pink bordered cards; titles squeezed to 3 lines and the project/date text runs past the right edge of each card (date ends at x≈337-371 while the card ends at 302)",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/023-t04-01-taptoday.png"
+        },
+        {
+          "expect": "Tapping 'Export legacy records' opens the task",
+          "action": "tap 'Export legacy records' in Today",
+          "observed": "Nothing happens; the rows are plain text, not links",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/023-t04-01-taptoday.png"
+        },
+        {
+          "expect": "Menu lists Client migration",
+          "action": "tap Menu",
+          "observed": "Drawer with Client migration, Life admin",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Project opens showing its tasks",
+          "action": "tap Client migration in the drawer",
+          "observed": "Workspace: header, Flow layout notice, Markdown, Task List with four 'Overdue' tasks (red) and one done",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/025-t04-02-cm.png"
+        },
+        {
+          "expect": "Tapping a task's title opens its details with a due date",
+          "action": "swipe to the list (not counted), tap 'Export legacy records' title (147x44)",
+          "observed": "Row turns blue (selected); nothing else visible changes. The details panel (complementary 'Export legacy records') was rendered at y=1181, below the remaining four rows.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/027-t04-04-details.png"
+        },
+        {
+          "expect": "Find the details",
+          "action": "swipe down (not counted)",
+          "observed": "TASK DETAILS: Title, Priority 'high', Due date shown as 08/18/2026, Estimate, 'Status in_progress', 'Project project-client-migration'. No Save button.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/028-t04-05-panel.png"
+        },
+        {
+          "expect": "Date picker; new date saves",
+          "action": "tap Due date (243x39.5 at y=508) and set 2026-09-01",
+          "observed": "Field shows 09/01/2026; the row (off-screen) now reads Due 2026-09-01. No saved/confirmation message in view.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/029-t04-06-set.png"
+        }
+      ],
+      "verification": "Reloaded: 'Export legacy records' row reads 'Due 2026-09-01' and no longer shows Overdue (3 Overdue labels remain).",
+      "findings": [
+        "W2-014",
+        "W2-015",
+        "W2-016",
+        "W2-017",
+        "W2-018",
+        "W2-019"
+      ]
+    },
+    {
+      "task": "T05",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 4,
+      "keystrokes": 0,
+      "surfaces": [
+        "Phone navigation drawer",
+        "Kitchen Work canvas",
+        "Section chrome (remove)",
+        "Section removal notice",
+        "Project header history (Undo)"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The red bin on every section header is visible without hover and removal is immediate. Getting it back: the notice says 'Undo is in the header' but offers no Undo itself; the header Undo is an unlabelled arrow whose description is only a hover tooltip, so I tapped it on trust.",
+      "steps": [
+        {
+          "expect": "Kitchen via Menu",
+          "action": "tap Menu, tap Kitchen (2 taps)",
+          "observed": "Kitchen workspace",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Bin removes the Markdown section, perhaps after a confirmation",
+          "action": "tap 'Remove section Markdown' (44x44)",
+          "observed": "Removed at once; floating notice at the bottom 'Removed the Markdown section. Undo is in the header.' with Open Archive / Dismiss, covering the Task List add row; focus on Open Archive",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/030-t05-01-removed.png"
+        },
+        {
+          "expect": "An Undo in the notice; failing that, a labelled Undo in the header",
+          "action": "tap header ↶ (44x44, no visible text)",
+          "observed": "Markdown section returns in place; header shows inline 'Undid: Removed the Markdown section.' with a link-styled Dismiss (50x22.5); the floating notice is gone",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/031-t05-02-undone.png"
+        }
+      ],
+      "verification": "Reloaded Kitchen: Markdown section present; header Redo now reads 'Redo: Removed the Markdown section'.",
+      "findings": [
+        "W2-020",
+        "W2-021",
+        "W2-012"
+      ]
+    },
+    {
+      "task": "T06",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 5,
+      "keystrokes": "17 typed + one correction set with fill() (unmeasured)",
+      "surfaces": [
+        "Phone navigation drawer",
+        "Kitchen Work canvas",
+        "Markdown section",
+        "Markdown source editor"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The Markdown section has a visible Edit button. The editor then opens near the bottom of the screen: the text box runs off the bottom and Save is below the fold, so I had to scroll to find how to save.",
+      "steps": [
+        {
+          "expect": "Kitchen via Menu",
+          "action": "tap Menu, tap Kitchen (2 taps)",
+          "observed": "Kitchen workspace; Markdown section's Edit at y=691",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Editor opens with the text visible and a Save control",
+          "action": "tap Edit (51x44)",
+          "observed": "Textarea 'Markdown source for Markdown' focused at y=634, 206px tall, extending below the screen; Preview/Save/Cancel at y=852 (off-screen)",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/032-t06-01-edit.png"
+        },
+        {
+          "expect": "Caret goes to the end of the text",
+          "action": "tap inside the textarea below the text, type ' Order by Friday.'",
+          "observed": "Text was inserted mid-word ('ord Order by Friday.ered.'). Treated as a rig artefact of headless tap caret placement, not filed; corrected by replacing the value with fill() to the intended text.",
+          "mismatch": true,
+          "evidence": null
+        },
+        {
+          "expect": "Find Save",
+          "action": "swipe down (not counted)",
+          "observed": "Preview, Save, Cancel — three identical outlined buttons",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/033-t06-02-typed.png"
+        },
+        {
+          "expect": "Saved and back to rendered text",
+          "action": "tap Save (57x44)",
+          "observed": "Rendered text shows the new sentence; focus returns to Edit",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/034-t06-03-saved.png"
+        }
+      ],
+      "verification": "Reloaded: Markdown section reads 'Appliances and finishes before cabinets are ordered. Order by Friday.'",
+      "findings": [
+        "W2-022",
+        "W2-023",
+        "W2-034"
+      ]
+    },
+    {
+      "task": "T07",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 5,
+      "keystrokes": 0,
+      "surfaces": [
+        "Phone navigation drawer",
+        "Kitchen Work canvas",
+        "Insertion point",
+        "Add a section dialog",
+        "Shortcut picker",
+        "Shortcut frame"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "I had seen 'Add shortcut' in the Add a section dialog during T03, so the route was quick. Choosing a source was guesswork: rows are named only 'Markdown', 'Task List' etc. with a location line.",
+      "steps": [
+        {
+          "expect": "Kitchen via Menu; '+' at the end opens the dialog with Add shortcut",
+          "action": "tap Menu, tap Kitchen, swipe (not counted), tap 'Insert at the end' + (3 taps)",
+          "observed": "Add a section dialog",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "A list of sections from elsewhere in Home renovation",
+          "action": "tap 'Add shortcut' (112x44)",
+          "observed": "'Add a shortcut' with nine rows named by type only (Markdown, Progress, Recent Activity, Reflections, Task List, Timeline, Reflections, Markdown, Task List) and locations ('Home renovation · Home', 'Home renovation / Garden · Work canvas', one truncated 'Reflecti…'); Back and Cancel at the bottom",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/035-t07-01-picker.png"
+        },
+        {
+          "expect": "The chosen section appears on Kitchen",
+          "action": "tap Add on 'Task List — Home renovation · Home' (53x40.5)",
+          "observed": "Dialog closes; focus BODY; nothing visible changes — the frame is added at the end, below the fold",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/036-t07-02-added.png"
+        },
+        {
+          "expect": "Find the shortcut",
+          "action": "swipe down (not counted)",
+          "observed": "Frame 'Task List (Home renovation)', 'Home renovation · Home', six task cards without checkboxes, 'Open source' link (73x19.5)",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/037-t07-03-frame.png"
+        }
+      ],
+      "verification": "Reloaded Kitchen: region 'Task List (Home renovation)' still present.",
+      "findings": [
+        "W2-024",
+        "W2-025",
+        "W2-008",
+        "W2-012"
+      ]
+    },
+    {
+      "task": "T08",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 8,
+      "keystrokes": 0,
+      "surfaces": [
+        "Phone navigation drawer",
+        "Home renovation workspace",
+        "More project actions panel",
+        "Show project navigation strip",
+        "Project page settings (Pages panel)"
+      ],
+      "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "On a phone the project's pages are not visible at all until 'Show project navigation' is opened. I looked in ⋯ first (project settings live there) and found rename/status/date/archive but nothing about pages. The setting is behind the strip and then an unlabelled gear.",
+      "steps": [
+        {
+          "expect": "Home renovation via Menu",
+          "action": "tap Menu, tap Home renovation (2 taps)",
+          "observed": "Root workspace; no page tabs visible",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/038-t08-01-root.png"
+        },
+        {
+          "expect": "⋯ holds project settings including pages",
+          "action": "tap ⋯ More project actions (39x44)",
+          "observed": "Inline panel: Name/Rename, Description/Save, status buttons, Target date/Set/Clear, Open Archive, Archive Project; all controls 33px tall; no page settings",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/039-t08-02-more.png"
+        },
+        {
+          "expect": "Close the panel",
+          "action": "tap ⋯ again",
+          "observed": "Panel closes",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Project navigation lists pages",
+          "action": "tap 'Show project navigation'",
+          "observed": "Home, Todos, Archive, Reflections links and a gear glyph next to 'Home renovation'",
+          "mismatch": false,
+          "evidence": null
+        },
+        {
+          "expect": "Gear opens page settings",
+          "action": "tap gear 'Project page settings for Home renovation' (44x44, glyph ~10px)",
+          "observed": "Pages panel: 'Choose which optional views appear in this project.' Home (Required, disabled), Todos, Archive, Reflections checkboxes (13x13 box, 27.5px label rows)",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/042-t08-04-gear.png"
+        },
+        {
+          "expect": "Reflections disappears from the page list",
+          "action": "tap 'Show Reflections page' checkbox",
+          "observed": "Unchecked; Reflections link removed immediately; no message",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/043-t08-05-hidden.png"
+        },
+        {
+          "expect": "Reflections returns",
+          "action": "tap the checkbox again",
+          "observed": "Checked; Reflections link back",
+          "mismatch": false,
+          "evidence": null
+        }
+      ],
+      "verification": "Reloaded: Reflections link listed. Separately (verification, not counted) hid it, reloaded (link absent), and opened /projects/project-renovation/pages/reflections directly: redirected to Home with 'The Reflections page is switched off for this project. Showing Home instead.' and 'Enable Reflections' (045-t08-x-hiddenpage.png).",
+      "findings": [
+        "W2-026",
+        "W2-027",
+        "W2-005"
+      ]
+    },
+    {
+      "task": "T09",
+      "persona": "user-demo",
+      "outcome": "completed",
+      "clicks": 5,
+      "keystrokes": 0,
+      "surfaces": [
+        "Phone navigation drawer",
+        "Home renovation workspace",
+        "Project navigation",
+        "Project Archive page"
+      ],
+      "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Archive is a page in project navigation (once the strip is opened), so it was easy to reach. The list itself is hard to read on a phone: the archived workstream's row collapses into a one-word column. Restore is a small text link and gives no confirmation.",
+      "steps": [
+        {
+          "expect": "Home renovation via Menu; Archive page in project navigation",
+          "action": "tap Menu, Home renovation, Show project navigation, Archive (4 taps)",
+          "observed": "Archive page: 'PROJECT RECOVERY / Archive', explainer, '3 items': Legacy attic (Workstream), Markdown (Section), Old permit copy (Task)",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/046-t09-01-archive.png"
+        },
+        {
+          "expect": "Readable rows with Restore",
+          "action": "swipe (not counted)",
+          "observed": "Legacy attic row squeezed: 'Leg…', 'Works/tream', 'Archiv/ed/directl/y'; Restore links 19.5px tall; Restore as select 29px",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/047-t09-02-list.png, S/walk/w2-touch/048-t09-03-rows.png"
+        },
+        {
+          "expect": "Task restored with a confirmation",
+          "action": "tap Restore on 'Old permit copy' (43x19.5)",
+          "observed": "Row disappears, '2 items'; no message; focus BODY; header Undo now 'Undo: Restored \"Old permit copy\"'",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/049-t09-04-restored.png"
+        }
+      ],
+      "verification": "Opened Home renovation's Home page: 'Old permit copy' is back in its Task List.",
+      "findings": [
+        "W2-028",
+        "W2-029",
+        "W2-030",
+        "W2-012"
+      ]
+    },
+    {
+      "task": "T10",
+      "persona": "user-demo",
+      "outcome": "blocked",
+      "clicks": 4,
+      "keystrokes": 0,
+      "surfaces": [
+        "Dashboard Recent Agent Activity",
+        "Phone navigation drawer",
+        "Settings",
+        "Settings › AI & Agents",
+        "Top bar avatar"
+      ],
+      "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Seeing what an agent may do was easy: Menu › Settings › AI & Agents lists each connection with its permission checkboxes. Connecting a new agent is not offered anywhere: no button on the agents page, nothing in Settings, and the avatar is inert.",
+      "steps": [
+        {
+          "expect": "Settings holds agent configuration",
+          "action": "tap Menu, tap Settings (2 taps)",
+          "observed": "Settings: 'AI & Agents' and 'Archived projects' links (80x20)",
+          "mismatch": false,
+          "evidence": "S/walk/w2-touch/051-t10-01-settings.png"
+        },
+        {
+          "expect": "List of agents with permissions and a way to connect another",
+          "action": "tap 'AI & Agents'",
+          "observed": "Claude (6 of 7 grants, Last used 47 minutes ago), Cursor (2 grants, Never used), Retired assistant (REVOKED, disabled). Each with a native-looking Revoke. Permission rows 22.5px tall. No connect/add control.",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/052-t10-02-agents.png"
+        },
+        {
+          "expect": "Connect control at the end of the list",
+          "action": "swipe to the bottom (not counted)",
+          "observed": "List ends after Retired assistant; nothing else",
+          "mismatch": true,
+          "evidence": "S/walk/w2-touch/053-t10-03-end.png"
+        },
+        {
+          "expect": "Account/avatar menu might hold connections",
+          "action": "tap '🧭 Demo User' avatar in the top bar",
+          "observed": "Nothing happens (not interactive)",
+          "mismatch": true,
+          "evidence": null
+        }
+      ],
+      "verification": "First half verified by reading the permission states on screen. Second half: confirmed after the task in agent-connections-page.html that the page has no create path. Furthest point: /settings/agents.",
+      "findings": [
+        "W2-031",
+        "W2-032",
+        "W2-012",
+        "W2-033"
+      ]
+    }
+  ]
+}

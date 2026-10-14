@@ -1,0 +1,892 @@
+{
+  "termInventory": {
+    "root project": [
+      "Project — sidebar group heading \"Projects\", \"New project\" button, \"Project name\" field (all routes)",
+      "Project — Timeline row kind label \"PROJECT\" (nested-projects-project, Home renovation canvas)",
+      "Project — header controls \"More project actions\", group \"Project history\", \"Project page settings for <root>\"",
+      "root — Todos recovery link \"Open root\" and Task List recovery \"Recover it in the root Archive\" (inferred, task-delete recovery state)",
+      "root — Archive page notice \"The root is archived. Open Settings → Archived projects…\" (inferred, archived-root state)",
+      "root project — domain refusal text relayed verbatim, e.g. \"root project \\\"<id>\\\" cannot be reflected on\" (inferred, refusal state)",
+      "whole projects — Archive page intro \"Archived whole projects can be recovered from Settings\" (archive capture)"
+    ],
+    "workstream (stored kind subproject)": [
+      "Workstream — project navigation \"Add workstream\", dialog heading \"Add workstream\", nav label \"Path to this workstream\"",
+      "Workstream — Timeline kind label \"WORKSTREAM\" for child workstreams (nested-projects-project, kitchen-task-drawer scroll)",
+      "Workstream — Todos row kind \"Workstream\", Archive row type \"Workstream\", reflection subject option \"Garden · Workstream\"",
+      "Workstream — More menu \"Archive Workstream\" (kitchen-more)",
+      "Work — project navigation column heading \"WORK\"",
+      "project — Daily Digest \"The Kitchen project has the closest deadline\" (nested-projects-dashboard)",
+      "project — Active Projects widget lists Kitchen and Cabinets beside Home renovation (nested-projects-dashboard)",
+      "project — Timeline labels Kitchen \"PROJECT\" on Kitchen's own canvas (kitchen-task-drawer scroll-0-2)",
+      "project — Recent Activity empty text \"Nothing has happened in this project yet.\" on Kitchen canvas (kitchen-* captures)",
+      "project — \"More project actions\", \"Project history\", \"Undo/redo\" group on a workstream page (kitchen-* captures)",
+      "project — Settings \"Archived projects\" / \"Restore a project\" covers archived workstreams too (settings-archived-projects; per decision 2026-09-actionable-archive-and-archived-projects)",
+      "subproject — not visible in UI; spec term only (§23 \"subproject\") and reflection subject kind in source"
+    ],
+    "dashboard": [
+      "Home — sidebar first link \"Home\" to /app; dashboard h1 \"Home\" (all dashboard captures)",
+      "dashboard — loading text \"Loading your dashboard…\" (inferred, loading state)",
+      "Home Dashboard — spec §24 heading"
+    ],
+    "root Home page": [
+      "Home — project navigation page link \"Home\" with house icon (all project captures)",
+      "Home — page settings \"Home Required\", checkbox \"Home page is required\" (kitchen-page-settings)",
+      "Home — shortcut picker breadcrumb \"Home renovation · Home\"; Archive origin \"Home renovation / Home / Markdown\" (kitchen-shortcut-picker, archive)",
+      "Home — fallback notices \"Showing Home instead.\" (inferred, disabled/unknown page URL)"
+    ],
+    "workstream Work canvas": [
+      "Work canvas — shortcut breadcrumb \"Home renovation / Kitchen · Work canvas\"; Archive origin link \"Work canvas\"",
+      "canvas — \"This canvas is empty.\", \"Loading canvas…\", \"The canvas order is incomplete\" (empty Legacy attic capture; inferred states)",
+      "Work — nav column heading \"WORK\" (same word as the canvas name)",
+      "Flow layout / Grid layout — banner on every canvas (all project captures)"
+    ],
+    "page": [
+      "Pages — page settings heading \"Pages\" (kitchen-page-settings)",
+      "optional views — page settings intro \"Choose which optional views appear in this project.\"",
+      "page — checkboxes \"Show Todos page\", \"Show Archive page\", \"Show Reflections page\"; button \"Project page settings for <root>\"",
+      "page — fallback \"The <Label> page is switched off for this project\", \"There is no “<kind>” page\" (inferred)"
+    ],
+    "section": [
+      "section — \"Add a section\" dialog and empty-canvas button, \"Section type\", \"Name (optional)\" (kitchen-section-create)",
+      "section — accessible names \"Remove section <name>\", \"Move <name>\", \"Collapse <name>\", \"Insert before <name>\", slider \"Resize <name>\"",
+      "Rename <name> — accessible name of each section region and its heading (all canvases)",
+      "Section — Archive row type \"Section\" (archive)",
+      "Section updated / Section archived / Section added / Section removal undone — activity verbs (kitchen-collapsed, T05)",
+      "Markdown, Task List, Progress, Reflections, Timeline, Recent Activity — section type names, also used as default visible section titles",
+      "container — \"Reflections container\", \"Add reflections container\", \"The container this link points at is not on this page any more.\" (inferred, reflections-page empty / deep-link states)"
+    ],
+    "shortcut": [
+      "shortcut — \"Add shortcut\" toggle, dialog heading \"Add a shortcut\", picker button \"Add\"/\"Added\" (kitchen-section-create, kitchen-shortcut-picker)",
+      "shortcut — accessible names \"Move shortcut to <name>\", \"Remove shortcut to <name>\" (nested-projects-project)",
+      "Open source — link at foot of every shortcut frame (nested-projects-project)",
+      "source / source section — \"The source section is archived…\", \"This source section type is not available in this build.\" (inferred)",
+      "Shortcut added — activity verb; \"Undo: Added the Markdown (Home renovation) shortcut\" (T07)"
+    ],
+    "task / todo": [
+      "Task — \"Task List\" section, \"Task title\" label, \"Add a task\" placeholder, \"Add task\" button, \"Task details\" drawer",
+      "Task — Timeline and Todos kind label \"Task\", Archive row type \"Task\"",
+      "Todos — project navigation link and page-settings label \"Todos\"; \"Loading todos…\" (inferred)",
+      "What is coming up — h2 of the Todos page (todos capture)",
+      "todo — task status shown raw in Timeline and task drawer (nested-projects-project, kitchen-task-drawer)",
+      "To do — task status on Todos page rows (todos)",
+      "Delete task <title> — task row delete action (accessible name; visible trash icon)"
+    ],
+    "task status values": [
+      "todo / To do — Timeline + drawer vs Todos page",
+      "done / Done / · Done — Timeline vs Todos page vs reflection subject line",
+      "in_progress — Timeline text and accessible name (busy-week-project)",
+      "blocked, cancelled / Cancelled — Timeline vs Todos page",
+      "Complete <title> / Reopen task <title> — checkbox accessible names",
+      "Overdue — task row badge",
+      "medium priority / Medium Priority / medium — task row (CSS title case) vs drawer select"
+    ],
+    "project / workstream status values": [
+      "active / Active — Timeline lowercase, header \"Active\" (CSS), Archive \"Restore as\" select lowercase \"active\"",
+      "planning, on hold, completed — Archive \"Restore as\" select lowercase; More menu \"Planning / Active / On Hold / Completed\" (CSS title case); Settings archived projects \"Planning / Active / On hold / Completed\"",
+      "Completed / ✓ — nav suffix \"Garden ✓\" with accessible name \"Garden Completed\"; \"Garden (completed)\" in Parent select",
+      "upcoming — Timeline milestone status",
+      "archived — header status for Legacy attic (kitchen-archived)"
+    ],
+    "archive / removal": [
+      "Archive — root page link, page h2 \"Archive\" plus inner region heading \"ARCHIVE\" (archive)",
+      "Project recovery — Archive page eyebrow (archive)",
+      "Open Archive — More menu button (kitchen-more) and recovery notice button",
+      "Archive project / Archive Workstream / Archive it — More menu and inline confirmation",
+      "Archived projects — Settings link and page h1",
+      "Remove section <name> — section frame trash button; status \"Removed the Markdown section. Undo is in the header.\"",
+      "Delete task <title> — task trash button; recovery text \"<title> was archived\" (inferred)",
+      "Restore / Restore saved content / Restore as — Archive rows",
+      "Archived directly / Archived with its section / Hidden by an archived project — Archive cause labels",
+      "independently archived (Archive page) / separately archived (Settings archived projects)"
+    ],
+    "reflection": [
+      "Reflections — root page link, page h1, section type, default section title",
+      "Project journal — Reflections page eyebrow; Journal — inner card heading; \"3 entries\" count",
+      "Write a reflection — card heading, textarea placeholder and accessible name",
+      "Add reflection — submit button; \"Optional title\"; prompt select \"No prompt\" + four prompts",
+      "About completed work — subject picker heading; \"No subject\"; section footnote \"About completed work · see Reflections\"",
+      "Reflection — default entry title when untitled (inferred); \"Untitled reflection\" in history labels (inferred)",
+      "Reflections container — reflections page empty/loading states (inferred)"
+    ],
+    "history / undo": [
+      "Project history — header button group; \"Nothing to undo\", \"Nothing to redo\" disabled names",
+      "Undo: <label> / Redo: <label> — header button accessible names (T01–T07); visible control is an arrow icon",
+      "Undid: <label>. — feedback status (T05)",
+      "<label> was recorded in <name>’s history. — feedback status (T02)",
+      "Open <name> history — Todos and Archive row links",
+      "header Undo / Undo is in the header — recovery copy"
+    ],
+    "agents": [
+      "AI & Agents — Settings link and page h1",
+      "agent / connected agent / connection — \"What each connected agent is allowed to do\", \"Loading connections…\"",
+      "Read / Modify / Write — permission verbs (\"Modify projects\", \"Modify tasks\", \"Write reflections\")",
+      "Revoke / Revoked; \"Last used: 28 minutes ago\" / \"Never used\"",
+      "Recent Agent Activity — dashboard widget; \"No agent has done anything yet.\""
+    ],
+    "dates": [
+      "Target date — root header; Due date — workstream header and task drawer; Due <date> — task row",
+      "ISO date \"2026-12-15\", ranges \"2026-08-24 → 2026-12-15\" — header, Timeline, task rows, Todos, dashboard",
+      "Full ISO timestamp \"2026-08-24T17:00:00.000Z\" — reflection entries",
+      "\"24 Aug, 16:00\" — activity feed",
+      "\"09/18/2026\" — native date inputs (drawer, More menu)",
+      "\"in 11 days\", \"3 days overdue\" — Active Projects widget"
+    ]
+  },
+  "findings": [
+    {
+      "id": "L6-001",
+      "surface": "project workspace › canvas › layout banner",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.png — grey band under the header: bold \"Flow layout\", then \"Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — region \"Project layout\" with the same text",
+        "Same region in every project/canvas capture (25 light/dark cells) and in tasks/T01–T07.aria.yml",
+        "Source: apps/web/src/app/features/projects/project-canvas.html"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Read the band between the project header and the first section"
+      ],
+      "expected": "A product canvas speaks only about the user's work; tooling for the prototype stays inside the tooling.",
+      "actual": "Every Home and Work canvas carries a permanent banner that tells the user to open a developer panel with a keyboard chord or to visit an internal /prototype/state URL. It sits in the main reading column above the first section.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-002",
+      "surface": "Calendar, Search and not-found pages › placeholder note",
+      "inventoryRow": "`/calendar`",
+      "seed": "agent-heavy",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/calendar-light-1440.aria.yml — \"The workspace calendar arrives in Slice 18 (§37).\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/search-light-1440.aria.yml — \"Workspace search arrives with the command palette in Slice 21 (§40, §41).\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/not-a-route-light-1440.aria.yml — h1 \"No such page\", \"That address is not one of §68's routes.\"",
+        "Inferred: apps/web/src/app/features/dashboard/dashboard-page.html — \"This persona has no visible widgets. Widget configuration arrives in Slice 23.\" (no-widgets state)",
+        "Inventory rows also affected: `/search`, `**` not-found, `/app` dashboard"
+      ],
+      "repro": [
+        "1. Seed agent-heavy as Demo User",
+        "2. Click Calendar in the sidebar",
+        "3. Click Search in the sidebar",
+        "4. Visit /not-a-route"
+      ],
+      "expected": "Pages reached from the main navigation explain themselves in the user's words.",
+      "actual": "Two of the five main navigation destinations and the not-found page talk in development-plan references: slice numbers and spec section signs (§37, §40, §41, §68). The dashboard's no-widget state uses \"persona\" and \"Slice 23\".",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-003",
+      "surface": "error and refusal messages (all write and read surfaces)",
+      "inventoryRow": "`/projects/:projectId` and `/projects/:projectId/pages/:pageKind` workspace",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-error-light-1440.aria.yml — region \"Project unavailable\", h1 plus alert \"Audit: project read failed\": the host message body is the entire explanation shown",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-refused-light-1440.aria.yml — the 409 message body appears verbatim as the dialog alert",
+        "Inferred: every store maps errors with messageOf(e) => e.message (shell-store.ts, project-page-store.ts, project-workspace-store.ts, todos-page-store.ts, archive-page-store.ts, reflections-store.ts, progress-store.ts, activity-store.ts)",
+        "Inferred host/domain texts that would therefore appear: \"could not reach the prototype host — Failed to fetch\" (core/gateway/gateway-error.ts), \"<METHOD> <path> answered 500\" fallback, \"project \\\"project-kitchen\\\" is archived; reactivate it first\", \"task \\\"<id>\\\" is not completed and cannot be reflected on\", \"section \\\"<id>\\\" is archived; restore it before changing it\", \"operationHistory \\\"<id>\\\" was not found\" (packages/domain/src)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen with the project read failing (dev panel Failure rate 100%, or a stopped host)",
+        "3. Read the Project unavailable message"
+      ],
+      "expected": "A failure or refusal names the thing by the name the user knows, in a full sentence, and says what to do next.",
+      "actual": "Messages are passed through from the host and domain unchanged. Those texts are written for developers and agents: lowercase sentence fragments, internal record ids in quotes (project-kitchen, operationHistory), HTTP method and path, and the word \"prototype host\". In the error capture the only words under \"Project unavailable\" are a raw server string.",
+      "lens": "copy",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors; Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-004",
+      "surface": "task detail drawer › Status and Project rows",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "task-drawer",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.scroll-0-1.png — drawer foot: \"Status  todo\", \"Project  project-kitchen\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.aria.yml — term Project / definition project-kitchen; term Status / definition todo",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-light-1440.aria.yml — Timeline row text \"in_progress\" and accessible name \"Task Run launch QA in_progress 2026-08-24 → 2026-08-25\"",
+        "Source: features/tasks/task-detail-drawer.html renders task().projectId and task().status; timeline-section.html renders item.status"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Click the task \"Choose appliance finishes\"",
+        "4. Read the bottom of the Task details drawer",
+        "5. Seed busy-week, open /projects/project-launch, read the Timeline row \"Run launch QA\""
+      ],
+      "expected": "The drawer says which project the task belongs to by its name, and statuses read as words.",
+      "actual": "The drawer prints the internal record id \"project-kitchen\" as the project, and the raw stored status token \"todo\". The Timeline prints the snake_case token \"in_progress\" both visibly and in the row's accessible name.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-005",
+      "surface": "reflection entries › timestamp",
+      "inventoryRow": "`/projects/:root/pages/reflections`",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-light-1440.png — Journal card, entry \"A clear decision\", right-aligned \"2026-08-24T17:00:00.000Z\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — shortcut \"Reflections (Home renovation)\" entries with time \"2026-08-24T17:00:00.000Z\" etc.",
+        "Source: reflections-page.html and reflections-section.html print entry.reflection.createdAt / updatedAt unformatted (also the \"Edited\" timestamp, inferred)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation/pages/reflections",
+        "3. Look at the right edge of the first journal entry"
+      ],
+      "expected": "When a reflection was written reads as a human date/time, like the activity feed does.",
+      "actual": "Each reflection shows a machine timestamp with milliseconds and a \"Z\" zone suffix.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-006",
+      "surface": "Home vs Home: sidebar dashboard link and root Home page",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-1440.png — sidebar column \"Home\" (dashboard) and project column \"Home\" (root page) side by side; Archive origin \"Home renovation / Home / Markdown\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-light-1440.aria.yml — dashboard h1 \"Home\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-shortcut-picker-light-1440.aria.yml — every source labelled \"Home renovation · Home\"",
+        "Inferred: project-page-registry.ts fallbacks \"… Showing Home instead.\"",
+        "Spec: §24 \"Home Dashboard\" and §23/§25 root \"Home\" page both use the word"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation",
+        "3. Compare the sidebar link \"Home\" with the project column link \"Home\"",
+        "4. Click each"
+      ],
+      "expected": "Two different destinations have names that can be told apart.",
+      "actual": "The global dashboard and every root project's first page are both called \"Home\", visible at the same time in adjacent columns with no qualifier. Breadcrumbs such as \"Home renovation · Home\" and \"Showing Home instead\" do not say which Home. The seed name \"Home renovation\" adds a third Home.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-007",
+      "surface": "workstream naming across dashboard, timeline, header and activity",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-light-1440.aria.yml — Daily Digest \"The Kitchen project has the closest deadline\"; Active Projects lists Kitchen and Cabinets as projects next to Home renovation, with no hierarchy",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.scroll-0-2.png — on Kitchen's own Timeline, Kitchen is labelled \"PROJECT\" while Cabinets is \"WORKSTREAM\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.aria.yml — on a workstream page: \"More project actions\", \"Project history\", but \"Archive Workstream\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.aria.yml — Kitchen Recent Activity empty text \"Nothing has happened in this project yet.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-archived-projects-light-1440.aria.yml — \"Archived projects\", \"Restore a project…\" (the decision says this page also recovers workstreams)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /app and read Daily Digest and Active Projects",
+        "3. Open /projects/project-kitchen and read the header controls, the Timeline and Recent Activity"
+      ],
+      "expected": "Nested work has one name, Workstream, wherever it is mentioned.",
+      "actual": "Kitchen is a workstream in the navigation, the Todos list and the More menu. The dashboard, its own Timeline, the header control names and the activity empty state call it a project. The Active Projects widget mixes roots and workstreams in one flat list of \"projects\".",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-workstream-user-terminology.md"
+    },
+    {
+      "id": "L6-008",
+      "surface": "Todos, Archive and Task List recovery copy › \"root\"",
+      "inventoryRow": "`/projects/:root/pages/todos`",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "task delete recovery",
+      "persona": "user-demo",
+      "evidence": [
+        "Inferred: features/projects/pages/todos-page.html — link \"Open root\" next to \"<title> was archived.\" (after a task Delete from Todos)",
+        "Inferred: features/projects/sections/tasks/task-list-section.html — \"Recover it in the root Archive when its owner is ready, or use the owning project's header Undo…\"",
+        "Inferred: features/projects/pages/archive-page.html — \"The root is archived. Open Settings → Archived projects…\" (archived-root state)",
+        "Inferred: domain refusals relayed verbatim, e.g. \"root project \\\"<id>\\\" cannot be reflected on\""
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation/pages/todos",
+        "3. Delete a task from a workstream row",
+        "4. Read the recovery notice"
+      ],
+      "expected": "Users meet the words the rest of the UI uses for the top-level item: Project.",
+      "actual": "Recovery and refusal copy introduces \"root\", \"root Archive\" and \"owning project\" — data-model words that appear nowhere in the navigation or headings.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "inferred",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-009",
+      "surface": "section frame › region and heading accessible names",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — region \"Rename Markdown\" › heading \"Rename Markdown\" [level=2] › button \"Rename Markdown\": Markdown; same for Task List, Progress, Reflections, Timeline, Recent Activity",
+        "Shortcut frames do not have this: region \"Task List (Kitchen)\", heading \"Task List (Kitchen)\"",
+        "Present in every canvas capture and tasks/T03–T07"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation",
+        "3. With a screen reader, list headings or landmarks"
+      ],
+      "expected": "A section's heading and landmark are announced by the section's name.",
+      "actual": "Each owned section's landmark and level-2 heading are named after the rename action (\"Rename Markdown\", \"Rename Task List\"…). The headings and landmarks lists read as a column of commands, unlike shortcut sections next to them, which are announced by name.",
+      "lens": "copy",
+      "heuristic": "WCAG 2.2 SC 2.4.6 Headings and Labels; SC 1.3.1 Info and Relationships",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-010",
+      "surface": "section frame › default section title equals type name",
+      "inventoryRow": "Markdown section and source editor",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.png — section heading \"Markdown\" above prose about appliances",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — \"Edit Markdown for Markdown\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-markdown-edit-light-1440.aria.yml — textbox \"Markdown source for Markdown\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-1440.aria.yml — \"Restore saved content for Markdown\"; tasks/T06 \"Undo: Edited Markdown in the Markdown section\""
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Read the first section heading and the Edit button's accessible name"
+      ],
+      "expected": "A section is introduced by what it contains, and labels do not repeat themselves.",
+      "actual": "An untitled section shows its storage format, \"Markdown\", as its visible heading. Combined labels then double up (\"Edit Markdown for Markdown\", \"Markdown source for Markdown\", \"Edited Markdown in the Markdown section\").",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-a-section-has-a-name.md"
+    },
+    {
+      "id": "L6-011",
+      "surface": "Remove / Delete / Archive verbs for one reversible operation",
+      "inventoryRow": "Section removal/recovery feedback",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "remove-feedback",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-remove-feedback-light-1440.aria.yml — after \"Remove section Markdown\": status \"Removed the Markdown section. Undo is in the header.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-1440.png — the same kind of item listed under Archive as \"Archived directly\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-light-1440.aria.yml — activity verb \"Section archived\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — task button \"Delete task Confirm renovation budget\"; inferred recovery text \"<title> was archived. Recover it in the root Archive…\" (task-list-section.html)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png — \"Archive Workstream\" for projects"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Delete a task, then remove a section",
+        "4. Read the notices, then open Archive"
+      ],
+      "expected": "One reversible, recoverable action has one name, and \"Delete\" is not used for something that is kept.",
+      "actual": "The same soft-archive is called \"Remove\" for sections, \"Delete\" for tasks and \"Archive\" for projects. The result is then called \"archived\" in notices, Archive rows and activity. \"Delete\" suggests permanent loss, while the follow-up text says the task was archived.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-one-step-section-removal-and-task-delete.md"
+    },
+    {
+      "id": "L6-012",
+      "surface": "status values: casing and vocabulary",
+      "inventoryRow": "Timeline section",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.scroll-0-2.png — Timeline right column \"active\", \"todo\", \"upcoming\" lowercase; header above shows \"Active\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.aria.yml — the same task statuses as \"To do\", \"Done\", \"Active\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-1440.png — \"Restore as\" select shows lowercase \"active\"; settings archived page source lists \"Planning / Active / On hold / Completed\"; kitchen-more-light-1440.png shows \"On Hold\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — task status \"done\" vs project status \"completed\"; nav \"Garden ✓\" (name \"Garden Completed\"); Parent select \"Garden (completed)\"; reflection line \"· Done\""
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen and read the header Status and the Timeline statuses",
+        "3. Open /projects/project-renovation/pages/todos and /pages/archive and compare"
+      ],
+      "expected": "A status reads the same way, with the same word and casing, wherever it appears.",
+      "actual": "The same values appear in three casings (\"active\"/\"Active\", \"on hold\"/\"On Hold\"/\"On hold\") and two vocabularies (\"todo\"/\"To do\", \"done\"/\"Done\"). Finished tasks are \"done\" and finished projects are \"completed\", and \"Completed\" is also shown as a bare ✓ glyph.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-013",
+      "surface": "date and time formats",
+      "inventoryRow": "Task row",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.scroll-0-1.png — task row \"Due 2026-09-18\" beside the drawer's date input \"09/18/2026\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-light-1440.aria.yml — activity time \"24 Aug, 16:00\" (en-GB format)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — header \"2026-12-15\", Timeline \"2026-08-24 → 2026-12-15\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-light-1440.aria.yml — \"in 11 days\", \"on 2026-09-04\"",
+        "Spelling also mixes locales: \"Unrecognised section\" (project-canvas.html) and \"colours\" (Design Lab) beside US date inputs"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen and open a task",
+        "3. Compare the row due date, the drawer date field and the Recent Activity times"
+      ],
+      "expected": "Dates use one human-readable format across the product.",
+      "actual": "Most dates are raw ISO (YYYY-MM-DD), the activity feed uses \"24 Aug, 16:00\", native inputs show MM/DD/YYYY, and the dashboard mixes relative (\"in 11 days\") with ISO. The same due date appears in two formats a few pixels apart.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-014",
+      "surface": "Recent Activity feed › section and project event lines",
+      "inventoryRow": "Recent Activity section and shared feed",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "collapsed",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-collapsed-light-1440.aria.yml — \"You Demo User Section updated “Kitchen” Kitchen 24 Aug, 16:00\"",
+        "Task captures: \"Section archived “Kitchen” Kitchen\", \"Section added “Kitchen” Kitchen\", \"Section removal undone “Kitchen” Kitchen\", \"Shortcut added “Kitchen” Kitchen\", \"Page enabled “Home renovation” Home renovation\"",
+        "Source: features/activity/activity-feed.ts verbOf() title-cases the stored action identifier (e.g. section_removal_undone)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Collapse the Markdown section",
+        "4. Read the newest Recent Activity line"
+      ],
+      "expected": "An activity line says what changed and on what, once.",
+      "actual": "Section, shortcut and page events quote the project name as if it were the thing changed, then repeat the project name (\"Section updated “Kitchen” Kitchen\"). Which section changed is never said. The verbs are the stored action identifiers with underscores turned into spaces, so phrasing varies (\"Section removal undone\" next to \"Created\").",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-08-section-activity-targets-the-project.md"
+    },
+    {
+      "id": "L6-015",
+      "surface": "project history feedback status text",
+      "inventoryRow": "Project history controls and feedback",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "successful transition",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/tasks/T02.aria.yml — status \"Created \\\"Baseline workstream\\\" was recorded in Baseline workstream’s history.\" with link \"Open Baseline workstream\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/tasks/T09.aria.yml — \"Reactivated \\\"Legacy attic\\\" was recorded in Legacy attic’s history.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/tasks/T05.aria.yml — \"Undid: Removed the Markdown section.\"",
+        "Straight quotes here; curly quotes in the activity feed and More-menu confirmation (“…”)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Add workstream \"Baseline workstream\" with parent Kitchen",
+        "4. Read the notice under the header"
+      ],
+      "expected": "Confirmation notices read as plain sentences about what happened.",
+      "actual": "Notices join a stored history label to a fixed phrase, producing ungrammatical sentences (\"Created \\\"X\\\" was recorded in X’s history.\", \"Undid: Removed the …\"). Quote style switches between straight and curly within the same view.",
+      "lens": "copy",
+      "heuristic": "Internal consistency; Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-016",
+      "surface": "removal notice › \"Undo is in the header\"",
+      "inventoryRow": "Section removal/recovery feedback",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "remove-feedback",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-remove-feedback-light-1440.aria.yml — status \"Removed the Markdown section. Undo is in the header.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png — header undo/redo controls are unlabeled arrow icons (top right); their names exist only as accessible names \"Undo: …\"",
+        "Inferred variants: \"Saved. Undo is in the header.\", \"This section was already removed. Undo is in the header.\", \"This project's header Undo may reverse the latest step when available.\" (project-page-store.ts, todos-page.html)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Remove the Markdown section",
+        "4. Look for something labelled \"Undo\" in the header"
+      ],
+      "expected": "Copy that sends the user to a control uses words the user can see on that control.",
+      "actual": "The notice sends the user to \"Undo\", but nothing visible in the header says Undo; there are two arrow icons. \"Header\" is also a layout term. The Todos wording \"may reverse the latest step when available\" hedges twice.",
+      "lens": "copy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-017",
+      "surface": "Todos page › name",
+      "inventoryRow": "`/projects/:root/pages/todos`",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-1440.aria.yml — nav link \"Todos\" opens a page whose region and h2 are \"What is coming up\"; description \"Everything under this project, in due-date order.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-page-settings-light-1440.aria.yml — \"Show Todos page\"",
+        "Inferred: \"Loading todos…\"; the list mixes tasks and workstreams (kind \"Workstream\" rows), and is beside a section type called \"Task List\""
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation",
+        "3. Click Todos in the project column",
+        "4. Compare the link name with the page heading"
+      ],
+      "expected": "The page a link opens carries the link's name.",
+      "actual": "The link and settings say \"Todos\"; the page heading says \"What is coming up\". The page lists workstreams as well as tasks, so neither name matches its contents. The product elsewhere says \"task\", never \"todo\".",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-018",
+      "surface": "Reflections page and section › naming",
+      "inventoryRow": "`/projects/:root/pages/reflections`",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-light-1440.png — eyebrow \"PROJECT JOURNAL\", h1 \"Reflections\", card \"Write a reflection\" with corner label \"Reflections\", card \"Journal\", and on entries \"About Approve the lighting plan · Done\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — entry footnote \"About completed work · see Reflections\"",
+        "Inferred: reflections-page.html — \"This page has no Reflections container yet.\", button \"Add reflections container\", \"Other Reflections containers are included in the journal below.\", \"Loading the Reflections container…\""
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation/pages/reflections",
+        "3. Read the eyebrow, heading and card titles"
+      ],
+      "expected": "The feature has one name, and its storage structure is not part of the copy.",
+      "actual": "One feature is called Reflections, Project journal and Journal on the same screen. The empty and loading states use \"Reflections container\", a storage term, with inconsistent capitalization (\"Add reflections container\"). The footnote \"see Reflections\" does not say which of the several Reflections it means.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-019",
+      "surface": "Archive page and archived-projects page › wording",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-1440.png — eyebrow \"PROJECT RECOVERY\", h2 \"Archive\", card heading \"ARCHIVE\" again; each row ends \"Archived directly\"; markdown row adds \"Keeps its text\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-1440.aria.yml — \"Restore a listed item to reveal any independently archived work inside it.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-archived-projects-light-1440.aria.yml — \"Its separately archived contents remain in Archive.\"",
+        "Inferred cause labels: \"Archived with its section\", \"Archived with its task\", \"Hidden by an archived project\", \"Content this version cannot read — kept to be safe\" (archived-region.ts)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation/pages/archive",
+        "3. Open Settings → Archived projects"
+      ],
+      "expected": "Archive rows explain how the item got there in everyday words, using one term for one idea.",
+      "actual": "The page is titled Archive twice and also Project recovery. Every row carries \"Archived directly\", a system-cause label that means nothing until compared with rarer labels the user may never see. The same idea is \"independently archived\" on one page and \"separately archived\" on the other.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-020",
+      "surface": "dashboard › Daily Digest attribution",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-light-1440.aria.yml — Daily Digest footer \"Composed locally by the prototype AI provider\" (same in all populated dashboard cells)",
+        "Source alternative: \"Generated by the configured AI provider\" (daily-digest-widget.html)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /app",
+        "3. Read the foot of the Daily Digest widget"
+      ],
+      "expected": "Attribution of generated text is in product terms.",
+      "actual": "The digest footer names the \"prototype AI provider\", a development stand-in, on the main dashboard.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-021",
+      "surface": "dashboard › Today and Daily Digest empty sentences",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-light-1440.aria.yml — Today: \"Nothing is due today, and nothing is running.\" Daily Digest directly below: \"Nothing is scheduled for today.\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-light-1440.aria.yml — Active Projects row \"0 open · in 52 days\" for Cabinets has no percentage while siblings show \"50% · 1 open\""
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /app",
+        "3. Compare the Today and Daily Digest widgets"
+      ],
+      "expected": "Neighbouring widgets describe the same fact in the same words, and use words that fit tasks.",
+      "actual": "Two widgets state the same empty fact in different words (\"due\" vs \"scheduled\"). \"Running\" is not a task state anywhere else in the product (elsewhere \"in progress\"). Active Projects rows drop the percentage without saying why.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-022",
+      "surface": "unsupported/unbuilt fallbacks › \"build\" and raw type names",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "unknown section / unbuilt page / unimplemented widget",
+      "persona": "user-demo",
+      "evidence": [
+        "Inferred: project-canvas.html — \"Unrecognised section\" / \"Nothing in this build knows how to render a “<type>” section.\" (raw stored type id)",
+        "Inferred: shortcut-frame.html — \"This source section type is not available in this build.\"",
+        "Inferred: project-page-registry.ts — \"There is no “<kind>” page. Showing Home instead.\" (raw URL segment) and \"The <Label> page is not built yet.\"",
+        "Inferred: dashboard-page.html — \"The <type with _ replaced> widget is not built yet.\" (e.g. \"work summary\")",
+        "Inferred: archived-region.ts — \"Content this version cannot read — kept to be safe\""
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Visit /projects/project-renovation/pages/calendar (an unknown page kind)",
+        "3. Read the fallback notice"
+      ],
+      "expected": "Fallbacks explain the situation without referring to builds, versions or stored identifiers.",
+      "actual": "Fallback copy talks about \"this build\" and \"this version\" and echoes raw type or URL identifiers inside curly quotes, so the user sees how the software is put together rather than what to do.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #9 Help users recognize, diagnose, and recover from errors",
+      "severity": "S3",
+      "confidence": "inferred",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-023",
+      "surface": "Settings › AI & Agents empty state",
+      "inventoryRow": "`/settings/agents`",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "empty",
+      "persona": "user-demo",
+      "evidence": [
+        "Inferred: features/settings/agents/agent-connections-page.html — \"No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.\"",
+        "Only the agent-heavy seed was captured for this route (settings-agents-*), so the empty state is not in the baseline"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /settings/agents"
+      ],
+      "expected": "An empty state tells the user how they would connect an agent.",
+      "actual": "The only guidance in the product's agent settings is to load a test seed by its internal name from the development panel.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #10 Help and documentation",
+      "severity": "S2",
+      "confidence": "inferred",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-024",
+      "surface": "button and label capitalization",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "more",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png — More menu buttons in Title Case: \"Open Archive\", \"Archive Workstream\", \"On Hold\" (source text is sentence case; CSS changes it)",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-section-create-light-1440.aria.yml / nested-projects-project — sentence case elsewhere: \"Add workstream\", \"Add a section\", \"Use manual\", \"Restore saved content\", \"Retry archive read\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.png — task row \"Medium Priority\" (Title Case) vs drawer select \"medium\" (lowercase)",
+        "Section and widget titles in Title Case (\"Task List\", \"Recent Activity\", \"Fun Fact\", \"Daily Digest\") vs sentence-case headings (\"Add a section\", \"Archived projects\", \"Write a reflection\")"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Open More project actions",
+        "4. Open a task and compare the row priority with the drawer"
+      ],
+      "expected": "One capitalization style for buttons and labels.",
+      "actual": "Buttons and labels switch between Title Case, sentence case and all-lowercase from one panel to the next, and the same value (priority, status) changes case between the row and the drawer.",
+      "lens": "copy",
+      "heuristic": "Internal consistency",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-025",
+      "surface": "shortcut frame › \"Open source\" link",
+      "inventoryRow": "Shortcut frame",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-light-1440.aria.yml — link \"Open source\" at the foot of each of the four shortcut frames, with no section or project named in the accessible name",
+        "Spec uses the same phrase (3 occurrences) — still a reading issue"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-renovation",
+        "3. Scroll to the shortcut frames and read the link at the foot of each"
+      ],
+      "expected": "A link names where it goes.",
+      "actual": "\"Open source\" reads first as the software-licensing term. Four identical links on one page give no hint of their different destinations in a links list.",
+      "lens": "copy",
+      "heuristic": "WCAG 2.2 SC 2.4.4 Link Purpose (In Context); Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-026",
+      "surface": "Progress section and task Estimate › unexplained terms",
+      "inventoryRow": "Progress section",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.scroll-0-2.png — \"Count\", \"Weighted\", a field labelled \"Manual\" and \"Use manual\", with no visible group label or explanation (group name \"Progress formula\" is accessible-only)",
+        "Busy-week capture: \"2 of 10 estimate points complete\" — the only place \"points\" appears",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-light-1440.scroll-0-1.png — drawer field \"Estimate\" has no unit"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo User",
+        "2. Open /projects/project-kitchen",
+        "3. Read the Progress section controls and then the Estimate field in a task's drawer"
+      ],
+      "expected": "Controls say what they change, and quantities have units.",
+      "actual": "Three bare words switch how progress is calculated without saying so. \"Weighted\" by what is only revealed afterwards, as \"estimate points\", a unit the Estimate field never shows.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; Nielsen #6 Recognition rather than recall",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L6-027",
+      "surface": "Settings › AI & Agents › permission labels",
+      "inventoryRow": "`/settings/agents`",
+      "seed": "agent-heavy",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-light-1440.aria.yml — \"Read projects / Modify projects / Read tasks / Modify tasks / Read reflections / Write reflections / Read workspace overview\"",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-light-1440.aria.yml — note \"Includes task and project content in aggregate — a wider grant than it sounds.\""
+      ],
+      "repro": [
+        "1. Seed agent-heavy as Demo User",
+        "2. Open /settings/agents",
+        "3. Read the Claude connection's permission list"
+      ],
+      "expected": "Parallel permissions use parallel verbs.",
+      "actual": "Write access is \"Modify\" for projects and tasks but \"Write\" for reflections, so the list suggests a difference in kind that is not there. The overview note, \"a wider grant than it sounds\", admits the label undersells the permission.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

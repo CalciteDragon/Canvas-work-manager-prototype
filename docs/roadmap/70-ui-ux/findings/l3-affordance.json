@@ -1,0 +1,912 @@
+{
+  "actionFeedbackMatrix": [
+    {
+      "action": "Undo / Redo",
+      "surface": "project header history controls",
+      "before": "Two icon-only buttons; enabled vs unavailable differ only by a slightly brighter icon colour (rgb 238 vs 154); what will be undone is only in the tooltip/accessible name ('Undo: Moved the Markdown section')",
+      "during": "Accessible name changes to 'Saving a change…' / 'Redoing…'; visually only the icons dim; no spinner or text for ~2.5s delay",
+      "after": "Inline line under header metadata 'Undid: … . Dismiss'; pushes canvas down ~22px; persists across unrelated later actions until dismissed"
+    },
+    {
+      "action": "Move section (drag)",
+      "surface": "canvas section frame grip",
+      "before": "Grip (⋮⋮) hidden until the section is hovered/focused; cursor grab",
+      "during": "Opaque floating copy of the section follows pointer and covers neighbours; faded placeholder copy at target; no insertion line",
+      "after": "Section lands; no message; header Undo label changes to 'Undo: Moved the Markdown section'"
+    },
+    {
+      "action": "Add task",
+      "surface": "Task List section",
+      "before": "Always-visible labelled 'Task title' field and filled accent 'Add task' button",
+      "during": "Nothing: button stays enabled with the same label, typed text remains in the field, no new row for ~2.5s",
+      "after": "Row appended, auto-selected, and the task details drawer opens beside the list (list reflows to half width); focus stays on the Add task button"
+    },
+    {
+      "action": "Edit task fields in drawer (priority, title, estimate)",
+      "surface": "Task details drawer",
+      "before": "Plain form fields, no Save button; nothing says changes save automatically or on Enter/blur",
+      "during": "No saving indicator; row underneath keeps old value until the server answers",
+      "after": "Row and drawer heading update silently; no 'saved' confirmation; header Undo label changes"
+    },
+    {
+      "action": "Complete / reopen task",
+      "surface": "Task row checkbox",
+      "before": "Native checkbox at row start",
+      "during": "Optimistic: row turns completed immediately, checkbox dims (aria-busy=true), still clickable",
+      "after": "Checkbox regains colour; no message; header Undo label changes"
+    },
+    {
+      "action": "Delete task",
+      "surface": "Task row trash icon",
+      "before": "Grey trash icon always visible on every row; name only in tooltip",
+      "during": "Row dims with a yellow left edge, trash icon greys out",
+      "after": "Row removed with no confirmation step; long prose notice inserted above the list pointing to 'root Archive' and 'header Undo', neither offered as a control; page scrolled so header is off-screen"
+    },
+    {
+      "action": "Resize section (pointer drag on edge)",
+      "surface": "canvas section frame",
+      "before": "12x44px pill on each frame edge, visible only while the section is hovered/focused; cursor col-resize; slider value text 'n of 12 columns' for AT only",
+      "during": "Section reflows live as you drag; no column guides or width readout on screen",
+      "after": "New width stays; no message; Undo tooltip 'Undo: Resized the Markdown section to 6 columns'"
+    },
+    {
+      "action": "Rename section",
+      "surface": "section header title",
+      "before": "Plain heading; field outline + text cursor only on hover",
+      "during": "Field keeps the new text with focus ring, focus leaves to body; no saving cue during 2.5s delay",
+      "after": "Heading shows new name; no message; Undo tooltip changes"
+    },
+    {
+      "action": "Remove section",
+      "surface": "section header red trash",
+      "before": "Red trash visible on hover/focus; tooltip 'Remove section'; no statement of what is removed with it",
+      "during": "Trash dims; history buttons become 'Saving a change…'",
+      "after": "Empty/progress section: no notice at all, view scrolls to top, focus to first section title. Content section: floating notice bottom-right 'Removed the Task List section. Undo is in the header.' + Open Archive / Dismiss"
+    },
+    {
+      "action": "Choose progress mode",
+      "surface": "Progress section",
+      "before": "Browser-default grey buttons Count / Weighted and a default number input + 'Use manual'",
+      "during": "not tested",
+      "after": "Selected mode not visibly distinguished (aria-pressed only)"
+    },
+    {
+      "action": "Edit and save Markdown",
+      "surface": "Markdown section",
+      "before": "Secondary 'Edit' button under the rendered prose",
+      "during": "Save becomes 'Saving…', Preview/Save/Cancel disabled, textarea dims",
+      "after": "Returns to rendered prose; no message; Undo tooltip changes. Cancel/navigation with a draft discards silently"
+    },
+    {
+      "action": "Add reflection",
+      "surface": "Reflections section composer",
+      "before": "Placeholder-only fields and a full-width grey browser-default 'Add reflection' button",
+      "during": "No cue; earlier validation error stays visible",
+      "after": "Entry appears in the list below with a raw ISO timestamp; composer resets"
+    },
+    {
+      "action": "Edit reflection",
+      "surface": "Reflections entry",
+      "before": "Full-width grey 'Edit' button under each entry",
+      "during": "not tested",
+      "after": "Unlabelled inline fields appear below the unchanged entry"
+    },
+    {
+      "action": "Open timeline row",
+      "surface": "Timeline section",
+      "before": "Grey slab rows, cursor default",
+      "during": "n/a (local)",
+      "after": "Detail line expands under row; row not marked expanded"
+    },
+    {
+      "action": "Collapse / expand section",
+      "surface": "section header chevron",
+      "before": "Always-visible chevron button",
+      "during": "Nothing changes until the save returns",
+      "after": "Section collapses, chevron points right; Undo tooltip 'Undo: Collapsed the Timeline section'"
+    },
+    {
+      "action": "Reorder task by drag",
+      "surface": "Task List section",
+      "before": "No handle; whole row draggable with pointer cursor",
+      "during": "Opaque row copy + placeholder; rows make room",
+      "after": "Row snaps back to original position; no message; nothing recorded"
+    },
+    {
+      "action": "Remove shortcut",
+      "surface": "shortcut frame",
+      "before": "Red trash identical to section Remove; tooltip 'Remove shortcut'",
+      "during": "not delayed",
+      "after": "Frame disappears; no notice; focus to <body>; Undo tooltip changes"
+    },
+    {
+      "action": "Complete task / workstream from Todos",
+      "surface": "root Todos page",
+      "before": "Detached checkbox at card bottom-left; workstreams get a grey browser-default 'Complete' button",
+      "during": "not separately observed",
+      "after": "Workstream: line under header 'Completed \"Kitchen\" was recorded in Kitchen’s history. Open Kitchen / Dismiss'; no Reopen on the row"
+    },
+    {
+      "action": "Restore archived item",
+      "surface": "root Archive page",
+      "before": "Orange text button 'Restore' / 'Restore saved content'; workstreams add a 'Restore as' select",
+      "during": "Button 'Restoring…' disabled",
+      "after": "Row disappears, count decrements; no message; focus to <body>"
+    },
+    {
+      "action": "Toggle optional page",
+      "surface": "project column page settings",
+      "before": "Tiny gear; checkbox list with Home 'Required' disabled and labelled",
+      "during": "All checkboxes disabled + status 'Saving page settings…'",
+      "after": "Hiding the current page redirects to Home with notice 'The Archive page is switched off for this project. Showing Home instead.' + Enable Archive / Dismiss"
+    },
+    {
+      "action": "Change agent permission",
+      "surface": "Settings › AI & Agents",
+      "before": "Plain checkboxes per scope; hint under workspace overview",
+      "during": "Every checkbox in the card disabled; no text",
+      "after": "Silent; no saved confirmation"
+    },
+    {
+      "action": "Revoke agent",
+      "surface": "Settings › AI & Agents",
+      "before": "Grey browser-default 'Revoke' button",
+      "during": "All controls disabled",
+      "after": "REVOKED badge; no confirmation before, no undo after; focus to <body>"
+    },
+    {
+      "action": "Restore archived project",
+      "surface": "Settings › Archived projects",
+      "before": "'Restore as' select must be chosen; Restore disabled but looks enabled, no reason",
+      "during": "Select disabled, button 'Restoring…'",
+      "after": "Card replaced by empty-state sentence; project appears in sidebar; no message; focus to page h1"
+    },
+    {
+      "action": "Edit project name/description/status/date",
+      "surface": "project header More panel",
+      "before": "Inline panel; each field with its own button (Rename/Save/Set/Clear); status as chips",
+      "during": "Status: optimistic header change, panel closes",
+      "after": "Silent; typed but uncommitted name lost on close"
+    },
+    {
+      "action": "Archive project",
+      "surface": "project header More panel",
+      "before": "Red-text 'Archive Project' button",
+      "during": "not delayed",
+      "after": "Inline confirmation 'Archive “Home reset”? It leaves the sidebar; you can undo it from the header.' Archive it / Cancel (not executed)"
+    },
+    {
+      "action": "Create project",
+      "surface": "sidebar",
+      "before": "26x15px grey '+' with no tooltip",
+      "during": "Form disappears; nothing shown",
+      "after": "Navigates to new project; focus to <body>"
+    },
+    {
+      "action": "Open dashboard row",
+      "surface": "dashboard widgets",
+      "before": "All rows are identical bordered pills",
+      "during": "n/a",
+      "after": "Project rows navigate; task rows do nothing"
+    }
+  ],
+  "findings": [
+    {
+      "id": "L3-001",
+      "surface": "project workspace › Work canvas › insertion points between sections",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-insert-rest.png (gap between Markdown and Task List: no line, no plus, nothing drawn)",
+        "S/walk/l3-affordance/l3-insert-hover.png (same gap with pointer inside the 16px band: orange line and circled plus appear)",
+        "S/walk/l3-affordance/002-l3-section-hover.png (hovering a section reveals grip/remove but no insertion cue)",
+        "button 'Insert before Task List' measured 928x16 px"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. move the pointer over the canvas and over each section",
+        "4. look for any way to add a section between two existing ones",
+        "5. move the pointer slowly into the 16px gap between two section frames"
+      ],
+      "expected": "A person scanning the canvas can see that a section can be added between existing sections, or at least that the gaps are targets, before discovering it by accident.",
+      "actual": "At rest and while hovering a section, the gaps show nothing. The insertion line and plus only appear when the pointer is inside the 16px-tall gap itself. There is no always-visible way to add a section anywhere on the canvas; the trailing 'Insert at the end' target is equally invisible until hovered.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall; discoverability",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md"
+    },
+    {
+      "id": "L3-002",
+      "surface": "project workspace › section frame › grip, remove, resize handles",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/001-l3-kitchen-rest.png (Markdown and Task List headers: an empty 44px slot left of the collapse chevron, nothing at the right end)",
+        "S/walk/l3-affordance/002-l3-section-hover.png (hovered Markdown: grip, red trash and two tiny edge tabs appear)",
+        "S/walk/l3-affordance/l3-resize-handle-zoom.png (resize handle is a 12x44 px pill straddling the frame border at mid-height)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen and move the pointer off the canvas",
+        "3. compare a section header at rest with the same header hovered"
+      ],
+      "expected": "The resting section frame gives some hint that it can be moved, resized and removed.",
+      "actual": "At rest the header shows a blank reserved gap where the grip will be, and nothing where Remove will be; the resize handles are invisible. Only the collapse chevron is visible. The blank gap reads as misalignment rather than as a control slot. The resize handle, once revealed, is a 12px-wide pill with a tiny glyph, easy to miss and to miss-hit.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall; Fitts's law (resize target size)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md"
+    },
+    {
+      "id": "L3-003",
+      "surface": "project workspace › section header title (inline rename)",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/001-l3-kitchen-rest.png (titles 'Markdown', 'Task List' render as plain bold headings)",
+        "S/walk/l3-affordance/l3-title-hover-el.png (hovering the title draws a field outline, cursor: text)",
+        "S/walk/l3-affordance/l3-rename-editing.png (after click: an empty field with grey placeholder 'Markdown')"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. look at the Markdown section title without hovering",
+        "4. hover it, then click it"
+      ],
+      "expected": "It is apparent, without hovering, that a section's title can be renamed; on entering edit mode the current name is the thing being edited.",
+      "actual": "The title looks like a static heading; the only cue is a field outline and text cursor on hover, nothing for touch. For a section still using its default name, clicking opens an empty field with the name shown only as grey placeholder text, so it looks like the name was erased.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall; Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-004",
+      "surface": "project header › Undo / Redo",
+      "inventoryRow": "Project history controls and feedback",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "baseline nested-projects-project-light-1440.png (light theme: both buttons unavailable, indistinguishable from the enabled look)",
+        "S/walk/l3-affordance/l3-hist-after-move.png (Undo available, Redo unavailable: both identical boxed icons, Redo icon only slightly greyer; computed colours rgb(238,241,246) vs rgb(154,163,178), both opacity 1)",
+        "S/walk/l3-affordance/l3-redo-pending.png (during a 2.5s delayed Redo: header unchanged apart from dimmer icons; accessible names were 'Saving a change…' / 'Redoing…')"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. drag the Markdown section below Task List",
+        "4. compare the Undo and Redo buttons",
+        "5. with requests delayed ~2s, press Undo and watch the header"
+      ],
+      "expected": "A person can tell at a glance whether Undo/Redo are available, what they will undo, and that an undo is in progress.",
+      "actual": "Available and unavailable states differ only by a subtle icon tint. What will be undone is only in a hover tooltip. While an undo/redo is in flight, the only visible change is the icons dimming; there is no progress cue for the 2.5 seconds, so it looks like the click did nothing.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-005",
+      "surface": "project header › history feedback line",
+      "inventoryRow": "Project history controls and feedback",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-undo-after.png (line 'Undid: Moved the Markdown section. Dismiss' added under header metadata; canvas shifted down ~22px)",
+        "status region text still 'Redid: Moved the Markdown section.' after a later task add, priority change, title change, completion and delete"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. drag Markdown below Task List, press Undo, press Redo",
+        "4. add a task, change its priority, complete a task, delete a task",
+        "5. scroll back to the header"
+      ],
+      "expected": "Confirmation messages describe the most recent action, or go away once newer actions have happened.",
+      "actual": "The 'Redid: Moved the Markdown section.' line stays under the header through five later unrelated actions until manually dismissed, so the header's only message describes an old step. Its appearance also pushes the whole canvas down.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status (stale status)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-006",
+      "surface": "project workspace › section drag (Move grip)",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-drag-mid.png (dragging Markdown: an opaque full-size copy floats over the Task List, hiding its rows; a faded copy of Markdown sits below as the placeholder; no insertion line)",
+        "S/walk/l3-affordance/l3-drag-after.png (after drop: order changed, no message)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. hover Markdown, press on its grip and drag down ~300px with the mouse",
+        "4. observe during the drag, then release"
+      ],
+      "expected": "During a drag the person can see where the section will land and what is underneath; after dropping, the move is confirmed.",
+      "actual": "The floating preview is opaque and as large as the section, covering the content it is being dragged across. The drop target is a faded duplicate of the section rather than a distinct slot, so the preview and the placeholder look like two copies. After the drop nothing confirms the move except a changed tooltip on the Undo icon.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-007",
+      "surface": "Task List section › Add task",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "delayed POST /api/tasks by 2.5s: at 600ms the button read 'Add task', enabled, field still held 'Order sample tiles', no new row",
+        "S/walk/l3-affordance/l3-task-add-after.png (after: new row selected and Task details drawer opened at right, list squeezed to half width)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. with requests delayed ~2s, type a title in Task title and press Add task",
+        "4. observe for 2 seconds, then after"
+      ],
+      "expected": "While the task is being created the person sees it is being saved and cannot accidentally submit twice; when it appears, the result stays where they were working.",
+      "actual": "Nothing changes while the request is pending: button enabled, text still in the field, no pending row. When it lands, the new task is auto-selected and the details drawer opens beside the list, re-flowing the section to half width, although the person only asked to add a task. Focus stays on the Add task button.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #3 User control and freedom",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-008",
+      "surface": "Task details drawer › field edits",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-drawer-prio-pending.png (priority set to high, drawer shows no saving cue; row underneath still 'Medium Priority' for 2.5s)",
+        "title edited then Enter: drawer heading kept old title for 2.5s, then changed; no 'saved' text anywhere",
+        "blur and Close both commit silently (verified by reopening)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen and open details of a task",
+        "3. with requests delayed ~2s, change Priority, then change Title and press Enter"
+      ],
+      "expected": "A form without a Save button tells the person that edits save automatically, shows when a save is in progress, and confirms it.",
+      "actual": "No Save button, no 'saves automatically' hint, no saving indicator and no confirmation. During the delay the drawer's control shows the new value while the row behind it shows the old one, with nothing explaining the mismatch.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-009",
+      "surface": "Task List section › task Delete recovery notice",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-delete-after.png (notice 'Blurred title was archived. Recover it in the root Archive when its owner is ready, or use the owning project's header Undo if this is still the latest step.' above the list; header with Undo scrolled out of view; no button or link in the notice)",
+        "S/walk/l3-affordance/l3-delete-pending.png (pending: dimmed row, yellow left edge)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. add a task, then press its trash icon",
+        "4. read the notice that appears"
+      ],
+      "expected": "After deleting a task, recovery is offered where the person is looking, as something they can act on.",
+      "actual": "Delete happens on one click (acceptable given recovery), but the recovery is a two-sentence instruction naming two other places ('root Archive', 'header Undo') with no control to reach either. In this run the header was scrolled off-screen when the notice appeared.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #3 User control and freedom; Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-task-delete-recovery-feedback.md"
+    },
+    {
+      "id": "L3-010",
+      "surface": "project workspace › section Remove",
+      "inventoryRow": "Section removal/recovery feedback",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-remove-click.png (one click on Progress' trash: no confirmation, removal starts)",
+        "S/walk/l3-affordance/l3-remove-after.png (Progress gone, page scrolled to top, focus moved to the first section title; no notice; status region empty; only the Undo tooltip changed to 'Undo: Removed the Progress section')",
+        "S/walk/l3-affordance/l3-remove-tasklist.png (removing Task List with 2 tasks: also no confirmation; notice 'Removed the Task List section. Undo is in the header.' with Open Archive / Dismiss, floating at the bottom-right over the Reflections section rather than where the section was)",
+        "/projects/project-renovation: removing the 'Markdown (Garden)' shortcut also produced no notice and dropped focus to <body>"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. hover Progress and press its red trash button",
+        "4. then hover Task List and press its trash button"
+      ],
+      "expected": "Before removing a whole section (and its tasks) the consequence is clear; after removing, every removal is confirmed where the person acted, with a way back.",
+      "actual": "The red trash removes the section on a single click with no statement of what goes with it (Task List removal takes its tasks). Removing Progress produced no visible feedback at all: the section vanished, the view jumped to the top and focus landed on an unrelated section title. Removing Task List did show a notice, but it says Undo is elsewhere instead of offering it.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #5 Error prevention; Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-one-step-section-removal-and-task-delete.md"
+    },
+    {
+      "id": "L3-011",
+      "surface": "Progress section › Count / Weighted / Manual",
+      "inventoryRow": "Progress section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-remove-click.png (Progress: 'Count' and 'Weighted' render as identical grey browser-default buttons although aria reports Count [pressed]; Manual is a tiny default number input with separate 'Use manual')"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. scroll to Progress and look at the mode buttons"
+      ],
+      "expected": "The currently active progress mode is visibly selected.",
+      "actual": "Count (selected) and Weighted (not selected) look the same; the selection is only in the accessibility tree. The controls are unstyled browser defaults, unlike every other button on the canvas, so they also read as unfinished.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status; internal consistency",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-012",
+      "surface": "Markdown section › source editor Cancel and navigation",
+      "inventoryRow": "Markdown section and source editor",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "editing with unsaved changes",
+      "persona": "user-demo",
+      "evidence": [
+        "Cancel with a fully rewritten draft: no prompt (no browser dialog fired), draft discarded, saved text shown",
+        "editing with a draft then clicking the 'Cabinets' sidebar link: navigation happened with no prompt; going Back shows the saved text, draft gone",
+        "S/walk/l3-affordance/l3-md-edit.png (Preview, Save, Cancel rendered as three identical secondary buttons)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. press Edit on the Markdown section and replace the text",
+        "4. press Cancel (or click another project in the sidebar)"
+      ],
+      "expected": "Throwing away typed prose is either confirmed or recoverable, and Save is distinguishable from Cancel.",
+      "actual": "Cancel and any navigation silently discard the draft with no warning and no way to get it back. Save, Preview and Cancel have identical visual weight, so the destructive Cancel sits next to Save looking the same.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #5 Error prevention; Nielsen #3 User control and freedom",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-013",
+      "surface": "Reflections section › composer validation and pending",
+      "inventoryRow": "Reflections section and composer",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "composing",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-refl-pending.png (body filled and Add pressed with a 2.5s delay: red 'A reflection body is required.' still shown under the button, button unchanged and enabled)",
+        "S/walk/l3-affordance/l3-refl-after.png (entry appears; prompt resets)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen, scroll to Reflections",
+        "3. press Add reflection with an empty body",
+        "4. type a body and press Add reflection again with requests delayed ~2s"
+      ],
+      "expected": "Once the problem is fixed and the entry is being saved, the error goes away and the composer shows it is saving.",
+      "actual": "The 'body is required' error stays on screen next to a filled body for the whole save, with no saving indicator, so the screen says the submit failed while it is in fact succeeding.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-014",
+      "surface": "Reflections section › composer and entry inline edit",
+      "inventoryRow": "Reflections section and composer",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated, editing an entry",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-refl-edit.png (after Edit: original entry and full-width grey Edit button remain; below them an unlabelled empty input, a small textarea and Save/Cancel in browser-default styling)",
+        "aria: entry edit fields are 'textbox' with no name",
+        "S/walk/l3-affordance/l3-refl-armed.png (composer fields identified only by placeholder text)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. add a reflection, then press its Edit button"
+      ],
+      "expected": "Editing an entry visibly turns that entry into its editable form, with fields that say what they are.",
+      "actual": "Edit leaves the read-only entry and its Edit button in place and appends a cramped row of unlabelled fields under it; the first field is empty with no hint it is the title. Nothing indicates which is the live version while editing.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall; WCAG 2.2 SC 3.3.2 Labels or Instructions",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-015",
+      "surface": "Timeline section › rows",
+      "inventoryRow": "Timeline section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-timeline-rest.png (rows are flat grey browser-default buttons)",
+        "computed cursor 'default' on the row button",
+        "S/walk/l3-affordance/l3-timeline-click.png (click on Task row reveals only 'Status: todo', already shown on the row; the row itself does not look selected; button has no aria-expanded)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. scroll to Timeline, hover then click the 'Choose appliance finishes' row"
+      ],
+      "expected": "If a row is clickable it looks clickable and clicking it gives something new, with the open row marked as open.",
+      "actual": "Rows look like grey slabs with a default cursor, so it is unclear they are buttons. Clicking expands a detail that repeats the status already on the row and does not take you to the task. The expanded row is not marked as selected or expanded, visually or to assistive technology.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #4 Consistency and standards; WCAG 2.2 SC 4.1.2 Name, Role, Value",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-016",
+      "surface": "section header › Collapse / Expand",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-collapse-mid.png (500ms after pressing Collapse with a 2.5s delayed save: section still fully expanded, chevron unchanged, aria still [expanded])",
+        "S/walk/l3-affordance/l3-collapsed.png (collapses only after the server answers)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. with requests delayed ~2s, press Collapse on Timeline"
+      ],
+      "expected": "A disclosure chevron responds immediately; any saving happens behind it.",
+      "actual": "Collapse waits for the save round-trip before anything moves; for the length of the request the click appears to have done nothing, inviting a second click (which would toggle it back). Resize, by contrast, responds instantly.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status; internal consistency",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-017",
+      "surface": "Task List section › dragging a task within the list",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-taskrow-drag2.png (dragging 'Confirm renovation budget' down: rows make room, an opaque copy and a placeholder show it landing below 'Confirm tile samples')",
+        "S/walk/l3-affordance/l3-taskrow-drop2.png (after release: original order restored, no message, Undo still 'Nothing to undo')",
+        "source apps/web/src/app/features/projects/sections/tasks/task-list-section.ts dropTask returns early when previousContainer === container"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation",
+        "3. press on the 'Confirm renovation budget' row and drag it below 'Confirm tile samples'",
+        "4. release"
+      ],
+      "expected": "If a list lets you pick up a row and shows it moving, dropping it keeps the new order, or the list says why it cannot be reordered.",
+      "actual": "Rows are draggable anywhere (no handle, pointer cursor) and the list animates as if reordering, including a placeholder at the new position. On release the row snaps back to its old place with no explanation; the list appears to be fixed in due-date order.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #4 Consistency and standards (false affordance)",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-018",
+      "surface": "project Home › shortcut frames",
+      "inventoryRow": "Shortcut frame",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-shortcut-hover.png ('Task List (Kitchen)' shortcut: rows drawn as the same bordered task cards as a live Task List but with no checkbox or trash; clicking a row does nothing (cursor auto, URL unchanged); same red trash icon as a section's Remove)",
+        "tooltips: 'Remove shortcut' vs 'Remove section' are the only difference between the two red trash buttons"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation and scroll to 'Task List (Kitchen)'",
+        "3. hover the frame and click a task row",
+        "4. compare its trash button with a normal section's trash"
+      ],
+      "expected": "A read-only mirror is recognisably read-only, and removing a mirror looks different from deleting real content.",
+      "actual": "The shortcut frame reuses the live section look; read-only is signalled only by missing checkboxes and a small arrow before the title. Task rows look like cards you could open but are inert. Removing a shortcut (harmless) and removing a section (archives its content) use the identical red trash.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #5 Error prevention",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-019",
+      "surface": "root Todos page › rows",
+      "inventoryRow": "/projects/:root/pages/todos",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/005-todos.png and l3-todo-row-zoom.png (path 'Home renovation / Task List' is tinted like a link but is plain list text; clicking it does nothing)",
+        "computed: task title link and 'Open Kitchen history' link are rgb(238,241,246), no underline - the same as body text",
+        "checkbox sits alone at the bottom-left of each card with no adjacent label; trash floats mid-card"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/todos",
+        "3. try to tell which texts in a row are links",
+        "4. click the 'Home renovation / Task List' path"
+      ],
+      "expected": "Links look like links, non-links do not, and a row's checkbox is visibly attached to the task it completes.",
+      "actual": "Link styling is inverted: the coloured breadcrumb is not a link, while the real links (task title, 'Open … history') look like plain text. The completion checkbox is detached from the title, at the bottom of the card, far from what it acts on.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-020",
+      "surface": "root Todos page › workstream Complete",
+      "inventoryRow": "/projects/:root/pages/todos",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/005-todos.png ('Complete' is a grey browser-default button on the Kitchen workstream row)",
+        "S/walk/l3-affordance/l3-todo-complete-ws-after.png (one click completed the whole Kitchen workstream: row now 'Completed', the Complete button is gone and no Reopen is offered; confirmation 'Completed \"Kitchen\" was recorded in Kitchen’s history. Open Kitchen Dismiss' under the header, away from the row)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/todos",
+        "3. press Complete on the Kitchen workstream row"
+      ],
+      "expected": "Completing an entire workstream (with open tasks) states the consequence first or offers an obvious way back from where it was done.",
+      "actual": "One click on an unstyled button completes a workstream that still has open tasks, with no prompt. Afterwards the row offers no way to reopen it, and the page's own header Undo does not cover it; recovery requires following 'Open Kitchen' to another project's header.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #5 Error prevention; Nielsen #3 User control and freedom",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-descendant-history-discovery.md"
+    },
+    {
+      "id": "L3-021",
+      "surface": "root Archive page › Restore",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/006-archive.png (origin links 'Work canvas', 'Home' render as grey text; 'Open Legacy attic history' as plain white text)",
+        "pending: button 'Restoring…' disabled (good)",
+        "S/walk/l3-affordance/l3-archive-restore-after.png (after restoring 'Old permit copy': the item simply disappears, count 3 → 2, no message, no link to where it went; focus dropped to <body>)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/archive",
+        "3. press Restore on 'Old permit copy'"
+      ],
+      "expected": "After restoring, the person is told it worked and where the item now is.",
+      "actual": "The row vanishes with no confirmation and no route to the restored item, and keyboard focus is lost. The only evidence is the item count and the header progress percentage changing.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-022",
+      "surface": "Settings › Archived projects",
+      "inventoryRow": "/settings/archived-projects",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/008-archived-projects.png (Restore disabled until a status is chosen; it still looks like a normal button, computed opacity 1, no tooltip or description of why)",
+        "S/walk/l3-affordance/l3-archproj-enabled.png (enabled: only the background turns lighter grey)",
+        "S/walk/l3-affordance/l3-archproj-after.png (after Restore: list replaced by 'No archived projects are ready to restore in this workspace.'; no success message; restored project appears silently in the sidebar)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /settings/archived-projects",
+        "3. try pressing Restore before choosing a status",
+        "4. choose Active and press Restore"
+      ],
+      "expected": "A disabled Restore looks unavailable and says it needs a status; a successful restore says so and points to the project.",
+      "actual": "Restore looks pressable while disabled and gives no reason; after success the card disappears and an empty-state sentence suggests nothing happened, with no link to the restored project.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #9 Help users recognise, diagnose, recover",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-023",
+      "surface": "Settings › AI & Agents › Revoke and permission toggles",
+      "inventoryRow": "/settings/agents",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/007-agents.png (Revoke is a grey browser-default button, not marked as destructive)",
+        "pressing Revoke on Cursor: no dialog, no inline confirmation; after 2.5s the card shows a REVOKED badge, focus dropped to <body>",
+        "S/walk/l3-affordance/l3-agent-revoke-after.png (revoked card still shows a Revoke button and all permission checkboxes, disabled, with no explanation; no way to undo or reinstate)",
+        "S/walk/l3-affordance/l3-agent-perm-pending.png (toggling one permission greys every checkbox in the card for the save, no 'saving'/'saved' text)"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /settings/agents",
+        "3. tick Modify projects for Claude (requests delayed ~2s), watch the card",
+        "4. press Revoke for Cursor"
+      ],
+      "expected": "Cutting off an agent's access is clearly marked as consequential, confirmed, and either reversible or stated to be permanent; permission changes confirm they were saved.",
+      "actual": "Revoke fires on one click with no confirmation and no statement that it is permanent; afterwards there is no undo. The revoked card keeps showing a (disabled) Revoke button and greyed checkboxes without saying why they are disabled. Permission toggles save silently.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #5 Error prevention; Nielsen #3 User control and freedom",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-024",
+      "surface": "dashboard › widget rows",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/009-dashboard.png (Today/Upcoming task rows are bordered pill rows)",
+        "S/walk/l3-affordance/010-dash-scrolled.png (Active Projects rows, which are links, are the same bordered pills)",
+        "task row: no link/button inside, cursor auto, no hover change; click does nothing"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /app",
+        "3. hover and click 'Replace air filter' in Upcoming, then 'Home reset' in Active Projects"
+      ],
+      "expected": "Rows that look the same behave the same; a row that looks like a button can be opened.",
+      "actual": "Task rows in Today, Upcoming and Recent Progress are drawn identically to the Active Projects rows, but only the project rows are links. Clicking a task row does nothing and nothing on hover distinguishes them.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #4 Consistency and standards (false affordance)",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-025",
+      "surface": "project header › More menu",
+      "inventoryRow": "Project header and More menu",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "More open",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l3-affordance/l3-more-open.png (Name + Rename, Description + Save, Status chips, Target date + Set/Clear, Open Archive, Archive Project)",
+        "clicking 'On Hold' saved immediately and closed the panel",
+        "typing 'Home reset 2' into Name and closing the panel with ⋯: name discarded silently (heading and field back to 'Home reset')",
+        "Archive project shows an inline confirm 'Archive “Home reset”? … Archive it / Cancel' (unlike section Remove and agent Revoke)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-home and press ⋯",
+        "3. click On Hold",
+        "4. reopen ⋯, type a new name, close the panel without pressing Rename"
+      ],
+      "expected": "Within one panel, every field commits the same way, and an unsaved edit is not lost without notice.",
+      "actual": "Four commit models in one panel: status chips save and close on click, name/description/date each need their own differently worded button (Rename / Save / Set), and archive needs a confirmation. Closing the panel drops a typed but uncommitted name with no warning.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #4 Consistency and standards; Nielsen #5 Error prevention",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L3-026",
+      "surface": "sidebar › New project (+), project column › Add workstream (+), page settings (gear)",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "New project '+' measured 26x15 px, grey rgb(154,163,178), no tooltip (title empty)",
+        "Add workstream and page settings: 32x32 icon-only, no tooltip; page-settings gear glyph renders ~10px (S/walk/l3-affordance/l3-pagesettings-open.png)",
+        "after pressing '+', focus stays on the '+' button, not the new Project name field; typing goes nowhere",
+        "S/walk/l3-affordance/l3-newproject-pending.png (after Create with 2.5s delay: the form disappears immediately and nothing appears until navigation)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-home",
+        "3. hover the '+' next to PROJECTS and the gear next to the project name",
+        "4. press '+', start typing a name"
+      ],
+      "expected": "Creation and settings controls are findable and say what they do on hover; opening the inline form puts the cursor in it; creating shows progress.",
+      "actual": "The three entry points are small grey glyphs with no tooltip. Opening New project leaves focus on the '+', so typing is lost. During creation the form vanishes and the sidebar shows nothing for the duration of the request.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall; Nielsen #1 Visibility of system status; WCAG 2.2 SC 2.5.8 Target Size (Minimum)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

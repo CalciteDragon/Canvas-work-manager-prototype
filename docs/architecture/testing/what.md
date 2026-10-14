@@ -94,4 +94,4 @@ sequenceDiagram
 
 ## Visual audit evidence
 
-apps/e2e/ux-capture.config.ts reuses the e2e servers on isolated ports. ux/matrix.ts names selected cells, ux/capture.ts collects screenshots/axe/ARIA/console/layout evidence, ux/evidence.mjs preserves partial failures, and ux/tasks.ts records scripted task costs. The axe Playwright adapter is a development-only dependency of the e2e package.
+apps/e2e/ux-capture.config.ts reuses the e2e servers on isolated ports. ux/matrix.ts names selected cells, ux/capture.ts collects screenshots/axe/ARIA/console/layout evidence, ux/evidence.mjs preserves partial failures, and ux/tasks.ts records scripted task costs. The axe Playwright adapter is a development-only dependency of the e2e package. ux/walk/ is the disposable interactive audit rig used for Phase 1: per-auditor isolated hosts, a persistent headless page driven over HTTP, and the orchestrator's reproduction scripts.

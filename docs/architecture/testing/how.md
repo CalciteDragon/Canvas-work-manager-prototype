@@ -338,4 +338,25 @@ This harness is an evidence collector, not an accessibility or performance certi
 Its selected matrix and unresolved coverage are recorded in the
 [umbrella](../../roadmap/active/70-ui-ux-overhaul.md).
 
+### Interactive audit rig (Slice 70 Phase 1)
+
+Independent walkthrough and lens auditors need a browser that persists between their single
+narrated steps, and each needs its own host. `apps/e2e/ux/walk/` provides that, outside every
+test command:
+
+- `static.mjs <dist> 4201` serves a production web build.
+- `env.sh <name> <hostPort> <ctlPort> [--touch] [--theme light]` starts a host on its own port with
+  its own data file, copied from the empty seed. It also starts `walkd.mjs`, a headless Chromium
+  page that forwards `localhost:4200` to 4201 and `:4310` to that host.
+- `walk.mjs <ctlPort> seed|goto|run|shot|aria|axe|console|quit` drives the page.
+
+Data, logs and screenshots go to git-ignored `apps/e2e/ux-output/walk*`. Use ports 4320 and
+up, so no auditor shares a host with another or touches the developer's 4200/4310.
+
+The trap: a `page.route` handler must call `route.fallback()`, never `route.continue()`.
+`continue()` bypasses the forwarding route, and a handler that delays and then falls back
+loses the host override, so delayed writes fail. Observe pending states during the delay
+only. `repro/r1–r10.js` are the orchestrator's reproduction scripts. Run them with
+`walk.mjs <ctl> run -f`.
+
 After a capture, run the report generator with node --import tsx ux/report.ts ux-output/<HEAD> from apps/e2e. It creates the contact sheet, a raw axe summary and the explicit inventory denominator. UX_MATCH selects a subset for recapture and merges its cells into an existing index. Scroll frames expose nested scroll regions on long canvases; their presence is recorded per cell.

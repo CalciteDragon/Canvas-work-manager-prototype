@@ -1,0 +1,43 @@
+// Orchestrator reproduction 7: states (loading, error passthrough, archived, empty) + remaining claims.
+const facts = {};
+const host = 'http://127.0.0.1:4320';
+const H = { 'content-type': 'application/json', 'x-prototype-user': 'user-demo' };
+const post = (p, b) => fetch(host + p, { method: 'POST', headers: H, body: JSON.stringify(b) });
+const seed = async s => { await post('/prototype/seed', { seed: s }); await post('/prototype/clock', { now: '2026-08-24T16:00:00.000Z' }); };
+const go = async p => { await page.goto('http://localhost:4200' + p); await page.waitForLoadState('networkidle').catch(() => {}); await page.waitForTimeout(300); };
+const main = async () => (await page.locator('main').first().innerText()).replace(/\n+/g, ' | ').slice(0, 420);
+const tryit = async (k, fn) => { try { facts[k] = await fn(); } catch (e) { facts[k] = 'ERROR ' + String(e.message).slice(0, 200); } };
+const fail = (pattern, message = 'Audit failure') => page.route(pattern, r => r.request().method() === 'GET' ? r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message }) }) : r.fallback());
+await page.setViewportSize({ width: 1440, height: 900 });
+await seed('busy-week');
+await tryit('loadingSidebar', async () => { await page.route(/\/api\/projects(\?|$)/, async r => { await new Promise(s => setTimeout(s, 3000)); await r.fallback(); }); await page.goto('http://localhost:4200/app'); await page.waitForTimeout(1200); const t = (await page.locator('nav').first().innerText()).replace(/\n+/g, ' | '); await page.unrouteAll({ behavior: 'ignoreErrors' }); return t.slice(0, 200); });
+await go('/app');
+await tryit('dashboardWidgetFailure', async () => { await fail(/\/api\/dashboard/, 'Audit dashboard failure'); await page.reload(); await page.waitForTimeout(1500); const t = await main(); await page.unrouteAll({ behavior: 'ignoreErrors' }); return t; });
+await go('/projects/project-launch');
+await tryit('sectionReadError', async () => { await fail(/\/api\/tasks/, 'Audit task read failed'); await page.reload(); await page.waitForTimeout(1500); const sec = page.getByRole('region', { name: /Rename Task List|Task List/ }).first(); const t = (await sec.innerText()).replace(/\n+/g, ' | ').slice(0, 300); await page.unrouteAll({ behavior: 'ignoreErrors' }); await page.waitForTimeout(1500); const t2 = (await sec.innerText()).replace(/\n+/g, ' | ').slice(0, 200); return { duringFailure: t, afterRouteClearedNoReload: t2 }; });
+await page.screenshot({ path: out + '/r7-section-error.png' });
+await go('/projects/project-missing');
+await tryit('missingProject', main);
+await go('/not-a-route');
+await tryit('notFound', main);
+await go('/calendar'); await tryit('calendar', main);
+await go('/search'); await tryit('search', main);
+await seed('empty');
+await go('/app');
+await tryit('emptyDashboard', async () => ({ text: await main(), buttonsInMain: await page.locator('main').first().getByRole('button').allInnerTexts(), linksInMain: await page.locator('main').first().getByRole('link').allInnerTexts() }));
+await tryit('emptyCreate', async () => { await page.getByRole('button', { name: 'New project' }).click(); await page.getByRole('button', { name: 'Create', exact: true }).click(); await page.waitForTimeout(600); return { alerts: await page.getByRole('alert').allInnerTexts(), fieldInvalid: await page.getByRole('textbox', { name: 'Project name' }).getAttribute('aria-invalid'), stillOpen: await page.getByRole('textbox', { name: 'Project name' }).isVisible() }; });
+await seed('nested-projects');
+await go('/projects/project-legacy');
+await tryit('archivedRoot', async () => ({ text: (await main()).slice(0, 300), enabledButtons: (await page.locator('main').first().getByRole('button').evaluateAll(es => es.filter(e => !e.disabled).map(e => e.getAttribute('aria-label') || e.textContent.trim()).slice(0, 12))) }));
+await tryit('archivedWriteAttempt', async () => { const f = page.getByRole('textbox', { name: 'Task title' }).first(); if (!(await f.count())) return 'no task field'; await f.fill('Probe'); await page.getByRole('button', { name: 'Add task', exact: true }).first().click(); await page.waitForTimeout(900); return (await page.getByRole('alert').allInnerTexts()).slice(0, 2); });
+await go('/projects/project-legacy/pages/todos');
+await tryit('archivedTodos', main);
+await tryit('archivedInTree', async () => ({ sidebarHasLegacy: await page.getByRole('navigation').first().getByText('Legacy attic').count(), ariaCurrent: await page.locator('[aria-current]').count() }));
+// archived-only workspace sidebar wording (Alex owns project-alex-private; archive it as Alex via API then view as Alex)
+await tryit('archivedOnlySidebar', async () => { const r = await fetch(host + '/api/projects/project-alex-private', { method: 'PATCH', headers: { ...H, 'x-prototype-user': 'user-alex' }, body: JSON.stringify({ status: 'archived' }) }); return r.status; });
+// overdue + selected (overdue-chaos)
+await seed('overdue-chaos');
+await go('/projects/project-client-migration');
+await tryit('selectedHidesOverdue', async () => { const row = page.getByRole('article').filter({ hasText: 'Overdue' }).first(); const before = await row.evaluate(e => getComputedStyle(e).borderColor + ' ' + getComputedStyle(e).backgroundColor); await row.getByRole('button', { name: /, open details$/ }).click(); await page.waitForTimeout(400); const after = await row.evaluate(e => getComputedStyle(e).borderColor + ' ' + getComputedStyle(e).backgroundColor + ' overdueText:' + /Overdue/.test(e.innerText)); return { before, after }; });
+await tryit('overdueVsAlert', async () => { const row = page.getByRole('article').filter({ hasText: 'Overdue' }).first(); return row.evaluate(e => getComputedStyle(e).borderColor); });
+return facts;

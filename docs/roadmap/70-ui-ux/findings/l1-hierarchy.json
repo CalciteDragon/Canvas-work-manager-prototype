@@ -1,0 +1,1014 @@
+{
+  "examinedCells": [
+    "busy-week-dashboard-dark-1440",
+    "busy-week-dashboard-light-1440",
+    "busy-week-dashboard-dark-1024",
+    "busy-week-dashboard-dark-375",
+    "agent-heavy-dashboard-dark-1440",
+    "overdue-chaos-dashboard-light-1440",
+    "empty-dashboard-dark-1440",
+    "nested-projects-dashboard-light-1024",
+    "busy-week-project-dark-1440",
+    "busy-week-project-light-1440",
+    "busy-week-project-dark-375",
+    "agent-heavy-project-dark-1440",
+    "personal-workspace-project-light-1440",
+    "nested-projects-project-dark-1440",
+    "overdue-chaos-project-light-1024",
+    "todos-dark-1440",
+    "todos-light-375",
+    "reflections-dark-1440",
+    "reflections-light-1024",
+    "archive-dark-1440",
+    "archive-light-375",
+    "settings-light-1440",
+    "settings-agents-dark-1440",
+    "settings-agents-light-375",
+    "settings-archived-projects-dark-1440",
+    "calendar-dark-1440",
+    "search-dark-375",
+    "not-a-route-light-375",
+    "prototype-state-dark-1440",
+    "prototype-design-dark-1440",
+    "prototype-design-light-375",
+    "kitchen-task-drawer-dark-1440",
+    "kitchen-task-drawer-dark-375",
+    "kitchen-more-light-1440",
+    "kitchen-page-settings-dark-1440",
+    "kitchen-work-create-light-1440",
+    "kitchen-section-create-dark-1440",
+    "kitchen-section-create-light-375",
+    "kitchen-shortcut-picker-dark-1440",
+    "kitchen-markdown-edit-dark-1440",
+    "kitchen-collapsed-dark-1440",
+    "kitchen-remove-feedback-dark-1440",
+    "kitchen-refused-dark-1440",
+    "kitchen-loading-dark-1440",
+    "kitchen-error-dark-1440",
+    "kitchen-archived-light-1440",
+    "kitchen-grid-dark-1440",
+    "dev-panel-light-1440",
+    "new-project-dark-1440",
+    "phone-menu-dark-375",
+    "ALL 182 cells: layout.json scanned for horizontal overflow and main-region scroll height"
+  ],
+  "findings": [
+    {
+      "id": "L1-001",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "dashboard › widget grid",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/empty-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-dashboard-light-1024.png",
+        "Right edges of the stacked tiles fall at x=1015 (Today), 831 (Fun Fact, Daily Digest), 1383 (Upcoming); Today ends 168px short of the page edge and 184px past the Fun Fact edge, lining up with nothing",
+        "empty seed: seven tiles produce a staircase of 8/6/6/6/8/6/8 column spans with empty holes to the right of Today, Daily Digest, Active Projects, Recent Progress, Recent Agent Activity",
+        "apps/web/src/app/features/dashboard/dashboard-page.scss: wide=span 8, medium=span 6 on a 12-col grid with no dense packing (inferred cause)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /app at 1440 wide",
+        "3. compare the right edges of Today, Fun Fact and Upcoming"
+      ],
+      "expected": "Widgets read as one composed board whose edges line up, so the eye moves across rows predictably.",
+      "actual": "Tiles of different spans leave irregular empty holes on the right; the right edges of vertically adjacent tiles sit at three unrelated x positions, so the board reads as ragged.",
+      "heuristic": "Gestalt alignment / Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-002",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "dashboard › Fun Fact widget position and size",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/overdue-chaos-dashboard-light-1440.png",
+        "busy-week 1440: Fun Fact tile is 535x229px holding one 1-line sentence (≈180px of empty card) and sits in the second row, left column, ahead of Upcoming and above Daily Digest",
+        "The tile is stretched to Upcoming's height by align-items: stretch"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /app",
+        "3. look at the second row of tiles"
+      ],
+      "expected": "Actionable content (what is upcoming, the digest) gets the earlier and larger positions; decorative content is visually subordinate.",
+      "actual": "The Fun Fact trivia tile occupies the prime second-row-left slot at the same size and title weight as Upcoming, and most of it is empty card surface.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design (signal-to-noise)",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-003",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "dashboard › Today widget › group labels",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-dashboard-dark-1440.png",
+        "Overdue row ends y≈287; \"DUE TODAY\" label at y≈292–304; its own row starts y≈317. The label is ~5px from the previous group and ~13px from its own row; the same at \"IN PROGRESS\" (row ends 355, label 360, row 385)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /app",
+        "3. look at the OVERDUE / DUE TODAY / IN PROGRESS groups in Today"
+      ],
+      "expected": "Each group label clearly belongs to the rows beneath it, with more space between groups than within one.",
+      "actual": "Group labels sit closer to the previous group's last row than to their own rows, so the three groups run together as one list with captions wedged between rows.",
+      "heuristic": "Gestalt proximity",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-004",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "dashboard at phone width › gutters and Today/Upcoming rows",
+      "inventoryRow": "/app dashboard",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-375.png",
+        "Content column runs x=56→319: 56px gutters each side leave 263px (70%) of a 375px screen; workspace padding (24px) and dashboard padding (32px) both apply",
+        "Today rows: titles wrap to three lines (\"Complete / type- / system module\") while the non-wrapping metadata \"Website launch · 2026-08-23\" takes most of the row and runs to x≈311, past the row's right inner padding (row border at x≈301)",
+        "widget-content.scss .widget-row__meta { white-space: nowrap } (inferred cause)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /app at 375 wide",
+        "3. look at the Today rows"
+      ],
+      "expected": "On a phone the task title is the most readable thing in each row and the content uses the available width.",
+      "actual": "Double gutters shrink the content to 263px; metadata keeps its full width and overruns the row edge while the task title (the important part) is squeezed into a narrow, three-line column.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design; responsive layout",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-005",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "all routes › main column start edge and width",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects / agent-heavy",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/calendar-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-error-dark-1440.png",
+        "Page heading x / content span at 1440: dashboard 297 (to 1384); settings 264 (cards to 1415); calendar/search placeholder card 264, heading inside it 297; project error heading 264 at y=91",
+        "Inside the project workspace: Todos content 488→1127 (640px), Reflections 512→1103 (592px), Archive 512→1392, canvas 488→1415; Reflections \"3 entries\" right edge 1104 vs header card 1415"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /app, /settings, /calendar, then /projects/project-renovation/pages/todos, /reflections, /archive",
+        "3. compare where the heading and content start and end"
+      ],
+      "expected": "Comparable pages share one content frame, so the heading and the first block are found in the same place on every route.",
+      "actual": "The content start edge moves between 264, 297, 488 and 512px and the content width changes per page (640, 592, 880, 927px) with no apparent rule, including between sibling project pages.",
+      "heuristic": "Internal consistency; Gestalt alignment",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-006",
+      "persona": "user-demo",
+      "decisionReopened": "docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md",
+      "lens": "hierarchy",
+      "surface": "project workspace › header vs section frames › left edges",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/personal-workspace-project-light-1440.png",
+        "Within one 927px column there are three text edges: project name/description/facts at x=562, prototype notice and section body text at x=505, section titles at x=647",
+        "Each section header begins with ~52px of empty space (x=505→557) before the collapse button; the hidden drag handle keeps its 44px box at opacity 0 (project-section-frame.scss .section-frame__handle opacity var(--canvas-chrome-opacity)) — inferred",
+        "Header card padding 24px vs section frame padding 16px also offsets the card interiors by 8px"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. compare the left edge of the project name, the Markdown body text and the \"Markdown\" title"
+      ],
+      "expected": "Titles and body text in the main column share a small number of left edges so the eye can scan down one line.",
+      "actual": "Section titles start 142px to the right of their own body text behind an empty gap, and the project header text sits on a third edge, so nothing in the column lines up vertically.",
+      "heuristic": "Gestalt alignment",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-007",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "project workspace › prototype layout notice",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-archived-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/overdue-chaos-project-light-1024.png",
+        "\"Flow layout / Grid layout — Switch layout in the development panel…\" is a full-width bordered card (927x72 at 1440; 512x92 at 1024) with a bold title, placed directly between the project header and the first section on every Home/Work canvas"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation",
+        "3. look between the project header and the first section"
+      ],
+      "expected": "The first thing under the project header is the project's own content.",
+      "actual": "A developer-tooling notice is styled at the same weight as a content card and takes the slot the eye reaches immediately after the header, on every canvas.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-008",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "project workspace › vertical rhythm between blocks",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.png",
+        "busy-week 1440: header bottom 254 → notice top 279 (25px); notice bottom 350 → first section top 400 (50px); between sections 567→584 (17px); dashboard widgets 16px; Today rows 8px"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. measure the gaps header→notice→Markdown→Task List"
+      ],
+      "expected": "Comparable stacked blocks are separated by a consistent interval.",
+      "actual": "The three gaps down the top of the canvas are 25, 50 and 17px, so the first section appears detached from the header while later sections are tightly packed.",
+      "heuristic": "Internal consistency (spacing rhythm)",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-009",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Progress / Reflections / Timeline sections, Todos page, AI & Agents › unstyled buttons and fields",
+      "inventoryRow": "Reflections section and composer",
+      "seed": "busy-week",
+      "theme": "both (heaviest in dark)",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.scroll-0-1.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.scroll-0-2.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-light-1440.scroll-0-2.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-dark-1440.png",
+        "Dark: \"Add reflection\" and each reflection's \"Edit\" render as full-width (844–894px) solid mid-grey bars; Count / Weighted / Use manual, Todos \"Complete\" and agent \"Revoke\" are grey browser-default buttons; Optional title / No prompt / Write a reflection fields are compact native controls with a monospace placeholder",
+        "In the Reflections section the two \"Edit\" bars are the largest, brightest shapes, outweighing the reflection text they belong to",
+        "apps/web/src/styles/_base.scss resets only font and color on button; no background/border reset or input styles (inferred cause)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. scroll to Progress, Reflections and Timeline"
+      ],
+      "expected": "Secondary actions such as Edit are quieter than the content; all controls share the app's visual language.",
+      "actual": "Browser-default grey buttons and fields appear in four sections; full-width grey \"Edit\" bars become the dominant visual element of the Reflections section, and \"Revoke\" is the only filled control on the agents page.",
+      "heuristic": "Internal consistency; visual weight vs importance",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-010",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Timeline section › row layout",
+      "inventoryRow": "Timeline section",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1440x900 and 375x812",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.scroll-0-3.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-light-1440.scroll-0-2.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-375.scroll-0-5.png",
+        "1440: titles start at x=600 (TASK), 697 (PROJECT/TASK \"Run launch QA\"), 600 (MILESTONE), 608 (WORKSTREAM) — not a column; status is far right on line 1, date alone on line 2",
+        "Each row is a separate grid \"auto 1fr auto\" (timeline-section.scss), so column widths differ per row (inferred cause)",
+        "375: title squeezed to 1–2 words per line (\"Run / launch / QA\"); ranges break inside a date (\"2026-08-24 → 2026-\" / \"08-25\")"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. scroll to Timeline at 1440 and at 375"
+      ],
+      "expected": "Timeline entries scan as a list: titles in one column, dates and statuses in predictable places.",
+      "actual": "Titles jump horizontally from row to row and the date is visually detached from the title; at phone width titles and date ranges break into fragments.",
+      "heuristic": "Gestalt alignment; Nielsen #8",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-011",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Task List section / task rows › emphasis by status",
+      "inventoryRow": "Task row",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1440.scroll-0-1.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-grid-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.png",
+        "Completed rows (\"Approve homepage copy\", \"Configure deployment\", \"Approve the cabinet measurements\") get a saturated green fill and bright green border — the strongest box in the list after overdue — while open normal-priority rows are plain"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. look at the Task List"
+      ],
+      "expected": "Open work draws the eye; finished work recedes.",
+      "actual": "Finished tasks are among the most emphasised rows in every Task List, competing with overdue rows and outranking the open tasks still to do.",
+      "heuristic": "Visual weight vs importance (Nielsen #8)",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-012",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "task row › high-priority start border",
+      "inventoryRow": "Task row",
+      "seed": "personal-workspace",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/personal-workspace-project-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1440.scroll-0-1.png",
+        "Checkbox and title of the high-priority row sit at x≈523/548 vs 522/547 on the medium-priority row below",
+        "task-row.scss: high priority switches to border-inline-start 2px against a 1px hairline (inferred cause)"
+      ],
+      "repro": [
+        "1. seed personal-workspace as Demo",
+        "2. open /projects/project-personal",
+        "3. compare the checkbox/title x of \"Plan the week\" and \"Pick up groceries\""
+      ],
+      "expected": "Checkboxes and titles form one straight column.",
+      "actual": "High-priority rows shift their content 1px right, so the checkbox/title column is not quite straight.",
+      "heuristic": "Gestalt alignment",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-013",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "project workspace at 1024 › first viewport",
+      "inventoryRow": "/projects/:projectId and /projects/:projectId/pages/:pageKind workspace",
+      "seed": "overdue-chaos",
+      "theme": "both",
+      "viewport": "1024x768",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/overdue-chaos-project-light-1024.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-light-1024.png",
+        "Global sidebar (240) + project column (224) take 464px; the canvas is 512px wide",
+        "Header card wraps to 275px tall (target date on its own row), notice 92px, Markdown 168px; the Task List heading reaches y≈734 and no task row is visible in the 768px viewport"
+      ],
+      "repro": [
+        "1. seed overdue-chaos as Demo",
+        "2. open /projects/project-client-migration at 1024x768"
+      ],
+      "expected": "At laptop width opening a project shows some of its work without scrolling.",
+      "actual": "Two navigation columns take 45% of the width; the header and prototype notice push every task below the fold.",
+      "heuristic": "Nielsen #8; responsive layout",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-014",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "project header at phone width",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-375.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-375.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-375.png",
+        "Header card spans y≈112→440 (≈330px of a 764px main area): facts wrap to two rows, undo/redo/More drop to a separate bottom-right row",
+        "On Archive the page title \"Archive\" begins at y≈485 and the first archived item at y≈648; on Todos the first row at y≈500"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/archive at 375 wide"
+      ],
+      "expected": "On a phone the page's own content starts near the top.",
+      "actual": "The repeated project header consumes about 40% of the first screen on every project page, so the page title and content start below the middle of the screen.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-015",
+      "persona": "user-demo",
+      "decisionReopened": "docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md",
+      "lens": "hierarchy",
+      "surface": "project canvas at phone width › always-visible canvas chrome",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-375.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-375.scroll-0-3.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-section-create-light-375.png",
+        "Between every pair of sections a full-width accent line with a 44px circled \"+\" is drawn; every section header shows a drag handle, collapse button and red delete button",
+        "The accent insertion lines are the most saturated elements on the screen and recur roughly every 300–500px"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch on a 375-wide touch device"
+      ],
+      "expected": "Content is the most prominent thing; editing affordances are present but quieter.",
+      "actual": "On touch the insertion lines and per-section edit/delete controls are permanently drawn in accent/danger colours and pull the eye away from section content.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-016",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Todos page › row composition",
+      "inventoryRow": "/projects/:root/pages/todos",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "1440x900 and 375x812",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/todos-light-375.png",
+        "1440: each row is 120px tall; title on line 1, breadcrumb on line 2, checkbox alone on line 3 at x=513 and the delete icon floating at x=759 mid-row; rows stop at x=1127 leaving 288px empty to the right; five rows per screen",
+        "Kind label (\"Task\", \"Workstream\") pushes the title to x=537 or x=593 depending on the word",
+        "375: kind label and date at left, title right-aligned at the far edge, a 44px empty checkbox box on its own line"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/todos at 1440 and 375"
+      ],
+      "expected": "Each to-do reads as one line: checkbox, title, then metadata, with its controls attached to it.",
+      "actual": "The checkbox and delete control are separated from the title onto a lower line with the delete icon floating in the middle; titles do not share a column, and on phones the title is right-aligned away from its label.",
+      "heuristic": "Gestalt proximity and alignment",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-017",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Archive page › item list",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-dark-1440.png",
+        "Three items stacked with no divider or spacing difference; each item is 4–6 same-size muted lines (kind, origin, history link, \"Archived directly\", notes); only the bold title marks a new item",
+        "Inside the card an uppercase \"ARCHIVE\" label repeats the page title \"Archive\" directly above it"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/archive"
+      ],
+      "expected": "Each archived item is a visibly separate unit, with its restore action clearly attached to it.",
+      "actual": "Items run together as one long column of muted text; the eye relies on the bold title alone to find where an item starts, and the card repeats the page heading.",
+      "heuristic": "Gestalt common region / proximity",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-018",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Archive page at phone width › item header",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "375x812",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/archive-light-375.png",
+        "\"Restore as [active] Restore\" stays on the title row, leaving ~35px for the title: \"Legacy attic\" truncates to \"Leg…\", the kind wraps mid-word as \"Works / tream\", and the origin breadcrumb wraps one word per line"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/archive at 375 wide"
+      ],
+      "expected": "The item's name stays readable on a phone.",
+      "actual": "The restore controls take the row and the item name and kind are truncated or broken mid-word.",
+      "heuristic": "Responsive layout; Nielsen #8",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-019",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "task detail drawer",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "task-drawer",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-dark-1440.scroll-0-1.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-dark-375.scroll-0-2.png",
+        "Drawer is a bordered card inside the Task List section card (card inside card inside canvas); at first paint it starts at y≈720, so only its title is visible",
+        "Drawer title \"Choose appliance finishes\" is ≈24px bold, larger than the section title \"Task List\" (18px) and equal to the project name",
+        "Task rows shrink to 517px and leave ≈450px of empty section surface beneath them beside the drawer"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. open the task \"Choose appliance finishes\""
+      ],
+      "expected": "The opened task's details appear where the eye is and sit clearly under the section that owns them in the heading order.",
+      "actual": "The details open low in the page, nested as a third level of boxes, with a heading that outranks the section heading above it.",
+      "heuristic": "Visual hierarchy (heading scale); Nielsen #8",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-020",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "dialogs and inline editors › primary vs secondary actions",
+      "inventoryRow": "Section creation dialog",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "section-create",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-section-create-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-work-create-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-refused-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-markdown-edit-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-shortcut-picker-dark-1440.png",
+        "Add a section / Add workstream: \"Create\" and \"Cancel\" are identical outlined buttons; the mode switch \"Add shortcut\" in the dialog header has the same weight",
+        "Markdown editor: Preview / Save / Cancel identical; More menu: Rename, Save, Set, Clear, Open Archive identical",
+        "By contrast Task List's \"Add task\" is accent-filled"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. open an insertion point to add a section"
+      ],
+      "expected": "The action that completes the dialog is the most prominent button.",
+      "actual": "Primary, cancel and mode-switch actions share one style in every dialog and inline editor, so the commit action has to be found by reading.",
+      "heuristic": "Visual hierarchy of actions; Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-021",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "project header › More menu form",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "more",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-more-light-1440.png",
+        "Field starts depend on label width: Name input x=568, Description input x=599, Status buttons x=570, Due date input x=586; the trailing buttons (Rename, Save, Set) also land at different x"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. open More (…)"
+      ],
+      "expected": "Form fields start on one edge so labels and values scan in two columns.",
+      "actual": "Each field starts at a different x, giving a ragged edge across five rows.",
+      "heuristic": "Gestalt alignment",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-022",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "shortcut picker › source list",
+      "inventoryRow": "Shortcut picker",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "shortcut-picker",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-shortcut-picker-dark-1440.png",
+        "Bold titles repeat (Markdown ×2, Reflections ×2, Task List ×2); what tells them apart is the smaller muted origin line (\"Home renovation · Home\" vs \"Home renovation / Garden · Work canvas\")",
+        "The list is a bordered box inside the dialog, each item another bordered box with its own equal \"Add\" button"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. insertion point → Add shortcut"
+      ],
+      "expected": "The information that distinguishes one choice from another is the easiest to read.",
+      "actual": "The distinguishing origin is demoted to muted secondary text while repeated type names carry the emphasis, inside two levels of boxes.",
+      "heuristic": "Visual hierarchy; Nielsen #6 Recognition rather than recall",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-023",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "section removal notice",
+      "inventoryRow": "Section removal/recovery feedback",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "remove-feedback",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-remove-feedback-dark-1440.png",
+        "Notice box x≈785→1423, y≈781→883 sits over the Progress section, covering the right half of its progress bar and controls",
+        "Its right edge (1423) overshoots the canvas/section right edge (1415) by 8px"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. remove the Markdown section"
+      ],
+      "expected": "Feedback is visible without hiding content and sits within the page's edges.",
+      "actual": "The notice covers live section content and almost-but-not-quite aligns with the canvas edge.",
+      "heuristic": "Gestalt alignment; Nielsen #1 Visibility",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-024",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Design Lab at phone width",
+      "inventoryRow": "/prototype/design",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "default",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-light-375.scroll-0-3.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-375.layout.json",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-light-375.layout.json",
+        "layout.json: MAIN width 375, scrollWidth 617 (the only cells with horizontal overflow)",
+        "Knob panel keeps a ~250px column at left; the component column starts at x≈328 and is clipped at the screen edge (\"Sect… stat…\")"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /prototype/design at 375 wide"
+      ],
+      "expected": "At phone width the two columns stack and nothing scrolls sideways.",
+      "actual": "The two-column layout does not collapse; the live components are cut off and the main region scrolls horizontally by 242px.",
+      "heuristic": "Responsive layout (WCAG 2.2 SC 1.4.10 Reflow)",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-025",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Design Lab › panel nesting and top alignment",
+      "inventoryRow": "/prototype/design",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "default",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.scroll-0-2.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.scroll-0-4.png",
+        "Three levels of rounded bordered boxes: page card (\"Section states\") → section frame → content; task drawer fixture is a card inside a card",
+        "Knob panel top y=97, right-column intro text y=106, first right card y=160 — no shared top line"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /prototype/design"
+      ],
+      "expected": "Component specimens are framed once, and the two columns start on one line.",
+      "actual": "Specimens sit in boxes within boxes and the two columns start at three different heights.",
+      "heuristic": "Nielsen #8; Gestalt alignment",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-026",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "ia",
+      "surface": "sidebar › Settings active state on child routes",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "default",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-archived-projects-dark-1440.png",
+        "/settings: \"Settings\" in the sidebar is accent-coloured; /settings/agents and /settings/archived-projects: no sidebar item is highlighted"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /settings, then AI & Agents"
+      ],
+      "expected": "The sidebar keeps marking where the user is inside Settings.",
+      "actual": "The location cue disappears on Settings sub-pages, so no sidebar entry anchors the page.",
+      "heuristic": "Nielsen #1 Visibility of system status (where am I)",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-027",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "AI & Agents › agent card",
+      "inventoryRow": "/settings/agents",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "default",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-agents-light-375.png",
+        "Each card is 1150px wide but its content occupies x=281→760; seven permissions are an undifferentiated single column with read/modify pairs not grouped; the second agent's card begins below the first screen"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /settings/agents"
+      ],
+      "expected": "Each agent's permissions can be compared at a glance, with related read/write pairs grouped.",
+      "actual": "A long flat checkbox column in a mostly empty full-width card; only one agent fits on screen.",
+      "heuristic": "Gestalt proximity; Nielsen #8",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-028",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "archived workstream › header and empty canvas",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "archived",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-archived-light-1440.png",
+        "Header card is identical to an active one; only the fact text \"Archived\" differs. Undo/redo/More keep full weight and the empty canvas shows an accent-outlined \"+ Add a section\" as its only call to action"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-legacy"
+      ],
+      "expected": "An archived item looks archived at first glance, and actions that are blocked are not the most prominent.",
+      "actual": "Nothing in the visual weight signals the archived state; the most prominent element on the page is an add-content action.",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-029",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "Recent Activity feed › row alignment",
+      "inventoryRow": "Recent Activity section and shared feed",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/agent-heavy-project-dark-1440.scroll-0-1.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/prototype-design-dark-1440.scroll-0-4.png",
+        "Actor name starts at x=610 after an AGENT badge and x=594 after a YOU badge; the action text and project name therefore shift 16px row to row"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /projects/project-work-manager",
+        "3. scroll to Recent Activity"
+      ],
+      "expected": "Actor names and actions start on one edge so the feed scans as a column.",
+      "actual": "Text start depends on badge width, producing a ragged edge between agent and human rows.",
+      "heuristic": "Gestalt alignment",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-030",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "top bar › brand vs sidebar edge",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "any",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/settings-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.layout.json",
+        "Brand \"Canvas Work Manager\" text starts x=16; sidebar link text (\"Home\", \"Calendar\", \"Settings\") starts x=20 (controls x=12 + 8px padding); project names start at x=48"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /app",
+        "3. compare the brand and sidebar text left edges"
+      ],
+      "expected": "The brand and the navigation below it share a left edge.",
+      "actual": "The brand sits 4px left of the sidebar text — close enough to look like a mistake rather than a choice.",
+      "heuristic": "Gestalt alignment",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "id": "L1-031",
+      "persona": "user-demo",
+      "decisionReopened": null,
+      "lens": "hierarchy",
+      "surface": "project header vs section frames › elevation",
+      "inventoryRow": "Project header and More menu",
+      "seed": "busy-week",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/personal-workspace-project-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-archived-light-1440.png",
+        "Section frames carry a soft shadow under the border; the project header card, same radius and border, has none (project-header.scss has no box-shadow; project-section-frame.scss uses --shadow-sm)"
+      ],
+      "repro": [
+        "1. seed personal-workspace as Demo",
+        "2. open /projects/project-personal in light theme"
+      ],
+      "expected": "Cards of the same kind sit at the same level, or the difference is clearly intentional.",
+      "actual": "The header and the sections look like siblings but sit at slightly different elevations, so the difference reads as inconsistency rather than hierarchy.",
+      "heuristic": "Internal consistency",
+      "severity": "S3",
+      "confidence": "observed"
+    }
+  ],
+  "layeringObservations": [
+    {
+      "id": "L1-O01",
+      "surface": "all cards in dark theme (widgets, section frames, header, task rows, activity rows)",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png"
+      ],
+      "observation": "Dark surface steps are tiny (background #14161a, surface #191b20, raised #1e2127, sunken #111317 in _tokens.scss); separation between page, card and row is carried almost entirely by the 1px #2c313a hairline border."
+    },
+    {
+      "id": "L1-O02",
+      "surface": "light theme cards and widget rows",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/personal-workspace-project-light-1440.png"
+      ],
+      "observation": "In light, surface and raised are both #ffffff on a #f6f7f9 page; cards separate only by hairline border plus an 8% shadow, and rows inside widgets rely on a sunken grey fill plus border."
+    },
+    {
+      "id": "L1-O03",
+      "surface": "task rows and Today rows by status",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.scroll-0-1.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/overdue-chaos-dashboard-light-1440.png"
+      ],
+      "observation": "Overdue, completed and selected states are communicated by a solid tinted fill plus a coloured full border; status legibility depends on that fill."
+    },
+    {
+      "id": "L1-O04",
+      "surface": "Timeline rows, Progress/Reflections buttons",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.scroll-0-3.png"
+      ],
+      "observation": "Timeline rows and native buttons are solid mid-grey fills laid over the section surface; their text legibility (muted \"TASK\" on grey) depends on that opaque fill."
+    },
+    {
+      "id": "L1-O05",
+      "surface": "section removal notice",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-remove-feedback-dark-1440.png"
+      ],
+      "observation": "The notice is an opaque filled card with an accent border overlapping live section content; it is legible only because it fully hides what is beneath it."
+    },
+    {
+      "id": "L1-O06",
+      "surface": "dialogs (section create, workstream create, shortcut picker)",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-section-create-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-work-create-light-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-shortcut-picker-dark-1440.png"
+      ],
+      "observation": "Dialogs are opaque panels over a dimmed page; their separation comes from the dim and a border. Busy content (grey timeline rows) remains visible beside the dialog edge. The shortcut picker adds a second bordered box inside the dialog to separate the scrolling list."
+    },
+    {
+      "id": "L1-O07",
+      "surface": "phone navigation drawer and development panel",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/phone-menu-dark-375.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/dev-panel-light-1440.png"
+      ],
+      "observation": "Both side panels are opaque surfaces separated from the page by a single 1px edge; the page behind is only lightly dimmed and its text shows right up to that edge."
+    },
+    {
+      "id": "L1-O08",
+      "surface": "task detail drawer",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/kitchen-task-drawer-dark-1440.scroll-0-1.png"
+      ],
+      "observation": "The drawer is distinguished from the section it sits in only by a raised surface step and a border."
+    },
+    {
+      "id": "L1-O09",
+      "surface": "shell chrome",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-dashboard-dark-1440.png",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/busy-week-project-dark-1440.png"
+      ],
+      "observation": "Top bar, global sidebar and project column share one surface and are separated from each other and from the workspace by 1px rules."
+    }
+  ]
+}

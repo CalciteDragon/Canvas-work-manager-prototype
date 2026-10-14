@@ -1,0 +1,1120 @@
+{
+  "axeSummary": [
+    {
+      "rule": "list",
+      "impact": "serious",
+      "cells": 110,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "Sidebar project tree (.projects, li > .children) and project navigation (.project-nav__work): <ul> directly contains <app-project-tree-item>/<app-project-work-item> host elements. Live Chromium accessibility tree still exposes list/listitem correctly (Playwright ariaSnapshot), so the user-facing impact in Chromium is nil; structure is invalid HTML and depends on the browser repairing it. Filed as L5-013."
+    },
+    {
+      "rule": "listitem",
+      "impact": "serious",
+      "cells": 110,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "Same root cause as list: <li> inside custom-element hosts. 472 nodes. See L5-013."
+    },
+    {
+      "rule": "select-name",
+      "impact": "critical",
+      "cells": 62,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "Reflections composer prompt <select data-reflection-prompt> (every project page with a Reflections section) and Reflections page subject picker <select data-reflections-subject-picker> have no accessible name; live ARIA tree shows a bare \"combobox\". Section-create dialog and drawer selects are labelled. Filed L5-003."
+    },
+    {
+      "rule": "aria-progressbar-name",
+      "impact": "serious",
+      "cells": 56,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "Progress section .progress-section__bar role=progressbar with valuenow but no name; live tree shows bare \"progressbar\". Filed L5-004."
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "cells": 28,
+      "themes": [
+        "dark"
+      ],
+      "reproducedLive": true,
+      "note": "Only failing text in all captures: Timeline .timeline__kind (Task/Project/Workstream/Milestone) #9aa3b2 on #6b6b6b = 2.09:1 in dark. Root cause confirmed live: timeline row <button> has no author styling (appearance:auto, 2px outset border, UA ButtonFace #6b6b6b in dark). Light theme the same labels are #626b7a on UA #f0f0f0 = 4.72:1 (passes narrowly). Filed L5-001."
+    },
+    {
+      "rule": "landmark-main-is-top-level",
+      "impact": "moderate",
+      "cells": 46,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "Dashboard renders <main class=\"dashboard\"> inside the shell <main class=\"workspace\">; also /prototype/state. Filed L5-011."
+    },
+    {
+      "rule": "landmark-no-duplicate-main",
+      "impact": "moderate",
+      "cells": 46,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "Same as above: two main landmarks on /app (live: document.querySelectorAll(\"main\").length === 2). L5-011."
+    },
+    {
+      "rule": "landmark-unique",
+      "impact": "moderate",
+      "cells": 56,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "Consequence of the nested mains (unnamed .workspace); also Archive page region, top bar banner duplicated while dev panel open, and duplicate Workspace nav in dev panel/phone drawer. Folded into L5-011."
+    },
+    {
+      "rule": "scrollable-region-focusable",
+      "impact": "serious",
+      "cells": 6,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": true,
+      "note": "/app on empty seed: .workspace scrolls (scrollHeight 930 > clientHeight 852 at 1440x900) but contains no focusable element and has tabindex=-1; live, Tab after Settings goes to BODY and PageDown/End/Space leave scrollTop at 0. Filed L5-012."
+    },
+    {
+      "rule": "heading-order",
+      "impact": "moderate",
+      "cells": 8,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": false,
+      "note": "Dev panel \"Persona\" h3 and Design Lab task-row panel h3 skip a level. Prototype tooling only; not reproduced or filed."
+    },
+    {
+      "rule": "page-has-heading-one",
+      "impact": "moderate",
+      "cells": 4,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": false,
+      "note": "Project workspace loading state has no h1 until data arrives. Transient; not filed."
+    },
+    {
+      "rule": "aria-allowed-role",
+      "impact": "minor",
+      "cells": 4,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": false,
+      "note": "Dev panel <aside role=dialog>. Prototype tooling; not filed (the dialog itself behaves as a dialog, see L5-010 note)."
+    },
+    {
+      "rule": "landmark-no-duplicate-banner",
+      "impact": "moderate",
+      "cells": 4,
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "reproducedLive": false,
+      "note": "Second banner while dev panel is open (panel contains a header). Prototype tooling; not filed."
+    }
+  ],
+  "contrastTable": [
+    {
+      "element": "Body text",
+      "theme": "dark",
+      "fg": "#eef1f6",
+      "bg": "#14161a",
+      "ratio": 16,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Secondary/meta text (task priority, due date, labels)",
+      "theme": "dark",
+      "fg": "#9aa3b2",
+      "bg": "#191b20",
+      "ratio": 6.77,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Timeline kind label (Task/Project/...) on unstyled UA button",
+      "theme": "dark",
+      "fg": "#9aa3b2",
+      "bg": "#6b6b6b",
+      "ratio": 2.09,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Timeline kind label on unstyled UA button",
+      "theme": "light",
+      "fg": "#626b7a",
+      "bg": "#f0f0f0",
+      "ratio": 4.72,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Text input placeholder (\"Add a task\")",
+      "theme": "dark",
+      "fg": "#757575",
+      "bg": "#191b20",
+      "ratio": 3.74,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Text input placeholder (\"Add a task\")",
+      "theme": "light",
+      "fg": "#757575",
+      "bg": "#ffffff",
+      "ratio": 4.61,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Text input border vs input/section background (non-text)",
+      "theme": "dark",
+      "fg": "#2c313a",
+      "bg": "#191b20",
+      "ratio": 1.32,
+      "required": "3:1"
+    },
+    {
+      "element": "Text input border vs input/section background (non-text)",
+      "theme": "light",
+      "fg": "#d9dde4",
+      "bg": "#ffffff",
+      "ratio": 1.36,
+      "required": "3:1"
+    },
+    {
+      "element": "Section frame border vs page (non-text, grouping)",
+      "theme": "dark",
+      "fg": "#2c313a",
+      "bg": "#14161a",
+      "ratio": 1.39,
+      "required": "3:1 if needed to identify"
+    },
+    {
+      "element": "Section frame border vs page (non-text, grouping)",
+      "theme": "light",
+      "fg": "#d9dde4",
+      "bg": "#f6f7f9",
+      "ratio": 1.27,
+      "required": "3:1 if needed to identify"
+    },
+    {
+      "element": "Section surface vs page background",
+      "theme": "dark",
+      "fg": "#191b20",
+      "bg": "#14161a",
+      "ratio": 1.05,
+      "required": "n/a (observation)"
+    },
+    {
+      "element": "Icon-button border (undo/redo/More/section move/collapse/remove)",
+      "theme": "dark",
+      "fg": "#2c313a",
+      "bg": "#191b20",
+      "ratio": 1.32,
+      "required": "3:1 if needed to identify"
+    },
+    {
+      "element": "Icon-button border (undo/redo/More/section move/collapse/remove)",
+      "theme": "light",
+      "fg": "#d9dde4",
+      "bg": "#ffffff",
+      "ratio": 1.36,
+      "required": "3:1 if needed to identify"
+    },
+    {
+      "element": "Icon-button glyph (undo/redo/move/collapse)",
+      "theme": "dark",
+      "fg": "#9aa3b2",
+      "bg": "#191b20",
+      "ratio": 6.77,
+      "required": "3:1"
+    },
+    {
+      "element": "Icon-button glyph (undo/redo/move/collapse)",
+      "theme": "light",
+      "fg": "#626b7a",
+      "bg": "#ffffff",
+      "ratio": 5.38,
+      "required": "3:1"
+    },
+    {
+      "element": "Remove-section glyph",
+      "theme": "dark",
+      "fg": "#ff8a8a",
+      "bg": "#191b20",
+      "ratio": 7.98,
+      "required": "3:1"
+    },
+    {
+      "element": "Focus ring, custom (orange 2px)",
+      "theme": "dark",
+      "fg": "#ff9f6b",
+      "bg": "#191b20",
+      "ratio": 8.55,
+      "required": "3:1"
+    },
+    {
+      "element": "Focus ring, custom (blue 2px)",
+      "theme": "light",
+      "fg": "#2563eb",
+      "bg": "#ffffff",
+      "ratio": 5.17,
+      "required": "3:1"
+    },
+    {
+      "element": "Primary button \"Add task\" label",
+      "theme": "dark",
+      "fg": "#0b1220",
+      "bg": "#ff9f6b",
+      "ratio": 9.29,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Primary button \"Add task\" label",
+      "theme": "light",
+      "fg": "#ffffff",
+      "bg": "#2563eb",
+      "ratio": 5.17,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Primary button fill vs page",
+      "theme": "dark",
+      "fg": "#ff9f6b",
+      "bg": "#191b20",
+      "ratio": 8.55,
+      "required": "3:1"
+    },
+    {
+      "element": "Active nav item text vs inactive nav text (state by colour)",
+      "theme": "light",
+      "fg": "#2563eb",
+      "bg": "#626b7a",
+      "ratio": 1.04,
+      "required": "3:1 (1.4.1 colour-only state)"
+    },
+    {
+      "element": "Active nav item text vs inactive nav text (state by colour)",
+      "theme": "dark",
+      "fg": "#ff9f6b",
+      "bg": "#9aa3b2",
+      "ratio": 1.26,
+      "required": "3:1 (1.4.1 colour-only state)"
+    },
+    {
+      "element": "Active nav item background vs sidebar background",
+      "theme": "light",
+      "fg": "#ffffff",
+      "bg": "#f6f7f9",
+      "ratio": 1.07,
+      "required": "3:1 (1.4.11)"
+    },
+    {
+      "element": "Native task checkbox outline",
+      "theme": "dark",
+      "fg": "#aaaaaa (UA)",
+      "bg": "#191b20",
+      "ratio": 7.8,
+      "required": "3:1"
+    },
+    {
+      "element": "Native task checkbox outline",
+      "theme": "light",
+      "fg": "#545454 (UA)",
+      "bg": "#ffffff",
+      "ratio": 7.57,
+      "required": "3:1"
+    },
+    {
+      "element": "Completed task title (struck through)",
+      "theme": "dark",
+      "fg": "#9aa3b2",
+      "bg": "#1d3427",
+      "ratio": 5.25,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Completed task title (struck through)",
+      "theme": "light",
+      "fg": "#626b7a",
+      "bg": "#ecfdf3",
+      "ratio": 5.1,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Completed task row border vs section",
+      "theme": "dark",
+      "fg": "#79d49a",
+      "bg": "#191b20",
+      "ratio": 9.6,
+      "required": "3:1"
+    },
+    {
+      "element": "Completed task row border vs section",
+      "theme": "light",
+      "fg": "#067647",
+      "bg": "#ffffff",
+      "ratio": 5.69,
+      "required": "3:1"
+    },
+    {
+      "element": "Completed task row tint vs section",
+      "theme": "dark",
+      "fg": "#1d3427",
+      "bg": "#191b20",
+      "ratio": 1.29,
+      "required": "n/a (border carries state)"
+    },
+    {
+      "element": "Overdue label \"Overdue\"",
+      "theme": "dark",
+      "fg": "#ff8a8a",
+      "bg": "#3a2227",
+      "ratio": 6.44,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Overdue label \"Overdue\"",
+      "theme": "light",
+      "fg": "#b42318",
+      "bg": "#fef3f2",
+      "ratio": 6.05,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Overdue row meta text (priority/due)",
+      "theme": "dark",
+      "fg": "#9aa3b2",
+      "bg": "#3a2227",
+      "ratio": 5.74,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Overdue row meta text (priority/due)",
+      "theme": "light",
+      "fg": "#626b7a",
+      "bg": "#fef3f2",
+      "ratio": 4.95,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Overdue row border vs section",
+      "theme": "dark",
+      "fg": "#ff8a8a",
+      "bg": "#191b20",
+      "ratio": 7.59,
+      "required": "3:1"
+    },
+    {
+      "element": "Overdue row border vs section",
+      "theme": "light",
+      "fg": "#b42318",
+      "bg": "#ffffff",
+      "ratio": 6.57,
+      "required": "3:1"
+    },
+    {
+      "element": "Overdue row tint vs section",
+      "theme": "light",
+      "fg": "#fef3f2",
+      "bg": "#ffffff",
+      "ratio": 1.09,
+      "required": "n/a (border + label carry state)"
+    },
+    {
+      "element": "Inline error (role=alert) text",
+      "theme": "dark",
+      "fg": "#ff8a8a",
+      "bg": "#3a2227",
+      "ratio": 6.44,
+      "required": "4.5:1"
+    },
+    {
+      "element": "History feedback status text",
+      "theme": "dark",
+      "fg": "#9aa3b2",
+      "bg": "#191b20",
+      "ratio": 6.77,
+      "required": "4.5:1"
+    },
+    {
+      "element": "Insertion-point line/button",
+      "theme": "dark",
+      "fg": "#ff9f6b",
+      "bg": "#14161a",
+      "ratio": 8.99,
+      "required": "3:1"
+    },
+    {
+      "element": "Insertion-point line/button",
+      "theme": "light",
+      "fg": "#2563eb",
+      "bg": "#f6f7f9",
+      "ratio": 4.82,
+      "required": "3:1"
+    },
+    {
+      "element": "Active nav item background vs project-navigation background",
+      "theme": "dark",
+      "fg": "#1e2127",
+      "bg": "#191b20",
+      "ratio": 1.07,
+      "required": "3:1 (1.4.11)"
+    }
+  ],
+  "findings": [
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-001",
+      "surface": "project workspace › Work/Home canvas › Timeline section rows",
+      "inventoryRow": "Timeline section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.axe.json (color-contrast, 28 dark cells, 142 nodes)",
+        "S/walk/l5-a11y/001-timeline-dark.png (rows render as flat grey #6b6b6b slabs with grey-on-grey kind labels)",
+        "live computed style: timeline row <button> appearance:auto, border 2px outset rgb(255,255,255), background rgb(107,107,107) = UA ButtonFace in dark",
+        ".timeline__kind #9aa3b2 on #6b6b6b = 2.09:1 (13px regular)",
+        "light theme: #626b7a on UA #f0f0f0 = 4.72:1"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation (or /projects/project-kitchen) in dark theme",
+        "3. scroll the canvas to the Timeline section",
+        "4. read the small kind label (Task / Project / Workstream / Milestone) at the left of each row"
+      ],
+      "expected": "Each timeline row reads as part of the app surface and its kind label is legible at body-text contrast.",
+      "actual": "Timeline rows are unstyled browser buttons: in dark they become mid-grey #6b6b6b slabs with a white outset border, and the kind labels are 2.09:1 against them. The rows also look unlike any other surface in the app.",
+      "heuristic": "WCAG 2.2 SC 1.4.3 Contrast (Minimum)",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-002",
+      "surface": "project workspace › section header (every section) and section region landmark",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "live ARIA tree of /projects/project-kitchen: region \"Rename Markdown\" > heading \"Rename Markdown\" [level=2] > button \"Rename Markdown\"; same for Task List, Progress, Reflections, Timeline, Recent Activity",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/nested-projects-project-dark-1440.aria.yml",
+        "related: Markdown edit button is named \"Edit Markdown for Markdown\""
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. inspect the accessibility tree, or navigate by heading/landmark with a screen reader"
+      ],
+      "expected": "A screen-reader user navigating by headings or regions hears the section title (\"Markdown\", \"Task List\").",
+      "actual": "Because the heading contains the rename button and the section region is labelled by the heading, every section heading and every section region is announced as \"Rename <title>\"; the heading list reads as a list of commands (\"Rename Markdown, Rename Task List, Rename Progress ...\") rather than section titles.",
+      "heuristic": "WCAG 2.2 SC 2.4.6 Headings and Labels; SC 1.3.1 Info and Relationships",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-003",
+      "surface": "project workspace › Reflections section composer prompt select; Reflections page › subject picker",
+      "inventoryRow": "Reflections section and composer",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "axe select-name (critical) in 62 cells: select[data-reflection-prompt] and select[data-reflections-subject-picker]",
+        "live ARIA tree /projects/project-kitchen: bare combobox with options \"No prompt\", \"What changed?\" ... and no name",
+        "apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/reflections-dark-1440.axe.json"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen, scroll to Reflections",
+        "3. Tab to the select after \"Optional title\"",
+        "4. also open /projects/project-renovation/pages/reflections and Tab to the subject picker"
+      ],
+      "expected": "Each select announces what it chooses (a prompt, a subject).",
+      "actual": "Both selects are announced only as \"combobox\" plus the current option; the purpose of the control is not exposed. The visible UI has no label for the prompt select either.",
+      "heuristic": "WCAG 2.2 SC 4.1.2 Name, Role, Value; SC 3.3.2 Labels or Instructions",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-004",
+      "surface": "project workspace › Progress section bar",
+      "inventoryRow": "Progress section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "axe aria-progressbar-name (serious) in 56 cells, target .progress-section__bar",
+        "live: <div role=\"progressbar\" aria-valuemin=0 aria-valuemax=100 aria-valuenow=50> with no aria-label/labelledby; ARIA tree shows bare \"progressbar\""
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. reach the Progress section with a screen reader / inspect the accessibility tree"
+      ],
+      "expected": "The progress bar announces what it measures.",
+      "actual": "Announced as an unnamed \"progressbar 50\". The visible \"50% · 1 of 2 tasks complete\" text is not associated with it; when several Progress sections or shortcuts exist on a canvas the bars are indistinguishable.",
+      "heuristic": "WCAG 2.2 SC 4.1.2 Name, Role, Value",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-005",
+      "surface": "project workspace › Timeline section row expand",
+      "inventoryRow": "Timeline section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "selected/expanded detail",
+      "evidence": [
+        "live after clicking the \"Task Choose appliance finishes ...\" row: aria-expanded=\"true\" sits on the <li data-timeline-row>, the <button> itself has no aria-expanded / aria-controls; details render in .timeline__details after the button"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen, scroll to Timeline",
+        "3. activate a row button with the keyboard",
+        "4. inspect the button in the accessibility tree"
+      ],
+      "expected": "A control that reveals details tells assistive technology whether it is expanded.",
+      "actual": "The button exposes no expanded/collapsed state (the attribute is on the non-interactive list item), so a screen-reader user activating a row is not told that details appeared.",
+      "heuristic": "WCAG 2.2 SC 4.1.2 Name, Role, Value",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-006",
+      "surface": "all text inputs (Add a task, More menu fields, drawer fields, dialog fields) in both themes",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "computed: input border #2c313a on input/section background #191b20 = 1.32:1 (dark); #d9dde4 on #ffffff = 1.36:1 (light)",
+        "input background equals the surrounding section surface in both themes (ratio 1.0)",
+        "S/walk/l5-a11y/002-kitchen-dark.png (\"Add a task\" field barely distinguishable)",
+        "S/walk/l5-a11y/003-kitchen-light.png"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. look at the \"Add a task\" field and the task drawer fields in dark and light themes"
+      ],
+      "expected": "The boundary of an editable field is perceivable without hovering or focusing it.",
+      "actual": "The only visual cue identifying a text field is a 1px border at ~1.3:1 against a same-coloured background; for low-vision users the field reads as placeholder text sitting on the card. A translucent surface would lower this further.",
+      "heuristic": "WCAG 2.2 SC 1.4.11 Non-text Contrast",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-007",
+      "surface": "text input placeholders (Add a task, Optional title, Write a reflection)",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "computed ::placeholder color rgb(117,117,117) (browser default, identical in both themes) on #191b20 = 3.74:1 in dark; on #ffffff = 4.61:1 in light"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen in dark theme",
+        "3. read the \"Add a task\" placeholder"
+      ],
+      "expected": "Placeholder hint text is legible.",
+      "actual": "Placeholders use the browser default grey and fall below 4.5:1 in dark.",
+      "heuristic": "WCAG 2.2 SC 1.4.3 Contrast (Minimum)",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-008",
+      "surface": "project navigation › active page/workstream item",
+      "inventoryRow": "Project navigation and page settings panel",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "active route",
+      "evidence": [
+        "light: active link #2563eb vs inactive #626b7a = 1.04:1; active background #ffffff vs panel #f6f7f9 <= 1.07:1; same font weight 400, no border or indicator",
+        "dark: active #ff9f6b vs inactive #9aa3b2 = 1.26:1; active background #1e2127 vs #191b20 = 1.07:1",
+        "S/walk/l5-a11y/003-kitchen-light.png (Kitchen in WORK list differs only by blue hue)",
+        "global sidebar: on a project page no item carries aria-current or any highlight"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. switch to light theme",
+        "4. compare \"Kitchen\" with \"Cabinets\"/\"Garden\" in the project navigation"
+      ],
+      "expected": "The current page is identifiable without relying on hue.",
+      "actual": "The active item is distinguished only by text hue (luminance difference 1.04:1 light, 1.26:1 dark) and a background tint below 1.1:1, so users who cannot separate blue/orange from grey cannot tell where they are. (aria-current is set, so screen readers are informed.)",
+      "heuristic": "WCAG 2.2 SC 1.4.1 Use of Color; SC 1.4.11 Non-text Contrast",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-009",
+      "surface": "project header › More menu",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "More open",
+      "evidence": [
+        "live keyboard run: Enter on \"More project actions\" opens the panel, focus stays on the button (aria-expanded=true); Tab into Name field; Escape closes the panel and document.activeElement becomes BODY",
+        "Escape pressed while focus is still on the button keeps focus correctly",
+        "panel has no role and the button has no aria-controls"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. Tab to \"More project actions\" and press Enter",
+        "4. Tab once into the Name field",
+        "5. press Escape"
+      ],
+      "expected": "Closing the menu with Escape returns focus to the More button so keyboard users keep their place.",
+      "actual": "Focus is dropped to the document body; the next Tab starts again at the top of the page (theme toggle), about 25 stops from where the user was.",
+      "heuristic": "WCAG 2.2 SC 2.4.3 Focus Order",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-010",
+      "surface": "project navigation › page settings panel; task detail drawer",
+      "inventoryRow": "Project navigation and page settings panel",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "settings open / drawer open",
+      "evidence": [
+        "page settings: after Enter on \"Project page settings for Home renovation\", focus stays on the button; the new checkboxes come after the five page links in tab order; Escape does not close it (aria-expanded stays true)",
+        "S/walk/l5-a11y/005-pagesettings.png",
+        "task drawer: Enter on a task title opens complementary \"Choose appliance finishes\" but focus stays on the row; the drawer is reached only after every remaining task row and its delete button; Escape does not close it; the Close button does return focus to the row",
+        "S/walk/l5-a11y/004-drawer-open.png",
+        "contrast: Add section / Add workstream dialogs move focus in, trap it, close on Escape and return focus to the opener"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. Tab to a task title and press Enter, then press Escape",
+        "4. Tab to the page-settings gear in project navigation, press Enter, then press Escape"
+      ],
+      "expected": "Opening a panel puts keyboard and screen-reader users where the new content is (or announces it), and Escape dismisses transient panels as it does for the creation dialogs.",
+      "actual": "Neither panel moves focus or announces itself and neither responds to Escape, unlike the creation dialogs. With a dense task list the drawer fields are many Tab stops after the row that opened them.",
+      "heuristic": "WCAG 2.2 SC 2.4.3 Focus Order; internal consistency",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-011",
+      "surface": "/app dashboard (all seeds) and /prototype/state › landmarks",
+      "inventoryRow": "/app dashboard",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "axe landmark-main-is-top-level + landmark-no-duplicate-main + landmark-unique in 46 cells each (both themes)",
+        "live: document has two <main> elements, main.dashboard nested inside main.workspace; ARIA tree shows \"main > main\""
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /app",
+        "3. list landmarks with a screen reader or inspect the accessibility tree"
+      ],
+      "expected": "One main landmark per page, so \"jump to main\" lands once on the page content.",
+      "actual": "The dashboard announces two nested, unnamed main landmarks; landmark navigation lists \"main\" twice with no way to tell them apart.",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-012",
+      "surface": "/app dashboard, empty workspace › main scroll region",
+      "inventoryRow": "/app dashboard",
+      "seed": "empty",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "empty",
+      "evidence": [
+        "axe scrollable-region-focusable (serious) on .workspace, 6 cells /app empty",
+        "S/walk/l5-a11y/010-empty-app.png (Recent Agent Activity card cut at the bottom edge)",
+        "live: .workspace scrollHeight 930 > clientHeight 852, tabindex=-1, no focusable descendant; Tab after \"Settings\" goes to BODY; PageDown/End/Space leave scrollTop at 0"
+      ],
+      "repro": [
+        "1. seed empty as Demo",
+        "2. open /app at 1440x900",
+        "3. using only the keyboard, try to bring the bottom of the \"Recent Agent Activity\" card into view"
+      ],
+      "expected": "Keyboard users can scroll every scrollable region to read all content.",
+      "actual": "The main region scrolls by about 80 px but cannot receive focus and contains nothing focusable, so keyboard-only users cannot reveal the bottom of the last widget. (Populated dashboards contain focusable project links, which makes the region scrollable from them.)",
+      "heuristic": "WCAG 2.2 SC 2.1.1 Keyboard",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-013",
+      "surface": "global sidebar project tree; project navigation Work list",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "axe list (110 cells, 324 nodes) and listitem (110 cells, 472 nodes): <ul class=\"projects\"> / li > ul.children / .project-nav__work directly contain <app-project-tree-item> / work-item host elements; <li> elements sit inside those hosts",
+        "live Chromium ARIA tree still reports list > listitem nesting correctly"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. run axe or inspect the sidebar DOM"
+      ],
+      "expected": "The project tree is valid list markup so every assistive technology reports item counts and nesting levels.",
+      "actual": "List items are not direct children of their lists. Chromium repairs this and announces counts correctly; other browser/AT pairings are not guaranteed to, so list size and nesting depth announcements for the project hierarchy depend on the browser.",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-014",
+      "surface": "global shell › keyboard entry into page content (project workspace, all routes)",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "live Tab sequence on /projects/project-kitchen: first stop is the theme toggle, then 10 global sidebar stops, then 11 project-navigation stops; the project header undo button is the 23rd stop and the first section control the 26th",
+        "no skip link exists (no anchor matching /skip/)",
+        "the project navigation sits inside <main>, so landmark \"main\" lands on navigation, not on the project title"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. press Tab repeatedly from page load until focus reaches the first section control"
+      ],
+      "expected": "Keyboard users can bypass the repeated navigation blocks to reach the page content.",
+      "actual": "There is no bypass mechanism; every page load requires 20+ Tab presses through both navigation columns before reaching project content, and the main landmark begins with the project navigation, so landmark jumping does not bypass it either. Deeper trees (more projects/workstreams) add more stops.",
+      "heuristic": "WCAG 2.2 SC 2.4.1 Bypass Blocks",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-015",
+      "surface": "project workspace › heading outline",
+      "inventoryRow": "/projects/:projectId and /projects/:projectId/pages/:pageKind workspace",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "live heading list on /projects/project-kitchen: H2 \"Work\" (and H2 \"Pages\" when page settings is open) precede H1 \"Kitchen\"; the global sidebar has no heading at all"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. list headings with a screen reader"
+      ],
+      "expected": "The page title is the first heading and navigation groups do not outrank or precede it.",
+      "actual": "Heading navigation starts at \"Work\" (level 2) before reaching the level-1 project title, and the section headings are announced as \"Rename ...\" (see L5-002), so the outline does not reflect the page.",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships; SC 2.4.6 Headings and Labels",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-016",
+      "surface": "project workspace › Progress section mode buttons (Count / Weighted / Use manual)",
+      "inventoryRow": "Progress section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "S/walk/l5-a11y/017-normal-progress.png (three identical grey buttons)",
+        "computed: Count aria-pressed=true and Weighted aria-pressed=false have identical background rgb(107,107,107), colour, 2px outset border, font weight 400, no box-shadow; they are unstyled UA buttons like the Timeline rows (L5-001)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. scroll to Progress and look at which calculation mode is selected"
+      ],
+      "expected": "Sighted users can see which progress calculation mode is active.",
+      "actual": "The selected mode is exposed only to assistive technology (aria-pressed); visually Count, Weighted and Use manual look identical, so a sighted user cannot tell which mode produced the percentage.",
+      "heuristic": "WCAG 2.2 SC 1.4.11 Non-text Contrast (state indication); Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-017",
+      "surface": "forced colours (Windows High Contrast) › Progress bar, active navigation item, pressed toggles, row state tints",
+      "inventoryRow": "Progress section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "forced-colors: active",
+      "evidence": [
+        "S/walk/l5-a11y/016-forced-progress.png (progress bar entirely absent; only \"50% 1 of 2 tasks complete\" text remains)",
+        "S/walk/l5-a11y/014-forced-kitchen.png (all nav links rendered identically; current page \"Kitchen\" not distinguishable in either nav column)",
+        "S/walk/l5-a11y/015-forced-kitchen-drawer.png (selected task row keeps a thicker border; overdue/completed tints and coloured borders become the same system border; \"Overdue\" text label survives)",
+        "page.emulateMedia({forcedColors:\"active\"}); app source has no forced-colors media rules"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. emulate forced-colors: active (Windows High Contrast)",
+        "3. open /projects/project-kitchen and look at the Progress section and the project navigation"
+      ],
+      "expected": "State and data drawn with colour remain perceivable when the user forces system colours.",
+      "actual": "The progress bar track and fill vanish completely, the active page in both navigation columns looks identical to every other link, and the Count/Weighted pressed state remains invisible. Completed/overdue rows lose their tint and colour border (their text cues survive).",
+      "heuristic": "WCAG 2.2 SC 1.4.11 Non-text Contrast; SC 1.4.1 Use of Color",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-018",
+      "surface": "Archive page, Reflections page (project header), dashboard widget rows at 320 CSS px",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "320x640",
+      "state": "populated",
+      "evidence": [
+        "S/walk/l5-a11y/013-archive-320.png (More \"...\" button cut off at the right edge; \"3 items\" count clipped to \"3 ite\")",
+        "live: main.workspace scrollWidth 360 vs clientWidth 320 on /projects/project-renovation/pages/archive; 354/320 on /pages/reflections; 352/320 on /app (agent seed: .widget-row__meta and its <time> run to x=352)",
+        "project Home/Work canvases, Todos, Settings, Archived projects, Search and /prototype/state reflow without horizontal scroll"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. set the viewport to 320x640 (equivalent of 400% zoom at 1280)",
+        "3. open /projects/project-renovation/pages/archive",
+        "4. try to reach the More button in the project header"
+      ],
+      "expected": "Content reflows into one column at 320 px with no horizontal scrolling.",
+      "actual": "On the Archive and Reflections pages the whole main region scrolls sideways by 34–40 px and the project header More button and the archive item count are cut off until the user scrolls horizontally; on the dashboard, widget row dates overflow by 32 px.",
+      "heuristic": "WCAG 2.2 SC 1.4.10 Reflow",
+      "severity": "S2",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-019",
+      "surface": "Task List add; agent permission checkboxes (/settings/agents) › async feedback",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "live: after adding \"Test a11y task\" the only live regions (status .history-feedback and a polite visually-hidden div) stay empty; focus remains in the add field",
+        "after Undo the status region announces \"Undid: Created ...\" (works)",
+        "/settings/agents (agent-heavy): toggling \"Modify projects\" saves with no live region and no aria-busy at any point; failure is announced via role=alert (works)",
+        "inline write errors (task-list-section__error) are role=alert but are not associated with the field (no aria-invalid/aria-describedby)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen, type a task title and press Enter",
+        "3. observe what a screen reader announces",
+        "4. seed agent-heavy, open /settings/agents and toggle a permission"
+      ],
+      "expected": "A screen-reader user learns that a write succeeded, as they already learn when it fails or is undone.",
+      "actual": "Successful task creation and permission changes are silent; only errors and undo/redo are announced. The add field also clears, so the only cue is a new row appearing elsewhere in the list.",
+      "heuristic": "WCAG 2.2 SC 4.1.3 Status Messages",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-020",
+      "surface": "development panel (Ctrl+Shift+D) › close",
+      "inventoryRow": "Global development dialog",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "open/closed",
+      "evidence": [
+        "live: focus on \"Add workstream\", Ctrl+Shift+D opens the panel with focus on the panel container and Tab cycles inside it (trap works); Escape closes it and document.activeElement becomes BODY instead of \"Add workstream\""
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen and focus \"Add workstream\"",
+        "3. press Ctrl+Shift+D, then Escape"
+      ],
+      "expected": "Closing the panel returns focus to where it was opened.",
+      "actual": "Focus is lost to the document body. Prototype tooling only.",
+      "heuristic": "WCAG 2.2 SC 2.4.3 Focus Order",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-021",
+      "surface": "small pointer targets: task checkbox, sidebar \"New project\" (+), project-nav root breadcrumb, Manual/Optional title inputs",
+      "inventoryRow": "Task row",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "evidence": [
+        "measured at 375x812 (mouse pointer emulation, not touch): task checkbox 13x13; \"New project\" 26x15; project navigation breadcrumb link \"Home renovation\" 100x17; progress Manual input 73x21; Reflections Optional title input 293x21 and prompt select 293x19",
+        "all of these pass SC 2.5.8 only through the spacing exception (no other target within the 24 px circle); none reaches 24x24 on its own",
+        "same sizes at 1440x900"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. set viewport 375x812",
+        "3. open /projects/project-kitchen and measure the task checkbox and \"+\" New project (in the Menu drawer)"
+      ],
+      "expected": "Frequently used controls such as the task completion checkbox are comfortable to hit.",
+      "actual": "The task completion checkbox, the most frequent action in the app, is a 13x13 px native box, and the New project \"+\" is 15 px tall; they meet AA only because neighbouring targets are far enough away.",
+      "heuristic": "WCAG 2.2 SC 2.5.8 Target Size (Minimum) — passes via spacing exception; observation",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-022",
+      "surface": "focus indicators across shell, nav, header, inputs and buttons",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "focus",
+      "evidence": [
+        "live Tab run: links, theme toggle, \"More project actions\", \"Add task\", text inputs and checkboxes show the browser default 1px auto ring; page-settings gear, Add workstream, undo/redo, section chrome and insertion points show a 2px solid accent outline (orange #ff9f6b dark 8.55:1, blue #2563eb light 5.17:1) with 2–4px offset",
+        "S/walk/l5-a11y/f-settings.png",
+        "S/walk/l5-a11y/f-more.png (More button UA ring next to undo/redo, which use the accent ring)",
+        "S/walk/l5-a11y/f-input.png"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. Tab from the top bar through the header buttons"
+      ],
+      "expected": "Focus looks the same wherever it lands so keyboard users learn one cue.",
+      "actual": "Two unrelated focus styles alternate, sometimes within one button group (undo/redo accent ring vs More UA ring). Both are visible; the UA ring depends on the browser and on the background behind it, which a translucent surface would change.",
+      "heuristic": "internal consistency; WCAG 2.2 SC 2.4.7 Focus Visible (met)",
+      "severity": "S3",
+      "confidence": "observed"
+    },
+    {
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "id": "L5-023",
+      "surface": "/app dashboard widget rows; Active Projects links",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "evidence": [
+        "live ARIA tree /app: list item text \"Triage the overnight agent errors 🤖 Work Manager ·\", link names \"🤖 Work Manager\", \"🔌 Agent operations\"",
+        "in contrast, sidebar and project navigation hide project emoji from the accessible name (\"Kitchen\")"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /app",
+        "3. read the Today / Upcoming rows and Active Projects links with a screen reader"
+      ],
+      "expected": "Project names are announced the same way everywhere.",
+      "actual": "On the dashboard the decorative project emoji is part of the spoken text (\"robot Work Manager\", \"electric plug Agent operations\"), while elsewhere it is silent.",
+      "heuristic": "internal consistency; WCAG 2.2 SC 1.1.1 Non-text Content",
+      "severity": "S3",
+      "confidence": "observed"
+    }
+  ]
+}

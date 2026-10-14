@@ -1,0 +1,917 @@
+[
+  {
+    "id": "W2-001",
+    "surface": "Global shell › phone navigation drawer › inline New project form",
+    "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+    "seed": "empty",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "empty",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/004-t01-03-newform.png (empty grey field next to Create, no label text, no placeholder)",
+      "aria: textbox \"Project name\" has an accessible name only; the 'Project name' text node is not visible on screen",
+      "after tapping '+', document.activeElement stayed on the '+' button (BUTTON 'New project'), so a second tap into the field was needed before the keyboard could open",
+      "T01 steps 2-3"
+    ],
+    "repro": [
+      "1. seed empty as Demo, open /app at 375x812 touch",
+      "2. tap Menu",
+      "3. tap the '+' beside PROJECTS"
+    ],
+    "expected": "Opening New project puts the user straight into a clearly labelled name field, keyboard up, ready to type.",
+    "actual": "An unlabelled empty grey box appears with no visible label or hint; focus stays on the '+' so nothing is ready for typing until the user taps the box as a separate step.",
+    "lens": "task:T01",
+    "heuristic": "Nielsen #6 Recognition rather than recall; WCAG 2.2 SC 3.3.2 Labels or Instructions",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-002",
+    "surface": "Global shell › theme (all routes)",
+    "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+    "seed": "empty",
+    "theme": "dark",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "browser emulated prefers-color-scheme: light; on first load data-theme='dark' (S/walk/w2-touch/001-t01-00-dashboard.png)",
+      "after tapping 'Light' and then reloading the page, data-theme reverted to 'dark' (T01 verification)",
+      "same on every reseed + goto in T02-T10"
+    ],
+    "repro": [
+      "1. seed empty as Demo on a device set to light appearance",
+      "2. open /app — app is dark",
+      "3. tap 'Light', then reload — app is dark again"
+    ],
+    "expected": "The app appears in the appearance the device asks for, or at least keeps the user's explicit choice across a reload.",
+    "actual": "The app ignores the device's light preference and forgets the explicit choice on every reload, so a light-mode phone user flips it back every time the page reloads.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #3 User control and freedom; Nielsen #4 Consistency and standards (platform convention)",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-08-theme-selection-is-session-only.md"
+  },
+  {
+    "id": "W2-003",
+    "surface": "Project workspace › Work page › 'Flow layout' notice",
+    "inventoryRow": "Home and workstream Work canvases",
+    "seed": "empty",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "empty",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/006-t01-05-created.png (region 'Project layout' card between header and canvas)",
+      "text: 'Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state.'"
+    ],
+    "repro": [
+      "1. seed empty as Demo at 375x812 touch",
+      "2. create any project from the drawer",
+      "3. look below the project header"
+    ],
+    "expected": "Space above the fold on a phone is spent on the project's work; nothing instructs a touch user to press a keyboard chord.",
+    "actual": "A full-width card telling the user to press Ctrl/Cmd+Shift+D occupies ~90px between the header and the canvas on every Work page; the instruction cannot be followed on a touch phone.",
+    "lens": "copy",
+    "heuristic": "Nielsen #8 Aesthetic and minimalist design; Nielsen #2 Match between system and the real world",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-004",
+    "surface": "Project workspace › project navigation › Add workstream dialog",
+    "inventoryRow": "Workstream creation dialog",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/011-t02-04-addws.png (Parent select shows 'Home renovation' and note 'Inside Home renovation' while the page behind is Kitchen)",
+      "T02 steps 4-7: two extra taps (open picker, choose Kitchen) needed"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. Menu › Kitchen",
+      "3. tap Show project navigation",
+      "4. tap '+' beside WORK"
+    ],
+    "expected": "Adding a workstream while looking at Kitchen starts out inside Kitchen, or at least makes the default obvious.",
+    "actual": "The parent defaults to the root (Home renovation) regardless of which workstream is open; a user who types a name and taps Create gets the workstream in the wrong place.",
+    "lens": "task:T02",
+    "heuristic": "Nielsen #5 Error prevention",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-005",
+    "surface": "Several touch controls between 24 and 44 CSS px",
+    "inventoryRow": "Project navigation and page settings panel",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "project navigation workstream links Kitchen/Cabinets/Garden: 30.5px tall (boundingBox), stacked with no gap",
+      "project navigation page links Home/Todos/Archive/Reflections: 38.5px tall; 'Show project navigation' strip: 375x38.5",
+      "project navigation Pages panel: native checkboxes 13x13, whole label row 27.5px tall",
+      "project More menu (Home renovation): every control 33px tall — Rename 71x33, Save 49x33, status buttons 58-91x33, Set 39x33, Clear 52x33, Open archive 108x33, Archive project 117x33 (S/walk/w2-touch/039-t08-02-more.png)",
+      "Task List 'Task title' input: 197x37.5; 'Add task' button: 84x40.5",
+      "project header 'More project actions': 39x44",
+      "Archive 'Restore as' select 100x29; AI & Agents 'Revoke' 64x28.5",
+      "S/walk/w2-touch/010-t02-03-projnav.png, 017-t03-05-shopping.png, 042-t08-04-gear.png"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812 touch",
+      "2. Menu › Kitchen",
+      "3. tap Show project navigation and measure the rows; open ⋯ and measure; scroll to the Task List and measure the add row"
+    ],
+    "expected": "Primary controls on a phone are comfortably tappable (about 44px) and separated so a thumb does not hit the neighbouring row.",
+    "actual": "Navigation rows, page toggles, every control in the More menu and the task add row sit between 27 and 40px, often stacked directly against each other.",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 2.5.5 Target Size (Enhanced); internal consistency (the header and canvas chrome buttons are 44px)",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-006",
+    "surface": "Project workspace › Work canvas › every section's region and heading",
+    "inventoryRow": "Canvas insertion and section chrome",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "aria snapshot of /projects/project-kitchen main: region \"Rename Markdown\", heading \"Rename Markdown\" [level=2] containing button \"Rename Markdown\"; same for Task List, Progress, Reflections, Timeline, Recent Activity and the new 'Rename Shopping'",
+      "T02 step 2 aria dump"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Kitchen",
+      "3. inspect the accessibility tree of the canvas (or navigate by headings with a screen reader)"
+    ],
+    "expected": "A screen-reader user navigating by heading or region hears the section's name ('Task List', 'Shopping').",
+    "actual": "Every section heading and landmark is announced as an action ('Rename Task List'), so heading/region navigation reads as a list of rename commands rather than section names.",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 2.4.6 Headings and Labels; SC 1.3.1 Info and Relationships",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-007",
+    "surface": "Project navigation › Add workstream › after Create",
+    "inventoryRow": "Workstream creation dialog",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/012-t02-05-created.png (still on Kitchen; Lighting appears only as a row in the expanded navigation column)",
+      "compare T01: creating a top-level project navigated to the new project (006-t01-05-created.png)"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. Menu › Kitchen › Show project navigation › '+' beside WORK",
+      "3. type a name, choose Kitchen, tap Create"
+    ],
+    "expected": "Creating a workstream behaves like creating a project: the user is taken to it, or clearly told where it went.",
+    "actual": "Project creation opens the new project, but workstream creation leaves the user where they were with no message; on a phone with the navigation column collapsed (the default after reload) nothing on screen changes.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards; Nielsen #1 Visibility of system status",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-008",
+    "surface": "Project workspace › Add a section / Add a shortcut dialog › after Create or Add",
+    "inventoryRow": "Section creation dialog",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/016-t03-04-created.png (viewport still on Timeline/Recent Activity; Shopping not visible)",
+      "document.activeElement after Create = BODY",
+      "same after adding a shortcut in T07: dialog closes, focus BODY, new shortcut frame below the fold (036-t07-02-added.png)",
+      "T03 step 6, T07 step 3"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. Menu › Kitchen, scroll to the end",
+      "3. tap the last '+', choose Task List, name it, tap Create"
+    ],
+    "expected": "The new section is brought into view (and focus placed in it) so the user can start filling it.",
+    "actual": "The dialog closes onto the same scroll position; the new section or shortcut is below the fold and focus is lost to the page body, so the user must hunt for what they just made.",
+    "lens": "task:T03",
+    "heuristic": "Nielsen #1 Visibility of system status; WCAG 2.2 SC 2.4.3 Focus Order",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-009",
+    "surface": "Task List section › add task › inline Task details panel",
+    "inventoryRow": "Task detail drawer",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/019-t03-07-task2.png (new task selected, TASK DETAILS panel inline under the list)",
+      "Shopping section bounding box grew to 327x1019 after two tasks",
+      "reproduced on the seeded Task List: details panel open after every Add task",
+      "checked against source: task-list-store.ts create() sets selectedTaskIdState to the new task"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Kitchen, scroll to Task List",
+      "3. tap Task title, type a title, tap Add task"
+    ],
+    "expected": "Quick-adding several tasks keeps the user in the add field with a compact list; details open when the user asks for them.",
+    "actual": "Every added task is selected and a tall Task details form (title, priority, due date, estimate…) opens inline below the list on a phone, pushing the rest of the canvas down by several screens; to add the next task the user must scroll back and ignore or close the panel.",
+    "lens": "task:T03",
+    "heuristic": "Nielsen #8 Aesthetic and minimalist design; Nielsen #3 User control and freedom",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-010",
+    "surface": "Project workspace › Work canvas › Recent Activity above the section being edited",
+    "inventoryRow": "Recent Activity section and shared feed",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/017-t03-05-shopping.png → 018-t03-06-task1.png: after Add task, a new 'Created “Buy light bulbs”' activity card (~130px) appeared in Recent Activity above, and Shopping's input moved from y≈650 to below the fold"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Kitchen, add a Task List at the end",
+      "3. scroll so the new list is visible and add a task"
+    ],
+    "expected": "The part of the page the user is working in stays put while they work.",
+    "actual": "Each write adds a card to Recent Activity higher on the page, shifting the section being edited downward and out of view on a 812px-tall screen.",
+    "lens": "states",
+    "heuristic": "Nielsen #1 Visibility of system status; WCAG 2.2 SC 3.2.5 Change on Request (unexpected context shift)",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-011",
+    "surface": "Work canvas at 375px › Timeline rows and section header chrome",
+    "inventoryRow": "Timeline section",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/013-t03-01-end.png: Timeline TASK row wraps 'Choose / appliance / finishes' into a narrow middle column and breaks the date range as '2026-09-08 → 2026-09-' / '18'",
+      "same screenshot: Recent Activity header's red remove button wraps onto a second line below the drag and collapse buttons, unlike every other section"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812",
+      "2. open Kitchen and scroll to Timeline and Recent Activity"
+    ],
+    "expected": "Rows and section headers read cleanly at phone width; dates stay intact.",
+    "actual": "The timeline's three-column row squeezes titles and splits dates mid-value, and a long section name pushes the remove control onto its own line, so section headers are not consistent.",
+    "lens": "hierarchy",
+    "heuristic": "WCAG 2.2 SC 1.4.10 Reflow; internal consistency",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-012",
+    "surface": "Small text-link controls below the 24px minimum (several surfaces)",
+    "inventoryRow": "Task detail drawer",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "Task details 'Close': 36x22.5 (019-t03-07-task2.png)",
+      "header history feedback 'Dismiss' link: 50x22.5 (031-t05-02-undone.png)",
+      "shortcut frame 'Open source': 73x19.5 (037-t07-03-frame.png)",
+      "Archive page 'Restore' 43x19.5 and 'Restore saved content' 127x19.5 (048-t09-03-rows.png); archive 'Home' links 35x17",
+      "Settings index links 'AI & Agents' 80x20 and 'Archived projects' (051-t10-01-settings.png)",
+      "AI & Agents permission rows: 13x13 checkbox, label row 293x22.5, seven rows stacked (052-t10-02-agents.png)",
+      "project navigation breadcrumb 'Home renovation': 100x17",
+      "axe on /settings/agents reported no violations (target-size rule did not flag these), so this is from boundingBox measurement only"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812 touch",
+      "2. open Kitchen, add a task (details open) and measure Close",
+      "3. open Home renovation › Archive and measure Restore",
+      "4. (agent-heavy) open Settings › AI & Agents and measure a permission row"
+    ],
+    "expected": "Every control a user must tap on a phone, including dismiss, restore and permission toggles, is at least a finger's width high.",
+    "actual": "Dismiss/Close/Restore/Open source are bare text links 17-22.5px tall, and agent permission toggles are 22.5px rows stacked edge to edge — below the 24px minimum, on actions that change data or permissions.",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 2.5.8 Target Size (Minimum)",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-013",
+    "surface": "Recent Activity › 'Section added' line",
+    "inventoryRow": "Recent Activity section and shared feed",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/016-t03-04-created.png: after adding a section named 'Shopping', the feed shows 'Section added “Kitchen”' with 'Kitchen' again below"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Kitchen, add a Task List named Shopping",
+      "3. read Recent Activity"
+    ],
+    "expected": "The activity line says which section was added (Shopping).",
+    "actual": "The quoted name is the project, so the line reads as if a section called 'Kitchen' was added; the section's own name never appears.",
+    "lens": "copy",
+    "heuristic": "Nielsen #2 Match between system and the real world",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-08-section-activity-targets-the-project.md"
+  },
+  {
+    "id": "W2-014",
+    "surface": "Dashboard › Today widget › overdue rows",
+    "inventoryRow": "Dashboard widgets",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/023-t04-01-taptoday.png (each overdue task drawn as a bordered, filled card)",
+      "aria: Today list items are text + time only, no link or button",
+      "T04 step 2: tap on 'Export legacy records' did nothing",
+      "contrast: Active Projects rows on the same dashboard are links"
+    ],
+    "repro": [
+      "1. seed overdue-chaos as Demo",
+      "2. open /app",
+      "3. tap an overdue task in Today"
+    ],
+    "expected": "An overdue task highlighted on the home screen can be opened from there to deal with it.",
+    "actual": "The rows look like tappable cards but are inert; the user has to work out which project holds the task and find it again by another route.",
+    "lens": "task:T04",
+    "heuristic": "Nielsen #4 Consistency and standards (false affordance); Nielsen #7 Flexibility and efficiency of use",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-015",
+    "surface": "Dashboard › Today widget (also dashboard card width) at 375px",
+    "inventoryRow": "Dashboard widgets",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/023-t04-01-taptoday.png: 'Client migration · 2026-08-18' runs past the pink row border and the white card edge",
+      "measured: rows 229px wide (right edge 302), scrollWidth 263-298; <time> right edges at 337, 347, 341, 371 px",
+      "dashboard cards are 263px wide at x=56 on a 375px screen (56px side gutters), S/walk/w2-touch/007-t02-00-dash.png"
+    ],
+    "repro": [
+      "1. seed overdue-chaos as Demo at 375x812",
+      "2. open /app and look at Today"
+    ],
+    "expected": "Each overdue entry fits inside its card at phone width, with title, project and date readable.",
+    "actual": "Titles wrap to three short lines while the project and date overflow the row and the card, the last date reaching the screen edge; the dashboard keeps wide side gutters that leave cards only 263px wide.",
+    "lens": "hierarchy",
+    "heuristic": "WCAG 2.2 SC 1.4.10 Reflow; Nielsen #8 Aesthetic and minimalist design",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-016",
+    "surface": "Task List section › select task › Task details panel placement",
+    "inventoryRow": "Task detail drawer",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/027-t04-04-details.png (after tapping the title only the row highlight changes)",
+      "complementary 'Export legacy records' bounding box y=1181.5, viewport height 812",
+      "focus stays on the row title button",
+      "S/walk/w2-touch/028-t04-05-panel.png (the panel after scrolling)"
+    ],
+    "repro": [
+      "1. seed overdue-chaos as Demo at 375x812",
+      "2. Menu › Client migration, scroll to Task List",
+      "3. tap 'Export legacy records'"
+    ],
+    "expected": "Opening a task shows its details where the user is looking.",
+    "actual": "On a phone the details panel is placed after the whole list, here ~370px below the bottom of the screen; the tap appears to only select the row, and a user with a longer list may never find the panel.",
+    "lens": "task:T04",
+    "heuristic": "Nielsen #1 Visibility of system status",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-017",
+    "surface": "Task details › Status and Project rows",
+    "inventoryRow": "Task detail drawer",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/028-t04-05-panel.png: 'Status in_progress', 'Project project-client-migration'",
+      "same panel's priority select shows lowercase 'high' while the row shows 'High Priority'"
+    ],
+    "repro": [
+      "1. seed overdue-chaos as Demo",
+      "2. open Client migration, tap a task title, scroll to the details"
+    ],
+    "expected": "Status and project read as words the user knows ('In progress', 'Client migration').",
+    "actual": "The panel shows the internal status value and the project's id; capitalisation of priority differs between the row and the panel.",
+    "lens": "copy",
+    "heuristic": "Nielsen #2 Match between system and the real world; internal consistency",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-018",
+    "surface": "Task details › Due date edit",
+    "inventoryRow": "Task detail drawer",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/029-t04-06-set.png: after choosing 09/01/2026 nothing in view confirms a save; there is no Save button",
+      "the task row that changed (Due 2026-09-01, Overdue removed) is off-screen above"
+    ],
+    "repro": [
+      "1. seed overdue-chaos as Demo",
+      "2. open Client migration, tap a task, scroll to details",
+      "3. change Due date"
+    ],
+    "expected": "After changing the date the user can tell it was saved (and that the task is no longer overdue).",
+    "actual": "The change saves silently; the only evidence is the row above, which is out of view, so the user cannot tell whether a Save step is still needed.",
+    "lens": "states",
+    "heuristic": "Nielsen #1 Visibility of system status",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-019",
+    "surface": "Dates across dashboard, task rows and task details",
+    "inventoryRow": "Task detail drawer",
+    "seed": "overdue-chaos",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "task row: 'Due 2026-08-18'; details Due date field: '08/18/2026' (028-t04-05-panel.png)",
+      "Recent Activity: '24 Aug, 16:00' (016-t03-04-created.png)",
+      "dashboard: '2026-08-24', 'in 11 days'"
+    ],
+    "repro": [
+      "1. seed overdue-chaos as Demo",
+      "2. compare the date on a task row with the same date in its details panel"
+    ],
+    "expected": "The same date looks the same everywhere.",
+    "actual": "One date appears as ISO (2026-08-18) on the row, month-first (08/18/2026) in the editor, and day-month (24 Aug) in activity; a user editing the field has to translate between formats.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-020",
+    "surface": "Project header › Undo / Redo buttons and the removal notice that points to them",
+    "inventoryRow": "Project history controls and feedback",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/030-t05-01-removed.png: notice 'Removed the Markdown section. Undo is in the header.' offers Open Archive and Dismiss but no Undo",
+      "header buttons show only ↶ / ↷ glyphs, innerText ''",
+      "their description ('Undo: Removed the Markdown section', 'Nothing to undo') exists only as aria-label and title attributes — title tooltips need hover, which a touch screen does not have"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812 touch",
+      "2. open Kitchen, tap the red bin on Markdown",
+      "3. read the notice, then look for Undo in the header"
+    ],
+    "expected": "The user can see what Undo will undo (or undo straight from the notice that announces the removal).",
+    "actual": "The notice sends the user to the header, where Undo is an unlabelled arrow whose explanation is a hover tooltip; on touch there is no way to read what it will undo before tapping it.",
+    "lens": "task:T05",
+    "heuristic": "Nielsen #6 Recognition rather than recall; Nielsen #1 Visibility of system status",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-09-project-header-history-controls.md"
+  },
+  {
+    "id": "W2-021",
+    "surface": "Project workspace › section removal notice vs header history feedback",
+    "inventoryRow": "Section removal/recovery feedback",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/030-t05-01-removed.png: removal notice is a floating card pinned to the bottom of the screen, covering the Task List's add row",
+      "S/walk/w2-touch/031-t05-02-undone.png: undo feedback is plain inline text inside the header card with an underlined 'Dismiss' link (50x22.5)",
+      "focus moved to 'Open Archive' after removal"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Kitchen, remove the Markdown section",
+      "3. tap header Undo"
+    ],
+    "expected": "Feedback about the same operation (remove, then undo) appears in the same place and style, without hiding the content the user is working on.",
+    "actual": "Removal feedback floats over the canvas at the bottom of the screen with outlined buttons; undo feedback appears inside the header as small text with a link-styled Dismiss. Two visual languages for one flow, and the floating one obscures canvas content.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-022",
+    "surface": "Markdown section › source editor at 375px",
+    "inventoryRow": "Markdown section and source editor",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/032-t06-01-edit.png: after tapping Edit the textarea (206px tall) starts at y=634 and runs past the bottom of the 812px screen",
+      "Save/Preview/Cancel row at y=852, below the fold, before any keyboard",
+      "with an on-screen keyboard (~300px) the whole textarea would sit under it (approximation)",
+      "after scrolling: Preview, Save and Cancel are three identical outlined buttons (033-t06-02-typed.png)"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812",
+      "2. Menu › Kitchen",
+      "3. tap Edit on the Markdown section without scrolling"
+    ],
+    "expected": "Opening the editor shows the text being edited and how to save it.",
+    "actual": "The editor opens where the Edit button was, near the bottom of the screen; the text box is mostly below the fold and Save is off-screen, and nothing distinguishes Save from Preview and Cancel.",
+    "lens": "task:T06",
+    "heuristic": "Nielsen #1 Visibility of system status; Nielsen #8 Aesthetic and minimalist design (hierarchy)",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-023",
+    "surface": "Task row › title at 375px",
+    "inventoryRow": "Task row",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/033-t06-02-typed.png: 'Choose appliance fi…' and 'Approve the cabine…' truncated with an ellipsis in the Kitchen Task List",
+      "the same titles wrap fully in the Today widget and in shortcut frames (037-t07-03-frame.png)"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812",
+      "2. open Kitchen and look at the Task List rows"
+    ],
+    "expected": "A task's name is readable in the list.",
+    "actual": "Task titles are cut to about 18 characters in the editable list, while the same tasks wrap in full elsewhere; similar tasks ('Confirm tile samples' / 'Confirm tap samples') become hard to tell apart.",
+    "lens": "hierarchy",
+    "heuristic": "Nielsen #6 Recognition rather than recall; internal consistency",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-024",
+    "surface": "Add a shortcut picker › source list",
+    "inventoryRow": "Shortcut picker",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/035-t07-01-picker.png: nine rows named only by type — 'Markdown', 'Progress', 'Recent Activity', 'Reflections', 'Task List', 'Timeline', 'Reflections', 'Markdown', 'Task List' — with locations like 'Home renovation · Home'",
+      "'Home renovation · Reflecti…' truncated",
+      "no preview of a source's content"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Kitchen, tap a '+' insertion point",
+      "3. tap Add shortcut"
+    ],
+    "expected": "The user can tell which section they are about to show on Kitchen (e.g. which task list or which notes).",
+    "actual": "Sources are listed by their generic type name, two of each in places, with no content hint; picking the right one means guessing from the location line, which is itself truncated.",
+    "lens": "task:T07",
+    "heuristic": "Nielsen #6 Recognition rather than recall",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-025",
+    "surface": "Shortcut frame › projected tasks",
+    "inventoryRow": "Shortcut frame",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/037-t07-03-frame.png: shortcut 'Task List (Home renovation)' shows task cards like the editable list (one green, struck through) but with no checkbox and no explanation",
+      "aria: articles with text only; the only action is 'Open source' (73x19.5) at the bottom"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. on Kitchen add a shortcut to Home renovation's Task List",
+      "3. scroll to the new frame"
+    ],
+    "expected": "It is clear the shortcut is a read-only window onto another page, and how to act on its tasks.",
+    "actual": "The tasks look like the normal list minus the checkboxes; nothing says they cannot be completed here, and the way to the editable original is a small link after the last task.",
+    "lens": "affordance",
+    "heuristic": "Nielsen #1 Visibility of system status; Nielsen #4 Consistency and standards",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-026",
+    "surface": "Project workspace › page settings (Pages panel) at 375px",
+    "inventoryRow": "Project navigation and page settings panel",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "T08: tapped ⋯ More project actions first (dead end — rename, status, date, archive, no pages)",
+      "page settings require: 'Show project navigation' strip (collapsed by default and again after every reload) → an unlabelled gear glyph (~10px, 44x44 target) next to the project name (042-t08-04-gear.png)",
+      "on a phone the project's Todos/Archive/Reflections pages are likewise hidden until the strip is opened (038-t08-01-root.png)"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812",
+      "2. Menu › Home renovation",
+      "3. look for a way to hide the Reflections page"
+    ],
+    "expected": "Project-level settings are found where other project actions live, or are labelled where they are.",
+    "actual": "Showing/hiding pages sits behind two disclosures — a thin text strip and then an unlabelled gear — while the ⋯ menu that holds the other project settings does not mention pages.",
+    "lens": "task:T08",
+    "heuristic": "Nielsen #6 Recognition rather than recall; Nielsen #4 Consistency and standards",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-09-optional-page-management-lives-in-project-navigation.md"
+  },
+  {
+    "id": "W2-027",
+    "surface": "Project header › More project actions panel",
+    "inventoryRow": "Project header and More menu",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/039-t08-02-more.png: inline panel of mini-forms — Name field + Rename, Description field + Save, four status buttons wrapping over two lines, date field + Set + Clear, Open Archive, Archive Project — with labels left of some fields and none on others",
+      "each control 33px tall"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812",
+      "2. open Home renovation",
+      "3. tap ⋯"
+    ],
+    "expected": "A menu of project actions that can be scanned, with the destructive one set apart.",
+    "actual": "Five separate commit buttons (Rename, Save, Set, Clear, status) in a cramped wrapped stack, with 'Archive Project' only distinguished by red text at the bottom.",
+    "lens": "hierarchy",
+    "heuristic": "Nielsen #8 Aesthetic and minimalist design; Nielsen #4 Consistency and standards",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-028",
+    "surface": "Project Archive page › archived item rows at 375px",
+    "inventoryRow": "/projects/:root/pages/archive and archived items",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/047-t09-02-list.png and 048-t09-03-rows.png: the 'Legacy attic' row puts the 'Restore as' select and Restore beside the title, leaving the text column ~40px wide — title shows 'Leg…', words break mid-word ('Works/tream', 'renova/tion', 'Archiv/ed/directl/y'), the row is ~600px tall",
+      "the archive list card is inset to x=48..335 inside the page"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812",
+      "2. Menu › Home renovation › Show project navigation › Archive",
+      "3. scroll to the list"
+    ],
+    "expected": "Each archived item's name, type and origin are readable at phone width.",
+    "actual": "The archived workstream row collapses into a one-word-wide column with broken words and a truncated name, so the user cannot read what they would be restoring.",
+    "lens": "task:T09",
+    "heuristic": "WCAG 2.2 SC 1.4.10 Reflow",
+    "severity": "S2",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-029",
+    "surface": "Project Archive page › after Restore",
+    "inventoryRow": "/projects/:root/pages/archive and archived items",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "T09 step: after tapping Restore on 'Old permit copy' the row disappeared, count went 3 → 2 items, status region empty, document.activeElement = BODY (049-t09-04-restored.png)",
+      "header Undo silently became 'Undo: Restored \"Old permit copy\"'"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Home renovation › Archive",
+      "3. tap Restore on 'Old permit copy'"
+    ],
+    "expected": "The user is told the item is back and where it went.",
+    "actual": "The row vanishes with no message and focus is dropped; the user has to go to the Home page to confirm the task returned.",
+    "lens": "states",
+    "heuristic": "Nielsen #1 Visibility of system status; WCAG 2.2 SC 4.1.3 Status Messages",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-030",
+    "surface": "Project Archive page › structure and accessible text",
+    "inventoryRow": "/projects/:root/pages/archive and archived items",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "aria: region 'Archive' › heading 'Archive' › region 'Archive' › heading 'Archive' (two nested regions and two h2s with the same name)",
+      "aria text for the workstream row: 'Workstream Origin: Home renovationLegacy attic' (path parts run together without a separator in the accessible text, while visually shown as 'Home renovation / Legacy attic / Work canvas')"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo",
+      "2. open Home renovation › Archive",
+      "3. inspect the accessibility tree"
+    ],
+    "expected": "A screen-reader user hears one Archive heading and a readable origin path.",
+    "actual": "The page announces 'Archive' four times in nested landmarks/headings, and the origin path reads as 'Home renovationLegacy attic'.",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships; SC 2.4.6 Headings and Labels",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-031",
+    "surface": "Settings › AI & Agents › connecting a new agent",
+    "inventoryRow": "/settings/agents",
+    "seed": "agent-heavy",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/052-t10-02-agents.png, 053-t10-03-end.png: page lists Claude, Cursor, Retired assistant with permission checkboxes and Revoke; no connect/add control and no text on how a connection is made",
+      "Settings index (051-t10-01-settings.png) has only 'AI & Agents' and 'Archived projects'",
+      "tapped the Demo User avatar in the top bar: nothing happens",
+      "Recent Agent Activity on the dashboard has no link to agent settings",
+      "checked against source after the task: agent-connections-page.html has no create path; the empty state tells the user to load a seed"
+    ],
+    "repro": [
+      "1. seed agent-heavy as Demo",
+      "2. Menu › Settings › AI & Agents",
+      "3. look for a way to connect a new agent"
+    ],
+    "expected": "Next to the list of connected agents, the user finds how to connect another one (or is told how).",
+    "actual": "There is no way to connect an agent anywhere in the product UI and no explanation on the page; the second half of the task cannot be done.",
+    "lens": "task:T10",
+    "heuristic": "Nielsen #10 Help and documentation; Nielsen #3 User control and freedom",
+    "severity": "S1",
+    "confidence": "observed",
+    "decisionReopened": "docs/decisions/2026-08-agent-connection-panel-control-is-a-roster.md"
+  },
+  {
+    "id": "W2-032",
+    "surface": "Settings › AI & Agents › Revoke buttons",
+    "inventoryRow": "/settings/agents",
+    "seed": "agent-heavy",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "S/walk/w2-touch/052-t10-02-agents.png, 053-t10-03-end.png: 'Revoke' is a grey, native-looking button (64x28.5) unlike every other button in the app; the disabled Revoke on the already-revoked agent looks almost the same as the enabled ones"
+    ],
+    "repro": [
+      "1. seed agent-heavy as Demo",
+      "2. Menu › Settings › AI & Agents",
+      "3. compare the Revoke buttons on Claude and on Retired assistant"
+    ],
+    "expected": "A permanent, destructive action looks deliberate and distinct, and its disabled state is clearly different.",
+    "actual": "Revoke looks like an unstyled browser default, carries no destructive emphasis, and is barely distinguishable when disabled.",
+    "lens": "consistency",
+    "heuristic": "Nielsen #4 Consistency and standards; Nielsen #5 Error prevention",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-033",
+    "surface": "Dashboard /app › landmarks",
+    "inventoryRow": "/app dashboard",
+    "seed": "agent-heavy",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "axe S/walk/w2-touch/055-w2-dashboard.axe.json: landmark-main-is-top-level (.dashboard), landmark-no-duplicate-main (.workspace), landmark-unique",
+      "aria: main › main on every seed's dashboard"
+    ],
+    "repro": [
+      "1. seed any seed as Demo",
+      "2. open /app",
+      "3. run axe or inspect landmarks"
+    ],
+    "expected": "One main landmark per page.",
+    "actual": "The dashboard nests a second main inside the shell's main, so landmark navigation offers two 'main' regions.",
+    "lens": "accessibility",
+    "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+    "severity": "S3",
+    "confidence": "observed",
+    "decisionReopened": null
+  },
+  {
+    "id": "W2-034",
+    "surface": "Inputs and their commit buttons placed in the bottom 300px of the screen when focused",
+    "inventoryRow": "Section creation dialog",
+    "seed": "nested-projects",
+    "theme": "light",
+    "viewport": "375x812",
+    "state": "populated",
+    "persona": "user-demo",
+    "evidence": [
+      "Add a section dialog: Name field focused at y=437-481, Cancel/Create at y=497-541 (015-t03-03-filled.png) — the vertically centred dialog puts its buttons where a ~300px keyboard sits",
+      "Task List add row of the last section: input at y=651 (017-t03-05-shopping.png)",
+      "Task details Due date field at y=508-547 when tapped (029-t04-06-set.png)",
+      "Markdown editor textarea from y=634 (032-t06-01-edit.png; see W2-022)",
+      "keyboard occlusion is an approximation: the rig has no real on-screen keyboard; positions are measured"
+    ],
+    "repro": [
+      "1. seed nested-projects as Demo at 375x812 touch",
+      "2. open Kitchen, tap the last '+', choose a type and tap the Name field",
+      "3. note where Create sits relative to the lower 300px"
+    ],
+    "expected": "While typing, the field and the button that commits it stay visible above the keyboard.",
+    "actual": "Several fields, and the dialog's Create/Cancel, are positioned in the lower 300px, so with a keyboard up the user would type blind or have to dismiss the keyboard to reach Create.",
+    "lens": "accessibility",
+    "heuristic": "Nielsen #1 Visibility of system status; WCAG 2.2 SC 2.4.11 Focus Not Obscured (Minimum)",
+    "severity": "S3",
+    "confidence": "inferred",
+    "decisionReopened": null
+  }
+]

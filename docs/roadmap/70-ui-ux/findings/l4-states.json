@@ -1,0 +1,1266 @@
+{
+  "stateCoverage": [
+    {
+      "inventoryRow": "`/` redirect",
+      "seen": [],
+      "notReached": [
+        "redirect"
+      ],
+      "how": "Not exercised; every walk started at /app or a deep link."
+    },
+    {
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seen": [
+        "dark",
+        "light (Alex persona, theme toggle)",
+        "identity present",
+        "identity absent (top bar during /api/me delay and 500)",
+        "empty tree ('No projects yet')",
+        "populated tree",
+        "error tree (raw message)",
+        "loading (shows empty-tree text, L4-001)",
+        "inline New project form",
+        "New project pending (optimistic row)",
+        "empty-name create (silent)"
+      ],
+      "notReached": [
+        "phone drawer open/closed (desktop-only brief)",
+        "project group collapsed",
+        "creation error (server refusal on create)",
+        "active-route highlight for projects (none rendered; only Home highlights)"
+      ],
+      "how": "Route delay and 500 on /api/me and /api/projects?*, seeds empty/busy-week/nested, personas Demo and Alex."
+    },
+    {
+      "inventoryRow": "`/app` dashboard",
+      "seen": [
+        "loading ('Loading your dashboard…')",
+        "error (raw message; whole-dashboard error when AI provider is 'real')",
+        "populated (busy-week, agent-heavy)",
+        "empty seed"
+      ],
+      "notReached": [
+        "no visible widgets",
+        "unimplemented-widget fallback (need persona fixture)"
+      ],
+      "how": "Seed empty/busy-week/agent-heavy; 8 s /api/** delay; 500 on /api/me; dev panel AI provider real."
+    },
+    {
+      "inventoryRow": "Dashboard widgets",
+      "seen": [
+        "all seven widgets empty (empty seed)",
+        "populated Today/Upcoming/Active Projects/Recent Progress/Digest/Agent Activity",
+        "overdue row styling"
+      ],
+      "notReached": [
+        "widget-level error (any failure takes down the whole dashboard)",
+        "dense widget content",
+        "size variants",
+        "Calendar/work-summary unavailable fallback"
+      ],
+      "how": "Seeds empty, busy-week, agent-heavy."
+    },
+    {
+      "inventoryRow": "`/projects/:projectId` and `/projects/:projectId/pages/:pageKind` workspace",
+      "seen": [
+        "loading ('Loading project…')",
+        "error ('Project unavailable' + raw alert)",
+        "missing / other owner (Alex at Demo URL: same 'Project unavailable' with 'was not found')",
+        "root defaults Home",
+        "workstream canvas"
+      ],
+      "notReached": [
+        "navigation lazy-load placeholder/failure",
+        "unknown/disabled page fallback notice",
+        "enable-disabled-page action",
+        "workstream page URL redirect"
+      ],
+      "how": "Route delay/500 on /api/projects/:id; persona switch to Alex."
+    },
+    {
+      "inventoryRow": "Project header and More menu",
+      "seen": [
+        "root and workstream labels (Target date vs Due date)",
+        "description present/absent",
+        "progress 'Not available'/positive",
+        "archived",
+        "More open",
+        "rename (also on archived workstream)",
+        "inline archive confirmation",
+        "archive pending ('Saving a change…' on history buttons)",
+        "archive refused (active workstreams, red plain text)",
+        "status change used as reactivation"
+      ],
+      "notReached": [
+        "write error from server failure on rename/date (not induced)",
+        "Archive opening retry"
+      ],
+      "how": "nested-projects; More › Archive project / Archive workstream; delayed PATCH."
+    },
+    {
+      "inventoryRow": "Project navigation and page settings panel",
+      "seen": [
+        "Home only (new project)",
+        "all optional pages (nested root)",
+        "nested tree",
+        "no workstreams ('No workstreams yet', also shown when all are archived)",
+        "active workstream highlight"
+      ],
+      "notReached": [
+        "collapsed",
+        "settings open/saving/refusal/refresh retry",
+        "archived root Add workstream blocked (not attempted)"
+      ],
+      "how": "nested-projects, busy-week, new project."
+    },
+    {
+      "inventoryRow": "Project history controls and feedback",
+      "seen": [
+        "nothing available",
+        "undo available (labels 'Undo: Created…', 'Undo: Renamed…', 'Undo: Removed the Timeline section')",
+        "redo available",
+        "saving (both buttons 'Saving a change…')",
+        "dismissable feedback after archive and creation undo"
+      ],
+      "notReached": [
+        "unavailable/retry",
+        "blocked archived ancestor",
+        "conflict lines",
+        "other-owner Open link"
+      ],
+      "how": "Writes in nested-projects with delayed PATCH."
+    },
+    {
+      "inventoryRow": "Creation-undone recovery",
+      "seen": [
+        "missing project with captured creation ('Creation undone', Redo available, status + Dismiss)"
+      ],
+      "notReached": [
+        "Redo pending",
+        "blocked by ancestor",
+        "history retry"
+      ],
+      "how": "Sidebar create 'Undo me' then header Undo."
+    },
+    {
+      "inventoryRow": "Home and workstream Work canvases",
+      "seen": [
+        "empty ('This canvas is empty.' + Add a section)",
+        "populated",
+        "dense (agent-heavy Task List with ~30 tasks)",
+        "flow and grid labels",
+        "section read error per section",
+        "canvas-level write error alert (persists after cancel)",
+        "archived canvas (controls live)"
+      ],
+      "notReached": [
+        "canvas loading (only page-level 'Loading project…' seen)",
+        "partial placement-order notice",
+        "missing deep-link target",
+        "drag/drop, keyboard movement, resizing",
+        "unknown section fallback"
+      ],
+      "how": "Seeds busy-week, nested, agent-heavy; 500 on section data endpoints."
+    },
+    {
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seen": [
+        "expanded",
+        "hover chrome (handle and delete appear on hover)",
+        "title edit affordance in tree"
+      ],
+      "notReached": [
+        "collapsed via interaction",
+        "move/resize",
+        "drag preview/placeholder"
+      ],
+      "how": "Observed in passing; not this lens's focus."
+    },
+    {
+      "inventoryRow": "Section creation dialog",
+      "seen": [
+        "section mode",
+        "shortcut mode",
+        "refused (archived project: raw 'reactivate it first' alert inside dialog)"
+      ],
+      "notReached": [
+        "pending",
+        "insertion anchor gone"
+      ],
+      "how": "Add a section on archived project-legacy; Insert at the end on renovation."
+    },
+    {
+      "inventoryRow": "Workstream creation dialog",
+      "seen": [
+        "root/nested parent choices",
+        "parent note",
+        "pending ('Creating…', all fields disabled)",
+        "empty-name (silent)"
+      ],
+      "notReached": [
+        "refused"
+      ],
+      "how": "Add workstream on renovation with delayed POST."
+    },
+    {
+      "inventoryRow": "Shortcut picker",
+      "seen": [
+        "available sources",
+        "already placed ('Added' disabled)",
+        "unreadable (raw alert, no retry)"
+      ],
+      "notReached": [
+        "empty",
+        "loading",
+        "adding/error"
+      ],
+      "how": "Insert at the end › Add shortcut; 500 on shortcut-sources."
+    },
+    {
+      "inventoryRow": "Shortcut frame",
+      "seen": [
+        "read-only projection (task list, reflections, markdown)",
+        "nested source breadcrumb",
+        "empty source ('No reflections yet.')"
+      ],
+      "notReached": [
+        "archived/hidden/permission-denied source",
+        "unsupported source fallback",
+        "movement/resize/removal"
+      ],
+      "how": "nested-projects renovation Home."
+    },
+    {
+      "inventoryRow": "Markdown section and source editor",
+      "seen": [
+        "rendered",
+        "edit",
+        "saving ('Saving…', Preview/Cancel disabled)",
+        "refused/failed ('Not saved — your draft is kept.')",
+        "success (rendered result)"
+      ],
+      "notReached": [
+        "empty",
+        "unreadable",
+        "changed elsewhere",
+        "long prose/tables/links"
+      ],
+      "how": "busy-week project-launch with delayed and failing PATCH."
+    },
+    {
+      "inventoryRow": "Task List section",
+      "seen": [
+        "empty",
+        "populated",
+        "dense",
+        "error (+ empty text, L4-003)",
+        "add pending (no feedback, L4-004)",
+        "add success (drawer opens)",
+        "add/complete failure",
+        "read-only shortcut",
+        "selected task"
+      ],
+      "notReached": [
+        "loading (section-level)",
+        "drag reorder",
+        "pending delete",
+        "committed deletion recovery"
+      ],
+      "how": "busy-week, agent-heavy, nested; delayed/failing POST/PATCH."
+    },
+    {
+      "inventoryRow": "Task row",
+      "seen": [
+        "normal",
+        "overdue",
+        "completed",
+        "high priority",
+        "selected",
+        "completing (optimistic, disabled)",
+        "completion failure (silent revert)",
+        "200-character title (truncated row)"
+      ],
+      "notReached": [
+        "cancelled",
+        "compact",
+        "inline title editing/error",
+        "reopening",
+        "deleting"
+      ],
+      "how": "busy-week, agent-heavy."
+    },
+    {
+      "inventoryRow": "Task detail drawer",
+      "seen": [
+        "selected task",
+        "description absent ('No description yet.')",
+        "long title (heading wraps ~10 lines)"
+      ],
+      "notReached": [
+        "title validation",
+        "priority/due/estimate editing states"
+      ],
+      "how": "Opened automatically after add."
+    },
+    {
+      "inventoryRow": "Progress section",
+      "seen": [
+        "positive percentage",
+        "count/weighted selection",
+        "read error",
+        "header 'Not available'"
+      ],
+      "notReached": [
+        "zero",
+        "manual input",
+        "read-only projection"
+      ],
+      "how": "busy-week, nested; 500 on /progress."
+    },
+    {
+      "inventoryRow": "Reflections section and composer",
+      "seen": [
+        "empty",
+        "populated (ISO timestamps)",
+        "read error (+ empty text)",
+        "write error (plain red text)"
+      ],
+      "notReached": [
+        "loading",
+        "armed/subject-linked",
+        "pending",
+        "inline edit/cancel",
+        "edited timestamp"
+      ],
+      "how": "busy-week, nested; 500 on /api/reflections."
+    },
+    {
+      "inventoryRow": "Timeline section",
+      "seen": [
+        "populated (raw status enums)",
+        "read error (+ 'No dated work yet.')"
+      ],
+      "notReached": [
+        "empty (true)",
+        "dense",
+        "selected/expanded detail",
+        "reversed range warning"
+      ],
+      "how": "busy-week, nested."
+    },
+    {
+      "inventoryRow": "Recent Activity section and shared feed",
+      "seen": [
+        "empty",
+        "populated with human/agent actors",
+        "removed-entity label (wrong name, L4-025)"
+      ],
+      "notReached": [
+        "loading",
+        "error",
+        "dense"
+      ],
+      "how": "agent-heavy, nested."
+    },
+    {
+      "inventoryRow": "`/projects/:root/pages/todos`",
+      "seen": [
+        "loading ('Loading todos…')",
+        "error (raw + 'Try again')",
+        "archived root (false 'no work yet')"
+      ],
+      "notReached": [
+        "mixed chronology/dense",
+        "completion pending/refused",
+        "delete recovery",
+        "descendant history links"
+      ],
+      "how": "nested-projects; delay/500 on /todos; archived root."
+    },
+    {
+      "inventoryRow": "`/projects/:root/pages/reflections`",
+      "seen": [
+        "loading (three separate loading lines)",
+        "error (journal and completed-work, each with 'Try again')",
+        "empty on archived root"
+      ],
+      "notReached": [
+        "full journal",
+        "picker candidates populated",
+        "refresh failure",
+        "read-only composer"
+      ],
+      "how": "nested-projects; delay/500 on journal/completed-work."
+    },
+    {
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seen": [
+        "populated (workstream, Markdown, task)",
+        "restoring ('Restoring…')",
+        "restore success (row vanishes)",
+        "restore failure (all controls disabled, 'Retry archive read')",
+        "empty ('Nothing is ready to restore')",
+        "archived root note pointing to Settings"
+      ],
+      "notReached": [
+        "loading",
+        "dense",
+        "parent-first recovery",
+        "lazy content loading"
+      ],
+      "how": "nested-projects with delayed/failing POST restore."
+    },
+    {
+      "inventoryRow": "Section removal/recovery feedback",
+      "seen": [
+        "removal of a disposable section (no notice; header undo only)"
+      ],
+      "notReached": [
+        "Removed-to-Archive notice",
+        "failed removal",
+        "committed removal with failed refresh",
+        "Open Archive"
+      ],
+      "how": "Removed empty Timeline in project-kitchen."
+    },
+    {
+      "inventoryRow": "`/calendar`",
+      "seen": [
+        "placeholder"
+      ],
+      "notReached": [],
+      "how": "Direct route."
+    },
+    {
+      "inventoryRow": "`/search`",
+      "seen": [
+        "placeholder"
+      ],
+      "notReached": [],
+      "how": "Direct route."
+    },
+    {
+      "inventoryRow": "`/settings`",
+      "seen": [
+        "entry page"
+      ],
+      "notReached": [],
+      "how": "Direct route."
+    },
+    {
+      "inventoryRow": "`/settings/agents`",
+      "seen": [
+        "empty (dev-seed instruction)",
+        "loading ('Loading connections…')",
+        "error (raw, no retry)",
+        "populated permissions",
+        "busy (card checkboxes disabled)",
+        "toggle failure (unattributed)",
+        "revoked",
+        "last-used and never-used"
+      ],
+      "notReached": [
+        "revoke pending"
+      ],
+      "how": "empty and agent-heavy seeds; delay/500 on /api/agent-connections."
+    },
+    {
+      "inventoryRow": "`/settings/archived-projects`",
+      "seen": [
+        "empty",
+        "populated root",
+        "chosen status",
+        "restoring",
+        "refused/failed ('Retry list', Restore disabled)",
+        "success (silent, list changes to workstreams)"
+      ],
+      "notReached": [
+        "loading",
+        "success followed by refresh error"
+      ],
+      "how": "nested-projects after archiving the hierarchy; delayed/failing PATCH."
+    },
+    {
+      "inventoryRow": "`/prototype/design`",
+      "seen": [],
+      "notReached": [
+        "all"
+      ],
+      "how": "Out of time for this lens; prototype tooling."
+    },
+    {
+      "inventoryRow": "`/prototype/state`",
+      "seen": [],
+      "notReached": [
+        "all"
+      ],
+      "how": "Not visited."
+    },
+    {
+      "inventoryRow": "Global development dialog",
+      "seen": [
+        "open",
+        "persona/seed/theme/AI controls used",
+        "AI real → dashboard failure"
+      ],
+      "notReached": [
+        "loading/import error",
+        "controls error/busy",
+        "failure-rate control (route-level failures used instead)",
+        "note draft/saved",
+        "token copied"
+      ],
+      "how": "Ctrl+Shift+D."
+    },
+    {
+      "inventoryRow": "`**` not-found",
+      "seen": [
+        "unknown route (dark and light)"
+      ],
+      "notReached": [],
+      "how": "/nope."
+    },
+    {
+      "inventoryRow": "Toast/popover reconciliation",
+      "seen": [
+        "inline notices: archive feedback with Dismiss, creation-undone status, five different error forms (L4-018)"
+      ],
+      "notReached": [],
+      "how": "Across all walks."
+    },
+    {
+      "inventoryRow": "Storybook",
+      "seen": [],
+      "notReached": [
+        "all"
+      ],
+      "how": "Not in scope of the live browser; brief allowed no server start."
+    }
+  ],
+  "findings": [
+    {
+      "id": "L4-001",
+      "surface": "global shell › sidebar › Projects tree (all routes, initial load)",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "loading",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/load-_app.png (sidebar under PROJECTS reads 'No projects yet' while main reads 'Loading your dashboard…')",
+        "S/walk/l4-states/load-_projects_project_launch.png (same sidebar text while 'Loading project…'; the seed has four projects)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. delay every /api/** request by ~8 s (page.route + fallback)",
+        "3. reload /app or /projects/project-launch",
+        "4. look at the sidebar during the wait"
+      ],
+      "expected": "While the project list is being fetched, the sidebar communicates that it is loading, not that the workspace is empty.",
+      "actual": "The sidebar shows the empty-workspace message 'No projects yet' for the whole wait, then replaces it with four projects. A user with projects is told, falsely, that they have none.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-002",
+      "surface": "dashboard /app; sidebar Projects tree; project workspace 'Project unavailable'; Task List, Progress, Reflections, Timeline section bodies; /settings/agents",
+      "inventoryRow": "/app dashboard",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/err-me-500.png (dashboard: only a red box with the literal server text 'Simulated failure from auditor'; same text repeated in the sidebar under PROJECTS)",
+        "S/walk/l4-states/err-proj-500.png (heading 'Project unavailable' + alert with raw server text, no action)",
+        "S/walk/l4-states/003-err-sectiondata-full.png and ARIA of the canvas (four section bodies each show only the raw message)",
+        "S/walk/l4-states/err-dash-projects-500.png (sidebar shows raw text in small red type)",
+        "S/walk/l4-states/err-agents-500.png (AI & Agents: raw text, empty list, no retry)",
+        "Contrast: root Todos and Reflections pages show the same raw text but with a 'Try again' button (todos-500, refl-500 ARIA); Settings uses 'Retry list', Archive 'Retry archive read'",
+        "S/walk/l4-states/err-picker-500.png (Add a shortcut dialog: raw text, no retry)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. route GET /api/me (or /api/projects/project-launch, /api/tasks?…, /api/reflections?…, /api/projects/*/timeline, /api/projects/*/progress) to a 500 with body {error:'internal_error', message:'Simulated failure from auditor'}",
+        "3. open /app or /projects/project-launch"
+      ],
+      "expected": "A failed read says in product language what could not be loaded, whether anything the user sees is stale, and offers a way to try again without a full page reload.",
+      "actual": "Dashboard, sidebar, project page, canvas sections and the agents page print the server's message string verbatim inside a red box, name nothing about what failed, and offer no retry; the dashboard and sidebar show the identical string twice on one screen. Sibling surfaces do offer recovery, under three different labels ('Try again' on root pages, 'Retry list' in Settings, 'Retry archive read' on Archive), so whether a failure is recoverable depends on where it happens.",
+      "lens": "states",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-003",
+      "surface": "project workspace › Home canvas › Task List, Reflections, Timeline sections",
+      "inventoryRow": "Task List section",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/003-err-sectiondata-full.png (Task List: red 'Simulated failure…' box directly above 'No tasks yet. Add the first one above.')",
+        "ARIA: Reflections region = alert + 'No reflections yet.'; Timeline region = alert + 'No dated work yet.'"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. route GET /api/tasks?*, /api/reflections?*, /api/projects/*/timeline to 500",
+        "3. open /projects/project-launch"
+      ],
+      "expected": "When a section cannot read its content, it does not also claim the content is empty; the user can tell 'failed to load' from 'nothing here'.",
+      "actual": "Each section renders the error and the empty-state sentence at the same time. Task List invites 'Add the first one above' although the list has three tasks, and the add form and reflection composer stay fully enabled.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; internal consistency",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-004",
+      "surface": "project workspace › Task List › add task form",
+      "inventoryRow": "Task List section",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "pending",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/pend-addtask.png (0.7 s after clicking Add task with a 5 s delayed POST: draft still in the field, Add task button enabled and unchanged, no placeholder row, no spinner)",
+        "S/walk/l4/out-addtask.json (ARIA during: button 'Add task' not disabled, no status text; after: task appears and the detail drawer opens)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. delay POST /api/tasks by 5 s",
+        "4. type a title in 'Add a task' and click Add task",
+        "5. watch the section for 5 s"
+      ],
+      "expected": "After submitting, the user can see that the task is being added and that pressing again is not needed.",
+      "actual": "Nothing changes for the duration of the write: the field keeps the text and the button stays live, so the screen looks as if the click did not register (inviting a second submit). Completion, by contrast, shows an optimistic checked-and-disabled checkbox, so the two writes in the same section behave differently.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-005",
+      "surface": "project workspace › Task List › error banner after failed add/complete; /settings/agents permission checkboxes",
+      "inventoryRow": "Task row",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/pend-complete-fail.png (one red banner at the top of the list with the raw server text; the failed task 'Verify analytics events' silently reverted to unchecked; the earlier add failure's draft 'Audit failing task' still sits in the field)",
+        "S/walk/l4/out-addtask-fail.json, out-complete-fail.json (identical alert text for both failures)",
+        "S/walk/l4-states/pend-agent-toggle-fail.png (failed toggle of Cursor › Modify tasks: unattributed red text at top of page above the Claude card; the Cursor checkbox silently reverts)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. make POST/PATCH /api/** return 500",
+        "4. add a task 'Audit failing task'",
+        "5. tick 'Verify analytics events'"
+      ],
+      "expected": "A failed write tells the user which action on which task did not happen, next to it, and what they can do.",
+      "actual": "Both failures produce the same section-level banner with the server's text; the checkbox just snaps back with nothing on the row. With two failures in a row the user cannot tell which one the banner refers to.",
+      "lens": "states",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-006",
+      "surface": "project workspace › Task List › overdue row vs. error alert; dashboard Today overdue row",
+      "inventoryRow": "Task row",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/pend-complete-fail.png (the 'Simulated failure' alert and the overdue row 'Verify analytics events' share the dark-red fill and red border, a few rows apart)",
+        "S/walk/l4-states/002-load-dash.png (dashboard Today row 'Verify analytics events' in the same red box)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. make PATCH /api/tasks/* return 500 and tick any task"
+      ],
+      "expected": "A task that is overdue reads as a property of the work; a failure of the app reads as a system message; the two are not visually interchangeable.",
+      "actual": "A data condition (overdue) and a system failure (alert) use one visual state, so after an error the eye cannot tell at a glance which red box is the problem.",
+      "lens": "states",
+      "heuristic": "Internal consistency; Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-007",
+      "surface": "project workspace of an archived project (archived workstream project-legacy; archived root project-renovation) › canvas, Task List, section dialog",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "archived",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/006-legacy-archived.png (archived workstream: only 'Archived' in the status field; 'Add a section' offered as the primary action, no archived banner)",
+        "S/walk/l4-states/007-legacy-addsection.png (dialog Create → alert 'project \"project-legacy\" is archived; reactivate it first')",
+        "S/walk/l4-states/011-rootarchived.png (archived root Home: Add task, Edit, drag handles and delete buttons all live)",
+        "S/walk/l4-states/015-rootarchived-write.png (Add task and ticking a task → same alert with \"project-renovation\")"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-legacy",
+        "3. click 'Add a section', keep Markdown, click Create",
+        "4. (root) archive Cabinets, Kitchen, Garden then Home renovation via More › Archive; on Home type a task and click Add task"
+      ],
+      "expected": "An archived project reads as archived at a glance, does not invite edits it will refuse, and tells the user in plain words how to bring it back if they want to change it.",
+      "actual": "The archived page looks identical to a live one apart from the word 'Archived' in the header metadata. Every write control is enabled; each one fails after the user commits, with a message that quotes the internal project id and says 'reactivate it first' — a verb that matches no control on the page (the More menu shows plain status buttons; the root's Archive page sends the user to Settings instead). Renaming the archived workstream, by contrast, succeeds, so what is and is not allowed is unpredictable.",
+      "lens": "states",
+      "heuristic": "Nielsen #5 Error prevention; Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md"
+    },
+    {
+      "id": "L4-008",
+      "surface": "project header › More menu › Archive project (root with live workstreams)",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "refused",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/010-archive-confirm.png (confirmation: 'Archive “Home renovation”? It leaves the sidebar; you can undo it from the header.')",
+        "S/walk/l4-states/pend-archiveroot.png (during: menu closed, only the undo/redo icons change to a disabled 'Saving a change…' state)",
+        "S/walk/l4-states/pend-archiveroot-after.png (red plain text under the metadata: 'project \"project-renovation\" still has active workstreams')"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation",
+        "3. More project actions › Archive project › Archive it"
+      ],
+      "expected": "The user learns before confirming that the project cannot be archived yet, and the refusal says which workstreams block it and what to do with them.",
+      "actual": "The confirmation promises the project will leave the sidebar; after confirming, the menu closes and a red sentence quotes the internal id and the rule. It does not name Kitchen or Cabinets, does not link to them, and offers no action. The refusal is plain red text, unlike the boxed alerts elsewhere.",
+      "lens": "states",
+      "heuristic": "Nielsen #5 Error prevention; Nielsen #9 Help users recover from errors",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-08-project-nesting-and-archive-rules.md"
+    },
+    {
+      "id": "L4-009",
+      "surface": "/projects/project-renovation/pages/todos and /pages/reflections while the root is archived",
+      "inventoryRow": "/projects/:root/pages/todos",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "archived",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/012-rootarchived-todos.png: 'There is no work under this project yet — no tasks, and no workstreams.' while the same project's Home still lists 'Confirm renovation budget', 'Confirm tile samples'",
+        "Reflections page: 'No reflections yet.' while the Home canvas shortcut shows three reflections; composer 'Write a reflection' still offered",
+        "Project navigation Work list: 'No workstreams yet' after its three workstreams were archived; sidebar: 'No projects yet' once the only root is archived"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. archive Cabinets, Kitchen, Garden, then Home renovation (More › Archive)",
+        "3. open Todos, Reflections, and look at Work list and sidebar"
+      ],
+      "expected": "An archived project's pages say that content is hidden because the project is archived, not that nothing was ever there.",
+      "actual": "Empty-state copy written for a brand-new project ('yet', 'no tasks, and no workstreams') is shown for an archived project full of work, contradicting the Home canvas one click away.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-010",
+      "surface": "/settings/archived-projects › Restore; root Archive page › Restore",
+      "inventoryRow": "/settings/archived-projects",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "success",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/pend-restore-after.png (Home renovation row vanished; three different rows — Garden, Kitchen, Legacy attic — appeared in its place with no message)",
+        "S/walk/l4/out-archrestore.json (Archive page: '3 items' → '2 items', 'Old permit copy' row removed, no status text)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. archive the root (after its workstreams)",
+        "3. /settings/archived-projects › Restore as Active › Restore",
+        "4. root Archive page › Restore 'Old permit copy'"
+      ],
+      "expected": "After a restore the user is told it worked, what came back, and where to find it.",
+      "actual": "Both restore surfaces simply remove the row. On Settings the list then changes to unrelated rows, which reads as if the page reloaded or something else happened. Pending states (Restoring…) are designed; the success state is not.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-011",
+      "surface": "root Archive page and /settings/archived-projects after a failed restore",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/019-archrestore-fail-state.png (alert 'Simulated failure from auditor' + 'Retry archive read'; all three Restore buttons and the status select disabled)",
+        "S/walk/l4/out-restore-fail.json (Settings: alert + 'Retry list'; Restore disabled although 'Active' is chosen)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/archive",
+        "3. make POST/PATCH /api/** return 500",
+        "4. click Restore on 'Old permit copy'"
+      ],
+      "expected": "A failed restore says the restore did not happen for that item and lets the user try that restore again.",
+      "actual": "The message is the raw server text with no item named; the only action re-reads the list and is labelled differently on the two sibling surfaces ('Retry archive read' vs 'Retry list'). Until the user discovers that, every Restore control is disabled with no explanation.",
+      "lens": "states",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors; internal consistency",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-actionable-archive-and-archived-projects.md"
+    },
+    {
+      "id": "L4-012",
+      "surface": "root Archive page workstream row vs. /settings/archived-projects row",
+      "inventoryRow": "/settings/archived-projects",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/018-archive-page.png (Legacy attic: 'Restore as' preselected 'active', options lowercase)",
+        "S/walk/l4-states/016-archived-projects.png (Home renovation: 'Choose status' placeholder, Restore disabled until chosen, options Title Case)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation/pages/archive",
+        "3. archive the root and open /settings/archived-projects"
+      ],
+      "expected": "Restoring a project works the same way wherever it is offered.",
+      "actual": "One surface makes the user choose a status before Restore enables; the other has already chosen 'active' and Restore is ready. Option casing also differs.",
+      "lens": "states",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-013",
+      "surface": "/settings/archived-projects › Restore button and 'Restore as' select",
+      "inventoryRow": "/settings/archived-projects",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "read-only",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/pend-restore-after.png (three grey 'Restore' buttons, all disabled per ARIA, rendered with the same fill as an enabled button; select uses browser default styling)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. archive the root via More menu after its workstreams",
+        "3. restore it from /settings/archived-projects",
+        "4. look at the remaining rows' Restore buttons"
+      ],
+      "expected": "A control that cannot be used yet looks unavailable.",
+      "actual": "Disabled and enabled Restore buttons are visually indistinguishable, so clicking does nothing with no hint that a status must be chosen first.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; internal consistency",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-014",
+      "surface": "/projects/:id as a persona without access; /projects/<unknown>; ** not-found",
+      "inventoryRow": "`**` not-found",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "refused",
+      "persona": "user-alex",
+      "evidence": [
+        "S/walk/l4-states/022-alex-on-demo.png (Alex at Demo's URL: 'Project unavailable' + red box 'project \"project-renovation\" was not found')",
+        "S/walk/l4-states/024-notfound-light.png ('No such page' / 'That address is not one of §68's routes.' in a dashed card)"
+      ],
+      "repro": [
+        "1. seed nested-projects",
+        "2. switch persona to Alex in the development panel",
+        "3. open /projects/project-renovation",
+        "4. open /nope"
+      ],
+      "expected": "A user who reaches a project they cannot see, or a wrong address, is told what happened in plain language and is offered a way back to their work.",
+      "actual": "Both pages end there: no link home, no list of the user's projects. The project page prints the internal id; the not-found page cites a specification section number. The two sibling 'nothing here' states use different layouts (heading + red alert vs dashed card).",
+      "lens": "states",
+      "heuristic": "Nielsen #9 Help users recover from errors; Nielsen #2 Match between system and real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-015",
+      "surface": "Reflections section, Reflections shortcut frame (Home canvas)",
+      "inventoryRow": "Reflections section and composer",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/shortcuts-view.png (right-aligned '2026-08-24T17:00:00.000Z', '2026-08-23T17:00:00.000Z'; entries also carry browser-default '1.' '2.' list markers)",
+        "busy-week /projects/project-launch Reflections ARIA: time '2026-08-22T18:00:00.000Z'"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation",
+        "3. scroll to 'Reflections (Home renovation)'"
+      ],
+      "expected": "Dates read like the rest of the app (e.g. 2026-08-24 or a relative time).",
+      "actual": "The populated reflection state shows machine timestamps with milliseconds and a Z suffix, plus default ordered-list numbers that appear nowhere else.",
+      "lens": "states",
+      "heuristic": "Nielsen #2 Match between system and the real world; internal consistency",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-016",
+      "surface": "Home canvas › shortcut frames (Task List (Kitchen), Reflections (Kitchen), Markdown (Garden))",
+      "inventoryRow": "Shortcut frame",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "read-only",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/shortcuts-view.png (task rows rendered as the same cards as live rows minus the checkbox and delete; completed row keeps the green fill; empty shortcut shows 'No reflections yet.' with no hint that adding happens at the source)"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-renovation",
+        "3. scroll to the shortcut frames"
+      ],
+      "expected": "A user can tell at a glance that a frame is a view of content that lives elsewhere and cannot be edited here.",
+      "actual": "The only cues are a small arrow glyph and an 'Open source' link at the bottom; the read-only state is otherwise conveyed by controls silently missing. The empty shortcut uses the same sentence as an editable empty section.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-017",
+      "surface": "project header › Progress metadata",
+      "inventoryRow": "Project header and More menu",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "empty",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/003-err-sectiondata-full.png ('PROGRESS Not available' while /progress returned 500)",
+        "S/walk/l4-states/002-newproj-empty.png ('PROGRESS Not available' on a new project with no tasks)",
+        "S/walk/l4-states/006-legacy-archived.png (archived workstream: 'Not available')"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. create a project from the sidebar +, look at the header",
+        "3. on /projects/project-launch, make GET /api/projects/*/progress return 500 and reload"
+      ],
+      "expected": "'No progress yet' (empty), 'could not load' (error) and 'archived' are distinguishable.",
+      "actual": "Three different conditions produce the same words, so a failure is invisible and an empty project looks broken.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-018",
+      "surface": "Markdown editor, Task List, canvas, project header, archive pages, sidebar",
+      "inventoryRow": "Toast/popover reconciliation",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4/out-mdsave-fail.json (Markdown: paragraph 'Not saved — your draft is kept.' — not an alert, no reason)",
+        "S/walk/l4-states/pend-complete-fail.png (Task List: boxed alert with raw server text)",
+        "S/walk/l4-states/pend-archiveroot-after.png (header: unboxed red sentence)",
+        "S/walk/l4-states/pend-newproj.png (canvas-level boxed alert above the sections, repeating the Markdown failure after the editor was cancelled)",
+        "S/walk/l4-states/err-dash-projects-500.png (sidebar: small red text)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. make PATCH /api/** return 500",
+        "4. edit and Save Markdown, then Cancel; tick a task; archive the project"
+      ],
+      "expected": "Errors share one recognizable form, say what did not happen and what to do, and go away when no longer relevant.",
+      "actual": "Five visual forms and two voices (product sentence vs. server string). The Markdown failure additionally leaves a second, canvas-level alert that stays after the user cancels the edit and has no dismiss.",
+      "lens": "states",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-019",
+      "surface": "Timeline section rows; project header status (archived/active lowercase in ARIA)",
+      "inventoryRow": "Timeline section",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "/projects/project-launch Timeline ARIA: 'Task Run launch QA in_progress', 'Task Choose appliance finishes todo' (nested-projects /projects/project-kitchen)"
+      ],
+      "repro": [
+        "1. seed busy-week as Demo",
+        "2. open /projects/project-launch",
+        "3. read the Timeline rows"
+      ],
+      "expected": "Task states are shown with the same human labels used elsewhere (e.g. 'In progress').",
+      "actual": "Timeline shows snake_case data values ('in_progress', 'todo') as the state label.",
+      "lens": "states",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-020",
+      "surface": "/app dashboard and sidebar with no projects",
+      "inventoryRow": "/app dashboard",
+      "seed": "empty",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "empty",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/001-l4-empty-dash.png (seven widget cards each with a 'Nothing…' sentence; no call to create a project; the only creation entry is the small '+' beside PROJECTS next to 'No projects yet')",
+        "baseline apps/e2e/ux-output/c94f0f0e97a3004ac8e2359a116bed6bc1fdf0fc/empty-dashboard-light-1440.png (same in light)"
+      ],
+      "repro": [
+        "1. seed empty as Demo",
+        "2. open /app"
+      ],
+      "expected": "A first-time user with nothing in the workspace is told what the product is for and given an obvious way to start (create a project).",
+      "actual": "The empty state is the populated layout with every widget saying it is empty — seven negative messages ('Nothing is due', 'No projects are active', 'No agent has done anything yet', 'You completed 0 tasks'). No widget or banner points to creating a project; the Fun Fact card is the only content.",
+      "lens": "states",
+      "heuristic": "Nielsen #10 Help and documentation; Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-021",
+      "surface": "/settings/agents (no connections); /calendar; /search; ** not-found",
+      "inventoryRow": "/settings/agents",
+      "seed": "empty",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "empty",
+      "persona": "user-demo",
+      "evidence": [
+        "/settings/agents ARIA: 'No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.'",
+        "/calendar: 'The workspace calendar arrives in Slice 18 (§37).'",
+        "/search: 'Workspace search arrives with the command palette in Slice 21 (§40, §41).'",
+        "/nope: 'That address is not one of §68's routes.'"
+      ],
+      "repro": [
+        "1. seed empty as Demo",
+        "2. open /settings/agents, /calendar, /search, /nope"
+      ],
+      "expected": "An empty or not-yet-available state tells the user what will be here and what they can do now, in product language.",
+      "actual": "The empty agents page tells the user to load a development seed; placeholder and not-found pages cite slice and section numbers. None offers an action other than the sidebar.",
+      "lens": "states",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-022",
+      "surface": "/app dashboard when the AI digest provider fails",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/028-ai-real-dash.png (entire dashboard = one red box reading 'GET /api/dashboard?upcomingDays=7&recentDays=7 answered 500'; Today, Upcoming, Active Projects etc. all gone)"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open the development panel (Ctrl+Shift+D) › AI provider › real",
+        "3. reload /app"
+      ],
+      "expected": "If one widget's data cannot be produced, the other widgets still show and the failed one explains itself in its own frame.",
+      "actual": "The failure of the Daily Digest provider blanks all seven widgets and shows the HTTP method, URL with query string and status code as the only content, with no retry.",
+      "lens": "states",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors; Nielsen #2 Match between system and real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-023",
+      "surface": "project workspace › Task List with ~30 tasks, task detail drawer open",
+      "inventoryRow": "Task List section",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "dense",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/dense-tasks-s0.png (after adding, the drawer opens beside the top of the list and shows the new task; the list itself starts with the oldest tasks)",
+        "S/walk/l4-states/dense-tasks-s2.png (scrolled: rows squeezed to half width, right half of the section empty because the drawer stayed at the top)",
+        "canvas scroll height 4247 px for one Task List; no count, no grouping or collapsing of completed tasks"
+      ],
+      "repro": [
+        "1. seed agent-heavy as Demo",
+        "2. open /projects/project-work-manager",
+        "3. add ~24 tasks with the Add task form",
+        "4. scroll the main region"
+      ],
+      "expected": "In a long list the user can see the task they just added, and the list stays usable (readable width, some sense of how many items there are).",
+      "actual": "Each new task is appended at the bottom of a list that grows without limit, far below the add field; confirmation comes only from the drawer that opens each time. While the drawer is open every row is half width for the full length of the list, with a blank column beside it once the drawer scrolls away.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-024",
+      "surface": "sidebar › New project inline form; Add workstream dialog",
+      "inventoryRow": "Workstream creation dialog",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "refused",
+      "persona": "user-demo",
+      "evidence": [
+        "sidebar: Create clicked with empty 'Project name' → ARIA unchanged, no message",
+        "Add workstream dialog: Create clicked with empty Name → ARIA unchanged, no message, no invalid state"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. click '+' beside PROJECTS, click Create without typing",
+        "3. open /projects/project-renovation, Add workstream, click Create without typing"
+      ],
+      "expected": "The form says a name is needed (or the button shows it is not yet available).",
+      "actual": "The button looks enabled and the click is silently ignored.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #5 Error prevention",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-025",
+      "surface": "project workspace › Recent Activity after removing a section",
+      "inventoryRow": "Recent Activity section and shared feed",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "/projects/project-kitchen after 'Remove section Timeline': Recent Activity row 'YOU Demo User Section removed “Kitchen” Kitchen 24 Aug, 16:02'; header undo reads 'Undo: Removed the Timeline section'"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. click 'Remove section Timeline'",
+        "4. read Recent Activity"
+      ],
+      "expected": "The activity entry names what was removed (the Timeline section).",
+      "actual": "The retained label shows the project name 'Kitchen' as the removed thing, so the feed cannot tell the user which section went.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "L4-026",
+      "surface": "project canvas › Remove section (disposable empty Timeline)",
+      "inventoryRow": "Section removal/recovery feedback",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "success",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/029-remove-feedback.png (after removing Timeline: no notice anywhere on the page; role=status regions empty; header undo icon unchanged visually, its accessible name is 'Undo: Removed the Timeline section')"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. open /projects/project-kitchen",
+        "3. click the delete icon on the Timeline section"
+      ],
+      "expected": "After a one-click removal the user sees that it happened and how to reverse it.",
+      "actual": "The section just disappears. Undo exists only as an unlabelled icon in the header whose meaning is exposed through its accessible name/tooltip.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #3 User control and freedom",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "docs/decisions/2026-09-disposable-removal-and-immediate-undo.md"
+    },
+    {
+      "id": "L4-027",
+      "surface": "Task List and Reflections sections after a failed read",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "error",
+      "persona": "user-demo",
+      "evidence": [
+        "S/walk/l4-states/pend-light-fail.png (after the read failure had been removed and other writes were made, Task List still shows the old error box and 'No tasks yet. Add the first one above.' although Kitchen has two tasks)",
+        "S/walk/l4-states/err-light-sections.png"
+      ],
+      "repro": [
+        "1. seed nested-projects as Demo",
+        "2. route GET /api/tasks?* to 500, reload /projects/project-kitchen",
+        "3. remove the route, keep using the page (add a task, add a reflection)"
+      ],
+      "expected": "Once the app can read again, or the user retries, the section shows its real content.",
+      "actual": "There is no retry and the stale error + false empty state stay on screen across further interactions; only a browser reload restores the list.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; Nielsen #9 Help users recover from errors",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

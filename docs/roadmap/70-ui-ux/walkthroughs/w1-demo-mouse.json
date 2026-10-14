@@ -1,0 +1,182 @@
+{
+  "auditor": "w1-demo-mouse", "inputMode": "mouse", "viewport": "1440x900",
+  "theme": "dark", "personas": ["user-demo"],
+  "tasks": [
+    {
+      "task": "T01", "persona": "user-demo", "outcome": "completed",
+      "clicks": 3, "keystrokes": 16, "surfaces": ["Dashboard", "Sidebar", "Inline New project form", "Project workspace"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "I scanned the dashboard first; every widget was an empty sentence with no action. The tiny '+' next to PROJECTS was the only way in, found by elimination.",
+      "steps": [
+        {"expect": "The empty dashboard will offer a 'Create your first project' action, probably in Active Projects.", "action": "look at /app", "observed": "Seven empty widgets, no action; small '+' beside PROJECTS in the sidebar.", "mismatch": true, "evidence": "S/walk/w1-demo/001-w1-t01-00-dashboard.png"},
+        {"expect": "Clicking '+' opens a name field with focus in it.", "action": "click '+' (New project)", "observed": "Inline unlabelled field and Create button appeared; focus stayed on the '+'.", "mismatch": true, "evidence": "S/walk/w1-demo/002-w1-t01-01-newproject.png"},
+        {"expect": "Clicking the field lets me type.", "action": "click field, type 'Garage clear-out'", "observed": "Text entered.", "mismatch": false, "evidence": "S/walk/w1-demo/003-w1-t01-02-typed.png"},
+        {"expect": "Create adds the project to the sidebar and maybe opens it.", "action": "click Create", "observed": "Navigated to the new project's Home; sidebar lists it; header shows Undo of the creation.", "mismatch": false, "evidence": "S/walk/w1-demo/004-w1-t01-03-created.png"}
+      ],
+      "verification": "Reloaded /projects/project-b22b48f0: project 'Garage clear-out' still listed in sidebar and shown in header.",
+      "findings": ["W1-001", "W1-002", "W1-003", "W1-004", "W1-005", "W1-006", "W1-007"]
+    },
+    {
+      "task": "T02", "persona": "user-demo", "outcome": "completed",
+      "clicks": 5, "keystrokes": 8, "surfaces": ["Sidebar", "Project navigation", "Add workstream dialog", "Project header feedback"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "I first hovered Kitchen looking for a per-item add; the '+' beside WORK was the route. The dialog's parent defaulted to the root, which I only caught because I read the helper line.",
+      "steps": [
+        {"expect": "Kitchen is under Home renovation in the sidebar.", "action": "click Kitchen in sidebar", "observed": "Kitchen workstream opened with a second navigation column also listing the tree.", "mismatch": false, "evidence": "S/walk/w1-demo/006-w1-t02-01-kitchen.png"},
+        {"expect": "Hovering Kitchen will show an add-child control.", "action": "hover Kitchen in project navigation (not counted)", "observed": "No per-item control.", "mismatch": true, "evidence": "S/walk/w1-demo/007-w1-t02-02-hover.png"},
+        {"expect": "The '+' beside WORK adds a workstream under the current one.", "action": "click '+' beside WORK", "observed": "Add workstream dialog with focus in Name; Parent preset to Home renovation, not Kitchen.", "mismatch": true, "evidence": "S/walk/w1-demo/008-w1-t02-03-dialog.png"},
+        {"expect": "Typing fills Name.", "action": "type 'Lighting'", "observed": "Filled.", "mismatch": false, "evidence": null},
+        {"expect": "Parent list shows the tree.", "action": "click Parent select, choose Kitchen", "observed": "Flat list; after choosing, helper reads 'Inside Kitchen'.", "mismatch": true, "evidence": null},
+        {"expect": "Create adds Lighting under Kitchen and maybe opens it.", "action": "click Create", "observed": "Lighting appears under Kitchen in both trees; page stays on Kitchen; header line 'Created \"Lighting\" was recorded in Lighting's history.'; sidebar item lacks an icon.", "mismatch": true, "evidence": "S/walk/w1-demo/010-w1-t02-05-created.png"}
+      ],
+      "verification": "Reloaded: Lighting nested under Kitchen in the sidebar and in the project navigation.",
+      "findings": ["W1-008", "W1-009", "W1-010", "W1-011", "W1-012", "W1-013", "W1-014", "W1-015", "W1-016"]
+    },
+    {
+      "task": "T03", "persona": "user-demo", "outcome": "completed",
+      "clicks": 14, "keystrokes": 28, "surfaces": ["Sidebar", "Work canvas", "Insertion point", "Add a section dialog", "Task List section", "Task detail drawer", "Recent Activity section"], "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Nothing on the populated canvas suggests adding a section; I scrolled to the end and found the '+' only by resting the pointer in the gap below the last section, then my first click on its centre missed.",
+      "steps": [
+        {"expect": "Kitchen's Work page is Kitchen's canvas.", "action": "click Kitchen in sidebar", "observed": "Canvas with six sections; nothing labels it 'Work'.", "mismatch": false, "evidence": "S/walk/w1-demo/006-w1-t02-01-kitchen.png"},
+        {"expect": "An add-section control at the end of the canvas.", "action": "scroll to bottom (not counted)", "observed": "No visible control; Reflections and Timeline look unstyled.", "mismatch": true, "evidence": "S/walk/w1-demo/012-w1-t03-01-bottom.png"},
+        {"expect": "Hovering a section reveals an add control.", "action": "hover last section", "observed": "Move/collapse/remove revealed, no add.", "mismatch": true, "evidence": "S/walk/w1-demo/014-w1-t03-02-hover-section.png"},
+        {"expect": "Hovering below the last section reveals an insertion '+'.", "action": "hover gap below last section", "observed": "Orange line with a '+' circle.", "mismatch": false, "evidence": "S/walk/w1-demo/015-w1-t03-03-hover-end.png"},
+        {"expect": "Clicking the '+' opens a dialog.", "action": "click centre of '+'", "observed": "Chrome vanished, nothing opened (click landed below the hit area).", "mismatch": true, "evidence": "S/walk/w1-demo/016-w1-t03-04-dialog.png"},
+        {"expect": "Clicking the top of the '+' works.", "action": "re-hover and click upper part of '+'", "observed": "Add a section dialog, type Markdown preselected.", "mismatch": false, "evidence": "S/walk/w1-demo/017-w1-t03-05-dialog.png"},
+        {"expect": "Choose Task List and name it.", "action": "select Task List; click Name; type 'Shopping'", "observed": "Filled.", "mismatch": false, "evidence": null},
+        {"expect": "Create shows me the new section.", "action": "click Create", "observed": "Dialog closed, view unchanged; Recent Activity says 'Section added \"Kitchen\"'; new section below the fold.", "mismatch": true, "evidence": "S/walk/w1-demo/018-w1-t03-06-created.png"},
+        {"expect": "Shopping section at the end.", "action": "scroll down (not counted)", "observed": "Empty Shopping task list with 'Add a task' field.", "mismatch": false, "evidence": "S/walk/w1-demo/019-w1-t03-07-scrolled.png"},
+        {"expect": "Typing and Add task adds a row.", "action": "click field, type 'Buy paint', click Add task", "observed": "Row added and Task details panel opened beside it; focus on Add task.", "mismatch": true, "evidence": "S/walk/w1-demo/020-w1-t03-08-task1.png"},
+        {"expect": "Second task is added.", "action": "click field, type 'Buy brushes', click Add task", "observed": "Added; details switched to Buy brushes; section moved down as activity grew.", "mismatch": true, "evidence": "S/walk/w1-demo/021-w1-t03-09-task2.png"},
+        {"expect": "Checkbox marks done.", "action": "click Buy paint checkbox", "observed": "Row turned green with strikethrough.", "mismatch": false, "evidence": "S/walk/w1-demo/022-w1-t03-10-done1.png"},
+        {"expect": "Checkbox marks done.", "action": "click Buy brushes checkbox", "observed": "Done.", "mismatch": false, "evidence": null}
+      ],
+      "verification": "Reloaded Kitchen: section 'Shopping' contains 'Buy paint' and 'Buy brushes', both checked ('Reopen task ...').",
+      "findings": ["W1-017", "W1-018", "W1-019", "W1-020", "W1-021", "W1-022", "W1-023", "W1-024", "W1-025", "W1-026", "W1-027", "W1-028", "W1-029", "W1-030"]
+    },
+    {
+      "task": "T04", "persona": "user-demo", "outcome": "completed",
+      "clicks": 4, "keystrokes": "unmeasured", "surfaces": ["Dashboard Today widget", "Sidebar", "Task List section", "Task detail drawer"], "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "The overdue task was right there on the dashboard, but its row did nothing when clicked. I went in through the sidebar instead. Once there, the title-click and date field were easy, though the details panel opened partly below the fold.",
+      "steps": [
+        {"expect": "Clicking an overdue row in Today opens the task.", "action": "click 'Export legacy records' in Today", "observed": "Nothing; the row is inert text.", "mismatch": true, "evidence": "S/walk/w1-demo/024-w1-t04-00-dashboard.png"},
+        {"expect": "Client migration in the sidebar opens the project with its tasks.", "action": "click Client migration", "observed": "Home canvas with Task List; overdue rows red with 'Overdue'.", "mismatch": false, "evidence": "S/walk/w1-demo/025-w1-t04-01-project.png"},
+        {"expect": "Clicking the title opens details with a due date field.", "action": "click 'Export legacy records' title", "observed": "Details panel opened beside the row with its fields below the fold; the selected row lost its red styling.", "mismatch": true, "evidence": "S/walk/w1-demo/026-w1-t04-02-details.png"},
+        {"expect": "The due date field accepts a new date and saves it.", "action": "scroll (not counted); click Due date; fill 2026-09-01", "observed": "Field shows mm/dd/yyyy; the row updated at once to 'Due 2026-09-01' and lost 'Overdue'; no confirmation.", "mismatch": true, "evidence": "S/walk/w1-demo/028-w1-t04-04-filled.png"}
+      ],
+      "verification": "Reloaded: the row reads 'Export legacy records / High Priority / Due 2026-09-01'.",
+      "findings": ["W1-031", "W1-032", "W1-033", "W1-034", "W1-035", "W1-027"]
+    },
+    {
+      "task": "T05", "persona": "user-demo", "outcome": "completed",
+      "clicks": 3, "keystrokes": 0, "surfaces": ["Work canvas", "Section chrome", "Section recovery notice", "Project header history"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Hovering a section showed its red trash icon. Removal happened with no confirmation. The notice said Undo is in the header but offered no button itself, so I had to find the arrow icon.",
+      "steps": [
+        {"expect": "Hovering a section shows a remove control.", "action": "hover Markdown (not counted)", "observed": "Drag handle, collapse and red trash revealed.", "mismatch": false, "evidence": "S/walk/w1-demo/029-w1-t05-01-hover.png"},
+        {"expect": "The trash icon asks to confirm, or removes and offers Undo right there.", "action": "click Remove section Markdown", "observed": "Removed at once; a floating notice 'Undo is in the header.' with only Open Archive / Dismiss, covering the Progress section.", "mismatch": true, "evidence": "S/walk/w1-demo/030-w1-t05-02-removed.png"},
+        {"expect": "The header undo arrow brings it back.", "action": "click header Undo", "observed": "Markdown restored in place; inline line 'Undid: Removed the Markdown section.'", "mismatch": false, "evidence": "S/walk/w1-demo/031-w1-t05-03-undone.png"}
+      ],
+      "verification": "Reloaded: Markdown section present.",
+      "findings": ["W1-036", "W1-037", "W1-038", "W1-007"]
+    },
+    {
+      "task": "T06", "persona": "user-demo", "outcome": "completed",
+      "clicks": 3, "keystrokes": 37, "surfaces": ["Work canvas", "Markdown section", "Markdown source editor"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "There is an always-visible Edit button. The editor is a raw monospace source box, and its Save button looks the same as Preview and Cancel.",
+      "steps": [
+        {"expect": "Edit opens an editor.", "action": "click Edit", "observed": "Monospace textarea with focus; Preview / Save / Cancel.", "mismatch": false, "evidence": "S/walk/w1-demo/032-w1-t06-01-edit.png"},
+        {"expect": "The text can be replaced.", "action": "Ctrl+A, type 'Order appliances and finishes first.'", "observed": "Replaced.", "mismatch": false, "evidence": null},
+        {"expect": "Save shows the rendered text.", "action": "click Save", "observed": "The new text is rendered.", "mismatch": false, "evidence": "S/walk/w1-demo/033-w1-t06-02-saved.png"}
+      ],
+      "verification": "Reloaded: section text reads 'Order appliances and finishes first.'",
+      "findings": ["W1-039", "W1-010"]
+    },
+    {
+      "task": "T07", "persona": "user-demo", "outcome": "completed",
+      "clicks": 4, "keystrokes": 0, "surfaces": ["Work canvas", "Insertion point", "Add a section dialog", "Shortcut picker", "Shortcut frame"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "I found the route right away only because I had seen 'Add shortcut' in T03. A cold user would have to know that shortcuts live inside Add a section. Several sources in the picker have the same name, so choosing one meant reading small location lines.",
+      "steps": [
+        {"expect": "Hovering the gap above Markdown shows a '+'.", "action": "hover gap (not counted)", "observed": "Insertion line with '+'.", "mismatch": false, "evidence": "S/walk/w1-demo/034-w1-t07-01-hover-top.png"},
+        {"expect": "The '+' opens Add a section with a shortcut option.", "action": "click '+' (upper part)", "observed": "Dialog opened.", "mismatch": false, "evidence": null},
+        {"expect": "Add shortcut lists sections from elsewhere in a recognisable way.", "action": "click Add shortcut", "observed": "Nine sources listed by type name, told apart only by small location lines.", "mismatch": true, "evidence": "S/walk/w1-demo/035-w1-t07-02-picker.png"},
+        {"expect": "Add places it before Markdown and shows it.", "action": "click Add on Task List · Home renovation · Home", "observed": "Placed; the view jumped to the shortcut's bottom edge with its header off-screen.", "mismatch": true, "evidence": "S/walk/w1-demo/036-w1-t07-03-added.png"}
+      ],
+      "verification": "Reloaded: region 'Task List (Home renovation)' present on Kitchen.",
+      "findings": ["W1-040", "W1-041", "W1-042", "W1-043", "W1-018"]
+    },
+    {
+      "task": "T08", "persona": "user-demo", "outcome": "completed",
+      "clicks": 6, "keystrokes": 0, "surfaces": ["Sidebar", "Project navigation", "Project More panel", "Page settings panel"], "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "I looked first at the Reflections link on hover, then the More menu. That menu opened a form with no page options. The setting was behind a tiny unlabeled cog next to the project name.",
+      "steps": [
+        {"expect": "Home renovation opens.", "action": "click Home renovation in sidebar", "observed": "Root Home opened; the sidebar root item is not highlighted.", "mismatch": true, "evidence": "S/walk/w1-demo/038-w1-t08-01-root.png"},
+        {"expect": "Hovering Reflections shows a hide control.", "action": "hover Reflections (not counted)", "observed": "Nothing appears.", "mismatch": true, "evidence": "S/walk/w1-demo/039-w1-t08-02-hover.png"},
+        {"expect": "The More menu has page settings.", "action": "click '⋯'", "observed": "An inline edit form opens; no page options.", "mismatch": true, "evidence": "S/walk/w1-demo/040-w1-t08-03-more.png"},
+        {"expect": "Closing it and trying the cog shows page settings.", "action": "click '⋯' to close; click cog", "observed": "Pages panel with checkboxes.", "mismatch": false, "evidence": "S/walk/w1-demo/041-w1-t08-04-gear.png"},
+        {"expect": "Unchecking hides Reflections.", "action": "uncheck Show Reflections page", "observed": "Reflections link removed; header Undo reads 'Disabled the reflections page'.", "mismatch": false, "evidence": "S/walk/w1-demo/042-w1-t08-05-hidden.png"},
+        {"expect": "Checking it again restores the page.", "action": "check Show Reflections page", "observed": "The link is back.", "mismatch": false, "evidence": "S/walk/w1-demo/043-w1-t08-06-back.png"}
+      ],
+      "verification": "Accessibility tree confirmed the link was gone after unchecking; after re-checking and reloading, the Reflections link is present.",
+      "findings": ["W1-044", "W1-045", "W1-046"]
+    },
+    {
+      "task": "T09", "persona": "user-demo", "outcome": "completed",
+      "clicks": 3, "keystrokes": 0, "surfaces": ["Sidebar", "Project navigation", "Root Archive page"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The Archive page link was obvious. The list is dense and full of jargon, and Restore gives no feedback.",
+      "steps": [
+        {"expect": "Home renovation opens.", "action": "click Home renovation", "observed": "Root Home opened.", "mismatch": false, "evidence": null},
+        {"expect": "The Archive page lists archived items.", "action": "click Archive", "observed": "Three items run together in one panel; Restore shown as orange text.", "mismatch": false, "evidence": "S/walk/w1-demo/044-w1-t09-01-archive.png"},
+        {"expect": "Restore says where the item went.", "action": "click Restore on 'Old permit copy'", "observed": "The row vanished silently; the count went from 3 to 2.", "mismatch": true, "evidence": "S/walk/w1-demo/045-w1-t09-02-restored.png"}
+      ],
+      "verification": "Opened Home renovation Home: 'Old permit copy' is present.",
+      "findings": ["W1-047", "W1-048", "W1-049", "W1-050", "W1-051"]
+    },
+    {
+      "task": "T10", "persona": "user-demo", "outcome": "blocked",
+      "clicks": 3, "keystrokes": 0, "surfaces": ["Settings", "AI & Agents", "Dashboard"], "deadEnds": 1,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Settings › AI & Agents shows the permissions clearly. There is no way to connect a new agent anywhere in the product UI. The furthest I got was the permissions page.",
+      "steps": [
+        {"expect": "Agents live under Settings.", "action": "click Settings", "observed": "Two links, including 'AI & Agents'.", "mismatch": false, "evidence": "S/walk/w1-demo/047-w1-t10-01-settings.png"},
+        {"expect": "An agent list with permissions and a Connect button.", "action": "click AI & Agents", "observed": "Permissions per agent and Revoke; no connect control; Settings is no longer highlighted in the sidebar.", "mismatch": true, "evidence": "S/walk/w1-demo/048-w1-t10-02-agents.png"},
+        {"expect": "A Connect action at the bottom.", "action": "scroll (not counted)", "observed": "A revoked agent's card and nothing else.", "mismatch": true, "evidence": "S/walk/w1-demo/049-w1-t10-03-bottom.png"},
+        {"expect": "The agent activity widget links to connecting.", "action": "click Home", "observed": "Recent Agent Activity has no links.", "mismatch": true, "evidence": null}
+      ],
+      "verification": "Read the accessibility trees of /settings, /settings/agents and /app: none offers a connect action. Checked docs/guides/mcp-setup.md afterwards: connecting uses fixture tokens outside the product UI.",
+      "findings": ["W1-052", "W1-053", "W1-054", "W1-046"]
+    },
+    {
+      "task": "T02-1024", "persona": "user-demo", "outcome": "completed",
+      "clicks": 5, "keystrokes": 8, "surfaces": ["Sidebar", "Project navigation", "Add workstream dialog"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Same path as at 1440 wide, which I already knew. The canvas gets about 510px because the two navigation columns take about 45% of the width, and the header metadata wraps.",
+      "steps": [
+        {"expect": "Kitchen opens.", "action": "click Kitchen", "observed": "Narrow canvas; the header wraps DUE DATE to a second row.", "mismatch": true, "evidence": "S/walk/w1-demo/051-w1-t02-1024-01-kitchen.png"},
+        {"expect": "The dialog fits.", "action": "click '+' beside WORK", "observed": "The dialog fits; the parent defaults to the root again.", "mismatch": true, "evidence": "S/walk/w1-demo/052-w1-t02-1024-02-dialog.png"},
+        {"expect": "Lighting is created under Kitchen.", "action": "type 'Lighting'; select Kitchen (2 clicks); click Create", "observed": "Created; same feedback line; the sidebar item has no icon.", "mismatch": false, "evidence": "S/walk/w1-demo/053-w1-t02-1024-03-created.png"}
+      ],
+      "verification": "Reloaded: Lighting under Kitchen in the project navigation.",
+      "findings": ["W1-055", "W1-008", "W1-011"]
+    },
+    {
+      "task": "T07-1024", "persona": "user-demo", "outcome": "completed",
+      "clicks": 4, "keystrokes": 0, "surfaces": ["Work canvas", "Insertion point", "Shortcut picker", "Shortcut frame"], "deadEnds": 0,
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Same path as at 1440 wide. In the picker the Garden sources need scrolling inside the list. After adding, the view jumped past the shortcut's header again.",
+      "steps": [
+        {"expect": "Hovering the gap above Markdown shows a '+'.", "action": "hover (not counted); click '+'", "observed": "Add a section dialog opened.", "mismatch": false, "evidence": "S/walk/w1-demo/054-w1-t07-1024-01-hover.png"},
+        {"expect": "The picker fits.", "action": "click Add shortcut", "observed": "The picker fills the height; the list scrolls internally.", "mismatch": false, "evidence": "S/walk/w1-demo/055-w1-t07-1024-02-picker.png"},
+        {"expect": "The shortcut is added and shown.", "action": "click Add on Task List · Home renovation · Home", "observed": "Added; the view lands at the shortcut's bottom edge.", "mismatch": true, "evidence": "S/walk/w1-demo/056-w1-t07-1024-03-added.png"}
+      ],
+      "verification": "Reloaded: region 'Task List (Home renovation)' present.",
+      "findings": ["W1-040", "W1-043", "W1-055"]
+    }
+  ]
+}

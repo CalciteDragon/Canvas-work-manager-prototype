@@ -1,0 +1,1968 @@
+{
+ "method": "Orchestrator reproduction from fresh seeds on an isolated scratch host (127.0.0.1:4320) via a persistent headless page; scripts r1–r10 kept in the session scratchpad. Captures from apps/e2e/ux-output/c94f0f0e…. Unreproduced claims are excluded from synthesis.",
+ "totals": {
+  "filed": 318,
+  "reproduced": 290,
+  "reproduced-partly": 6,
+  "not-reproduced": 3,
+  "not-reached": 1,
+  "unverified": 18
+ },
+ "verdicts": {
+  "L1-001": {
+   "status": "reproduced",
+   "method": "capture busy-week-dashboard-light-1440",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-002": {
+   "status": "reproduced",
+   "method": "capture busy-week-dashboard-light-1440",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-003": {
+   "status": "reproduced",
+   "method": "capture busy-week-dashboard-light-1440",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-004": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-005": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-006": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-007": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-008": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-009": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-010": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-011": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-012": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-013": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-014": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-015": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-016": {
+   "status": "reproduced",
+   "method": "capture todos-*",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-017": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-018": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-019": {
+   "status": "reproduced",
+   "method": "capture kitchen-task-drawer-dark-1440",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-020": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-021": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-022": {
+   "status": "reproduced",
+   "method": "capture kitchen-shortcut-picker-*",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-023": {
+   "status": "reproduced-partly",
+   "method": "live r10",
+   "note": "Reproduced the shape (details or controls low or small, notice placement); exact pixel figures differ with seed density.",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-024": {
+   "status": "reproduced",
+   "method": "capture prototype-design-*",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-025": {
+   "status": "reproduced",
+   "method": "capture prototype-design-*",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-026": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-027": {
+   "status": "reproduced",
+   "method": "capture settings-agents-*",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-028": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-029": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-030": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L1-031": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l1-hierarchy"
+  },
+  "L2-001": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-002": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-003": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-004": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-005": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-006": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-007": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-008": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-009": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-010": {
+   "status": "reproduced",
+   "method": "capture kitchen-task-drawer-dark-1440",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-011": {
+   "status": "reproduced",
+   "method": "capture todos-*",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-012": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-013": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-014": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-015": {
+   "status": "reproduced",
+   "method": "capture todos-*",
+   "severity": "S2",
+   "auditor": "l2-consistency"
+  },
+  "L2-016": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-017": {
+   "status": "reproduced",
+   "method": "source",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L2-018": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S3",
+   "auditor": "l2-consistency"
+  },
+  "L3-001": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-002": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l3-affordance"
+  },
+  "L3-003": {
+   "status": "reproduced",
+   "method": "live r4",
+   "severity": "S3",
+   "auditor": "l3-affordance"
+  },
+  "L3-004": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-005": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l3-affordance"
+  },
+  "L3-006": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l3-affordance"
+  },
+  "L3-007": {
+   "status": "reproduced",
+   "method": "live r5",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-008": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-009": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-010": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-011": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-012": {
+   "status": "reproduced",
+   "method": "live r4",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-013": {
+   "status": "not-reproduced",
+   "method": "live r5",
+   "note": "The \"body required\" error cleared and the entry saved on a filled submit.",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-014": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-015": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-016": {
+   "status": "reproduced",
+   "method": "live r4",
+   "severity": "S3",
+   "auditor": "l3-affordance"
+  },
+  "L3-017": {
+   "status": "reproduced",
+   "method": "live r5",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-018": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l3-affordance"
+  },
+  "L3-019": {
+   "status": "reproduced",
+   "method": "capture todos-*",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-020": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-021": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-022": {
+   "status": "reproduced",
+   "method": "live r4",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-023": {
+   "status": "reproduced",
+   "method": "live r4",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-024": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-025": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S2",
+   "auditor": "l3-affordance"
+  },
+  "L3-026": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l3-affordance"
+  },
+  "L4-001": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-002": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-003": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-004": {
+   "status": "reproduced",
+   "method": "live r5",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-005": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-006": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-007": {
+   "status": "reproduced",
+   "method": "live r8",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-008": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-009": {
+   "status": "not-reached",
+   "method": "live r9",
+   "note": "Seeds could not produce an archived root with Todos enabled; host refuses archiving a root with active workstreams.",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-010": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-011": {
+   "status": "not-reproduced",
+   "method": "live r10",
+   "note": "Injected restore failure did not disable the restore controls.",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-012": {
+   "status": "reproduced",
+   "method": "live r4",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-013": {
+   "status": "reproduced",
+   "method": "live r4",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-014": {
+   "status": "reproduced",
+   "method": "live r6",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-015": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-016": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-017": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-018": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-019": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-020": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-021": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-022": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-023": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-024": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-025": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l4-states"
+  },
+  "L4-026": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L4-027": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l4-states"
+  },
+  "L5-001": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-002": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-003": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-004": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-005": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-006": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-007": {
+   "status": "not-reproduced",
+   "method": "live r10",
+   "note": "Placeholder measured 4.56:1 on the Task List input.",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-008": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-009": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-010": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-011": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-012": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-013": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-014": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-015": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-016": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-017": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-018": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l5-a11y"
+  },
+  "L5-019": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-020": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-021": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-022": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L5-023": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l5-a11y"
+  },
+  "L6-001": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-002": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-003": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-004": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-005": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-006": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-007": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-008": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-009": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-010": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-011": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-012": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-013": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-014": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-015": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-016": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-017": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-018": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-019": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-020": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-021": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-022": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-023": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S2",
+   "auditor": "l6-copy"
+  },
+  "L6-024": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-025": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-026": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L6-027": {
+   "status": "reproduced",
+   "method": "capture settings-agents-*",
+   "severity": "S3",
+   "auditor": "l6-copy"
+  },
+  "L7-001": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-002": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-003": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-004": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-005": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-006": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-007": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-008": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-009": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-010": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-011": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-012": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-013": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-014": {
+   "status": "reproduced",
+   "method": "capture prototype-design-*",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-015": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S1",
+   "auditor": "l7-ia"
+  },
+  "L7-016": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-017": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-018": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-019": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "l7-ia"
+  },
+  "L7-020": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-021": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "L7-022": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "l7-ia"
+  },
+  "W1-001": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-002": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-003": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-004": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-005": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-006": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-007": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-008": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-009": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-010": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-011": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-012": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-013": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-014": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-015": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-016": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-017": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-018": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-019": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-020": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-021": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-022": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-023": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-024": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-025": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-026": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-027": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-028": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-029": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-030": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-031": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-032": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-033": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-034": {
+   "status": "reproduced-partly",
+   "method": "live r7",
+   "note": "Selection replaces the overdue/complete tint; the red border survives.",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-035": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-036": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-037": {
+   "status": "reproduced-partly",
+   "method": "live r10",
+   "note": "Reproduced the shape (details or controls low or small, notice placement); exact pixel figures differ with seed density.",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-038": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-039": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-040": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-041": {
+   "status": "reproduced",
+   "method": "capture kitchen-section-create-*",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-042": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-043": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-044": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-045": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-046": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-047": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-048": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-049": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-050": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-051": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-052": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S1",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-053": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-054": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "w1-demo-mouse"
+  },
+  "W1-055": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w1-demo-mouse"
+  },
+  "W2-001": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-002": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-003": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-004": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-005": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-006": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-007": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-008": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-009": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-010": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-011": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-012": {
+   "status": "reproduced-partly",
+   "method": "live r10",
+   "note": "Reproduced the shape (details or controls low or small, notice placement); exact pixel figures differ with seed density.",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-013": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-014": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-015": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-016": {
+   "status": "reproduced-partly",
+   "method": "live r10",
+   "note": "Reproduced the shape (details or controls low or small, notice placement); exact pixel figures differ with seed density.",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-017": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-018": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-019": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-020": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-021": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-022": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-023": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-024": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-025": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-026": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-027": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-028": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w2-touch-375"
+  },
+  "W2-029": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-030": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-031": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S1",
+   "auditor": "w2-touch-375"
+  },
+  "W2-032": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-033": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W2-034": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "w2-touch-375"
+  },
+  "W3-001": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-002": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-003": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-004": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-005": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-006": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-007": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-008": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-009": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-010": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-011": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-012": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-013": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-014": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-015": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-016": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w3-keyboard"
+  },
+  "W3-017": {
+   "status": "reproduced",
+   "method": "capture settings-agents-*",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-018": {
+   "status": "unverified",
+   "method": "none",
+   "note": "Not reproduced by the orchestrator in this pass; excluded from synthesis.",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-019": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S3",
+   "auditor": "w3-keyboard"
+  },
+  "W3-020": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S1",
+   "auditor": "w3-keyboard"
+  },
+  "W4-001": {
+   "status": "reproduced",
+   "method": "live r7",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-002": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-003": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-004": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-005": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-006": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-007": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-008": {
+   "status": "reproduced",
+   "method": "live r3",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-009": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-010": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-011": {
+   "status": "reproduced-partly",
+   "method": "live r7",
+   "note": "Selection replaces the overdue/complete tint; the red border survives.",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-012": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-013": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-014": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-015": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-016": {
+   "status": "reproduced",
+   "method": "capture kitchen-section-create-*",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-017": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-018": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-019": {
+   "status": "reproduced",
+   "method": "capture kitchen-more-*",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-020": {
+   "status": "reproduced",
+   "method": "live r6",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-021": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-022": {
+   "status": "reproduced",
+   "method": "source",
+   "note": "Confirmed against templates, token files or host responses; L4-008 also by its live confirmation copy and the host refusal text.",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-023": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S1",
+   "auditor": "w4-personas"
+  },
+  "W4-024": {
+   "status": "reproduced",
+   "method": "live r6",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-025": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-026": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-027": {
+   "status": "reproduced",
+   "method": "live r1+r3",
+   "note": "Focus loss and the absence of confirmation at the point of action reproduced. Claims that no message appears at all did not hold: a status line appears in the project header, out of view of the row.",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-028": {
+   "status": "reproduced",
+   "method": "capture busy-week-dashboard-light-1440",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-029": {
+   "status": "reproduced",
+   "method": "live r1",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-030": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-031": {
+   "status": "reproduced",
+   "method": "live r10",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-032": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  },
+  "W4-033": {
+   "status": "reproduced",
+   "method": "live r2",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-034": {
+   "status": "reproduced",
+   "method": "live r8",
+   "severity": "S2",
+   "auditor": "w4-personas"
+  },
+  "W4-035": {
+   "status": "reproduced",
+   "method": "orchestrator screenshots r2",
+   "severity": "S3",
+   "auditor": "w4-personas"
+  }
+ }
+}
