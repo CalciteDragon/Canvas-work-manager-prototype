@@ -41,26 +41,6 @@
   gap: var(--space-4);
 }
 
-.work-create-dialog__form label {
-  display: grid;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.work-create-dialog input,
-.work-create-dialog select,
-.work-create-dialog button {
-  min-inline-size: 0;
-  min-block-size: var(--size-hit-target);
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
 .work-create-dialog footer {
   display: flex;
   justify-content: flex-end;
@@ -70,12 +50,3 @@
 
 .work-create-dialog__note { margin: 0; color: var(--color-text-muted); }
 .work-create-dialog__error { margin: 0; color: var(--color-danger); }
-.work-create-dialog button { cursor: pointer; }
-.work-create-dialog button:disabled { cursor: var(--cursor-disabled); opacity: var(--opacity-disabled); }
-
-.work-create-dialog button:focus-visible,
-.work-create-dialog input:focus-visible,
-.work-create-dialog select:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}

@@ -4,14 +4,14 @@
     (click)="$event.stopPropagation()" (keydown)="keydown($event)">
     <h2 id="work-create-title">Add workstream</h2>
     <form class="work-create-dialog__form" (submit)="$event.preventDefault(); submit()">
-      <label>
+      <label class="control-label">
         <span>Name</span>
-        <input data-create-work-name type="text" required autocomplete="off" [value]="name()"
+        <input class="field" data-create-work-name type="text" required autocomplete="off" [value]="name()"
           [disabled]="pending()" (input)="setName($event)" />
       </label>
-      <label>
+      <label class="control-label">
         <span>Parent</span>
-        <select data-create-work-parent [disabled]="pending()" (change)="selectParent($event)">
+        <select class="select" data-create-work-parent [disabled]="pending()" (change)="selectParent($event)">
           @for (parent of parentOptions(); track parent.id) {
             <option [value]="parent.id" [selected]="parent.id === selectedParentId()">{{ parentLabel(parent) }}</option>
           }
@@ -25,8 +25,8 @@
       }
       <p data-create-work-inside class="work-create-dialog__note">Inside {{ selectedParentName() }}</p>
       <footer>
-        <button data-create-work-cancel type="button" [disabled]="pending()" (click)="close()">Cancel</button>
-        <button data-create-work-submit type="submit" [disabled]="pending() || selectedParentId() === null">
+        <button data-create-work-cancel type="button" class="button" [disabled]="pending()" (click)="close()">Cancel</button>
+        <button data-create-work-submit type="submit" class="button button--primary" [disabled]="pending() || selectedParentId() === null">
           {{ pending() ? 'Creating…' : 'Create' }}
         </button>
       </footer>
