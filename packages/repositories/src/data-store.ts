@@ -858,6 +858,26 @@ export class JsonDataStore extends BaseDataStore {
     const document = validateDocumentIntegrity(getActiveDocument(this));
     const temporaryPath = `${this.path}.tmp`;
     await this.fileOperations.writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
-    await this.fileOperations.rename(temporaryPath, this.path);
+    await renameWithRetry(this.fileOperations, temporaryPath, this.path);
   }
 }
+
+// Windows briefly locks a file another process (indexer, antivirus, editor) has open, and
+// refuses the atomic rename with one of these codes. A short bounded retry rides it out;
+// any other failure, or a lock that outlasts the budget, still surfaces.
+const TRANSIENT_RENAME_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
+const RENAME_RETRY_DELAYS_MS = [10, 25, 50, 100, 200];
+
+const renameWithRetry = async (fileOperations: FileOperations, from: string, to: string): Promise<void> => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fileOperations.rename(from, to);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      const delay = RENAME_RETRY_DELAYS_MS[attempt];
+      if (code === undefined || !TRANSIENT_RENAME_CODES.has(code) || delay === undefined) throw error;
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, delay));
+    }
+  }
+};

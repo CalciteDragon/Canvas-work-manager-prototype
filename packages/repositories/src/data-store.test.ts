@@ -784,6 +784,46 @@ describe('JsonDataStore', () => {
     expect(await readFile(path, 'utf8')).toBe(original);
   });
 
+  it('retries a rename that a transient Windows file lock refuses', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeFile(path, `${JSON.stringify(validDocument())}\n`, 'utf8');
+    let refusals = 2;
+    const operations: FileOperations = {
+      readFile,
+      writeFile,
+      rename: vi.fn(async (from: string, to: string) => {
+        if (refusals-- > 0) throw Object.assign(new Error('EPERM: operation not permitted, rename'), { code: 'EPERM' });
+        await renameFile(from, to);
+      }),
+    };
+    const store = await JsonDataStore.load(path, operations);
+
+    await store.runUnitOfWork(() => insertProject(store));
+
+    expect(operations.rename).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(await readFile(path, 'utf8')).projects).toHaveLength(validDocument().projects.length + 1);
+  });
+
+  it('gives up on a file lock that never clears', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeFile(path, `${JSON.stringify(validDocument())}\n`, 'utf8');
+    const operations: FileOperations = {
+      readFile,
+      writeFile,
+      rename: vi.fn(async () => {
+        throw Object.assign(new Error('EBUSY: resource busy or locked, rename'), { code: 'EBUSY' });
+      }),
+    };
+    const store = await JsonDataStore.load(path, operations);
+
+    await expect(store.runUnitOfWork(() => insertProject(store))).rejects.toThrow('EBUSY');
+    expect((operations.rename as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(1);
+  });
+
   it('writes a complete temp snapshot first and keeps live disk and memory intact when rename fails', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
     temporaryDirectories.push(directory);

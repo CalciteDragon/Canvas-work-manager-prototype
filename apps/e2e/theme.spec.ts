@@ -50,3 +50,14 @@ test('keeps theme controls usable when browser storage is blocked', async ({ pag
   await page.locator('[data-settings-match-device]').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
+
+test('paints the device scheme before the app boots', async ({ browser }) => {
+  for (const [colorScheme, ground] of [['light', 'rgb(233, 237, 247)'], ['dark', 'rgb(12, 15, 26)']] as const) {
+    const context = await browser.newContext({ colorScheme, javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto('/app');
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+    await expect(page.locator('body')).toHaveCSS('background-color', ground);
+    await context.close();
+  }
+});

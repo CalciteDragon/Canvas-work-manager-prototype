@@ -55,3 +55,14 @@ and switching personas never changes the theme. Without matchMedia the fallback 
 An app initializer constructs ThemeService on every route, including direct Design Lab
 entry, so theme application does not rely on AppShell. The media listener is removed when
 the service is destroyed. UserPreferences.theme stays unchanged in contracts and seeds.
+
+## Amended — 2026-10-14 (after Slice 71, first paint)
+
+Before this change, the paint before boot was always the dark default, so a light device
+flashed dark until the app started. Measured with JavaScript disabled, the body was
+`rgb(12, 15, 26)` on a light device. `_tokens.scss` now applies the light literals under
+`prefers-color-scheme: light` while `<html>` has no `data-theme`, so the first paint follows
+the device. `ThemeService` is still the only writer of the attribute, and no pre-boot script
+was added. When an explicit choice disagrees with the device, the first paint can still
+briefly show the device's scheme. That case is accepted until it is seen in use.
+`theme.spec.ts` pins the pre-boot paint for both schemes.

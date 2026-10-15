@@ -3,8 +3,9 @@
 // `scripts/check-design-tokens.mjs` enforces
 // that, and `pnpm lint` runs it.
 //
-// §22's two themes are one attribute apart: dark is the default, light overrides. The
-// light block is `:root[data-theme='light']` rather than `[data-theme='light']` so it wins
+// §22's two themes are one attribute apart: dark is the default, light overrides. Before the app
+// boots and sets that attribute, the device scheme picks (see the media block after the light one).
+// The light block is `:root[data-theme='light']` rather than `[data-theme='light']` so it wins
 // on specificity (0,2,0 against 0,1,0) rather than on source order — a rule that survives
 // someone reordering this file.
 //
@@ -171,7 +172,7 @@
 
 // Base literals only. Anything derived above must **not** reappear here, or the knob that
 // derives it becomes a no-op in this theme.
-:root[data-theme='light'] {
+@mixin light-literals {
   color-scheme: light;
 
   --color-background: #e9edf7;
@@ -208,6 +209,20 @@
   --plane-lift-solid: #ffffff;
   --lift-shadow: 0 30px 80px rgb(16 24 40 / 22%), 0 0 0 1px rgb(255 255 255 / 70%) inset;
   --field-line: rgb(18 22 32 / 42%);
+}
+
+:root[data-theme='light'] {
+  @include light-literals;
+}
+
+// Before the app boots there is no `data-theme` yet, so the first paint follows the device
+// instead of flashing the dark default on a light one. `ThemeService` sets the attribute on
+// startup, after which only the block above applies. An explicit choice that disagrees with
+// the device can still flash briefly; only a pre-boot script could avoid that.
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    @include light-literals;
+  }
 }
 
 // The same declarations serve every solid fallback. Components never branch on glass.

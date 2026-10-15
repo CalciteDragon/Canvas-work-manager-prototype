@@ -20,7 +20,9 @@ store itself never does.
    Queries follow the shared semantics (AND, empty array matches nothing, archived
    excluded unless `includeArchived`).
 4. On return the store validates the provisional document whole, writes it to a temp
-   file, renames it over the data file, and releases any live frames the unit held.
+   file, renames it over the data file, and releases any live frames the unit held. A rename
+   refused with `EPERM`, `EBUSY` or `EACCES` (Windows briefly locks a file another process has
+   open) is retried up to five times over about 400 ms; any other error surfaces at once.
 5. On a throw the clone is discarded; a write attempted after the unit closed, or with a
    stale token, is rejected with `UnitOfWorkInProgressError` or a conflict.
 6. `replaceActiveDocument` — used by the dev panel's seed swap and reset — runs *through*

@@ -13,7 +13,9 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 2. `PrototypeIdentityProvider` fetches `GET /api/me` with the `x-prototype-user` header
    it keeps (guarded `localStorage`), exposing the persona as a signal. Independently, an app
    initializer constructs `ThemeService` on every route; it applies the device scheme or a
-   saved explicit browser choice to `<html data-theme>` and listens for device changes.
+   saved explicit browser choice to `<html data-theme>` and listens for device changes. Before it
+   runs, `_tokens.scss` paints the device scheme for an `<html>` with no `data-theme`, so a light
+   device does not flash dark ([amendment](../../../decisions/2026-10-theme-follows-device-and-persists.md)).
 3. `PrototypeLiveUpdates` opens `EventSource(/prototype/events?user=…)`, parses each
    frame with `LiveEventSchema`, and fans it out to subscribed listeners; on error it
    reconnects with exponential backoff and tells listeners to recover.
