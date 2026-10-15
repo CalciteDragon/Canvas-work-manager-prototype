@@ -1,4 +1,6 @@
-// §21's tokens first, then the element defaults expressed in them. Component styles use
-// the tokens and never a literal — `pnpm lint` fails the build if one appears.
+// §21's tokens first, then the element defaults expressed in them, then slice 72's control
+// primitives. Component styles use the tokens and never a literal — `pnpm lint` fails the
+// build if one appears.
 @use './styles/tokens';
 @use './styles/base';
+@use './styles/controls';

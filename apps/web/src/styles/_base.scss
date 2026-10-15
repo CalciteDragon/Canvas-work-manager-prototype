@@ -1,6 +1,8 @@
 // Element defaults. Every value here comes from a token — this file holds no literals of
 // its own, so a theme change reaches the page without touching it.
 
+@use './control-states' as states;
+
 * {
   box-sizing: border-box;
 }
@@ -31,6 +33,5 @@ a {
 }
 
 :focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  @include states.focus-ring;
 }

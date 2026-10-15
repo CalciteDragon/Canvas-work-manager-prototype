@@ -1,0 +1,26 @@
+// Slice 72: the interactive states of every control, as mixins that emit no CSS of their own.
+// `_controls.scss` includes them under the real `:hover` and `:active`, and the Design Lab's
+// specimens include the same mixins under a forcing class, so a specimen cannot drift from the
+// rule it shows. Each control class sets the `--control-*` variables these read.
+
+@mixin hover {
+  border-color: var(--control-edge-hover);
+  background-color: var(--control-fill-hover);
+  color: var(--control-ink-hover, var(--control-ink));
+}
+
+@mixin pressed {
+  border-color: var(--control-edge-hover);
+  background-color: var(--control-fill-pressed);
+  color: var(--control-ink-hover, var(--control-ink));
+}
+
+@mixin field-hover {
+  border-color: var(--control-field-edge-hover);
+}
+
+// The one focus ring. `_base.scss` applies it under `:focus-visible`; the Lab under a class.
+@mixin focus-ring {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}

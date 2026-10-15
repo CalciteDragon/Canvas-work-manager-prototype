@@ -1,0 +1,405 @@
+// Slice 72's shared control primitives (§21): global classes over native elements, applied in
+// templates (`<button class="button button--primary">`). Tokens only — the lint scans this file.
+//
+// Components *position* a primitive (grid placement, gaps, inline size, margins) and never
+// paint one. Angular's emulated encapsulation turns a component's `button {…}` into (0,1,1)
+// and `.x {…}` into (0,2,0), both of which beat a class here (0,1,0), so adopting a primitive
+// means deleting the component's control paint, not overriding it.
+//
+// Focus is the one `:focus-visible` ring in `_base.scss`; nothing here declares an outline.
+// Selection shows in shape (an inset ring or a mark), never in fill alone (principle 4).
+
+@use './control-states' as states;
+
+// ── Buttons, icon buttons and tools share one box and one set of state variables. ──
+
+.button,
+.icon-button,
+.tool {
+  --control-fill: var(--control-secondary-fill);
+  --control-fill-hover: var(--control-secondary-fill-hover);
+  --control-fill-pressed: var(--control-secondary-fill-pressed);
+  --control-edge: var(--control-secondary-edge);
+  --control-edge-hover: var(--control-secondary-edge-hover);
+  --control-ink: var(--color-text);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--control-gap);
+  min-inline-size: var(--size-target-min);
+  min-block-size: var(--size-target-min);
+  margin: 0;
+  border: var(--control-line) solid var(--control-edge);
+  border-radius: var(--control-radius);
+  background-color: var(--control-fill);
+  color: var(--control-ink);
+  font: inherit;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.button {
+  block-size: var(--control-height-md);
+  padding: 0 var(--control-padding-inline);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.button--sm {
+  block-size: var(--control-height-sm);
+  padding: 0 var(--control-padding-inline-sm);
+  font-size: var(--font-size-sm);
+}
+
+.button--primary {
+  --control-fill: var(--control-primary-fill);
+  --control-fill-hover: var(--control-primary-fill-hover);
+  --control-fill-pressed: var(--control-primary-fill-pressed);
+  --control-edge: var(--control-primary-fill);
+  --control-edge-hover: var(--control-primary-fill-hover);
+  --control-ink: var(--control-primary-ink);
+}
+
+.button--ghost,
+.icon-button,
+.tool {
+  --control-fill: var(--control-ghost-fill);
+  --control-edge: var(--control-ghost-fill);
+  --control-edge-hover: var(--control-ghost-fill);
+}
+
+// Danger at rest is outlined, never filled, so a Revoke is not the loudest control on its page.
+.button--danger,
+.icon-button--danger,
+.tool--danger {
+  --control-fill: var(--control-danger-fill);
+  --control-fill-hover: var(--control-danger-fill-hover);
+  --control-fill-pressed: var(--control-danger-fill-pressed);
+  --control-edge: var(--control-danger-edge);
+  --control-edge-hover: var(--control-danger-ink);
+  --control-ink: var(--control-danger-ink);
+}
+
+// Quiet danger tools stay borderless until hovered: chrome, not a commit.
+.tool--danger {
+  --control-fill: var(--control-ghost-fill);
+  --control-edge: var(--control-ghost-fill);
+}
+
+// A full-width list row (the Timeline row): left-aligned, quiet, grows with its content.
+.button--row {
+  --control-fill: var(--control-ghost-fill);
+  --control-edge: var(--control-ghost-fill);
+
+  justify-content: flex-start;
+  inline-size: 100%;
+  block-size: auto;
+  min-block-size: var(--control-height-md);
+  padding: var(--space-2) var(--control-padding-inline);
+  font-weight: inherit;
+  text-align: start;
+  white-space: normal;
+}
+
+.icon-button {
+  inline-size: var(--control-height-md);
+  block-size: var(--control-height-md);
+  padding: 0;
+}
+
+.icon-button--sm,
+.tool {
+  inline-size: var(--control-height-sm);
+  block-size: var(--control-height-sm);
+  padding: 0;
+}
+
+.tool {
+  --control-ink: var(--color-text-muted);
+  --control-ink-hover: var(--color-text);
+}
+
+.tool--danger {
+  --control-ink: var(--control-danger-ink);
+  --control-ink-hover: var(--control-danger-ink);
+}
+
+@media (hover: hover) {
+  :is(.button, .icon-button, .tool):hover:not(:disabled, [aria-disabled='true']) {
+    @include states.hover;
+  }
+}
+
+:is(.button, .icon-button, .tool):active:not(:disabled, [aria-disabled='true']) {
+  @include states.pressed;
+}
+
+:is(.button, .icon-button, .tool):is([aria-pressed='true'], [aria-checked='true'], [aria-expanded='true']) {
+  --control-fill: var(--control-selected-fill);
+
+  box-shadow: var(--control-selected-ring);
+}
+
+// ── Fields and selects. ──
+
+.field,
+.select {
+  min-inline-size: 0;
+  min-block-size: var(--control-height-md);
+  margin: 0;
+  padding: 0 var(--control-padding-inline);
+  border: var(--control-line) solid var(--control-field-edge);
+  border-radius: var(--control-radius);
+  background-color: var(--control-field-fill);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: inherit;
+  line-height: 1.4;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+textarea.field {
+  min-block-size: var(--control-textarea-min-height);
+  padding-block: var(--space-2);
+  resize: vertical;
+}
+
+.field::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.field[aria-invalid='true'],
+.select[aria-invalid='true'] {
+  border-color: var(--control-danger-ink);
+}
+
+// A native select has no `::after`, so the caret is two half-squares of `currentColor`.
+.select {
+  padding-inline-end: var(--control-select-padding-end);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentcolor 50%),
+    linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    calc(100% - var(--control-chevron-inset) - var(--control-chevron-size)) center,
+    calc(100% - var(--control-chevron-inset)) center;
+  background-repeat: no-repeat;
+  background-size: var(--control-chevron-size) var(--control-chevron-size);
+  appearance: none;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  :is(.field, .select):hover:not(:disabled, :focus) {
+    @include states.field-hover;
+  }
+}
+
+// ── Checkbox and radio: native inputs, the target sized for a pointer and the box drawn inside. ──
+
+.checkbox,
+.radio {
+  position: relative;
+  flex: none;
+  inline-size: var(--size-target-min);
+  block-size: var(--size-target-min);
+  margin: 0;
+  border: 0;
+  background: none;
+  vertical-align: middle;
+  appearance: none;
+  cursor: pointer;
+}
+
+.checkbox::before,
+.radio::before,
+.checkbox::after,
+.radio::after {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  content: '';
+}
+
+.checkbox::before,
+.radio::before {
+  inline-size: var(--control-check-size);
+  block-size: var(--control-check-size);
+  border: var(--control-line) solid var(--control-field-edge);
+  border-radius: var(--control-check-radius);
+  background-color: var(--control-field-fill);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.radio::before,
+.radio::after {
+  border-radius: 50%;
+}
+
+.checkbox::after {
+  inline-size: var(--control-mark-width);
+  block-size: var(--control-mark-height);
+  border: solid var(--control-check-ink);
+  border-width: 0 var(--control-mark-stroke) var(--control-mark-stroke) 0;
+  opacity: 0;
+  transform: translateY(var(--control-mark-lift)) rotate(45deg);
+}
+
+.radio::after {
+  inline-size: var(--control-radio-dot);
+  block-size: var(--control-radio-dot);
+  background-color: var(--control-check-ink);
+  opacity: 0;
+}
+
+.checkbox:checked::before,
+.radio:checked::before {
+  border-color: var(--control-check-fill);
+  background-color: var(--control-check-fill);
+}
+
+.checkbox:checked::after,
+.radio:checked::after {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  :is(.checkbox, .radio):hover:not(:disabled, :checked)::before {
+    @include states.field-hover;
+  }
+}
+
+// ── Disabled, the same for every control. ──
+
+:is(.button, .icon-button, .tool, .field, .select, .checkbox, .radio):is(:disabled, [aria-disabled='true']) {
+  cursor: var(--cursor-disabled);
+  opacity: var(--opacity-disabled);
+}
+
+// ── Touch: every interactive primitive grows to the hit target. ──
+
+@media (hover: none), (any-pointer: coarse) {
+  .button,
+  .button--sm,
+  .field,
+  .select {
+    min-block-size: var(--size-hit-target);
+  }
+
+  .button,
+  .button--sm {
+    block-size: auto;
+  }
+
+  .icon-button,
+  .icon-button--sm,
+  .tool,
+  .checkbox,
+  .radio {
+    inline-size: var(--size-hit-target);
+    block-size: var(--size-hit-target);
+  }
+
+  .link {
+    min-block-size: var(--size-hit-target);
+  }
+}
+
+// Forced colours: the system draws native boxes and carets that respect the user's palette.
+@media (forced-colors: active) {
+  .checkbox,
+  .radio,
+  .select {
+    appearance: auto;
+  }
+
+  .select {
+    background-image: none;
+  }
+
+  .checkbox::before,
+  .radio::before,
+  .checkbox::after,
+  .radio::after {
+    content: none;
+  }
+}
+
+// ── Labels, pills, links and the danger zone. ──
+
+.control-label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--control-pill-height);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background-color: var(--pill-neutral-fill);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pill--accent {
+  background-color: var(--color-accent-surface);
+  color: var(--color-accent);
+}
+
+.pill--success {
+  background-color: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.pill--warning {
+  background-color: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.pill--danger {
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--size-target-min);
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: var(--link-underline-offset);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    text-decoration-thickness: var(--border-focus);
+  }
+}
+
+.danger-zone {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+  padding-block-start: var(--space-3);
+  border-block-start: var(--control-line) solid var(--color-border);
+}

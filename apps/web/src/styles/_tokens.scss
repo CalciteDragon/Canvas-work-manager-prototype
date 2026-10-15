@@ -168,6 +168,58 @@
   --size-icon-sm: 1rem;
   --size-hit-target: 2.75rem;
   --size-resize-handle: 0.75rem;
+
+  // ── Slice 72's controls (`_controls.scss`). Heights follow the density knob; the two target
+  // sizes never do, so density cannot shrink a control below WCAG 2.5.8's minimum. ──
+  --size-target-min: 1.5rem;
+  --control-height-sm: calc(2rem * var(--knob-space-scale));
+  --control-height-md: calc(2.5rem * var(--knob-space-scale));
+  --control-padding-inline: var(--space-3);
+  --control-padding-inline-sm: var(--space-2);
+  --control-gap: var(--space-2);
+  --control-radius: var(--radius-sm);
+  --control-line: var(--border-hairline);
+  --control-textarea-min-height: calc(6rem * var(--knob-space-scale));
+  --control-check-size: 1.125rem;
+  --control-check-radius: calc(0.25rem * var(--knob-radius-scale));
+  --control-mark-width: 0.3125rem;
+  --control-mark-height: 0.5625rem;
+  --control-mark-stroke: 2px;
+  --control-mark-lift: -0.0625rem;
+  --control-radio-dot: 0.5rem;
+  --control-chevron-size: 0.3125rem;
+  --control-chevron-inset: var(--space-3);
+  --control-select-padding-end: calc(var(--control-chevron-inset) + var(--control-chevron-size) * 2 + var(--space-2));
+  --control-pill-height: calc(1.375rem * var(--knob-space-scale));
+  --radius-pill: 999px;
+  --link-underline-offset: 0.18em;
+
+  // Every control colour is derived here, once, from the base literals above, so both themes
+  // and the accent knob move them. Hover and press move a fill towards the text colour, which
+  // lightens in dark and darkens in light.
+  --control-primary-fill: var(--color-accent);
+  --control-primary-fill-hover: color-mix(in oklab, var(--color-accent) 86%, var(--color-text));
+  --control-primary-fill-pressed: color-mix(in oklab, var(--color-accent) 74%, var(--color-text));
+  --control-primary-ink: var(--color-accent-contrast);
+  --control-secondary-fill: color-mix(in srgb, var(--color-text) 7%, transparent);
+  --control-secondary-fill-hover: color-mix(in srgb, var(--color-text) 13%, transparent);
+  --control-secondary-fill-pressed: color-mix(in srgb, var(--color-text) 19%, transparent);
+  --control-secondary-edge: var(--color-border);
+  --control-secondary-edge-hover: color-mix(in srgb, var(--color-text) 24%, transparent);
+  --control-ghost-fill: transparent;
+  --control-danger-fill: var(--color-danger-surface);
+  --control-danger-fill-hover: color-mix(in srgb, var(--color-danger) 26%, transparent);
+  --control-danger-fill-pressed: color-mix(in srgb, var(--color-danger) 34%, transparent);
+  --control-danger-edge: color-mix(in srgb, var(--color-danger) 60%, transparent);
+  --control-danger-ink: var(--color-danger);
+  --control-selected-fill: var(--color-accent-surface);
+  --control-selected-ring: inset 0 0 0 var(--border-focus) var(--color-accent);
+  --control-field-fill: color-mix(in srgb, var(--color-surface-sunken) 55%, transparent);
+  --control-field-edge: var(--field-line);
+  --control-field-edge-hover: color-mix(in srgb, var(--color-text) 62%, transparent);
+  --control-check-fill: var(--color-accent);
+  --control-check-ink: var(--color-accent-contrast);
+  --pill-neutral-fill: color-mix(in srgb, var(--color-text) 10%, transparent);
 }
 
 // Base literals only. Anything derived above must **not** reappear here, or the knob that

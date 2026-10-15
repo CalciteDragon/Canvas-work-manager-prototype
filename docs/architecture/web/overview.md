@@ -13,7 +13,7 @@ properties, and it depends on the host **only** through gateway interfaces and o
 `fetch`-holding adapter (§8).
 
 **Code:** `apps/web/src/app` · **Styles:** `apps/web/src/styles/_tokens.scss`,
-`_base.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
+`_base.scss`, `_controls.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
 `@angular/build:unit-test`); `*.stories.ts` for Storybook · **Package:** `web` ·
 **Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`
 
@@ -62,8 +62,13 @@ Smaller features that do not earn a folder of their own:
 - `features/calendar`, `features/search` — placeholders until Slices 18 and 21.
 - `shared/components/placeholder-page` — `PlaceholderPage`, `NotFoundPage`.
 - `shared/components/markdown-renderer` — safe source presentation, lazy with the Markdown body.
-- `shared/components/icon` — `Icon`, the decorative SVG marks used by canvas chrome, history
-  controls and the task Delete buttons in `TaskRow` and Todos.
+- `shared/components/icon` — `Icon`, the one monochrome SVG set for app-owned marks (chrome glyphs,
+  page kinds, section types, widgets, activity actors), listed in `ICON_NAMES`. User-chosen
+  project emoji are content and never pass through it.
+- `styles/_controls.scss` — slice 72's control primitives as global classes over native elements
+  (`.button` in four ranks, `.icon-button`, `.tool`, `.field`, `.select`, `.checkbox`, `.radio`,
+  `.pill`, `.link`, `.control-label`, `.danger-zone`). Components position a primitive and never
+  paint one.
 
 ## Read next
 
