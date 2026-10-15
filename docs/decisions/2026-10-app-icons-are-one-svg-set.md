@@ -40,3 +40,8 @@ are reviewed at slice 72's checkpoint, and this entry is amended if they change.
 
 Users can pick icons from the app's own set, or the content emoji are themselves found to clash
 in a fresh comb.
+
+**Amendment (2026-10-15, slice 72 checkpoint).** The user reviewed the Lab Controls panel in both
+themes at 1440 and at 375 on touch, and kept the three removal marks as shown: removing a section
+is a danger tool with the remove-section mark, deleting a task a quiet trash tool, and removing a
+shortcut a neutral unlink tool. No mark changed. Confidence in the marks is now high.

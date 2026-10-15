@@ -671,6 +671,10 @@ has not yet said to start implementing, so part A waits for that word.
 
    The user sees them at the checkpoint and can swap them before adoption.
 
+   **Checkpoint answer (2026-10-15): kept as shown.** The user reviewed the Lab captures and
+   kept all three marks, then said to go ahead with Stage C and part B. The icon decision is
+   amended.
+
 ## Revisions
 
 - **Round 1 (2026-10-14):** A fresh reviewer returned 19 findings (9 substantive). Each
