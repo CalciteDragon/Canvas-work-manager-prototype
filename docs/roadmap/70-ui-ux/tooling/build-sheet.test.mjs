@@ -87,3 +87,24 @@ test('pairs genuine before keyboard and fallback captures when supplied', async 
   }
   assert.match(html, /baseline solid styling/);
 });
+async function labKnobs(t, shifts) {
+  const f = await fixture(t);
+  f.cell.route = '/prototype/design';
+  for (const phase of [0, 1]) await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+  const box = (text, y = 0) => ({ text, x: 0, y, width: 50, height: 20 });
+  f.layout.controls = [box('Copy CSS'), box('Reset'), ...Array.from({ length: 7 }, (_, i) => box('', 100 + i * 80)), box('Existing task')];
+  await f.json(0, 'layout.json', f.layout);
+  f.layout.controls = [box('Copy CSS'), box('Reset'), ...Array.from({ length: 7 }, (_, i) => box('', 100 + i * 80 + shifts[i])), ...Array.from({ length: 13 }, () => box('')), box('Existing task'), box('Play motion')];
+  await f.json(1, 'layout.json', f.layout);
+  return f;
+}
+test('reports one uniform shift of the original Lab knobs as the shortened hint', async t => {
+  const f = await labKnobs(t, Array(7).fill(-19.5));
+  const result = f.run();
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(await readFile(join(f.dirs[2], 'report.json'), 'utf8'), /hint shortened/);
+});
+test('fails when the original Lab knobs move unevenly', async t => {
+  const f = await labKnobs(t, [-19.5, -19.5, -19.5, -40, -19.5, -19.5, -19.5]);
+  assert.equal(f.run().status, 1);
+});

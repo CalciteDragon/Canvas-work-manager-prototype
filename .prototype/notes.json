@@ -1117,6 +1117,38 @@
       "projectId": "project-cabinets",
       "slice": 68,
       "note": "Slice 68 real use through HTTP MCP on nested-projects. The described refusal made the repair one step: the id, the page (\"the Work page of Cabinets\") and the source (\"Markdown\" from \"Garden\") were enough to act without listing shortcuts, and the person-placed section showed up on the refused Undo as \"Bench notes\" from \"Workshop\". Residual friction: an untitled source reads by its type, \"Markdown\"; the owning project is what tells it apart here, but two untitled briefs in one project would read the same, and the remove receipt label says \"Removed the Markdown shortcut\". That is Slice 69 (how a shortcut is named), not this sentence."
+    },
+    {
+      "id": "note-2026-10-14-001",
+      "createdAt": "2026-10-14T15:17:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 71,
+      "note": "Slice 71 real use on busy-week, dark. The Depth ground and panes read as intended: the warm glow under the sidebar and the cool one behind the canvas give the shell depth without competing with the sheets. The Grid layout prototype notice now reads as a near-black band, heavier than the sheets around it, so the eye stops on scaffolding first. TH12 owns it; the repaint alone does not fix its weight."
+    },
+    {
+      "id": "note-2026-10-14-002",
+      "createdAt": "2026-10-14T16:24:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 71,
+      "note": "Slice 71 real use on busy-week. Opening Run launch QA puts task details beside the list as another sheet, the same plane as the list it came from. With translucent sheets the two compete; the detail does not feel lifted above the work. Slice 3 (lifts) owns this. The single focus ring did help here: the selected row and the More button carry the same accent ring, and keyboard focus on More was obvious."
+    },
+    {
+      "id": "note-2026-10-14-003",
+      "createdAt": "2026-10-14T16:31:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 71,
+      "note": "Slice 71: the More panel opens inline inside the project header sheet as a nested translucent box. Fields and buttons there are still browser-default shaped (slice 2), and next to the frosted header they look unfinished. Expected for this slice, but the contrast between new planes and old primitives is the strongest impression on this page."
+    },
+    {
+      "id": "note-2026-10-14-004",
+      "createdAt": "2026-10-14T17:38:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 71,
+      "note": "Slice 71 on nested-projects at 375, light. Pale sheets over the light ground art look clean, but the insertion line and its plus sit across the top edge of every section sheet, so each card looks clipped by a blue rule. Layout belongs to slices 5 to 7; the new sheet edge makes it more visible than before."
     }
   ]
 }
