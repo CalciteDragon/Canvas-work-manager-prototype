@@ -5,7 +5,7 @@
     @for (row of rows(); track row.entry.id) {
       <li data-activity-entry class="activity__row" [attr.data-actor]="row.entry.actor">
         <span class="activity__badge" [attr.data-actor-badge]="row.entry.actor">
-          <span aria-hidden="true">{{ row.actor.icon }}</span>
+          <app-icon [name]="row.actor.icon" />
           <span class="activity__badge-label">{{ row.actor.label }}</span>
         </span>
         <span class="activity__body">

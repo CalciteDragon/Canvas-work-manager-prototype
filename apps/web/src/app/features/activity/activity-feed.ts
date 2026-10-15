@@ -1,17 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { ActivityFeedEntry } from '@cwm/contracts';
+import { Icon, type IconName } from '../../shared/components/icon/icon';
 
 /** How §57's three actors are told apart, in one place. */
 interface ActorPresentation {
-  icon: string;
+  /** A mark from the shared SVG set (slice 72). */
+  icon: IconName;
   /** Read out instead of the icon, which is decorative. */
   label: string;
 }
 
 const ACTORS: Record<ActivityFeedEntry['actor'], ActorPresentation> = {
-  user: { icon: '🧑', label: 'You' },
-  agent: { icon: '🤖', label: 'Agent' },
-  system: { icon: '⚙️', label: 'System' },
+  user: { icon: 'user', label: 'You' },
+  agent: { icon: 'agent', label: 'Agent' },
+  system: { icon: 'system', label: 'System' },
 };
 
 /**
@@ -31,6 +33,7 @@ const ACTORS: Record<ActivityFeedEntry['actor'], ActorPresentation> = {
 @Component({
   selector: 'app-activity-feed',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Icon],
   templateUrl: './activity-feed.html',
   styleUrl: './activity-feed.scss',
 })

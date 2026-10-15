@@ -1,6 +1,8 @@
 import { SECTION_CAPABILITIES, displayNameOf, sectionCapabilityOf, sectionConfigRefusal, sectionKindOf, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { SECTION_REGISTRY, definitionFor } from './registry';
+import { ICON_NAMES } from '../../../shared/components/icon/icon';
+import { PROJECT_PAGE_REGISTRY } from '../project-page-registry';
 
 /**
  * Deliberately generic. Asserting each definition's default config against its own
@@ -9,6 +11,17 @@ import { SECTION_REGISTRY, definitionFor } from './registry';
  * prove. That round trip belongs to the owning section's spec.
  */
 describe('SECTION_REGISTRY (§29)', () => {
+  // Slice 72 (L2-013, W1-012, W4-009): one SVG set; a page and a section type never share a mark,
+  // and the Task List mark is a list, not a ticked box.
+  it('names a mark from the shared icon set for every type, distinct from every page kind', () => {
+    for (const { type, icon } of SECTION_REGISTRY) expect(ICON_NAMES as readonly string[], type).toContain(icon);
+    const pageMarks = new Set<string>(PROJECT_PAGE_REGISTRY.map(({ icon }) => icon));
+    for (const { type, icon } of SECTION_REGISTRY) {
+      if (type !== 'reflections') expect(pageMarks.has(icon), type).toBe(false);
+    }
+    expect(definitionFor('task-list')?.icon).toBe('task-list');
+  });
+
   it('ships the §30 section types that exist', () => {
     expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
   });

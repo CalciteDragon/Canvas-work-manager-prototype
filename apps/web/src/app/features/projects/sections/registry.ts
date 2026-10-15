@@ -1,4 +1,5 @@
 import type { Type } from '@angular/core';
+import type { IconName } from '../../../shared/components/icon/icon';
 import { sectionKindOf, type SectionKind } from '@cwm/contracts';
 import type { SectionContentComponent } from './section-contract';
 import { MarkdownSection } from './markdown/markdown-section';
@@ -17,7 +18,8 @@ import { RecentActivitySection } from './activity/recent-activity-section';
 export interface SectionDefinition {
   type: string;
   displayName: string;
-  icon: string;
+  /** A mark from the shared SVG set (slice 72). */
+  icon: IconName;
 
   /**
    * Whether this type **owns** the rows it renders. Read from `SECTION_OWNERSHIP` in
@@ -59,7 +61,7 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
   {
     type: 'markdown',
     displayName: 'Markdown',
-    icon: '📄',
+    icon: 'markdown',
     kind: sectionKindOf('markdown'),
     createDefaultConfig: markdownDefaultConfig,
     component: MarkdownSection,
@@ -67,15 +69,15 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
   {
     type: 'task-list',
     displayName: 'Task List',
-    icon: '✅',
+    icon: 'task-list',
     kind: sectionKindOf('task-list'),
     createDefaultConfig: () => ({}),
     component: TaskListSection,
   },
-  { type: 'progress', kind: sectionKindOf('progress'), displayName: 'Progress', icon: '📈', createDefaultConfig: () => ({}), component: ProgressSection },
-  { type: 'reflections', kind: sectionKindOf('reflections'), displayName: 'Reflections', icon: '💭', createDefaultConfig: () => ({}), component: ReflectionsSection },
-  { type: 'timeline', kind: sectionKindOf('timeline'), displayName: 'Timeline', icon: '🗓️', createDefaultConfig: () => ({}), component: TimelineSection },
-  { type: 'recent-activity', kind: sectionKindOf('recent-activity'), displayName: 'Recent Activity', icon: '📜', createDefaultConfig: () => ({}), component: RecentActivitySection },
+  { type: 'progress', kind: sectionKindOf('progress'), displayName: 'Progress', icon: 'progress', createDefaultConfig: () => ({}), component: ProgressSection },
+  { type: 'reflections', kind: sectionKindOf('reflections'), displayName: 'Reflections', icon: 'reflections', createDefaultConfig: () => ({}), component: ReflectionsSection },
+  { type: 'timeline', kind: sectionKindOf('timeline'), displayName: 'Timeline', icon: 'timeline', createDefaultConfig: () => ({}), component: TimelineSection },
+  { type: 'recent-activity', kind: sectionKindOf('recent-activity'), displayName: 'Recent Activity', icon: 'activity', createDefaultConfig: () => ({}), component: RecentActivitySection },
 ];
 
 /**

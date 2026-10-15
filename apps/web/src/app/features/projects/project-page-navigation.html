@@ -57,7 +57,7 @@
           [routerLink]="['/projects', root().id, 'pages', page.kind]"
           [attr.aria-current]="page.kind === activeKind() ? 'page' : null"
         >
-          <span aria-hidden="true">{{ page.icon }}</span> {{ page.label }}
+          <app-icon [name]="page.icon" /> {{ page.label }}
         </a>
       </li>
     }
@@ -87,7 +87,7 @@
             [attr.aria-label]="'Show ' + definition.label + ' page'"
             (change)="requestPageToggle(definition.kind, $event)"
           />
-          <span aria-hidden="true">{{ definition.icon }}</span>
+          <app-icon [name]="definition.icon" />
           <span>{{ definition.label }}</span>
         </label>
       }

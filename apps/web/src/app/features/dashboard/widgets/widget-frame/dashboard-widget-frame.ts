@@ -1,6 +1,7 @@
 import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { DashboardResult, DashboardWidget } from '@cwm/contracts';
+import { Icon } from '../../../../shared/components/icon/icon';
 import type { DashboardWidgetDefinition } from '../registry';
 import type { DashboardWidgetInputs } from '../widget-contract';
 
@@ -16,7 +17,7 @@ import type { DashboardWidgetInputs } from '../widget-contract';
 @Component({
   selector: 'app-dashboard-widget-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet],
+  imports: [NgComponentOutlet, Icon],
   templateUrl: './dashboard-widget-frame.html',
   styleUrl: './dashboard-widget-frame.scss',
 })

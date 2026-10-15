@@ -61,7 +61,7 @@
           [attr.aria-label]="'Rename ' + name()"
           (click)="beginRename()"
         >
-          <span class="section-frame__icon" aria-hidden="true">{{ definition().icon }}</span>
+          <span class="section-frame__icon"><app-icon [name]="definition().icon" /></span>
           <span>{{ name() }}</span>
         </button>
       }

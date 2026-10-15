@@ -161,7 +161,9 @@ describe('ProjectPageNavigation (§23)', () => {
     const fixture = await render();
 
     expect(queryAll(fixture, '[data-project-page-tab]').map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim()))
-      .toEqual(['🏠 Home', '🗓️ Todos', '🗄️ Archive', '📓 Reflections']);
+      .toEqual(['Home', 'Todos', 'Archive', 'Reflections']);
+    // §77, slice 72: the marks are decorative SVGs from the shared set, no longer emoji text.
+    for (const tab of queryAll(fixture, '[data-project-page-tab]')) expect(tab.querySelector('app-icon svg[aria-hidden="true"]')).not.toBeNull();
     // Recursive, not one level: the `nested-projects` seed is three deep counting the root.
     expect(queryAll(fixture, '[data-work-project]').map((link) => link.querySelector('.name')?.textContent))
       .toEqual(['Kitchen', 'Cabinets', 'Garden']);

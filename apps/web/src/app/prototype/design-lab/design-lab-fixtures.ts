@@ -206,7 +206,7 @@ export const stubSectionDefinition = (): SectionDefinition => ({
   // Unregistered in `SECTION_OWNERSHIP`, so a view — a stub owns nothing.
   kind: 'view',
   displayName: 'Section',
-  icon: '🧱',
+  icon: 'markdown',
   createDefaultConfig: () => ({ state: 'content' }),
   component: StubSectionContent,
 });

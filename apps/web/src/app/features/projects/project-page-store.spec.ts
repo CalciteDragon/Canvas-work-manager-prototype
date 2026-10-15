@@ -375,7 +375,7 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
   type: 'markdown',
   kind: 'view',
   displayName: 'Markdown',
-  icon: '📝',
+  icon: 'markdown',
   createDefaultConfig: () => ({ markdown: '' }),
   // Satisfies the content contract `SectionDefinition.component` requires; never rendered.
   component: class {

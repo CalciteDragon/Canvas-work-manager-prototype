@@ -1,4 +1,5 @@
 import type { Type } from '@angular/core';
+import type { IconName } from '../../shared/components/icon/icon';
 import {
   ProjectPageKindSchema,
   isNavigablePageKind,
@@ -27,7 +28,8 @@ import type { ProjectPageRenderer } from './project-page-contract';
 export interface ProjectPageDefinition {
   kind: ProjectPageKind;
   label: string;
-  icon: string;
+  /** A mark from the shared SVG set (slice 72). */
+  icon: IconName;
   component: Type<ProjectPageRenderer>;
 }
 
@@ -52,10 +54,10 @@ export type OptionalProjectPageDefinition = Omit<ProjectPageDefinition, 'kind'> 
  * until their own renderer exists.
  */
 export const PROJECT_PAGE_REGISTRY: readonly ProjectPageDefinition[] = [
-  { kind: 'home', label: 'Home', icon: '🏠', component: ProjectCanvas },
-  { kind: 'todos', label: 'Todos', icon: '🗓️', component: TodosPage },
-  { kind: 'archive', label: 'Archive', icon: '🗄️', component: ArchivePage },
-  { kind: 'reflections', label: 'Reflections', icon: '📓', component: ReflectionsPage },
+  { kind: 'home', label: 'Home', icon: 'home', component: ProjectCanvas },
+  { kind: 'todos', label: 'Todos', icon: 'todos', component: TodosPage },
+  { kind: 'archive', label: 'Archive', icon: 'archive', component: ArchivePage },
+  { kind: 'reflections', label: 'Reflections', icon: 'reflections', component: ReflectionsPage },
 ];
 
 export const OPTIONAL_PROJECT_PAGE_DEFINITIONS: readonly OptionalProjectPageDefinition[] =

@@ -75,7 +75,7 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
   type: 'test-content',
   kind: 'view',
   displayName: 'Test Content',
-  icon: '🧪',
+  icon: 'markdown',
   createDefaultConfig: () => ({}),
   component: TestContent,
   ...overrides,

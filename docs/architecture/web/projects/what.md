@@ -91,7 +91,7 @@ sequenceDiagram
 | `ProjectHistoryControls`, `ProjectHistoryFeedback` | `history/project-history-controls.ts`, `history/project-history-feedback.ts` | Two `aria-disabled` icon buttons named by their step or reason, Retry when unreadable; one polite feedback line with a cross-owner Open link |
 | `ProjectCreationRecovery` | `project-creation-recovery.stories.ts` | Storybook coverage for available Redo, pending and archived-parent blocked recovery states |
 | `historyControl`, `transitionResultFeedback`, `transitionRefusalFeedback`, `crossOwnerFeedback`, `archivedHereFeedback`, `nextStepCopy` | `history/history-feedback.ts` | Every sentence the controls say, exhaustive over the contract unions |
-| `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer and label |
+| `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer, label and `IconName` mark |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
 | `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
 | `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, ID-only removal/retry, write reporting and recovery-notice state |
@@ -101,7 +101,7 @@ sequenceDiagram
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with task complete/reopen checkboxes, one-way workstream Complete, serialized writes and Delete, canonical content links, descendant owner-history links and committed Delete recovery status |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy, restores and descendant owner-history links |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
-| `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |
+| `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29; each type's `icon` is an `IconName`, never shared with a page kind except Reflections |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
 | `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |
 | Six section types | `sections/{markdown,tasks,progress,reflections,timeline,activity}/` | Content components and their stores |

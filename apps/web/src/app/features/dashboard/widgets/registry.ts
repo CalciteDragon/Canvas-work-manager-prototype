@@ -1,4 +1,5 @@
 import type { Type } from '@angular/core';
+import type { IconName } from '../../../shared/components/icon/icon';
 import type { DashboardQuery, DashboardWidgetType } from '@cwm/contracts';
 import { ActiveProjectsWidget } from './active-projects/active-projects-widget';
 import { DailyDigestWidget } from './daily-digest/daily-digest-widget';
@@ -23,7 +24,8 @@ import type { DashboardWidgetComponent } from './widget-contract';
 export interface DashboardWidgetDefinition {
   type: DashboardWidgetType;
   displayName: string;
-  icon: string;
+  /** A mark from the shared SVG set (slice 72). */
+  icon: IconName;
   component: Type<DashboardWidgetComponent>;
   queryFrom?: (config: unknown) => Partial<DashboardQuery>;
 }
@@ -35,13 +37,13 @@ export interface DashboardWidgetDefinition {
  * tile exists.
  */
 export const DASHBOARD_WIDGET_REGISTRY: readonly DashboardWidgetDefinition[] = [
-  { type: 'today', displayName: 'Today', icon: '📌', component: TodayWidget },
-  { type: 'upcoming', displayName: 'Upcoming', icon: '📅', component: UpcomingWidget, queryFrom: upcomingWidgetQuery },
-  { type: 'active_projects', displayName: 'Active Projects', icon: '🗂️', component: ActiveProjectsWidget },
-  { type: 'recent_progress', displayName: 'Recent Progress', icon: '✅', component: RecentProgressWidget, queryFrom: recentProgressWidgetQuery },
-  { type: 'daily_digest', displayName: 'Daily Digest', icon: '🤖', component: DailyDigestWidget },
-  { type: 'fun_fact', displayName: 'Fun Fact', icon: '💡', component: FunFactWidget },
-  { type: 'recent_agent_activity', displayName: 'Recent Agent Activity', icon: '🤖', component: RecentAgentActivityWidget },
+  { type: 'today', displayName: 'Today', icon: 'today', component: TodayWidget },
+  { type: 'upcoming', displayName: 'Upcoming', icon: 'upcoming', component: UpcomingWidget, queryFrom: upcomingWidgetQuery },
+  { type: 'active_projects', displayName: 'Active Projects', icon: 'projects', component: ActiveProjectsWidget },
+  { type: 'recent_progress', displayName: 'Recent Progress', icon: 'trend', component: RecentProgressWidget, queryFrom: recentProgressWidgetQuery },
+  { type: 'daily_digest', displayName: 'Daily Digest', icon: 'digest', component: DailyDigestWidget },
+  { type: 'fun_fact', displayName: 'Fun Fact', icon: 'idea', component: FunFactWidget },
+  { type: 'recent_agent_activity', displayName: 'Recent Agent Activity', icon: 'agent', component: RecentAgentActivityWidget },
 ];
 
 /** `undefined` for a type nothing registers — a real state, not a defensive one. */

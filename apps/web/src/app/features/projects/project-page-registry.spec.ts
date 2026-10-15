@@ -5,6 +5,7 @@ import {
   navigablePages,
   resolveProjectPage,
 } from './project-page-registry';
+import { ICON_NAMES } from '../../shared/components/icon/icon';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
@@ -27,6 +28,14 @@ const ROOT = project('project-root', 'Root');
 const CHILD = project('project-child', 'Child', ROOT.id);
 
 describe('project page registry (§26, §68)', () => {
+  // Slice 72 (L2-013, W1-012): page kinds take marks from the shared SVG set.
+  it('gives each page kind its own mark from the shared icon set', () => {
+    expect(PROJECT_PAGE_REGISTRY.map(({ kind, icon }) => [kind, icon])).toEqual([
+      ['home', 'home'], ['todos', 'todos'], ['archive', 'archive'], ['reflections', 'reflections'],
+    ]);
+    for (const { icon } of PROJECT_PAGE_REGISTRY) expect(ICON_NAMES as readonly string[]).toContain(icon);
+  });
+
   it('advertises only enabled, renderable root pages in navigation order', () => {
     const pages = [
       page('page-reflections', ROOT.id, 'reflections'),

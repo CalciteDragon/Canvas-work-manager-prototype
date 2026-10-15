@@ -1,8 +1,14 @@
 import { DashboardWidgetTypeSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { DASHBOARD_WIDGET_REGISTRY, widgetDefinitionFor } from './registry';
+import { ICON_NAMES } from '../../../shared/components/icon/icon';
 
 describe('DASHBOARD_WIDGET_REGISTRY (§24, §25)', () => {
+  // Slice 72 (L2-013): widget marks come from the shared SVG set, not platform emoji.
+  it('names a mark from the shared icon set for every widget', () => {
+    for (const { type, icon } of DASHBOARD_WIDGET_REGISTRY) expect(ICON_NAMES as readonly string[], type).toContain(icon);
+  });
+
   it('ships the seven of §24’s widgets that exist', () => {
     expect(DASHBOARD_WIDGET_REGISTRY.map(({ type }) => type)).toEqual([
       'today',

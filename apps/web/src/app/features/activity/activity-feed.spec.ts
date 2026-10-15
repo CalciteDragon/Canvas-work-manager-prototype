@@ -63,6 +63,9 @@ describe('ActivityFeed (§57)', () => {
     // A badge that carried only a colour would be invisible to anyone who cannot see the
     // difference, so each one also says the actor kind in words.
     expect(texts(fixture, '.activity__badge-label')).toEqual(['You', 'Agent', 'System']);
+    // Slice 72 (L2-013): each actor's mark is a decorative SVG from the shared set.
+    expect([...fixture.nativeElement.querySelectorAll('[data-actor-badge] app-icon')].map((icon) =>
+      (icon as HTMLElement).querySelector('svg')?.getAttribute('aria-hidden'))).toEqual(['true', 'true', 'true']);
   });
 
   it('names the actor, and composes the line from the live title rather than the stored summary', async () => {
