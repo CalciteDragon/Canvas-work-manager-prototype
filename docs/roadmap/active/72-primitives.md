@@ -499,6 +499,21 @@ Ports 4201 (web) and 4321 (host) only; kill the web and host children if a run i
   now includes. That gives the Lab's forced focus specimen the same source as the real ring.
 - **The token lint does not scan inline templates in `.ts` files.** The stories' layout `style`
   attributes were written with tokens anyway. The hole is recorded here and was not widened.
+- **A5 checks.**
+  - `pnpm test`: web 1,010, contracts 370, domain 846, mcp-tools 181, prototype-data 112,
+    repositories 202 and the root tooling tests all passed.
+  - **One prototype-host failure, a timing flake, not this slice.** `mcp/stdio.test.ts` failed
+    once in the full suite, once alone on `create_task`, and once alone on the other variant,
+    `undo_operation`. Each time the test hit its 20 s limit while starting two `tsx` child
+    processes. No file this slice touches is imported by it. It is recorded, not fixed here.
+  - `pnpm lint` (with `docs:check`) passed, and `storybook:build` passed.
+  - The full `pnpm e2e` passed: **113 of 113**. The global classes leak into no existing journey.
+- **Checkpoint captures.** These are `UX_PRIMITIVES=1 … ux:capture -g "Lab Controls checkpoint"`,
+  written to `apps/e2e/ux-output/a4b9804…/primitives-lab-controls-{dark-1440,light-1440,light-375}.png`.
+  The first attempt painted only the visible slice of the shell's scroll region. It also showed
+  that the Controls button grid could be wider than a phone column, so its minimum is now
+  `min(100%, …)`. At 375 the capture stacks the Lab's rail for the evidence only, because the
+  Lab has no phone layout (TH12). After the fix, the initial total is still 1047 kB.
 
 ### Stage A — the primitives (no product file changes)
 
