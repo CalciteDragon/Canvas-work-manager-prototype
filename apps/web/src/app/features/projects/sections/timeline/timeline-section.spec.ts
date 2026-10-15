@@ -73,20 +73,52 @@ describe('TimelineSection (§38)', () => {
     expect(onProjectDataChange).not.toHaveBeenCalled();
   });
 
-  it('toggles readable details and visibly warns about an invalid source range', async () => {
+  // §77, slice 72 (L5-005): the expanded state belongs to the button that toggles it, and the
+  // button names the details it controls. The row itself carries no state.
+  it('toggles readable details from the row button and visibly warns about an invalid source range', async () => {
     const { fixture } = await render();
     const taskRow = query(fixture, '[data-timeline-id="task-a"]')!;
+    const button = taskRow.querySelector<HTMLButtonElement>('button')!;
+    expect(button.getAttribute('aria-expanded')).toBe('false');
 
-    taskRow.click();
+    button.click();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-timeline-details="task-a"]')).not.toBeNull();
+    const details = query(fixture, '[data-timeline-details="task-a"]');
+    expect(details).not.toBeNull();
     expect(query(fixture, '[data-timeline-invalid-range]')?.textContent).toContain('dates were reversed');
-    expect(taskRow.getAttribute('aria-expanded')).toBe('true');
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(button.getAttribute('aria-controls')).toBe(details!.id);
+    expect(details!.id).not.toBe('');
+    expect(taskRow.hasAttribute('aria-expanded')).toBe(false);
 
-    taskRow.click();
+    button.click();
     fixture.detectChanges();
     expect(query(fixture, '[data-timeline-details="task-a"]')).toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  // A section and its shortcut can show the same source on one page, so ids are per instance.
+  it('gives two instances of the same source distinct details ids', async () => {
+    const first = await render();
+    const second = TestBed.createComponent(TimelineSection);
+    second.componentRef.setInput('section', section());
+    second.componentRef.setInput('onConfigChange', vi.fn());
+    second.componentRef.setInput('onProjectDataChange', vi.fn());
+    second.componentRef.setInput('projectDataRevision', 0);
+    second.componentRef.setInput('projectHierarchyRevision', 0);
+    second.detectChanges();
+    await second.whenStable();
+    second.detectChanges();
+
+    const controls = [first.fixture, second].map((fixture) => {
+      const button = fixture.nativeElement.querySelector('[data-timeline-id="task-a"] button') as HTMLButtonElement;
+      button.click();
+      fixture.detectChanges();
+      return button.getAttribute('aria-controls');
+    });
+    expect(controls[0]).toBeTruthy();
+    expect(controls[0]).not.toBe(controls[1]);
   });
 
   it('re-reads for both project-data and hierarchy revisions', async () => {

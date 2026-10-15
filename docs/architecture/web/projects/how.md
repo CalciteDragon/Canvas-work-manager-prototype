@@ -200,6 +200,11 @@ can store an unreadable config
 ([decision](../../../decisions/2026-10-section-config-validated-on-write.md)).
 Successful Save and Cancel restore focus to Edit. Preview renders only the local draft.
 
+**Accessible names and state (slice 72).** A Timeline row's button owns its expanded state:
+it carries `aria-expanded` and, while open, `aria-controls` pointing at its details, whose id
+takes a per-instance prefix so a section and its shortcut on one page never share an id. The
+`li` carries no state.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
