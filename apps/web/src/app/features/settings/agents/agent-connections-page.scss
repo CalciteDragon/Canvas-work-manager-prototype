@@ -51,16 +51,6 @@
   font-size: var(--font-size-lg);
 }
 
-.agents__revoked {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--color-danger-surface);
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
 .agents__grid {
   display: flex;
   flex-direction: column;

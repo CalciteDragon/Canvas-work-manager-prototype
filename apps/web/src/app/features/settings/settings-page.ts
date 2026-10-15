@@ -13,19 +13,19 @@ import { ThemeService } from '../../core/theme/theme-service';
     <h1>Settings</h1>
     <ul class="settings__sections">
       <li>
-        <a data-settings-agents routerLink="/settings/agents">AI &amp; Agents</a>
+        <a class="link" data-settings-agents routerLink="/settings/agents">AI &amp; Agents</a>
         <p>What each connected agent is allowed to do, and when it last called.</p>
       </li>
       <li>
-        <a data-settings-archived-projects routerLink="/settings/archived-projects">Archived projects</a>
+        <a class="link" data-settings-archived-projects routerLink="/settings/archived-projects">Archived projects</a>
         <p>Find and restore archived projects across this workspace.</p>
       </li>
     </ul>
-    <fieldset>
-      <legend>Appearance</legend>
-      <label><input type="radio" name="appearance" data-settings-match-device [checked]="theme.followsDevice()" (change)="theme.matchDevice()" /> Match device</label>
-      <label><input type="radio" name="appearance" data-settings-theme="dark" [checked]="!theme.followsDevice() && theme.theme() === 'dark'" (change)="theme.set('dark')" /> Dark</label>
-      <label><input type="radio" name="appearance" data-settings-theme="light" [checked]="!theme.followsDevice() && theme.theme() === 'light'" (change)="theme.set('light')" /> Light</label>
+    <fieldset class="settings__appearance">
+      <legend class="control-label">Appearance</legend>
+      <label class="settings__choice"><input class="radio" type="radio" name="appearance" data-settings-match-device [checked]="theme.followsDevice()" (change)="theme.matchDevice()" /> Match device</label>
+      <label class="settings__choice"><input class="radio" type="radio" name="appearance" data-settings-theme="dark" [checked]="!theme.followsDevice() && theme.theme() === 'dark'" (change)="theme.set('dark')" /> Dark</label>
+      <label class="settings__choice"><input class="radio" type="radio" name="appearance" data-settings-theme="light" [checked]="!theme.followsDevice() && theme.theme() === 'light'" (change)="theme.set('light')" /> Light</label>
     </fieldset>
   `,
   styles: `
@@ -43,6 +43,21 @@ import { ThemeService } from '../../core/theme/theme-service';
     }
 
     .settings__sections li + li { margin-top: var(--space-4); }
+
+    .settings__appearance {
+      display: grid;
+      justify-items: start;
+      gap: var(--space-1);
+      margin: var(--space-5) 0 0;
+      padding: 0;
+      border: 0;
+    }
+
+    .settings__choice {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
   `,
 })
 export class SettingsPage {

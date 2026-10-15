@@ -6,7 +6,7 @@
 @if (store.error(); as message) {
   <div class="archived-projects__error" role="alert">
     <p data-archived-error>{{ message }}</p>
-    <button data-archived-retry type="button" [disabled]="store.busy() !== null" (click)="retry()">Retry list</button>
+    <button data-archived-retry type="button" class="button" [disabled]="store.busy() !== null" (click)="retry()">Retry list</button>
   </div>
 }
 
@@ -27,9 +27,9 @@
           </p>
         </div>
         <div class="archived-projects__actions">
-          <label>
+          <label class="control-label">
             Restore as
-            <select data-archived-status [value]="store.statusFor(item.project.id)" [disabled]="store.busy() !== null" (change)="choose(item.project.id, $event)">
+            <select class="select" data-archived-status [value]="store.statusFor(item.project.id)" [disabled]="store.busy() !== null" (change)="choose(item.project.id, $event)">
               <option value="">Choose status</option>
               <option value="planning">Planning</option>
               <option value="active">Active</option>
@@ -37,10 +37,10 @@
               <option value="completed">Completed</option>
             </select>
           </label>
-          <button data-archived-restore type="button" [disabled]="store.statusFor(item.project.id) === '' || store.error() !== null || store.loading() || store.busy() !== null" (click)="restore(item.project.id)">
+          <button data-archived-restore type="button" class="button" [disabled]="store.statusFor(item.project.id) === '' || store.error() !== null || store.loading() || store.busy() !== null" (click)="restore(item.project.id)">
             {{ store.busy() === item.project.id ? 'Restoring…' : 'Restore' }}
           </button>
-          <a data-archived-open [routerLink]="['/projects', item.project.id]">Open project</a>
+          <a class="link" data-archived-open [routerLink]="['/projects', item.project.id]">Open project</a>
         </div>
       </li>
     }
