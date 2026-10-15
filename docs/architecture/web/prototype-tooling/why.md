@@ -34,8 +34,9 @@ depending on HTTP.
 §63's revert is observable only in the client
 ([decision](../../../decisions/2026-08-latency-and-failure-live-in-the-client.md)).
 The client-side settings live in `sessionStorage` so the panel's own reload cannot wipe
-them; the theme is deliberately excluded so that a persona switch still repaints from
-the persona's preference ([decision](../../../decisions/2026-08-theme-selection-is-session-only.md)).
+them. Explicit theme choices use guarded `localStorage` and survive persona switching;
+Match device clears the choice and resumes live matching
+([decision](../../../decisions/2026-10-theme-follows-device-and-persists.md)).
 
 **Host-state changes reload the tab that pressed the button.** Cheaper and clearer than
 a fan-out of quiet refreshes when everything derived changed; other tabs get
@@ -78,6 +79,7 @@ been earned.
 - [The development panel is an overlay and a route, sharing one control set](../../../decisions/2026-08-development-panel-surface.md)
 - [Latency and failure injection live in the client, not the host](../../../decisions/2026-08-latency-and-failure-live-in-the-client.md)
 - [A theme change lasts the session, not the persona](../../../decisions/2026-08-theme-selection-is-session-only.md)
+- [The theme follows the device and explicit choices persist](../../../decisions/2026-10-theme-follows-device-and-persists.md)
 - [What §46's Agent Connection control is](../../../decisions/2026-08-agent-connection-panel-control-is-a-roster.md)
 - [The Design Lab is a route with live knobs, not a third theme](../../../decisions/2026-08-design-lab-tokens-are-session-knobs.md)
 - [The initial bundle budget is set deliberately at 850 kB](../../../decisions/2026-08-initial-bundle-budget.md) — why the shell stays eager while controls defer

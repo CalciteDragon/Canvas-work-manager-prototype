@@ -17,8 +17,8 @@ the adapters on the prototype's side, and the shell that every route shares.
   arrive before your response does, because the host flushes at commit.
 - **The panel must keep working at 100 % injected failure**, or it cannot turn the
   failures back off.
-- **Theme and persona interact.** Switching persona must repaint from the persona's own
-  preference, so the theme override must not persist.
+- **Appearance follows the device until explicitly chosen.** Persona switching preserves the
+  browser choice; Settings and the dev panel offer Match device.
 
 ## The shape, and the alternatives rejected
 
@@ -50,10 +50,10 @@ not started for three seconds — came from here
 ([decision](../../../decisions/2026-08-latency-and-failure-live-in-the-client.md)).
 `PROTOTYPE_CONTROL` is a separate port so the panel survives the failure rate it sets.
 
-**Theme is session-only.** `ThemeService` owns `data-theme` and nothing persists it, so
-switching persona repaints from `preferences.theme`; the panel deliberately keeps the
-theme out of the `sessionStorage` it uses for its other settings
-([decision](../../../decisions/2026-08-theme-selection-is-session-only.md)).
+**Theme follows the device and explicit choices persist.** `ThemeService` owns `data-theme`
+and guarded browser storage. The initializer applies it even outside the shell; persona
+preferences remain in contracts for fixtures but never seed appearance. Match device clears
+the override ([decision](../../../decisions/2026-10-theme-follows-device-and-persists.md)).
 
 **The project tree in `ShellStore` is derived view state, not an entity.** §23's
 "expand inline" is a rendering concern; it has no counterpart in contracts and must not
@@ -79,6 +79,7 @@ get one.
 - [Latency and failure injection live in the client, not the host](../../../decisions/2026-08-latency-and-failure-live-in-the-client.md)
 - [How live reconnects recover derived project views](../../../decisions/2026-08-live-recovery-invalidates-derived-views.md)
 - [A theme change lasts the session, not the persona](../../../decisions/2026-08-theme-selection-is-session-only.md)
+- [The theme follows the device and explicit choices persist](../../../decisions/2026-10-theme-follows-device-and-persists.md)
 - [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md) — why it is *not* here
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md) — why the adapter talks to `:4310` directly
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the receipt-driven Undo seam beside section removal

@@ -49,6 +49,7 @@ export class DevPanelControls {
   private readonly themeService = inject(ThemeService);
 
   protected readonly theme = this.themeService.theme;
+  protected readonly followsDevice = this.themeService.followsDevice;
   protected readonly delays = NETWORK_DELAYS;
   protected readonly failureRates = FAILURE_RATES;
   protected readonly flagRows = FLAG_ROWS;
@@ -80,6 +81,10 @@ export class DevPanelControls {
 
   protected setTheme(theme: Theme): void {
     this.themeService.set(theme);
+  }
+
+  protected matchDevice(): void {
+    this.themeService.matchDevice();
   }
 
   protected setDay(event: Event): void {

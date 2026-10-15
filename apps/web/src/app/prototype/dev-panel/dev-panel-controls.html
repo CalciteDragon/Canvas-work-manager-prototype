@@ -65,14 +65,15 @@
         data-panel-theme
         type="button"
         [attr.data-theme-option]="option"
-        [attr.aria-pressed]="theme() === option"
+        [attr.aria-pressed]="!followsDevice() && theme() === option"
         (click)="setTheme(option)"
       >
         {{ option }}
       </button>
     }
+    <button data-panel-match-device type="button" [attr.aria-pressed]="followsDevice()" (click)="matchDevice()">Match device</button>
   </div>
-  <p class="dev-panel__hint">Session only — the persona's own preference wins on reload (§22).</p>
+  <p class="dev-panel__hint">An explicit choice persists in this browser. Match device follows device changes live (§22).</p>
 </section>
 
 <section class="dev-panel__group" aria-labelledby="dev-panel-layout">

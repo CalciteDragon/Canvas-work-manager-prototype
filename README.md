@@ -89,8 +89,7 @@ process owns a separate store, and is refused while the host owns the file.
 live design tokens — radius, spacing density, surface contrast, accent, font scale, elevation,
 sidebar width — as inline custom properties on the document element, so they change the
 catalogue *and the surrounding shell*, in both themes. Navigate away and the values follow
-you; **Reset** or a page reload returns them to the stylesheet, because they are session-only
-like the theme.
+you; **Reset** or a page reload returns them to the stylesheet, because they are session-only.
 
 Two things the rail states about itself rather than leaving you to discover: **surface
 contrast reduces only** (`color-mix()` clamps at 100%, where the default sits), and the
@@ -121,7 +120,9 @@ Two things are worth knowing while using it:
   is cheaper and clearer than a fan-out of refreshes, and a persona switch is a new session
   rather than a data change. Other open tabs refresh themselves through §62's stream. Network
   delay, failure rate and the feature flags are kept in `sessionStorage` so that reload does
-  not wipe them; the theme is not, because it comes from the persona.
+  not wipe them. The theme follows the device live until explicitly chosen; that choice persists
+  in this browser across reloads and persona changes. **Match device** in Settings → Appearance
+  or the panel clears it and resumes device matching.
 - **Failure Rate applies to the app's gateway, not to the panel** — so you can always turn
   it back off. The exception is Layout Mode, which writes a real project field.
 

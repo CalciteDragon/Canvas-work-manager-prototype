@@ -2,6 +2,7 @@ import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
+import { ThemeService } from '../../core/theme/theme-service';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { PROTOTYPE_CONTROL } from '../control/prototype-control';
@@ -34,6 +35,7 @@ const texts = (element: HTMLElement, selector: string) =>
 
 afterEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   TestBed.resetTestingModule();
 });
 
@@ -94,7 +96,18 @@ describe('DevPanelControls (§46)', () => {
     const element = await render();
 
     expect(texts(element, '[data-panel-theme]')).toEqual(['dark', 'light']);
+    expect(element.querySelector('[data-panel-match-device]')?.textContent?.trim()).toBe('Match device');
     expect(texts(element, '[data-panel-ai]')).toEqual(['mock', 'real']);
+  });
+
+  it('returns to device theme through the shared service', async () => {
+    const fixture = await renderFixture();
+    const theme = TestBed.inject(ThemeService);
+    theme.set('light');
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-panel-match-device]')?.click();
+    expect(localStorage.getItem('cwm.theme')).toBeNull();
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-panel-match-device]')?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('captures a §79 note and confirms where it went', async () => {

@@ -18,7 +18,7 @@ flowchart LR
     plu["PrototypeLiveUpdates<br/>EventSource, exponential reconnect"]
   end
   subgraph settings["Settings and theme"]
-    th["ThemeService<br/>data-theme on html"]
+    th["ThemeService<br/>device + saved browser choice → data-theme"]
     ps["PrototypeSettings<br/>flags, delay, failure — sessionStorage"]
   end
   subgraph shell["Shell"]

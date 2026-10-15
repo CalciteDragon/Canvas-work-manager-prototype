@@ -37,7 +37,7 @@ operation-discriminated transition result; feature stores report receipts throug
   importing the projects feature.
 - `PrototypeSettings`: §47's six flags, network delay and failure rate, kept in
   `sessionStorage` so the panel's own reload does not wipe them.
-- `ThemeService`: one signal, one `data-theme` attribute, session-only.
+- `ThemeService`: the sole `data-theme` owner; follows the device live, with guarded browser persistence for explicit choices and Match device to clear them. An app initializer constructs it on every route.
 - `AppShell`, `ShellStore`, `Sidebar`, `ProjectTreeItem`, `TopBar`: §23's layout and the
   project tree; `ShellStore.createProject` is where a root is created. Below 48rem the same
   sidebar instance becomes a modal navigation drawer behind the top bar's **Menu**, whose

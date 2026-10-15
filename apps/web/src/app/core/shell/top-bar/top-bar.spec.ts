@@ -12,7 +12,10 @@ const render = async (identity: Identity | null) => {
   return fixture.nativeElement as HTMLElement;
 };
 
-afterEach(() => document.documentElement.removeAttribute('data-theme'));
+afterEach(() => {
+  document.documentElement.removeAttribute('data-theme');
+  localStorage.clear();
+});
 
 describe('TopBar', () => {
   it('names the persona and shows their emoji avatar', async () => {
@@ -36,6 +39,7 @@ describe('TopBar', () => {
     element.querySelector<HTMLButtonElement>('[data-theme-toggle]')?.click();
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem('cwm.theme')).toBe('light');
   });
 });
 

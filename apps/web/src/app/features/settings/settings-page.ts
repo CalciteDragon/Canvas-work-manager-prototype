@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ThemeService } from '../../core/theme/theme-service';
 
 /**
  * §68's `/settings`: entry to agent permissions and workspace-wide archived projects.
@@ -20,6 +21,12 @@ import { RouterLink } from '@angular/router';
         <p>Find and restore archived projects across this workspace.</p>
       </li>
     </ul>
+    <fieldset>
+      <legend>Appearance</legend>
+      <label><input type="radio" name="appearance" data-settings-match-device [checked]="theme.followsDevice()" (change)="theme.matchDevice()" /> Match device</label>
+      <label><input type="radio" name="appearance" data-settings-theme="dark" [checked]="!theme.followsDevice() && theme.theme() === 'dark'" (change)="theme.set('dark')" /> Dark</label>
+      <label><input type="radio" name="appearance" data-settings-theme="light" [checked]="!theme.followsDevice() && theme.theme() === 'light'" (change)="theme.set('light')" /> Light</label>
+    </fieldset>
   `,
   styles: `
     .settings__sections {
@@ -38,4 +45,6 @@ import { RouterLink } from '@angular/router';
     .settings__sections li + li { margin-top: var(--space-4); }
   `,
 })
-export class SettingsPage {}
+export class SettingsPage {
+  protected readonly theme = inject(ThemeService);
+}

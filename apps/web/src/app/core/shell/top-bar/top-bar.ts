@@ -7,9 +7,8 @@ import { ThemeService } from '../../theme/theme-service';
  * requires the shell to have.
  *
  * §46's development panel also has a Theme control, and both drive the same `ThemeService`
- * signal. That is two controls over one piece of state, not two pieces of state — the
- * toggle was deliberately *not* superseded
- * (docs/decisions/2026-08-theme-selection-is-session-only.md).
+ * signal. Explicit choices persist in this browser; Settings and the panel offer Match
+ * device to resume following the device (docs/decisions/2026-10-theme-follows-device-and-persists.md).
  */
 @Component({
   selector: 'app-top-bar',

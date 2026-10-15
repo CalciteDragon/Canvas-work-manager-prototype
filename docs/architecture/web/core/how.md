@@ -11,8 +11,9 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    `LIVE_UPDATES` and, from the tooling folder, `PrototypeHttpControl` as
    `PROTOTYPE_CONTROL`.
 2. `PrototypeIdentityProvider` fetches `GET /api/me` with the `x-prototype-user` header
-   it keeps (guarded `localStorage`), exposing the persona as a signal; `ThemeService`
-   applies `preferences.theme` to `<html data-theme>`.
+   it keeps (guarded `localStorage`), exposing the persona as a signal. Independently, an app
+   initializer constructs `ThemeService` on every route; it applies the device scheme or a
+   saved explicit browser choice to `<html data-theme>` and listens for device changes.
 3. `PrototypeLiveUpdates` opens `EventSource(/prototype/events?user=…)`, parses each
    frame with `LiveEventSchema`, and fans it out to subscribed listeners; on error it
    reconnects with exponential backoff and tells listeners to recover.
@@ -95,7 +96,10 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
   pin the mapping, including the host-stopped case.
 - **`status: []` matches nothing**, not everything — the query-semantics rule holds on
   this side too.
-- **Theme is not in `sessionStorage`**; flags, delay and failure rate are.
+- **Theme is independent of persona.** Explicit choices use guarded `localStorage` under
+  `cwm.theme`; Match device removes the key. Storage failure retains session behavior. Without
+  `matchMedia` the fallback is dark; destruction removes the media listener. Flags, delay and
+  failure rate use `sessionStorage`.
 - **The drawer's state is `AppShell`'s.** `ShellStore` never learns whether it is open (§20);
   `app-shell.spec.ts` stubs `matchMedia` and pins semantics, dismissal, route close, create
   and resize. `inert` blocking and the real focus trap are `apps/e2e/phone-layout.spec.ts`'s.

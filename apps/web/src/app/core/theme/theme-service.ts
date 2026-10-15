@@ -1,40 +1,66 @@
-import { Injectable, signal } from '@angular/core';
-import type { Identity, Theme } from '@cwm/contracts';
+import { DOCUMENT } from '@angular/common';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import type { Theme } from '@cwm/contracts';
+
+const STORAGE_KEY = 'cwm.theme';
 
 /**
- * §22's two themes. The service owns one signal and one attribute — `data-theme` on the
- * root element — and nothing else: every colour in the app comes from the tokens that
- * attribute selects (§21), so switching themes touches no component.
- *
- * A toggle is session-only. §61 defines no route that writes `UserPreferences`, and
- * Slice 12 decided against inventing one: the development panel's Theme control drives
- * this same signal, and deliberately keeps the theme out of the `sessionStorage` it uses
- * for its other settings, so switching persona still repaints from the persona's own
- * preference. That demonstration is worth more than a persisted override.
+ * §22's browser theme. With no explicit choice it follows the device live. Explicit
+ * choices persist in guarded localStorage; Match device removes the override. Persona
+ * preferences do not seed appearance. The app initializer constructs this on every route.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
+  private readonly document = inject(DOCUMENT);
+  private readonly media = this.document.defaultView?.matchMedia?.('(prefers-color-scheme: dark)');
+  private readonly choice = signal<Theme | null>(this.readChoice());
   private readonly active = signal<Theme>('dark');
   readonly theme = this.active.asReadonly();
+  /** True when device changes determine the theme, including after a reload. */
+  readonly followsDevice = computed(() => this.choice() === null);
 
-  seedFrom(identity: Identity): void {
-    this.apply(identity.user.preferences.theme);
+  constructor() {
+    this.apply(this.choice() ?? this.deviceTheme());
+    const changed = () => {
+      if (this.followsDevice()) this.apply(this.deviceTheme());
+    };
+    this.media?.addEventListener('change', changed);
+    inject(DestroyRef).onDestroy(() => this.media?.removeEventListener('change', changed));
   }
 
-  /**
-   * §46's Theme control. The top-bar toggle stays — §22 asks the shell to have one — and
-   * both drive this one signal, so two controls never mean two pieces of state.
-   */
+  /** Persist an explicit light or dark choice shared by all appearance controls. */
   set(theme: Theme): void {
+    this.choice.set(theme);
+    try { this.document.defaultView?.localStorage.setItem(STORAGE_KEY, theme); } catch { /* Session choice still works. */ }
     this.apply(theme);
   }
 
   toggle(): void {
-    this.apply(this.active() === 'dark' ? 'light' : 'dark');
+    this.set(this.active() === 'dark' ? 'light' : 'dark');
+  }
+
+  /** Clear the saved choice and resume live device matching. */
+  matchDevice(): void {
+    this.choice.set(null);
+    try { this.document.defaultView?.localStorage.removeItem(STORAGE_KEY); } catch { /* Device matching still works this session. */ }
+    this.apply(this.deviceTheme());
+  }
+
+  private readChoice(): Theme | null {
+    try {
+      const value = this.document.defaultView?.localStorage.getItem(STORAGE_KEY);
+      return value === 'light' || value === 'dark' ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private deviceTheme(): Theme {
+    return this.media === undefined || this.media.matches ? 'dark' : 'light';
   }
 
   private apply(theme: Theme): void {
     this.active.set(theme);
-    document.documentElement.setAttribute('data-theme', theme);
+    this.document.documentElement.setAttribute('data-theme', theme);
   }
 }

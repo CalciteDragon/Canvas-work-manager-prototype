@@ -42,3 +42,16 @@ still needs it, it can return as a first-visit default beneath the device prefer
 
 Revisit when the implementing slice's plan is reviewed, or if persona switching needs to show a
 theme difference again.
+
+## Amended — 2026-10-14 (Slice 71)
+
+Settings → Appearance and the development panel both offer **Dark**, **Light** and
+**Match device**, over the same service. Match device removes the explicit browser choice
+and resumes live device matching; the top-bar toggle saves an explicit choice. The guarded
+localStorage key is `cwm.theme`. If storage is blocked, controls still work for the session.
+
+There is no persona first-visit default: an empty browser follows the device immediately,
+and switching personas never changes the theme. Without matchMedia the fallback is dark.
+An app initializer constructs ThemeService on every route, including direct Design Lab
+entry, so theme application does not rely on AppShell. The media listener is removed when
+the service is destroyed. UserPreferences.theme stays unchanged in contracts and seeds.

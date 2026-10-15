@@ -15,7 +15,6 @@ import {
   type ElementRef,
 } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
-import { ThemeService } from '../theme/theme-service';
 import { ShellStore } from './shell-store';
 import { Sidebar } from './sidebar/sidebar';
 import { TopBar } from './top-bar/top-bar';
@@ -64,7 +63,6 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
 })
 export class AppShell {
   protected readonly store = inject(ShellStore);
-  private readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);
@@ -93,13 +91,6 @@ export class AppShell {
   }
 
   constructor() {
-    // The one place the persona's theme preference reaches the DOM. An effect rather than
-    // a call inside load(), so the store stays ignorant of anything to do with rendering.
-    effect(() => {
-      const identity = this.store.identity();
-      if (identity !== null) this.theme.seedFrom(identity);
-    });
-
     void this.store.load();
 
     // A create that fails after the drawer was dismissed would report, and reopen its form, inside

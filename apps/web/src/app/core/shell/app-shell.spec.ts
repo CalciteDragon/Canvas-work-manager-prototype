@@ -22,7 +22,10 @@ const renderShell = async (options: Parameters<typeof shellTestProviders>[0] = {
   return { fixture, element: fixture.nativeElement as HTMLElement };
 };
 
-afterEach(() => document.documentElement.removeAttribute('data-theme'));
+afterEach(() => {
+  document.documentElement.removeAttribute('data-theme');
+  localStorage.clear();
+});
 
 describe('AppShell', () => {
   it('lays out §23’s three regions', async () => {
@@ -33,14 +36,12 @@ describe('AppShell', () => {
     expect(element.querySelector('router-outlet')).not.toBeNull();
   });
 
-  // Asserted as a transition, not an end state: a `data-theme` left behind by another test
-  // would let an end-state assertion pass without the wiring existing at all.
-  it('seeds the theme from the loaded identity (§22)', async () => {
-    expect(document.documentElement.getAttribute('data-theme')).toBeNull();
+  it('keeps the explicit theme when a different persona loads (§22)', async () => {
+    localStorage.setItem('cwm.theme', 'dark');
 
     await render({ identity: testIdentity('light') });
 
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 
   // §19's half of §81's create: the store decided, the shell navigates. Nothing else proves
@@ -75,7 +76,9 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
       value: (query: string) => ({
         matches,
         media: query,
-        addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.add(listener),
+        addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => {
+          if (query === '(max-width: 48rem)') listeners.add(listener);
+        },
         removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
           listeners.delete(listener),
         // The legacy pair, which the CDK's `MediaMatcher` still subscribes through.

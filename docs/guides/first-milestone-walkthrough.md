@@ -44,8 +44,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 
 1. **Fake account / persona.** The top bar's right-hand side shows an avatar and **Demo
    User** — no sign-in screen ever appeared. Open the development panel and switch **Persona**
-   to *Alex*: the name changes, and so does the theme, because Alex's stored preference is
-   light. Switch back to Demo User.
+   to *Alex*: the name changes while the theme keeps following this device or your saved browser
+   choice. Switch back to Demo User. Settings → Appearance and the panel offer **Match device**.
 2. **Sidebar.** The left column lists Home, Projects, Calendar, Search and Settings, with the
    workspace's projects nested under Projects. Click **Projects** — the group collapses and
    expands; it is a group header, not a link, because there is no `/projects` page.
@@ -286,7 +286,8 @@ standalone connection matrix. Both processes still running. Full setup in
     makes calls fail, which is how §63's optimistic writes and their revert-on-failure become
     visible.
 46. **Persona switcher.** The **Persona** control changes who you are. The sidebar, dashboard
-    widgets and theme all change with it, because they come from the persona's own record.
+    widgets change with it, because they come from the persona's own record. Theme stays with
+    the device or the explicit browser choice.
 47. **Feature flags.** The **Flags** control lists §47's flags. Turn **nestedProjects** off on
     the `nested-projects` seed: the sidebar flattens to a single level, with **no reload**, and
     turning it back on restores the tree. Turn **gridProjectLayout** off and a grid project
@@ -304,7 +305,7 @@ Not §81, but this is the slice that added them.
     **Elevation** and watch the catalogue *and the surrounding shell* change together. Move
     **Accent** and navigate to `/app` — the change follows you. **Surface contrast** reduces
     only, and says so. **Reset** returns every token to the stylesheet's value; a full page
-    reload does the same, because the values are session-only like the theme. Switch the theme
+    reload does the same, because these knobs are session-only. Switch the theme
     after a reset and the rail shows that theme's own accent.
 50. **Storybook.** With the web and host processes stopped, or on its own:
 

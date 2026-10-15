@@ -247,7 +247,10 @@ Lab gains a panel.
 - **Must change (paint):** every cell. The palette and planes are app-wide.
 - **Must not change (geometry):** every recorded layout box (acceptance 9). Exceptions, if the
   sheet plane's padding or radius alters a box, are listed here before capture and justified.
-  None are expected, because radius does not move boxes and padding is untouched.
+  Product boxes have no exceptions: radius does not move boxes and padding is untouched.
+  The Design Lab intentionally adds knobs after the existing seven and a specimen panel after
+  the existing catalogue. Its rail and scroll-region height grow, and new controls/plane
+  specimens add boxes; those Lab-only additions are reported separately by the sheet.
 - **Visual acceptance pairs (one screen).** Each pair is shown before and after:
 
   | Surface | Seed and setting | Shows |

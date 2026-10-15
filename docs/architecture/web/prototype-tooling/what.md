@@ -31,7 +31,7 @@ flowchart TB
 | Seed | host `/prototype/seed` through the unit-of-work lock | yes |
 | Current Date | host `/prototype/clock` (`SimulatedClock.setNow`) | yes |
 | AI Provider | host `/prototype/ai-provider` | yes |
-| Theme | `ThemeService` signal; not stored | no |
+| Theme / Match device | `ThemeService`; explicit choice in guarded `localStorage`, Match device clears it | no |
 | Layout Mode | a real project field through the gateway | no |
 | Network Delay, Failure Rate | `PrototypeSettings` → the gateway adapter; `sessionStorage` | no |
 | Feature Flags | `PrototypeSettings`; `sessionStorage`; two of six gate something today | no |

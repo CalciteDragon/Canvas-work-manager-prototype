@@ -13,7 +13,7 @@
    client-side settings from `PrototypeSettings` (hydrated from `sessionStorage`).
 3. A host-side control posts to the host and, on success, reloads the tab; a client-side
    control writes `PrototypeSettings` (persisted to `sessionStorage`) or the
-   `ThemeService` signal; Layout Mode writes `projectLayoutMode` through the ordinary
+   `ThemeService` (explicit browser choice or Match device); Layout Mode writes `projectLayoutMode` through the ordinary
    gateway, and both the panel control and the inspector's layout list read the confirmed project
    from its `{ project, operation }` answer (Slice 39); the write lands in the person's history like
    any other project edit. The panel and the inspector are outside `ProjectWorkspaceShell`, so they
@@ -64,7 +64,8 @@
   hosts' specs render it.
 - **The panel is reachable while the gateway fails** — `PROTOTYPE_CONTROL` is a separate
   port; asserted by the panel's spec with the gateway at 100 % failure.
-- **The theme is not in `sessionStorage`**; delay, failure and flags are.
+- **Explicit themes persist in guarded `localStorage`.** Match device removes the choice;
+  persona switching preserves it. Delay, failure and flags use `sessionStorage`.
 - **`design-lab-tokens.ts` holds no design literals** — the token lint inspects `.ts`
   `styles`/`template` initialisers, and this file's controls read their starting values
   from the stylesheet at runtime.
