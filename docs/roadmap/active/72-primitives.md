@@ -300,7 +300,8 @@ The one consequence is a §77 edit to a unit test that reads `textContent`. See 
     names, glyph text becoming SVG (`+`, `⋯`, `×`, emoji marks), and changed control counts.
     Today `build-sheet.mjs` fails on changed control text. Those changes go in a listed table.
 - **Pre-listed census exceptions.** Each is named, with its owner. The list is filled in when the
-  "before" capture is read, before any adoption, and committed with the harness change. Known now:
+  "before" capture is read, before any adoption, and committed right after that run (Implementation
+  sequence, step 0.2). Known now:
   - links inside rendered Markdown prose (WCAG 2.5.8 inline exception);
   - the canvas insertion point and the section resize handle (slice 5);
   - dev panel and Lab rail controls (TH12 scaffolding, `/prototype/*`);
@@ -359,6 +360,7 @@ The one consequence is a §77 edit to a unit test that reads `textContent`. See 
 |---|---|---|
 | `apps/web/src/styles/_tokens.scss` | modify | Control heights, `--size-target-min`, and the control colour, border and radius aliases derived once under `:root` |
 | `apps/web/src/styles/_controls.scss` | create | The primitive classes (acceptance 2); no literals |
+| `apps/web/src/styles/_control-states.scss` | create | No-output mixins for hover and pressed, used by `_controls.scss` and by the Lab's forced-state specimens, so they cannot drift |
 | `apps/web/src/styles.scss` | modify | `@use './styles/controls'` after base |
 | `apps/web/src/app/shared/components/icon/icon.ts`, `icon.spec.ts` | modify | New marks; every `IconName` renders |
 | `apps/web/src/app/shared/controls/controls.stories.ts` | create | Storybook view of the primitives (protocol §7.1) |
@@ -388,14 +390,14 @@ The one consequence is a §77 edit to a unit test that reads `textContent`. See 
 | `apps/web/src/app/prototype/design-lab/panels/primitive-panels.html`, `.scss`; `panels/control-panels.ts`, `.html`, `.scss`; `design-lab-page.html`, `design-lab-page.ts` (imports the panel), `design-lab-page.spec.ts` | modify, create | The Buttons and Inputs panels use the primitives and read "shared"; the new Controls specimen panel |
 | `apps/web/src/app/prototype/dev-panel/dev-panel-store.ts` | modify | `CURRENT_SLICE = 72` |
 | `apps/e2e/ux/capture.ts`, `apps/e2e/ux/layout.mjs`, `apps/e2e/ux/harness.test.mjs` | modify | `collectControls` moves out of `capture.ts` into `layout.mjs`. It covers textarea and `[role=button]`, and records tag, type, role, class, computed border, scope, and the label box for checkboxes and radios. axe `target-size` is enabled. A red harness test comes first, and all of it is committed before the "before" run |
-| `apps/e2e/ux/primitives-verification.ts` | create | Forced-colours captures of Kitchen and Settings in both themes (acceptance 11). Its own theme lock copies the `capture.ts` pattern. It never imports `depth-verification.ts`, which exports nothing, and importing it would register that file's test a second time |
+| `apps/e2e/ux/primitives-verification.ts` | create | Forced-colours captures of Kitchen and Settings in both themes (acceptance 11), written to `primitives-verification.json`. It lands with the harness commit, so the "before" run has them too. Its own theme lock copies the `capture.ts` pattern. It never imports `depth-verification.ts`, which exports nothing, and importing it would register that file's test a second time |
 | `apps/e2e/ux-capture.config.ts` | modify | Add `primitives-verification.ts` to `testMatch`. `playwright.config.ts` ignores `ux/`, so it would otherwise never run |
 | `apps/web/src/app/features/projects/sections/section-frame-name.ts` | create | The `SECTION_FRAME_NAME` token |
 | `sections/section-frame/project-section-frame.ts`, `shortcuts/shortcut-frame.ts` | modify | Provide `SECTION_FRAME_NAME` as a factory that reads the frame's existing `name` signal (`useFactory: () => inject(ProjectSectionFrame).name`, and likewise for the shortcut frame), so the frame and the bar share one name computation |
 | `apps/e2e/ux/tasks.ts` | modify | §77: the core-task Add locator follows the source-named Add (line 83) |
 | `apps/e2e/primitives.spec.ts` | create | The e2e behaviour tests in the test plan |
 | `apps/web/src/app/features/projects/shortcuts/shortcut-picker.stories.ts` | modify | §77: the Add locator in its play function |
-| `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs`, `build-sheet.test.mjs` | modify | `--profile 71/72`; profile 72 gates on the census, overflow and axe names, reports geometry, and expects the Lab Controls panel; regressions first |
+| `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs`, `build-sheet.test.mjs` | modify | `--profile 71/72`; profile 72 also reads `primitives-verification.json` from the before and after directories and pairs its forced-colours captures by surface and theme, gates on the census, overflow and axe names, reports geometry, and expects the Lab Controls panel; regressions first |
 | e2e specs that name changed controls exactly (`archive.spec.ts` stays; others found by grepping for `name: 'Add'` and `'Revoke'`) | modify | §77 locator updates only, listed at implementation |
 | `apps/web/src/app/features/projects/sections/progress/progress-section.ts` | modify | The bar's name comes from its own `section()` (L5-004) |
 | `docs/decisions/2026-10-control-primitives-are-global-classes.md`, `docs/decisions/README.md` | created at planning; amend at close | Open question 2's answer, indexed. Amended with measured bundle and specificity results when the slice closes |
@@ -410,6 +412,98 @@ The one consequence is a §77 edit to a unit test that reads `textContent`. See 
 | `docs/architecture/testing/how.md`, `what.md` | modify | The control census and sheet profiles |
 | `docs/roadmap/active/70-ui-ux-overhaul.md` | modify | A pointer to slice 72 under the handoff, and a line recording that TH06 stays with slice 3 except W1-004 and W3-007, which close here |
 | `.prototype/notes.json` | modify | Friction from real use only. Note-005's answer is recorded by the other session, not here |
+
+## Implementation sequence (next stage: A and C)
+
+Written 2026-10-14 from the code, after the answers were recorded, and reviewed once (see
+Revisions). It orders the work up to the checkpoint, and the part C work that runs while the
+checkpoint waits. Each step ends at a green commit that names slice 72 and its §N. **The docs
+named in a step's row land in that step's commit** (AGENTS.md §2). Part B is outlined at the end,
+and is sequenced in detail only after the checkpoint answer. Stage 0 is the first implementation
+work, so it also waits for the user's go-ahead.
+
+**Four facts from the code fix the order.**
+
+- The "before" capture must see today's product *and* today's Lab. Part A rewrites the Lab's
+  Buttons and Inputs panels, and part C changes accessible names and one visible label. So the
+  harness commit and the "before" run come first, before any A or C commit. Stage 0 changes no
+  product file; `CURRENT_SLICE` shows the same in both runs.
+- The capture serves `apps/web/dist/web/browser` statically on 4201 (`ux-capture.config.ts`).
+  Every capture run is therefore preceded by `pnpm --filter web build` at the same commit, and
+  that build's initial total is recorded. It is the baseline for acceptance 12.
+- `build-sheet.mjs` reads `depth-verification.json` from `verificationDir` and from `beforeDir`
+  (for the tokens behind the composite-contrast model), and pairs its fallbacks by `theme` and
+  `mode` only. So `primitives-verification.json` is **a separate file, not the same shape**: a
+  `forcedColors` list keyed by `surface` (`kitchen`, `settings`) and `theme`. Profile 72 reads it
+  from both directories in addition to `depth-verification.json`, and pairs by surface and
+  theme. The file lands **with the harness commit**, so every forced-colours capture has a
+  before side.
+- The census exceptions can only be listed after the "before" capture is read. So they are a
+  second small commit after the run, not part of the harness commit.
+
+### Stage 0 — harness and baseline
+
+| Step | Red first | Then | Docs | Commit |
+|---|---|---|---|---|
+| 0.1 | First export a `collectControls` stub from `layout.mjs` returning `[]`, so the test file loads. Then `harness.test.mjs`: on a JSDOM page with stubbed `getBoundingClientRect` (as the existing test does), `collectControls` returns tag, type, role, class, border and `scope` (`prototype` inside `app-dev-panel` and on `/prototype/`, `prose` inside `.markdown-renderer`, otherwise `product`); a checkbox inside a `<label>` and one with a `for` label each report the larger box. It fails on the assertions. Run with `node --test apps/e2e/ux/harness.test.mjs`, which `pnpm test` does not run | Move the inline collector out of `capture.ts:108` into `collectControls`; widen it to textarea and `[role=button]`; enable axe `target-size` at `capture.ts:88`; create `primitives-verification.ts` (theme lock copied from `capture.ts`, `forcedColors: 'active'`, writes `primitives-verification.json` as above) and add it to `ux-capture.config.ts`'s `testMatch`; set `CURRENT_SLICE = 72` | `testing/how.md`, `what.md`: the census fields, `target-size`, the forced-colours file | Slice 72 harness: control census and forced colours (§69) |
+| 0.2 | — | `pnpm --filter web build` (record the initial total), then `pnpm --filter @cwm/e2e ux:capture` at 0.1's commit. Record the commit and output directory here. Re-run the acceptance 7 grep and paste its output as the baseline (77 lines in 26 files at planning). Read the census and write the **pre-listed exceptions** under Capture scope, each with an owner | This plan | Slice 72: before capture, selector baseline, census exceptions (§69) |
+
+Ports 4201 (web) and 4321 (host) only; kill the web and host children if a run is stopped.
+
+### Stage A — the primitives (no product file changes)
+
+| Step | Red first | Then | Docs |
+|---|---|---|---|
+| A1 | The token lint is the test. Run `pnpm --filter web lint` with a deliberate literal in a draft `_controls.scss`, and watch it fail at that line. (`check-design-tokens.mjs` exempts only `_tokens.scss` and `_breakpoints.scss`) | Control tokens in `_tokens.scss` (acceptance 1), defined once and themed per theme only where a base colour differs. A no-output partial `styles/_control-states.scss` holds one `@mixin` per forced state (hover, pressed), so the Lab can show them without a Lab-only selector. Then `_controls.scss` (acceptance 2), whose `:hover` and `:active` rules include those mixins, and its `@use` in `styles.scss`. Build, and compare the initial total with 0.2's: an early number shows how much B's deletions must pay back | `web/overview.md`, `how.md`, `what.md`: the controls partial and the "position, never paint" rule |
+| A2 | First commit an exported `ICON_NAMES` list with today's nine names and an `icon.spec` that iterates it (green). Then add the new names to the list and the type: the spec fails, because `@switch` renders nothing for them | The marks in acceptance 3, drawn on the existing 24-unit grid with the existing stroke style. **Delegable:** the SVG paths are mechanical. The brief is the list, the grid, the stroke rules and "monochrome, `currentColor`, no fills except dots" | `web/what.md`: the icon set |
+| A3 | `design-lab-page.spec` (§77): the Buttons and Inputs badges read "shared" and render `.button` and `.field`; cards, menus and states still read "not yet" | Rewrite those two panels in `primitive-panels.html`. Create `panels/control-panels.ts/.html/.scss`, the Controls panel. Its forced-state specimen classes include the A1 mixins, so they cannot drift from the real rules | `web/prototype-tooling/how.md`, `what.md` |
+| A4 | — (stories are not appearance tests) | `shared/controls/controls.stories.ts`, one story per family. `pnpm --filter web storybook:build` | — |
+| A5 | — | `pnpm test`, then `pnpm lint`, then the full `pnpm e2e`. A is the only part with no product change, so an e2e failure here points at a global style leak. Commit. Build, then capture the Lab Controls panel at 1440 dark and light and at 375 touch light. Show it to the user with question 4 (removal marks). **Stop for the answer before B** | — |
+
+A1–A4 may be one commit each.
+
+### Stage C — names and focus (may run while the checkpoint waits)
+
+Each row is test red → implement → green → commit, with its docs. C starts after A5, so
+`.control-label` and `ICON_NAMES` exist. No C step depends on the removal-marks answer. The rows
+touch files part B will touch again, which is fine: one session, in order.
+
+| Step | Red test | Implementation | Docs |
+|---|---|---|---|
+| C1 | `sidebar.spec`: opening New project focuses `#new-project-name`; the label uses `.control-label`, not `.create-project__label`, and reads "Project name" | Focus after the form renders (`afterNextRender` or a `viewChild` effect, matching the nearest existing idiom); swap the label class | `web/core/how.md`, `what.md` |
+| C2 | `timeline-section.spec` (§77: replaces the `li` assertion at line 85): the button has `aria-expanded` false→true and `aria-controls` = the details id; the `li` has none. Two instances on one page have distinct ids | Move `aria-expanded` and the `(click)` from the `li` to the button (`timeline-section.html:2`); a per-instance id prefix | `web/projects/how.md`, `what.md` |
+| C3 | `progress-section.spec` (three cases in the test plan), `shortcut-frame.spec` (two owners) | `section-frame-name.ts`, the providers on both frames, and the bar's name and `aria-describedby` | `web/projects/how.md` |
+| C4 | `reflection-composer.spec`, `reflections-page.spec`: "Prompt" and "Subject" | Visible `.control-label`s | `web/projects/what.md` |
+| C5 | `shortcut-picker.spec`, `agent-connections-page.spec` | Source-named Add; agent-named Revoke; fieldset and legend. The §77 locators move with it: `tasks.ts:83` (`{name:'Add',exact:true}`), `shortcut-picker.stories.ts:141`, and any other hit of `rg "'(Add|Revoke)'" apps` | `web/projects/what.md` and the settings docs |
+| C6 | Registry specs and `project-page-navigation.spec:164` (§77 `textContent`) | `icon: IconName` in the four registries, with `<app-icon>` at their render sites | `web/projects/what.md`, `web/dashboard/what.md` |
+| C7 | `apps/e2e/primitives.spec.ts`: focus at 375 and a label box taller than 1 px (both red) | Already green from C1. The checkbox Space test and the drawer Close name tests are **guards**: native behaviour that passes at once, which is expected. They protect part B | `testing/what.md` if it lists specs |
+
+C6 changes product appearance (emoji to SVG) before B and before the user has seen the icon style
+at the checkpoint. That is accepted: it is after the "before" capture, and the pairs show it.
+
+**Also during the wait:** `build-sheet.mjs --profile 71|72` and its test cases (test plan row),
+built on `7c6d53d`. Profile 72 reads `primitives-verification.json` from both directories and
+pairs forced-colours captures by surface and theme. Profile 71's existing regressions must stay
+green. Run with `node --test docs/roadmap/70-ui-ux/tooling/build-sheet.test.mjs`, which `pnpm test`
+does not run.
+
+### Part B — outline only
+
+B goes surface group by surface group. Each group is adopted, then its component control rules
+are deleted, then `pnpm test`, then the group's e2e specs:
+
+1. shell (sidebar, app shell, top bar);
+2. project chrome (header, history, More, navigation, workspace shell, canvas, recovery notice);
+3. dialogs (section create, work create, shortcut picker);
+4. sections and frames (frame, shortcut frame, insertion mark, Markdown, tasks and the task row,
+   Progress, Reflections, Timeline, activity);
+5. pages (Todos, Archive, archived region, Reflections page, the task drawer);
+6. settings (agents, archived projects, Appearance).
+
+Then acceptance 7's two checks and the class-paint review pass; the after capture; the bundle
+check; the sheet; the reviews (AGENTS step 4); real use; and Gate 2. Groups 4 and 5 are the
+candidates for parallel subagents, because their files do not overlap, once group 1 has set the
+idiom. They get a brief with the primitive classes, the specificity rule and the exceptions.
 
 ## Test plan — tests first
 
@@ -577,3 +671,20 @@ has not yet said to start implementing, so part A waits for that word.
 - **Answers recorded (2026-10-14).** The user chose the defaults for questions 2–4. Questions 2
   and 3 became decision entries, indexed and linked from `web/why.md`. Question 4 is reviewed at the
   checkpoint. Option A's commits (`7c6d53d`, `f71be24`) meet part B's precondition.
+- **Implementation sequence, round 5 (2026-10-14):** The sequence for Stage 0, A and C was
+  written from the code and reviewed by a fresh reviewer. Its nine findings (three substantive)
+  were each checked against the code, and all held.
+  - **Build before capture.** The capture serves the static `dist`, so each run is now preceded
+    by a web build, whose size is the acceptance 12 baseline.
+  - **Docs in the same commit.** Each step now names its docs (AGENTS.md §2).
+  - **Forced-colours pairing.** The sheet pairs fallbacks by theme and mode only, and needs
+    `depth-verification.json`'s tokens. So `primitives-verification.json` is a separate file
+    keyed by surface and theme, read from both directories.
+  - **Minor.**
+    - The host port is 4321, not 4311.
+    - The 0.1 and A2 red tests now fail on assertions, not imports.
+    - The `node --test` commands outside `pnpm test` are named.
+    - The C7 checkbox test is a guard.
+    - The Lab's forced states share mixins with the real rules (`_control-states.scss`).
+    - The §77 locator grep matches `{name:'Add'}`.
+    - Stage 0 also waits for the go-ahead.
