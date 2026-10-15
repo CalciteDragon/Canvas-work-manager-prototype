@@ -18,7 +18,6 @@ if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <outp
  */
 const CENSUS_EXCEPTIONS = [
   { owner: 'slice 5, TH08: canvas insertion points', classes: ['insertion-point'], test: c => /^Insert (before |at the end)/.test(c.text ?? '') },
-  { owner: 'slice 5, TH08: section resize handle', classes: ['section-resize-handle'], test: c => /\bsection-resize-handle\b/.test(c.class ?? '') },
   { owner: 'slice 5, L6-009: section title button', classes: ['section-frame__title-button'], test: c => /\bsection-frame__title-button\b/.test(c.class ?? '') },
   { owner: 'slice 6, TH09: task row title', classes: ['task-row__title'], test: c => /\btask-row__title\b/.test(c.class ?? '') },
   { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
@@ -81,9 +80,12 @@ for (const a of after.cells) {
       }
     });
     if (profile === '72') {
+      // Geometry may move in this slice, but corrupt evidence and a changed set of planes still fail.
+      const integrity = changes.filter(change => ['plane identity', 'missing numeric geometry'].includes(change.reason) || (family === 'planes' && change.reason === 'count'));
+      if (integrity.length) failures.push({ cell: a.id, family, changes: integrity });
       const intended = changes.filter(change => family === 'controls' && ['control identity', 'count'].includes(change.reason));
       if (intended.length) intendedChanges.push({ cell: a.id, changes: intended });
-      const moved = changes.filter(change => !intended.includes(change));
+      const moved = changes.filter(change => !intended.includes(change) && !integrity.includes(change));
       if (moved.length) geometryReport.push({ cell: a.id, family, changes: moved });
     } else if (changes.length) failures.push({ cell: a.id, family, changes });
   }

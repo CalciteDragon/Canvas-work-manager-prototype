@@ -140,10 +140,17 @@
   @include states.pressed;
 }
 
-:is(.button, .icon-button, .tool):is([aria-pressed='true'], [aria-checked='true'], [aria-expanded='true']) {
-  --control-fill: var(--control-selected-fill);
-
+// Selected in shape and fill. A disclosure toggle's aria-expanded is not "selected" (its chevron
+// says open or closed); only the open list row is. A selected primary keeps its own fill and ink,
+// and gains only the ring, so its text never lands on the pale selected tint.
+:is(.button, .icon-button, .tool):is([aria-pressed='true'], [aria-checked='true']),
+.button--row[aria-expanded='true'] {
   box-shadow: var(--control-selected-ring);
+}
+
+:is(.button, .icon-button, .tool):not(.button--primary):is([aria-pressed='true'], [aria-checked='true']),
+.button--row[aria-expanded='true'] {
+  --control-fill: var(--control-selected-fill);
 }
 
 // ── Fields and selects. ──
@@ -309,9 +316,6 @@ textarea.field {
     block-size: var(--size-hit-target);
   }
 
-  .link {
-    min-block-size: var(--size-hit-target);
-  }
 }
 
 // Forced colours: the system draws native boxes and carets that respect the user's palette.
@@ -396,6 +400,13 @@ button.link {
   border: 0;
   background: none;
   font: inherit;
+}
+
+// After the base rule, so it wins at equal specificity.
+@media (hover: none), (any-pointer: coarse) {
+  .link {
+    min-block-size: var(--size-hit-target);
+  }
 }
 
 @media (hover: hover) {

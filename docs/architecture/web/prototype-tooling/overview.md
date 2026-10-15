@@ -26,7 +26,9 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
   element — radius, spacing density, surface contrast, accent, font scale, elevation,
   sidebar width, plane tints/alphas/blurs, ground art strength and motion scale — session-only;
   solid-planes and reduced-motion simulations; a **Copy CSS** export; live panels of real components
-  and primitive panels marked *not yet a shared component*, plus inert plane/lift and motion specimens.
+  and primitive panels — Buttons and Inputs render the shared primitives and a Controls panel shows
+  every primitive and state; cards, menus and states stay marked *not yet a shared component* — plus
+  inert plane/lift and motion specimens.
 
 ## Not responsible for
 

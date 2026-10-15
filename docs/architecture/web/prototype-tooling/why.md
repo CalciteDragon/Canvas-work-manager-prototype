@@ -60,10 +60,11 @@ previews use only inline properties. They do not add another theme owner.
 store would be destroyed on navigation while the shell still wore its knobs. §20
 objects to one global store owning application data; this owns design controls.
 
-**Primitive panels are evidence, not a component library.** Buttons, inputs, cards,
-project cards and menus that everyone keeps re-styling are shown as representative
-markup marked *not yet a shared component*; extracting them is a slice that has not
-been earned.
+**Primitive panels are evidence, not a component library.** Cards, project cards, menus
+and states that everyone keeps re-styling are shown as representative markup marked *not
+yet a shared component*; extracting them has not been earned. Slice 72 earned it for
+buttons and inputs: those panels and the Controls panel render the shared primitives, so the
+Lab shows the real thing, with forced states built from the same mixins as the real ones.
 
 ## Consequences
 

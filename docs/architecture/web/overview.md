@@ -15,7 +15,7 @@ properties, and it depends on the host **only** through gateway interfaces and o
 **Code:** `apps/web/src/app` · **Styles:** `apps/web/src/styles/_tokens.scss`,
 `_base.scss`, `_controls.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
 `@angular/build:unit-test`); `*.stories.ts` for Storybook · **Package:** `web` ·
-**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`
+**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`. Within the app, `core` imports only `shared/components/icon` from outside itself (slice 72)
 
 ## Responsibilities
 

@@ -36,6 +36,11 @@
   font-size: var(--font-size-sm);
 }
 
+.lead .button,
+.identity .button {
+  flex: none;
+}
+
 .avatar {
   display: inline-flex;
   align-items: center;

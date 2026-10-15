@@ -8,7 +8,10 @@
 2. Each row renders as `TaskRow` with the task and its flags; the section wires the row's
    callbacks to store methods. Title or background clicks select idempotently and open
    `TaskDetailDrawer`; title Enter/Space are the keyboard path. A moved mouse/pen gesture or a
-   new background text selection does not select. Checkbox and Delete never select.
+   new background text selection does not select. Checkbox and Delete never select. Since slice 72
+   the checkbox is the shared `.checkbox` primitive over the native input, the Delete the quiet
+   trash `.tool`, and the details drawer's Close an `.icon-button` that keeps its "Close task
+   details" name; the drawer's fields use `.field` and `.select`.
 3. A quick create posts `{ projectId, sectionId, title }` and unwraps `result.task`; a completion
    paints first, posts second and reconciles from the same strict envelope, guarded as drawn in
    [what](what.md). Reopen uses `tasks.update(id, { status: 'todo' })`, clears `completedAt`

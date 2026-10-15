@@ -299,7 +299,9 @@ still records the options as they were presented.
 
 ## Next-chat handoff — Phase 3 (slice plan)
 
-**Slice 71 completed (2026-10-14):** [Depth tokens and theme](../completed/71-depth-tokens-and-theme.md); Gate 2 accepted. The next redesign slice (primitives, slice 2) is not yet planned.
+**Slice 71 completed (2026-10-14):** [Depth tokens and theme](../completed/71-depth-tokens-and-theme.md); Gate 2 accepted.
+
+**Slice 72 active (2026-10-15):** [Primitives](72-primitives.md), redesign slice 2 (TH04, TH05). The primitives are built and adopted on every product surface; the after capture, sheet, reviews and real use come before Gate 2. TH06 stays with slice 3, except W1-004 and W3-007 (focus into the New project field), which slice 72 closes; slice 3 must not re-plan them.
 
 **State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slice 1 is
 [71](../completed/71-depth-tokens-and-theme.md), complete. The umbrella stays active.

@@ -48,6 +48,6 @@ sequenceDiagram
 
 | Part | Path | Role |
 |---|---|---|
-| `TaskRow` | `task-row.ts`, `.html`, `.scss`, `.stories.ts` | The Task List row and six §4 variants; Delete emits intent and shows the archive write pending state |
+| `TaskRow` | `task-row.ts`, `.html`, `.scss`, `.stories.ts` | The Task List row and six §4 variants; the completion control is the shared `.checkbox` (still a native input) and Delete the quiet trash `.tool` (slice 72); Delete emits intent and shows the archive write pending state |
 | `TaskDetailDrawer` | `task-detail-drawer.ts` | Side drawer editing |
 | `TaskListStore` | `task-list-store.ts` | One container's rows; optimistic writes; quiet live re-reads |

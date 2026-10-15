@@ -897,6 +897,8 @@ Do not scatter literal styling values throughout components.
 
 *Corrected at Slice 70 Gate 1 (2026-10-14).* The redesign adds token families for the frosted-glass **Depth** direction: plane tints and alphas (ground, pane, sheet, lift), blur radii, lift elevation, focus ring, durations and easings, plus the z-index, breakpoint and font-weight values that escape tokens today. Design values live in `_tokens.scss`; CSS-free breakpoint constants live beside it in `_breakpoints.scss`, with TS query agreement checked by the token lint. Contrast over the worst backing is measured and reported in both themes under the user contrast amendment; it does not gate the chosen demo tints. They fall back to solid token surfaces under reduced transparency, without `backdrop-filter`, and in forced colours ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md), [direction](docs/roadmap/70-ui-ux/direction.md)).
 
+*Corrected at slice 72 (2026-10-15).* Control primitives are global classes in `_controls.scss` over native elements, applied in templates: buttons in four ranks (primary, secondary, ghost, danger) and two heights, icon buttons, tools, one field and select treatment, checkbox and radio, pill, link, a visible control label and a separated danger zone. Every interactive primitive is at least 24 px with a pointer and 44 px on touch, and heights follow the density knob while targets never do. Components position a primitive and never paint one. App-owned marks are one monochrome SVG set; user-chosen project emoji stay content ([decision](docs/decisions/2026-10-control-primitives-are-global-classes.md), [decision](docs/decisions/2026-10-app-icons-are-one-svg-set.md)).
+
 ---
 
 # 22. Prototype Themes
@@ -3674,6 +3676,8 @@ errors
 This supplements Storybook with a full-app design environment.
 
 *Corrected at Slice 70 Gate 1 (2026-10-14).* The Lab shows the three planes and the lifts (drawer, dialog, menu, toast) over a busy backing. It has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
+
+*Corrected at slice 72 (2026-10-15).* Buttons and inputs are the shared primitives, rendered as they are, and a Controls panel shows every primitive in every variant, size and state over a pane and a sheet. Its forced hover, focus and pressed specimens include the same state mixins the real states use. Cards, project cards, menus and states remain representative markup labelled not yet a shared component.
 
 ---
 

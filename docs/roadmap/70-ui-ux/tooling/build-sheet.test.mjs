@@ -184,3 +184,19 @@ test('profile 72 fails a 375 cell that scrolls sideways', async t => {
   assert.equal(result.status, 1);
   assert.match(JSON.stringify(report.censusFailures), /sideways/);
 });
+test('profile 72 still fails on corrupt geometry and changed plane identity', async t => {
+  const broken = await (async () => {
+    const g = await fixture(t);
+    g.cell.viewport = { width: 1440, height: 900 };
+    for (const phase of [0, 1]) await g.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [g.cell] });
+    await g.json(1, 'layout.json', { ...g.layout, planes: [{ selector: 'app-sidebar', index: 0, y: 0, width: 1, height: 1 }], viewport: 1440, document: 1440 });
+    for (const phase of [0, 1]) {
+      await g.json(phase, 'primitives-verification.json', { forcedColors: [] });
+    }
+    const result = spawnSync(process.execPath, [builder, ...g.dirs, '--profile', '72'], { encoding: 'utf8' });
+    return { result, report: JSON.parse(await readFile(join(g.dirs[2], 'report.json'), 'utf8')) };
+  })();
+  assert.equal(broken.result.status, 1);
+  assert.match(JSON.stringify(broken.report.geometryFailures), /plane identity/);
+  assert.match(JSON.stringify(broken.report.geometryFailures), /missing numeric geometry/);
+});

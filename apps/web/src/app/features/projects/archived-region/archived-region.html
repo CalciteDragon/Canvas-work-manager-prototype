@@ -28,6 +28,7 @@
               <span aria-hidden="true"> / </span>
               @if (originRoute(item); as route) {
                 <a
+                  class="link"
                   data-archived-origin-link
                   [routerLink]="route"
                   [fragment]="originFragment(item)"

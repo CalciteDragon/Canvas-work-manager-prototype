@@ -44,7 +44,9 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    in it closes it and focuses `<main>` (`tabindex="-1"`), including the route already current.
    A create that fails after the drawer was dismissed reopens it, so the error and the restored
    form are reachable. A resize resets it to closed, keeps or rescues focus
-   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
+   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)). Opening New project moves
+   focus into its visibly labelled "Project name" field after the render, at every width
+   (slice 72).
 7. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request returns an
    `OperationWriteHandle` for that one write; `committed(...)` on it with the report built from the
    response, `end()` in `finally`. Tying the commit to its own write is what lets the history ignore
@@ -81,6 +83,8 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 - [prototype-host / api](../../prototype-host/api/overview.md) and
   [live-updates](../../prototype-host/live-updates/overview.md) — over HTTP.
 - `@angular/core`, `router`, `common`.
+- `shared/components/icon` (slice 72) — the sidebar's New project plus and the drawer's Close.
+  It imports nothing from `core`, `features` or `prototype`.
 
 **Depended on by**
 

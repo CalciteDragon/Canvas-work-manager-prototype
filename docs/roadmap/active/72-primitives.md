@@ -769,3 +769,29 @@ has not yet said to start implementing, so part A waits for that word.
     - The Lab's forced states share mixins with the real rules (`_control-states.scss`).
     - The §77 locator grep matches `{name:'Add'}`.
     - Stage 0 also waits for the go-ahead.
+- **Diff review round 1 (2026-10-15).** Two fresh reviewers worked against the diff while the
+  first after capture ran: one on correctness, boundaries and spec, one on the documentation.
+  Every finding was checked against the code, and all held.
+  - **Correctness, substantive.**
+    - The touch `.link` rule sat before the base rule at equal specificity, so links stayed
+      24 px on touch. The capture confirmed it. It now comes after the base rule.
+    - The `aria-expanded` arm of the selected rule caught every open collapse tool, which
+      changed section-tool emphasis at rest (slice 5). It is now limited to `.button--row`.
+    - A pressed primary (Progress "Use manual") kept its contrast ink on the pale selected
+      tint. A selected primary now keeps its fill and gains only the ring.
+    - The archived region's origin link was not adopted. It is now a `.link`.
+  - **Correctness, minor.**
+    - Profile 72 let corrupt geometry and a changed set of planes pass. Both fail again, with
+      a seventeenth regression.
+    - The resize-handle census exception could never match: the handle is a
+      `div[role=slider]` the census does not collect. It was removed.
+    - Menu and the theme toggle regained `flex: none`.
+    - The work item's "Completed" span gained `role="img"`, so its existing name is announced.
+      That is an accessibility-tree change outside the part C list, and it is recorded here.
+  - **Documentation.**
+    - `web/why.md` and `prototype-tooling/overview.md` and `why.md` still described the
+      primitives as planned or not shared. They are corrected.
+    - Core's new dependency on `shared/components/icon` was recorded nowhere. It is now in
+      `core/how.md` and `web/overview.md`, with the New project focus.
+    - The More danger zone, the actors' pills and marks, and the Appearance radios are now in
+      the `what.md` files.
