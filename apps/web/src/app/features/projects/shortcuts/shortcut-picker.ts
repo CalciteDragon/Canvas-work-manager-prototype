@@ -57,6 +57,16 @@ export class ShortcutPicker {
     if (created) this.added.emit();
   }
 
+  /**
+   * The Add button's accessible name (slice 72, W3-017): its visible verb, then the row's own
+   * identity, so two sources of one type never share a name. The source carries no title, so the
+   * row's displayed name, breadcrumb and page stand in for `shortcutNameOf`.
+   */
+  addLabel(source: ShortcutSource): string {
+    const verb = source.alreadyPlaced ? 'Added' : this.pending() ? 'Adding' : 'Add';
+    return `${verb} ${source.name}, ${this.breadcrumb(source)} · ${this.pageLabel(source)}`;
+  }
+
   breadcrumb(source: ShortcutSource): string {
     return source.breadcrumb.join(' / ');
   }

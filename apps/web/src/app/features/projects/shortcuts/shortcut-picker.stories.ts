@@ -138,7 +138,7 @@ export const AddSource: Story = {
   args: { added: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Add' }));
+    await userEvent.click(canvas.getByRole('button', { name: /^Add / }));
     await expect(args.added).toHaveBeenCalled();
   },
 };

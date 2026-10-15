@@ -28,6 +28,8 @@
           }
         </header>
 
+        <fieldset class="agents__permissions">
+        <legend class="control-label">What {{ connection.name }} may do</legend>
         <ul class="agents__grid">
           @for (row of permissions; track row.key) {
             <li class="agents__row">
@@ -48,12 +50,14 @@
             </li>
           }
         </ul>
+        </fieldset>
 
         <footer class="agents__card-footer">
           <span data-agent-last-used class="agents__last-used">{{ lastUsed(connection) }}</span>
           <button
             data-agent-revoke
             type="button"
+            [attr.aria-label]="'Revoke ' + connection.name"
             [disabled]="connection.revoked || store.busy() !== null"
             (click)="store.revoke(connection.id)"
           >

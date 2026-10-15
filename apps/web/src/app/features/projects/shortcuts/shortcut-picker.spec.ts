@@ -119,4 +119,27 @@ describe('ShortcutPicker (§27)', () => {
     );
     expect(fixture.nativeElement.querySelectorAll('[data-shortcut-add]')).toHaveLength(2);
   });
+
+  // Slice 72 (W3-017): two sources of one type must not both be "Add" to a screen reader.
+  it('names each Add by its source, so two sources of one type stay distinct', async () => {
+    const twins = [
+      { ...sources[0]!, sourceSectionId: 'section-kitchen' as SectionId, name: 'Progress', type: 'progress', breadcrumb: ['Home renovation', 'Kitchen'] },
+      { ...sources[0]!, sourceSectionId: 'section-garden' as SectionId, name: 'Progress', type: 'progress', breadcrumb: ['Home renovation', 'Garden'] },
+    ];
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [ShortcutStore, { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway({ shortcutSources: twins }) }] });
+    const fixture = TestBed.createComponent(ShortcutPicker);
+    fixture.componentRef.setInput('projectId', PROJECT);
+    fixture.componentRef.setInput('pageId', PAGE);
+    fixture.componentRef.setInput('create', vi.fn(async () => null));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const names = [...fixture.nativeElement.querySelectorAll('[data-shortcut-add]')].map((button) => (button as HTMLElement).getAttribute('aria-label'));
+    expect(names).toEqual([
+      'Add Progress, Home renovation / Kitchen · Work canvas',
+      'Add Progress, Home renovation / Garden · Work canvas',
+    ]);
+  });
 });

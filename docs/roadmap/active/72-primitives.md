@@ -493,6 +493,11 @@ Ports 4201 (web) and 4321 (host) only; kill the web and host children if a run i
   word. An untitled section reads "Progress". Untitled shortcuts read "Progress (Kitchen)" and
   "Progress (Garden)". A titled section reads "Q3 goals progress".
 
+- **C5, the Add name.** `ShortcutSource` carries no section title, so `shortcutNameOf` cannot be
+  called. Each Add is named "{verb} {name}, {breadcrumb} · {page}", which is the row's visible
+  identity. It is distinct per source and begins with the visible verb (label-in-name). The two
+  §77 locators now match `/^Add /`.
+
 **Stage A record (2026-10-14).**
 
 - **Bundle.** With the primitives in place and nothing adopted, the initial total is

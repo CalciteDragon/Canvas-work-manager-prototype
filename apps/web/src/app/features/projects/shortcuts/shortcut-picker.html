@@ -16,6 +16,7 @@
           <button
             data-shortcut-add
             type="button"
+            [attr.aria-label]="addLabel(source)"
             [disabled]="source.alreadyPlaced || pending()"
             (click)="add(source)"
           >

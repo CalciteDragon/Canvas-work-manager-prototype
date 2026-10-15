@@ -80,7 +80,7 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await click(button('Save'),'Save Markdown','Markdown editor'); await expect(page.getByRole('heading',{name:'Baseline edit'})).toBeVisible(); break;
     case 'T07':
       await click(button('Insert at the end'),'Insert at end','Work canvas'); await click(button('Add shortcut'),'Add shortcut','Section dialog');
-      await click(page.getByRole('dialog').getByRole('button',{name:'Add',exact:true}).first(),'Add source shortcut','Shortcut picker'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
+      await click(page.getByRole('dialog').getByRole('button',{name:/^Add /}).first(),'Add source shortcut','Shortcut picker'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
     case 'T08':
       await nav(); await click(button('Project page settings for Home renovation'),'Page settings','Project navigation');
       await click(page.getByRole('checkbox',{name:'Show Reflections page'}),'Hide Reflections','Page settings');

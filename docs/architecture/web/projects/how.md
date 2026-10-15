@@ -208,7 +208,9 @@ takes a per-instance prefix so a section and its shortcut on one page never shar
 inherits it. The bar appends "progress" unless the name already says it, never uses the frame's
 "Rename …" heading, and is described by its own summary through a per-instance id. The Reflections composer's prompt select and the
 Reflections page's subject picker carry visible `.control-label`s ("Prompt", per-instance id;
-"Subject"); the title and body stay named by their placeholders.
+"Subject"); the title and body stay named by their placeholders. Each shortcut picker Add is named by
+its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carries no title for
+`shortcutNameOf`.
 
 ## Key symbols
 

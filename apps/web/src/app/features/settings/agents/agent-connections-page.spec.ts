@@ -36,6 +36,20 @@ const text = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: 
   (fixture.nativeElement.querySelector(selector) as HTMLElement | null)?.textContent?.trim() ?? '';
 
 describe('AgentConnectionsPage (§53)', () => {
+  // Slice 72 (W3-017): Revoke says which agent it revokes, and each agent's boxes are one group.
+  it('names Revoke by its agent and groups the permissions under the agent', async () => {
+    const { fixture } = await render(new FakeWorkManagerGateway({ agentConnections: [connection(), connection({ id: 'agent-codex', name: 'Codex' })] }));
+    const cards = [...fixture.nativeElement.querySelectorAll('[data-agent-connection]')] as HTMLElement[];
+
+    expect(cards.map((card) => card.querySelector('[data-agent-revoke]')?.getAttribute('aria-label'))).toEqual(['Revoke Claude', 'Revoke Codex']);
+    for (const [index, name] of ['Claude', 'Codex'].entries()) {
+      const fieldset = cards[index]!.querySelector('fieldset');
+      expect(fieldset?.querySelector('legend')?.textContent).toContain(name);
+      expect(fieldset?.querySelectorAll('[data-agent-permission]').length).toBeGreaterThan(0);
+      expect(cards[index]!.querySelectorAll('[data-agent-permission]').length).toBe(fieldset?.querySelectorAll('[data-agent-permission]').length);
+    }
+  });
+
   it('renders a card per connection with the grid checked to match the grant', async () => {
     const { fixture } = await render();
 
