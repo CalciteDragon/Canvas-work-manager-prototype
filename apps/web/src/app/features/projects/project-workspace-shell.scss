@@ -94,26 +94,12 @@
   color: var(--color-text-muted);
 }
 
-.project-workspace__page-notice button {
+.project-workspace__page-notice .button {
   flex: 0 0 auto;
-  padding: var(--space-1) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
 }
 
 .project-workspace__retry {
   justify-self: start;
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
 }
 
 @media (max-width: breakpoints.$workspace-narrow) {

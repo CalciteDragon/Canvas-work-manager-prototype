@@ -22,7 +22,7 @@
     <h1 id="project-error-heading" tabindex="-1">Project unavailable</h1>
     <p data-project-error role="alert">{{ error }}</p>
     @if (store.missing() && history.retryAvailable()) {
-      <button type="button" data-project-history-retry class="project-workspace__retry" (click)="history.retry()">
+      <button type="button" data-project-history-retry class="button project-workspace__retry" (click)="history.retry()">
         Retry
       </button>
     }
@@ -57,7 +57,7 @@
       } @error {
         <div data-project-nav-error class="project-workspace__nav">
           <p class="project-workspace__muted" role="alert">
-            Project navigation could not load. <a [href]="navigationReloadUrl()">Reload page</a> to try again.
+            Project navigation could not load. <a class="link" [href]="navigationReloadUrl()">Reload page</a> to try again.
           </p>
         </div>
       }
@@ -92,7 +92,7 @@
       </app-project-header>
 
       @if (archiveRetryNeeded()) {
-        <button type="button" data-archive-open-retry class="project-workspace__retry" (click)="retryArchiveOpen()">
+        <button type="button" data-archive-open-retry class="button project-workspace__retry" (click)="retryArchiveOpen()">
           Retry opening Archive
         </button>
       }
@@ -103,11 +103,11 @@
         <p data-page-notice class="project-workspace__page-notice" role="status">
           <span>{{ notice }}</span>
           @if (noticeEnableKind() !== null) {
-            <button type="button" data-page-notice-enable (click)="enableNoticedPage()">
+            <button type="button" class="button button--sm button--primary" data-page-notice-enable (click)="enableNoticedPage()">
               Enable {{ noticePageLabel() }}
             </button>
           }
-          <button type="button" data-page-notice-dismiss (click)="dismissNotice()">Dismiss</button>
+          <button type="button" class="button button--sm button--ghost" data-page-notice-dismiss (click)="dismissNotice()">Dismiss</button>
         </p>
       }
 

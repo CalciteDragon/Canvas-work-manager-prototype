@@ -133,26 +133,6 @@
   background: var(--color-surface-sunken);
 }
 
-.project-canvas__empty button,
-.unknown-section button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-block-size: var(--size-hit-target);
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.project-canvas__empty button {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
 .unknown-section {
   display: grid;
   gap: var(--space-3);
@@ -169,18 +149,15 @@
   gap: var(--space-2);
 }
 
-.unknown-section header button {
+// At-rest visibility stays the canvas's until slice 5 (TH08).
+.unknown-section header .tool {
   opacity: var(--canvas-chrome-opacity, 1);
 }
 
-.unknown-section header button:first-child {
+.unknown-section__handle {
   cursor: grab;
   touch-action: none;
   user-select: none;
-}
-
-.unknown-section header button:last-child {
-  color: var(--color-danger);
 }
 
 .unknown-section h2 {

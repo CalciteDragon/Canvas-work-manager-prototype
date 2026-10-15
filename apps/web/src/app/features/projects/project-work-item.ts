@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectId } from '@cwm/contracts';
+import { Icon } from '../../shared/components/icon/icon';
 import type { WorkTreeNode } from './project-workspace-store';
 
 /**
@@ -11,7 +12,7 @@ import type { WorkTreeNode } from './project-workspace-store';
 @Component({
   selector: 'app-project-work-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, Icon],
   styleUrl: './project-work-item.scss',
   template: `
     <li [attr.data-work-project-id]="node().project.id">
@@ -23,7 +24,7 @@ import type { WorkTreeNode } from './project-workspace-store';
         <span class="icon" aria-hidden="true">{{ node().project.icon ?? '🧩' }}</span>
         <span class="name">{{ node().project.name }}</span>
         @if (node().project.completedAt) {
-          <span class="done" aria-label="Completed">✓</span>
+          <span class="done" role="img" aria-label="Completed"><app-icon name="check" /></span>
         }
       </a>
       @if (node().children.length > 0) {

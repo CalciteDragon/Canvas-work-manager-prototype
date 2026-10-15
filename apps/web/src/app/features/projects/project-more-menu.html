@@ -1,15 +1,16 @@
 <div data-project-more-menu class="more-menu">
   <form class="more-menu__row" data-project-rename-form (submit)="submitRename($event, renameName)">
-    <label for="project-rename">Name</label>
+    <label class="control-label" for="project-rename">Name</label>
     <input
       id="project-rename"
       #renameName
+      class="field"
       data-project-rename-input
       type="text"
       autocomplete="off"
       [value]="project().name"
     />
-    <button type="submit" data-project-rename-submit>Rename</button>
+    <button type="submit" class="button" data-project-rename-submit>Rename</button>
   </form>
 
   <form
@@ -17,23 +18,25 @@
     data-project-description-form
     (submit)="submitDescription($event, descriptionInput)"
   >
-    <label for="project-description">Description</label>
+    <label class="control-label" for="project-description">Description</label>
     <input
       id="project-description"
       #descriptionInput
+      class="field"
       data-project-description-input
       type="text"
       autocomplete="off"
       [value]="project().description ?? ''"
     />
-    <button type="submit" data-project-description-submit>Save</button>
+    <button type="submit" class="button" data-project-description-submit>Save</button>
   </form>
 
   <div class="more-menu__row" role="group" aria-label="Status">
-    <span class="more-menu__label">Status</span>
+    <span class="control-label">Status</span>
     @for (status of statuses; track status) {
       <button
         type="button"
+        class="button button--sm more-menu__status"
         data-project-status-option
         [attr.data-status]="status"
         [attr.aria-pressed]="project().status === status"
@@ -49,45 +52,49 @@
     data-project-target-date-form
     (submit)="submitTargetDate($event, targetDateInput)"
   >
-    <label for="project-target-date">{{ isWorkUnit() ? 'Due date' : 'Target date' }}</label>
+    <label class="control-label" for="project-target-date">{{ isWorkUnit() ? 'Due date' : 'Target date' }}</label>
     <input
       id="project-target-date"
       #targetDateInput
+      class="field"
       data-project-target-date-input
       type="date"
       [value]="project().targetDate ?? ''"
     />
-    <button type="submit" data-project-target-date-submit>Set</button>
-    <button type="button" data-project-target-date-clear (click)="targetDateRequested.emit(null)">
+    <button type="submit" class="button" data-project-target-date-submit>Set</button>
+    <button type="button" class="button button--ghost" data-project-target-date-clear (click)="targetDateRequested.emit(null)">
       Clear
     </button>
   </form>
 
   <div class="more-menu__row">
-    <button type="button" data-project-open-archive (click)="openArchiveRequested.emit()">
+    <button type="button" class="button button--ghost" data-project-open-archive (click)="openArchiveRequested.emit()">
       Open archive
     </button>
   </div>
 
   <!-- Not offered on a project that is already archived: that PATCH is a no-op, and it would
-       still earn the "is archived. Undo is available here." feedback (Slice 41). -->
+       still earn the "is archived. Undo is available here." feedback (Slice 41). Slice 72: the
+       destructive actions sit apart, below a separator, in the one danger treatment (W4-019). -->
   @if (project().status !== 'archived') {
-    <div class="more-menu__row">
-      <button type="button" data-project-archive class="more-menu__danger" (click)="confirming.set(true)">
-        {{ isWorkUnit() ? 'Archive workstream' : 'Archive project' }}
-      </button>
-    </div>
-  }
+    <div class="danger-zone" data-project-danger-zone>
+      <div class="more-menu__row">
+        <button type="button" data-project-archive class="button button--danger" (click)="confirming.set(true)">
+          {{ isWorkUnit() ? 'Archive workstream' : 'Archive project' }}
+        </button>
+      </div>
 
-  <!-- The one destructive control on the page. The page stays, and the header's Undo reverses
-       it (Slice 41). Cancelling writes nothing and navigates nowhere. -->
-  @if (confirming() && project().status !== 'archived') {
-    <div data-project-archive-confirm class="more-menu__confirm" role="group">
-      <p>Archive “{{ project().name }}”? It leaves the sidebar; you can undo it from the header.</p>
-      <button type="button" data-project-archive-confirm-yes (click)="archiveRequested.emit()">
-        Archive it
-      </button>
-      <button type="button" data-project-archive-cancel (click)="confirming.set(false)">Cancel</button>
+      <!-- The one destructive control on the page. The page stays, and the header's Undo reverses
+           it (Slice 41). Cancelling writes nothing and navigates nowhere. -->
+      @if (confirming()) {
+        <div data-project-archive-confirm class="more-menu__confirm" role="group">
+          <p>Archive “{{ project().name }}”? It leaves the sidebar; you can undo it from the header.</p>
+          <button type="button" class="button button--danger" data-project-archive-confirm-yes (click)="archiveRequested.emit()">
+            Archive it
+          </button>
+          <button type="button" class="button" data-project-archive-cancel (click)="confirming.set(false)">Cancel</button>
+        </div>
+      }
     </div>
   }
 </div>

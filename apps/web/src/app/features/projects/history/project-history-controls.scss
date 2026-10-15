@@ -16,28 +16,3 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-.history-controls__button,
-.history-controls__retry {
-  display: inline-grid;
-  place-items: center;
-  min-inline-size: var(--size-hit-target);
-  min-block-size: var(--size-hit-target);
-  padding: var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.history-controls__button[aria-disabled='true'] {
-  color: var(--color-text-muted);
-  cursor: var(--cursor-disabled);
-}
-
-.history-controls__button:focus-visible,
-.history-controls__retry:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}

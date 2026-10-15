@@ -13,7 +13,7 @@
   <dl class="project-header__facts">
     <div>
       <dt>Status</dt>
-      <dd data-project-status class="project-header__status">
+      <dd data-project-status class="pill project-header__status">
         {{ project().status.replace('_', ' ') }}
       </dd>
     </div>
@@ -60,12 +60,12 @@
     <button
       data-project-more
       type="button"
-      class="project-header__more"
+      class="icon-button"
       aria-label="More project actions"
       [attr.aria-expanded]="moreOpen()"
       (click)="toggleMore()"
     >
-      ⋯
+      <app-icon name="more" />
     </button>
   </div>
 

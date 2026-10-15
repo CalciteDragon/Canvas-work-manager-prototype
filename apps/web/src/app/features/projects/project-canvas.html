@@ -67,6 +67,7 @@
           <button
             data-empty-canvas-add
             type="button"
+            class="button button--primary"
             (click)="openCreate({ kind: 'end', beforeId: null, columnSpan: 12 })"
           >
             <app-icon name="plus" /> Add a section
@@ -141,6 +142,7 @@
                     data-unknown-section-drag-handle
                     cdkDragHandle
                     type="button"
+                    class="tool unknown-section__handle"
                     [attr.aria-disabled]="keyboardMovePending().has(placement.section.id) || !store.orderComplete()"
                     [attr.aria-label]="'Move unrecognised section ' + placement.section.type"
                     (keydown)="unknownMoveKeydown($event, placement.section.id)"
@@ -149,11 +151,12 @@
                   <button
                     data-unknown-section-remove
                     type="button"
+                    class="tool tool--danger"
                     [attr.aria-disabled]="store.removalPending()"
                     title="Remove section"
                     [attr.aria-label]="'Remove unrecognised section ' + placement.section.type"
                     (click)="removeSectionFromCanvas(placement.section.id)"
-                  ><app-icon name="remove" /></button>
+                  ><app-icon name="remove-section" /></button>
                 </header>
                 <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
               </section>

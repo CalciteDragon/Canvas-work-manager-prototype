@@ -27,32 +27,7 @@
   margin: 0;
 }
 
-label,
-.more-menu__label {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-input,
-button {
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
-button {
+// Status values are stored lowercase with underscores; the buttons read them capitalised.
+.more-menu__status {
   text-transform: capitalize;
-  cursor: pointer;
-}
-
-button[aria-pressed='true'] {
-  border-color: var(--color-accent);
-  background: var(--color-accent-surface);
-}
-
-.more-menu__danger {
-  color: var(--color-danger);
 }

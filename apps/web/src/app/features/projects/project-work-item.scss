@@ -4,6 +4,7 @@
 
 a {
   display: flex;
+  min-block-size: var(--size-target-min);
   gap: var(--space-2);
   align-items: center;
   padding: var(--space-1) var(--space-2);
@@ -20,6 +21,13 @@ a:focus-visible {
 a[aria-current='page'] {
   background: var(--color-surface-raised);
   color: var(--color-accent);
+}
+
+// Slice 72 (W2-005): on touch, every work row reaches the hit target.
+@media (hover: none), (any-pointer: coarse) {
+  a {
+    min-block-size: var(--size-hit-target);
+  }
 }
 
 .name {

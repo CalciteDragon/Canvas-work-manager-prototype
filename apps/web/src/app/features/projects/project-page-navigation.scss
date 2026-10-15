@@ -30,6 +30,7 @@
 
 .project-nav__root {
   flex: 1;
+  min-block-size: var(--size-target-min);
   min-inline-size: 0;
   display: flex;
   gap: var(--space-2);
@@ -127,37 +128,16 @@
   gap: var(--space-1);
 }
 
-.project-nav__icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.project-nav__root-row .icon-button,
+.project-nav__work-row .icon-button {
   flex-shrink: 0;
-  padding: var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
 }
 
-.project-nav__icon-button:hover {
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-}
-
-.project-nav__icon-button:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.project-nav__icon-button[aria-disabled='true'] {
-  opacity: var(--opacity-disabled);
-  cursor: var(--cursor-disabled);
-}
-
-@media (pointer: coarse) {
-  .project-nav__icon-button {
-    min-inline-size: var(--size-hit-target);
+// Slice 72 (W2-005): on touch, every navigation row reaches the hit target.
+@media (hover: none), (any-pointer: coarse) {
+  .project-nav__root,
+  .project-nav__pages a,
+  .project-nav__page-control {
     min-block-size: var(--size-hit-target);
   }
 }
@@ -208,16 +188,6 @@
   color: var(--color-danger);
 }
 
-.project-nav__manager-error button {
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
 .project-nav__heading {
   margin: 0 0 0 var(--space-2);
   color: var(--color-text-muted);
@@ -248,15 +218,9 @@ hr {
   }
 
   .project-nav__toggle {
-    display: block;
+    display: flex;
+    justify-content: flex-start;
     width: 100%;
-    padding: var(--space-2) var(--space-3);
-    border: 0;
-    background: none;
-    color: var(--color-text-muted);
-    font: inherit;
-    text-align: start;
-    cursor: pointer;
   }
 
   .project-nav {

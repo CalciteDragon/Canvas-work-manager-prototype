@@ -19,6 +19,7 @@
         <button
           data-retry-refresh
           type="button"
+          class="button button--sm"
           [attr.aria-disabled]="busy()"
           (click)="requestRetryRefresh()"
         >Retry refresh</button>
@@ -27,6 +28,7 @@
         <button
           data-open-archive
           type="button"
+          class="button button--sm"
           [attr.aria-disabled]="busy()"
           (click)="requestOpenArchive()"
         >Open Archive</button>
@@ -34,6 +36,7 @@
       <button
         data-dismiss-recovery-notice
         type="button"
+        class="button button--sm button--ghost"
         [attr.aria-disabled]="busy()"
         aria-label="Dismiss notice"
         (click)="requestDismissNotice()"
@@ -53,12 +56,14 @@
       <button
         data-retry-remove
         type="button"
+        class="button button--sm"
         [attr.aria-disabled]="busy()"
         (click)="requestRetryRemove()"
       >Retry remove</button>
       <button
         data-dismiss-removal-error
         type="button"
+        class="button button--sm button--ghost"
         [attr.aria-disabled]="busy()"
         (click)="requestDismissFailure()"
       >Dismiss</button>

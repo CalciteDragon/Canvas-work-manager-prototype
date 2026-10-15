@@ -2,7 +2,7 @@
   <button
     data-history-undo
     type="button"
-    class="history-controls__button"
+    class="icon-button"
     [attr.aria-label]="undo().name"
     [attr.title]="undo().name"
     [attr.aria-disabled]="undo().enabled ? null : 'true'"
@@ -13,7 +13,7 @@
   <button
     data-history-redo
     type="button"
-    class="history-controls__button"
+    class="icon-button"
     [attr.aria-label]="redo().name"
     [attr.title]="redo().name"
     [attr.aria-disabled]="redo().enabled ? null : 'true'"
@@ -22,7 +22,7 @@
     <app-icon name="redo" />
   </button>
   @if (retryAvailable()) {
-    <button data-history-retry type="button" class="history-controls__retry" (click)="retryRequested.emit()">
+    <button data-history-retry type="button" class="button" (click)="retryRequested.emit()">
       Retry
     </button>
   }

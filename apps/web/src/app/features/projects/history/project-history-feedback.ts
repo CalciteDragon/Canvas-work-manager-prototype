@@ -28,9 +28,9 @@ import type { HistoryFeedback } from './history-feedback';
         }
         <span class="history-feedback__actions">
           @if (feedback.link; as link) {
-            <a data-history-open [routerLink]="['/projects', link.projectId]">{{ link.label }}</a>
+            <a class="link" data-history-open [routerLink]="['/projects', link.projectId]">{{ link.label }}</a>
           }
-          <button data-history-dismiss type="button" (click)="dismissed.emit()">Dismiss</button>
+          <button data-history-dismiss type="button" class="button button--sm button--ghost" (click)="dismissed.emit()">Dismiss</button>
         </span>
       }
     </div>
@@ -65,21 +65,8 @@ import type { HistoryFeedback } from './history-feedback';
 
       .history-feedback__actions {
         display: inline-flex;
+        align-items: center;
         gap: var(--space-2);
-      }
-
-      button {
-        padding: 0;
-        border: 0;
-        background: none;
-        color: var(--color-accent);
-        font: inherit;
-        text-decoration: underline;
-        cursor: pointer;
-      }
-
-      a {
-        color: var(--color-accent);
       }
     `,
   ],

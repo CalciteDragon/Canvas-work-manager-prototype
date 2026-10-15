@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { isSubproject, type Project } from '@cwm/contracts';
+import { Icon } from '../../shared/components/icon/icon';
 import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
 
 /**
@@ -20,7 +21,7 @@ import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu
 @Component({
   selector: 'app-project-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectMoreMenu],
+  imports: [ProjectMoreMenu, Icon],
   templateUrl: './project-header.html',
   styleUrl: './project-header.scss',
   // The More menu closes on Escape from anywhere on the page, which is what a menu opened
