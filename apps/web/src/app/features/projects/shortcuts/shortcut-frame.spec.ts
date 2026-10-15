@@ -1,8 +1,10 @@
 import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ProjectSectionSchema, ResolvedSectionShortcutSchema } from '@cwm/contracts';
+import { ProjectSectionSchema, ResolvedSectionShortcutSchema, type ProjectId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { ShortcutFrame } from './shortcut-frame';
+import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
@@ -139,4 +141,25 @@ it('a shortcut to a Markdown section holding an extra key shows only the guidanc
   expect(query(fixture, '[data-markdown-unreadable]')).not.toBeNull();
   expect(query(fixture, '[data-markdown-edit]')).toBeNull();
   expect(query(fixture, 'app-markdown-source-editor')).toBeNull();
+});
+
+// Slice 72 (L5-004): untitled Progress shortcuts from different owners name their bars from the
+// frame's own name, so two bars on one canvas never share a name.
+it('gives two untitled Progress shortcuts from different owners distinct bar names', async () => {
+  const gateway = new FakeWorkManagerGateway({ progress: { projectId: 'project-a' as ProjectId, formula: 'count', percentage: 50, completed: 1, total: 2, explanation: 'half done' } });
+  TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+  const progressShortcut = (owner: string) => shortcut({
+    source: ProjectSectionSchema.parse({ id: `section-${owner}`, projectId: 'project-a', pageId: 'page-project-a-work', type: 'progress', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: AT, updatedAt: AT }),
+    sourceProjectName: owner,
+  });
+  const names: (string | null)[] = [];
+  for (const owner of ['Kitchen', 'Garden']) {
+    const fixture = render(progressShortcut(owner));
+    for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
+    await fixture.whenStable();
+    for (let index = 0; index < 5; index += 1) await Promise.resolve();
+    fixture.detectChanges();
+    names.push(query(fixture, '[role="progressbar"]')?.getAttribute('aria-label') ?? null);
+  }
+  expect(names).toEqual(['Progress (Kitchen)', 'Progress (Garden)']);
 });

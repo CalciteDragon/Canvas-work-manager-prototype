@@ -203,7 +203,10 @@ Successful Save and Cancel restore focus to Edit. Preview renders only the local
 **Accessible names and state (slice 72).** A Timeline row's button owns its expanded state:
 it carries `aria-expanded` and, while open, `aria-controls` pointing at its details, whose id
 takes a per-instance prefix so a section and its shortcut on one page never share an id. The
-`li` carries no state.
+`li` carries no state. A Progress bar is named from what its frame displays: each frame provides
+`SECTION_FRAME_NAME` (`nameOf` or `shortcutNameOf`) in its own `providers`, and outlet content
+inherits it. The bar appends "progress" unless the name already says it, never uses the frame's
+"Rename …" heading, and is described by its own summary through a per-instance id.
 
 ## Key symbols
 

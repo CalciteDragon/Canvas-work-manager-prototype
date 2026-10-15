@@ -1,7 +1,8 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgComponentOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { SECTION_FRAME_NAME } from '../sections/section-frame-name';
 import {
   shortcutNameOf,
   type ProjectPageKind,
@@ -21,6 +22,8 @@ import { moveDirectionFor } from '../canvas-chrome/move-keys';
   imports: [CdkDragHandle, NgComponentOutlet, RouterLink, Icon],
   templateUrl: './shortcut-frame.html',
   styleUrl: './shortcut-frame.scss',
+  // Content names itself from what this frame displays (slice 72, L5-004).
+  providers: [{ provide: SECTION_FRAME_NAME, useFactory: () => inject(ShortcutFrame).name }],
 })
 export class ShortcutFrame {
   readonly shortcut = input.required<ResolvedSectionShortcut>();

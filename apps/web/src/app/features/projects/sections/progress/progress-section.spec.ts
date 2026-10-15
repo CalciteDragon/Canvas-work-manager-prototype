@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ProjectSectionSchema } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -5,6 +6,7 @@ import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gate
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { ProgressSection } from './progress-section';
 import { ProgressStore } from './progress-store';
+import { SECTION_FRAME_NAME } from '../section-frame-name';
 
 const section = ProjectSectionSchema.parse({ id: 'section-progress', projectId: 'project-a', pageId: 'page-project-a', type: 'progress', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-30T07:00:00.000Z', updatedAt: '2026-08-30T07:00:00.000Z' });
 const settle = async () => { for (let index = 0; index < 5; index += 1) await Promise.resolve(); };
@@ -78,5 +80,54 @@ describe('ProgressSection live invalidation', () => {
     const before = gateway.calls.filter(({ method }) => method === 'projects.update').length;
     await fixture.componentInstance.choose('weighted');
     expect(gateway.calls.filter(({ method }) => method === 'projects.update')).toHaveLength(before);
+  });
+
+  // Slice 72 (L5-004, W1-022): the bar is named from what its frame displays, never from the
+  // frame's "Rename …" heading button, and is described by its own summary.
+  const renderNamed = async (value: typeof section, frameName?: string) => {
+    const gateway = new FakeWorkManagerGateway({ progress: { projectId: value.projectId, formula: 'count', percentage: 50, completed: 1, total: 2, explanation: 'half done' } });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        ...(frameName === undefined ? [] : [{ provide: SECTION_FRAME_NAME, useValue: signal(frameName) }]),
+      ],
+    });
+    const create = async () => {
+      const fixture = TestBed.createComponent(ProgressSection);
+      fixture.componentRef.setInput('section', value); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
+      fixture.detectChanges(); await fixture.whenStable(); await settle(); fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    };
+    return { create };
+  };
+  const bar = (element: HTMLElement) => element.querySelector<HTMLElement>('[role="progressbar"]')!;
+
+  it('names the bar from the frame name and describes it by its own summary', async () => {
+    const element = await (await renderNamed(section, 'Launch readiness')).create();
+
+    expect(bar(element).getAttribute('aria-label')).toBe('Launch readiness progress');
+    const summary = element.querySelector(`#${bar(element).getAttribute('aria-describedby')}`);
+    expect(summary?.textContent).toContain('half done');
+  });
+
+  it('falls back to the section name, and never doubles "progress" or reads "Rename"', async () => {
+    const untitled = await (await renderNamed(section)).create();
+    expect(bar(untitled).getAttribute('aria-label')).toBe('Progress');
+
+    const titled = await (await renderNamed(ProjectSectionSchema.parse({ ...section, title: 'Q3 goals' }))).create();
+    expect(bar(titled).getAttribute('aria-label')).toBe('Q3 goals progress');
+
+    const shortcut = await (await renderNamed(section, 'Progress (Kitchen)')).create();
+    expect(bar(shortcut).getAttribute('aria-label')).toBe('Progress (Kitchen)');
+    for (const element of [untitled, titled, shortcut]) expect(bar(element).getAttribute('aria-label')).not.toContain('Rename');
+  });
+
+  it('gives two bars over the same source distinct described-by targets', async () => {
+    const { create } = await renderNamed(section, 'Progress');
+    const [first, second] = [await create(), await create()];
+
+    expect(bar(first).getAttribute('aria-describedby')).toBeTruthy();
+    expect(bar(first).getAttribute('aria-describedby')).not.toBe(bar(second).getAttribute('aria-describedby'));
   });
 });

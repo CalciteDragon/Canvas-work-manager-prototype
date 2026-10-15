@@ -14,6 +14,7 @@ import {
   signal,
 } from '@angular/core';
 import { nameOf, type ProjectSection, type SectionConfig, type SectionId } from '@cwm/contracts';
+import { SECTION_FRAME_NAME } from '../section-frame-name';
 import type { SectionContentInputs } from '../section-contract';
 import type { SectionDefinition } from '../registry';
 import { Icon } from '../../../../shared/components/icon/icon';
@@ -29,6 +30,8 @@ import { moveDirectionFor } from '../../canvas-chrome/move-keys';
   imports: [CdkDragHandle, NgComponentOutlet, Icon],
   templateUrl: './project-section-frame.html',
   styleUrl: './project-section-frame.scss',
+  // Content names itself from what this frame displays (slice 72, L5-004).
+  providers: [{ provide: SECTION_FRAME_NAME, useFactory: () => inject(ProjectSectionFrame).name }],
 })
 export class ProjectSectionFrame {
   readonly section = input.required<ProjectSection>();

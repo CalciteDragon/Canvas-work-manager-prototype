@@ -486,6 +486,13 @@ Ports 4201 (web) and 4321 (host) only; kill the web and host children if a run i
   - `button-name`: 0.
   - `color-contrast`: 142 nodes in 28 cells.
 
+**Stage C deviations (2026-10-15).**
+
+- **C3, the bar name.** Acceptance's "{frame name} progress" would read "Progress progress" for an
+  untitled section. So "progress" is appended only when the name does not already contain the
+  word. An untitled section reads "Progress". Untitled shortcuts read "Progress (Kitchen)" and
+  "Progress (Garden)". A titled section reads "Q3 goals progress".
+
 **Stage A record (2026-10-14).**
 
 - **Bundle.** With the primitives in place and nothing adopted, the initial total is
