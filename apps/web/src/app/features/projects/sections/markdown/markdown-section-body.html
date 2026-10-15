@@ -14,7 +14,7 @@
   } @else if (content().state !== 'unreadable') {
     <app-markdown-renderer [source]="source()" />
     @if (canEdit()) {
-      <button data-markdown-edit type="button" [attr.aria-label]="'Edit Markdown for ' + name()" (click)="edit()">Edit</button>
+      <button data-markdown-edit type="button" class="button button--ghost" [attr.aria-label]="'Edit Markdown for ' + name()" (click)="edit()">Edit</button>
     }
   }
 </div>

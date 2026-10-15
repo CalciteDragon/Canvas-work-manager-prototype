@@ -17,7 +17,7 @@
   @if (!readOnly()) {
     <input
       data-task-complete
-      class="task-row__checkbox"
+      class="checkbox task-row__checkbox"
       type="checkbox"
       [checked]="completed()"
       [attr.aria-disabled]="pending()"
@@ -56,7 +56,7 @@
   @if (!readOnly()) {
     <button
       data-task-delete
-      class="task-row__delete"
+      class="tool task-row__delete"
       type="button"
       [disabled]="archiving()"
       [attr.aria-label]="'Delete task ' + task().title"

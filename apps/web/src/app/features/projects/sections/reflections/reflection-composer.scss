@@ -19,11 +19,8 @@
   font-size: var(--font-size-sm);
 }
 
-.reflection-composer__subject button {
-  border: 0;
-  background: transparent;
-  color: var(--color-accent);
-  cursor: pointer;
+.reflection-composer > .button {
+  justify-self: start;
 }
 
 .reflection-composer__error {

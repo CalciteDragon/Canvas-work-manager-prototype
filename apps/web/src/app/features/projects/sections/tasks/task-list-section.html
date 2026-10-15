@@ -1,11 +1,11 @@
 <div class="task-list-section">
   @if (!readOnly()) {
     <form data-quick-create class="quick-create" (submit)="quickCreate($any($event), quickTitle)">
-      <label class="quick-create__title">
+      <label class="control-label quick-create__title">
         <span>Task title</span>
-        <input data-quick-task-title #quickTitle type="text" placeholder="Add a task" />
+        <input class="field" data-quick-task-title #quickTitle type="text" placeholder="Add a task" />
       </label>
-      <button type="submit">Add task</button>
+      <button type="submit" class="button button--primary">Add task</button>
     </form>
   }
 

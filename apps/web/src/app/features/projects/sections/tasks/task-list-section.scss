@@ -20,31 +20,6 @@
   gap: var(--space-3);
 }
 
-.quick-create label {
-  display: grid;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.quick-create input,
-.quick-create button {
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font: inherit;
-}
-
-.quick-create input {
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.quick-create button {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  cursor: pointer;
-}
 
 .task-list-section__error {
   margin: 0;

@@ -47,11 +47,6 @@
   display: none;
 }
 
-.task-row__checkbox {
-  margin: var(--space-1) 0 0;
-  accent-color: var(--color-accent);
-}
-
 .task-row__body {
   min-width: 0;
 }
@@ -94,23 +89,6 @@ button.task-row__title {
   color: var(--color-danger);
 }
 
-.task-row__delete {
-  display: grid;
-  place-items: center;
-  min-inline-size: var(--size-hit-target);
-  min-block-size: var(--size-hit-target);
-  border: 0;
-  padding: var(--space-1);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-
-.task-row__delete:disabled,
-.task-row__checkbox[aria-disabled='true'] {
-  cursor: var(--cursor-disabled);
-  opacity: var(--opacity-disabled);
-}
 
 /* The row stays legible while the write is in flight — it has not gone anywhere yet. */
 .task-row--archiving {
@@ -124,7 +102,6 @@ button.task-row__title {
 }
 
 @media (pointer: coarse) {
-  .task-row__checkbox,
   button.task-row__title {
     min-inline-size: var(--size-hit-target);
     min-block-size: var(--size-hit-target);

@@ -9,7 +9,7 @@
     <button
       data-shortcut-drag-handle
       cdkDragHandle
-      class="shortcut-frame__handle"
+      class="tool shortcut-frame__handle"
       type="button"
       [attr.aria-label]="'Move shortcut to ' + name()"
       [attr.aria-disabled]="movePending() || !moveAllowed()"
@@ -20,7 +20,7 @@
 
     <button
       data-shortcut-collapse
-      class="shortcut-frame__collapse"
+      class="tool shortcut-frame__collapse"
       type="button"
       [attr.aria-expanded]="!shortcut().collapsed"
       [attr.aria-label]="(shortcut().collapsed ? 'Expand ' : 'Collapse ') + name()"
@@ -33,7 +33,7 @@
 
     <div class="shortcut-frame__heading">
       <h2 [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
-        <span class="shortcut-frame__icon" aria-hidden="true">↗</span>
+        <span class="shortcut-frame__icon"><app-icon name="open" /></span>
         {{ name() }}
       </h2>
       <p data-shortcut-source class="shortcut-frame__source">
@@ -44,13 +44,13 @@
     <div class="shortcut-frame__controls">
       <button
         data-shortcut-remove
-        class="shortcut-frame__remove"
+        class="tool"
         type="button"
         title="Remove shortcut"
         [attr.aria-label]="'Remove shortcut to ' + name()"
         (click)="removeRequested.emit(shortcut().id)"
       >
-        <app-icon name="remove" />
+        <app-icon name="unlink" />
       </button>
     </div>
   </header>
@@ -79,6 +79,6 @@
   }
 
   <footer class="shortcut-frame__footer">
-    <a data-shortcut-open-source [routerLink]="sourceRoute()">Open source</a>
+    <a class="link" data-shortcut-open-source [routerLink]="sourceRoute()">Open source</a>
   </footer>
 </section>

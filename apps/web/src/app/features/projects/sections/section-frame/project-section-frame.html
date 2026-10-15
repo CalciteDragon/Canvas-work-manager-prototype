@@ -10,7 +10,7 @@
     <button
       data-section-drag-handle
       cdkDragHandle
-      class="section-frame__handle"
+      class="tool section-frame__handle"
       type="button"
       [attr.aria-label]="'Move ' + name()"
       [attr.aria-disabled]="movePending() || !moveAllowed()"
@@ -21,7 +21,7 @@
 
     <button
       data-section-collapse
-      class="section-frame__collapse"
+      class="tool section-frame__collapse"
       type="button"
       [attr.aria-expanded]="!effectiveCollapsed()"
       [attr.aria-label]="(effectiveCollapsed() ? 'Expand ' : 'Collapse ') + name()"
@@ -41,6 +41,7 @@
     >
       @if (editingName()) {
         <input
+          class="field"
           data-section-name
           type="text"
           autocomplete="off"
@@ -72,6 +73,7 @@
         <button
           data-section-config
           type="button"
+          class="tool"
           [attr.aria-expanded]="configOpen()"
           title="Section settings"
           [attr.aria-label]="'Settings for ' + name()"
@@ -82,14 +84,14 @@
       }
       <button
         data-section-remove
-        class="section-frame__remove"
+        class="tool tool--danger"
         type="button"
         [attr.aria-disabled]="removalPending()"
         title="Remove section"
         [attr.aria-label]="'Remove section ' + name()"
         (click)="requestRemoval()"
       >
-        <app-icon name="remove" />
+        <app-icon name="remove-section" />
       </button>
     </div>
   </header>

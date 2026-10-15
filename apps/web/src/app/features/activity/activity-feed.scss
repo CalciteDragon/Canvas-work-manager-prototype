@@ -20,30 +20,9 @@
   background: var(--color-surface-sunken);
 }
 
+// Slice 72: the badge is the shared pill; one tone per actor, with its mark and word.
 .activity__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-.activity__row[data-actor='user'] .activity__badge {
-  background: var(--color-accent-surface);
-  color: var(--color-accent);
-}
-
-.activity__row[data-actor='agent'] .activity__badge {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
-.activity__row[data-actor='system'] .activity__badge {
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
+  justify-self: start;
 }
 
 .activity__body {

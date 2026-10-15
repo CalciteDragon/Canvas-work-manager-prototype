@@ -2,7 +2,7 @@
   @if (preview()) {
     <app-markdown-renderer [source]="draft()" />
   } @else {
-    <textarea #source data-markdown-source rows="10" [value]="draft()" [readOnly]="pending()"
+    <textarea #source data-markdown-source class="field markdown-source-editor__source" rows="10" [value]="draft()" [readOnly]="pending()"
       [attr.aria-label]="'Markdown source for ' + name()" (input)="setDraft($event)"></textarea>
   }
   @if (changedElsewhere()) {
@@ -14,10 +14,10 @@
     <p data-markdown-failed class="markdown-source-editor__note">Not saved — your draft is kept.</p>
   }
   <div class="markdown-source-editor__actions">
-    <button data-markdown-preview type="button" [attr.aria-pressed]="preview()"
+    <button data-markdown-preview type="button" class="button button--ghost" [attr.aria-pressed]="preview()"
       [attr.aria-disabled]="pending()" (click)="togglePreview()">Preview</button>
-    <button data-markdown-save type="button" [attr.aria-disabled]="pending() || saveBlocked()"
+    <button data-markdown-save type="button" class="button button--primary" [attr.aria-disabled]="pending() || saveBlocked()"
       (click)="requestSave()">{{ pending() ? 'Saving…' : 'Save' }}</button>
-    <button data-markdown-cancel type="button" [attr.aria-disabled]="pending()" (click)="requestCancel()">Cancel</button>
+    <button data-markdown-cancel type="button" class="button" [attr.aria-disabled]="pending()" (click)="requestCancel()">Cancel</button>
   </div>
 </div>
