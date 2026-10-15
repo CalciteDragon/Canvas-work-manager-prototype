@@ -328,13 +328,13 @@ command, with a baseline sanity gate and explicit emulation limits.
 
 `pnpm --filter @cwm/e2e ux:capture` runs the selected matrix and ten scripted core-task
 paths outside `pnpm test` and `pnpm e2e`. It reuses the e2e server definitions and
-ownership-guarded `prepare-data.ts`, with scratch servers at 4201/4311. Browser routing
+ownership-guarded `prepare-data.ts`, with a static production web build at 4201 and a scratch host at 4321. Build with `pnpm --filter web build` first. Browser routing
 preserves the app's original origin for CORS while forwarding every request to those
 servers; it never reuses the developer's host. `seed.ts` accepts `CWM_E2E_HOST` only for
 this test process; normal e2e retains 4310.
 
 Outputs live in git-ignored `apps/e2e/ux-output/<HEAD>/`: index/contact sheet, PNGs, axe
-JSON, console errors, ARIA snapshots and layout measurements. The index discloses the
+JSON, console errors, ARIA snapshots and layout measurements. Plane-container boxes carry selector/index keys alongside controls and scroll regions, so paint-only slices can compare geometry. The index discloses the
 working-tree capture and coverage gaps. `SEED_NOW` fixes host/browser time; animation is
 disabled. A held loading read is explicitly exempt from network-idle waiting. Partial
 artifact failures remain incomplete and fail the capture assertion. Task completion and

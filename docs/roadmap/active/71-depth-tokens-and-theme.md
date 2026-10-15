@@ -514,3 +514,5 @@ active and no findings are claimed closed yet.
 - Run `pnpm lint` (with `docs:check`) after `pnpm test`, never at the same time.
 - Do not link files that do not exist yet. `docs:check` fails on a link to a future file, as it
   did on `blur-spike.json` in this plan.
+
+**Continuation, 2026-10-14 — capture foundation.** Added a browser-serializable plane-box collector with selector/index keys (top bar, sidebar, project navigation/header, section, shortcut, widget). Its fixture failed with an empty collector, then all three harness tests passed. The capture rig now serves the production build statically on 4201 with its scratch host on 4321, and a first subset capture can create its own index. Additional files: `apps/e2e/ux/layout.mjs`, `apps/e2e/ux-capture.config.ts`. Theme and baseline capture precede product paint.

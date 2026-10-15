@@ -10,6 +10,8 @@ import { seed, setClock, setLayout } from '../seed';
 import { MATRIX, SEED_NOW, COVERAGE_GAPS, type CaptureCell } from './matrix';
 // @ts-expect-error Small JS helper is also exercised directly by node:test.
 import { collectEvidence } from './evidence.mjs';
+// @ts-expect-error Browser-serializable helper is also exercised by node:test.
+import { collectPlaneBoxes } from './layout.mjs';
 
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const out = resolve('ux-output', commit);
@@ -49,7 +51,7 @@ test('capture matrix', async ({ browser }) => {
   await mkdir(out, { recursive: true });
   validateMatrix();
   await writeFile(resolve(out,'coverage.json'),JSON.stringify(await inventoryCoverage(),null,2));
-  const index: Record<string, unknown>[] = process.env['UX_MATCH'] ? JSON.parse(await readFile(resolve(out,'index.json'),'utf8')).cells : [];
+  const index: Record<string, unknown>[] = process.env['UX_MATCH'] ? await readFile(resolve(out,'index.json'),'utf8').then(s => JSON.parse(s).cells).catch(error => { if (error.code === 'ENOENT') return []; throw error; }) : [];
   const selected = process.env['UX_SMOKE'] ? MATRIX.filter(c => ['empty-dashboard-dark-1440','nested-projects-project-light-375','kitchen-task-drawer-dark-1440'].includes(c.id)) : MATRIX.filter(c => !process.env['UX_MATCH'] || new RegExp(process.env['UX_MATCH']).test(c.id));
   for (const cell of selected) {
     await seed(cell.seed); await setClock(SEED_NOW);
@@ -100,11 +102,11 @@ test('capture matrix', async ({ browser }) => {
             await region.evaluate(e=>{e.scrollTop=0;});
           } return files;
         },
-        layout: async () => { const file = `${cell.id}.layout.json`; const metrics = await page.evaluate(() => ({
+        layout: async () => { const file = `${cell.id}.layout.json`; const planes = await page.evaluate(collectPlaneBoxes); const metrics = await page.evaluate(() => ({
           viewport: innerWidth, document: document.documentElement.scrollWidth,
           scrollRegions: [...document.querySelectorAll('main.workspace,.project-workspace__main,[data-task-drawer]')].map(e => ({ tag: e.tagName, class: e.className, width: e.clientWidth, scrollWidth: e.scrollWidth, height: e.clientHeight, scrollHeight: e.scrollHeight })),
           controls: [...document.querySelectorAll('button,input,select,a')].map(e => { const r=e.getBoundingClientRect(); const s=getComputedStyle(e); return { text: e.getAttribute('aria-label') || e.textContent?.trim().slice(0,80), width:r.width,height:r.height,x:r.x,y:r.y,color:s.color,background:s.backgroundColor,fontSize:s.fontSize }; }).filter(e => e.width > 0 && e.height > 0),
-        })); await writeFile(resolve(out,file), JSON.stringify(metrics,null,2)); return file; },
+        })); await writeFile(resolve(out,file), JSON.stringify({ ...metrics, planes },null,2)); return file; },
       }));
     } catch (error) { record['error'] = String(error); }
     finally {

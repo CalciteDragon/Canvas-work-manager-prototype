@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { collectEvidence } from './evidence.mjs';
+import { JSDOM } from 'jsdom';
+import { collectPlaneBoxes } from './layout.mjs';
+
+test('layout evidence records plane containers keyed by selector and index', () => {
+  const { document } = new JSDOM('<app-top-bar></app-top-bar><app-project-section-frame></app-project-section-frame><app-project-section-frame></app-project-section-frame>').window;
+  for (const element of document.querySelectorAll('*')) element.getBoundingClientRect = () => ({ x: 12, y: 24, width: 320, height: 80 });
+  assert.deepEqual(collectPlaneBoxes(document), [
+    { selector: 'app-top-bar', index: 0, x: 12, y: 24, width: 320, height: 80 },
+    { selector: 'app-project-section-frame', index: 0, x: 12, y: 24, width: 320, height: 80 },
+    { selector: 'app-project-section-frame', index: 1, x: 12, y: 24, width: 320, height: 80 },
+  ]);
+});
 
 test('partial evidence failures stay incomplete with artifact-specific reasons', async () => {
   const result = await collectEvidence({
