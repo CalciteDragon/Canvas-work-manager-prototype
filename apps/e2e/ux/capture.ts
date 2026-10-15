@@ -11,7 +11,7 @@ import { MATRIX, SEED_NOW, COVERAGE_GAPS, type CaptureCell } from './matrix';
 // @ts-expect-error Small JS helper is also exercised directly by node:test.
 import { collectEvidence } from './evidence.mjs';
 // @ts-expect-error Browser-serializable helper is also exercised by node:test.
-import { collectPlaneBoxes } from './layout.mjs';
+import { collectControls, collectPlaneBoxes } from './layout.mjs';
 
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const out = resolve('ux-output', commit);
@@ -85,7 +85,7 @@ test('capture matrix', async ({ browser }) => {
       } else { await state(page, cell); await page.waitForLoadState('networkidle'); }
       Object.assign(record, await collectEvidence({
         screenshot: async () => { const file = `${cell.id}.png`; await page.screenshot({ path: resolve(out,file), fullPage: true, animations: 'disabled' }); return file; },
-        axe: async () => { const file = `${cell.id}.axe.json`; const scan = await new AxeBuilder({ page }).analyze(); await writeFile(resolve(out,file), JSON.stringify(scan,null,2)); return file; },
+        axe: async () => { const file = `${cell.id}.axe.json`; const scan = await new AxeBuilder({ page }).options({ rules: { 'target-size': { enabled: true } } }).analyze(); await writeFile(resolve(out,file), JSON.stringify(scan,null,2)); return file; },
         tree: async () => { const file = `${cell.id}.aria.yml`; await writeFile(resolve(out,file), await page.locator('body').ariaSnapshot()); return file; },
         console: async () => { const file = `${cell.id}.console.json`; await writeFile(resolve(out,file), JSON.stringify(consoleErrors,null,2)); return file; },
         scrolls: async () => {
@@ -105,8 +105,7 @@ test('capture matrix', async ({ browser }) => {
         layout: async () => { const file = `${cell.id}.layout.json`; const planes = await page.evaluate(collectPlaneBoxes); const metrics = await page.evaluate(() => ({
           viewport: innerWidth, document: document.documentElement.scrollWidth,
           scrollRegions: [...document.querySelectorAll('main.workspace,.project-workspace__main,[data-task-drawer]')].map(e => ({ tag: e.tagName, class: e.className, width: e.clientWidth, scrollWidth: e.scrollWidth, height: e.clientHeight, scrollHeight: e.scrollHeight })),
-          controls: [...document.querySelectorAll('button,input,select,a')].map(e => { const r=e.getBoundingClientRect(); const s=getComputedStyle(e); return { text: e.getAttribute('aria-label') || e.textContent?.trim().slice(0,80), width:r.width,height:r.height,x:r.x,y:r.y,color:s.color,background:s.backgroundColor,fontSize:s.fontSize }; }).filter(e => e.width > 0 && e.height > 0),
-        })); await writeFile(resolve(out,file), JSON.stringify({ ...metrics, planes },null,2)); return file; },
+        })); const controls = await page.evaluate(collectControls); await writeFile(resolve(out,file), JSON.stringify({ ...metrics, controls, planes },null,2)); return file; },
       }));
     } catch (error) { record['error'] = String(error); }
     finally {

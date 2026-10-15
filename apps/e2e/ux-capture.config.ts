@@ -10,7 +10,7 @@ const original = Array.isArray(existing.webServer) ? existing.webServer : [];
 /** Opt-in visual evidence, deliberately excluded from the ordinary e2e suite. */
 export default defineConfig({
   ...existing,
-  testDir: './ux', testIgnore: [], testMatch: ['capture.ts', 'depth-verification.ts'], timeout: 1_800_000,
+  testDir: './ux', testIgnore: [], testMatch: ['capture.ts', 'depth-verification.ts', 'primitives-verification.ts'], timeout: 1_800_000,
   use: { ...existing.use, baseURL: 'http://localhost:4201', viewport: { width: 1440, height: 900 } },
   webServer: [
     { ...original[0]!, command: 'pnpm --filter @cwm/prototype-host start', url: 'http://127.0.0.1:4321/prototype/state', env: { ...original[0]!.env, CWM_HOST_PORT: '4321', CWM_DATA_FILE: fileURLToPath(new URL('../../.prototype/ux-data.json', import.meta.url)) } },
