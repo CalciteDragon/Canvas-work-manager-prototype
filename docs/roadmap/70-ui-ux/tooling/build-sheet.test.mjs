@@ -22,7 +22,7 @@ async function fixture(t) {
     await writeFile(join(dirs[phase], 'shot.png'), 'copy-only image fixture');
   }
   const tokens = Object.fromEntries(['pane', 'sheet', 'lift'].flatMap(plane => [[`--plane-${plane}-tint`, '#101010'], [`--plane-${plane}-solid`, '#101010'], [`--plane-${plane}-alpha`, '50%']]));
-  Object.assign(tokens, { '--plane-ground-solid': '#000000', '--color-text': '#ffffff', '--color-text-muted': '#aaaaaa', '--color-accent': '#ffaa88', '--color-accent-contrast': '#000000', '--focus-ring-color': '#ffaa88' });
+  Object.assign(tokens, { '--plane-ground-solid': '#000000', '--color-text': '#ffffff', '--color-text-muted': '#aaaaaa', '--color-accent': '#ffaa88', '--color-accent-contrast': '#000000', '--focus-ring-color': '#ffaa88', '--art-warm': 'rgb(0 0 0 / 50%)', '--art-cool': 'rgb(16 16 16 / 50%)', '--art-teal': 'rgb(8 8 8 / 40%)', '--ground-art-strength': '100%' });
   await json(1, 'depth-verification.json', { tokens: { dark: tokens, light: tokens }, focus: [{ theme: 'dark', rings: [{ target: 'More', outline: '2px solid', screenshot: 'focus.png' }] }], fallbacks: [{ theme: 'dark', mode: 'forced-colors', screenshot: 'fallback.png' }], deviceTheme: { screenshot: 'device.png' }, lab: { screenshot: 'lab.png' } });
   for (const file of ['focus.png', 'fallback.png', 'device.png', 'lab.png']) await writeFile(join(dirs[1], file), 'copy-only verification image');
   return { cell, layout, json, dirs, run: () => spawnSync(process.execPath, [builder, ...dirs], { encoding: 'utf8' }) };
@@ -107,4 +107,26 @@ test('reports one uniform shift of the original Lab knobs as the shortened hint'
 test('fails when the original Lab knobs move unevenly', async t => {
   const f = await labKnobs(t, [-19.5, -19.5, -19.5, -40, -19.5, -19.5, -19.5]);
   assert.equal(f.run().status, 1);
+});
+const withoutArt = tokens => Object.fromEntries(Object.entries(tokens).filter(([key]) => !key.startsWith('--art-') && key !== '--ground-art-strength'));
+async function composites(t, tokens) {
+  const f = await fixture(t);
+  const verification = JSON.parse(await readFile(join(f.dirs[1], 'depth-verification.json'), 'utf8'));
+  verification.tokens = { dark: tokens(verification.tokens.dark), light: tokens(verification.tokens.light) };
+  await f.json(1, 'depth-verification.json', verification);
+  const result = f.run();
+  return { result, report: JSON.parse(await readFile(join(f.dirs[2], 'report.json'), 'utf8')) };
+}
+test('measures panes and sheets over the ground and its art, and lifts over busy content too', async t => {
+  const { result, report } = await composites(t, tokens => tokens);
+  assert.equal(result.status, 0, result.stderr);
+  const rows = Object.fromEntries(report.composites[0].rows.map(row => [row.plane, row]));
+  assert.ok(rows.pane.muted > 4.5, `pane muted ${rows.pane.muted}`);
+  assert.ok(rows.sheet.muted > 4.5, `sheet muted ${rows.sheet.muted}`);
+  assert.ok(rows.lift.muted < 2, `lift keeps the text-coloured backing: ${rows.lift.muted}`);
+});
+test('fails rather than guessing when the ground-art tokens are missing', async t => {
+  const { result, report } = await composites(t, withoutArt);
+  assert.equal(result.status, 1);
+  assert.match(JSON.stringify(report.geometryFailures), /ground-art tokens/);
 });

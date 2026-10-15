@@ -12,7 +12,7 @@ const out = resolve('ux-output', commit);
 const planeSelector = '.top-bar,.sidebar,app-project-page-navigation,.project-header,.section-frame,.shortcut-frame,app-dashboard-widget-frame';
 const tokenNames = [
   '--plane-ground-solid', '--color-text', '--color-text-muted', '--color-accent',
-  '--color-accent-contrast', '--focus-ring-color',
+  '--color-accent-contrast', '--focus-ring-color', '--art-warm', '--art-cool', '--art-teal', '--ground-art-strength',
   ...['pane', 'sheet', 'lift'].flatMap(plane => ['tint', 'alpha', 'solid'].map(part => '--plane-' + plane + '-' + part)),
 ];
 
