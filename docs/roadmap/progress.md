@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 72 | Slice 72 — Primitives | Shared control primitives (buttons, icon button, field, select, checkbox, pill, tool, link) with one action hierarchy, adopted across product surfaces (TH04, TH05) | [72-primitives.md](active/72-primitives.md) |
 
 ### Planned
 
