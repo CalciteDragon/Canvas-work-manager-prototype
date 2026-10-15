@@ -832,3 +832,24 @@ checkpoint. The 28 breadcrumb cells were recaptured after the class was added. T
     a 44 px target at every width. The history controls now size the shared icon button to
     the hit target.
   Both specs pass again (29 tests). A final after capture and the full e2e follow.
+
+**Gate 2 checkpoint (2026-10-15), awaiting the user's acceptance.**
+
+- **Final evidence.** The capture is at `5c3c070`, with the Archive cells recaptured at
+  `997edfc`'s tree. The sheet profile 72 exits 0: 182 pairs and 0 gate failures.
+  - The full sheet is in `apps/e2e/ux-output/sheet-72/` (git-ignored).
+  - The curated Gate 2 page is published privately at
+    https://claude.ai/artifact/Nm8tziSLReortbTaTDYSby.
+- **Checks.**
+  - `pnpm test`: all green, prototype-host 291 included. The stdio flake did not recur.
+  - `pnpm lint` and `storybook:build` pass.
+  - Full `pnpm e2e`: **116 of 116**, after the two fixes above. The Archive identity fix was
+    then re-verified on `phone-layout.spec` and `archive.spec` (24 passed).
+  - Bundle: 1040.09 kB.
+- **Real use.** Done through the isolated walk rig: busy-week and nested-projects at 1440
+  dark, and 375 touch light, on host 4330 with a scratch data file.
+  - It found and fixed one defect: the Archive identity squeezed to a sliver on a phone.
+  - It recorded five friction notes: `note-2026-10-15-001` to `005`.
+  - Agent-heavy was seen only through the captures, not used by hand.
+- **Not done.** The Outcome section and `roadmap.mjs complete` wait for the user's Gate 2
+  answer.

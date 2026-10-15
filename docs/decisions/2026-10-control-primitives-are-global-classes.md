@@ -41,3 +41,21 @@ slice 72 closes, and this entry is then amended with the numbers.
 
 The MVP needs compile-time variant checking, or a primitive needs behaviour that a class cannot
 carry (a menu or listbox, slice 3).
+
+**Amendment (2026-10-15, slice 72 measured).**
+
+- **Bundle.** The initial total was 1030.09 kB before the slice and 1047.37 kB with the
+  primitives built but unused. That covered about 8 kB of control classes, 2.5 kB of tokens and
+  5 kB of icon marks. After adoption it is **1040.09 kB**: deleting the component control paint
+  paid back 7.3 kB.
+- **Specificity.** Encapsulated component rules outranked the global classes, as predicted, so
+  adoption deleted control paint instead of overriding it.
+  - The element-selector grep went from 77 lines in 26 files to 6, all listed exceptions.
+  - A class-paint scan found 10 remaining rules, all owned by later slices or listed.
+  - The one ordering trap was inside the primitives file itself: a touch rule placed before the
+    base rule at equal specificity. A diff review caught it.
+- **Behaviour.** No e2e test changed on purpose, apart from the planned §77 locators. Every
+  native behaviour held. The full e2e passed 116 of 116 after two layout defects it found were
+  fixed.
+
+Confidence is now high for this prototype.
