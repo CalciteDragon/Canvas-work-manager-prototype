@@ -311,7 +311,12 @@ The one consequence is a §77 edit to a unit test that reads `textContent`. See 
     heading role and name are slice 5's L6-009;
   - the task row's title button, `.task-row__title` ("…, open details"), which is row shape
     (slice 6, TH09, L3-015);
-  - dashboard widget row title links, `.widget-row__title` (slice 6 owns rows).
+  - dashboard widget row title links, `.widget-row__title` (slice 6 owns rows);
+  - **added after the after census (2026-10-15):** the project navigation's breadcrumb links,
+    `.project-nav__breadcrumb` (17 px tall; breadcrumbs are slice 7's). They were already in
+    the "before" census, but the step 0.2 tally grouped controls by tag and class only, which
+    merged these unclassed links into the "Open source" row. The links gained the class, with
+    no paint, so the exception can match.
 
   Everything else the census flags is closed by this slice: the task-row and Todos checkboxes,
   New project, every unclassed `input`, `select` and `textarea`, Add task, the project-navigation
@@ -795,3 +800,24 @@ has not yet said to start implementing, so part A waits for that word.
       `core/how.md` and `web/overview.md`, with the New project focus.
     - The More danger zone, the actors' pills and marks, and the Appearance radios are now in
       the `what.md` files.
+
+**After capture and sheet (2026-10-15).** `UX_PRIMITIVES=1 UX_DEPTH=1 … ux:capture` at `c6a19da`
+captured all 182 cells, the core tasks, Depth verification, forced colours and the Lab
+checkpoint. The 28 breadcrumb cells were recaptured after the class was added. Then
+`build-sheet.mjs d9ea46b… c6a19da… <out> --profile 72` exited 0.
+
+- **Sheet result.** 182 pairs and 0 gate failures.
+  - 856 listed exception instances: insertion points 466, section title buttons 166, task-row
+    titles 128, widget row links 68, breadcrumbs 28.
+  - 70 cells with intended control renames, and 386 cell families with reported geometry
+    movement.
+- **Axe, all cells, before → after.**
+  - `select-name`: 68 → **0**.
+  - `aria-progressbar-name`: 56 → **0**.
+  - `button-name`: 0 → 0.
+  - `target-size`: 0 → 0.
+  - `color-contrast` violations: 142 (dark) → **0**.
+  - Incomplete contrast assessments: 2,648 → 3,253 per theme. These are translucent
+    backgrounds axe cannot decide, and there are more controls now.
+- **Bundle.** The initial total is **1039.95 kB**, down from 1047.37 after part A and
+  1030.09 before the slice. That is 10.05 kB under the ceiling.

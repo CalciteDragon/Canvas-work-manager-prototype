@@ -41,7 +41,7 @@
       <ol>
         @for (ancestor of breadcrumbs(); track ancestor.id) {
           <li>
-            <a data-project-breadcrumb [routerLink]="['/projects', ancestor.id]">{{ ancestor.name }}</a>
+            <a class="project-nav__breadcrumb" data-project-breadcrumb [routerLink]="['/projects', ancestor.id]">{{ ancestor.name }}</a>
           </li>
         }
       </ol>
