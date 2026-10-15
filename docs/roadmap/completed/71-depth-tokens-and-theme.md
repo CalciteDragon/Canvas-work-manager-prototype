@@ -1,4 +1,4 @@
-<!-- plan id="71" status="active" summary="Redesign slice 1 under 70: Depth plane/glass/motion/focus/z-index/breakpoint/weight tokens, Lab knobs, measured blur spike, theme follows device and persists" -->
+<!-- completed-record id="71" closed="2026-10-14" summary="Depth V2 in tokens: blurred panes, unblurred translucent sheets, solid fallbacks, one focus ring, z-index/weight/breakpoint tokens with lint, Lab glass and motion knobs; theme follows the device and persists; Gate 2 accepted" -->
 # Slice 71 — Depth tokens, Lab knobs, blur spike and device theme
 
 ## Goal
@@ -11,7 +11,7 @@ Put direction B "Depth" into the token layer and the plane containers, after a m
 §22 (dark and light, the device preference, the explicit choice persisting, Lab knobs for glass and
 motion), §67 (Lab plane and lift specimens over busy backing, transparency and motion toggles),
 §69 (verification), §77 (design-first use), §79 (friction notes). The umbrella
-[70](70-ui-ux-overhaul.md) and the [overhaul protocol](../../guides/ui-ux-overhaul-protocol.md) §6–§7
+[70](../active/70-ui-ux-overhaul.md) and the [overhaul protocol](../../guides/ui-ux-overhaul-protocol.md) §6–§7
 apply. Governing decisions:
 - [Depth direction](../../decisions/2026-10-frosted-glass-depth-direction.md), with its contrast amendment
 - [theme follows device](../../decisions/2026-10-theme-follows-device-and-persists.md)
@@ -494,7 +494,7 @@ active and no findings are claimed closed yet.
 **Read first:**
 1. AGENTS.md.
 2. This plan, in full.
-3. The umbrella's "Operational traps" in [70](70-ui-ux-overhaul.md).
+3. The umbrella's "Operational traps" in [70](../active/70-ui-ux-overhaul.md).
 4. The [Depth](../../decisions/2026-10-frosted-glass-depth-direction.md) and
    [theme](../../decisions/2026-10-theme-follows-device-and-persists.md) decisions.
 5. The `how.md` of web, web/core and web/prototype-tooling.
@@ -525,3 +525,100 @@ active and no findings are claimed closed yet.
 **Continuation, 2026-10-14 — Gate 2 evidence.** The verification harness had labelled some light captures as dark: resetting CDP media emulation repainted the device-followed theme. It now locks each theme through the real top-bar toggle (observed both ways), then asserts `data-theme` at every capture and the computed focus-ring colour on every ring. Both the after (`3724307`) and the baseline (`ce91566`, rebuilt from its exported source) strips were regenerated. The 182-cell matrix used separate per-theme contexts and was unaffected. The sheet first reported four Lab geometry failures. Each was the original seven knobs moving up 19.5 px, because the rail hint lost its stale "session-only, like the theme" clause. The sheet now accepts only one uniform shift of those seven knobs and reports it as a Lab change. Two regressions cover it, so uneven movement still fails. Result: 182 pairs, **0 geometry failures**, 12 reported Lab changes. Axe `color-contrast` totals by theme, before → after: dark violations 142 → 142, incomplete 189 → 2,648; light violations 0 → 0, incomplete 189 → 2,648. The incomplete rise is axe declining to judge translucent backgrounds. The e2e typecheck now excludes the git-ignored `ux-output/` and `test-results/`, after an extracted baseline copy broke `pnpm lint`.
 
 **Whole-slice verification, 2026-10-14.** `pnpm test` is green: every workspace suite and the 9 root tooling tests. In an earlier run the host stdio test timed out under CPU contention; it passed 7/7 alone and again in the clean rerun. `pnpm lint` is green, `docs:check` included. In the full `pnpm e2e`, 111 of 112 passed. The one failure was a host 500 while seeding, from a Windows `EPERM` on the JSON repository's atomic rename (`e2e-data.json.tmp`). That is a disposable-infrastructure file-lock flake. `archived-projects.spec.ts` then passed 4/4 alone. `pnpm --filter web storybook:build` passes. The production initial total is **1,028.94 kB**, under the 1,050 kB ceiling. The Gate 2 sheet was built by `build-sheet.mjs` from `ce91566` → `3724307` and published privately. **Gate 2 is awaiting the user's acceptance; the slice is not complete until then.**
+
+## Outcome
+
+**Deliverables.** Depth's V2 look is now in the token layer. [`_tokens.scss`](../../../apps/web/src/styles/_tokens.scss)
+defines these families in both themes: ground, pane, sheet and lift; glass and lift shadow;
+field line; focus ring; motion; z-index; weight; disabled; and scrim. The reduced-transparency,
+no-filter, forced-colours and reduced-motion fallbacks are all resolved inside that file. The
+named breakpoints live in [`_breakpoints.scss`](../../../apps/web/src/styles/_breakpoints.scss),
+and [`breakpoints.ts`](../../../apps/web/src/app/core/layout/breakpoints.ts) holds the two TS
+queries. The body paints the ground. The top bar, sidebar and project navigation are blurred
+panes. The section, shortcut and widget frames and the project header are translucent sheets
+without blur. One `:focus-visible` ring, drawn from the focus tokens, replaces every component
+outline. The token lint now fails on literal z-index, `@media`/`@container` lengths,
+`font-weight` numbers and non-0/1 opacity, and on TS/SCSS breakpoint drift.
+[`ThemeService`](../../../apps/web/src/app/core/theme/theme-service.ts) follows the device, repaints
+live, persists an explicit choice behind a guarded `localStorage`, and is constructed by an app
+initializer. Settings offers Match device · Dark · Light, and the dev panel offers `device`. The
+Design Lab gains tint, alpha, blur, ground-art and motion knobs, Solid planes and Reduced motion
+toggles, and a [plane panel](../../../apps/web/src/app/prototype/design-lab/panels/plane-panels.ts)
+with the four lift specimens. Evidence tooling: [`blur-spike.mjs`](../../../apps/e2e/ux/spike/blur-spike.mjs)
+with the [result](../70-ui-ux/blur-spike.json), keyed plane geometry in
+[`layout.mjs`](../../../apps/e2e/ux/layout.mjs), [`depth-verification.ts`](../../../apps/e2e/ux/depth-verification.ts)
+and [`build-sheet.mjs`](../70-ui-ux/tooling/build-sheet.mjs). Findings closed as planned: W2-002,
+L2-017, L2-018, L5-022, W3-002 and L1-031. **The user accepted the sheet at Gate 2 on 2026-10-14.**
+
+**Deliberate choices.**
+- **Blur rule.** The user chose V2 from a measured spike: panes blur, sheets do not. V3 and V4
+  failed the desktop thresholds
+  ([blur budget](../../decisions/2026-10-depth-blur-budget.md)).
+- **Breakpoints.** They sit in a CSS-free partial beside the tokens, because `@use` of the tokens
+  would copy `:root` into every component and custom properties cannot appear in `@media`
+  ([decision](../../decisions/2026-10-breakpoints-beside-the-tokens.md)). Today's values are kept
+  unmerged, so reflow did not change.
+- **Theme.** No persona first-visit default. The top bar stays a two-way flip; "Match device"
+  lives in Settings and the dev panel
+  ([theme amendment](../../decisions/2026-10-theme-follows-device-and-persists.md)).
+- **Contrast is reported, not raised.**
+  - Worst-case composites below the 4.5:1 / 3:1 reference levels are recorded on the sheet and
+    accepted with it.
+  - Dark: text on pane 3.16:1, muted on pane 1.82:1, accent and focus indicators on pane 1.91:1.
+  - Light: muted on pane 2.22:1, accent and focus indicators on pane 1.98:1.
+  - Sheets and lifts clear text AA in both themes.
+- **Solid planes.** One toggle covers both reduced transparency and the no-filter fallback,
+  because the two resolve identically. §67 was corrected to say so.
+
+**Deviations from the plan.**
+- **Spike setup.**
+  - The two measured projects are seed roots, so their canvas is labelled Home, not Work.
+  - Dashboard cells measure scroll only, because a dashboard task title has no drawer.
+- **Capture data.** Capture runs got their own data file, `.prototype/ux-data.json`, after an
+  ownership clash with the e2e host.
+- **Fixes from review.**
+  - A Lab inline filter outranked the fallback media. An intermediate variable now keeps the
+    fallback in control.
+  - The CSS export froze derived ambient art. It now exports the base colours.
+- **Mislabelled verification captures.** CDP media resets repainted some captures labelled dark
+  as light. The harness now locks and asserts the theme, and both before and after strips were
+  recaptured.
+- **Lab hint.** The rail hint lost its stale "session-only, like the theme" clause. The sheet
+  accepts only the resulting single uniform shift of the seven original knobs.
+- **e2e typecheck.** It now excludes the git-ignored rig output.
+
+**Verification.**
+- `pnpm test`, `pnpm lint` (`docs:check` included) and the Storybook build pass.
+- Full `pnpm e2e`: 111 of 112 passed. The one failure was a host `EPERM` on the JSON repository's
+  atomic rename while seeding. That spec passed 4/4 when rerun alone.
+- The initial bundle is 1,028.94 kB, under the 1,050 kB ceiling.
+- Real use and capture review produced four friction notes.
+
+**Deferred.**
+- **Primitives (slice 2):** L5-006 field-line adoption, and the browser-default fields and
+  buttons in the More panel.
+- **Lifts (slice 3):** the task drawer, dialogs and More menu as lifts. Task details still sit
+  on the list's own plane.
+- **Motion:** product motion goes to slices 3–4.
+- **Layout (slices 5–7):** the TH01 layout findings, and the insertion line that crosses sheet
+  edges at 375.
+- **Slice 7:** the unequal group headings that keep L2-016 open.
+- **Slices 2, 6 and 7:** TH02 selection and current-place indicators.
+- **TH12:** the heavy Grid layout notice.
+
+**Open questions.**
+- **Muted text on panes.** Muted labels on panes, such as the sidebar's PROJECTS, are the
+  weakest composites. Should a later slice shift the muted tone, staying within the
+  look-first contrast stance?
+- **Windows `EPERM`.** The rename flake can fail any e2e run. Is a retry in the disposable JSON
+  writer worth a candidate slice?
+- **Pre-JS flash.** The pre-JS paint is still the dark ground. A light-device first load may
+  flash, which has not yet been seen in use.
+
+**Documentation updated.**
+- **Architecture:** web (all four files), web/core, web/prototype-tooling, web/dashboard,
+  web/projects, web/tasks, prototype-data/why, and testing how/what.
+- **Decisions:** the blur-budget and breakpoints entries, plus amendments to the Depth direction,
+  theme, accents, Design Lab knobs and dev-panel entries.
+- **Spec, guides and plans:** spec §21 and §67, `README.md`, the first-milestone walkthrough,
+  and the umbrella [70](../active/70-ui-ux-overhaul.md) pointer.

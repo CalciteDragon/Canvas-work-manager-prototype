@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 71 | Slice 71 — Depth tokens, Lab knobs, blur spike and device theme | Redesign slice 1 under 70: Depth plane/glass/motion/focus/z-index/breakpoint/weight tokens, Lab knobs, measured blur spike, theme follows device and persists | [71-depth-tokens-and-theme.md](active/71-depth-tokens-and-theme.md) |
 
 ### Planned
 
@@ -109,4 +108,5 @@ verification follow-ups rather than feature slices.
 | 67 | Slice 67 — Markdown and work navigation integrated closure (Slice 59 Stage F) | 2026-10-09 | Slice 59 evidence ledger closed: four new proofs seen to fail, 109 browser journeys, real use, nine notes triaged, docs reconciled | [67-markdown-and-work-navigation-closure.md](completed/67-markdown-and-work-navigation-closure.md) |
 | 69 | Slice 69 — Distinguishable names for untitled shortcut sources | 2026-10-09 | Untitled shortcut frames, controls and new history labels include their source owner; independent reviews and live browser/MCP evidence passed | [69-distinguishable-shortcut-names.md](completed/69-distinguishable-shortcut-names.md) |
 | 68 | Slice 68 — Cross-root move refusal names each placement | 2026-10-10 | A refused cross-root move describes each blocking placement's page and source in one shared sentence; agents remove it by the id from the text | [68-cross-root-refusal-names-placements.md](completed/68-cross-root-refusal-names-placements.md) |
+| 71 | Slice 71 — Depth tokens, Lab knobs, blur spike and device theme | 2026-10-14 | Depth V2 in tokens: blurred panes, unblurred translucent sheets, solid fallbacks, one focus ring, z-index/weight/breakpoint tokens with lint, Lab glass and motion knobs; theme follows the device and persists; Gate 2 accepted | [71-depth-tokens-and-theme.md](completed/71-depth-tokens-and-theme.md) |
 <!-- roadmap:end -->
