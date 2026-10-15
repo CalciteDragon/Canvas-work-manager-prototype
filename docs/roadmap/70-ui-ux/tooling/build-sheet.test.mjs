@@ -130,3 +130,57 @@ test('fails rather than guessing when the ground-art tokens are missing', async 
   assert.equal(result.status, 1);
   assert.match(JSON.stringify(report.geometryFailures), /ground-art tokens/);
 });
+
+// ── Profile 72: geometry is reported, the control census and the accessibility names gate. ──
+const control = (overrides = {}) => ({ text: 'Save', tag: 'button', type: 'button', role: null, class: 'button', scope: 'product', x: 0, y: 0, width: 80, height: 40, ...overrides });
+async function census(t, { width = 1440, before = [control()], after = [control()], document = width } = {}) {
+  const f = await fixture(t);
+  f.cell.id = `busy-week-project-dark-${width}`;
+  f.cell.viewport = { width, height: 900 };
+  for (const phase of [0, 1]) await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+  await f.json(0, 'layout.json', { ...f.layout, controls: before, viewport: width, document: width });
+  await f.json(1, 'layout.json', { ...f.layout, controls: after, viewport: width, document });
+  for (const phase of [0, 1]) {
+    await f.json(phase, 'primitives-verification.json', { forcedColors: [{ surface: 'kitchen', theme: 'dark', screenshot: 'forced.png' }] });
+    await writeFile(join(f.dirs[phase], 'forced.png'), `forced ${phase}`);
+  }
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '72'], { encoding: 'utf8' });
+  return { result, report: JSON.parse(await readFile(join(f.dirs[2], 'report.json'), 'utf8')), html: await readFile(join(f.dirs[2], 'index.html'), 'utf8').catch(() => '') };
+}
+test('profile 72 flags a button under 24 px at 1440', async t => {
+  const { result, report } = await census(t, { after: [control({ height: 23 })] });
+  assert.equal(result.status, 1);
+  assert.match(JSON.stringify(report.censusFailures), /target/);
+});
+test('profile 72 flags a 40 px button at 375 on touch', async t => {
+  const { result, report } = await census(t, { width: 375, after: [control({ height: 40 })] });
+  assert.equal(result.status, 1);
+  assert.match(JSON.stringify(report.censusFailures), /touch/);
+});
+test('profile 72 flags a third button height', async t => {
+  const { result, report } = await census(t, { after: [control({ height: 32 }), control({ height: 40 }), control({ height: 36 })] });
+  assert.equal(result.status, 1);
+  assert.match(JSON.stringify(report.censusFailures), /button heights/);
+});
+test('profile 72 flags an unlisted small control and reports a listed exception without failing', async t => {
+  const unlisted = await census(t, { after: [control({ class: 'odd', height: 12 })] });
+  assert.equal(unlisted.result.status, 1);
+  const listed = await census(t, { after: [control({ class: 'insertion-point', text: 'Insert before Notes', height: 12 })] });
+  assert.equal(listed.result.status, 0, listed.result.stdout);
+  assert.match(JSON.stringify(listed.report.censusExceptions), /Insert before Notes/);
+});
+test('profile 72 reports intended renames and geometry movement without failing, and ignores prototype and prose scope', async t => {
+  const { result, report, html } = await census(t, {
+    before: [control({ text: 'Add', y: 0 }), control({ text: '+' })],
+    after: [control({ text: 'Add Notes, Home · Work canvas', y: 30 }), control({ text: 'New project' }), control({ scope: 'prototype', height: 10 }), control({ tag: 'a', scope: 'prose', height: 10 })],
+  });
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(JSON.stringify(report.intendedChanges), /Add Notes/);
+  assert.ok(report.geometryReport.length > 0);
+  assert.match(html, /forced\.png/);
+});
+test('profile 72 fails a 375 cell that scrolls sideways', async t => {
+  const { result, report } = await census(t, { width: 375, after: [control({ height: 44 })], document: 400 });
+  assert.equal(result.status, 1);
+  assert.match(JSON.stringify(report.censusFailures), /sideways/);
+});

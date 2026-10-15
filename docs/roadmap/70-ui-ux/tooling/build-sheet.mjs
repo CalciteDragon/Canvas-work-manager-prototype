@@ -3,8 +3,28 @@ import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 // An optional fourth directory supplies the runtime verification run when it was re-run at a
 // later commit than the after matrix; its own commit is shown on the sheet.
-const [beforeDir, afterDir, output, verificationDir = afterDir] = process.argv.slice(2).map(p => resolve(p));
-if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output>');
+// `--profile 71` (the default) gates Depth's paint-only change on geometry; `--profile 72` lets
+// geometry move, reports it, and gates on slice 72's control census and accessibility names.
+const args = process.argv.slice(2);
+const profileAt = args.indexOf('--profile');
+const profile = profileAt === -1 ? '71' : args[profileAt + 1];
+if (!['71', '72'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+const positional = args.filter((_, index) => profileAt === -1 || (index !== profileAt && index !== profileAt + 1));
+const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
+if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72]');
+/**
+ * Slice 72's pre-listed census exceptions, each owned by a later slice. A matching control is
+ * reported on the sheet, never silently passed; anything else that is too small fails.
+ */
+const CENSUS_EXCEPTIONS = [
+  { owner: 'slice 5, TH08: canvas insertion points', classes: ['insertion-point'], test: c => /^Insert (before |at the end)/.test(c.text ?? '') },
+  { owner: 'slice 5, TH08: section resize handle', classes: ['section-resize-handle'], test: c => /\bsection-resize-handle\b/.test(c.class ?? '') },
+  { owner: 'slice 5, L6-009: section title button', classes: ['section-frame__title-button'], test: c => /\bsection-frame__title-button\b/.test(c.class ?? '') },
+  { owner: 'slice 6, TH09: task row title', classes: ['task-row__title'], test: c => /\btask-row__title\b/.test(c.class ?? '') },
+  { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
+];
+const exceptionFor = c => CENSUS_EXCEPTIONS.find(e => e.test(c));
+const censusFailures = [], censusExceptions = [], intendedChanges = [], geometryReport = [];
 const read = async p => JSON.parse(await readFile(p, 'utf8'));
 const before = await read(join(beforeDir, 'index.json'));
 const after = await read(join(afterDir, 'index.json'));
@@ -23,7 +43,7 @@ for (const a of after.cells) {
   for (const family of ['planes', 'controls', 'scrollRegions']) {
     let old = bl[family], next = al[family];
     if (!old || !next) { failures.push({ cell: a.id, family, reason: 'collector missing' }); continue; }
-    if (a.route === '/prototype/design' && family === 'controls') {
+    if (profile === '71' && a.route === '/prototype/design' && family === 'controls') {
       // Keep all original controls: shell, header, seven knobs and the live catalogue.
       // This slice inserts eleven knobs and two toggles after the original seven, then
       // appends one Play motion specimen. Any other control addition/removal still fails.
@@ -60,7 +80,42 @@ for (const a of after.cells) {
         }
       }
     });
-    if (changes.length) failures.push({ cell: a.id, family, changes });
+    if (profile === '72') {
+      const intended = changes.filter(change => family === 'controls' && ['control identity', 'count'].includes(change.reason));
+      if (intended.length) intendedChanges.push({ cell: a.id, changes: intended });
+      const moved = changes.filter(change => !intended.includes(change));
+      if (moved.length) geometryReport.push({ cell: a.id, family, changes: moved });
+    } else if (changes.length) failures.push({ cell: a.id, family, changes });
+  }
+  if (profile === '72') {
+    const touch = (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
+    const product = al.controls.filter(c => c.scope === 'product');
+    for (const c of product) {
+      const box = c.target ?? c;
+      const small = touch ? box.height < 44 || box.width < 24 : box.height < 24 || box.width < 24;
+      if (!small) continue;
+      const entry = { cell: a.id, reason: touch ? 'touch target under 44 px' : 'target under 24 px', text: c.text, class: c.class, width: box.width, height: box.height };
+      const exception = exceptionFor(c);
+      if (exception) censusExceptions.push({ ...entry, owner: exception.owner });
+      else censusFailures.push(entry);
+    }
+    const distinct = heights => heights.sort((x, y) => x - y).filter((h, i, all) => i === 0 || h - all[i - 1] > 0.5);
+    if (!touch) {
+      const buttons = distinct(product.filter(c => /(^|\s)button(\s|$)/.test(c.class ?? '') && !/\bbutton--row\b/.test(c.class ?? '')).map(c => c.height));
+      if (buttons.length > 2) censusFailures.push({ cell: a.id, reason: 'more than two button heights', heights: buttons });
+      const fields = distinct(product.filter(c => (c.tag === 'select' || (c.tag === 'input' && !['checkbox', 'radio', 'hidden', 'range', 'color', 'file'].includes(c.type))) && /\b(field|select)\b/.test(c.class ?? '')).map(c => c.height));
+      if (fields.length > 1) censusFailures.push({ cell: a.id, reason: 'more than one field height', heights: fields });
+    }
+    if (touch && al.document > al.viewport) censusFailures.push({ cell: a.id, reason: 'scrolls sideways', document: al.document, viewport: al.viewport });
+    if (a.route === '/prototype/design' && !al.controls.some(c => c.text === 'Primary · Rest')) censusFailures.push({ cell: a.id, reason: 'Lab Controls panel missing' });
+    const axe = await read(join(afterDir, a.artifacts.axe));
+    for (const v of axe.violations ?? []) {
+      if (['select-name', 'aria-progressbar-name', 'button-name'].includes(v.id)) censusFailures.push({ cell: a.id, reason: `axe ${v.id}`, nodes: v.nodes.map(n => n.target) });
+      if (v.id === 'target-size') {
+        const unlisted = v.nodes.filter(n => !CENSUS_EXCEPTIONS.some(e => e.classes.some(name => n.target.join(' ').includes(name))));
+        if (unlisted.length) censusFailures.push({ cell: a.id, reason: 'axe target-size', nodes: unlisted.map(n => n.target) });
+      }
+    }
   }
   for (const [phase, dir, cell] of [['before', beforeDir, b], ['after', afterDir, a]]) {
     const axe = await read(join(dir, cell.artifacts.axe));
@@ -74,6 +129,11 @@ for (const a of after.cells) {
   pairs.push({ id: a.id, theme: a.theme });
 }
 const verification = await read(join(verificationDir, 'depth-verification.json'));
+const optional = path => read(path).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
+const primitives = profile === '72' ? await optional(join(verificationDir, 'primitives-verification.json')) : null;
+const primitivesLab = profile === '72' ? await optional(join(verificationDir, 'primitives-lab.json')) : null;
+const baselinePrimitives = profile === '72' ? await optional(join(beforeDir, 'primitives-verification.json')) : null;
+if (profile === '72' && !primitives) failures.push({ reason: 'primitives-verification.json missing; run the after capture with UX_PRIMITIVES=1' });
 const baselineVerification = await read(join(beforeDir, 'depth-verification.json')).catch(error => {
   if (error.code === 'ENOENT') return null;
   throw error;
@@ -104,11 +164,14 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
     return { plane, text: Math.min(...surfaces.map(b => ratio(rgb(get('color-text')),b))), muted: Math.min(...surfaces.map(b => ratio(rgb(get('color-text-muted')),b))), accentIndicator: Math.min(...surfaces.map(b => ratio(rgb(get('color-accent')),b))), focusIndicator: Math.min(...surfaces.map(b => ratio(rgb(get('focus-ring-color')),b))) };
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
-const report = { before: before.commit, after: after.commit, pairs: pairs.length, geometryFailures: failures, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification };
+failures.push(...censusFailures);
+const report = { profile, before: before.commit, after: after.commit, pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
 const card = p => `<article><h3>${esc(p.id)}</h3><div class="pair">${['before','after'].map(phase => figure(`${phase}-${p.id}.png`, phase)).join('')}</div></article>`;
-const coreIds = ['busy-week-project-dark-1440', 'busy-week-project-light-1440', 'agent-heavy-dashboard-dark-1440', 'kitchen-grid-light-375', 'prototype-design-dark-1440', 'prototype-design-light-1440'];
+const coreIds = profile === '72'
+  ? ['busy-week-project-dark-1440', 'nested-projects-project-dark-1440', 'kitchen-section-create-light-1440', 'kitchen-more-dark-1440', 'archive-dark-1440', 'todos-light-1440', 'settings-agents-dark-1440', 'settings-light-1440', 'settings-archived-projects-light-1440', 'new-project-dark-1440', 'new-project-light-375', 'nested-projects-project-light-1440', 'kitchen-task-drawer-dark-1440', 'kitchen-more-light-375', 'kitchen-page-settings-light-375', 'archive-light-375', 'settings-agents-light-375', 'prototype-design-dark-1440', 'prototype-design-light-1440']
+  : ['busy-week-project-dark-1440', 'busy-week-project-light-1440', 'agent-heavy-dashboard-dark-1440', 'kitchen-grid-light-375', 'prototype-design-dark-1440', 'prototype-design-light-1440'];
 const core = coreIds.map(id => pairs.find(p => p.id === id)).filter(Boolean);
 const extras = pairs.filter(p => !coreIds.includes(p.id));
 const contrastTable = `<table><thead><tr><th>Theme</th><th>Before violations</th><th>Before incomplete</th><th>After violations</th><th>After incomplete</th></tr></thead><tbody>${['dark','light'].map(theme => {
@@ -136,14 +199,19 @@ for (const fallback of verification.fallbacks ?? []) {
   auxiliary.push({ file:fallback.screenshot, caption:`${fallback.theme} · ${fallback.mode}${fallback.simulated ? ' (simulated)' : ' (real emulation)'}`, baseline: baseline && { file:baseline.screenshot, caption:baseline.baselineSolidStyling ? 'before · baseline solid styling; no Depth fallback rule' : 'before' } });
 }
 if (verification.deviceTheme?.screenshot) auxiliary.push({ file:verification.deviceTheme.screenshot, caption:'Light device · explicit dark choice after reload' });
+for (const forced of primitives?.forcedColors ?? []) {
+  const baseline = baselinePrimitives?.forcedColors?.find(old => old.surface === forced.surface && old.theme === forced.theme);
+  auxiliary.push({ file:forced.screenshot, caption:`forced colours · ${forced.surface} · ${forced.theme}`, baseline: baseline && { file:baseline.screenshot, caption:'before' } });
+}
+for (const lab of primitivesLab?.lab ?? []) auxiliary.push({ file:lab.screenshot, caption:`Lab Controls · ${lab.theme} · ${lab.width}` });
 if (verification.lab?.screenshot) auxiliary.push({ file:verification.lab.screenshot, caption:'Light Lab · reset after live knob and reduced-motion checks' });
 for (const item of auxiliary) {
   await copyFile(join(verificationDir,item.file),join(output,item.file));
   if (item.baseline) await copyFile(join(beforeDir,item.baseline.file),join(output,'before-'+item.baseline.file));
 }
 const verificationSection = `<section><h2>Runtime verification captures</h2><p>Verification run at ${esc(String(verification.commit ?? after.commit).slice(0,8))}. ${baselineVerification ? 'Keyboard and fallback captures pair genuine baseline and after evidence.' : 'Only after verification was supplied; baseline keyboard and fallback captures are unavailable.'} Keyboard focus after implementation uses the same computed outline on More, sidebar, navigation and dialog fields in both themes. Fallback captures show solid planes with no backdrop filter; the no-filter browser case is explicitly simulated. Device persistence and Lab reset are shown separately.</p><div class="verification">${auxiliary.map(item => `<article><h3>${esc(item.caption)}</h3><div class="pair">${item.baseline ? figure('before-'+item.baseline.file,item.baseline.caption) : ''}${figure(item.file,'after')}</div></article>`).join('')}</div></section>`;
-await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 71 · Depth · Gate 2</title><style>:root{color-scheme:dark}
+await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${profile === '72' ? 'Slice 72 · Primitives' : 'Slice 71 · Depth'} · Gate 2</title><style>:root{color-scheme:dark}
 body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}h1{margin-bottom:0}h2{font-size:21px}h3{font-size:15px;overflow-wrap:anywhere}p{max-width:110ch}a{color:#ffad7f}section,details{margin-block:24px}.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}img{width:100%;max-height:75vh;object-fit:contain;object-position:top;background:#20253a}.overview img{height:190px}.verification{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.verification img{height:220px}figcaption{font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:8px 14px;border-bottom:1px solid #394156}summary{cursor:pointer}article{margin-bottom:24px}@media(max-width:900px){.overview,.verification{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){body{margin:12px}.overview,.verification,.pair{grid-template-columns:1fr}table{font-size:12px}th,td{padding:5px}}
-</style><h1>Depth / Slice 71</h1><p>Gate 2 · awaiting visual acceptance. Before ${esc(before.commit.slice(0,8))} → after ${esc(after.commit.slice(0,8))}. V2: blurred panes, translucent sheets without blur.</p><p>${pairs.length} paired cells · ${failures.length} geometry failures · ${exceptions.length} intentional Lab additions. All other recorded boxes must stay within 1px. Click any image for full resolution. <a href="report.json">Full geometry and axe report</a></p><section><h2>Visual acceptance</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} before / after pairs</summary>${[...core,...extras].map(card).join('')}</details><section><h2>Contrast report</h2><p>Axe counts are affected-node assessments summed across captured cells in each theme. Incomplete translucent-background assessments are included; the same node may be assessed on several surfaces.</p>${contrastTable}<h3>Worst-case composite contrast</h3><p>Backings are what really sits behind each plane. Panes and sheets sit on the ground: its solid colour and each art glow at full strength. Lifts float over page content, so they are also measured over the solid sheet and text-coloured busy content. Values below use the after tokens.</p>${compositeTable}${serious}<details><summary>Per-cell before / after axe counts and all accepted exceptions</summary><pre>${esc(JSON.stringify(contrast,null,2))}</pre></details></section>${verificationSection}</html>`);
+</style><h1>${profile === '72' ? 'Primitives / Slice 72' : 'Depth / Slice 71'}</h1><p>Gate 2 · awaiting visual acceptance. Before ${esc(before.commit.slice(0,8))} → after ${esc(after.commit.slice(0,8))}. ${profile === '72' ? 'Shared control primitives adopted on every product surface.' : 'V2: blurred panes, translucent sheets without blur.'}</p><p>${pairs.length} paired cells · ${failures.length} ${profile === '72' ? 'gate failures (census, axe names, overflow) · ' + censusExceptions.length + ' listed census exceptions · ' + intendedChanges.length + ' cells with intended control renames · ' + geometryReport.length + ' cell families with reported geometry movement. Geometry is reported, not gated, in this slice.' : 'geometry failures · ' + exceptions.length + ' intentional Lab additions. All other recorded boxes must stay within 1px.'} Click any image for full resolution. <a href="report.json">Full geometry and axe report</a></p><section><h2>Visual acceptance</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} before / after pairs</summary>${[...core,...extras].map(card).join('')}</details>${profile === '72' ? `<section><h2>Control census</h2><p>Gated: product-scope controls are at least 24 px with a pointer and 44 px tall on touch, buttons use at most two heights and fields one, no 375 cell scrolls sideways, and axe reports no select-name, aria-progressbar-name or button-name violation.</p><h3>Failures (${censusFailures.length})</h3><pre>${esc(JSON.stringify(censusFailures,null,2))}</pre><details><summary>Listed exceptions and their owners (${censusExceptions.length})</summary><pre>${esc(JSON.stringify(censusExceptions,null,2))}</pre></details><details><summary>Intended control renames and count changes (${intendedChanges.length} cells)</summary><pre>${esc(JSON.stringify(intendedChanges,null,2))}</pre></details><details><summary>Reported geometry movement (${geometryReport.length})</summary><pre>${esc(JSON.stringify(geometryReport,null,2))}</pre></details></section>` : ''}<section><h2>Contrast report</h2><p>Axe counts are affected-node assessments summed across captured cells in each theme. Incomplete translucent-background assessments are included; the same node may be assessed on several surfaces.</p>${contrastTable}<h3>Worst-case composite contrast</h3><p>Backings are what really sits behind each plane. Panes and sheets sit on the ground: its solid colour and each art glow at full strength. Lifts float over page content, so they are also measured over the solid sheet and text-coloured busy content. Values below use the after tokens.</p>${compositeTable}${serious}<details><summary>Per-cell before / after axe counts and all accepted exceptions</summary><pre>${esc(JSON.stringify(contrast,null,2))}</pre></details></section>${verificationSection}</html>`);
 console.log(JSON.stringify({ pairs: pairs.length, geometryFailures: failures.length, intentionalLabChanges: exceptions.length, composites, output }));
 if (failures.length) process.exitCode = 1;
