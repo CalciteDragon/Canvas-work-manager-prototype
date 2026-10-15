@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints';
+
 .dashboard {
   display: flex;
   flex-direction: column;
@@ -70,7 +72,7 @@
   color: var(--color-text-muted);
 }
 
-@media (width <= 60rem) {
+@media (width <= breakpoints.$workspace-narrow) {
   .dashboard__tile,
   .dashboard__tile[data-widget-size='small'],
   .dashboard__tile[data-widget-size='medium'],

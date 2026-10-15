@@ -20,6 +20,13 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const checker = join(scriptDirectory, 'check-design-tokens.mjs');
 const fixtures = join(scriptDirectory, 'fixtures', 'violations');
 
+// A real mismatched pair must fail independently of the component styling fixtures.
+const breakpointResult = spawnSync(process.execPath, [checker, '--root', join(scriptDirectory, 'fixtures', 'breakpoint-mismatch')], { encoding: 'utf8' });
+if (breakpointResult.status !== 1 || !breakpointResult.stderr.includes('app/core/layout/breakpoints.ts:1:1 breakpoint-mismatch')) {
+  console.error('check-design-tokens self-test: the checker accepted mismatched TS/SCSS breakpoints.');
+  process.exit(1);
+}
+
 /**
  * Exactly what the fixtures contain, as `file:line rule`. Pinning the locations — not just
  * the rule names — is what proves the **controls** stay clean, and the controls are the
@@ -30,6 +37,13 @@ const fixtures = join(scriptDirectory, 'fixtures', 'violations');
  * point; any of them firing again adds an entry that is not on this list.
  */
 const EXPECTED = [
+  'depth.scss:1 literal-z-index',
+  'depth.scss:2 literal-breakpoint',
+  'depth.scss:3 literal-breakpoint',
+  'depth.scss:4 literal-breakpoint',
+  'depth.scss:5 literal-font-weight',
+  'depth.scss:6 literal-opacity',
+  'depth.scss:7 literal-opacity',
   // An inline `styles` block, its `template`, and a `styles` string that interpolates —
   // a single `${…}` once made the whole block invisible.
   'inline-component.ts:8 rgb-color',

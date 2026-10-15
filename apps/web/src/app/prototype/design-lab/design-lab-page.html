@@ -8,8 +8,7 @@
       </div>
     </header>
     <p class="design-lab__hint">
-      Values apply to the whole shell and last until the page is reloaded — session-only,
-      like the theme.
+      Values apply to the whole shell and last until the page is reloaded.
     </p>
 
     @if (exported(); as result) {
@@ -58,6 +57,15 @@
         }
       </div>
     }
+    <label>
+      <input id="design-lab-solid-planes" type="checkbox" [checked]="store.solidPlanes()" (change)="onSolidPlanes($event)" />
+      Solid planes
+    </label>
+    <p class="design-lab__note">Simulates reduced transparency and the no-filter fallback.</p>
+    <label>
+      <input id="design-lab-reduced-motion" type="checkbox" [checked]="store.reducedMotion()" (change)="onReducedMotion($event)" />
+      Reduced motion
+    </label>
   </aside>
 
   <div class="design-lab__catalogue">
@@ -67,5 +75,6 @@
     </p>
     <app-design-lab-live-panels />
     <app-design-lab-primitive-panels />
+    <app-design-lab-plane-panels />
   </div>
 </div>

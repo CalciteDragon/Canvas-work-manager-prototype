@@ -12,8 +12,8 @@
 }
 
 .history-controls:focus {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: var(--border-focus);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .history-controls__button,
@@ -33,11 +33,11 @@
 
 .history-controls__button[aria-disabled='true'] {
   color: var(--color-text-muted);
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 .history-controls__button:focus-visible,
 .history-controls__retry:focus-visible {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: var(--border-focus);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }

@@ -101,13 +101,13 @@ Each subsystem's `why.md` carries its own.
 ## The Slice 70 redesign direction (Gate 1, 2026-10-14)
 
 The user chose the frosted-glass **Depth** direction. The eight principles and the glass
-constraints act as its acceptance rules: AA over the worst backing, solid fallbacks, motion only
+constraints act as its acceptance rules: reported contrast over the worst backing, solid fallbacks, motion only
 through transform and opacity, and every value a token
 ([decision](../../decisions/2026-10-frosted-glass-depth-direction.md),
 [direction](../../roadmap/70-ui-ux/direction.md)).
 
-The same gate also decided four more things. None is implemented yet; each lands in its own
-redesign slice.
+The same gate also decided four more things. Theme behavior and split accents are implemented;
+navigation and creation-default changes remain for their redesign slices.
 
 - The theme follows the device preference and persists an explicit choice
   ([decision](../../decisions/2026-10-theme-follows-device-and-persists.md)).
@@ -118,10 +118,13 @@ redesign slice.
 
 Slice 71's blur checkpoint selected [V2](../../decisions/2026-10-depth-blur-budget.md):
 blurred panes and translucent sheets without blur. The isolated spike is measured;
-product token adoption remains pending in Slice 71.
+product token adoption uses this rule in Slice 71.
 
 ## Spec sections
 
 §4 stack · §8–§10 boundary, gateway, adapter · §18 identity · §19–§23 UI architecture,
 stores, tokens, themes, shell · §62–§63 live updates and optimistic UI · §65–§68 feature
 structure, section structure, design lab, route map · §69 component tests.
+
+
+Slice 71 adopts Depth using [V2](../../decisions/2026-10-depth-blur-budget.md): blurred panes and unblurred translucent sheets. Contrast is reported under the user amendment, rather than gating the demo tints. [Breakpoints beside the tokens](../../decisions/2026-10-breakpoints-beside-the-tokens.md) preserve existing reflow without emitting global token CSS per component.

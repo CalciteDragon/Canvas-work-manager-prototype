@@ -1,6 +1,6 @@
 :host {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-canvas-resize);
   inset-block: 0;
   display: grid;
   inline-size: var(--size-resize-handle);
@@ -45,8 +45,8 @@ app-icon {
 }
 
 [data-resize-handle]:focus-visible {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: var(--space-1);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 @media (hover: none), (any-pointer: coarse) {

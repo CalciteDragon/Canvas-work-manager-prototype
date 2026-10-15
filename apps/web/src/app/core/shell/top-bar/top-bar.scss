@@ -1,3 +1,5 @@
+@use '../../../../styles/breakpoints';
+
 .top-bar {
   display: flex;
   gap: var(--space-4);
@@ -6,7 +8,8 @@
   height: var(--layout-top-bar-height);
   padding-inline: var(--space-4);
   border-block-end: var(--border-hairline) solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--plane-pane-background);
+  backdrop-filter: var(--plane-pane-filter);
 }
 
 .lead {
@@ -19,7 +22,7 @@
 .product {
   overflow: hidden;
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -76,7 +79,7 @@
 
 // Slice 58's phone breakpoint. Mirrors `SHELL_NARROW_QUERY` in `app-shell.ts` and the query in
 // `app-shell.scss`. The persona's name stays in the accessibility tree; only its width goes.
-@media (max-width: 48rem) {
+@media (max-width: breakpoints.$shell-narrow) {
   .top-bar {
     gap: var(--space-2);
     padding-inline: var(--space-3);

@@ -10,16 +10,20 @@ import { DESIGN_LAB_TOKENS, type DesignLabToken } from './design-lab-tokens';
  * destroyed on navigation, so the control rail would come back showing defaults while the
  * shell still rendered the old knobs. As a root singleton it is the only writer and is never
  * destroyed, so it always holds its own values and a hydration path would have no caller.
- * §20 objects to one global store owning the application's data; this owns seven numbers,
+ * §20 objects to one global store owning the application's data; this owns design knobs,
  * is development-only, and follows `DevPanelStore` in the same folder.
  *
- * **Session-only**, matching `docs/decisions/2026-08-theme-selection-is-session-only.md`:
+ * **Session-only**, as recorded in the Design Lab decision:
  * values survive navigation and are lost on reload. `ThemeService` is not touched — it owns
  * `data-theme`, this owns inline custom properties, and they compose without either knowing
  * about the other.
  */
 @Injectable({ providedIn: 'root' })
 export class DesignLabStore {
+  private readonly solidPlanesState = signal(false);
+  private readonly reducedMotionState = signal(false);
+  readonly solidPlanes = this.solidPlanesState.asReadonly();
+  readonly reducedMotion = this.reducedMotionState.asReadonly();
   /** What this store has written, by token id, including its unit. */
   private readonly overrideState = signal<Readonly<Record<string, string>>>({});
   /** Bumped on reset and on a theme change, so the rail re-reads the stylesheet. */
@@ -32,6 +36,37 @@ export class DesignLabStore {
     const written = `${value}${token.unit}`;
     document.documentElement.style.setProperty(token.property, written);
     this.overrideState.update((current) => ({ ...current, [token.id]: written }));
+    if (token.id === 'sheetBlur') this.applySheetFilter();
+  }
+
+  /** Simulates the shared reduced-transparency and no-filter fallback across the shell. */
+  setSolidPlanes(enabled: boolean): void {
+    this.solidPlanesState.set(enabled);
+    for (const plane of ['ground', 'pane', 'sheet', 'lift']) {
+      const background = `--plane-${plane}-background`;
+      if (enabled) document.documentElement.style.setProperty(background, `var(--plane-${plane}-solid)`);
+      else document.documentElement.style.removeProperty(background);
+      if (plane === 'ground') continue;
+      const filter = `--plane-${plane}-filter`;
+      if (enabled) document.documentElement.style.setProperty(filter, 'none');
+      else document.documentElement.style.removeProperty(filter);
+    }
+    if (!enabled) this.applySheetFilter();
+  }
+
+  /** Caps the same duration tokens used by the device's reduced-motion media query. */
+  setReducedMotion(enabled: boolean): void {
+    this.reducedMotionState.set(enabled);
+    if (enabled) document.documentElement.style.setProperty('--motion-duration-cap', '80ms');
+    else document.documentElement.style.removeProperty('--motion-duration-cap');
+  }
+
+  private applySheetFilter(): void {
+    if (this.solidPlanesState()) return;
+    const value = this.overrideState()['sheetBlur'];
+    if (value === undefined) return;
+    document.documentElement.style.setProperty('--lab-sheet-filter', Number.parseFloat(value) > 0
+      ? 'blur(var(--plane-sheet-blur)) saturate(var(--glass-saturation))' : 'none');
   }
 
   /**
@@ -43,6 +78,9 @@ export class DesignLabStore {
       document.documentElement.style.removeProperty(token.property);
     }
     this.overrideState.set({});
+    document.documentElement.style.removeProperty('--lab-sheet-filter');
+    this.setSolidPlanes(false);
+    this.setReducedMotion(false);
     this.rereadStylesheet();
   }
 

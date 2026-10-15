@@ -13,7 +13,8 @@
   padding: var(--space-4) var(--space-3);
   overflow-y: auto;
   border-inline-end: var(--border-hairline) solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--plane-pane-background);
+  backdrop-filter: var(--plane-pane-filter);
 }
 
 .group {

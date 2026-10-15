@@ -17,10 +17,64 @@ const tokenFor = (id: string) => DESIGN_LAB_TOKENS.find((token) => token.id === 
 
 afterEach(() => {
   for (const token of DESIGN_LAB_TOKENS) document.documentElement.style.removeProperty(token.property);
+  for (const plane of ['ground', 'pane', 'sheet', 'lift']) {
+    document.documentElement.style.removeProperty(`--plane-${plane}-background`);
+    document.documentElement.style.removeProperty(`--plane-${plane}-filter`);
+  }
+  document.documentElement.style.removeProperty('--motion-duration-cap');
+  document.documentElement.style.removeProperty('--lab-sheet-filter');
   document.documentElement.removeAttribute('data-theme');
 });
 
 describe('DesignLabStore (§22)', () => {
+  it('offers stylesheet-backed plane and motion knobs with their units', () => {
+    const expected = [
+      ['paneTint', '--plane-pane-tint', ''], ['paneAlpha', '--plane-pane-alpha', '%'], ['paneBlur', '--plane-pane-blur', 'px'],
+      ['sheetTint', '--plane-sheet-tint', ''], ['sheetAlpha', '--plane-sheet-alpha', '%'], ['sheetBlur', '--plane-sheet-blur', 'px'],
+      ['liftTint', '--plane-lift-tint', ''], ['liftAlpha', '--plane-lift-alpha', '%'], ['liftBlur', '--plane-lift-blur', 'px'],
+      ['groundArtStrength', '--ground-art-strength', '%'], ['motionScale', '--motion-scale', ''],
+    ];
+    for (const [id, property, unit] of expected) {
+      expect(tokenFor(id)).toMatchObject({ property, unit, fallback: null });
+    }
+  });
+
+  it('toggles solid planes and reduced motion with inline properties, then removes them on reset', () => {
+    const store = TestBed.inject(DesignLabStore);
+    store.setSolidPlanes(true);
+    store.setReducedMotion(true);
+    for (const plane of ['pane', 'sheet', 'lift']) {
+      expect(inline(`--plane-${plane}-background`)).toBe(`var(--plane-${plane}-solid)`);
+      expect(inline(`--plane-${plane}-filter`)).toBe('none');
+    }
+    expect(inline('--motion-duration-cap')).toBe('80ms');
+    expect(store.solidPlanes()).toBe(true);
+    expect(store.reducedMotion()).toBe(true);
+    store.reset();
+    for (const plane of ['pane', 'sheet', 'lift']) {
+      expect(inline(`--plane-${plane}-background`)).toBe('');
+      expect(inline(`--plane-${plane}-filter`)).toBe('');
+    }
+    expect(inline('--motion-duration-cap')).toBe('');
+    expect(inline('--plane-ground-background')).toBe('');
+    expect(store.solidPlanes()).toBe(false);
+    expect(store.reducedMotion()).toBe(false);
+  });
+
+  it('keeps an experimental sheet blur behind the stylesheet fallback and removes it on reset', () => {
+    const store = TestBed.inject(DesignLabStore);
+    store.write(tokenFor('sheetBlur'), 12);
+    expect(inline('--lab-sheet-filter')).toBe('blur(var(--plane-sheet-blur)) saturate(var(--glass-saturation))');
+    expect(inline('--plane-sheet-filter')).toBe('');
+    store.setSolidPlanes(true);
+    store.write(tokenFor('sheetBlur'), 20);
+    expect(inline('--plane-sheet-filter')).toBe('none');
+    store.setSolidPlanes(false);
+    expect(inline('--plane-sheet-filter')).toBe('');
+    store.reset();
+    expect(inline('--lab-sheet-filter')).toBe('');
+  });
+
   it('writes only the knob properties it owns, with their units', () => {
     const store = TestBed.inject(DesignLabStore);
 

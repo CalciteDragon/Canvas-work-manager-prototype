@@ -40,3 +40,5 @@ flowchart LR
 | `DASHBOARD_WIDGET_REGISTRY`, `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | `widgets/registry.ts`, `widgets/widget-contract.ts` | The list and the contract every widget implements |
 | `DashboardWidgetFrame` | `widgets/widget-frame/` | The common chrome and size classes |
 | Seven widgets | `widgets/{today,upcoming,active-projects,recent-progress,daily-digest,fun-fact,recent-agent-activity}/` | One folder each; shared `widget-content.scss` |
+
+The common widget frame also owns the sheet-plane paint; every widget inherits the same token treatment.

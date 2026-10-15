@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints';
+
 :host {
   display: grid;
   gap: var(--space-5);
@@ -118,7 +120,7 @@
 }
 
 .section-canvas__item.cdk-drag-placeholder {
-  opacity: 0.35;
+  opacity: var(--opacity-drag-placeholder);
 }
 
 .project-canvas__empty {
@@ -200,7 +202,7 @@
   }
 }
 
-@media (max-width: 48rem) {
+@media (max-width: breakpoints.$shell-narrow) {
   .project-controls {
     align-items: stretch;
     flex-direction: column;

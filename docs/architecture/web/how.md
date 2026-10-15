@@ -19,8 +19,9 @@ a "Restore succeeded" error, so the committed write stays reported; any other er
 2. `App` renders `AppShell` and mounts `DevPanel` once, so Ctrl/Cmd+Shift+D works on
    every route; its controls are deferred until the modal opens. `AppShell` owns `ShellStore`, which loads the project tree through the
    gateway and renders `Sidebar` and `TopBar` as presentational children.
-3. `PrototypeIdentityProvider` reads `GET /api/me`; `ThemeService` applies the persona's
-   theme as `data-theme` on `<html>`; `PrototypeLiveUpdates` opens the `EventSource`
+3. `PrototypeIdentityProvider` reads `GET /api/me`; an app initializer constructs
+   `ThemeService`, which applies the device or saved browser theme as `data-theme` on `<html>`;
+   `PrototypeLiveUpdates` opens the `EventSource`
    scoped to the persona.
 4. A route activates a page component, which provides its store; the store reads through
    `WORK_MANAGER_GATEWAY` and subscribes to `LIVE_UPDATES`. Writes paint optimistically
@@ -115,3 +116,6 @@ pnpm storybook:build              # apps/web/storybook-static (git-ignored)
   mounted through `NgComponentOutlet`. `setInput` runs every change-detection pass and
   only `Object.is` stops a re-render; in a zoneless app a fresh arrow each pass is a
   self-feeding loop. Pass class-property arrows, build input records in `computed()`.
+
+
+Depth planes use only --plane-*-background/filter in container styles. `_tokens.scss` resolves solid fallbacks for reduced transparency, unsupported backdrop filters and forced colors, and caps reduced-motion durations at 80ms. `_breakpoints.scss` holds CSS-free Sass constants; the token lint checks the two TS queries against it and rejects literal z-index, weight, query lengths and non-endpoint opacity.

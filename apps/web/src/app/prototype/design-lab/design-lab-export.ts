@@ -195,6 +195,25 @@ export function buildDesignLabExport(theme: Theme): DesignLabExport {
   }
 
   push(themeLines, '--color-accent', declared('--color-accent'));
+  // Plane primitives are direct controls rather than folded scales. Keep the complete
+  // family, including the solid fallback, so the exported look survives fallback modes.
+  for (const plane of ['pane', 'sheet', 'lift']) {
+    for (const part of ['tint', 'alpha', 'blur', 'solid']) {
+      const property = `--plane-${plane}-${part}`;
+      push(themeLines, property, declared(property));
+    }
+  }
+  for (const property of ['--plane-ground-solid', '--art-warm', '--art-cool', '--art-teal', '--lift-shadow',
+    '--color-text', '--color-text-muted', '--color-border', '--color-danger', '--color-success',
+    '--color-accent-contrast', '--color-accent-surface']) {
+    push(themeLines, property, declared(property));
+  }
+  for (const property of ['--ground-art-strength', '--motion-scale', '--duration-fast-base',
+    '--duration-base-base', '--duration-slow-base', '--ease-out', '--ease-in', '--glass-saturation']) {
+    push(rootLines, property, declared(property));
+  }
+  const sheetExperiment = declared('--lab-sheet-filter');
+  if (sheetExperiment !== '') push(rootLines, '--lab-sheet-filter', sheetExperiment);
 
   const css = [
     `// Design Lab export — captured in the ${theme} theme.`,
@@ -205,8 +224,8 @@ export function buildDesignLabExport(theme: Theme): DesignLabExport {
     '//',
     '// The second block is per-theme and is only true for the theme that was on screen.',
     '// Switch theme in the rail, set the accent again, and export a second time for the',
-    '// other half. --color-accent-contrast and --color-accent-surface do not track the',
-    '// accent knob and are deliberately not exported.',
+    '// other half. Accent companion colours are captured as their own literals.',
+    '// Depth controls are emitted directly; solid/reduced-motion simulations are omitted.',
     '',
     ':root {',
     ...rootLines,

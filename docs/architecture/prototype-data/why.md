@@ -31,8 +31,9 @@ byte-for-byte in `seeds.test.ts`. Rejected: committing only the JSON — every c
 change would mean editing six files by hand.
 
 **Three personas in every seed, scenario content in Demo User's workspace.** Alex and Sam
-exist so that switching persona repaints the shell, the theme and the dashboard from
-another workspace; they carry no scenario content until an observed use case earns it
+exist so that switching persona repaints the shell and dashboard from another workspace;
+the theme follows the device or saved browser choice independently
+([theme decision](../../decisions/2026-10-theme-follows-device-and-persists.md)). They carry no scenario content until an observed use case earns it
 ([decision](../../decisions/2026-08-persona-workspace-topology.md)).
 
 **Tokens are fixtures beside the seeds, not records.** A token maps to a connection id;

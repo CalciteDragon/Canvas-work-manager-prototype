@@ -28,6 +28,7 @@ test('themes direct Lab entry and retains explicit choice through persona switch
   await page.goto('/prototype/state');
   await page.locator('[data-theme-option="dark"]').click();
   await page.locator('[data-panel-persona]').filter({ hasText: 'Alex' }).click();
+  await expect(page.locator('[data-identity-name]')).toHaveText('Alex');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

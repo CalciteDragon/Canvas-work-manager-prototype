@@ -1,3 +1,5 @@
+@use '../../../../styles/breakpoints';
+
 :host {
   display: block;
 }
@@ -114,7 +116,7 @@
   font-size: var(--font-size-sm);
 }
 
-@media (max-width: 40rem) {
+@media (max-width: breakpoints.$compact) {
   .reflections-page {
     padding: var(--space-3);
   }

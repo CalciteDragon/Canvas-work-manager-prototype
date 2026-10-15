@@ -70,3 +70,6 @@ Smaller features that do not earn a folder of their own:
 - [Why it exists and is shaped this way](why.md)
 - [What it is made of](what.md)
 - [How it works and how to change it](how.md)
+
+
+Depth paints ground, pane and sheet containers from shared tokens. Fallbacks resolve in the token layer, and focus, weight, opacity, z-index and breakpoint constants are centralized.

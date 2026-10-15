@@ -21,11 +21,14 @@
    frame rather than from a report (Slice 41) — acceptable for prototype tooling.
 4. **Add Prototype Note** posts the text with the current route, project and
    `CURRENT_SLICE`; the host stamps real time.
-5. `/prototype/design` lazily loads `DesignLabPage`. Its rail binds each of the seven
+5. `/prototype/design` lazily loads `DesignLabPage`. Its rail binds each of the eighteen
    `design-lab-tokens.ts` controls to `DesignLabStore`, which sets inline custom
    properties on `documentElement`; Reset removes them; Copy CSS exports the current
    values. The catalogue renders live components over `design-lab-fixtures.ts` and the
-   primitive panels' markup.
+   primitive panels' markup, plus a busy-ground plane/lift panel and a transform-only motion demo.
+   Solid planes writes the same solid backgrounds and disabled filters as the stylesheet fallback;
+   reduced motion caps duration tokens at 80 ms. Sheet blur is an opt-in experiment through
+   an intermediate property, so real fallback media retain control of the final filter.
 
 ## Key symbols
 
@@ -39,7 +42,7 @@
 | `StateInspectorPage`, `StateInspectorStore`, `ProjectLayoutControl` | component / injectable / component | §68's inspector | [API](../../../api/components/StateInspectorPage.html) |
 | `DesignLabPage`, `DesignLabStore` | component / injectable | §67 | [API](../../../api/injectables/DesignLabStore.html) |
 | `DesignLabToken`, `DesignLabExport` | interfaces | A knob as data; the export shape | [API](../../../api/interfaces/DesignLabToken.html) |
-| `LivePanels`, `PrimitivePanels`, `SectionCanvasFrame`, `StubSectionContent` | components | The catalogue | [API](../../../api/components/LivePanels.html) |
+| `LivePanels`, `PrimitivePanels`, `PlanePanels`, `SectionCanvasFrame`, `StubSectionContent` | components | The catalogue | [API](../../../api/components/LivePanels.html) |
 
 ## Dependencies
 

@@ -1,3 +1,5 @@
+@use '../../../../../styles/breakpoints';
+
 :host {
   display: block;
   // Slice 58: named so this section's width, not the viewport's, decides whether the details
@@ -86,10 +88,10 @@
 }
 
 // Too narrow for the rows plus `--layout-drawer-width` (22rem): stack the drawer below them
-// rather than as a second track that overflows over them. The literal is the list's working
-// minimum plus that token, because a custom property cannot appear in a query condition; the
-// same literal is in `task-detail-drawer.scss`, which unsticks the drawer at the same width.
-@container task-list (width < 42rem) {
+// rather than as a second track that overflows over them. The named breakpoint is the list's
+// working minimum plus that token; `task-detail-drawer.scss` uses the same Sass partial to
+// unstick the drawer at exactly this width.
+@container task-list (width < #{breakpoints.$task-list-narrow}) {
   .task-workspace--drawer-open {
     grid-template-columns: minmax(0, 1fr);
   }

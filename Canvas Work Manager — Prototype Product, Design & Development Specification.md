@@ -895,7 +895,7 @@ Example categories:
 
 Do not scatter literal styling values throughout components.
 
-*Corrected at Slice 70 Gate 1 (2026-10-14).* The redesign adds token families for the frosted-glass **Depth** direction: plane tints and alphas (ground, pane, sheet, lift), blur radii, lift elevation, focus ring, durations and easings, plus the z-index, breakpoint and font-weight values that escape tokens today. Every one lives in `_tokens.scss`. Glass surfaces must keep text and muted text at WCAG AA over the worst backing, in both themes. They fall back to solid token surfaces under reduced transparency, without `backdrop-filter`, and in forced colours ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md), [direction](docs/roadmap/70-ui-ux/direction.md)).
+*Corrected at Slice 70 Gate 1 (2026-10-14).* The redesign adds token families for the frosted-glass **Depth** direction: plane tints and alphas (ground, pane, sheet, lift), blur radii, lift elevation, focus ring, durations and easings, plus the z-index, breakpoint and font-weight values that escape tokens today. Design values live in `_tokens.scss`; CSS-free breakpoint constants live beside it in `_breakpoints.scss`, with TS query agreement checked by the token lint. Contrast over the worst backing is measured and reported in both themes under the user contrast amendment; it does not gate the chosen demo tints. They fall back to solid token surfaces under reduced transparency, without `backdrop-filter`, and in forced colours ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md), [direction](docs/roadmap/70-ui-ux/direction.md)).
 
 ---
 
@@ -3673,7 +3673,7 @@ errors
 
 This supplements Storybook with a full-app design environment.
 
-*Corrected at Slice 70 Gate 1 (2026-10-14).* The Lab shows the three planes and the lifts (drawer, dialog, menu, toast) over a busy backing. It has live knobs for tints, blur and motion, and toggles for reduced transparency, the no-filter fallback and reduced motion ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
+*Corrected at Slice 70 Gate 1 (2026-10-14).* The Lab shows the three planes and the lifts (drawer, dialog, menu, toast) over a busy backing. It has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
 
 ---
 

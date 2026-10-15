@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints';
+
 :host {
   display: block;
 }
@@ -10,7 +12,8 @@
   padding: var(--space-5);
   border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--plane-sheet-background);
+  backdrop-filter: var(--plane-sheet-filter);
 }
 
 .project-header__icon {
@@ -72,8 +75,8 @@
 }
 
 .project-header__actions button:disabled {
-  cursor: default;
-  opacity: 0.5;
+  cursor: var(--cursor-disabled);
+  opacity: var(--opacity-disabled);
 }
 
 .project-header__more-menu {
@@ -99,7 +102,7 @@
 // under the identity, so the project name keeps the width it needs. Slice 45: it also wraps. At
 // 375 px the global sidebar keeps its width and leaves the header ~115 px, and an unwrapped
 // flex-end row overflowed leftwards beneath the sidebar, where Undo could not be tapped.
-@media (max-width: 40rem) {
+@media (max-width: breakpoints.$compact) {
   .project-header__actions {
     flex-wrap: wrap;
     grid-column: 1 / -1;

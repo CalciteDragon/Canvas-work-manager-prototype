@@ -77,9 +77,9 @@
   TodosPageStore separately uses a write epoch for its projected chronology.
 - **Six variants, pinned by stories and `task-row.spec.ts`.**
 - **Tokens only** in `task-row.scss` and `task-detail-drawer.scss`.
-- **The `42rem` stacking literal is in two stylesheets** — `task-list-section.scss` and
-  `task-detail-drawer.scss` — and must move together; `phone-layout.spec.ts` taps Delete with
-  the drawer open.
+- **The `42rem` stacking threshold comes from one Sass partial** — `task-list-section.scss`
+  and `task-detail-drawer.scss` import `styles/_breakpoints.scss`; `phone-layout.spec.ts` taps
+  Delete with the drawer open.
 
 ## Commands
 

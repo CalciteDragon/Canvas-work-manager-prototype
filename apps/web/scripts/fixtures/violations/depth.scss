@@ -1,0 +1,14 @@
+.layer { z-index: 20; }
+@media (max-width: 48rem) { .control { display: block; } }
+@media (width <= 60rem) { .control { display: block; } }
+@container tasks (width < 42rem) { .control { display: block; } }
+.weight { font-weight: 600; }
+.dim { opacity: 0.5; }
+.scrim { opacity: 60%; }
+// Controls: custom properties and endpoints are deliberately allowed.
+.controls { opacity: 0; --canvas-chrome-opacity: 0.35; }
+.visible { opacity: 1; font-weight: var(--font-weight-semibold); z-index: var(--z-dialog); }
+.endpoints { opacity: 0%; }
+.full { opacity: 100%; }
+@media (max-width: breakpoints.$shell-narrow) { .control { display: block; } }
+.quoted { content: '@media (width < 42rem)'; }

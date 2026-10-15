@@ -169,6 +169,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [What §46's Agent Connection control is](2026-08-agent-connection-panel-control-is-a-roster.md) | A read-only roster with copyable tokens | amended; connecting moves into Settings (Slice 70 Gate 1) |
 | [The Design Lab is a route with live knobs, not a third theme](2026-08-design-lab-tokens-are-session-knobs.md) | Seven inline custom properties, session-only | extended; glass and motion knobs (Slice 70 Gate 1) |
 
+| [Breakpoints live beside the design tokens](2026-10-breakpoints-beside-the-tokens.md) | CSS-free Sass thresholds and checked TS agreement | current (Slice 71) |
+
 ## Testing
 
 | Entry | Settled | Status |
@@ -176,3 +178,4 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [The end-to-end suite starts its own servers and writes its own data file](2026-08-e2e-owns-its-servers-and-its-data.md) | Playwright owns both processes and `.prototype/e2e-data.json` | current |
 | [Storybook runs on the Vite framework, not the webpack one](2026-08-storybook-runs-on-the-vite-framework.md) | `@storybook/angular-vite`, zoneless, `@angular/build` | current |
 | [Web specs start from empty browser storage](2026-09-web-specs-start-with-empty-storage.md) | One `setupFiles` hook clears both storages before every web test; `isolate` stays off | current |
+

@@ -44,8 +44,8 @@ button {
   }
 
   &:disabled {
-    opacity: 50%;
-    cursor: default;
+    opacity: var(--opacity-disabled);
+    cursor: var(--cursor-disabled);
   }
 }
 

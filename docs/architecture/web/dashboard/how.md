@@ -65,3 +65,5 @@ pnpm prototype:seed overdue-chaos && pnpm dev:host   # then move the date in the
 - **The trap:** deriving anything from `new Date()` in a widget. The host's one clock
   reading is what keeps the digest and Today in agreement; format on the client, never
   compute.
+
+DashboardWidgetFrame uses --plane-sheet-background/filter, with solid fallbacks resolved centrally in the token stylesheet; its size and padding remain unchanged.

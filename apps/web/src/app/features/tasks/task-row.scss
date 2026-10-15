@@ -34,7 +34,8 @@
 }
 
 .task-row--selected {
-  outline: var(--border-focus) solid var(--color-accent);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
   background: var(--color-accent-surface);
 }
 
@@ -70,7 +71,7 @@ button.task-row__title {
   max-width: 100%;
   overflow: hidden;
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -107,13 +108,13 @@ button.task-row__title {
 
 .task-row__delete:disabled,
 .task-row__checkbox[aria-disabled='true'] {
-  cursor: progress;
-  opacity: 0.5;
+  cursor: var(--cursor-disabled);
+  opacity: var(--opacity-disabled);
 }
 
 /* The row stays legible while the write is in flight — it has not gone anywhere yet. */
 .task-row--archiving {
-  opacity: 0.5;
+  opacity: var(--opacity-disabled);
 }
 
 @media (pointer: fine) {

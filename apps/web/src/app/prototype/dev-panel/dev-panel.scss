@@ -3,11 +3,11 @@
 .dev-panel__backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-dev-scrim);
   border: 0;
   padding: 0;
   background: var(--color-background);
-  opacity: 60%;
+  opacity: var(--opacity-scrim);
   cursor: pointer;
 }
 
@@ -16,7 +16,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 41;
+  z-index: var(--z-dev-panel);
   width: min(100%, var(--layout-dev-panel-width));
   overflow-y: auto;
   padding: var(--space-5);

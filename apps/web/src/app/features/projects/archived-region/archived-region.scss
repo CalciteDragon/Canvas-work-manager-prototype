@@ -93,5 +93,5 @@
 
 .archived-region__entry button:disabled {
   color: var(--color-text-muted);
-  cursor: not-allowed;
+  cursor: var(--cursor-disabled);
 }

@@ -62,3 +62,5 @@ is never required.
 
 §24 home dashboard · §25 widget model · §42–§44 AI architecture, prototype AI, optional
 real AI · §45 time · §57 agent activity.
+
+[Depth V2](../../../decisions/2026-10-depth-blur-budget.md) gives every widget the same translucent sheet without adding a blur layer per widget.

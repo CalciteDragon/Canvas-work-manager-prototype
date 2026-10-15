@@ -75,6 +75,6 @@
 }
 
 .state-inspector__project button:disabled {
-  cursor: default;
-  opacity: 0.6;
+  cursor: var(--cursor-disabled);
+  opacity: var(--opacity-disabled);
 }

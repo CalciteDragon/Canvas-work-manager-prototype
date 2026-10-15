@@ -1,5 +1,6 @@
 // §21's design primitives. **The only file in the application permitted to hold a literal
-// colour, spacing, radius or shadow value** — `scripts/check-design-tokens.mjs` enforces
+// colour, spacing, radius or shadow value** — CSS-free breakpoints live beside it.
+// `scripts/check-design-tokens.mjs` enforces
 // that, and `pnpm lint` runs it.
 //
 // §22's two themes are one attribute apart: dark is the default, light overrides. The
@@ -18,7 +19,7 @@
 // theme `--color-surface` and `--color-surface-raised` are both white, so converting only
 // the first would make raised cards stop lifting off the page as the knob moved.
 //
-// Appearance is unchanged at the defaults: `color-mix(in oklab, X 100%, Y)` is `X` round
+// The original knob scales keep their semantics: `color-mix(in oklab, X 100%, Y)` is `X` round
 // tripped through oklab, exact at 8-bit output, and every `calc()` multiplies by 1.
 
 :root {
@@ -37,33 +38,92 @@
   --knob-surface-contrast: 100%;
 
   // ── Base literals. The light block overrides these; the derivations below follow. ──
-  --color-background: #14161a;
-  --surface-base: #191b20;
-  --surface-raised-base: #1e2127;
-  --surface-sunken-base: #111317;
+  --color-background: #0c0f1a;
+  --surface-base: #1a1f2e;
+  --surface-raised-base: #20253a;
+  --surface-sunken-base: #0c0f1a;
   --shadow-color-sm: rgb(0 0 0 / 40%);
   --shadow-color-md: rgb(0 0 0 / 45%);
 
-  --color-text: #eef1f6;
-  --color-text-muted: #9aa3b2;
-  --color-border: #2c313a;
-  --color-accent: #ff9f6b;
+  --color-text: #f2f4fa;
+  --color-text-muted: #b4bccc;
+  --color-border: rgb(255 255 255 / 10%);
+  --color-accent: #ffad7f;
   // `--color-accent-contrast` and `--color-accent-surface` stay per-theme literals and do
   // **not** track the accent knob. Contrast is near-black in dark and pure white in light,
   // and no single `color-mix()` against the accent produces both; the tinted surfaces are
   // mixed at visibly different strengths for the same reason. So the accent knob moves
   // `--color-accent` alone — dragged far enough it *can* produce poor contrast on
   // accent-filled controls. Recorded in docs/decisions/ as the first follow-up candidate.
-  --color-accent-contrast: #0b1220;
-  --color-accent-surface: #202f48;
-  --color-danger: #ff8a8a;
-  --color-danger-surface: #3a2227;
-  --color-success: #79d49a;
-  --color-success-surface: #1d3427;
+  --color-accent-contrast: #1a1208;
+  --color-accent-surface: rgb(255 173 127 / 18%);
+  --color-danger: #ff9c9c;
+  --color-danger-surface: rgb(255 156 156 / 16%);
+  --color-success: #86e0a8;
+  --color-success-surface: rgb(134 224 168 / 16%);
   --color-warning: #f3bf66;
   --color-warning-surface: #3a3020;
 
+  // Depth's Gate 1 palette. V2 keeps every product sheet unblurred.
+  --plane-ground-solid: #0c0f1a;
+  --art-warm: rgb(255 140 90 / 55%);
+  --art-cool: rgb(120 90 255 / 50%);
+  --art-teal: rgb(40 200 180 / 45%);
+  --ground-art-strength: 100%;
+  --plane-pane-tint: #121622;
+  --plane-pane-alpha: 48%;
+  --plane-pane-solid: #161a26;
+  --plane-pane-blur: 30px;
+  --plane-sheet-tint: #161a28;
+  --plane-sheet-alpha: 74%;
+  --plane-sheet-solid: #1a1f2e;
+  --plane-sheet-blur: 0px;
+  --plane-lift-tint: #1c2030;
+  --plane-lift-alpha: 72%;
+  --plane-lift-solid: #20253a;
+  --plane-lift-blur: 36px;
+  --glass-saturation: 140%;
+  --lift-shadow: 0 30px 80px rgb(0 0 0 / 55%), 0 0 0 1px rgb(255 255 255 / 12%) inset;
+  --field-line: rgb(255 255 255 / 38%);
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 4px;
+  --focus-ring-color: var(--color-accent);
+  --duration-fast-base: 120ms;
+  --duration-base-base: 180ms;
+  --duration-slow-base: 240ms;
+  --motion-scale: 1;
+  --motion-duration-cap: 9999ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --opacity-disabled: 0.5;
+  --cursor-disabled: default;
+  --opacity-scrim: 0.6;
+  --opacity-drag-placeholder: 0.35;
+  --z-behind: -1;
+  --z-canvas-insertion: 1;
+  --z-canvas-resize: 2;
+  --z-notice: 10;
+  --z-dialog: 20;
+  --z-navigation-scrim: 30;
+  --z-navigation: 31;
+  --z-dev-scrim: 40;
+  --z-dev-panel: 41;
+
   // ── Derived once, for both themes. ──
+  --plane-ground-art: radial-gradient(45% 55% at 10% 10%, color-mix(in srgb, var(--art-warm) var(--ground-art-strength), transparent), transparent 70%), radial-gradient(55% 55% at 95% 20%, color-mix(in srgb, var(--art-cool) var(--ground-art-strength), transparent), transparent 70%), radial-gradient(60% 50% at 55% 105%, color-mix(in srgb, var(--art-teal) var(--ground-art-strength), transparent), transparent 70%);
+  --plane-ground-background: var(--plane-ground-art), var(--plane-ground-solid);
+  --plane-pane-background: color-mix(in srgb, var(--plane-pane-tint) var(--plane-pane-alpha), transparent);
+  --plane-sheet-background: color-mix(in srgb, var(--plane-sheet-tint) var(--plane-sheet-alpha), transparent);
+  --plane-lift-background: color-mix(in srgb, var(--plane-lift-tint) var(--plane-lift-alpha), transparent);
+  --plane-pane-filter: blur(var(--plane-pane-blur)) saturate(var(--glass-saturation));
+  --plane-sheet-filter: var(--lab-sheet-filter, none);
+  --plane-lift-filter: blur(var(--plane-lift-blur)) saturate(var(--glass-saturation));
+  --duration-fast: min(var(--motion-duration-cap), calc(var(--duration-fast-base) * var(--motion-scale)));
+  --duration-base: min(var(--motion-duration-cap), calc(var(--duration-base-base) * var(--motion-scale)));
+  --duration-slow: min(var(--motion-duration-cap), calc(var(--duration-slow-base) * var(--motion-scale)));
   --color-surface: color-mix(in oklab, var(--surface-base) var(--knob-surface-contrast), var(--color-background));
   --color-surface-raised: color-mix(in oklab, var(--surface-raised-base) var(--knob-surface-contrast), var(--color-background));
   --color-surface-sunken: color-mix(in oklab, var(--surface-sunken-base) var(--knob-surface-contrast), var(--color-background));
@@ -114,23 +174,55 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --color-background: #f6f7f9;
+  --color-background: #e9edf7;
   --surface-base: #ffffff;
   --surface-raised-base: #ffffff;
-  --surface-sunken-base: #eceef2;
+  --surface-sunken-base: #e9edf7;
   --shadow-color-sm: rgb(16 24 40 / 8%);
   --shadow-color-md: rgb(16 24 40 / 12%);
 
-  --color-text: #1a1d23;
-  --color-text-muted: #626b7a;
-  --color-border: #d9dde4;
-  --color-accent: #2563eb;
+  --color-text: #121620;
+  --color-text-muted: #4c5464;
+  --color-border: rgb(18 22 32 / 10%);
+  --color-accent: #1f4fd0;
   --color-accent-contrast: #ffffff;
-  --color-accent-surface: #eff4ff;
-  --color-danger: #b42318;
-  --color-danger-surface: #fef3f2;
-  --color-success: #067647;
-  --color-success-surface: #ecfdf3;
+  --color-accent-surface: rgb(31 79 208 / 12%);
+  --color-danger: #a51f15;
+  --color-danger-surface: rgb(165 31 21 / 10%);
+  --color-success: #05683f;
+  --color-success-surface: rgb(5 104 63 / 12%);
   --color-warning: #93370d;
   --color-warning-surface: #fffaeb;
+  --plane-ground-solid: #e9edf7;
+  --art-warm: rgb(255 150 100 / 45%);
+  --art-cool: rgb(110 90 255 / 38%);
+  --art-teal: rgb(30 190 170 / 35%);
+  --plane-pane-tint: #ffffff;
+  --plane-pane-alpha: 50%;
+  --plane-pane-solid: #f5f7fb;
+  --plane-sheet-tint: #ffffff;
+  --plane-sheet-alpha: 72%;
+  --plane-sheet-solid: #ffffff;
+  --plane-lift-tint: #ffffff;
+  --plane-lift-alpha: 74%;
+  --plane-lift-solid: #ffffff;
+  --lift-shadow: 0 30px 80px rgb(16 24 40 / 22%), 0 0 0 1px rgb(255 255 255 / 70%) inset;
+  --field-line: rgb(18 22 32 / 42%);
 }
+
+// The same declarations serve every solid fallback. Components never branch on glass.
+@mixin solid-planes {
+  :root {
+    --plane-ground-background: var(--plane-ground-solid);
+    --plane-pane-background: var(--plane-pane-solid);
+    --plane-sheet-background: var(--plane-sheet-solid);
+    --plane-lift-background: var(--plane-lift-solid);
+    --plane-pane-filter: none;
+    --plane-sheet-filter: none;
+    --plane-lift-filter: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) { @include solid-planes; }
+@supports not (backdrop-filter: blur(1px)) { @include solid-planes; }
+@media (forced-colors: active) { @include solid-planes; }
+@media (prefers-reduced-motion: reduce) { :root { --motion-duration-cap: 80ms; } }

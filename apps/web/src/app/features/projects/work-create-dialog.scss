@@ -2,7 +2,7 @@
 
 .work-create-backdrop {
   position: fixed;
-  z-index: 20;
+  z-index: var(--z-dialog);
   inset: 0;
   display: grid;
   overflow-y: auto;
@@ -13,10 +13,10 @@
 
 .work-create-backdrop::before {
   position: fixed;
-  z-index: -1;
+  z-index: var(--z-behind);
   inset: 0;
   background: var(--color-background);
-  opacity: 72%;
+  opacity: var(--opacity-scrim);
   pointer-events: none;
   content: '';
 }
@@ -71,11 +71,11 @@
 .work-create-dialog__note { margin: 0; color: var(--color-text-muted); }
 .work-create-dialog__error { margin: 0; color: var(--color-danger); }
 .work-create-dialog button { cursor: pointer; }
-.work-create-dialog button:disabled { cursor: progress; opacity: 0.65; }
+.work-create-dialog button:disabled { cursor: var(--cursor-disabled); opacity: var(--opacity-disabled); }
 
 .work-create-dialog button:focus-visible,
 .work-create-dialog input:focus-visible,
 .work-create-dialog select:focus-visible {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: var(--space-1);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }

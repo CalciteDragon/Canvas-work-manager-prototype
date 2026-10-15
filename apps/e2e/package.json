@@ -7,7 +7,7 @@
     "pree2e": "node --import tsx prepare-data.ts",
     "e2e": "playwright test",
     "lint": "tsc --noEmit",
-    "preux:capture": "node --import tsx prepare-data.ts",
+    "preux:capture": "node --import tsx prepare-data.ts --capture",
     "ux:capture": "playwright test --config ux-capture.config.ts"
   },
   "devDependencies": {

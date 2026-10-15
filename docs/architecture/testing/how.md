@@ -212,13 +212,12 @@ pnpm storybook                                        # :6006
   `contract.test.ts` were proved sensitive by temporarily preserving `completedAt`, then
   immediately restoring the domain line and rerunning green.
 - **Phone layout** lives in `phone-layout.spec.ts`. Isolated `nested-projects` data, 375 × 812
-  with `hasTouch`/`isMobile` in both `colorScheme` values (the persona's `data-theme` is set with
-  the toggle), plus a separate non-mobile context for resize, because `isMobile` emulation does
+  with `hasTouch`/`isMobile` in both `colorScheme` values (the browser theme follows the device
+  until explicitly chosen with the toggle), plus a separate non-mobile context for resize, because `isMobile` emulation does
   not resize faithfully. Overflow is asserted on the document, on `main.workspace` and on the
   project main track: the shell's `100vh` `<main>` scrolls internally, so a document check alone
-  misses content that overflows inside it. Every journey waits for the persona before toggling
-  the theme: the identity's arrival re-seeds `data-theme`, and a create sent before it finds no
-  workspace. `row-history.spec.ts` taps Delete with the details drawer open. Title taps open
+  misses content that overflows inside it. Every journey waits for the persona before creating
+  workspace data; identity loading does not change the theme. `row-history.spec.ts` taps Delete with the details drawer open. Title taps open
   the stacked Task List drawer, Close returns focus to that title, and a done task reopens by
   touch with API and reload evidence. Tap slop is proved in TaskRow's unit test, because
   Playwright's `tap()` has no movement. Opening intentionally does not scroll the drawer into view.
@@ -368,3 +367,5 @@ only. `repro/r1–r10.js` are the orchestrator's reproduction scripts. Run them 
 `walk.mjs <ctl> run -f`.
 
 After a capture, run the report generator with node --import tsx ux/report.ts ux-output/<HEAD> from apps/e2e. It creates the contact sheet, a raw axe summary and the explicit inventory denominator. UX_MATCH selects a subset for recapture and merges its cells into an existing index. Scroll frames expose nested scroll regions on long canvases; their presence is recorded per cell.
+
+Slice 71 capture preparation uses its own ownership-guarded `.prototype/ux-data.json` (`prepare-data.ts --capture`), independent of an existing e2e host. The opt-in `UX_DEPTH=1` verification collects forced-color, reduced-transparency and simulated unsupported-filter captures, built CSS fallback equality, keyboard focus rings, live Lab controls and device-theme reload evidence. `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs` compares commit-keyed boxes and reports axe violations and incomplete counts plus composite contrast.

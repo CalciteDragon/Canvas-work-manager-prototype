@@ -40,7 +40,7 @@
   pre code { padding: 0; border-radius: 0; }
   hr { border: 0; border-block-start: var(--border-hairline) solid var(--color-border); }
   a { color: var(--color-accent); }
-  a:focus-visible { outline: var(--border-focus) solid var(--color-accent); }
+  a:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring-color); outline-offset: var(--focus-ring-offset); }
   table {
     display: block;
     max-inline-size: 100%;

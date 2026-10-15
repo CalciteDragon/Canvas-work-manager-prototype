@@ -319,3 +319,5 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   synchronously inside `RouterLink`'s click handler. A bubbling listener on the column is gone
   before the click reaches it, and a shell field is gone with the old instance. That is why
   `linkSelected` is reported from a capture-phase listener and the request is root-scoped.
+
+Plane containers use --plane-pane-background/filter or --plane-sheet-background/filter. Global token fallbacks resolve solid surfaces, and shared focus tokens draw every focus-visible outline. No spacing or layout rules change for Depth.

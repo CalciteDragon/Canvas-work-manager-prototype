@@ -1,11 +1,11 @@
 /**
- * §22's seven Design Lab controls, as data.
+ * §22's Design Lab controls, including Depth's plane and motion controls, as data.
  *
  * **This file holds no design literals**, deliberately. A hard-coded `#ff9f6b` here would
  * be a design value outside the one file §21 permits — invisible to
  * `check-design-tokens.mjs`, which only inspects `styles`/`template` initialisers in `.ts`
- * — *and* wrong in the light theme, whose accent is `#2563eb`. So the two controls that
- * need a starting position (`accent`, `sidebarWidth`) read it from the stylesheet at
+ * — *and* wrong in the light theme. Controls that need a design starting position
+ * (including accent, plane primitives and sidebar width) read it from the stylesheet at
  * runtime, and Reset **removes** the inline property rather than writing a default back,
  * letting the stylesheet win. That is theme-correct for free.
  *
@@ -33,6 +33,16 @@ export interface DesignLabToken {
   note?: string;
 }
 
+const planeTokens = (plane: 'pane' | 'sheet' | 'lift'): DesignLabToken[] => {
+  const label = `${plane[0].toUpperCase()}${plane.slice(1)}`;
+  return [
+    { id: `${plane}Tint`, label: `${label} tint`, property: `--plane-${plane}-tint`, kind: 'color', unit: '', fallback: null },
+    { id: `${plane}Alpha`, label: `${label} alpha`, property: `--plane-${plane}-alpha`, kind: 'range', unit: '%', min: 0, max: 100, step: 1, fallback: null },
+    { id: `${plane}Blur`, label: `${label} blur`, property: `--plane-${plane}-blur`, kind: 'range', unit: 'px', min: 0, max: 40, step: 1, fallback: null,
+      ...(plane === 'sheet' ? { note: 'The shipped V2 sheets do not blur. Moving this knob experiments with sheet blur.' } : {}) },
+  ];
+};
+
 export const DESIGN_LAB_TOKENS: readonly DesignLabToken[] = [
   { id: 'radius', label: 'Radius', property: '--knob-radius-scale', kind: 'range', unit: '', min: 0, max: 2.5, step: 0.05, fallback: 1 },
   { id: 'spacing', label: 'Spacing density', property: '--knob-space-scale', kind: 'range', unit: '', min: 0.5, max: 2, step: 0.05, fallback: 1 },
@@ -54,4 +64,9 @@ export const DESIGN_LAB_TOKENS: readonly DesignLabToken[] = [
   { id: 'fontScale', label: 'Font scale', property: '--knob-font-scale', kind: 'range', unit: '', min: 0.75, max: 1.5, step: 0.05, fallback: 1 },
   { id: 'elevation', label: 'Elevation', property: '--knob-elevation', kind: 'range', unit: '', min: 0, max: 3, step: 0.1, fallback: 1 },
   { id: 'sidebarWidth', label: 'Sidebar width', property: '--layout-sidebar-width', kind: 'range', unit: 'rem', min: 10, max: 26, step: 0.5, fallback: null },
+  ...planeTokens('pane'),
+  ...planeTokens('sheet'),
+  ...planeTokens('lift'),
+  { id: 'groundArtStrength', label: 'Ground art strength', property: '--ground-art-strength', kind: 'range', unit: '%', min: 0, max: 100, step: 1, fallback: null },
+  { id: 'motionScale', label: 'Motion scale', property: '--motion-scale', kind: 'range', unit: '', min: 0, max: 3, step: 0.1, fallback: null },
 ];

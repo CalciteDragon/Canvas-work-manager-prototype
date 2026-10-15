@@ -104,3 +104,6 @@ header's history (Slice 41).
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |
 | Storybook | `.storybook/` | `@storybook/angular-vite`; stories beside components |
 | Lints | `scripts/check-design-tokens.mjs`, `scripts/expect-failure.mjs` | The token lint and its self-test |
+
+
+The styling layer consists of `_tokens.scss` (theme bases, derived planes, focus, motion and shared constants), `_breakpoints.scss` (CSS-free reflow thresholds), and `_base.scss` (ground and shared focus-visible ring).

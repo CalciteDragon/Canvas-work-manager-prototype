@@ -20,6 +20,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { canonicalPageKindFor, type ProjectId, type ProjectPageKind } from '@cwm/contracts';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { WORKSPACE_NARROW_BREAKPOINT } from '../../core/layout/breakpoints';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
 import { ProjectHistoryControls } from './history/project-history-controls';
 import { ProjectHistoryFeedback } from './history/project-history-feedback';
@@ -44,7 +45,7 @@ interface PageNoticeState {
   pageEnableKind?: OptionalProjectPageKind;
 }
 
-const NARROW = '(max-width: 60rem)';
+const NARROW = `(max-width: ${WORKSPACE_NARROW_BREAKPOINT})`;
 
 /**
  * Slice 58: the column link a narrow selection chose, until the toggle that re-collapsed it

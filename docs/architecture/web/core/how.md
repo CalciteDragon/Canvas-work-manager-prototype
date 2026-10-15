@@ -67,7 +67,8 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |
 | `ThemeService` | injectable | `data-theme` | [API](../../../api/injectables/ThemeService.html) |
 | `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer | [API](../../../api/components/AppShell.html) |
-| `SHELL_NARROW_QUERY` | constant | The drawer's breakpoint, mirrored in `app-shell.scss` and `top-bar.scss` | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
+| `SHELL_NARROW_QUERY` | constant | The drawer query, built from the shared breakpoint checked against Sass | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
+| `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and project navigation thresholds, equal to the CSS-free Sass partial by token-lint check | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
 
 ## Dependencies
@@ -127,4 +128,5 @@ pnpm --filter web lint            # includes the token lint that covers app-shel
   `focus()` does nothing. The closed drawer is hidden by the signal-bound `side--closed` class,
   not by the media query alone: the browser applies the query before `matchMedia` reports it,
   and hiding a focused link first drops focus before `AppShell` can rescue it. The `48rem`
-  literal lives in three places; change them together.
+  threshold lives in `core/layout/breakpoints.ts` and `styles/_breakpoints.scss`; the token lint
+  proves their equality, and the two stylesheets import the CSS-free Sass partial.

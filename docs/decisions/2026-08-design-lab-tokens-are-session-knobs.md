@@ -137,3 +137,18 @@ if the primitive panels accumulate enough repeat re-styling to justify extractin
 library, which is deliberately **not** this slice.
 
 **Amended, 2026-10-14 (Slice 70 Gate 1).** Extended by the [Depth direction](2026-10-frosted-glass-depth-direction.md): the redesign's plane tints, alphas, blur radii, lift elevation, durations and easings become tokens with live Lab knobs. Persistence stays session-only, as here.
+
+**Amended, 2026-10-14 (Slice 71).** The Lab now has eighteen controls: its seven original
+knobs plus pane/sheet/lift tint, alpha and blur, ground-art strength and motion scale. The new
+controls read their defaults from the active stylesheet. Solid planes simulates both reduced
+transparency and the no-filter fallback; reduced motion caps the shared durations at 80 ms.
+Both toggles write inline custom properties, preserving ThemeService as the only theme owner.
+Reset removes every override, including the sheet-blur experiment's intermediate property.
+V2 sheets remain unblurred until the sheet-blur knob is moved; real fallback media still win.
+
+The new token panel shows a busy ground, pane, stacked sheets, inert drawer/dialog/menu/toast
+lifts and a transform-only motion demo. It adds no product animation or overlay behaviour.
+Copy CSS includes the plane primitives and solid fallbacks, ambient ground and motion families,
+and the active theme's text/accent/status primitives. Simulation toggles are omitted from the
+export. Knob persistence remains session-only; theme persistence now follows the separate
+[device-theme decision](2026-10-theme-follows-device-and-persists.md).

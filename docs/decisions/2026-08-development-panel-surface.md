@@ -84,3 +84,5 @@ control, and it needed no reload once a frame could reach the page.
 
 
 **Amended, 2026-10-02 — Slice 62.** The approved bundle remedy keeps the overlay shell, chord, Close, backdrop and focus trap eager, while shared DevPanelControls loads through a deferred block inside the open branch. Loading has a polite placeholder; chunk failure retains modal dismissal and offers explicit Reload page. Closing destroys the view; reopening creates a fresh one over the same root-provided store. The route and controls remain shared. Focus and lifecycle tests cover loading, completion, error and reopen.
+
+**Amended, 2026-10-14 (Slice 71).** Theme now shares the browser-persisted core theme service: Dark, Light and Match device. Persona switches keep the browser choice and no longer repaint from UserPreferences.theme.

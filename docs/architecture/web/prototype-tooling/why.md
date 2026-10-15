@@ -47,16 +47,18 @@ real project field and the flag is a computed over a signal.
 grid would break "no control exists twice"
 ([decision](../../../decisions/2026-08-agent-connection-panel-control-is-a-roster.md)).
 
-**The Design Lab is a route with knobs, not a third theme.** Seven inline custom
+**The Design Lab is a route with knobs, not a third theme.** Eighteen controls write inline custom
 properties on `documentElement` reach the whole shell, which is the experiment; Reset
 *removes* the property so the stylesheet wins, theme-correct for free; two limits are
 stated on the controls — surface contrast reduces only, and the accent knob moves
 `--color-accent` alone ([decision](../../../decisions/2026-08-design-lab-tokens-are-session-knobs.md)).
 `design-lab-tokens.ts` holds no design literals, so the token lint stays honest.
+Plane tints, alphas and blurs read the active stylesheet; solid-plane and motion-cap
+previews use only inline properties. They do not add another theme owner.
 
 **`DesignLabStore` is a root singleton that does not hydrate**, because a page-provided
 store would be destroyed on navigation while the shell still wore its knobs. §20
-objects to one global store owning application data; this owns seven numbers.
+objects to one global store owning application data; this owns design controls.
 
 **Primitive panels are evidence, not a component library.** Buttons, inputs, cards,
 project cards and menus that everyone keeps re-styling are shown as representative

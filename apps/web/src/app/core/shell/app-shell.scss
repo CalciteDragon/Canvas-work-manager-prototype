@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints';
+
 // §23's grid. Desktop-first; below 48rem the sidebar leaves the grid and becomes a drawer.
 .shell {
   display: grid;
@@ -36,11 +38,10 @@
   overflow: auto;
 }
 
-// Focused only by a drawer that closed behind a chosen link. Inset, because the region scrolls
-// and would clip an outline drawn outside it.
+// Focused only by a drawer that closed behind a chosen link; uses the shared focus ring.
 .workspace:focus-visible {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: calc(-1 * var(--border-focus));
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 // §23 puts the project navigation column *between* the sidebar and the main workspace, which
@@ -56,11 +57,11 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: var(--z-navigation-scrim);
   border: 0;
   padding: 0;
   background: var(--color-background);
-  opacity: 60%;
+  opacity: var(--opacity-scrim);
   cursor: pointer;
 }
 
@@ -97,7 +98,7 @@
 
 // Slice 58's phone breakpoint. Mirrors `SHELL_NARROW_QUERY` in `app-shell.ts` and the query in
 // `top-bar.scss`; a custom property cannot appear in a query condition.
-@media (max-width: 48rem) {
+@media (max-width: breakpoints.$shell-narrow) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -110,7 +111,7 @@
     position: fixed;
     inset-block: 0;
     inset-inline-start: 0;
-    z-index: 31;
+    z-index: var(--z-navigation);
     // A strip of backdrop always stays visible to tap.
     width: min(var(--layout-sidebar-width), calc(100vw - var(--size-hit-target)));
   }

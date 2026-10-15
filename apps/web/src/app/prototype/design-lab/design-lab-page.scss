@@ -1,6 +1,8 @@
+@use '../../../styles/breakpoints' as breakpoints;
+
 .design-lab {
   display: grid;
-  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, breakpoints.$lab-column) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-5);
   padding: var(--space-5);

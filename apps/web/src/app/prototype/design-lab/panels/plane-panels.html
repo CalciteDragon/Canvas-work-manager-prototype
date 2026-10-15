@@ -1,0 +1,27 @@
+<section class="panel" data-panel="planes" data-panel-kind="token">
+  <h2 class="panel__title">Planes and motion <span class="panel__badge">token specimens</span></h2>
+  <p class="panel__note">Ground carries ambient colour. Panes recede, sheets hold content, and lifts float. These lifts are inert specimens.</p>
+  <div class="plane-ground">
+    <div class="plane-backing" aria-hidden="true">Plan · Write · Review · Launch · Plan · Write · Review · Launch</div>
+    <div class="plane-pane">
+      <h3>Pane</h3>
+      <p>Navigation over a busy ground.</p>
+      <div class="plane-sheet">
+        <h3>Sheet</h3>
+        <p>Content stays on its own plane.</p>
+        <div class="plane-sheet"><h3>Stacked sheet</h3><p>Translucent, without blur at the V2 default.</p></div>
+      </div>
+    </div>
+    <div class="plane-lifts">
+      <article class="plane-lift" data-lift="drawer"><h3>Drawer</h3><p>Task details</p><p class="plane-muted">Owner · Due date · Description</p></article>
+      <article class="plane-lift" data-lift="dialog"><h3>Dialog</h3><p>Ready to create?</p><p class="plane-muted">Create · Cancel</p></article>
+      <article class="plane-lift" data-lift="menu"><h3>Menu</h3><p>Rename</p><p>Duplicate</p><p>Archive</p></article>
+      <article class="plane-lift" data-lift="toast"><h3>Toast</h3><p>Changes saved</p><p class="plane-muted">Your work is up to date.</p></article>
+    </div>
+  </div>
+  <div class="plane-motion">
+    <button type="button" data-design-lab-motion-play (click)="play()">Play motion</button>
+    <div class="plane-motion__sample" data-design-lab-motion [class.plane-motion__sample--moved]="moved()">Motion</div>
+    <p class="panel__note">Only transform animates. Reduced motion caps the duration at 80 ms.</p>
+  </div>
+</section>

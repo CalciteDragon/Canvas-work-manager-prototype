@@ -15,6 +15,7 @@ import {
   type ElementRef,
 } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
+import { SHELL_NARROW_BREAKPOINT } from '../layout/breakpoints';
 import { ShellStore } from './shell-store';
 import { Sidebar } from './sidebar/sidebar';
 import { TopBar } from './top-bar/top-bar';
@@ -23,10 +24,10 @@ import { TopBar } from './top-bar/top-bar';
  * Slice 58's phone breakpoint, below which the sidebar becomes a drawer. The canvas's existing
  * single-column breakpoint, so a 768 px tablet keeps the inline sidebar.
  *
- * Mirrors the `48rem` media queries in `app-shell.scss` and `top-bar.scss`. A custom property
- * cannot appear in a query condition, so the three carry the literal and point at each other.
+ * The token lint checks the shared TS value against the CSS-free Sass breakpoint partial
+ * used by `app-shell.scss` and `top-bar.scss`.
  */
-export const SHELL_NARROW_QUERY = '(max-width: 48rem)';
+export const SHELL_NARROW_QUERY = `(max-width: ${SHELL_NARROW_BREAKPOINT})`;
 
 /**
  * A plain primary activation of a link inside `within`: what a tap, a click or Enter on a link

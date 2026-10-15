@@ -6,7 +6,8 @@
   padding: var(--space-4);
   border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--plane-sheet-background);
+  backdrop-filter: var(--plane-sheet-filter);
   box-shadow: var(--shadow-sm);
 }
 

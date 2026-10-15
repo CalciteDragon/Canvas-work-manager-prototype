@@ -106,3 +106,5 @@ sequenceDiagram
 | `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |
 | Six section types | `sections/{markdown,tasks,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's shortcuts, on Home or a workstream's Work canvas |
+
+The column, header, section and shortcut frames consume shared plane tokens; their ownership and component composition stay unchanged.

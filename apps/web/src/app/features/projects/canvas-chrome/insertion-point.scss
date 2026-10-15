@@ -3,7 +3,7 @@
 // `--canvas-insertion-opacity` is set to 0 only by the canvas while CDK sorts.
 :host {
   position: absolute;
-  z-index: 1;
+  z-index: var(--z-canvas-insertion);
   display: block;
   pointer-events: var(--canvas-overlay-pointer-events, auto);
   opacity: 0;
@@ -57,12 +57,12 @@ button::before {
 }
 
 button:focus-visible {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: var(--space-1);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 app-icon {
-  z-index: 1;
+  z-index: var(--z-canvas-insertion);
   inline-size: var(--size-hit-target);
   block-size: var(--size-hit-target);
   padding: var(--space-2);

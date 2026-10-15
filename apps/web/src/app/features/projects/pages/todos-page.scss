@@ -1,3 +1,5 @@
+@use '../../../../styles/breakpoints';
+
 // §21's tokens only: a chronology is ordinary page furniture, and it should look like the
 // canvas beside it without owning a single literal value.
 :host {
@@ -88,8 +90,8 @@
 
 .todos__delete:disabled,
 .todos__toggle[aria-disabled='true'] {
-  cursor: progress;
-  opacity: 0.5;
+  cursor: var(--cursor-disabled);
+  opacity: var(--opacity-disabled);
 }
 
 .todos__toggle {
@@ -167,7 +169,7 @@
   font-size: var(--font-size-sm);
 }
 
-@media (max-width: 40rem) {
+@media (max-width: breakpoints.$compact) {
   .todos__row {
     grid-template-columns: minmax(0, 1fr) auto;
   }

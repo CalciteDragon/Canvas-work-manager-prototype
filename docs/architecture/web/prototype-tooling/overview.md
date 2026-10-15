@@ -2,7 +2,7 @@
 
 `apps/web/src/app/prototype` is the development-only surface (§22, §46, §67): the
 Ctrl/Cmd+Shift+D development panel and the `/prototype/state` page that share one set of
-controls; the Design Lab at `/prototype/design` with its seven live token knobs and its
+controls; the Design Lab at `/prototype/design` with its eighteen live token knobs and its
 catalogue of real components; and `PrototypeControlPort`, the interface behind which the
 panel reaches the host's rig routes. It changes the rig — persona, seed, date, theme,
 layout mode, AI provider, delay, failure rate, flags, notes — never the workspace.
@@ -22,10 +22,11 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
 - `PrototypeControlPort` / `PrototypeHttpControl`: `/prototype/state`, `seed`, `reset`,
   `clock`, `ai-provider`, `notes` — an interface behind `PROTOTYPE_CONTROL`, separate
   from the work-manager gateway so the panel works at 100 % injected failure.
-- `DesignLabPage` / `DesignLabStore`: seven inline custom properties on the document
+- `DesignLabPage` / `DesignLabStore`: eighteen controls writing inline custom properties on the document
   element — radius, spacing density, surface contrast, accent, font scale, elevation,
-  sidebar width — session-only; a **Copy CSS** export; live panels of real components
-  and primitive panels marked *not yet a shared component*.
+  sidebar width, plane tints/alphas/blurs, ground art strength and motion scale — session-only;
+  solid-planes and reduced-motion simulations; a **Copy CSS** export; live panels of real components
+  and primitive panels marked *not yet a shared component*, plus inert plane/lift and motion specimens.
 
 ## Not responsible for
 

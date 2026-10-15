@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints';
+
 :host {
   display: block;
   // `min-height`, not `height`: the sticky column's containing block is the grid below, and a
@@ -114,7 +116,7 @@
   cursor: pointer;
 }
 
-@media (max-width: 60rem) {
+@media (max-width: breakpoints.$workspace-narrow) {
   .project-workspace {
     grid-template-columns: minmax(0, 1fr);
   }

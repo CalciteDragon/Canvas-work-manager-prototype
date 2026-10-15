@@ -31,3 +31,5 @@ High.
 
 Revisit if an accent cannot meet contrast on the tuned Depth planes, or if the user reopens
 brand colour.
+
+**Amended, 2026-10-14 (Slice 71).** The approved Depth values are orange `#ffad7f` in dark and blue `#1f4fd0` in light. Contrast is measured and reported, including accepted exceptions, under the [Depth contrast amendment](2026-10-frosted-glass-depth-direction.md); it does not gate or dull the chosen tints.

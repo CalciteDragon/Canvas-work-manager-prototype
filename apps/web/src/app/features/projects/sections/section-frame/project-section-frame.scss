@@ -10,7 +10,8 @@
   padding: var(--space-4);
   border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--plane-sheet-background);
+  backdrop-filter: var(--plane-sheet-filter);
   box-shadow: var(--shadow-sm);
 }
 
@@ -55,7 +56,7 @@
 }
 
 .section-frame__handle[aria-disabled='true'] {
-  cursor: not-allowed;
+  cursor: var(--cursor-disabled);
 }
 
 .section-frame__collapse {
@@ -129,8 +130,8 @@
 }
 
 .section-frame__remove[aria-disabled='true'] {
-  cursor: progress;
-  opacity: 0.65;
+  cursor: var(--cursor-disabled);
+  opacity: var(--opacity-disabled);
 }
 
 .section-frame__inspector {
@@ -146,6 +147,6 @@
 }
 
 button:focus-visible {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: var(--space-1);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }

@@ -4,7 +4,7 @@
 
 .section-create-backdrop {
   position: fixed;
-  z-index: 20;
+  z-index: var(--z-dialog);
   inset: 0;
   display: grid;
   overflow-y: auto;
@@ -15,10 +15,10 @@
 
 .section-create-backdrop::before {
   position: fixed;
-  z-index: -1;
+  z-index: var(--z-behind);
   inset: 0;
   background: var(--color-background);
-  opacity: 72%;
+  opacity: var(--opacity-scrim);
   pointer-events: none;
   content: '';
 }
@@ -89,15 +89,15 @@
 }
 
 .section-create-dialog button:disabled {
-  cursor: progress;
-  opacity: 0.65;
+  cursor: var(--cursor-disabled);
+  opacity: var(--opacity-disabled);
 }
 
 .section-create-dialog button:focus-visible,
 .section-create-dialog input:focus-visible,
 .section-create-dialog select:focus-visible {
-  outline: var(--border-focus) solid var(--color-accent);
-  outline-offset: var(--space-1);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 // A long source list scrolls inside the dialog so Back and Cancel stay in view.

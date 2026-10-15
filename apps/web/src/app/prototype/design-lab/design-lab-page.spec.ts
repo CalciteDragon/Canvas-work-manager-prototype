@@ -21,6 +21,12 @@ const render = async () => {
 
 afterEach(() => {
   for (const token of DESIGN_LAB_TOKENS) document.documentElement.style.removeProperty(token.property);
+  for (const plane of ['ground', 'pane', 'sheet', 'lift']) {
+    document.documentElement.style.removeProperty(`--plane-${plane}-background`);
+    document.documentElement.style.removeProperty(`--plane-${plane}-filter`);
+  }
+  document.documentElement.style.removeProperty('--motion-duration-cap');
+  document.documentElement.style.removeProperty('--lab-sheet-filter');
 });
 
 describe('DesignLabPage (§22, §67)', () => {
@@ -44,6 +50,7 @@ describe('DesignLabPage (§22, §67)', () => {
       'project-cards',
       'menus',
       'states',
+      'planes',
     ]);
     // The real components, not a screenshot of them.
     expect(element.querySelector('app-task-row')).not.toBeNull();
@@ -54,12 +61,14 @@ describe('DesignLabPage (§22, §67)', () => {
     expect(element.querySelector('app-activity-feed')).not.toBeNull();
   });
 
-  it('offers §22’s seven controls', async () => {
+  it('offers §22’s controls and the Depth plane and motion controls', async () => {
     const { element } = await render();
 
     expect([...element.querySelectorAll('[data-design-lab-control]')].map((control) =>
       control.getAttribute('data-design-lab-control'),
-    )).toEqual(['radius', 'spacing', 'surfaceContrast', 'accent', 'fontScale', 'elevation', 'sidebarWidth']);
+    )).toEqual(['radius', 'spacing', 'surfaceContrast', 'accent', 'fontScale', 'elevation', 'sidebarWidth',
+      'paneTint', 'paneAlpha', 'paneBlur', 'sheetTint', 'sheetAlpha', 'sheetBlur',
+      'liftTint', 'liftAlpha', 'liftBlur', 'groundArtStrength', 'motionScale']);
   });
 
   it('labels each primitive panel as not yet a shared component', async () => {
@@ -88,6 +97,25 @@ describe('DesignLabPage (§22, §67)', () => {
     element.querySelector<HTMLElement>('[data-design-lab-reset]')!.click();
     await fixture.whenStable();
     expect(document.documentElement.style.getPropertyValue('--knob-radius-scale')).toBe('');
+  });
+
+  it('previews solid planes and reduced motion, and resets both checked states', async () => {
+    const { fixture, element } = await render();
+    for (const id of ['solid-planes', 'reduced-motion']) {
+      const input = element.querySelector<HTMLInputElement>(`#design-lab-${id}`)!;
+      input.checked = true;
+      input.dispatchEvent(new Event('change'));
+    }
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(document.documentElement.style.getPropertyValue('--plane-pane-filter')).toBe('none');
+    expect(document.documentElement.style.getPropertyValue('--motion-duration-cap')).toBe('80ms');
+    element.querySelector<HTMLElement>('[data-design-lab-reset]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector<HTMLInputElement>('#design-lab-solid-planes')!.checked).toBe(false);
+    expect(element.querySelector<HTMLInputElement>('#design-lab-reduced-motion')!.checked).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('--motion-duration-cap')).toBe('');
   });
 
   /**

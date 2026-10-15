@@ -25,8 +25,10 @@ const sourceRoot = resolve(
   rootArgumentIndex === -1 ? join(scriptDirectory, '..', 'src') : process.argv[rootArgumentIndex + 1] ?? '',
 );
 
-/** The one file allowed to hold literals: it is where the tokens are defined. */
+/** The token definitions hold styling literals; query lengths have a CSS-free sibling. */
 const TOKENS_FILE = resolve(sourceRoot, 'styles', '_tokens.scss');
+/** Query constants cannot use CSS custom properties; this partial emits no CSS. */
+const BREAKPOINTS_FILE = resolve(sourceRoot, 'styles', '_breakpoints.scss');
 
 /**
  * Every CSS named color. Exhaustive is safe now that rules only see declaration values —
@@ -152,6 +154,12 @@ function* declarations(css, { lineOffset = 0 } = {}) {
 
 const checkCss = (css, file, options = {}) => {
   const findings = [];
+  const queries = stripComments(css).replaceAll(/'[^']*'|"[^"]*"/g, blank);
+  for (const match of queries.matchAll(/@(?:media|container)\b[^{};]*/gi)) {
+    if (!/[\d.]+(?:px|rem|em|ch|ex|pt|pc|cm|mm|in|q)\b/i.test(match[0])) continue;
+    const before = css.slice(0, match.index);
+    findings.push({ file, line: before.split('\n').length + (options.lineOffset ?? 0), column: before.length - before.lastIndexOf('\n'), rule: 'literal-breakpoint' });
+  }
   for (const { property, value, line, column } of declarations(css, options)) {
     const scanned = styleValue(value);
     const bare = property.replace(/^--/, '');
@@ -160,6 +168,12 @@ const checkCss = (css, file, options = {}) => {
       if (rule.test(scanned)) findings.push({ file, line, column, rule: rule.name });
     }
     if (lengthViolation(bare, scanned)) findings.push({ file, line, column, rule: 'literal-length' });
+    if (property === 'z-index' && /(^|[^\w-])-?\d/.test(scanned)) findings.push({ file, line, column, rule: 'literal-z-index' });
+    if (property === 'font-weight' && /(^|[^\w-])\d/.test(scanned)) findings.push({ file, line, column, rule: 'literal-font-weight' });
+    if (property === 'opacity' && [...scanned.matchAll(/(?<![\w-])-?\d*\.?\d+%?/g)].some(([literal]) => {
+      const magnitude = Number(literal.replace('%', ''));
+      return magnitude !== 0 && magnitude !== (literal.endsWith('%') ? 100 : 1);
+    })) findings.push({ file, line, column, rule: 'literal-opacity' });
   }
   return findings;
 };
@@ -250,12 +264,28 @@ const collectFiles = async (directory) => {
 };
 
 const findings = [];
+
+// This is a Node check because Angular's bundled unit tests do not have filesystem access.
+// Fixture roots without either file still exercise the styling rules on their own.
+const breakpointTsPath = join(sourceRoot, 'app', 'core', 'layout', 'breakpoints.ts');
+const readOptional = async (path) => {
+  try { return await readFile(path, 'utf8'); }
+  catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+};
+const [breakpointScss, breakpointTs] = await Promise.all([readOptional(BREAKPOINTS_FILE), readOptional(breakpointTsPath)]);
+if (breakpointScss !== null && breakpointTs !== null) {
+  for (const [constant, variable] of [['SHELL_NARROW_BREAKPOINT', 'shell-narrow'], ['WORKSPACE_NARROW_BREAKPOINT', 'workspace-narrow']]) {
+    const sassValue = new RegExp(`\\$${variable}:\\s*([^;]+);`).exec(breakpointScss)?.[1].trim();
+    const tsMatch = new RegExp(`export const ${constant}\\s*=\\s*['"]([^'"]+)['"]`).exec(breakpointTs);
+    if (sassValue === undefined || tsMatch?.[1] !== sassValue) findings.push({ file: 'app/core/layout/breakpoints.ts', line: tsMatch === null ? 1 : breakpointTs.slice(0, tsMatch.index).split('\n').length, column: 1, rule: 'breakpoint-mismatch' });
+  }
+}
 for (const path of await collectFiles(sourceRoot)) {
   const isTokensFile = resolve(path) === TOKENS_FILE;
   const source = await readFile(path, 'utf8');
   const file = relative(sourceRoot, path).replaceAll('\\', '/');
   if (/\.(?:scss|css)$/.test(path)) {
-    if (isTokensFile) continue;
+    if (isTokensFile || resolve(path) === BREAKPOINTS_FILE) continue;
     findings.push(...checkCss(source, file));
   } else if (path.endsWith('.html')) findings.push(...checkMarkup(source, file));
   else findings.push(...checkTypeScript(source, file));

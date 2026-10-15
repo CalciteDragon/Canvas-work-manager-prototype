@@ -82,3 +82,5 @@ schema-version-6 converter was removed in Slice 66.
 - [Why it exists and is shaped this way](why.md)
 - [What it is made of](what.md)
 - [How it works and how to change it](how.md)
+
+The navigation column paints the pane plane; the project header, section frames and shortcut frames paint the same unblurred sheet plane.

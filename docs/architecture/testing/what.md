@@ -97,3 +97,5 @@ sequenceDiagram
 
 apps/e2e/ux-capture.config.ts reuses the e2e servers on isolated ports. ux/matrix.ts names selected cells, ux/capture.ts collects screenshots/axe/ARIA/console/layout evidence, ux/evidence.mjs preserves partial failures, and ux/tasks.ts records scripted task costs. The axe Playwright adapter is a development-only dependency of the e2e package. ux/walk/ is the disposable interactive audit rig used for Phase 1: per-auditor isolated hosts, a persistent headless page driven over HTTP, and the orchestrator's reproduction scripts.
 `ux/layout.mjs` collects keyed plane-container boxes; its node:test fixture proves repeated frames retain distinct indices.
+
+Slice 71 adds `ux/depth-verification.ts` for live fallback/focus/Lab/device evidence and `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs` for paired captures, strict box comparisons and contrast reporting. Six Node regressions in `build-sheet.test.mjs` protect evidence completeness and the narrow Lab exceptions.

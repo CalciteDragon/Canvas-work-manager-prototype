@@ -12,7 +12,8 @@ body {
 
 body {
   margin: 0;
-  background: var(--color-background);
+  background: var(--plane-ground-background);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: var(--font-size-md);
@@ -27,4 +28,9 @@ button {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }

@@ -5,6 +5,7 @@ import { DesignLabStore } from './design-lab-store';
 import { DESIGN_LAB_TOKENS, type DesignLabToken } from './design-lab-tokens';
 import { LivePanels } from './panels/live-panels';
 import { PrimitivePanels } from './panels/primitive-panels';
+import { PlanePanels } from './panels/plane-panels';
 
 /**
  * §22 and §67's Design Lab, at `/prototype/design`: a control rail that writes live tokens,
@@ -22,7 +23,7 @@ import { PrimitivePanels } from './panels/primitive-panels';
 @Component({
   selector: 'app-design-lab-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LivePanels, PrimitivePanels],
+  imports: [LivePanels, PrimitivePanels, PlanePanels],
   templateUrl: './design-lab-page.html',
   styleUrl: './design-lab-page.scss',
 })
@@ -58,6 +59,16 @@ export class DesignLabPage {
     this.store.write(token, (event.target as HTMLInputElement).value);
     // A block that no longer describes the knobs beside it is worse than no block: it is
     // the one thing a reader would paste without re-checking.
+    this.exportState.set(null);
+  }
+
+  protected onSolidPlanes(event: Event): void {
+    this.store.setSolidPlanes((event.target as HTMLInputElement).checked);
+    this.exportState.set(null);
+  }
+
+  protected onReducedMotion(event: Event): void {
+    this.store.setReducedMotion((event.target as HTMLInputElement).checked);
     this.exportState.set(null);
   }
 

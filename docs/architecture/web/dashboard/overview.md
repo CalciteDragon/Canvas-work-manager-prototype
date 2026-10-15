@@ -34,3 +34,5 @@ one line in `DASHBOARD_WIDGET_REGISTRY`, rendered in preset sizes inside a commo
 - [Why it exists and is shaped this way](why.md)
 - [What it is made of](what.md)
 - [How it works and how to change it](how.md)
+
+The common widget frame paints the shared Depth sheet plane without per-widget blur.
