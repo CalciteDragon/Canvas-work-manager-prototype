@@ -40,7 +40,7 @@
     >
       @if (drawerOpen()) {
         <div class="drawer__header">
-          <button type="button" class="drawer__close" data-shell-drawer-close (click)="dismissDrawer()">Close</button>
+          <button type="button" class="icon-button" data-shell-drawer-close aria-label="Close" (click)="dismissDrawer()"><app-icon name="close" /></button>
         </div>
       }
       <app-sidebar

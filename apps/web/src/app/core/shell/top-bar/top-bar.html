@@ -6,7 +6,7 @@
       <button
         #menu
         type="button"
-        class="menu"
+        class="button button--sm"
         data-shell-menu
         aria-controls="shell-navigation"
         [attr.aria-expanded]="menuOpen()"
@@ -21,7 +21,7 @@
   <div class="identity">
     <button
       type="button"
-      class="theme-toggle"
+      class="button button--sm"
       data-theme-toggle
       [attr.aria-label]="'Switch to the ' + (theme() === 'dark' ? 'light' : 'dark') + ' theme'"
       (click)="toggleTheme()"

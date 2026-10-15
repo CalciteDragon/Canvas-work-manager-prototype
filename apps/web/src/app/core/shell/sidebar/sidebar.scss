@@ -81,20 +81,6 @@
 
 .group__new {
   flex: none;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.group__new:hover,
-.group__new:focus-visible {
-  background: var(--color-surface-raised);
-  color: var(--color-text);
 }
 
 // The label sits on its own row above the name and Create (slice 72, W1-003).
@@ -109,27 +95,6 @@
   grid-column: 1 / -1;
 }
 
-.create-project__name {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.create-project__submit {
-  flex: none;
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-}
 
 hr {
   margin: 0;
@@ -139,13 +104,7 @@ hr {
 
 // Touch-sized destinations, at every width a coarse pointer is used (Slice 58).
 @media (hover: none), (any-pointer: coarse) {
-  [data-nav-item],
-  .group__new,
-  .create-project__submit {
+  [data-nav-item] {
     min-height: var(--size-hit-target);
-  }
-
-  .group__new {
-    min-width: var(--size-hit-target);
   }
 }

@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { ProjectTreeNode } from '../shell-store';
+import { Icon } from '../../../shared/components/icon/icon';
 import { ProjectTreeItem } from './project-tree-item';
 
 /**
@@ -25,7 +26,7 @@ import { ProjectTreeItem } from './project-tree-item';
 @Component({
   selector: 'app-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectTreeItem, RouterLink, RouterLinkActive],
+  imports: [ProjectTreeItem, RouterLink, RouterLinkActive, Icon],
   styleUrl: './sidebar.scss',
   templateUrl: './sidebar.html',
 })

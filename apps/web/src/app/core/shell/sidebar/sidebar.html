@@ -24,13 +24,13 @@
       </button>
       <button
         type="button"
-        class="group__new"
+        class="icon-button icon-button--sm group__new"
         data-new-project
         aria-label="New project"
         [attr.aria-expanded]="createOpen()"
         (click)="toggleCreate()"
       >
-        +
+        <app-icon name="plus" />
       </button>
     </div>
 
@@ -41,12 +41,12 @@
           id="new-project-name"
           #newName
           data-create-project-name
-          class="create-project__name"
+          class="field create-project__name"
           type="text"
           autocomplete="off"
           [value]="draftName()"
         />
-        <button type="submit" data-create-project-submit class="create-project__submit">Create</button>
+        <button type="submit" data-create-project-submit class="button button--primary">Create</button>
       </form>
     }
 

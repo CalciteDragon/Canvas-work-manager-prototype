@@ -73,29 +73,6 @@
   background: var(--color-surface);
 }
 
-.drawer__close {
-  padding: var(--space-1) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-}
-
-.drawer__close:hover,
-.drawer__close:focus-visible {
-  border-color: var(--color-accent);
-}
-
-@media (hover: none), (any-pointer: coarse) {
-  .drawer__close {
-    min-width: var(--size-hit-target);
-    min-height: var(--size-hit-target);
-  }
-}
-
 // Slice 58's phone breakpoint. Mirrors `SHELL_NARROW_QUERY` in `app-shell.ts` and the query in
 // `top-bar.scss`; a custom property cannot appear in a query condition.
 @media (max-width: breakpoints.$shell-narrow) {
