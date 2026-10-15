@@ -3,16 +3,12 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 /**
  * §67's catalogue, primitive half.
  *
- * §67 lists buttons, inputs, cards, project cards and menus. **None of those exist as
- * components** — they are token-styled markup inside features, and the repository has
- * exactly one shared component (`PlaceholderPage`). Extracting a component library is a
- * plausible project and is not this slice; doing it here would rewrite most of the
- * application under the banner of a development page.
- *
- * So each panel here is *representative markup* carrying the same token-based classes the
- * features use, and each is labelled **not yet a shared component**. That label is the
- * useful output: a primitive everybody keeps re-styling is evidence for extracting it, and
- * §78 is where that evidence goes.
+ * §67 lists buttons, inputs, cards, project cards and menus. Since slice 72, buttons and inputs
+ * are **shared**: the global primitive classes in `styles/_controls.scss`, rendered here as they
+ * are, and the Controls panel shows every variant and state. Cards, project cards, menus and
+ * states are still token-styled markup inside features, so their panels are *representative
+ * markup* labelled **not yet a shared component**. That label is the useful output: a primitive
+ * everybody keeps re-styling is evidence for extracting it, and §78 is where that evidence goes.
  *
  * The project-card shapes are copied from the `active-projects` widget rows and the
  * historical hierarchy-view rows, which is why they get a panel of their own rather than folding

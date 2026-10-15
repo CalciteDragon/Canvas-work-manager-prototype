@@ -6,6 +6,7 @@ import { DESIGN_LAB_TOKENS, type DesignLabToken } from './design-lab-tokens';
 import { LivePanels } from './panels/live-panels';
 import { PrimitivePanels } from './panels/primitive-panels';
 import { PlanePanels } from './panels/plane-panels';
+import { ControlPanels } from './panels/control-panels';
 
 /**
  * §22 and §67's Design Lab, at `/prototype/design`: a control rail that writes live tokens,
@@ -23,7 +24,7 @@ import { PlanePanels } from './panels/plane-panels';
 @Component({
   selector: 'app-design-lab-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LivePanels, PrimitivePanels, PlanePanels],
+  imports: [LivePanels, PrimitivePanels, ControlPanels, PlanePanels],
   templateUrl: './design-lab-page.html',
   styleUrl: './design-lab-page.scss',
 })

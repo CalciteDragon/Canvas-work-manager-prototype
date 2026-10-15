@@ -1,27 +1,28 @@
-<section class="panel" data-panel="buttons" data-panel-kind="primitive">
-  <h3 class="panel__title">Buttons <span class="panel__badge">not yet a shared component</span></h3>
+<section class="panel" data-panel="buttons" data-panel-kind="shared">
+  <h3 class="panel__title">Buttons <span class="panel__badge">shared</span></h3>
   <div class="panel__body panel__body--row">
-    <button type="button" class="lab-button lab-button--primary">Primary</button>
-    <button type="button" class="lab-button">Secondary</button>
-    <button type="button" class="lab-button lab-button--danger">Danger</button>
-    <button type="button" class="lab-button" disabled>Disabled</button>
+    <button type="button" class="button button--primary">Primary</button>
+    <button type="button" class="button">Secondary</button>
+    <button type="button" class="button button--ghost">Ghost</button>
+    <button type="button" class="button button--danger">Danger</button>
+    <button type="button" class="button" disabled>Disabled</button>
   </div>
 </section>
 
-<section class="panel" data-panel="inputs" data-panel-kind="primitive">
-  <h3 class="panel__title">Inputs <span class="panel__badge">not yet a shared component</span></h3>
+<section class="panel" data-panel="inputs" data-panel-kind="shared">
+  <h3 class="panel__title">Inputs <span class="panel__badge">shared</span></h3>
   <div class="panel__body panel__body--row">
-    <label class="lab-field">
-      <span>Text</span>
-      <input class="lab-input" type="text" value="Website launch" />
+    <label class="control-label">
+      Text
+      <input class="field" type="text" value="Website launch" />
     </label>
-    <label class="lab-field">
-      <span>Date</span>
-      <input class="lab-input" type="date" value="2026-09-30" />
+    <label class="control-label">
+      Date
+      <input class="field" type="date" value="2026-09-30" />
     </label>
-    <label class="lab-field">
-      <span>Select</span>
-      <select class="lab-input">
+    <label class="control-label">
+      Select
+      <select class="select">
         <option>Count</option>
         <option>Weighted</option>
         <option>Manual</option>

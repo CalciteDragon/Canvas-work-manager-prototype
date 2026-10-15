@@ -1,48 +1,6 @@
 // Representative markup, tokens only — the same classes of value the features use, so a
 // knob moving these means the knob moves the real thing too.
 
-.lab-button {
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.lab-button--primary {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-.lab-button--danger {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.lab-button:disabled {
-  cursor: var(--cursor-disabled);
-  opacity: var(--opacity-disabled);
-}
-
-.lab-field {
-  display: grid;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.lab-input {
-  padding: var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font: inherit;
-}
-
 .lab-card {
   display: grid;
   gap: var(--space-1);

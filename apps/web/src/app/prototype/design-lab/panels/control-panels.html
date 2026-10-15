@@ -1,0 +1,139 @@
+<section class="panel" data-panel="controls" data-panel-kind="shared">
+  <h3 class="panel__title">Controls <span class="panel__badge">shared</span></h3>
+  <p class="panel__note">
+    Every primitive from <code>_controls.scss</code>, in each variant and state. Hover, focus and
+    pressed are forced for the specimen with the same mixins the real states use.
+  </p>
+  <div class="control-ground">
+    @for (plane of planes; track plane.modifier) {
+      <div class="control-plane {{ plane.modifier }}" [attr.data-control-plane]="plane.modifier">
+        <h4 class="control-plane__title">{{ plane.label }}</h4>
+        <ng-container [ngTemplateOutlet]="specimens" [ngTemplateOutletContext]="{ $implicit: plane.modifier }" />
+      </div>
+    }
+  </div>
+</section>
+
+<ng-template #specimens let-plane>
+  <div class="control-group">
+    <h5 class="control-group__title">Buttons, medium</h5>
+    <div class="control-grid">
+      @for (rank of ranks; track rank.label) {
+        @for (state of states; track state.label) {
+          <button type="button" class="button {{ rank.modifier }} {{ state.force }}">{{ rank.label }} · {{ state.label }}</button>
+        }
+        <button type="button" class="button {{ rank.modifier }}" disabled>{{ rank.label }} · Disabled</button>
+      }
+    </div>
+  </div>
+
+  <div class="control-group">
+    <h5 class="control-group__title">Buttons, small, selected and row</h5>
+    <div class="control-row">
+      <button type="button" class="button button--sm button--primary">Save</button>
+      <button type="button" class="button button--sm">Cancel</button>
+      <button type="button" class="button button--sm button--ghost">Preview</button>
+      <button type="button" class="button button--sm button--danger">Revoke</button>
+      <span class="control-set" role="group" aria-label="Progress formula specimen">
+        <button type="button" class="button button--sm" aria-pressed="true">Count</button>
+        <button type="button" class="button button--sm" aria-pressed="false">Weighted</button>
+        <button type="button" class="button button--sm" aria-pressed="false">Manual</button>
+      </span>
+    </div>
+    <button type="button" class="button button--row" aria-expanded="false">
+      <span class="pill pill--accent">Milestone</span> Launch review <span class="control-row__meta">2026-09-30</span>
+    </button>
+    <button type="button" class="button button--row" aria-expanded="true">
+      <span class="pill">Task</span> Draft the announcement <span class="control-row__meta">open · selected</span>
+    </button>
+  </div>
+
+  <div class="control-group">
+    <h5 class="control-group__title">Icon buttons and tools</h5>
+    <div class="control-row">
+      <button type="button" class="icon-button" aria-label="Undo"><app-icon name="undo" /></button>
+      <button type="button" class="icon-button" aria-label="Redo"><app-icon name="redo" /></button>
+      <button type="button" class="icon-button is-hover" aria-label="More, hovered"><app-icon name="more" /></button>
+      <button type="button" class="icon-button is-focus" aria-label="New project, focused"><app-icon name="plus" /></button>
+      <button type="button" class="icon-button icon-button--sm" aria-label="Close"><app-icon name="close" /></button>
+      <button type="button" class="icon-button icon-button--danger" aria-label="Danger icon button"><app-icon name="remove" /></button>
+      <button type="button" class="icon-button" disabled aria-label="Redo, disabled"><app-icon name="redo" /></button>
+      <button type="button" class="tool" aria-label="Drag handle"><app-icon name="grip" /></button>
+      <button type="button" class="tool" aria-label="Collapse"><app-icon name="chevron" /></button>
+      <button type="button" class="tool is-hover" aria-label="Open source, hovered"><app-icon name="open" /></button>
+    </div>
+  </div>
+
+  <div class="control-group" data-control-removal-marks>
+    <h5 class="control-group__title">Removal marks (checkpoint question 4)</h5>
+    <div class="control-row control-row--labelled">
+      <span class="control-mark">
+        <button type="button" class="tool tool--danger" aria-label="Remove section"><app-icon name="remove-section" /></button>
+        <button type="button" class="tool tool--danger is-hover" aria-label="Remove section, hovered"><app-icon name="remove-section" /></button>
+        Remove a section · danger tool
+      </span>
+      <span class="control-mark">
+        <button type="button" class="tool" aria-label="Delete task"><app-icon name="remove" /></button>
+        <button type="button" class="tool is-hover" aria-label="Delete task, hovered"><app-icon name="remove" /></button>
+        Delete a task · quiet trash tool
+      </span>
+      <span class="control-mark">
+        <button type="button" class="tool" aria-label="Remove shortcut"><app-icon name="unlink" /></button>
+        <button type="button" class="tool is-hover" aria-label="Remove shortcut, hovered"><app-icon name="unlink" /></button>
+        Remove a shortcut · neutral unlink tool
+      </span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <h5 class="control-group__title">Fields</h5>
+    <div class="control-fields">
+      <label class="control-label">Text <input class="field" type="text" value="Website launch" /></label>
+      <label class="control-label">Hovered <input class="field is-hover" type="text" value="Website launch" /></label>
+      <label class="control-label">Placeholder <input class="field" type="text" placeholder="Project name" /></label>
+      <label class="control-label">Number <input class="field" type="number" value="40" /></label>
+      <label class="control-label">Date <input class="field" type="date" value="2026-09-30" /></label>
+      <label class="control-label">Select
+        <select class="select"><option>Count</option><option>Weighted</option><option>Manual</option></select>
+      </label>
+      <label class="control-label">Invalid <input class="field" type="text" value="" aria-invalid="true" /></label>
+      <label class="control-label">Disabled <input class="field" type="text" value="Locked" disabled /></label>
+      <label class="control-label control-fields__wide">Textarea
+        <textarea class="field">A reflection on the week, long enough to wrap onto a second line.</textarea>
+      </label>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <h5 class="control-group__title">Checkboxes and radios</h5>
+    <div class="control-row">
+      <label class="control-choice"><input class="checkbox" type="checkbox" /> Unchecked</label>
+      <label class="control-choice"><input class="checkbox" type="checkbox" checked /> Checked</label>
+      <label class="control-choice"><input class="checkbox is-hover" type="checkbox" /> Hovered</label>
+      <label class="control-choice"><input class="checkbox" type="checkbox" disabled /> Disabled</label>
+      <span class="control-set" role="radiogroup" aria-label="Theme specimen">
+        <label class="control-choice"><input class="radio" type="radio" [name]="'lab-theme-' + plane" checked /> Dark</label>
+        <label class="control-choice"><input class="radio" type="radio" [name]="'lab-theme-' + plane" /> Light</label>
+        <label class="control-choice"><input class="radio" type="radio" [name]="'lab-theme-' + plane" disabled /> Device</label>
+      </span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <h5 class="control-group__title">Pills, links and the danger zone</h5>
+    <div class="control-row">
+      <span class="pill">Planning</span>
+      <span class="pill pill--accent">Agent</span>
+      <span class="pill pill--success">Done</span>
+      <span class="pill pill--warning">Overdue</span>
+      <span class="pill pill--danger">Archived</span>
+      <a class="link" href="/prototype/design#controls">Open Kitchen</a>
+    </div>
+    <div class="control-zone">
+      <button type="button" class="button button--sm">Rename</button>
+      <div class="danger-zone">
+        <button type="button" class="button button--sm button--danger">Archive project</button>
+      </div>
+    </div>
+  </div>
+</ng-template>

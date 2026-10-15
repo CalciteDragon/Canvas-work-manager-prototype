@@ -1,0 +1,115 @@
+// Layout for the Controls specimen, plus the forcing classes. The forcing classes include the
+// same mixins as the real states, so the specimen paints nothing of its own.
+@use '../../../../styles/control-states' as states;
+
+.control-ground {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--layout-reading-width)), 1fr));
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--plane-ground-background);
+}
+
+.control-plane {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-inline-size: 0;
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.control-plane--pane {
+  background: var(--plane-pane-background);
+  backdrop-filter: var(--plane-pane-filter);
+}
+
+.control-plane--sheet {
+  background: var(--plane-sheet-background);
+  backdrop-filter: var(--plane-sheet-filter);
+}
+
+.control-plane__title,
+.control-group__title {
+  margin: 0;
+}
+
+.control-group__title {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.control-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--layout-drawer-width), 1fr));
+  gap: var(--space-2);
+}
+
+.control-row,
+.control-set,
+.control-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.control-zone {
+  display: grid;
+  justify-items: start;
+}
+
+.control-row__meta {
+  margin-inline-start: auto;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.control-row--labelled {
+  gap: var(--space-4);
+}
+
+.control-mark,
+.control-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.control-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-project-column-width)), 1fr));
+  gap: var(--space-3);
+}
+
+.control-fields__wide {
+  grid-column: 1 / -1;
+}
+
+// Forced states. `.button.is-hover` here is (0,2,0) with encapsulation, so it wins over the
+// primitive's rest state exactly as the real `:hover` does.
+.is-hover:is(.button, .icon-button, .tool) {
+  @include states.hover;
+}
+
+.is-pressed:is(.button, .icon-button, .tool) {
+  @include states.pressed;
+}
+
+.is-focus {
+  @include states.focus-ring;
+}
+
+.is-hover:is(.field, .select),
+.is-hover.checkbox::before {
+  @include states.field-hover;
+}

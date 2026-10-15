@@ -18,7 +18,8 @@ flowchart TB
   route2["/prototype/design"] --> lab["DesignLabPage"]
   lab --> lstore["DesignLabStore (root)<br/>inline design properties and two fallback toggles"]
   lab --> live["LivePanels<br/>real components over design-lab-fixtures"]
-  lab --> prim["PrimitivePanels<br/>not yet a shared component"]
+  lab --> prim["PrimitivePanels<br/>shared buttons and inputs; cards, menus, states not yet"]
+  lab --> controls["ControlPanels<br/>every control primitive and state"]
   lab --> planes["PlanePanels<br/>busy ground, pane, sheets, lifts, motion"]
   lab --> export["design-lab-export<br/>Copy CSS"]
   lstore --> tokens["design-lab-tokens.ts<br/>eighteen controls as data, no literals"]
@@ -50,5 +51,5 @@ flowchart TB
 | `DevPanelStore`, `CURRENT_SLICE`, `StoredSettings` | `dev-panel/dev-panel-store.ts` | Panel state, notes, reload rule |
 | `StateInspectorPage`, `StateInspectorStore`, `ProjectLayoutControl` | `dev-panel/state-inspector-page.ts`, `state-inspector-store.ts`, `project-layout-control.ts` | §68's inspector and §28's list |
 | `DesignLabPage`, `DesignLabStore`, `DesignLabToken`, `DesignLabExport` | `design-lab/` | §67 |
-| `LivePanels`, `PrimitivePanels`, `PlanePanels`, `SectionCanvasFrame`, `StubSectionContent` | `design-lab/panels/`, `design-lab/section-canvas-frame.ts` | The catalogue; `SectionCanvasFrame` mirrors the canvas wrapper's reveal properties so shared section controls appear correctly |
+| `LivePanels`, `PrimitivePanels`, `ControlPanels`, `PlanePanels`, `SectionCanvasFrame`, `StubSectionContent` | `design-lab/panels/`, `design-lab/section-canvas-frame.ts` | The catalogue; `SectionCanvasFrame` mirrors the canvas wrapper's reveal properties so shared section controls appear correctly |
 | Fixtures | `design-lab/design-lab-fixtures.ts` | The data the live panels render |

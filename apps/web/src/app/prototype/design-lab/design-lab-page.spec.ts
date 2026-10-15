@@ -50,6 +50,7 @@ describe('DesignLabPage (§22, §67)', () => {
       'project-cards',
       'menus',
       'states',
+      'controls',
       'planes',
     ]);
     // The real components, not a screenshot of them.
@@ -71,13 +72,21 @@ describe('DesignLabPage (§22, §67)', () => {
       'liftTint', 'liftAlpha', 'liftBlur', 'groundArtStrength', 'motionScale']);
   });
 
-  it('labels each primitive panel as not yet a shared component', async () => {
+  // §77, slice 72: buttons and inputs are now the shared primitives; the rest are still markup.
+  it('labels buttons, inputs and controls as shared and the other primitives as not yet', async () => {
     const { element } = await render();
 
-    const primitives = [...element.querySelectorAll('[data-panel-kind="primitive"]')];
-    expect(primitives.length).toBeGreaterThan(0);
-    for (const panel of primitives) {
-      expect(panel.querySelector('.panel__badge')?.textContent).toContain('not yet a shared component');
+    const badge = (name: string) => element.querySelector(`[data-panel="${name}"] .panel__badge`)?.textContent ?? '';
+    for (const name of ['buttons', 'inputs', 'controls']) {
+      expect(badge(name), name).toContain('shared');
+      expect(badge(name), name).not.toContain('not yet');
+    }
+    expect(element.querySelector('[data-panel="buttons"] button.button.button--primary')).not.toBeNull();
+    expect(element.querySelector('[data-panel="inputs"] input.field')).not.toBeNull();
+    expect(element.querySelector('[data-panel="inputs"] select.select')).not.toBeNull();
+    expect(element.querySelector('.lab-button, .lab-input')).toBeNull();
+    for (const name of ['cards', 'project-cards', 'menus', 'states']) {
+      expect(badge(name), name).toContain('not yet a shared component');
     }
     for (const panel of element.querySelectorAll('[data-panel-kind="live"]')) {
       expect(panel.querySelector('.panel__badge')?.textContent).toContain('live component');
