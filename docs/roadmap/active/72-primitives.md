@@ -486,6 +486,20 @@ Ports 4201 (web) and 4321 (host) only; kill the web and host children if a run i
   - `button-name`: 0.
   - `color-contrast`: 142 nodes in 28 cells.
 
+**Stage A record (2026-10-14).**
+
+- **Bundle.** With the primitives in place and nothing adopted, the initial total is
+  **1047.37 kB**, 2.63 kB under the ceiling.
+  - Styles went from 8.78 to 19.35 kB: about 8 kB of control classes and 2.5 kB of tokens.
+  - Main grew 5 kB, for the 23 new icon marks.
+  - Part B must delete more eager control paint than it adds markup. The bundle is measured
+    after each adoption group, not only at the end. If a group pushes the total over, the
+    deletions in that group are the first place to look.
+- **Two mixin partials.** `_control-states.scss` also holds the focus ring, which `_base.scss`
+  now includes. That gives the Lab's forced focus specimen the same source as the real ring.
+- **The token lint does not scan inline templates in `.ts` files.** The stories' layout `style`
+  attributes were written with tokens anyway. The hole is recorded here and was not widened.
+
 ### Stage A — the primitives (no product file changes)
 
 | Step | Red first | Then | Docs |
