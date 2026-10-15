@@ -1,0 +1,77 @@
+apps/web/src/app/features/projects/archived-region/archived-region.scss:76:.archived-region__status select {
+apps/web/src/app/features/projects/archived-region/archived-region.scss:85:.archived-region__entry button {
+apps/web/src/app/features/projects/archived-region/archived-region.scss:94:.archived-region__entry button:disabled {
+apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:36:button {
+apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:51:button::before {
+apps/web/src/app/features/projects/canvas-chrome/insertion-point.scss:59:button:focus-visible {
+apps/web/src/app/features/projects/project-canvas.scss:136:.project-canvas__empty button,
+apps/web/src/app/features/projects/project-canvas.scss:137:.unknown-section button {
+apps/web/src/app/features/projects/project-canvas.scss:151:.project-canvas__empty button {
+apps/web/src/app/features/projects/project-canvas.scss:172:.unknown-section header button {
+apps/web/src/app/features/projects/project-canvas.scss:176:.unknown-section header button:first-child {
+apps/web/src/app/features/projects/project-canvas.scss:182:.unknown-section header button:last-child {
+apps/web/src/app/features/projects/project-header.scss:67:.project-header__actions button {
+apps/web/src/app/features/projects/project-header.scss:77:.project-header__actions button:disabled {
+apps/web/src/app/features/projects/project-more-menu.scss:36:input,
+apps/web/src/app/features/projects/project-more-menu.scss:37:button {
+apps/web/src/app/features/projects/project-more-menu.scss:46:button {
+apps/web/src/app/features/projects/project-more-menu.scss:51:button[aria-pressed='true'] {
+apps/web/src/app/features/projects/project-page-navigation.scss:211:.project-nav__manager-error button {
+apps/web/src/app/features/projects/project-workspace-shell.scss:97:.project-workspace__page-notice button {
+apps/web/src/app/features/projects/section-create-dialog.scss:65:.section-create-dialog__form input,
+apps/web/src/app/features/projects/section-create-dialog.scss:66:.section-create-dialog__form select,
+apps/web/src/app/features/projects/section-create-dialog.scss:67:.section-create-dialog button {
+apps/web/src/app/features/projects/section-create-dialog.scss:87:.section-create-dialog button {
+apps/web/src/app/features/projects/section-create-dialog.scss:91:.section-create-dialog button:disabled {
+apps/web/src/app/features/projects/section-create-dialog.scss:96:.section-create-dialog button:focus-visible,
+apps/web/src/app/features/projects/section-create-dialog.scss:97:.section-create-dialog input:focus-visible,
+apps/web/src/app/features/projects/section-create-dialog.scss:98:.section-create-dialog select:focus-visible {
+apps/web/src/app/features/projects/section-recovery-notice.scss:62:.section-recovery-notice button {
+apps/web/src/app/features/projects/section-recovery-notice.scss:73:.section-recovery-notice button[aria-disabled='true'] {
+apps/web/src/app/features/projects/section-recovery-notice.scss:78:.section-recovery-notice button:focus-visible,
+apps/web/src/app/features/projects/sections/markdown/markdown-section-body.scss:4:button {
+apps/web/src/app/features/projects/sections/markdown/markdown-section-body.scss:14:button:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring-color); outline-offset: var(--focus-ring-offset); }
+apps/web/src/app/features/projects/sections/markdown/markdown-section-body.scss:15:@media (pointer: coarse) { button { min-block-size: var(--size-hit-target); } }
+apps/web/src/app/features/projects/sections/markdown/markdown-source-editor.scss:5:textarea {
+apps/web/src/app/features/projects/sections/markdown/markdown-source-editor.scss:22:button {
+apps/web/src/app/features/projects/sections/markdown/markdown-source-editor.scss:31:button[aria-pressed='true'] { background: var(--color-accent-surface); }
+apps/web/src/app/features/projects/sections/markdown/markdown-source-editor.scss:32:button[aria-disabled='true'] { color: var(--color-text-muted); cursor: var(--cursor-disabled); }
+apps/web/src/app/features/projects/sections/markdown/markdown-source-editor.scss:33:textarea:focus-visible, button:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring-color); outline-offset: var(--focus-ring-offset); }
+apps/web/src/app/features/projects/sections/markdown/markdown-source-editor.scss:34:@media (pointer: coarse) { button { min-block-size: var(--size-hit-target); } }
+apps/web/src/app/features/projects/sections/reflections/reflection-composer.scss:22:.reflection-composer__subject button {
+apps/web/src/app/features/projects/sections/section-frame/project-section-frame.scss:37:.section-frame__controls button {
+apps/web/src/app/features/projects/sections/section-frame/project-section-frame.scss:110:.section-frame__title input {
+apps/web/src/app/features/projects/sections/section-frame/project-section-frame.scss:149:button:focus-visible {
+apps/web/src/app/features/projects/sections/tasks/task-list-section.scss:30:.quick-create input,
+apps/web/src/app/features/projects/sections/tasks/task-list-section.scss:31:.quick-create button {
+apps/web/src/app/features/projects/sections/tasks/task-list-section.scss:38:.quick-create input {
+apps/web/src/app/features/projects/sections/tasks/task-list-section.scss:43:.quick-create button {
+apps/web/src/app/features/projects/sections/timeline/timeline-section.scss:3:.timeline button { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-2); text-align: left; align-items: center; }
+apps/web/src/app/features/projects/shortcuts/shortcut-frame.scss:37:.shortcut-frame__controls button {
+apps/web/src/app/features/projects/shortcuts/shortcut-frame.scss:131:button:focus-visible {
+apps/web/src/app/features/projects/shortcuts/shortcut-picker.scss:33:.shortcut-picker button {
+apps/web/src/app/features/projects/work-create-dialog.scss:51:.work-create-dialog input,
+apps/web/src/app/features/projects/work-create-dialog.scss:52:.work-create-dialog select,
+apps/web/src/app/features/projects/work-create-dialog.scss:53:.work-create-dialog button {
+apps/web/src/app/features/projects/work-create-dialog.scss:73:.work-create-dialog button { cursor: pointer; }
+apps/web/src/app/features/projects/work-create-dialog.scss:74:.work-create-dialog button:disabled { cursor: var(--cursor-disabled); opacity: var(--opacity-disabled); }
+apps/web/src/app/features/projects/work-create-dialog.scss:76:.work-create-dialog button:focus-visible,
+apps/web/src/app/features/projects/work-create-dialog.scss:77:.work-create-dialog input:focus-visible,
+apps/web/src/app/features/projects/work-create-dialog.scss:78:.work-create-dialog select:focus-visible {
+apps/web/src/app/features/tasks/task-detail-drawer.scss:63:.drawer__field select,
+apps/web/src/app/features/tasks/task-detail-drawer.scss:64:.drawer__field input {
+apps/web/src/app/features/tasks/task-row.scss:65:button.task-row__title {
+apps/web/src/app/features/tasks/task-row.scss:128:  button.task-row__title {
+apps/web/src/app/prototype/design-lab/design-lab-page.scss:35:.design-lab__rail-header button {
+apps/web/src/app/prototype/design-lab/design-lab-page.scss:57:.design-lab__control input[type='range'] {
+apps/web/src/app/prototype/design-lab/design-lab-page.scss:84:.design-lab__export textarea {
+apps/web/src/app/prototype/design-lab/panels/plane-panels.scss:61:.plane-motion button {
+apps/web/src/app/prototype/design-lab/panels/primitive-panels.scss:105:.lab-menu button {
+apps/web/src/app/prototype/dev-panel/dev-panel-controls.scss:31:button {
+apps/web/src/app/prototype/dev-panel/dev-panel-controls.scss:63:  input,
+apps/web/src/app/prototype/dev-panel/dev-panel-controls.scss:64:  textarea {
+apps/web/src/app/prototype/dev-panel/dev-panel-controls.scss:74:  textarea {
+apps/web/src/app/prototype/dev-panel/dev-panel.scss:40:  button {
+apps/web/src/app/prototype/dev-panel/state-inspector-page.scss:61:.state-inspector__project button {
+apps/web/src/app/prototype/dev-panel/state-inspector-page.scss:72:.state-inspector__project button[aria-pressed='true'] {
+apps/web/src/app/prototype/dev-panel/state-inspector-page.scss:77:.state-inspector__project button:disabled {

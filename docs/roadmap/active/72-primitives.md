@@ -301,11 +301,22 @@ The one consequence is a §77 edit to a unit test that reads `textContent`. See 
     Today `build-sheet.mjs` fails on changed control text. Those changes go in a listed table.
 - **Pre-listed census exceptions.** Each is named, with its owner. The list is filled in when the
   "before" capture is read, before any adoption, and committed right after that run (Implementation
-  sequence, step 0.2). Known now:
-  - links inside rendered Markdown prose (WCAG 2.5.8 inline exception);
-  - the canvas insertion point and the section resize handle (slice 5);
-  - dev panel and Lab rail controls (TH12 scaffolding, `/prototype/*`);
-  - dashboard widget body links, if the census flags them (slice 6 owns rows).
+  sequence, step 0.2). **Filled from the "before" census (2026-10-14).** Matched by class or
+  accessible name; each stays a reported violation on the sheet, not a silent pass:
+  - links inside rendered Markdown prose (WCAG 2.5.8 inline exception). Excluded by `prose` scope;
+  - dev panel and Lab rail controls (TH12 scaffolding). Excluded by `prototype` scope;
+  - the canvas insertion points, `Insert before …` and `Insert at the end` (slice 5, TH08), and the
+    section resize handle (slice 5; not flagged at rest);
+  - the section frame's title button, `.section-frame__title-button` ("Rename …"), whose
+    heading role and name are slice 5's L6-009;
+  - the task row's title button, `.task-row__title` ("…, open details"), which is row shape
+    (slice 6, TH09, L3-015);
+  - dashboard widget row title links, `.widget-row__title` (slice 6 owns rows).
+
+  Everything else the census flags is closed by this slice: the task-row and Todos checkboxes,
+  New project, every unclassed `input`, `select` and `textarea`, Add task, the project-navigation
+  toggle and root link, Open source, the Todos, Reflections and owner links (`.link`), Complete,
+  the drawer's Close and More's danger button.
 - **Selector exceptions (acceptance 7).**
   - `apps/web/src/app/prototype/**`.
   - `markdown-renderer` element rules for rendered prose.
@@ -449,6 +460,31 @@ work, so it also waits for the user's go-ahead.
 | 0.2 | — | `pnpm --filter web build` (record the initial total), then `pnpm --filter @cwm/e2e ux:capture` at 0.1's commit. Record the commit and output directory here. Re-run the acceptance 7 grep and paste its output as the baseline (77 lines in 26 files at planning). Read the census and write the **pre-listed exceptions** under Capture scope, each with an owner | This plan | Slice 72: before capture, selector baseline, census exceptions (§69) |
 
 Ports 4201 (web) and 4321 (host) only; kill the web and host children if a run is stopped.
+
+**Stage 0 record (2026-10-14).**
+
+- **Harness.** Committed as `d9ea46b`.
+- **Build.** `pnpm --filter web build` at `d9ea46b` gave an initial total of **1030.09 kB**
+  (styles 8.78 kB). That is the acceptance 12 baseline: 19.91 kB under the 1050 kB ceiling.
+- **"Before" capture.** `UX_PRIMITIVES=1 pnpm --filter @cwm/e2e ux:capture` at `d9ea46b`, into
+  `apps/e2e/ux-output/d9ea46b36273160b1dc0f4eea7c0b2f32031a6bc/`. All 182 cells were captured and
+  the core-task baseline passed. The four forced-colours captures are in
+  `primitives-verification.json`. The Depth run skipped, because it needs `UX_DEPTH=1`. **The
+  after run sets both flags,** because profile 72 reads the composite tokens from the after
+  side's `depth-verification.json`.
+- **Selector baseline (acceptance 7).** The grep returned 77 lines in 26 files, as at planning.
+  The output is committed as [slice-72-selector-baseline.txt](../70-ui-ux/slice-72-selector-baseline.txt).
+- **Census.**
+  - 7,874 controls, 7,098 of them `product` scope, with 154 distinct product target violations.
+    The exceptions are listed under Capture scope.
+  - axe `target-size` ran (for example, 78 passing nodes on `busy-week-project-dark-1440`) and
+    reported **0 violations**. Its spacing exception passes small controls that are far enough
+    apart, so the census, not axe, is the strict size gate.
+- **Before axe counts, all cells.**
+  - `select-name`: 68 nodes in 62 cells.
+  - `aria-progressbar-name`: 56 nodes in 56 cells.
+  - `button-name`: 0.
+  - `color-contrast`: 142 nodes in 28 cells.
 
 ### Stage A — the primitives (no product file changes)
 
