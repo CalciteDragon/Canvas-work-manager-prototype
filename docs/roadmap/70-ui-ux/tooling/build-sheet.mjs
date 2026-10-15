@@ -110,6 +110,10 @@ for (const a of after.cells) {
       if (fields.length > 1) censusFailures.push({ cell: a.id, reason: 'more than one field height', heights: fields });
     }
     if (touch && al.document > al.viewport) censusFailures.push({ cell: a.id, reason: 'scrolls sideways', document: al.document, viewport: al.viewport });
+    // The shell scrolls inside its own regions, so the document can fit while a region overflows.
+    for (const region of touch && !a.route.startsWith('/prototype/') ? al.scrollRegions ?? [] : []) {
+      if (region.scrollWidth > region.width + 1) censusFailures.push({ cell: a.id, reason: 'scroll region scrolls sideways', region: region.class, width: region.width, scrollWidth: region.scrollWidth });
+    }
     if (a.route === '/prototype/design' && !al.controls.some(c => c.text === 'Primary · Rest')) censusFailures.push({ cell: a.id, reason: 'Lab Controls panel missing' });
     const axe = await read(join(afterDir, a.artifacts.axe));
     for (const v of axe.violations ?? []) {

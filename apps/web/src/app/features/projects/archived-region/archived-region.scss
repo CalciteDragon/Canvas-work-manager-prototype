@@ -44,9 +44,12 @@
   list-style: none;
 }
 
+// Wraps so the status choice and Restore drop below the identity on a phone (slice 72: the
+// shared button does not wrap its label).
 .archived-region__entry {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3);
 }
 

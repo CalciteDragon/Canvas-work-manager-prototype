@@ -200,3 +200,16 @@ test('profile 72 still fails on corrupt geometry and changed plane identity', as
   assert.match(JSON.stringify(broken.report.geometryFailures), /plane identity/);
   assert.match(JSON.stringify(broken.report.geometryFailures), /missing numeric geometry/);
 });
+test('profile 72 fails a 375 cell whose scroll region overflows sideways', async t => {
+  const f = await fixture(t);
+  f.cell.id = 'archive-light-375';
+  f.cell.viewport = { width: 375, height: 812 };
+  for (const phase of [0, 1]) await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+  const regions = scrollWidth => [{ tag: 'MAIN', class: 'workspace', width: 375, scrollWidth, height: 700, scrollHeight: 900 }];
+  await f.json(0, 'layout.json', { ...f.layout, viewport: 375, document: 375, scrollRegions: regions(375) });
+  await f.json(1, 'layout.json', { ...f.layout, viewport: 375, document: 375, scrollRegions: regions(401) });
+  for (const phase of [0, 1]) await f.json(phase, 'primitives-verification.json', { forcedColors: [] });
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '72'], { encoding: 'utf8' });
+  assert.equal(result.status, 1);
+  assert.match(await readFile(join(f.dirs[2], 'report.json'), 'utf8'), /scroll region scrolls sideways/);
+});

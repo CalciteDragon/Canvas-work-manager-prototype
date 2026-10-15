@@ -11,6 +11,13 @@
   align-items: center;
 }
 
+// Undo and Redo keep the comfortable target they have had at every width since slice 45, not
+// only on touch, so the shared icon button grows here.
+.history-controls .icon-button {
+  inline-size: var(--size-hit-target);
+  block-size: var(--size-hit-target);
+}
+
 .history-controls:focus {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);

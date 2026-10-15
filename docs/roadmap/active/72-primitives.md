@@ -821,3 +821,14 @@ checkpoint. The 28 breadcrumb cells were recaptured after the class was added. T
     backgrounds axe cannot decide, and there are more controls now.
 - **Bundle.** The initial total is **1039.95 kB**, down from 1047.37 after part A and
   1030.09 before the slice. That is 10.05 kB under the ceiling.
+- **Full e2e (2026-10-15), first run: 113 passed, 3 failed.** Both failures were slice defects,
+  not test defects. Neither test was edited.
+  - `phone-layout.spec` (both themes): Archive's scroll region overflowed by 26 px at 375.
+    The shared button does not wrap its label, and the archived entry's row did not wrap. The
+    row now wraps. The census missed it because it compared only the document width. Profile
+    72 now also fails a product scroll region wider than itself at 375, as the eighteenth
+    regression. The Lab is excluded: it has no phone layout (TH12).
+  - `project-history.spec`: Undo/Redo at 1280 measured 40 px. Since slice 45 they have kept
+    a 44 px target at every width. The history controls now size the shared icon button to
+    the hit target.
+  Both specs pass again (29 tests). A final after capture and the full e2e follow.
