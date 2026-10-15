@@ -398,8 +398,8 @@ The one consequence is a §77 edit to a unit test that reads `textContent`. See 
 | `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs`, `build-sheet.test.mjs` | modify | `--profile 71/72`; profile 72 gates on the census, overflow and axe names, reports geometry, and expects the Lab Controls panel; regressions first |
 | e2e specs that name changed controls exactly (`archive.spec.ts` stays; others found by grepping for `name: 'Add'` and `'Revoke'`) | modify | §77 locator updates only, listed at implementation |
 | `apps/web/src/app/features/projects/sections/progress/progress-section.ts` | modify | The bar's name comes from its own `section()` (L5-004) |
-| `docs/decisions/2026-10-control-primitives-are-global-classes.md`, `docs/decisions/README.md` | create, modify | Open question 2's answer, indexed |
-| `docs/decisions/2026-10-app-icons-are-one-svg-set.md` | create | Open question 3's answer: app-owned marks are SVG; user emoji, and the `📁` and `🧩` fallbacks in their slot, stay content |
+| `docs/decisions/2026-10-control-primitives-are-global-classes.md`, `docs/decisions/README.md` | created at planning; amend at close | Open question 2's answer, indexed. Amended with measured bundle and specificity results when the slice closes |
+| `docs/decisions/2026-10-app-icons-are-one-svg-set.md` | created at planning; amend at checkpoint | Open question 3's answer: app-owned marks are SVG; user emoji, and the `📁` and `🧩` fallbacks in their slot, stay content |
 | Spec §21, §67 | modify | §21: primitives live in `_controls.scss` over native elements. §67: buttons and inputs are shared primitives in the Lab |
 | `docs/architecture/web/overview.md`, `why.md`, `what.md`, `how.md` | modify | The controls partial and the rule that components position primitives but never paint them; the icon set; `core` now imports `shared/components/icon` |
 | `docs/architecture/web/core/how.md`, `what.md` | modify | Sidebar New project focus |
@@ -472,6 +472,9 @@ colours. These are proven by acceptance 7–11.
 
 ## Open questions
 
+**All answered (2026-10-14).** The user chose the default for questions 2, 3 and 4. The user
+has not yet said to start implementing, so part A waits for that word.
+
 1. **Muted text colour (note `note-2026-10-14-005`). Answered 2026-10-14: option A.** The user
    keeps the colour. The sheet's composite model is corrected to use what really sits behind the
    panes. That work lands outside this slice: the session that started this plan is doing it in
@@ -482,8 +485,11 @@ colours. These are proven by acceptance 7–11.
 
    **Precondition.** Part B's sheet work, `build-sheet.mjs --profile 72` and its tests, starts only
    after the option-A commit has landed. It is built and tested on top of that commit, so the two
-   sessions never edit `build-sheet.mjs` at the same time.
-2. **How primitives are built.** The default is **global classes in `_controls.scss` over native
+   sessions never edit `build-sheet.mjs` at the same time. **Met:** option A landed in `7c6d53d`.
+   `build-sheet.mjs` now takes a real-backing composite and an optional fourth `verificationDir`
+   argument, and its test has 10 cases. The decision and notes landed in `f71be24`. Profile 72 is
+   built on those.
+2. **How primitives are built. Answered: global classes** ([decision](../../decisions/2026-10-control-primitives-are-global-classes.md)). The default was **global classes in `_controls.scss` over native
    elements**, applied in templates (`<button class="button button--primary">`). Why:
    - no JavaScript;
    - every native behaviour that the e2e suite relies on stays intact;
@@ -492,13 +498,14 @@ colours. These are proven by acceptance 7–11.
 
    The alternative is attribute components (`button[appButton]` with a typed `variant`, as Angular
    Material does). They give compile-time variant checks but add JS to every chunk and a second
-   surface to maintain. Recorded as a decision.
-3. **App-owned icons.** The default is to replace the registry emoji (page kinds, section types,
+   surface to maintain.
+3. **App-owned icons. Answered: one monochrome SVG set** ([decision](../../decisions/2026-10-app-icons-are-one-svg-set.md)). The default was to replace the registry emoji (page kinds, section types,
    widgets, activity actors) and the text glyphs with one monochrome SVG set in `Icon`, and keep
    user-chosen project and workstream emoji as content. This is what closes L2-013, W1-012 and
    W4-009. The alternative is to keep the emoji and fix only the three collisions. It leaves
    L2-013 open and keeps platform-dependent colour emoji in chrome.
-4. **The three removal marks** (W1-038, W4-032). The defaults:
+4. **The three removal marks** (W1-038, W4-032). **Answered: keep the defaults and review them at
+   the checkpoint.** The defaults:
    - section remove is a danger tool with a "remove section" mark (a frame with a cross);
    - task delete is a quiet trash tool;
    - shortcut remove is a neutral "unlink" tool.
@@ -567,3 +574,6 @@ colours. These are proven by acceptance 7–11.
   against the code: both frames' `name` signals are public computeds, and the outlets use no
   custom injector. A last pass found the counts, the numbering, the §77 edit targets and the
   boundaries consistent.
+- **Answers recorded (2026-10-14).** The user chose the defaults for questions 2–4. Questions 2
+  and 3 became decision entries, indexed and linked from `web/why.md`. Question 4 is reviewed at the
+  checkpoint. Option A's commits (`7c6d53d`, `f71be24`) meet part B's precondition.

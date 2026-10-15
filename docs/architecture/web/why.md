@@ -128,3 +128,5 @@ structure, section structure, design lab, route map · §69 component tests.
 
 
 Slice 71 adopts Depth using [V2](../../decisions/2026-10-depth-blur-budget.md): blurred panes and unblurred translucent sheets. Contrast is reported under the user amendment, rather than gating the demo tints. [Breakpoints beside the tokens](../../decisions/2026-10-breakpoints-beside-the-tokens.md) preserve existing reflow without emitting global token CSS per component.
+
+Slice 72 plans the control primitives as [global classes over native elements](../../decisions/2026-10-control-primitives-are-global-classes.md), and app-owned icons as [one monochrome SVG set](../../decisions/2026-10-app-icons-are-one-svg-set.md), while user emoji stay content. Neither is implemented yet.

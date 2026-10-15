@@ -170,6 +170,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [The Design Lab is a route with live knobs, not a third theme](2026-08-design-lab-tokens-are-session-knobs.md) | Seven inline custom properties, session-only | extended; glass and motion knobs (Slice 70 Gate 1) |
 
 | [Breakpoints live beside the design tokens](2026-10-breakpoints-beside-the-tokens.md) | CSS-free Sass thresholds and checked TS agreement | current (Slice 71) |
+| [Control primitives are global classes over native elements](2026-10-control-primitives-are-global-classes.md) | `_controls.scss` classes; components position, never paint, a control | current (Slice 72 planning) |
+| [App-owned icons are one monochrome SVG set; user emoji stay content](2026-10-app-icons-are-one-svg-set.md) | Registry marks become `IconName`s; project and workstream emoji and their fallbacks stay | current (Slice 72 planning) |
 
 ## Testing
 
