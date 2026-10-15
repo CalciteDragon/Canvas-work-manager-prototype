@@ -1157,6 +1157,14 @@
       "projectId": null,
       "slice": 71,
       "note": "For a later slice (user request, 2026-10-14): try adjusting the muted text colour, and present the user with these options to choose from. Measured after Slice 71: against the real pane backings (pane tint over the ground and over each ground-art glow at its peak), muted text is already at least 5.6:1 in both themes (dark #b4bccc, light #4c5464). The 1.82:1 (dark) and 2.22:1 (light) on the Gate 2 sheet come from the Gate 1 model treating text-coloured content as a backing behind panes, which panes never have. Labels such as the sidebar PROJECTS read weak mainly because they are small and uppercase. Options: (A) keep the colour, and correct the sheet composite to use the real ground-art peaks so reports stop flagging it; (B) a small step toward text, 25 % mix: dark #c4cad8, light #3e4553, worst over pane 6.5:1 / 7.2:1; (C) a larger step, 40 % mix: dark #cdd2de, light #353b49, 7.1:1 / 8.3:1, which narrows the gap between muted and body text; (D) keep the colour, and give small uppercase labels more weight, size or tracking through the type tokens (slice 2 or 7). A and D combine. A temporary Lab knob for muted text would let the user compare B and C live before choosing."
+    },
+    {
+      "id": "note-2026-10-14-006",
+      "createdAt": "2026-10-14T23:55:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 71,
+      "note": "Resolves note-2026-10-14-005: the user chose option A. The muted colour stays; the before/after sheet now measures panes and sheets over the ground and its art glows instead of text-coloured content. Muted text is at least 5.64:1 (dark) and 5.62:1 (light) on panes. The remaining weak spot is muted text on lifts (3.52:1 dark, 4.29:1 light), which is for slice 3 to look at when the drawer, dialogs and menus become lifts."
     }
   ]
 }

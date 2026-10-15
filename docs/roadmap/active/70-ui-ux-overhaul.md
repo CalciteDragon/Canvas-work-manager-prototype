@@ -322,10 +322,11 @@ implementation.
 - **Carried from 71's Outcome and notes** (`.prototype/notes.json`, slice 71).
   - The More panel's browser-default fields and buttons look unfinished inside the frosted header.
   - Settings' Appearance radios are native until this slice.
-  - Note `note-2026-10-14-005` asks a later slice to adjust the muted text colour and to **present
-    the user with options A–D**. Option D (label weight, size and tracking) overlaps this slice's
-    type and primitive work. Raise it at planning, as an open question for the user, before
-    choosing.
+  - **Muted text is answered (2026-10-14).** For note `note-2026-10-14-005` the user chose option
+    A: keep the colour and fix the report. The sheet now measures panes and sheets over the ground
+    and its art glows. Muted text there is at least 5.6:1 in both themes, so it is not an open
+    question for this slice. Lifts are still measured over busy content: muted on lift is 3.52:1
+    dark and 4.29:1 light, which belongs to slice 3.
 - **Evidence path, reusable as is.**
   - `pnpm --filter @cwm/e2e ux:capture` against a commit, with its own `.prototype/ux-data.json`.
   - Keyed plane and control boxes in `ux/layout.mjs`.

@@ -71,3 +71,15 @@ back to the user as a Gate 3 amendment rather than a silent switch to A or C.
 **Amended, 2026-10-14 (blur checkpoint).** The user chose V2 after Slice 71's measured
 spike: panes blur, translucent sheets do not. The [blur decision](2026-10-depth-blur-budget.md)
 records the matrix, its software-rendering limits and the rule for token adoption.
+
+**Amended, 2026-10-14 (contrast backing model).** The user chose to keep the muted text colour
+and correct how contrast is reported. The Gate 1 worst-case model put text-coloured "busy
+content" behind every plane. Panes and sheets never sit over content: they sit on the ground,
+and its art glows are their real backing. The before/after sheet
+([`build-sheet.mjs`](../roadmap/70-ui-ux/tooling/build-sheet.mjs)) now measures panes and
+sheets over the ground solid and each art glow at full strength. Lifts float over page
+content, so they keep the busy-content and solid-sheet backings. After Slice 71's tokens,
+worst-case muted text is 5.64:1 (dark) and 5.62:1 (light) on panes, and 7.27:1 / 6.45:1 on
+sheets. The earlier 1.82:1 / 2.22:1 figures were artefacts of the old model. Muted text on
+lifts is 3.52:1 / 4.29:1, which matters once slice 3 makes the drawer, dialogs and menus lifts.
+Contrast stays reported, not gated.
