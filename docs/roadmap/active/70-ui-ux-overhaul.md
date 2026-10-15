@@ -301,8 +301,46 @@ still records the options as they were presented.
 
 **Slice 71 completed (2026-10-14):** [Depth tokens and theme](../completed/71-depth-tokens-and-theme.md); Gate 2 accepted. The next redesign slice (primitives, slice 2) is not yet planned.
 
-**State.** Phases 0–2 are complete and Gate 1 is answered. No redesign slice has been planned or
-started; the user asked to stop here. The umbrella stays active.
+**State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slice 1 is
+[71](../completed/71-depth-tokens-and-theme.md), complete. The umbrella stays active.
+**Next: plan redesign slice 2, Primitives, as roadmap slice 72.** Planning only: write the plan
+and run the reviewer rounds (AGENTS.md steps 1–2). Then bring the plan to the user before any
+implementation.
+
+### Slice 72 (Primitives) — planning brief
+
+- **Scope.** Item 2 of the sequence below: TH04 and TH05 in
+  [themes.json](../70-ui-ux/themes.json). Read their finding ids there and in
+  [reproduction.json](../70-ui-ux/reproduction.json). Confirm scope at planning: the "primitives:
+  TH04–06" grouping above also lists TH06, but the sequence gives TH06 (lifts) to slice 3.
+- **Already in place from 71, for adoption.**
+  - `--field-line`: L5-006 was advanced, not closed; adoption on inputs is this slice.
+  - Focus-ring tokens and the base `:focus-visible` rule. Primitives keep the one ring.
+  - Disabled opacity and cursor, scrim, weight, z-index, motion and breakpoint tokens. The token
+    lint already rejects literals for all of them.
+  - The Lab's plane panel. Primitives should get Lab specimens and Storybook stories (protocol §7.1).
+- **Carried from 71's Outcome and notes** (`.prototype/notes.json`, slice 71).
+  - The More panel's browser-default fields and buttons look unfinished inside the frosted header.
+  - Settings' Appearance radios are native until this slice.
+  - Note `note-2026-10-14-005` asks a later slice to adjust the muted text colour and to **present
+    the user with options A–D**. Option D (label weight, size and tracking) overlaps this slice's
+    type and primitive work. Raise it at planning, as an open question for the user, before
+    choosing.
+- **Evidence path, reusable as is.**
+  - `pnpm --filter @cwm/e2e ux:capture` against a commit, with its own `.prototype/ux-data.json`.
+  - Keyed plane and control boxes in `ux/layout.mjs`.
+  - [`build-sheet.mjs`](../70-ui-ux/tooling/build-sheet.mjs) for the before/after sheet. Its Lab
+    exceptions are slice-71 specific: re-scope them for slice 72's Lab additions, with a test.
+  - For a "before" capture of an older commit: export its source, link `node_modules`, build with
+    `ng` directly, then serve that build in place of `apps/web/dist/web` for the run.
+  - Keep exported copies **outside** `apps/e2e/`. Playwright collects specs from anything under
+    it.
+- **Lessons from 71.**
+  - CDP media emulation resets the device-followed theme. Any capture labelled by theme must
+    lock it through the real toggle and assert `data-theme`, as
+    [`depth-verification.ts`](../../../apps/e2e/ux/depth-verification.ts) does.
+  - When a test run is stopped, kill its web and host children before the next run. They keep
+    4200 and the e2e data file.
 
 ### Read first
 
@@ -375,7 +413,7 @@ decision.
 - In rig page routes, use `route.fallback()`, never `route.continue()`.
 - This machine has 8 GB. Run at most about four rig browsers at once, and serve a production
   build statically instead of running one `ng serve` per auditor.
-- The production build is 1.02 MB initial, above the 850 kB warning and under the 1050 kB hard
+- The production build is 1,028.94 kB initial after slice 71, above the 850 kB warning and under the 1050 kB hard
   ceiling ([budget](../../decisions/2026-08-initial-bundle-budget.md)). Glass work must not
   push it over.
 - **Gate 0 baseline.** The private Gate 0 baseline is a ChatGPT Site (project
