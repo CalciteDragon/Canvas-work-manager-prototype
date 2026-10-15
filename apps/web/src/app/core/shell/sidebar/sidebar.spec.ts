@@ -210,6 +210,36 @@ describe('Sidebar', () => {
     }
   });
 
+  // Slice 72 (W2-001, W4-002, W1-004, W3-007): opening the form is the form's own control, so
+  // focus goes straight into the name rather than staying on the "+" that opened it.
+  it('moves focus into the name field when New project opens the form', async () => {
+    const { fixture, element } = await render();
+    document.body.appendChild(element);
+    try {
+      const plus = element.querySelector<HTMLElement>('[data-new-project]')!;
+      plus.focus();
+      plus.click();
+      await fixture.whenStable();
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(element.querySelector('[data-create-project-name]'));
+    } finally {
+      element.remove();
+    }
+  });
+
+  // Slice 72 (W1-003): the label is visible, not clipped away, and it keeps the name the core
+  // task script uses.
+  it('labels the name field with a visible "Project name" control label', async () => {
+    const { fixture, element } = await render();
+    await openCreateForm(fixture, element);
+
+    const label = element.querySelector<HTMLLabelElement>('label[for="new-project-name"]')!;
+    expect(label.textContent?.trim()).toBe('Project name');
+    expect(label.classList).toContain('control-label');
+    expect(label.classList).not.toContain('create-project__label');
+  });
+
   it('offers New project with the group collapsed', async () => {
     const { fixture, element } = await render({ projectTree: [node('project-1', 'Personal workspace')] });
 

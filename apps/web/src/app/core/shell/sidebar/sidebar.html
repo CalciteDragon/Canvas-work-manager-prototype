@@ -36,7 +36,7 @@
 
     @if (createOpen()) {
       <form class="create-project" data-create-project-form (submit)="submitCreate($event, newName)">
-        <label class="create-project__label" for="new-project-name">Project name</label>
+        <label class="control-label" for="new-project-name">Project name</label>
         <input
           id="new-project-name"
           #newName

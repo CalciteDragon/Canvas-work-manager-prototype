@@ -54,8 +54,10 @@ export class Sidebar {
     this.projectsExpanded.update((expanded) => !expanded);
   }
 
+  /** Opening the form moves focus into its name (slice 72), after the render that creates it. */
   protected toggleCreate(): void {
     this.createOpen.update((open) => !open);
+    if (this.createOpen()) afterNextRender(() => this.nameInput()?.nativeElement.focus(), { injector: this.injector });
   }
 
   constructor() {

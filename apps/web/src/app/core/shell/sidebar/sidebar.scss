@@ -97,19 +97,16 @@
   color: var(--color-text);
 }
 
+// The label sits on its own row above the name and Create (slice 72, W1-003).
 .create-project {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
 }
 
-.create-project__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+.create-project > .control-label {
+  grid-column: 1 / -1;
 }
 
 .create-project__name {
