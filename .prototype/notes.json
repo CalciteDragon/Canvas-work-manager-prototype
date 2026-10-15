@@ -1165,6 +1165,46 @@
       "projectId": null,
       "slice": 71,
       "note": "Resolves note-2026-10-14-005: the user chose option A. The muted colour stays; the before/after sheet now measures panes and sheets over the ground and its art glows instead of text-coloured content. Muted text is at least 5.64:1 (dark) and 5.62:1 (light) on panes. The remaining weak spot is muted text on lifts (3.52:1 dark, 4.29:1 light), which is for slice 3 to look at when the drawer, dialogs and menus become lifts."
+    },
+    {
+      "id": "note-2026-10-15-001",
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": null,
+      "slice": 72,
+      "note": "Slice 72 use (busy-week, 1440 dark): ghost buttons read as plain text at rest. The Markdown section's \"Edit\", and More's \"Clear\" and \"Open archive\", have no boundary until hovered, so they look like labels. Principle 2 removed borders where no boundary is needed; these may need one, or a quieter secondary. For slice 5 (section chrome) or a primitives follow-up."
+    },
+    {
+      "id": "note-2026-10-15-002",
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": null,
+      "slice": 72,
+      "note": "Slice 72 use (nested-projects, 1440 dark): Timeline titles do not share a column. Each row is its own grid, so a row with a date range widens its first column and its title starts further right. This predates slice 72; row shape is slice 6's."
+    },
+    {
+      "id": "note-2026-10-15-003",
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": null,
+      "slice": 72,
+      "note": "Slice 72 use: in Progress, \"Use manual\" is the one primary and stays the loudest control even while Count or Weighted is the active formula. That follows the action hierarchy, but the active choice should read first. Worth a look when slice 6 designs object states."
+    },
+    {
+      "id": "note-2026-10-15-004",
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": null,
+      "slice": 72,
+      "note": "Slice 72 use (nested-projects, 375 touch light): inline links inside the Archive origin breadcrumb (\"Home\", \"Work canvas\") grow to 44 px on touch, which breaks the sentence across lines. Inline links in running text are a WCAG 2.5.8 exception, so .link may need an inline variant without the touch minimum. Found while fixing the Archive overflow; slice 7 owns breadcrumbs."
+    },
+    {
+      "id": "note-2026-10-15-005",
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": null,
+      "slice": 72,
+      "note": "Slice 72 use: adding a task still opens its drawer straight away (TH15, owned by slice 4). With the primary Add task now prominent, it happens more often."
     }
   ]
 }

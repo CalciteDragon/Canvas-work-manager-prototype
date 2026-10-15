@@ -53,9 +53,11 @@
   gap: var(--space-3);
 }
 
+// Claims a column before the controls do, so on a phone they wrap below it instead of
+// squeezing it to a sliver.
 .archived-region__identity {
   display: grid;
-  flex: 1;
+  flex: 1 1 var(--layout-project-column-width);
   min-width: 0;
   gap: var(--space-1);
 }
