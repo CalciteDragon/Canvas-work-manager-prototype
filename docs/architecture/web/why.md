@@ -116,6 +116,10 @@ redesign slice.
 - Two creation defaults change: Add workstream defaults to the open workstream, and adding a task
   does not open its details ([decision](../../decisions/2026-10-creation-defaults-follow-the-open-work.md)).
 
+Slice 71's blur checkpoint selected [V2](../../decisions/2026-10-depth-blur-budget.md):
+blurred panes and translucent sheets without blur. The isolated spike is measured;
+product token adoption remains pending in Slice 71.
+
 ## Spec sections
 
 §4 stack · §8–§10 boundary, gateway, adapter · §18 identity · §19–§23 UI architecture,

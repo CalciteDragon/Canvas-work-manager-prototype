@@ -139,6 +139,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | Entry | Settled | Status |
 |---|---|---|
 | [The redesign follows direction B, Depth, held to the eight principles and the glass constraints](2026-10-frosted-glass-depth-direction.md) | Depth aesthetic; principles and AA win where they conflict; blur budget settled by a spike | current (Slice 70 Gate 1) |
+| [Depth blurs panes and leaves translucent sheets unblurred](2026-10-depth-blur-budget.md) | V2 chosen after the 90-run spike; pane blur, no per-sheet blur | current (Slice 71 checkpoint) |
 | [The theme follows the device preference, and an explicit choice persists](2026-10-theme-follows-device-and-persists.md) | prefers-color-scheme by default; explicit choice in localStorage; persona no longer seeds | current (Slice 70 Gate 1) |
 | [The accent stays orange in dark and blue in light](2026-10-accents-stay-split-per-theme.md) | Split accents kept; state cues by shape (principle 4) | current (Slice 70 Gate 1) |
 | [Navigation condenses into one tree](2026-10-one-navigation-tree.md) | One hierarchy with root pages and workstreams; one current marker; shell-layer slice | current (Slice 70 Gate 1) |

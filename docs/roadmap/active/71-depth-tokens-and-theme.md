@@ -412,7 +412,9 @@ rule, stays open until the checkpoint after part A.
    - the dev panel's Theme control gains `device`.
 
    The alternative is a three-state top-bar control, which needs the slice 3 menu primitive.
-2. **The blur rule:** the checkpoint after part A. This is yours.
+2. **The blur rule:** answered at the checkpoint after part A (2026-10-14). The user chose
+   V2: panes blur; translucent sheets do not. See the
+   [decision](../../decisions/2026-10-depth-blur-budget.md).
 3. **Breakpoints outside `_tokens.scss`.** Sass `@use` of the tokens file from a component would
    copy the whole `:root` block into every component stylesheet, and custom properties cannot
    appear in `@media`. Default: a CSS-free `_breakpoints.scss` beside the tokens. Because §21's
@@ -480,8 +482,9 @@ events. All scratch servers were stopped after the run.
 The final checkpoint documents also passed `pnpm docs:check`. Full e2e, Storybook and
 before/after product captures remain for parts B/C; no whole-slice completion is claimed.
 
-**Checkpoint:** the user's blur choice is still pending. No part B token work or part C
-theme behaviour has started. Next: user chooses the rule; C may proceed independently,
+**Checkpoint answered (2026-10-14):** the user chose **V2**, recorded in the
+[blur decision](../../decisions/2026-10-depth-blur-budget.md). No part B token work or part C
+theme behaviour has started. Next: C may proceed independently,
 then the layout collector must land in a commit before the before-capture. Slice 71 remains
 active and no findings are claimed closed yet.
 
