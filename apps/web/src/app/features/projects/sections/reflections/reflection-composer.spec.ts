@@ -47,6 +47,15 @@ describe('ReflectionComposer (§36)', () => {
     expect(fixture.nativeElement.querySelector('[data-reflection-subject]')?.textContent).toContain('Ship the release');
   });
 
+  // Slice 72 (L5-003): the prompt select has a visible label, not only its first option.
+  it('labels the prompt select with a visible "Prompt" control label', async () => {
+    const { fixture } = await render();
+    const prompt = fixture.nativeElement.querySelector('[data-reflection-prompt]') as HTMLSelectElement;
+
+    expect(prompt.labels?.[0]?.textContent?.trim()).toBe('Prompt');
+    expect(prompt.labels?.[0]?.classList).toContain('control-label');
+  });
+
   it('emits subject removal and can clear all form controls', async () => {
     const { fixture, composer } = await render();
     fixture.componentRef.setInput('subject', subject);

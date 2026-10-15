@@ -1,7 +1,8 @@
 @if (!readOnly()) {
   <form #formElement data-reflection-create class="reflection-composer" (submit)="submit($any($event), body, title, prompt)">
     <input data-reflection-title #title type="text" placeholder="Optional title" />
-    <select data-reflection-prompt #prompt>
+    <label class="control-label" [for]="promptId">Prompt</label>
+    <select data-reflection-prompt #prompt [id]="promptId">
       <option value="">No prompt</option>
       @for (item of prompts(); track item) {
         <option [value]="item">{{ item }}</option>

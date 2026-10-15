@@ -146,6 +146,15 @@ describe('ReflectionsPage (§36)', () => {
     );
   });
 
+  // Slice 72 (L5-003, W1-022): the subject picker has a visible label.
+  it('labels the subject picker with a visible "Subject" control label', async () => {
+    const { fixture } = await render();
+    const picker = query(fixture, '[data-reflections-subject-picker]') as HTMLSelectElement;
+
+    expect(picker.labels?.[0]?.textContent?.trim()).toBe('Subject');
+    expect(picker.labels?.[0]?.classList).toContain('control-label');
+  });
+
   it('selects completed work, writes a linked reflection, clears the draft and notifies project data', async () => {
     const { fixture, gateway, onData } = await render();
     const picker = query(fixture, '[data-reflections-subject-picker]') as HTMLSelectElement;

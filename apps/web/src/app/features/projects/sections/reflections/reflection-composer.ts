@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, input, output } from '@angular/core';
 import type { ReflectionSubjectView } from '@cwm/contracts';
 
+/** A section and the Reflections page can both show a composer, so label ids are per instance. */
+let nextInstance = 0;
+
 export interface ReflectionDraft {
   body: string;
   title: string;
@@ -15,6 +18,8 @@ export interface ReflectionDraft {
   styleUrl: './reflection-composer.scss',
 })
 export class ReflectionComposer {
+  /** The prompt select's id, for its visible label (slice 72, L5-003). */
+  protected readonly promptId = `reflection-composer-${++nextInstance}-prompt`;
   readonly readOnly = input(false);
   readonly subject = input<ReflectionSubjectView | null>(null);
   readonly error = input<string | null>(null);

@@ -206,7 +206,9 @@ takes a per-instance prefix so a section and its shortcut on one page never shar
 `li` carries no state. A Progress bar is named from what its frame displays: each frame provides
 `SECTION_FRAME_NAME` (`nameOf` or `shortcutNameOf`) in its own `providers`, and outlet content
 inherits it. The bar appends "progress" unless the name already says it, never uses the frame's
-"Rename …" heading, and is described by its own summary through a per-instance id.
+"Rename …" heading, and is described by its own summary through a per-instance id. The Reflections composer's prompt select and the
+Reflections page's subject picker carry visible `.control-label`s ("Prompt", per-instance id;
+"Subject"); the title and body stay named by their placeholders.
 
 ## Key symbols
 

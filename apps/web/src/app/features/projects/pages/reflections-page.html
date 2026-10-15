@@ -68,7 +68,8 @@
       <p data-reflections-picker-error class="reflections-page__error" role="alert">{{ error }}</p>
       <button data-reflections-picker-retry type="button" (click)="store.retryCompletedWork()">Try again</button>
     } @else {
-      <select data-reflections-subject-picker [value]="selectedSubject() ? subjectValue(selectedSubject()!) : ''" (change)="selectSubject($any($event.target).value)">
+      <label class="control-label" for="reflections-subject-picker">Subject</label>
+      <select id="reflections-subject-picker" data-reflections-subject-picker [value]="selectedSubject() ? subjectValue(selectedSubject()!) : ''" (change)="selectSubject($any($event.target).value)">
         <option value="">No subject</option>
         @for (candidate of store.candidates(); track subjectValue(candidate)) {
           <option [value]="subjectValue(candidate)" [attr.data-subject-id]="candidate.id">{{ subjectLabel(candidate) }}</option>
