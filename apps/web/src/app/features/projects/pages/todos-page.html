@@ -13,12 +13,12 @@
     <div data-todo-delete-recovery class="todos__recovery" role="status" aria-live="polite">
       <span>{{ recovery.title }} was archived.</span>
       <span>
-        Open root <button data-todo-open-archive type="button" class="todos__recovery-link" (click)="onOpenArchive()()">Archive</button>
+        Open root <button data-todo-open-archive type="button" class="link" (click)="onOpenArchive()()">Archive</button>
         to recover it when its owner is ready.
       </span>
       @if (recovery.owner; as owner) {
         <span>
-          <a data-todo-recovery-owner [routerLink]="owner.route" fragment="history-controls">{{ owner.name }}'s header Undo</a>
+          <a class="link" data-todo-recovery-owner [routerLink]="owner.route" fragment="history-controls">{{ owner.name }}'s header Undo</a>
           may reverse the latest step when available.
         </span>
       } @else {
@@ -38,7 +38,7 @@
     <p data-todos-loading class="todos__muted">Loading todos…</p>
   } @else if (store.error(); as error) {
     <p data-todos-error class="todos__error" role="alert">{{ error }}</p>
-    <button data-todos-retry type="button" class="todos__retry" (click)="store.retry()">Try again</button>
+    <button data-todos-retry type="button" class="button todos__retry" (click)="store.retry()">Try again</button>
   } @else if (store.items().length === 0) {
     <p data-todos-empty class="todos__muted">
       There is no work under this project yet — no tasks, and no workstreams.
@@ -55,7 +55,7 @@
         >
           <span class="todos__kind">{{ kindLabel(item) }}</span>
 
-          <a data-todo-link class="todos__title" [routerLink]="linkOf(item)" [fragment]="fragmentOf(item)">
+          <a data-todo-link class="link todos__title" [routerLink]="linkOf(item)" [fragment]="fragmentOf(item)">
             {{ titleOf(item) }}
           </a>
 
@@ -69,7 +69,7 @@
           </ol>
 
           @if (historyOwner(item); as owner) {
-            <a data-todo-history-link [routerLink]="owner.route" fragment="history-controls">
+            <a class="link" data-todo-history-link [routerLink]="owner.route" fragment="history-controls">
               Open {{ owner.name }} history
             </a>
           }
@@ -78,7 +78,7 @@
             <input
               data-todo-toggle
               type="checkbox"
-              class="todos__toggle"
+              class="checkbox todos__toggle"
               [checked]="item.task.status === 'done'"
               [attr.aria-disabled]="writesBlocked() ? 'true' : null"
               [attr.aria-label]="(item.task.status === 'done' ? 'Reopen task ' : 'Complete ') + item.task.title"
@@ -88,7 +88,7 @@
             <button
               data-todo-complete
               type="button"
-              class="todos__complete"
+              class="button button--sm todos__complete"
               [disabled]="writesBlocked()"
               [attr.aria-label]="'Complete ' + titleOf(item)"
               (click)="complete(item)"
@@ -101,7 +101,7 @@
             <button
               data-todo-delete
               type="button"
-              class="todos__delete"
+              class="tool todos__delete"
               [disabled]="writesBlocked()"
               [attr.aria-label]="'Delete task ' + item.task.title"
               [attr.title]="'Delete task ' + item.task.title"

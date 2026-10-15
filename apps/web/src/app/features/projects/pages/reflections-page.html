@@ -16,7 +16,7 @@
     <p data-reflections-refresh-error class="reflections-page__notice" role="status">
       This journal may be out of date — {{ error }}
     </p>
-    <button data-reflections-refresh-retry type="button" (click)="store.retryRefresh()">Retry journal read</button>
+    <button data-reflections-refresh-retry type="button" class="button button--sm" (click)="store.retryRefresh()">Retry journal read</button>
   }
 
   <section data-reflections-composer-region class="reflections-page__region" aria-labelledby="reflections-compose-title">
@@ -36,7 +36,7 @@
       <p data-reflections-container-loading class="reflections-page__muted">Loading the Reflections container…</p>
     } @else if (store.containerError(); as error) {
       <p data-reflections-container-error class="reflections-page__error" role="alert">{{ error }}</p>
-      <button data-reflections-container-retry type="button" (click)="store.retryContainer()">Try again</button>
+      <button data-reflections-container-retry type="button" class="button button--sm" (click)="store.retryContainer()">Try again</button>
     } @else if (store.container(); as container) {
       <app-reflection-composer
         [readOnly]="pageWritesBlocked()"
@@ -50,7 +50,7 @@
         This page has no Reflections container yet.
       </p>
       @if (!pageWritesBlocked()) {
-        <button data-reflections-add-container type="button" (click)="addContainer()" [disabled]="store.creatingContainer()">
+        <button data-reflections-add-container type="button" class="button button--primary" (click)="addContainer()" [disabled]="store.creatingContainer()">
           {{ store.creatingContainer() ? 'Adding…' : 'Add reflections container' }}
         </button>
       }
@@ -66,10 +66,10 @@
       <p data-reflections-picker-loading class="reflections-page__muted">Loading completed work…</p>
     } @else if (store.pickerError(); as error) {
       <p data-reflections-picker-error class="reflections-page__error" role="alert">{{ error }}</p>
-      <button data-reflections-picker-retry type="button" (click)="store.retryCompletedWork()">Try again</button>
+      <button data-reflections-picker-retry type="button" class="button button--sm" (click)="store.retryCompletedWork()">Try again</button>
     } @else {
       <label class="control-label" for="reflections-subject-picker">Subject</label>
-      <select id="reflections-subject-picker" data-reflections-subject-picker [value]="selectedSubject() ? subjectValue(selectedSubject()!) : ''" (change)="selectSubject($any($event.target).value)">
+      <select id="reflections-subject-picker" class="select" data-reflections-subject-picker [value]="selectedSubject() ? subjectValue(selectedSubject()!) : ''" (change)="selectSubject($any($event.target).value)">
         <option value="">No subject</option>
         @for (candidate of store.candidates(); track subjectValue(candidate)) {
           <option [value]="subjectValue(candidate)" [attr.data-subject-id]="candidate.id">{{ subjectLabel(candidate) }}</option>
@@ -90,7 +90,7 @@
       <p data-reflections-loading class="reflections-page__muted">Loading reflections…</p>
     } @else if (store.journalError(); as error) {
       <p data-reflections-error class="reflections-page__error" role="alert">{{ error }}</p>
-      <button data-reflections-retry type="button" (click)="store.retryJournal()">Try again</button>
+      <button data-reflections-retry type="button" class="button button--sm" (click)="store.retryJournal()">Try again</button>
     } @else if (store.items().length === 0) {
       <p data-reflections-empty class="reflections-page__muted">No reflections yet.</p>
     } @else {
@@ -115,7 +115,7 @@
               }
               <a
                 data-reflections-owner-link
-                class="reflections-page__owner-link"
+                class="link reflections-page__owner-link"
                 [routerLink]="ownerLink(entry)"
                 [fragment]="ownerFragment(entry)"
               >

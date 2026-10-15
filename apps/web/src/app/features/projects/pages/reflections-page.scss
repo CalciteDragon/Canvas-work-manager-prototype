@@ -97,7 +97,6 @@
 
 .reflections-page__feed time,
 .reflections-page__feed small,
-.reflections-page__owner-link,
 .reflections-page__subject {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
@@ -111,9 +110,10 @@
   color: var(--color-text);
 }
 
-.reflections-page__feed a {
-  color: var(--color-accent);
-  font-size: var(--font-size-sm);
+// Slice 72: buttons keep their own width inside the page and region grids.
+.reflections-page > .button,
+.reflections-page__region > .button {
+  justify-self: start;
 }
 
 @media (max-width: breakpoints.$compact) {

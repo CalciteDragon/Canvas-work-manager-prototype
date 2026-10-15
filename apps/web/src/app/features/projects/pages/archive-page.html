@@ -22,7 +22,7 @@
     <p data-archive-loading class="archive-page__muted">Loading archive…</p>
   } @else if (store.error(); as error) {
     <p data-archive-error class="archive-page__error" role="alert">{{ error }}</p>
-    <button data-archive-retry type="button" class="archive-page__retry" (click)="store.retry()">
+    <button data-archive-retry type="button" class="button archive-page__retry" (click)="store.retry()">
       Retry archive read
     </button>
   }

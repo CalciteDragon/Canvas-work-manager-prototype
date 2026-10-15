@@ -40,7 +40,7 @@
               }
             </span>
             @if (historyOwner(item); as owner) {
-              <a data-archived-history-link [routerLink]="owner.route" fragment="history-controls">
+              <a class="link" data-archived-history-link [routerLink]="owner.route" fragment="history-controls">
                 Open {{ owner.name }} history
               </a>
             }
@@ -59,11 +59,12 @@
             }
           </div>
           @if (item.kind === 'subproject') {
-            <label class="archived-region__status">
+            <label class="control-label archived-region__status">
               Restore as
               <!-- Options come from @for, which renders after the select's own bindings: a
                    [value] on the select would find no option and show the first one. -->
               <select
+                class="select"
                 data-archived-project-status
                 [disabled]="!canRestore(item)"
                 (change)="selectProjectStatus(item, $event)"
@@ -77,6 +78,7 @@
           <button
             data-archived-restore
             type="button"
+            class="button button--sm"
             [disabled]="!canRestore(item)"
             [attr.aria-label]="restoreActionAriaLabel(item)"
             (click)="restore(item)"

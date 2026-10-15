@@ -390,6 +390,14 @@ textarea.field {
   cursor: pointer;
 }
 
+// A button that reads as a link inside running text (an action, not a navigation).
+button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+}
+
 @media (hover: hover) {
   .link:hover {
     text-decoration-thickness: var(--border-focus);

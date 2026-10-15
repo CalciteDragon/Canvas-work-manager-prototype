@@ -8,9 +8,11 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { Icon } from '../../shared/components/icon/icon';
 import { TaskPrioritySchema, type Task, type TaskId, type TaskPriority } from '@cwm/contracts';
 
 @Component({
+  imports: [Icon],
   selector: 'app-task-detail-drawer',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './task-detail-drawer.html',

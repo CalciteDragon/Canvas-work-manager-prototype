@@ -4,8 +4,8 @@
       <span class="drawer__eyebrow">Task details</span>
       <h2 id="task-drawer-title">{{ task().title }}</h2>
     </div>
-    <button data-close-drawer class="drawer__close" type="button" aria-label="Close task details" (click)="closed.emit()">
-      Close
+    <button data-close-drawer class="icon-button" type="button" aria-label="Close task details" (click)="closed.emit()">
+      <app-icon name="close" />
     </button>
   </header>
 
@@ -13,9 +13,10 @@
     {{ task().description || 'No description yet.' }}
   </p>
 
-  <label class="drawer__field">
+  <label class="control-label drawer__field">
     <span>Title</span>
     <input
+      class="field"
       data-task-drawer-title
       type="text"
       [value]="draft()"
@@ -30,9 +31,10 @@
     }
   </label>
 
-  <label class="drawer__field">
+  <label class="control-label drawer__field">
     <span>Priority</span>
     <select
+      class="select"
       data-task-priority
       [value]="task().priority"
       (change)="changePriority($any($event.target).value)"
@@ -43,9 +45,10 @@
     </select>
   </label>
 
-  <label class="drawer__field">
+  <label class="control-label drawer__field">
     <span>Due date</span>
     <input
+      class="field"
       data-task-due-date
       type="date"
       [value]="dueDate()"
@@ -53,9 +56,9 @@
     />
   </label>
 
-  <label class="drawer__field">
+  <label class="control-label drawer__field">
     <span>Estimate</span>
-    <input data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''" (change)="changeEstimate($any($event.target).value)" />
+    <input class="field" data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''" (change)="changeEstimate($any($event.target).value)" />
   </label>
 
   <dl class="drawer__facts">

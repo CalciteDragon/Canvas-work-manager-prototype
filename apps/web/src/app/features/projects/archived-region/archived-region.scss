@@ -68,30 +68,5 @@
 .archived-region__status {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.archived-region__status select {
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.archived-region__entry button {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--color-accent);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-}
-
-.archived-region__entry button:disabled {
-  color: var(--color-text-muted);
-  cursor: var(--cursor-disabled);
+  gap: var(--space-2);
 }
