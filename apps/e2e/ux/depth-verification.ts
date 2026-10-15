@@ -53,6 +53,22 @@ test('Depth runtime evidence', async ({ browser }) => {
       return Object.fromEntries(names.map(name => [name, style.getPropertyValue(name).trim()]));
     }, tokenNames);
 
+    // CDP media sessions reset their overrides on detach. First prove the device-selected
+    // theme above, then use the real control to persist this theme during fallback checks.
+    // Both toggles are observed so this cannot silently become a session-only DOM patch.
+    await page.locator('[data-theme-toggle]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'dark' ? 'light' : 'dark');
+    await page.locator('[data-theme-toggle]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    const expectedRingColor = before ? null : await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--focus-ring-color)';
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    });
+
     // Read the actual built stylesheet's CSSOM, preserving the fallback selectors.
     const blocks = await page.evaluate(() => {
       const reduced: string[] = [];
@@ -95,6 +111,7 @@ test('Depth runtime evidence', async ({ browser }) => {
         expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true);
       }
       const injected = mode === 'simulated-no-filter' ? await page.addStyleTag({ content: blocks.unsupported.join('\n') || '/* Baseline solid styling has no unsupported-filter block. */' }) : null;
+      await expect(page.locator('html'), `${theme} remains selected during ${mode}`).toHaveAttribute('data-theme', theme);
       const computed = await planes(page);
       expect(computed.length).toBeGreaterThan(4);
       for (const plane of before ? [] : computed) {
@@ -109,6 +126,7 @@ test('Depth runtime evidence', async ({ browser }) => {
       await page.emulateMedia({ forcedColors: 'none' });
       await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: theme }] });
       await cdp.detach();
+      await expect(page.locator('html'), `${theme} survives media reset and CDP detach`).toHaveAttribute('data-theme', theme);
     }
     await page.locator('html').evaluate(element => {
       (element as HTMLElement).style.removeProperty('--plane-sheet-blur');
@@ -116,6 +134,7 @@ test('Depth runtime evidence', async ({ browser }) => {
     });
 
     const rings: Array<{ target: string; outline: string; screenshot: string }> = [];
+    await expect(page.locator('html'), 'focus strip has its labelled theme').toHaveAttribute('data-theme', theme);
     for (const [name, target] of [
       ['More', page.locator('[data-project-more]')],
       ['sidebar', page.locator('app-sidebar a').first()],
@@ -123,6 +142,7 @@ test('Depth runtime evidence', async ({ browser }) => {
     ] as const) {
       await tabTo(page, target);
       const outline = await target.evaluate(element => getComputedStyle(element).outline);
+      if (expectedRingColor !== null) expect(await target.evaluate(element => getComputedStyle(element).outlineColor)).toBe(expectedRingColor);
       const screenshot = 'depth-focus-' + theme + '-' + name + '.png';
       await page.screenshot({ path: resolve(out, screenshot), animations: 'disabled' });
       rings.push({ target: name, outline, screenshot });
@@ -131,6 +151,7 @@ test('Depth runtime evidence', async ({ browser }) => {
     const field = page.locator('[data-create-section-name]');
     await expect(field).toBeVisible();
     await tabTo(page, field);
+    if (expectedRingColor !== null) expect(await field.evaluate(element => getComputedStyle(element).outlineColor)).toBe(expectedRingColor);
     const screenshot = 'depth-focus-' + theme + '-dialog.png';
     await page.screenshot({ path: resolve(out, screenshot), animations: 'disabled' });
     rings.push({ target: 'dialog field', outline: await field.evaluate(element => getComputedStyle(element).outline), screenshot });
@@ -138,12 +159,12 @@ test('Depth runtime evidence', async ({ browser }) => {
       expect(new Set(rings.map(ring => ring.outline)).size).toBe(1);
       expect(rings[0].outline).not.toContain('none');
     }
-    focus.push({ theme, rings });
+    focus.push({ theme, expectedRingColor, rings });
     await context.close();
   }
 
   if (before) {
-    await writeFile(resolve(out, 'depth-verification.json'), JSON.stringify({ commit, baseline: true, tokens, fallbacks, focus, cssFallback }, null, 2));
+    await writeFile(resolve(out, 'depth-verification.json'), JSON.stringify({ commit, baseline: true, themeSelection: 'Device checked on entry, then explicitly locked with two observed top-bar toggles before CDP media checks', tokens, fallbacks, focus, cssFallback }, null, 2));
     return;
   }
 
@@ -183,7 +204,7 @@ test('Depth runtime evidence', async ({ browser }) => {
   await context.close();
 
   await writeFile(resolve(out, 'depth-verification.json'), JSON.stringify({
-    commit, tokens, fallbacks, focus, cssFallback,
+    commit, themeSelection: 'Device checked on entry, then explicitly locked with two observed top-bar toggles before CDP media checks', tokens, fallbacks, focus, cssFallback,
     lab: { directEntry: 'light', original, changed, reducedMotionDuration: duration, reset: true, screenshot: labScreenshot },
     deviceTheme: { emulated: 'light', persisted: 'dark', matchDeviceAfterReload: 'light', screenshot: deviceScreenshot },
   }, null, 2));
