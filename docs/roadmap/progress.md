@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 73 | Slice 73 — Lifts and focus | Redesign slice 3 (TH06): the task drawer, More and page settings become lifts that take focus, close on Escape and return it; focus survives route changes | [73-lifts-and-focus.md](active/73-lifts-and-focus.md) |
 
 ### Planned
 
