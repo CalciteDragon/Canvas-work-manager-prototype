@@ -16,7 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 72.1 | Slice 72.1 — Slice 72.1 — Primitives follow-ups | Ghost buttons gain a faint resting outline; the token lint scans interpolated inline styles; the stdio timeouts budget per child process | [72.1-primitives-follow-ups.md](active/72.1-primitives-follow-ups.md) |
+| 72.1 | Slice 72.1 — Primitives follow-ups | Ghost buttons gain a faint resting outline; the token lint scans interpolated inline styles; the stdio timeouts budget per child process | [72.1-primitives-follow-ups.md](active/72.1-primitives-follow-ups.md) |
 
 ### Planned
 

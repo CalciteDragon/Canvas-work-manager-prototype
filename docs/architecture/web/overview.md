@@ -67,8 +67,8 @@ Smaller features that do not earn a folder of their own:
   project emoji are content and never pass through it.
 - `styles/_controls.scss` — slice 72's control primitives as global classes over native elements
   (`.button` in four ranks, `.icon-button`, `.tool`, `.field`, `.select`, `.checkbox`, `.radio`,
-  `.pill`, `.link`, `.control-label`, `.danger-zone`). Components position a primitive and never
-  paint one.
+  `.pill`, `.link`, `.control-label`, `.danger-zone`). Ghost buttons keep a faint edge at rest;
+  icon buttons and tools stay borderless. Components position a primitive and never paint one.
 
 ## Read next
 

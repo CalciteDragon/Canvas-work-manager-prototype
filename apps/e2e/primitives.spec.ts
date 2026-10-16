@@ -34,6 +34,36 @@ test('at 375 on touch, New project focuses a visibly labelled name field', async
   await context.close();
 });
 
+/**
+ * Slice 72.1: a ghost button shows a faint edge at rest, so it reads as a button and not a label
+ * (note-2026-10-15-001), and it stays unfilled, which is what tells it apart from secondary.
+ * Icon buttons and tools stay borderless at rest: chrome is quiet (principle 5).
+ */
+test('ghost buttons show a faint edge at rest; icon buttons and tools do not', async ({ page }) => {
+  await seed('personal-workspace');
+  await page.goto('/prototype/design');
+  await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
+  const plane = page.locator('[data-panel="controls"] [data-control-plane="control-plane--sheet"]');
+  const paint = (control: Locator) => control.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { edge: style.borderTopColor, fill: style.backgroundColor };
+  });
+  const transparent = 'rgba(0, 0, 0, 0)';
+
+  for (const theme of ['dark', 'light'] as const) {
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+
+    const ghost = await paint(plane.getByRole('button', { name: 'Ghost · Rest', exact: true }));
+    const secondary = await paint(plane.getByRole('button', { name: 'Secondary · Rest', exact: true }));
+    expect(ghost.edge, `${theme} ghost edge`).not.toBe(transparent);
+    expect(ghost.fill, `${theme} ghost fill`).toBe(transparent);
+    expect(secondary.fill, `${theme} secondary fill`).not.toBe(transparent);
+    expect((await paint(plane.getByRole('button', { name: 'Undo', exact: true }))).edge, `${theme} icon button`).toBe(transparent);
+    expect((await paint(plane.getByRole('button', { name: 'Drag handle', exact: true }))).edge, `${theme} tool`).toBe(transparent);
+  }
+});
+
 test('Tab reaches a task checkbox and Space completes the task', async ({ page }) => {
   await seed('busy-week');
   await page.goto('/projects/project-launch');

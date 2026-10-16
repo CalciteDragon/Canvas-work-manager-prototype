@@ -172,6 +172,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Breakpoints live beside the design tokens](2026-10-breakpoints-beside-the-tokens.md) | CSS-free Sass thresholds and checked TS agreement | current (Slice 71) |
 | [Control primitives are global classes over native elements](2026-10-control-primitives-are-global-classes.md) | `_controls.scss` classes; components position, never paint, a control | current (Slice 72 planning) |
 | [App-owned icons are one monochrome SVG set; user emoji stay content](2026-10-app-icons-are-one-svg-set.md) | Registry marks become `IconName`s; project and workstream emoji and their fallbacks stay | current (Slice 72 planning) |
+| [Ghost buttons have a faint edge at rest](2026-10-ghost-buttons-have-a-faint-resting-edge.md) | `.button--ghost` takes `--control-ghost-edge`; icon buttons and tools stay borderless; a named exception to principle 2 | current (Slice 72.1) |
 
 ## Testing
 

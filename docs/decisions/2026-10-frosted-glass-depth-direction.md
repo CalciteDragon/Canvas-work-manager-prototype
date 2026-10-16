@@ -83,3 +83,9 @@ worst-case muted text is 5.64:1 (dark) and 5.62:1 (light) on panes, and 7.27:1 /
 sheets. The earlier 1.82:1 / 2.22:1 figures were artefacts of the old model. Muted text on
 lifts is 3.52:1 / 4.29:1, which matters once slice 3 makes the drawer, dialogs and menus lifts.
 Contrast stays reported, not gated.
+
+**Amended, 2026-10-15 (ghost buttons, slice 72.1).** The user asked for a faint resting edge on
+ghost buttons after they read as labels in use. Principle 2 gains one named exception: a ghost
+*text* button keeps the faintest line (`--color-border`) at rest, below 3:1 and reported, not
+gated. Icon buttons and tools stay borderless
+([decision](2026-10-ghost-buttons-have-a-faint-resting-edge.md)).

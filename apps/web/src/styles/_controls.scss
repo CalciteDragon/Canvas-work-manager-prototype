@@ -74,6 +74,14 @@
   --control-edge-hover: var(--control-ghost-fill);
 }
 
+// A ghost *button* has words, and without an edge it read as a label until hovered
+// (note-2026-10-15-001). It keeps the faintest line at rest and stays unfilled, so it is still
+// quieter than secondary. Icon buttons and tools carry a mark and stay borderless.
+.button--ghost {
+  --control-edge: var(--control-ghost-edge);
+  --control-edge-hover: var(--control-secondary-edge-hover);
+}
+
 // Danger at rest is outlined, never filled, so a Revoke is not the loudest control on its page.
 .button--danger,
 .icon-button--danger,

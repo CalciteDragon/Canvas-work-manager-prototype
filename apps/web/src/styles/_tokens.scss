@@ -207,6 +207,9 @@
   --control-secondary-edge: var(--color-border);
   --control-secondary-edge-hover: color-mix(in srgb, var(--color-text) 24%, transparent);
   --control-ghost-fill: transparent;
+  // Ghost buttons keep the faintest line at rest so they read as buttons (slice 72.1); icon
+  // buttons and tools stay borderless.
+  --control-ghost-edge: var(--color-border);
   --control-danger-fill: var(--color-danger-surface);
   --control-danger-fill-hover: color-mix(in srgb, var(--color-danger) 26%, transparent);
   --control-danger-fill-pressed: color-mix(in srgb, var(--color-danger) 34%, transparent);

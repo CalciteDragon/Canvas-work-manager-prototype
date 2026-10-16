@@ -1205,6 +1205,14 @@
       "projectId": null,
       "slice": 72,
       "note": "Slice 72 use: adding a task still opens its drawer straight away (TH15, owned by slice 4). With the primary Add task now prominent, it happens more often."
+    },
+    {
+      "id": "note-2026-10-15-006",
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": null,
+      "slice": 72.1,
+      "note": "Answers note-2026-10-15-001: ghost text buttons now keep a faint edge at rest (decision 2026-10-ghost-buttons-have-a-faint-resting-edge). In use at 1440, Edit, Clear and Open archive read as buttons in both themes; the 375 project-navigation toggle shows its edge. Measured edge contrast is 1.33-1.36:1 dark and 1.23-1.24:1 light, reported, not gated."
     }
   ]
 }

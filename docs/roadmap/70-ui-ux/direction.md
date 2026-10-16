@@ -24,7 +24,8 @@ action per surface.
 2. **Separate by plane and space, not by line.** Cards inside sheets have no hairline borders.
    Grouping comes from the spacing scale and one surface step. A border appears only where a
    control needs a 3:1 boundary, as inputs do. Input borders measure 1.3–1.6:1 today (TH01,
-   TH04).
+   TH04). *Amended 2026-10-15:* ghost text buttons keep a faint edge at rest
+   ([decision](../../decisions/2026-10-ghost-buttons-have-a-faint-resting-edge.md)).
 3. **One primary action per surface.** Commit actions look committed, and destructive actions
    are separated from neighbours and say what they destroy. Today Create and Cancel are
    identical, "Archive Workstream" sits under "Open Archive", and only the Task List has a filled
