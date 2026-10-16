@@ -1,4 +1,4 @@
-<!-- plan id="72" status="active" summary="Shared control primitives (buttons, icon button, field, select, checkbox, pill, tool, link) with one action hierarchy, adopted across product surfaces (TH04, TH05)" -->
+<!-- completed-record id="72" closed="2026-10-16" summary="Shared control primitives and one SVG icon set adopted on every product surface; 33 findings closed, 4 advanced; Gate 2 accepted" -->
 # Slice 72 — Primitives
 
 ## Goal
@@ -13,7 +13,7 @@ and each form shows its commit action as the primary one.
 §21 (primitives before polished pages; no literals; new control-size tokens), §22 (both themes),
 §67 (the Lab's buttons and inputs panels show the real primitives), §69 (verification), §77
 (design-first use; tests change with intent), §79 (friction notes). The umbrella
-[70](70-ui-ux-overhaul.md) and the [overhaul protocol](../../guides/ui-ux-overhaul-protocol.md) §6–§7
+[70](../active/70-ui-ux-overhaul.md) and the [overhaul protocol](../../guides/ui-ux-overhaul-protocol.md) §6–§7
 apply. Governing decisions:
 - [Depth direction](../../decisions/2026-10-frosted-glass-depth-direction.md), with its contrast amendment
 - [accents stay split per theme](../../decisions/2026-10-accents-stay-split-per-theme.md)
@@ -851,5 +851,88 @@ checkpoint. The 28 breadcrumb cells were recaptured after the class was added. T
   - It found and fixed one defect: the Archive identity squeezed to a sliver on a phone.
   - It recorded five friction notes: `note-2026-10-15-001` to `005`.
   - Agent-heavy was seen only through the captures, not used by hand.
-- **Not done.** The Outcome section and `roadmap.mjs complete` wait for the user's Gate 2
-  answer.
+- **Gate 2 accepted (2026-10-15).** The user accepted the sheet and the curated page as shown.
+
+## Outcome
+
+**Deliverables.** Every product control now uses one shared, token-built primitive.
+[`_controls.scss`](../../../apps/web/src/styles/_controls.scss) defines the button in four ranks
+(primary, secondary, ghost, danger, plus the `row` variant), the icon button, the tool, the field,
+select, checkbox and radio, the pill and the link. The hover, pressed and focus states live once in
+[`_control-states.scss`](../../../apps/web/src/styles/_control-states.scss), which the Lab's forced
+specimens share. [`_tokens.scss`](../../../apps/web/src/styles/_tokens.scss) gains the control
+heights, `--size-target-min` and the control aliases. [`Icon`](../../../apps/web/src/app/shared/components/icon/icon.ts)
+is one monochrome SVG set for page kinds, section types, widgets, activity actors and the old text
+glyphs. Every product surface adopted the primitives in groups B1–B6 and deleted its own control
+paint: the element-selector grep fell from 77 lines in 26 files to 6, all listed exceptions. Part C
+added the behaviour: New project focuses a visibly labelled field, the Timeline row button owns
+its expanded state, progress bars are named from their frame through `SECTION_FRAME_NAME`, the
+Prompt and Subject selects have labels, and Add and Revoke name what they act on. The Lab has a
+Controls panel and its Buttons and Inputs panels show the real primitives; Storybook has a controls
+story. The rig gained the control census in [`layout.mjs`](../../../apps/e2e/ux/layout.mjs), axe
+`target-size`, [`primitives-verification.ts`](../../../apps/e2e/ux/primitives-verification.ts) for
+forced colours, and `build-sheet.mjs --profile 72`. The plan's 33 findings are closed and 4 are
+advanced (see Findings closed). **The user accepted the sheet at Gate 2 on 2026-10-15.**
+
+**Deliberate choices.**
+- **Global classes over native elements, not Angular components**
+  ([decision](../../decisions/2026-10-control-primitives-are-global-classes.md), amended with the
+  measured bundle and specificity results). Adoption deleted component paint rather than
+  overriding it, and every native behaviour the e2e suite relies on held.
+- **One SVG icon set** ([decision](../../decisions/2026-10-app-icons-are-one-svg-set.md)). User
+  emoji, and the `📁` and `🧩` fallbacks that fill their slot, stay content.
+- **The three removal marks** were kept as shown at the checkpoint: a danger "remove section"
+  tool, a quiet trash tool for tasks, and a neutral unlink tool for shortcuts.
+- **The More panel is the one named exception** to "one primary per surface". Its inline edits
+  are secondary, and its Archive sits in a separated danger group. Slice 3 owns its primary when it
+  becomes a menu.
+- **Contrast stays reported, not gated.** Axe `color-contrast` violations still fell from 142 to 0.
+
+**Deviations from the plan.**
+- **C3:** "progress" is appended only when the frame name lacks the word, so an untitled bar reads
+  "Progress", not "Progress progress".
+- **C5:** `ShortcutSource` has no section title, so Add is named from the row's visible identity
+  ("{verb} {name}, {breadcrumb} · {page}"). The two §77 locators match `/^Add /`.
+- **Diff review** found a touch `.link` rule placed before its base rule, an over-broad
+  `aria-expanded` selected rule, a pressed primary's ink, and an unadopted origin link. All were
+  fixed, and the sheet gained a seventeenth regression.
+- **The full e2e** found two slice defects: Archive's phone scroll region overflowed by 26 px, and
+  Undo/Redo lost their 44 px target at 1280. Both were fixed without editing the tests. Profile 72
+  now also fails a product scroll region wider than itself at 375 (the eighteenth regression).
+- **Real use** found the Archive identity squeezed to a sliver on a phone; it now claims its
+  column. The work item's "Completed" span gained `role="img"`, an accessibility-tree change outside
+  part C's list.
+
+**Verification.**
+- `pnpm test`, `pnpm lint` (`docs:check` included) and `storybook:build` pass.
+- Full `pnpm e2e`: 116 of 116.
+- Sheet profile 72: 182 pairs, 0 gate failures. Axe `select-name` 68 → 0, `aria-progressbar-name`
+  56 → 0, `color-contrast` 142 → 0.
+- The initial bundle is 1040.09 kB, under the 1050 kB ceiling and 10 kB above the slice's start.
+
+**Deferred.**
+- **Slice 3 (Lifts and focus):** the More panel as a menu and its primary (L2-006), focus after
+  dialogs, menus and route changes (W3-003).
+- **Slice 4:** adding a task still opens its drawer (TH15, `note-2026-10-15-005`).
+- **Slice 5:** insertion-point geometry, section title buttons and section-tool emphasis.
+- **Slice 6:** row shape (L3-015, L3-019), Timeline title alignment (`note-2026-10-15-002`) and
+  how an active Progress formula reads against its primary (`note-2026-10-15-003`).
+- **Slice 7:** breadcrumbs, including inline links growing to 44 px on touch inside the Archive
+  origin sentence (`note-2026-10-15-004`).
+- **Slice 9:** the two Restore labels (W1-050).
+- **TH12:** the Lab's phone layout and the dev panel controls.
+
+**Open questions.**
+- **Ghost buttons at rest** (`note-2026-10-15-001`). Edit, Clear and Open archive have no boundary
+  until hovered, so they read as labels. Should ghost gain a faint resting boundary, against
+  principle 2?
+- **The token lint does not scan inline templates in `.ts` files.** Is closing that hole worth a
+  candidate slice?
+- **The `mcp/stdio.test.ts` timing flake** failed once during Stage A and has not recurred.
+
+**Documentation updated.**
+- **Architecture:** web (all four files), web/core, web/projects, web/dashboard, web/tasks,
+  web/prototype-tooling (all four files), and testing how/what.
+- **Decisions:** the global-classes and SVG-icon entries, created at planning and amended.
+- **Spec and plans:** spec §21 and §67, the selector baseline, and the umbrella
+  [70](../active/70-ui-ux-overhaul.md) handoff.
