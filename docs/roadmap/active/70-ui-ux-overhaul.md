@@ -303,6 +303,8 @@ still records the options as they were presented.
 
 **Slice 72 completed (2026-10-15):** [Primitives](../completed/72-primitives.md), redesign slice 2 (TH04, TH05); Gate 2 accepted. TH06 stays with slice 3, except W1-004 and W3-007 (focus into the New project field), which slice 72 closed; slice 3 must not re-plan them. Its Outcome lists what it deferred to slices 3–9.
 
+**Slice 72.1 completed (2026-10-15):** [Primitives follow-ups](../completed/72.1-primitives-follow-ups.md) answered 72's open questions: ghost buttons keep a faint edge at rest, the token lint reads style values held in TypeScript, and the stdio and domain import-lint timeouts grow with the child processes they start.
+
 **State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slices 1 and 2 are
 [71](../completed/71-depth-tokens-and-theme.md) and [72](../completed/72-primitives.md), both
 complete. The umbrella stays active.
