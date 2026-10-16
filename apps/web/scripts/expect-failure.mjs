@@ -55,6 +55,9 @@ const EXPECTED = [
   'interpolated-style.ts:10 literal-length',
   'interpolated-style.ts:15 unresolved-style',
   'interpolated-style.ts:18 literal-length',
+  // A parameter shadowing a module const, and an interpolation in a `<style>` block.
+  'interpolated-style.ts:29 unresolved-style',
+  'interpolated-style.ts:30 unresolved-style',
   // Both quote styles of `style=`, plus Angular's `[style.x]` and `[ngStyle]` bindings.
   'markup.html:2 hex-color',
   'markup.html:3 literal-length',

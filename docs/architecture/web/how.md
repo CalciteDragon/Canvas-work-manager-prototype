@@ -84,8 +84,8 @@ Each subsystem's `how.md` lists its own.
   `scripts/check-design-tokens.mjs` in `pnpm --filter web lint`, with
   `expect-failure.mjs` proving the lint catches its fixtures. In a `.ts` file, `styles:` is read
   as CSS and every other string as markup, so a story decorator is checked like a template; a
-  `${…}` inside a `style` attribute must name a module-scope string `const`, or it fails as
-  `unresolved-style`.
+  `${…}` inside a `style` attribute or a `<style>` block must name a module-scope string `const`
+  that no parameter or inner variable shadows, or it fails as `unresolved-style`.
 - **One flag service** (§47) — `PrototypeSettings`; there is no `if (prototypeMode)`.
 - **Registries are pinned** — `registry.spec.ts` in sections, widgets and pages fails on
   an unlisted or reordered entry.

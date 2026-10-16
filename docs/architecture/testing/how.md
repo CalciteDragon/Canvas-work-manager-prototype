@@ -285,7 +285,8 @@ pnpm storybook                                        # :6006
 - **Stdio timeouts grow with child processes (Slice 72.1).** Each `stdio.test.ts` case passes
   `budget(children)`, `CASE_BASE + children × CHILD_BUDGET` (15 s each), for the `tsx` children it
   starts. A timeout there guards against a hang; a new case counts its children, never a flat
-  number.
+  number. `packages/domain/src/import-lint.test.ts`, which starts a Node scanner per check, allows
+  15 s for the same reason: one case exceeded vitest's 5 s default under a full `pnpm test`.
 - **MCP transport failure evidence (Slice 52)** lives in `mcp/handler.test.ts` and
   `mcp/stdio.test.ts`. Each SDK case owns a temporary `agent-heavy` JSON file. Warm the
   authenticated connection, prove a second authentication leaves bytes unchanged, then fail one

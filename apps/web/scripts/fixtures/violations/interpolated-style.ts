@@ -22,3 +22,9 @@ export const clean = {
   render: () => ({ template: `<div style="${quiet}">Tokens only.</div>` }),
 };
 export const wrapper = (inner: string) => `<div style="gap: var(--space-2)">${inner}</div>`;
+
+// A parameter that shadows a module const is not that const, and a `<style>` block is a style
+// position too: both are unresolved.
+const gap = 'gap: var(--space-2)';
+export const shadowed = (gap: string) => `<div style="${gap}">Not the module const.</div>`;
+export const block = (height: string) => `<style>.a { height: ${height} }</style>`;

@@ -214,7 +214,11 @@ const checkMarkup = (markup, file) => {
     if (hasScaleLength(expression)) findings.push({ file, line, column, rule: 'literal-length' });
   }
   for (const match of markup.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) {
-    findings.push(...checkCss(match[1], file, { lineOffset: at(match.index) }));
+    if (match[1].includes(UNRESOLVED)) {
+      const column = match.index - markup.slice(0, match.index).lastIndexOf('\n');
+      findings.push({ file, line: at(match.index) + 1, column, rule: 'unresolved-style' });
+    }
+    findings.push(...checkCss(match[1].replaceAll(UNRESOLVED, ' '), file, { lineOffset: at(match.index) }));
   }
   return findings;
 };
@@ -248,6 +252,15 @@ const checkTypeScript = (source, file) => {
       }
     }
   }
+  // A name also bound by a parameter or an inner variable may not be the module const at the
+  // interpolation, so it stays unresolved rather than being read as the wrong value.
+  const shadow = (node) => {
+    if ((ts.isParameter(node) || (ts.isVariableDeclaration(node) && node.parent.parent.parent !== ast)) && ts.isIdentifier(node.name)) {
+      constants.delete(node.name.text);
+    }
+    ts.forEachChild(node, shadow);
+  };
+  shadow(ast);
   const markupText = (node) => node.head.text + node.templateSpans
     .map((span) => (ts.isIdentifier(span.expression) ? constants.get(span.expression.text) : undefined) ?? UNRESOLVED)
     .map((value, index) => value + node.templateSpans[index].literal.text)
