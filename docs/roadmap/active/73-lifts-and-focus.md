@@ -606,6 +606,18 @@ The appearance-only parts (dialog paint and lift paint) leave their tests untouc
 Questions 1–3 change the shape of the work. They go to the user with the reviewed plan, before
 Stage A. Questions 4 and 5 have defaults that the plan proceeds on unless the user objects.
 
+**Answered 2026-10-16.** The user approved the recommendation for questions 1–3 and raised no
+objection to the defaults for questions 4 and 5:
+
+1. On desktop the drawer is a side lift that reserves its width. On a phone it is a modal sheet.
+2. Every selection moves focus to the drawer heading.
+3. Status is a radio group in the More menu.
+4. Lifts use the native `popover` and `<dialog>`.
+5. After a user navigation, focus lands on the page heading, or on `main` if there is none.
+
+The decision entries in the change list record these when they are written in Stage B. Each one
+cites this answer.
+
 1. **Drawer shape (recommended: a side lift on desktop that reserves its width on the canvas, and
    a modal sheet on a phone).**
    - **Alternatives:**
