@@ -22,7 +22,9 @@ afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-describe('domain import lint guard', () => {
+// Every case starts a real Node scanner. Alone a scan takes about 0.6 s, but under a busy `pnpm test`
+// one case ran past 5 s, vitest's default (slice 72.1). The limit guards against a hang, not slowness.
+describe('domain import lint guard', { timeout: 15_000 }, () => {
   it('allows contracts and the repository interfaces the domain is built on', async () => {
     const root = await makeRoot();
     await write(root, 'service.ts', "import type { Task } from '@cwm/contracts';\nexport type T = Task;");
@@ -40,7 +42,8 @@ describe('domain import lint guard', () => {
   it('allows the operation history repository interfaces, and still rejects their JSON implementations', async () => {
     const root = await makeRoot();
     await write(root, 'recorder.ts', "import type { OperationActionRepository, OperationHistoryRepository } from '@cwm/repositories';\nexport type R = OperationActionRepository | OperationHistoryRepository;");
-    expect(scan(root).status, scan(root).stderr).toBe(0);
+    const allowed = scan(root);
+    expect(allowed.status, allowed.stderr).toBe(0);
 
     await write(root, 'leak.ts', "import { JsonOperationActionRepository } from '@cwm/repositories';\nexport const R = JsonOperationActionRepository;");
     const result = scan(root);
