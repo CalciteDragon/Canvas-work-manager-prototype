@@ -14,6 +14,16 @@ import { loadPersistence } from '../persistence/store.ts';
 const temporaryDirectories: string[] = [];
 const here = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Each case starts real `tsx` children, and a cold start on a busy machine is slow: the
+ * three-child rollback case missed a flat 20 s three times in slice 72, though it takes about 6 s
+ * on a quiet one. A timeout here guards against a hang, not slowness, so it grows with the children
+ * a case starts.
+ */
+const CASE_BASE = 15_000;
+const CHILD_BUDGET = 15_000;
+const budget = (children: number) => CASE_BASE + children * CHILD_BUDGET;
+
 afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
@@ -104,7 +114,7 @@ describe('MCP stdio entry (§59)', () => {
     } finally {
       await normal.close();
     }
-  }, 20_000);
+  }, budget(3));
 
   it('reconnects after a committed Undo loses its response and rejects the same revision', async () => {
     const path = await fixture();
@@ -138,7 +148,7 @@ describe('MCP stdio entry (§59)', () => {
     } finally {
       await reconnect.close();
     }
-  }, 20_000);
+  }, budget(3));
   it('reloads and refuses the next tool call after an external live revocation', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-stdio-'));
     temporaryDirectories.push(directory);
@@ -230,7 +240,7 @@ describe('MCP stdio entry (§59)', () => {
     } finally {
       await client.close();
     }
-  }, 15_000);
+  }, budget(1));
 
   /**
    * Slice 45 (defect D2): each call reloads the file, so without serialization two calls could each
@@ -270,7 +280,7 @@ describe('MCP stdio entry (§59)', () => {
     } finally {
       await client.close();
     }
-  }, 20_000);
+  }, budget(1));
 
   /** Slice 54: per-call ownership registers one exit listener for the process, not one per call. */
   it('takes ownership per call without leaking an exit listener per call', async () => {
@@ -302,7 +312,7 @@ describe('MCP stdio entry (§59)', () => {
     } finally {
       await client.close();
     }
-  }, 20_000);
+  }, budget(1));
 
   it('expires a removal over SDK stdio but restores retained prose and Activity after restart', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-stdio-expiry-'));
@@ -448,5 +458,5 @@ describe('MCP stdio entry (§59)', () => {
     }
     await activityRead(removalEventId);
     await activityRead(restoreEventId);
-  }, 30_000);
+  }, budget(3));
 });

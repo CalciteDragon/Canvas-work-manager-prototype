@@ -282,6 +282,10 @@ pnpm storybook                                        # :6006
   reflection Delete or section Duplicate control, so those families' browser evidence is HTTP or
   MCP driven. A size check is not a reachability check: at 375 px assert that a control lies inside
   its container and the viewport, then tap it.
+- **Stdio timeouts grow with child processes (Slice 72.1).** Each `stdio.test.ts` case passes
+  `budget(children)`, `CASE_BASE + children × CHILD_BUDGET` (15 s each), for the `tsx` children it
+  starts. A timeout there guards against a hang; a new case counts its children, never a flat
+  number.
 - **MCP transport failure evidence (Slice 52)** lives in `mcp/handler.test.ts` and
   `mcp/stdio.test.ts`. Each SDK case owns a temporary `agent-heavy` JSON file. Warm the
   authenticated connection, prove a second authentication leaves bytes unchanged, then fail one
