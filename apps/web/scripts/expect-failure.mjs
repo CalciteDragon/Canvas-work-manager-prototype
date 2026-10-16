@@ -50,11 +50,18 @@ const EXPECTED = [
   'inline-component.ts:8 literal-length',
   'inline-component.ts:9 literal-length',
   'inline-component.ts:14 hex-color',
+  // Slice 72.1: a const interpolated into `style`, an interpolation nothing resolves, and a
+  // decorator's template string, which is not a `template:` property.
+  'interpolated-style.ts:10 literal-length',
+  'interpolated-style.ts:15 unresolved-style',
+  'interpolated-style.ts:18 literal-length',
   // Both quote styles of `style=`, plus Angular's `[style.x]` and `[ngStyle]` bindings.
   'markup.html:2 hex-color',
   'markup.html:3 literal-length',
   'markup.html:4 hex-color',
   'markup.html:5 hex-color',
+  // A double-quoted `style` that holds single quotes was skipped whole.
+  'markup.html:10 literal-length',
   // One per colour rule…
   'style-sheet.scss:3 hex-color',
   'style-sheet.scss:4 rgb-color',

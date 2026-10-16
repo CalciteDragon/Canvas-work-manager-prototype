@@ -59,7 +59,7 @@ const meta: Meta<ProjectPageNavigation> = {
     // `applicationConfig`, not `moduleMetadata`: `provideRouter` returns `EnvironmentProviders`.
     applicationConfig({ providers: [provideRouter([])] }),
     componentWrapperDecorator(
-      (story) => `<div style="width: var(--layout-project-column-width); height: 24rem;">${story}</div>`,
+      (story) => `<div style="width: var(--layout-project-column-width); height: 60vh;">${story}</div>`,
     ),
   ],
   args: {

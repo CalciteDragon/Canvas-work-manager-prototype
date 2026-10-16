@@ -188,8 +188,15 @@ const checkMarkup = (markup, file) => {
   const findings = [];
   const at = (index) => markup.slice(0, index).split('\n').length - 1;
 
-  for (const match of markup.matchAll(/\sstyle\s*=\s*(["'])([^"']*)\1/gi)) {
-    findings.push(...checkCss(`x{${match[2]}}`, file, { lineOffset: at(match.index) }));
+  // Each quote kind on its own: `style="font-family: 'Inter'; …"` once failed a shared
+  // `[^"']*` class and was skipped whole.
+  for (const match of markup.matchAll(/\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    const value = match[1] ?? match[2];
+    if (value.includes(UNRESOLVED)) {
+      const column = match.index - markup.slice(0, match.index).lastIndexOf('\n');
+      findings.push({ file, line: at(match.index) + 1, column, rule: 'unresolved-style' });
+    }
+    findings.push(...checkCss(`x{${value.replaceAll(UNRESOLVED, ' ')}}`, file, { lineOffset: at(match.index) }));
   }
   // [style.color]="'#f00'", [style]="…", [ngStyle]="{background: '#123456'}".
   // These get their own pass rather than going through `checkCss`: a bound style value is
@@ -212,22 +219,47 @@ const checkMarkup = (markup, file) => {
   return findings;
 };
 
-/** `inlineStyleLanguage: "scss"` means a component can hide literals in its own `.ts`. */
+/** What an interpolation the checker cannot resolve becomes inside markup. */
+const UNRESOLVED = '\u0000UNRESOLVED\u0000';
+
+/**
+ * `inlineStyleLanguage: "scss"` means a component can hide literals in its own `.ts`.
+ *
+ * `styles:` initializers are CSS. **Every other** string in the file is read as markup, not
+ * only `template:`: a story's `componentWrapperDecorator` callback is a template too, and
+ * slice 72.1 found a `height: 24rem` in one that this checker had never seen. Markup checks
+ * only styling positions, so an ordinary string costs nothing. An interpolation in markup is
+ * replaced by its module-scope string `const` when it names one (`style="${row}"` in the
+ * stories); anything else stays unresolved, and an unresolved value inside a `style`
+ * attribute fails, because a lint that cannot read a value cannot vouch for it.
+ */
 const checkTypeScript = (source, file) => {
   const findings = [];
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
   const lineOf = (node) => ast.getLineAndCharacterOfPosition(node.getStart(ast)).line;
+  const report = (found, literal) => findings.push(...found.map((finding) => ({ ...finding, line: finding.line + lineOf(literal) })));
 
-  const visit = (node) => {
-    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name)) {
-      const kind = node.name.text;
-      if (kind === 'styles' || kind === 'template') {
-        for (const { text, node: literal } of styleTexts(node.initializer)) {
-          const found = kind === 'styles' ? checkCss(text, file) : checkMarkup(text, file);
-          findings.push(...found.map((finding) => ({ ...finding, line: finding.line + lineOf(literal) })));
-        }
+  const constants = new Map();
+  for (const statement of ast.statements) {
+    if (!ts.isVariableStatement(statement) || !(statement.declarationList.flags & ts.NodeFlags.Const)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name) && declaration.initializer && ts.isStringLiteralLike(declaration.initializer)) {
+        constants.set(declaration.name.text, declaration.initializer.text);
       }
     }
+  }
+  const markupText = (node) => node.head.text + node.templateSpans
+    .map((span) => (ts.isIdentifier(span.expression) ? constants.get(span.expression.text) : undefined) ?? UNRESOLVED)
+    .map((value, index) => value + node.templateSpans[index].literal.text)
+    .join('');
+
+  const visit = (node) => {
+    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && node.name.text === 'styles') {
+      for (const { text, node: literal } of styleTexts(node.initializer)) report(checkCss(text, file), literal);
+      return;
+    }
+    if (ts.isStringLiteralLike(node)) report(checkMarkup(node.text, file), node);
+    else if (ts.isTemplateExpression(node)) report(checkMarkup(markupText(node), file), node);
     ts.forEachChild(node, visit);
   };
   visit(ast);
