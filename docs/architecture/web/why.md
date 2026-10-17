@@ -75,7 +75,7 @@ themes; the token lint permits literals in exactly one file
 - A production adapter replaces `prototype-work-manager-gateway.ts` and nothing else.
 - Every component test runs with a fake gateway from `core/gateway/testing`; no test
   needs the host.
-- The initial bundle is over its 850 kB *warning* budget and under the 1050 kB error budget; the
+- The initial bundle is over its 850 kB *warning* budget and under the 1100 kB error budget; the
   warning remains visible and the hard ceiling is watched rather than hidden by raising both.
 - A store that forgets its in-flight guard will have a live frame overwrite its
   optimistic write — the defect class that closed Slice 16 and Slice 17.

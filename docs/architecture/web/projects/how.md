@@ -110,7 +110,7 @@ The cue holds no receipt and cannot promise the next Undo step.
    an explicit **Retry remove**. Leaving the page/project clears the notice. Angular `@defer` loads
    the create dialog and recovery notice when needed; the
    Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
-   eager route graph under the 1050 kB initial-bundle error ceiling.
+   eager route graph under the initial-bundle error ceiling (1100 kB since Slice 73 closed).
 5. **Undo and Redo** (Slice 41). The shell provides `ProjectHistoryStore` and binds
    `OPERATION_HISTORY_REPORTER` to it in `providers` (not `viewProviders`), so the page store, a
    task list inside a shortcut and the Todos, Archive and Reflections stores mounted through

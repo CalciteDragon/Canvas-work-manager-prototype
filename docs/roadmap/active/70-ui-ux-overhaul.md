@@ -310,8 +310,9 @@ still records the options as they were presented.
 **State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slices 1–3 are
 [71](../completed/71-depth-tokens-and-theme.md), [72](../completed/72-primitives.md) and
 [73](../completed/73-lifts-and-focus.md), all complete. The umbrella stays active. **Next:**
-plan redesign slice 4 (feedback: toast, inline Undo, pending, scroll new items into view), and
-settle the bundle ceiling first.
+plan redesign slice 4 (feedback: toast, inline Undo, pending, scroll new items into view). The
+user raised the bundle's hard ceiling to 1100 kB after slice 73
+([decision](../../decisions/2026-08-initial-bundle-budget.md)); the 850 kB warning still reports.
 
 ### Slice 72 (Primitives) — planning brief
 

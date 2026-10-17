@@ -132,3 +132,16 @@ Final Slice 60 verification includes a reserved Loading slot and a visible Error
 keeps unique initial files at 1,032,388 bytes. Parser, renderer, body and editor are solely
 in a 125.81 kB lazy output; panel controls/store/layout remain in a 20.90 kB lazy output.
 The hard ceiling is unchanged at 1,050,000 bytes; the 850,000-byte warning still applies.
+
+**Amended, 2026-10-17 — after Slice 73, the user raised the hard ceiling.** Slice 73 closed at
+**1,049,943 bytes** initial, 57 bytes under 1,050,000. That headroom came from deferring the new
+project details and archive-confirm dialogs, and from shortening the More anchor CSS by hand.
+Every further eager change would have needed another such deferral, and redesign slice 4 adds
+feedback UI (a toast, inline Undo and a pending indicator) that is on screen at once.
+
+The user decided to raise the number rather than start structural work first. `maximumError`
+moves from **1050 kB to 1100 kB**, about 50 kB of headroom, the same size of step as Slice 36.
+`maximumWarning` stays at **850 kB** and keeps reporting, so the growth stays visible. The earlier
+levers remain open: more `@defer` boundaries for UI that is not initially visible, and the
+eager modal shell of the development panel. This amendment records a choice, not a measurement
+that the bundle is fine.

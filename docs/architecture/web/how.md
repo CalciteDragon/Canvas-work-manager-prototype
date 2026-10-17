@@ -100,7 +100,7 @@ Each subsystem's `how.md` lists its own.
 pnpm dev:web                      # ng serve on :4200
 pnpm --filter web test            # ng test --no-watch (vitest under @angular/build)
 pnpm --filter web lint            # tsc on app, spec and storybook configs; the token lint and its self-test
-pnpm build                        # ng build with the 850 kB warning / 1050 kB error budgets
+pnpm build                        # ng build with the 850 kB warning / 1100 kB error budgets
 pnpm storybook                    # :6006
 pnpm storybook:build              # apps/web/storybook-static (git-ignored)
 ```
