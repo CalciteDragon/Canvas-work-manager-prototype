@@ -66,7 +66,7 @@ export class TodosPage {
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
-  readonly onOpenArchive = input<() => void>(() => {});
+  readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
 
   readonly store = inject(TodosPageStore);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);

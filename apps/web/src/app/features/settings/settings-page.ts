@@ -10,7 +10,7 @@ import { ThemeService } from '../../core/theme/theme-service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink],
   template: `
-    <h1>Settings</h1>
+    <h1 tabindex="-1" data-route-focus>Settings</h1>
     <ul class="settings__sections">
       <li>
         <a class="link" data-settings-agents routerLink="/settings/agents">AI &amp; Agents</a>

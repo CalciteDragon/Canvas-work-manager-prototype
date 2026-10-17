@@ -1,13 +1,38 @@
 import { TestBed } from '@angular/core/testing';
 import { ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskId, type TaskWriteResult } from '@cwm/contracts';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { TaskListStore } from '../../../tasks/task-list-store';
 import { TaskListSection } from './task-list-section';
+import { LiftStack } from '../../../../shared/lifts/lift-stack';
 
 const AT = '2026-08-27T16:00:00.000Z';
+const nativeMethods = [
+  [HTMLElement.prototype, 'showPopover'],
+  [HTMLElement.prototype, 'hidePopover'],
+  [HTMLDialogElement.prototype, 'showModal'],
+  [HTMLDialogElement.prototype, 'close'],
+] as const;
+const nativeDescriptors = nativeMethods.map(([prototype, name]) => Object.getOwnPropertyDescriptor(prototype, name));
+
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, 'showPopover', { configurable: true, value: vi.fn() });
+  Object.defineProperty(HTMLElement.prototype, 'hidePopover', { configurable: true, value: vi.fn() });
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: vi.fn() });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: vi.fn() });
+});
+
+afterEach(() => {
+  TestBed.resetTestingModule();
+  nativeMethods.forEach(([prototype, name], index) => {
+    const descriptor = nativeDescriptors[index];
+    if (descriptor) Object.defineProperty(prototype, name, descriptor);
+    else Reflect.deleteProperty(prototype, name);
+  });
+  vi.unstubAllGlobals();
+});
 
 const section = (): ProjectSection =>
   ProjectSectionSchema.parse({
@@ -62,6 +87,75 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('TaskListSection (§30, §66)', () => {
+  it('opens a modal sheet on narrow screens and closes with title focus at a breakpoint change', async () => {
+    let changed!: (event: { matches: boolean }) => void;
+    const removeEventListener = vi.fn();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: true,
+      addEventListener: (_type: string, listener: typeof changed) => { changed = listener; },
+      removeEventListener,
+    })));
+    const { fixture, store } = await render();
+    const title = query(fixture, 'button[data-task-title]')!;
+    title.click();
+    await fixture.whenStable();
+    expect(query(fixture, 'dialog.lift--sheet')?.getAttribute('aria-modal')).toBe('true');
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalledOnce();
+    changed({ matches: false });
+    await fixture.whenStable();
+    expect(store.selectedTaskId()).toBeNull();
+    expect(document.activeElement).toBe(title);
+    fixture.destroy();
+    expect(removeEventListener).toHaveBeenCalledWith('change', changed);
+  });
+  it('focuses the drawer heading after a title selection and has no drawer column', async () => {
+    const { fixture } = await render();
+    query(fixture, 'button[data-task-title]')!.click();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(query(fixture, '[data-task-drawer] h2'));
+    expect(query(fixture, '.task-workspace--drawer-open')).toBeNull();
+    expect(query(fixture, '[data-task-drawer]')?.getAttribute('popover')).toBe('manual');
+    expect(HTMLElement.prototype.showPopover).toHaveBeenCalledOnce();
+  });
+
+  it('clears selection on a lift-stack close and reopens the same row', async () => {
+    const { fixture, store } = await render();
+    const title = query(fixture, 'button[data-task-title]')!;
+    title.click();
+    await fixture.whenStable();
+    TestBed.inject(LiftStack).open(vi.fn());
+    await fixture.whenStable();
+    expect(store.selectedTaskId()).toBeNull();
+    title.click();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-task-drawer]')).not.toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-task-drawer] h2'));
+  });
+
+  it('hands focus to quick-create when the selected task vanishes during refresh', async () => {
+    const { fixture, store, gateway } = await render();
+    query(fixture, 'button[data-task-title]')!.click();
+    await fixture.whenStable();
+    query(fixture, '[data-task-drawer-title]')!.focus();
+    gateway.tasks.list = async () => [];
+    await store.refresh();
+    await fixture.whenStable();
+    expect(store.selectedTaskId()).toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-quick-task-title]'));
+  });
+
+  it('leaves focus on the next lift after its stack closes the drawer', async () => {
+    const { fixture, store } = await render();
+    query(fixture, 'button[data-task-title]')!.click();
+    await fixture.whenStable();
+    const nextItem = document.createElement('button');
+    fixture.nativeElement.append(nextItem);
+    TestBed.inject(LiftStack).open(vi.fn());
+    nextItem.focus();
+    await fixture.whenStable();
+    expect(store.selectedTaskId()).toBeNull();
+    expect(document.activeElement).toBe(nextItem);
+  });
   it('reopens through the row, resets its checkbox and tells the page only after success', async () => {
     const completed = { ...task('task-1'), status: 'done' as const, completedAt: AT };
     const gateway = new FakeWorkManagerGateway({ tasks: [completed] });

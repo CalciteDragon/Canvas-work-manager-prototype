@@ -304,12 +304,14 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await expect(page.locator('[data-page-toggle-kind="home"] input')).toBeDisabled();
 
   await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-edit-details]').click();
   await page.locator('[data-project-description-input]').fill('A nested unit with an explicit handoff.');
-  await page.locator('[data-project-description-submit]').click();
+  await page.locator('[data-project-details-save]').click();
   await expect(page.locator('[data-project-description]')).toHaveText('A nested unit with an explicit handoff.');
   await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-edit-details]').click();
   await page.locator('[data-project-target-date-input]').fill('2026-10-02');
-  await page.locator('[data-project-target-date-submit]').click();
+  await page.locator('[data-project-details-save]').click();
   await expect(page.locator('[data-project-target-date]')).toContainText('2026-10-02');
 });
 
@@ -377,9 +379,10 @@ test('header rename and archive still write, and each records one project action
   await page.goto(`/projects/${root.id}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Header history');
   await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-edit-details]').click();
   const patched = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/api/projects/${root.id}`));
   await page.locator('[data-project-rename-input]').fill('Renamed in the header');
-  await page.locator('[data-project-rename-submit]').click();
+  await page.locator('[data-project-details-save]').click();
   const body = (await (await patched).json()) as { project: { name: string }; operation: { operation: string } | null };
   expect(body).toMatchObject({ project: { name: 'Renamed in the header' }, operation: { operation: 'project.update' } });
   await expect(page.locator('[data-project-name]')).toHaveText('Renamed in the header');

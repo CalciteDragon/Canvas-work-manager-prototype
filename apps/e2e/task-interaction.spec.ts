@@ -168,7 +168,7 @@ test('title and background selection, drawer drafts, focus return and read-only 
   await expect(aTitle).toBeFocused();
   await aTitle.press('Enter');
   await expect(aTitle).toHaveAttribute('aria-current', 'true');
-  await expect(aTitle).toBeFocused();
+  await expect(page.locator('[data-task-drawer] h2')).toBeFocused();
   const bTitle = row(page, b.id).locator('[data-task-title]');
   await bTitle.press('Space');
   const drawer = page.locator('[data-task-drawer]');

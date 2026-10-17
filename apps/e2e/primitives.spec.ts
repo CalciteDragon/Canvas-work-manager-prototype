@@ -90,5 +90,7 @@ test('icon conversions keep the drawer Close names', async ({ browser }) => {
 
   await page.getByRole('button', { name: /, open details$/ }).first().tap();
   await expect(page.getByRole('button', { name: 'Close task details' })).toBeVisible();
+  await expect(page.locator('[data-task-drawer]')).toHaveAttribute('aria-modal', 'true');
+  await expect(page.locator('[data-task-drawer] h2')).toBeFocused();
   await context.close();
 });

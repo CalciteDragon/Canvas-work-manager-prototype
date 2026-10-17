@@ -218,3 +218,12 @@ beneath an archived project is omitted until that project returns
 ([decision](../../../decisions/2026-09-content-oriented-archive-policy.md)).
 
 [Depth V2](../../../decisions/2026-10-depth-blur-budget.md) separates the column pane from consistent header and content sheets without per-sheet blur on long canvases.
+
+The [native lift mechanism](../../../decisions/2026-10-lifts-use-the-top-layer.md) escapes
+section containment and reserves canvas width without placing a second drawer column inside a
+Task List. [More is a menu with one details commit](../../../decisions/2026-10-more-is-a-menu-with-a-details-dialog.md):
+immediate status choices stay short, while editing Name, Description and date creates one
+history step. [Route focus](../../../decisions/2026-10-route-focus-lands-lost-focus.md)
+recovers generic lost focus; explicit Archive intent belongs to root-lived projects state because
+navigation can destroy its initiating shell. [Creation defaults](../../../decisions/2026-10-creation-defaults-follow-the-open-work.md)
+now keep task quick-add in the list; workstream default/navigation changes remain pending.

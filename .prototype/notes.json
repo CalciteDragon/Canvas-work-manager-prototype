@@ -1044,11 +1044,11 @@
     },
     {
       "id": "note-2026-10-03-001",
-      "resolvedAt": "2026-10-10T09:58:05.000Z",
-      "resolution": "Closed by Slice 69 (docs/decisions/2026-10-untitled-shortcut-sources-name-their-owner.md). Live use on a disposable nested-projects copy placed Garden's untitled brief directly below Kitchen's local brief: the frames read Markdown and Markdown (Garden), the controls use Markdown (Garden), and Kitchen's header reads Undo: Added the Markdown (Garden) shortcut. Collapse and header Undo worked with the qualified label, and reload preserved the distinction. Home displays Reflections (Kitchen) and Reflections (Home renovation) apart. A real HTTP MCP SDK add on Cabinets' Work page returned Added the Markdown (Garden) shortcut, and get_operation_history returned the same label. No new naming friction found in this run; same-owner/page collisions remain the decision's revisit trigger.",
       "createdAt": "2026-10-03T07:36:27.058Z",
       "route": "/projects/project-kitchen",
       "projectId": "project-kitchen",
+      "resolvedAt": "2026-10-10T09:58:05.000Z",
+      "resolution": "Closed by Slice 69 (docs/decisions/2026-10-untitled-shortcut-sources-name-their-owner.md). Live use on a disposable nested-projects copy placed Garden's untitled brief directly below Kitchen's local brief: the frames read Markdown and Markdown (Garden), the controls use Markdown (Garden), and Kitchen's header reads Undo: Added the Markdown (Garden) shortcut. Collapse and header Undo worked with the qualified label, and reload preserved the distinction. Home displays Reflections (Kitchen) and Reflections (Home renovation) apart. A real HTTP MCP SDK add on Cabinets' Work page returned Added the Markdown (Garden) shortcut, and get_operation_history returned the same label. No new naming friction found in this run; same-owner/page collisions remain the decision's revisit trigger.",
       "slice": 65,
       "note": "Slice 65 real use on a scratch nested-projects copy. Kitchen's Work canvas took a shortcut to Garden's brief at a chosen insertion point. The header offered 'Undo: Added the Markdown shortcut' on Kitchen with no cross-owner notice, and an API edit of the brief appeared live on Kitchen's canvas. Friction: Garden's brief has no title, so the shortcut frame and the label both read only 'Markdown'. It sits directly under Kitchen's own untitled 'Markdown' brief, and the two are told apart only by the small breadcrumb line. Untitled sources make shortcut names ambiguous wherever a canvas has a section of the same type."
     },
@@ -1057,10 +1057,10 @@
       "createdAt": "2026-10-03T07:36:27.110Z",
       "route": "/mcp",
       "projectId": "project-cabinets",
-      "slice": 65,
-      "note": "Slice 65 real use through HTTP MCP. An agent placed Garden's brief on Cabinets' Work canvas, and update_project moving Cabinets to a new root was refused with 'shortcut \"shortcut-…\" would cross root trees; remove that placement first'. Undo of the add then made the move succeed. Friction: the refusal names only the placement id, not which canvas holds it or which section it points at. With Work destinations the placement can be on the mover's own canvas or elsewhere in the tree, so an agent has to list shortcuts project by project to find it. Naming the destination project and source section in the message would make the repair one step.",
       "resolvedAt": "2026-10-09T23:45:00.000Z",
-      "resolution": "Closed by Slice 68 (docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md, amended). Verified live on a scratch nested-projects copy over HTTP MCP: the refusal now reads `project \"project-cabinets\" cannot move to another root: shortcut \"shortcut-…\" (on the Work page of \"Cabinets\", placing \"Markdown\" from \"Garden\") would cross root trees; remove it from that page, then retry`. The agent removed the placement with remove_section_shortcut using the id parsed from that text, with no list_section_shortcuts call, and the retried move succeeded. A refused Undo of the move gives the same placement sentence after its own history_conflict opener."
+      "resolution": "Closed by Slice 68 (docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md, amended). Verified live on a scratch nested-projects copy over HTTP MCP: the refusal now reads `project \"project-cabinets\" cannot move to another root: shortcut \"shortcut-…\" (on the Work page of \"Cabinets\", placing \"Markdown\" from \"Garden\") would cross root trees; remove it from that page, then retry`. The agent removed the placement with remove_section_shortcut using the id parsed from that text, with no list_section_shortcuts call, and the retried move succeeded. A refused Undo of the move gives the same placement sentence after its own history_conflict opener.",
+      "slice": 65,
+      "note": "Slice 65 real use through HTTP MCP. An agent placed Garden's brief on Cabinets' Work canvas, and update_project moving Cabinets to a new root was refused with 'shortcut \"shortcut-…\" would cross root trees; remove that placement first'. Undo of the add then made the move succeed. Friction: the refusal names only the placement id, not which canvas holds it or which section it points at. With Work destinations the placement can be on the mover's own canvas or elsewhere in the tree, so an agent has to list shortcuts project by project to find it. Naming the destination project and source section in the message would make the repair one step."
     },
     {
       "id": "note-2026-10-09-001",
@@ -1213,6 +1213,38 @@
       "projectId": null,
       "slice": 72.1,
       "note": "Answers note-2026-10-15-001: ghost text buttons now keep a faint edge at rest (decision 2026-10-ghost-buttons-have-a-faint-resting-edge). In use at 1440, Edit, Clear and Open archive read as buttons in both themes; the 375 project-navigation toggle shows its edge. Measured edge contrast is 1.33-1.36:1 dark and 1.23-1.24:1 light, reported, not gated."
+    },
+    {
+      "id": "note-2026-10-17-001",
+      "createdAt": "2026-10-17T10:04:33.037Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 73,
+      "note": "Slice73 live use (busy-week,1440 dark): opened the last task after scrolling, edited and closed it, then quick-added three without a drawer. Reserved drawer width narrows the canvas while reviewing. Project rename/status and keyboard Reflections toggle worked. Injected failed Save stayed inside the dialog with its draft; panel needed configuring before opening the modal."
+    },
+    {
+      "id": "note-2026-10-17-002",
+      "createdAt": "2026-10-17T10:04:39.990Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 73,
+      "note": "Slice73 live use (busy-week,375 touch light): task sheet takes focus and covers the list; reviewing another task requires Close first. Three keyboard quick-adds kept focus without opening details. Details failure retained the draft and Discard returned to More. Keyboard Reflections toggle retained focus. The full-screen sheet tradeoff is deliberate; batch review remains worth watching."
+    },
+    {
+      "id": "note-2026-10-17-003",
+      "createdAt": "2026-10-17T10:04:47.669Z",
+      "route": "/projects/project-client-migration",
+      "projectId": "project-client-migration",
+      "slice": 73,
+      "note": "Slice73 live use (overdue-chaos,1440 dark): opened the last task after scrolling, edited and closed it, then quick-added three without a drawer. Reserved drawer width narrows the canvas while reviewing. Project rename/status and keyboard Reflections toggle worked. Injected failed Save stayed inside the dialog with its draft; panel needed configuring before opening the modal."
+    },
+    {
+      "id": "note-2026-10-17-004",
+      "createdAt": "2026-10-17T10:04:53.324Z",
+      "route": "/projects/project-client-migration",
+      "projectId": "project-client-migration",
+      "slice": 73,
+      "note": "Slice73 live use (overdue-chaos,375 touch light): task sheet takes focus and covers the list; reviewing another task requires Close first. Three keyboard quick-adds kept focus without opening details. Details failure retained the draft and Discard returned to More. Keyboard Reflections toggle retained focus. The full-screen sheet tradeoff is deliberate; batch review remains worth watching."
     }
   ]
 }

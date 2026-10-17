@@ -94,3 +94,9 @@ get one.
 
 §8 core boundary · §9 gateway · §10 adapter · §18 identity · §19–§20 stores · §21–§23
 tokens, themes, shell · §47 flags · §62–§63 live updates and optimistic UI.
+
+The root [route-focus rule](../../../decisions/2026-10-route-focus-lands-lost-focus.md)
+recovers focus only when navigation lost it. Always moving to a heading would race history
+fragments and the phone drawer's existing main hand-off. Waiting for a rendered heading handles
+asynchronous project reads, and a bounded main fallback avoids waiting indefinitely. The rule
+knows no feature, which preserves core's boundary.

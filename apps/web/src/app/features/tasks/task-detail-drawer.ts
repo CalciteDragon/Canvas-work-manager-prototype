@@ -1,12 +1,14 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   computed,
   effect,
   input,
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { Icon } from '../../shared/components/icon/icon';
 import { TaskPrioritySchema, type Task, type TaskId, type TaskPriority } from '@cwm/contracts';
@@ -20,6 +22,8 @@ import { TaskPrioritySchema, type Task, type TaskId, type TaskPriority } from '@
 })
 export class TaskDetailDrawer {
   readonly task = input.required<Task>();
+  readonly modal = input(false);
+  readonly contained = input(false);
   readonly titleChanged = output<{ id: TaskId; title: string }>();
   readonly priorityChanged = output<{ id: TaskId; priority: TaskPriority }>();
   readonly dueDateChanged = output<{ id: TaskId; dueDate: string }>();
@@ -33,6 +37,34 @@ export class TaskDetailDrawer {
   private baseTitle = '';
   private titleTaskId: TaskId | null = null;
   private lastEmitted: string | null = null;
+  private readonly surface = viewChild.required<ElementRef<HTMLDialogElement>>('surface');
+  private nativeOpen = false;
+
+  /** The native lift, shared by desktop's manual popover and the phone's modal sheet. */
+  get element(): HTMLDialogElement {
+    return this.surface().nativeElement;
+  }
+
+  /** Open in the browser top layer; the Design Lab keeps its contained specimen in flow. */
+  open(): void {
+    if (this.contained() || this.nativeOpen) return;
+    if (this.modal()) this.element.showModal();
+    else this.element.showPopover();
+    this.nativeOpen = true;
+  }
+
+  /** Close before clearing selection so native focus restoration precedes our shared rule. */
+  hide(): void {
+    if (!this.nativeOpen) return;
+    this.nativeOpen = false;
+    if (this.modal()) this.element.close();
+    else if (this.element.isConnected) this.element.hidePopover();
+  }
+
+  escape(event: Event): void {
+    event.preventDefault();
+    this.closed.emit();
+  }
 
   constructor() {
     effect(() => {
@@ -79,6 +111,7 @@ export class TaskDetailDrawer {
 
   /** Discard a local dirty draft before allowing Escape to close the drawer. */
   escapeTitle(event: Event): void {
+    event.preventDefault();
     if (this.draft() === this.baseTitle) return;
     this.draft.set(this.task().title);
     this.baseTitle = this.task().title;

@@ -162,6 +162,10 @@ export class TaskListStore {
           return;
         }
         this.tasksState.set(tasks);
+        const selectedTask = this.selectedTaskIdState();
+        if (selectedTask !== null && !tasks.some(({ id }) => id === selectedTask)) {
+          this.selectedTaskIdState.set(null);
+        }
         // A quiet read must not erase a mutation error, but it can heal the stale load error
         // that said no list existed before the connection came back.
         if (this.loadFailedState()) {
@@ -198,7 +202,6 @@ export class TaskListStore {
         // it to the project's *first* task list, which may well be a different one.
         const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.create({ projectId, title, sectionId }), taskReport);
         this.tasksState.update((tasks) => [...tasks, task]);
-        this.selectedTaskIdState.set(task.id);
         return true;
       } catch (error) {
         this.errorState.set(messageOf(error));

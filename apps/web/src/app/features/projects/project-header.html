@@ -4,7 +4,7 @@
   }}</span>
 
   <div class="project-header__identity">
-    <h1 data-project-name class="project-header__name">{{ project().name }}</h1>
+    <h1 data-project-name [attr.data-route-focus]="routeLanding() ? '' : null" tabindex="-1" class="project-header__name">{{ project().name }}</h1>
     @if (project().description; as description) {
       <p data-project-description class="project-header__description">{{ description }}</p>
     }
@@ -59,28 +59,43 @@
     <!-- §26's "More": rename, description, status, date and archive (§81). -->
     <button
       data-project-more
+      #moreButton
       type="button"
       class="icon-button"
       aria-label="More project actions"
+      aria-haspopup="menu"
+      popovertarget="project-more-menu"
       [attr.aria-expanded]="moreOpen()"
-      (click)="toggleMore()"
     >
       <app-icon name="more" />
     </button>
   </div>
 
-  @if (moreOpen()) {
     <app-project-more-menu
-      class="project-header__more-menu"
+      #menuHost
+      id="project-more-menu"
+      data-project-more-menu
+      popover="auto"
+      role="menu"
+      aria-label="Project actions"
+      class="lift lift--popover menu"
       [project]="project()"
-      (renameRequested)="emit(renameRequested, $event)"
-      (descriptionRequested)="emit(descriptionRequested, $event)"
-      (statusRequested)="emit(statusRequested, $event)"
-      (targetDateRequested)="emit(targetDateRequested, $event)"
-      (archiveRequested)="archive()"
+      (toggle)="moreToggled($event)"
+      (editDetailsRequested)="editDetails()"
+      (statusRequested)="setStatus($event)"
+      (archiveRequested)="requestArchive()"
       (openArchiveRequested)="openArchive()"
       (dismissed)="closeMore()"
     />
+  @defer (when detailsOpen()) {
+    @if (detailsOpen()) {
+      <app-project-details-dialog [project]="project()" [opener]="moreButton" [save]="saveDetails()" [writeError]="writeError()" (closed)="closeDetails()" />
+    }
+  }
+  @defer (when archiveOpen()) {
+    @if (archiveOpen()) {
+      <app-project-archive-confirm [project]="project()" [opener]="moreButton" [archive]="confirmArchive()" (closed)="archiveOpen.set(false)" />
+    }
   }
 
   <!-- The history controls' one feedback line, full width under the facts. -->
@@ -90,7 +105,7 @@
 
   <!-- A failed project write, in the header — never the full-page "Project unavailable"
        state, which would blank the page the user is standing on. -->
-  @if (writeError(); as writeError) {
+  @if (!detailsOpen() && writeError(); as writeError) {
     <p data-project-write-error class="project-header__error" role="alert">{{ writeError }}</p>
   }
 </header>

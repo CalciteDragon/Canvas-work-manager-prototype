@@ -13,7 +13,7 @@ properties, and it depends on the host **only** through gateway interfaces and o
 `fetch`-holding adapter (§8).
 
 **Code:** `apps/web/src/app` · **Styles:** `apps/web/src/styles/_tokens.scss`,
-`_base.scss`, `_controls.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
+`_base.scss`, `_controls.scss`, `_lifts.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
 `@angular/build:unit-test`); `*.stories.ts` for Storybook · **Package:** `web` ·
 **Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`. Within the app, `core` imports only `shared/components/icon` from outside itself (slice 72)
 
@@ -31,6 +31,8 @@ properties, and it depends on the host **only** through gateway interfaces and o
 - Re-read the affected stores when the host announces a change (§62), quietly.
 - Use design tokens for every colour, spacing and radius (§21); switch themes by one
   attribute (§22).
+- Coordinate native top-layer lifts through shared opener/fallback focus and one-open-lift
+  ownership; recover lost focus after user navigation through core's `RouteFocus`.
 
 ## Not responsible for
 
@@ -65,6 +67,8 @@ Smaller features that do not earn a folder of their own:
 - `shared/components/icon` — `Icon`, the one monochrome SVG set for app-owned marks (chrome glyphs,
   page kinds, section types, widgets, activity actors), listed in `ICON_NAMES`. User-chosen
   project emoji are content and never pass through it.
+- `shared/lifts` — `LiftFocus`, `LiftStack` and `menuKeys`; top-layer behavior stays in the
+  owning component. `_lifts.scss` paints side lifts, sheets, popovers, dialogs and menus.
 - `styles/_controls.scss` — slice 72's control primitives as global classes over native elements
   (`.button` in four ranks, `.icon-button`, `.tool`, `.field`, `.select`, `.checkbox`, `.radio`,
   `.pill`, `.link`, `.control-label`, `.danger-zone`). Ghost buttons keep a faint edge at rest;

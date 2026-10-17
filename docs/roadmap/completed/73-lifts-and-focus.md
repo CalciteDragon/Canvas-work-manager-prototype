@@ -1,7 +1,7 @@
-<!-- plan id="73" status="active" summary="Redesign slice 3 (TH06): the task drawer, More and page settings become lifts that take focus, close on Escape and return it; focus survives route changes" -->
+<!-- completed-record id="73" closed="2026-10-17" summary="Redesign slice 3 (TH06): the task drawer, More and page settings are native top-layer lifts that take focus, close on Escape and return it; lost focus lands on the page heading after navigation. Gate 2 accepted." -->
 # Slice 73 — Lifts and focus
 
-Redesign slice 3 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Theme **TH06**,
+Redesign slice 3 under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Theme **TH06**,
 "Overlays and focus do not follow the user", in [themes.json](../70-ui-ux/themes.json).
 
 ## Goal
@@ -51,7 +51,7 @@ control that opened it. Focus also lands somewhere meaningful after a route chan
 - **More.** A menu with these items:
   - Edit details…;
   - a Status radio group;
-  - Open archive;
+  - a separator, then Open archive;
   - a separator, then Archive project….
 
   Edit details opens a Project details dialog with one **Save**. Archive opens a confirm dialog.
@@ -233,6 +233,7 @@ layer.
      - **Edit details…** (`menuitem`);
      - a **Status** `group` of four `menuitemradio`s (planning, active, on hold, completed), each
        with `aria-checked`;
+     - a separator (added at Gate 2 review, so Open archive reads apart from the status radios);
      - **Open archive** (`menuitem`);
      - a separator;
      - **Archive project…** or **Archive workstream…** (`menuitem`, danger), absent when the
@@ -374,7 +375,10 @@ layer.
     - Closed-state cells are gated at 1 px. Open-lift cells are listed.
     - In the open-lift cells, axe reports no `aria-allowed-role`, `aria-required-children`,
       `aria-dialog-name` or `nested-interactive` violation.
-    - No 375 cell overflows sideways.
+    - No 375 cell overflows sideways. One listed exception, amended 2026-10-17: the Design Lab's
+      `main.workspace`, which has no phone layout and overflowed at the baseline (625 px), may
+      overflow no wider than that baseline. Every product region and `/prototype/state` stay
+      gated.
 15. **Lift verification.** `apps/e2e/ux/lifts-verification.ts` (`UX_LIFTS=1`) records for each
     lift and theme:
     - the computed `backdrop-filter`, and the persistent and transient layer counts (Acceptance 2);
@@ -383,8 +387,8 @@ layer.
     - muted-text contrast on the lift, reported only.
 16. **Checks.** `pnpm test`, `pnpm lint` (with `docs:check`), `storybook:build` and the full
     `pnpm e2e` all pass.
-17. **Bundle.** The initial bundle stays under the 1050 kB ceiling; today it is 1040.09 kB.
-    Record the figure. If it would cross the ceiling, stop and raise it.
+17. **Bundle.** The initial bundle stays under the 1050 kB ceiling; at planning it was 1040.09 kB.
+    Record the figure (final: 1049.93 kB, 1,049,933 bytes). If it would cross the ceiling, stop and raise it.
 18. **Real use (§77).**
     - **Seeds and sizes.** busy-week and overdue-chaos, at 1440 and at 375 touch.
     - **Do:**
@@ -718,3 +722,530 @@ cites this answer.
   - the live-update redirect imprecision, now recorded.
 
   No substantive finding remains.
+
+- **Implementation diff round 1 (2026-10-17).** Independent fresh-context correctness/spec
+  and boundaries/living-documentation reviewers both found the stale canvas creation-lift
+  registration. Reproduced and repaired with two regressions; details and logs are below.
+- **Implementation diff round 2 (2026-10-17).** Both reviewers re-read the actual repair,
+  tests and documentation and returned no substantive findings. Neither reviewer implemented
+  the code it reviewed.
+- **Acceptance/evidence round 1 (2026-10-17).** A third independent reviewer found the
+  after-only persistent-blur comparison and broad prototype-overflow exception. Both were
+  reproduced by fixture tests and repaired. Final sheet and gate re-review are pending.
+- **Acceptance/evidence round 2 (2026-10-17).** The same reviewer confirmed both repairs. It then
+  found that More was detached from its opener in the captures (x0,y8). This was repaired with a
+  native regression test that failed first; see the third-session continuation.
+- **Acceptance/evidence round 3 (2026-10-17).** A fresh, read-only reviewer confirmed:
+  - More and page settings are anchored in all the after cells.
+  - The provenance is a single build; all 21 asset hashes match `dist`.
+  - The report fields satisfy Acceptance 2, 13–15 and 17.
+  - There are no new literals and no boundary issues.
+
+  **One substantive finding:** no recorded e2e run postdated the anchor fix. It is resolved by
+  the full `pnpm e2e` run, **147/147 passed** (`.prototype/slice73-e2e-anchor.log`). That run
+  includes the two new tests and the 375 "refused archive" journeys.
+
+  **Minor findings, all applied:**
+  - the sheet now shows the Lab exception visibly;
+  - Acceptance 14 is amended;
+  - each core cell is labelled with the findings it shows;
+  - `task-lifts.spec.ts` is listed with the journeys;
+  - T07 and T10 are recorded as pre-existing;
+  - lint is re-run after the docs edits;
+  - this plan's stale handoff text is superseded.
+
+## Outcome
+
+**Gate 2 accepted by the user on 2026-10-17**, on the profile-73 sheet
+(`apps/e2e/ux-output/sheet-73/`, also published as a private review artifact). All 13 open TH06
+findings and L2-006 are closed. The continuation and handoff sections below are the working
+record of how the slice got there.
+
+**Deliverables.**
+- **Lift foundations.**
+  [`_lifts.scss`](../../../apps/web/src/styles/_lifts.scss) provides side, sheet, popover and
+  dialog lifts and the menu classes. It uses tokens only, with enter and leave motion, a crossfade
+  under reduced motion, and solid fallbacks. Popovers name their opener with `anchor-name`, and a
+  shared `--lift-gutter` fallback keeps a too-wide popover inside the viewport. Three helpers sit in
+  [`shared/lifts/`](../../../apps/web/src/app/shared/lifts/):
+  - `LiftFocus` records the opener, moves focus in, and restores it;
+  - `LiftStack` keeps one lift open at a time;
+  - `menuKeys` provides the APG menu keys.
+
+  The Lab specimens and four native Storybook stories use the real classes.
+- **Route focus.** [`core/a11y/route-focus.ts`](../../../apps/web/src/app/core/a11y/route-focus.ts) acts only
+  after a navigation the user started, and only when focus was lost to `body`. It lands on the
+  page heading, or on `main` when the bound runs out. Open archive lands explicitly through the
+  root column-focus request.
+- **Page settings** is a native auto popover. Focus moves in on open and returns to the gear.
+  Toggles use `aria-disabled` while saving, so focus stays on the pressed toggle.
+- **More** is an anchored `role="menu"` with these items:
+  - Edit details…;
+  - four status radios;
+  - a separator, then Open archive, which is kept as §31's recovery path;
+  - a separator, then the danger Archive item.
+
+  Edit details opens a deferred native details dialog with one Save, which sends one PATCH and
+  records one history step. It has a dirty guard, follows clean live refreshes, and owns its own
+  errors. Archive asks in a deferred confirm.
+- **Task drawer.**
+  - On desktop it is a manual top-layer side lift, and the shell track reserves its width.
+  - On a phone it is a modal sheet.
+  - Every selection focuses the drawer heading, and a vanished task hands focus to quick-create.
+  - `TaskDrawerCoordinator` keeps one drawer per page.
+  - Quick-add no longer selects.
+  - Creation dialogs join `LiftStack` and adopt the lift paint.
+- **Evidence.**
+  - `lifts.spec.ts` (30 tests) and `task-lifts.spec.ts` pin the keyboard and touch paths.
+  - `ux/lifts-verification.ts` and `ux/lift-baseline.ts` record layers, fallbacks, focus and
+    contrast.
+  - `build-sheet.mjs --profile 73` gates the sheet.
+- **Checks at close.**
+  - `pnpm test`: 3,054 package tests plus 9 script tests.
+  - `pnpm lint`, including docs:check.
+  - Full `pnpm e2e`: 147/147 on the final code, after the separator
+    (`.prototype/slice73-e2e-final-accepted.log`).
+  - The profile-73 sheet: 194 pairs, 0 gate failures.
+  - Core tasks T03 10/38, T04 1/0 and T08 3/0, all at their baselines.
+  - Initial bundle 1,049,943 bytes, under the unchanged 1050 kB ceiling.
+
+**Deliberate choices.**
+- **Native top layer rather than CDK Overlay.** It costs no bundle, and light dismiss and
+  inertness are free
+  ([decision](../../decisions/2026-10-lifts-use-the-top-layer.md)).
+- **Route focus moves only lost focus, after user input**
+  ([decision](../../decisions/2026-10-route-focus-lands-lost-focus.md)). The phone navigation
+  drawer keeps its own `main` landing, and narrow column links accept a double move.
+- **Status stays a menu radio group** two clicks away, beside a one-commit details dialog
+  ([decision](../../decisions/2026-10-more-is-a-menu-with-a-details-dialog.md)).
+- **Open archive stays in More.** At Gate 2 the user asked to remove it. It is the spec's only
+  recovery path when the Archive page is hidden, so the user chose to keep it and set it apart
+  with a separator instead.
+- **The new dialogs are `@defer`red** so that the bundle stays under its ceiling.
+
+**Deviations from the plan.**
+- **The Open archive landing moved.** A local landing request died with the destroyed shell, so
+  it is now a root `ProjectColumnFocusRequest` set before navigation.
+- **More was detached from its opener.** Chromium did not resolve the invoker's implicit anchor,
+  so More uses explicit anchors plus the gutter fallback. This was found in acceptance round 2.
+- **The canvas creation lift outlived its view.** It now releases on destroy and on context
+  change. This was found in implementation review round 1.
+- **The evidence gates were tightened, then refined.** Persistent blur is now compared with a
+  genuine before measurement. The Lab phone-overflow exception allows "no wider than the
+  baseline", because the Lab overflow shrank.
+- **The menu separator** was added at Gate 2.
+
+**Deferred.**
+- The toast, inline Undo, the pending indicator and scroll-into-view go to redesign slice 4.
+- Section chrome and the config disclosure go to slice 5.
+- The phone navigation drawer as a lift, the skip link, document titles and breadcrumbs go to
+  slice 7.
+- The drawer's raw `projectId` fact goes to slice 9.
+
+**Open questions.**
+- **Bundle headroom is 57 bytes.** The next slice that adds initial code must raise the
+  1050 kB ceiling or defer something, and that is the user's call.
+- **Muted text on lifts** measures 3.52:1 dark and 4.29:1 light over busy content. It stays
+  reported only.
+- **Core tasks T07 and T10 are blocked** at the baseline and after, at the same step. Their
+  task scripts, or the surfaces behind them, need their own look.
+- **The Design Lab still overflows** sideways at 375 (613 px).
+
+**Documentation updated.**
+- Spec §23, §26, §34 and §67.
+- These architecture folders:
+  - `docs/architecture/web/` (overview, how, why and what);
+  - `web/core`, `web/projects`, `web/tasks` and `web/prototype-tooling`;
+  - `testing`.
+- Three new decisions, listed above.
+- Amendments to four decisions:
+  - [task checkbox reopen and selection](../../decisions/2026-09-task-checkbox-reopen-and-selection.md);
+  - [phone navigation drawer](../../decisions/2026-09-phone-navigation-drawer.md);
+  - [project create, edit and archive surface](../../decisions/2026-08-project-create-edit-archive-surface.md);
+  - [creation defaults follow the open work](../../decisions/2026-10-creation-defaults-follow-the-open-work.md).
+- The decision index, `goals.md`, and the umbrella 70 handoff.
+- Friction notes for slice 73 in `.prototype/notes.json`.
+
+## Continuation — 2026-10-17
+
+The existing working tree was preserved. No commits or branch changes were made. Gate 2
+remains pending; the historical handoff below is retained as the starting evidence.
+
+### Independent implementation review — round 1
+
+Fresh-context correctness/spec and boundaries/living-doc reviewers independently found the
+same creation-lift lifetime defect: `ProjectCanvas.openCreate` retained its root `LiftStack`
+callback across destruction and route-driven dismissal. The new canvas tests first failed
+with Angular NG0911 (destroyed view) and an unexpected stale `closeCreate` callback. Releasing
+the registration on destruction and page/context changes fixes both without scheduling focus
+into the old view. The canvas suite then passed 51/51. No other substantive source, boundary
+or living-documentation finding was returned in that round.
+
+The independent acceptance reviewer found two evidence-gate defects: persistent blur compared
+only with the after build's closed page, and the prototype phone-overflow exception covered
+every inner region on every prototype route. Both claims were checked and accepted. The
+evidence harness now requires a supplemental genuine-before layer budget and narrows the
+exception to the unchanged baseline Design Lab `main.workspace` dimensions; regression fixtures
+were observed failing before the repairs. Final artifact and re-review results follow below.
+
+### Verification collected during continuation
+
+- Existing Archive lifetime repair: 70/70 shell unit tests, including canceled navigation,
+  caller-specific failure focus and preserving focus moved elsewhere.
+- Focused native lifts/phone journeys: 41/41. More re-open now waits for its first focused
+  item before Tab; geometry waits for `transform: none`, retaining exact viewport assertions.
+  The original global phone-navigation tests pass unchanged.
+- Helper sensitivity: temporary faults to opener restoration, closing the previous lift and
+  menu Tab dismissal caused three intended assertion failures; restored sources passed 4/4.
+  The initial sandbox attempt ran zero tests because cache writes were blocked and is not proof.
+- Full offline suite before the lifecycle repair: 3,052 package tests plus 9 script tests passed.
+  Full lint (including docs:check) passed. The final source is rechecked after review repairs.
+- Storybook build passed; all four built lift stories ran their play functions in Chromium,
+  followed by explicit native open/heading/Escape/hidden/opener checks with no page errors.
+  Evidence: `apps/e2e/ux-output/slice73-storybook/results.json`.
+- Scripted live use through the production UI passed on busy-week and overdue-chaos at1440
+  dark and375 touch light: last-task edit/close, three quick-adds, project rename/status,
+  keyboard Reflections hide/restore, injected failed details Save/discard and dev-panel note
+  capture. Four notes were saved in `.prototype/notes.json`, slice73. Screenshots and results
+  are in `apps/e2e/ux-output/slice73-real-use/`. The in-app browser twice failed to attach a tab;
+  these are live Chromium walkthroughs, not an independent novice/discoverability study.
+- Initial continuation production build: 1049.57kB under the unchanged1050kB ceiling. The
+  evidence folder's `production-build.json` preserves its asset hashes and discloses that the
+  canvas lifecycle repair follows that paint capture build. Final-build revalidation is pending.
+
+### Additional files from review
+
+- `apps/web/src/app/features/projects/project-canvas.spec.ts`: lifetime regressions.
+- `apps/e2e/ux/lift-baseline.ts`: supplemental genuine-before persistent layer budget.
+- `apps/e2e/ux-capture.config.ts`: exposes the opt-in lift collector in the ordinary harness.
+
+## Continuation — 2026-10-17, third session (current state)
+
+**This section is current; the two handoffs below are historical.** Gate 2 has not been
+presented or accepted, and nothing is committed. HEAD is still `3b72291`.
+
+- **More anchoring repaired (the round-2 P2).** A new native test, "More and page settings open
+  beside their openers, inside the viewport" (`lifts.spec.ts`), failed at all four
+  theme/width cells. At 1440 the menu sat at the viewport's top-left (x0,y8), because Chromium
+  did not resolve the invoker's implicit anchor; at 375 the menu (343 px) fitted neither side of
+  ⋯ (x282). The fix: More names its anchor explicitly (`project-header.scss`), as the gear already
+  did, and `_lifts.scss` gains one `@position-try --lift-gutter` used both as is and with
+  `flip-block`. That second use fixed "refused archive…" at 375, where the error-enlarged header
+  pushed ⋯ low. All four cells then passed, and `lifts.spec.ts` passed 26/26.
+- **Canvas Back release proved natively.** The unrun `slice73-canvas-browser.mjs` became the
+  `lifts.spec.ts` test "browser Back from an open Add section releases the canvas lift" (4/4).
+  With the `DestroyRef` release temporarily removed, it failed with NG0911 and More unfocused. The
+  source was then restored byte-identical.
+- **Bundle.** The first fix build was 94 bytes over 1050 kB. Shortening the CSS (one reused
+  `@position-try`) gave **1049.93 kB**, 67 bytes of headroom. The ceiling is unchanged; the
+  headroom is an open question for Gate 2.
+- **One-build evidence.** All 194 after cells, core tasks, depth runtime and lift runtime were
+  recaptured from that single build (`.prototype/slice73-final-capture.log`, 4 passed, 1
+  skipped). `final-production-build.json` now records that build with `revalidationComplete:
+  true`, and `production-build.json` is marked superseded. A first attempt failed only
+  because an ordinary e2e run shared `apps/e2e/test-results` and deleted its traces; the rerun
+  used its own output folder, since removed.
+- **Core tasks.** T03 10/38, T04 1/0 and T08 3/0, all with 0 dead ends, equal to the baseline.
+  **T07 and T10 are blocked in both the baseline and the after run, at the same step.** They are
+  pre-existing, ungated and not caused by this slice.
+- **Sheet.** `apps/e2e/ux-output/sheet-73/index.html` (overview `overview.png`) reports 194
+  pairs and **0 gate failures**. The Lab phone-overflow exception first failed because the
+  after overflow had *shrunk* (613 px against the baseline's 625 px), while the rule required equality. The rule is
+  now "no wider than the baseline", with a fixture written red first (sheet tests 26/26).
+  `testing/how.md` and Acceptance 14 say so, and the sheet names the exception visibly. The
+  sheet also labels which findings each core cell shows, and lists both journey files.
+- **Checks.** `pnpm test`: 3,054 package tests plus 9 script tests, all passing
+  (`.prototype/slice73-tests-anchor.log`); the earlier host timeout did not recur without
+  contention. Full `pnpm e2e`: **147/147** (`.prototype/slice73-e2e-anchor.log`). `pnpm lint`,
+including docs:check, passes after the last documentation edits
+(`.prototype/slice73-lint-anchor.log`). Storybook's lift stories are unchanged since their last
+green build; the shared `.lift--popover` class only gained fallbacks.
+- **Next.** Gate 2: the user reviews the sheet. Only after acceptance: write the Outcome, run
+  `roadmap.mjs complete`, then commit if the user asks.
+
+## Session handoff — 2026-10-17 (paused at the user's request; historical)
+
+**Superseded by the third-session continuation above.**
+The user requested a pause to continue in a new chat. Slice 73 is still active and incomplete;
+Gate 2 has not been presented or accepted. Preserve the entire existing diff and all evidence.
+Do not restart, reset, commit, or freeze the slice. No commits or branches were created; HEAD
+remains `3b72291467d12f626076620a600287e5f5ca8abd`.
+
+### What this continuation finished
+
+- Resolved the handoff's outstanding focused failures. Archive focus's existing root-lived
+  request repair passed 70/70 shell tests, including two added cancellation/focus-preservation
+  cases. More Tab tests wait for native opening focus; task geometry waits for the enter
+  transform to settle, keeping the exact phone y/height and desktop viewport bounds. The
+  original global phone-navigation journeys passed unchanged. Focused native run: 41/41.
+- Completed living documentation in the existing diff: spec §§23/26/34/67, all four web,
+  core and projects architecture files, testing/prototype-tooling audits and task why links,
+  four dated decision amendments/index statuses, goals and umbrella70 scope/handoff. The
+  next feedback slice no longer owns quick-add selection. `pnpm docs:api` regenerated the
+  ignored reference; `docs:check` passed with 18 system folders and 293 documents.
+- Proved the three foundation helpers fault-sensitive: temporary faults to restore, stack
+  previous-close and Tab dismissal caused three assertion failures, then restored helpers
+  passed 4/4. All temporary source faults were restored byte-for-byte. Initial sandbox-only
+  zero-test EPERM runs are not counted as behavioral proof.
+- Independent correctness/spec and boundaries/living-doc review round 1 both found the
+  same actual bug: canvas section-creation registration outlived its view. Added two
+  regressions in `project-canvas.spec.ts`, observed NG0911 and the stale close callback,
+  then added DestroyRef teardown and context-change release/opener clearing in
+  `project-canvas.ts`. All 51 canvas tests passed. Both reviewers re-reviewed the repair
+  in round 2 and returned no substantive source/boundary/documentation findings.
+- Independent acceptance review found two harness gaps, both repaired with observed-red
+  fixtures: compare persistent blur against a genuine before measurement, and restrict
+  prototype overflow to the unchanged baseline Lab main region. Gate tests now 26/26.
+  New `apps/e2e/ux/lift-baseline.ts` supplements the preserved baseline without replacing
+  its matrix. It measured visible persistent layers: desktop3, phone2, in both themes.
+  Closed/open/runtime collectors now all exclude `visibility:hidden` consistently.
+- The ordinary UX capture config now exposes the opt-in lift collector; dedicated73 config
+  has bounded action/navigation timeouts. Sheet73 gets a compact thumbnail overview with
+  full-size click-through; the final sheet has **not yet been generated**.
+- Actual production-UI Chromium use passed busy-week and overdue-chaos at1440 dark and375
+  touch light: scrolled last-task edit/close, three quick-adds with focus retained, project
+  rename/status, keyboard Reflections hide/restore and an injected failed Save/discard.
+  Four slice73 notes were saved through the dev panel into `.prototype/notes.json`.
+  Evidence: `apps/e2e/ux-output/slice73-real-use/results.json` plus screenshots. The in-app
+  browser twice failed to attach; these are scripted live browser journeys, not novice audits.
+
+### Latest verification, including the limits
+
+- Full `pnpm e2e`: **139/139 passed**, `.prototype/slice73-e2e-final.log` (12.6min).
+- Final source web suite: **1,052/1,052 passed**, within the full offline rerun. Other
+  packages passed too except the unchanged host test `Archive outlives expired and pruned
+  actions`, which exceeded its existing 5s timeout during simultaneous heavy builds/captures.
+  The full command therefore **failed**; do not call `pnpm test` green. Log:
+  `.prototype/slice73-tests-final.log`. Isolated unchanged file rerun passed **2/2** in
+  581ms test time: `.prototype/slice73-host-timeout-recheck.log`. An earlier full run before
+  the lifecycle-only repair passed 3,052 package tests plus9 script tests. Rerun the full
+  command with less contention after the remaining source repairs; do not change host code
+  or loosen its timeout without new evidence.
+- Final `pnpm lint`: passed, including docs:check; `.prototype/slice73-lint-final.log`.
+  The handoff text added afterward has not had another docs check.
+- Final `pnpm storybook:build`: passed, `.prototype/slice73-storybook-final.log`.
+  All four built native story play functions plus repeated open/heading/Escape/hidden/opener
+  assertions passed with no page errors, and were rerun after the final Storybook build.
+  Evidence: `apps/e2e/ux-output/slice73-storybook/results.json`.
+- Paint matrix: genuine before194/194 preserved; after194/194 captured with no failures.
+  Core tasks passed: T03=10clicks/38keys, T04=1/0, T08=3/0, all0dead ends. The broader task
+  run's T07 was blocked (old dialog-count expectation); investigate/rerun after the lifetime
+  repair or explicitly disclose it, even though the three gated tasks pass.
+- Initial after paint build: **1049.57kB**. Depth runtime passed. Lift runtime failed on a
+  collector error: it looked for Create within a dialog although New project is an inline
+  form. That locator is now fixed in source, but the repaired full runtime has not completed.
+  Log: `.prototype/slice73-after-capture.log` (3passed/1failed).
+- Latest production build including canvas cleanup: **1049.69kB**, only0.31kB below the
+  unchanged1050kB ceiling. Log: `.prototype/slice73-evidence-final-build.log`.
+  Never silently raise that ceiling. The next More-positioning repair must be rebuilt.
+
+### Outstanding P2 visual finding — fix this next
+
+Acceptance round2 verified the two gate repairs, then found that **More is detached from
+its opener** in the actual captures: `kitchen-more-dark-1440.png` puts it at viewport x0,y8
+while its opener is at the header's far right (about x1370,y119); `kitchen-more-light-375.png`
+also puts it at x0,y8 over the top controls. Page settings anchors correctly. The reviewer
+inspected full-resolution images. This is an open substantive finding, not Gate2-ready work.
+
+Inspect the browser's actual computed geometry and collision handling in
+`apps/web/src/styles/_lifts.scss` around the `@supports (anchor-name: --a)` block:
+`left: anchor(left)`, `top: anchor(bottom)` and `position-try-fallbacks`. More's invoker is
+declarative and its menu is a custom component host; page settings uses the same global
+class. Do not assume the exact cause from this handoff. Add a native regression pinning
+the relationship to the opener and viewport at1440/375 in both themes, see it fail for
+the real reason, fix minimally, and recapture the affected cells. New values remain tokens.
+
+### Evidence provenance and pause state
+
+The preserved baseline build remains `apps/e2e/ux-output/slice73-baseline-web`; baseline
+artifacts remain under `apps/e2e/ux-output/e56c7d7ca9f442b3d3dd6fd954e25ccee6d3ad78/`.
+After artifacts are under `apps/e2e/ux-output/3b72291467d12f626076620a600287e5f5ca8abd/`.
+All are dirty-working-tree evidence keyed by HEAD, not a committed implementation.
+
+`production-build.json` records the original1049.57kB paint build's asset hashes and
+the later lifecycle repair. `final-production-build.json` records the1049.69kB build and
+explicitly has `revalidationComplete:false`. A targeted final-build12creation-cell plus
+core/depth/lifts run was interrupted safely for the user's pause. It merged **10** final-build
+cells into the194-cell after index: four Kitchen work-create, four Kitchen section-create,
+and New project dark1440/dark375. Other cells still refer to the earlier paint build.
+The remaining two creation cells and final core/depth/lifts were **not** rerun. Log:
+`.prototype/slice73-final-evidence.log`. A194-captured index is not proof of final-build
+revalidation; retain and explain both build manifests.
+
+The intended final sheet path is `apps/e2e/ux-output/sheet-73/index.html`, with a compact
+overview PNG to embed for the user. It does not exist yet. No sheet or final artifact
+acceptance review has passed. No findings have been claimed closed at human Gate2.
+
+All task-owned servers were stopped for pause: dedicated evidence4341/4241 (agent checked
+listeners clear), root live-use4342/4242 and Storybook6007. The139-test run finished and
+released ordinary4200/4310. Check listeners/ownership afresh before starting, and never
+kill unrelated processes. Sessions do not reliably transfer between agents or chats.
+
+Scratch helpers prepared under ignored `.prototype/`: `slice73-story-browser.mjs` (ran4pass),
+`slice73-real-use.mjs` (ran4pass), and `slice73-canvas-browser.mjs` (**prepared but not run**;
+checks Add section → browser Back → revisit project → More focus/no errors at1440/375).
+The latter needs the isolated4342host/4242static rig restored or an equivalent native test.
+Untracked scratch JSON `.prototype/ux-slice73.json` and `.prototype/ux-slice73-use.json` are
+not product patch files. Preserve the notes and source diff; do not stage scratch data.
+
+### Resume order
+
+1. Read AGENTS, this latest handoff, and the relevant architecture/spec before edits.
+   Fix/review the detached More positioning with a real native regression.
+2. Rebuild under1050kB, rerun affected More/creation captures and completed runtime collectors,
+   verify canvas browser-Back cleanup, reconcile build provenance and T07's old blocked result.
+   Preserve the genuine baseline and unaffected paint evidence.
+3. Finish full offline verification without competing heavy jobs; rerun tests/lint/build/browser
+   checks only where the new positioning change or unresolved failure justifies it.
+4. Generate profile73 sheet with0gates failed and compact overview PNG. Resume independent
+   acceptance reviewer against the actual final sheet and gate/source diff; resolve/re-review
+   to no substantive findings. Revisit correctness/boundaries reviewers if the fix warrants it.
+5. Update these review/results records and umbrella handoff as appropriate. Present concrete
+   human Gate2 evidence; **do not complete73 until accepted**. No commits were requested.
+
+## Session handoff — 2026-10-16 (historical; superseded above)
+
+The user requested a handoff before implementation closure. **This slice is not complete.**
+Continue the existing working tree; do not restart the slice, discard the diff, or freeze this
+record. Original request: execute this plan following all repository protocols, then conduct
+independent subagent diff-review rounds and resolve their findings. Plan review rounds 1–3 above
+and the user's answers are already complete; implementation diff review has **not** happened yet.
+The working tree was clean at this session's start. No branches or commits were created.
+Current HEAD is `3b72291467d12f626076620a600287e5f5ca8abd`.
+
+### Implemented in the working tree
+
+- Stage A: `_lifts.scss`, three new tokens, `LiftFocus`, root `LiftStack`, APG `menuKeys`, four
+  native Storybook lift stories, real-class Lab specimens, and `CURRENT_SLICE = 73`. Foundation
+  checkpoint screenshots were shown to the user before adoption: `apps/e2e/ux-output/` contains
+  `lifts-foundation-dark-1440.png`, `lifts-foundation-light-1440.png`, and
+  `lifts-foundation-light-375.png`. No user Gate 2 acceptance has occurred.
+- B1/B2: root route-focus initializer; landing headings; gear auto popover with native toggle
+  synchronization, focus entry/return, pending aria-disabled refusal/reset, navigation closure.
+- B3: More auto-popover menu/status radios; deferred project-details and archive-confirm native
+  dialogs; one-PATCH `saveDetails`, dirty guards/live draft/error ownership. Shell callbacks wired.
+- B4/B5: quick-add preserves selection; native task desktop manual popover / narrow modal dialog;
+  heading focus, dirty two-Escape behavior, vanished selection fallback, optional shell-scoped
+  `TaskDrawerCoordinator`, shell width reservation, removal-notice offset, removed size-container
+  and 42rem breakpoint. Lab uses `contained=true`. Custom creation dialogs join the stack and use
+  lift paint. Desktop Delete/drag acceptance portions were preserved.
+- Evidence tooling: expanded matrix, `--profile 73` sheet gates/report, core-task paths,
+  `ux/lifts-verification.ts`, isolated `ux/slice73.config.ts`, helper tests, and documentation in
+  testing/prototype-tooling/tasks architecture folders. New browser files: `lifts.spec.ts` and
+  `task-lifts.spec.ts`; existing journeys have been re-pinned for intended changes.
+- Three new decisions exist and are indexed: `2026-10-lifts-use-the-top-layer.md`,
+  `2026-10-route-focus-lands-lost-focus.md`, `2026-10-more-is-a-menu-with-a-details-dialog.md`.
+  Remaining decision amendments, spec and architecture updates are still outstanding below.
+
+### Verified and current failures
+
+- Baseline source for web/packages matched `e56c7d7ca9f442b3d3dd6fd954e25ccee6d3ad78`.
+  A preserved static build is in `apps/e2e/ux-output/slice73-baseline-web`.
+  Complete before evidence: `apps/e2e/ux-output/e56c7d7ca9f442b3d3dd6fd954e25ccee6d3ad78/`:
+  **194/194 cells**, zero capture failures; all three baseline capture/tasks/depth tests passed.
+  T03 = 10 clicks / 38 keys, T04 = 1 / 0, T08 = 3 / 0, all completed with no dead ends.
+- Latest successful production build: **1049.40 kB initial**, under the unchanged 1050 kB ceiling.
+  The first adoption build was 1058.74 kB; deferring the new dialogs restored the budget.
+  Headroom is now tiny. Rebuild after subsequent fixes; never raise the ceiling silently.
+- Focused task unit suites: **83/83**; coordinator separate **2/2**. More/header/dialog/store
+  focused suites: **54/54**. Existing domain project history proof suites **101/101**; no domain
+  changes needed. `project-service.test.ts` around 421 already proves one multi-field action/event;
+  `project-history.test.ts` around 249 proves exact Undo/Redo and `Edited "X"`.
+- Root route-focus unit tests now **3/3**. Their render host needs a signal revision to cause a
+  real Angular render; appending raw DOM alone did not run root afterEveryRender. Page-navigation
+  suite **22/22** passed. Foundation helper suites **4/4** passed. Their initial red was missing
+  modules rather than behavioral assertions: prove sensitivity with a temporary reverted fault
+  before claiming the required test-first evidence for those helpers.
+- Web lint (app/spec/Storybook TS + design-token lint and its 11 self-test rules) passed before
+  the latest changes. Harness tests: sheet builder **24/24**, TS helpers **6/6**, harness **5/5**.
+  docs:check passed before the three new decision files were added. E2e TS lint passed.
+- Full `pnpm test` failed at web: **1043 passed / 1 failed**, the new shell Archive-heading
+  landing assertion (`project-workspace-shell.spec.ts` around 192). Log:
+  `.prototype/slice73-tests.log`. Downstream workspace tests still require the final full run.
+- Full browser run ended: **125 passed / 10 failed** (135 collected), log
+  `.prototype/slice73-e2e.log`; traces and error contexts in `apps/e2e/test-results/`.
+  Additional route tests were appended to `lifts.spec.ts` after collection, so they still need
+  execution. Failures:
+  - Three `lifts.spec.ts:30` More keyboard/geometry journeys: after re-opening More, Tab leaves
+    the menu visible (`toBeHidden` at about line 49). Dark 1440, light 1440, light 375.
+  - `phone-layout.spec.ts:152`, dark phone global-navigation drawer: execution context destroyed
+    during focusInDrawer evaluation around line 175. Investigate a dev hot-reload race before
+    changing existing navigation behavior; this surface is out of scope.
+  - Four task-sheet phone tests at `phone-layout.spec.ts:348`/`:367`: bounding-box y was sampled
+    during the enter transform (0.14–1.15 px instead of exact zero). Await settled geometry rather
+    than weakening viewport reachability assertions.
+  - Two desktop `task-lifts.spec.ts:19` journeys: drawer bottom measured 968 in a 960 viewport.
+    Inspect actual native dialog box/transform/UA margins; do not assume this is only timing.
+
+### Archive focus repair in progress
+
+The shell Archive test exposed a real lifetime bug: `/projects/:id` → `/projects/:root/pages/archive`
+destroys the initiating shell. A local `archiveLandingUrl` set after `await router.navigate` is
+then held on a dead instance. Generic route focus masked this in some native journeys.
+The More implementer is moving the request to the existing root `ProjectColumnFocusRequest` as
+an `archiveUrl` signal, set **before** navigation; NavigationEnd clears mismatches and the new
+shell consumes it when the Archive heading renders. Source edits are visible, but await the
+implementer's final handoff/targeted results before treating this repair as verified. Add/refine
+failure focus and losing-navigation tests so stale requests cannot take a later route's focus.
+
+### Remaining work, in order
+
+1. Collect the last subagent handoffs and inspect current source/diff; resolve the unit/native
+   failures listed above. Run focused tests first. Test popover light-dismiss/Tab/native focus
+   order in the browser; do not rely on jsdom stubs for top-layer behavior.
+2. Finish documentation in the same diff: web overview/how/why (lift layer); core four-file
+   audit (RouteFocus); projects four-file audit (menu/dialogs/popover/reservation/Archive root
+   request); link every new decision from relevant why.md. Tasks and testing/prototype-tooling
+   folders were already updated by their implementers, but independently audit them.
+   Append dated amendments to the task checkbox/selection, phone-navigation-drawer,
+   project-create-edit-archive-surface, and creation-defaults decision entries. Update index
+   statuses. Correct spec §23/§26/§34 and Lab §67 claims as needed. Update umbrella70 handoff
+   and remove quick-add from the next slice's scope; reconcile goals.md's stale “73 not planned”.
+3. Rebuild and finish after captures, depth/lift runtime verification, core tasks, and profile73
+   before/after sheet against the genuine baseline. Read the evidence subagent's final report for
+   whether the after capture started and its session IDs. Do not overwrite the baseline directory.
+   Existing Lab phone inner overflow (375-wide main with scrollWidth625) is a known baseline
+   limitation; profile73 explicitly reports prototype-region exceptions and still gates every
+   product phone region. Record this refinement; do not claim every Lab inner region fits.
+4. Run full `pnpm test`, `pnpm lint`, `pnpm storybook:build`, full `pnpm e2e`, and production bundle
+   check. Execute the four native Storybook interactions in a real browser, not only the build.
+5. **Independent fresh-context subagent diff-review rounds remain required**: correctness/spec,
+   boundaries, acceptance and living docs plus before/after captures. Current implementer agents
+   are not independent reviewers of their own work. Verify findings, fix them, re-review to no
+   substantive findings, and record rounds in Revisions.
+6. Real use on busy-week/overdue-chaos at1440/375 touch per Acceptance18; record actual friction
+   through `.prototype/notes.json` with CURRENT_SLICE73. New code writes use existing gateways;
+   no host/domain/contracts/MCP changes are authorized.
+7. Present the concrete sheet at human **Gate 2**. Do not mark the phase complete until accepted
+   and all required evidence is green. Then write Outcome, use roadmap complete, regenerate board
+   and recheck docs/lint. No git commits without explicit user instruction (developer rule).
+
+### Environment and commands
+
+- PowerShell, repo `C:\Users\tyler\Documents\VScode\Canvas-work-manager-prototype`.
+- Tests/browser runs required sandbox escalation for temp-cache writes and localhost access.
+  Those escalations were approved automatically; no user rejection occurred. Browser cache:
+  `$env:PLAYWRIGHT_BROWSERS_PATH='C:\Users\tyler\AppData\Local\ms-playwright'`.
+- Full ordinary e2e owned its normal scratch servers at4200/4310 and has finished. At the handoff
+  listener check no4341/4241/4242/4243/4200/4310 listener was reported. Do not kill unrelated
+  developer processes. Older default capture had an existing owner pid24864 for ux-data; left
+  untouched. Dedicated73 config uses **4341 host / 4241 static** and `.prototype/ux-slice73.json`.
+  That scratch JSON is currently untracked: do not include it in a product patch.
+- Targeted units: `pnpm --filter web test --include='src/app/core/a11y/*.spec.ts'` (repeat include
+  for additional suites). Playwright: `pnpm --filter @cwm/e2e exec playwright test lifts.spec.ts
+  task-lifts.spec.ts phone-layout.spec.ts` after ordinary servers are released.
+- Baseline capture command used dedicated config with `UX_BEFORE=e56c7d7ca9f442b3d3dd6fd954e25ccee6d3ad78`;
+  after capture leaves UX_BEFORE unset and keys output by current HEAD. `UX_LIFTS=1` enables the
+  native lift collector; `UX_DEPTH=1` enables depth verification. Check config/test titles before
+  re-running. Normal `ux-capture.config.ts` still needs `lifts-verification.ts` in testMatch if
+  the ordinary capture command is to expose it; dedicated73 config already includes it.
+- Sessions may not survive a new chat. Logs and artifacts are the evidence, not session IDs.
+
+### Implementation ownership from this session
+
+`more` implemented header/menu/details/confirm/store plus old More e2e, lifts.spec and shell More
+tests; it is finishing Archive focus repair and investigating More Tab failures. `tasks`
+implemented task/drawer/coordinator plus task e2e and tasks architecture docs; it is investigating
+native task geometry and the phone navigation race. `evidence` implemented/captured the baseline
+and harness and updated testing/prototype-tooling docs. All were told to stop at the next atomic
+edit for this handoff. Continue with fresh agents in the next chat if needed.

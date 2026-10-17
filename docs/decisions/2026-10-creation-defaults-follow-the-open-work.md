@@ -43,3 +43,11 @@ Revisit when the user confirms or corrects the interpretation, or at the slice t
 it.
 
 **Amended, 2026-10-14 (user confirmation).** The user confirmed the interpretation: Parent defaults to the open workstream. They also decided that a newly created workstream opens itself, so the app navigates to it after creation (W1-014, W2-007), as creating a root project already does.
+
+**Amended, 2026-10-16 — Slice 73 (partial implementation).** Task quick-add now preserves the
+existing selection and keeps keyboard focus in the add field; it neither selects the new row nor
+opens details. This was pulled into lifts because opening a modal phone sheet after every Add
+would interrupt entry. Scroll-into-view and feedback remain with redesign slice 4. The Parent
+default and newly-created-workstream navigation choices remain for the navigation redesign;
+current workstream creation still defaults to the root and keeps the current route. Spec §26's
+quick-add rule now has its implementation.

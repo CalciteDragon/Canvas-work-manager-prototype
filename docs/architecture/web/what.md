@@ -103,8 +103,9 @@ header's history (Slice 41).
 | Icons | `src/app/shared/components/icon/` | `Icon` and `ICON_NAMES`: the one monochrome SVG set for app-owned marks; the owning control or text carries the accessible name |
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |
 | Control primitives | `src/styles/_controls.scss`, `_control-states.scss` | Slice 72's global control classes and their shared state mixins |
+| Lift primitives | `src/styles/_lifts.scss`, `src/app/shared/lifts/` | Native lift paint, opener/fallback focus, single transient owner and menu keys |
 | Storybook | `.storybook/` | `@storybook/angular-vite`; stories beside components |
 | Lints | `scripts/check-design-tokens.mjs`, `scripts/expect-failure.mjs` | The token lint and its self-test |
 
 
-The styling layer consists of `_tokens.scss` (theme bases, derived planes, focus, motion and shared constants), `_breakpoints.scss` (CSS-free reflow thresholds), `_base.scss` (ground and shared focus-visible ring), `_controls.scss` (the control primitives, imported after base) and `_control-states.scss` (no-output state mixins shared by the primitives, the base focus ring and the Lab).
+The styling layer consists of `_tokens.scss` (theme bases, derived planes, focus, motion and shared constants), `_breakpoints.scss` (CSS-free reflow thresholds), `_base.scss` (ground and shared focus-visible ring), `_controls.scss` (the control primitives, imported after base) and `_lifts.scss` (native lift/menu classes imported after controls), plus `_control-states.scss` (no-output state mixins shared by the primitives, the base focus ring and the Lab).

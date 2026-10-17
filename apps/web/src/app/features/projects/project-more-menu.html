@@ -1,100 +1,15 @@
-<div data-project-more-menu class="more-menu">
-  <form class="more-menu__row" data-project-rename-form (submit)="submitRename($event, renameName)">
-    <label class="control-label" for="project-rename">Name</label>
-    <input
-      id="project-rename"
-      #renameName
-      class="field"
-      data-project-rename-input
-      type="text"
-      autocomplete="off"
-      [value]="project().name"
-    />
-    <button type="submit" class="button" data-project-rename-submit>Rename</button>
-  </form>
-
-  <form
-    class="more-menu__row"
-    data-project-description-form
-    (submit)="submitDescription($event, descriptionInput)"
-  >
-    <label class="control-label" for="project-description">Description</label>
-    <input
-      id="project-description"
-      #descriptionInput
-      class="field"
-      data-project-description-input
-      type="text"
-      autocomplete="off"
-      [value]="project().description ?? ''"
-    />
-    <button type="submit" class="button" data-project-description-submit>Save</button>
-  </form>
-
-  <div class="more-menu__row" role="group" aria-label="Status">
-    <span class="control-label">Status</span>
-    @for (status of statuses; track status) {
-      <button
-        type="button"
-        class="button button--sm more-menu__status"
-        data-project-status-option
-        [attr.data-status]="status"
-        [attr.aria-pressed]="project().status === status"
-        (click)="statusRequested.emit(status)"
-      >
-        {{ status.replace('_', ' ') }}
-      </button>
-    }
-  </div>
-
-  <form
-    class="more-menu__row"
-    data-project-target-date-form
-    (submit)="submitTargetDate($event, targetDateInput)"
-  >
-    <label class="control-label" for="project-target-date">{{ isWorkUnit() ? 'Due date' : 'Target date' }}</label>
-    <input
-      id="project-target-date"
-      #targetDateInput
-      class="field"
-      data-project-target-date-input
-      type="date"
-      [value]="project().targetDate ?? ''"
-    />
-    <button type="submit" class="button" data-project-target-date-submit>Set</button>
-    <button type="button" class="button button--ghost" data-project-target-date-clear (click)="targetDateRequested.emit(null)">
-      Clear
-    </button>
-  </form>
-
-  <div class="more-menu__row">
-    <button type="button" class="button button--ghost" data-project-open-archive (click)="openArchiveRequested.emit()">
-      Open archive
-    </button>
-  </div>
-
-  <!-- Not offered on a project that is already archived: that PATCH is a no-op, and it would
-       still earn the "is archived. Undo is available here." feedback (Slice 41). Slice 72: the
-       destructive actions sit apart, below a separator, in the one danger treatment (W4-019). -->
-  @if (project().status !== 'archived') {
-    <div class="danger-zone" data-project-danger-zone>
-      <div class="more-menu__row">
-        <button type="button" data-project-archive class="button button--danger" (click)="confirming.set(true)">
-          {{ isWorkUnit() ? 'Archive workstream' : 'Archive project' }}
-        </button>
-      </div>
-
-      <!-- The one destructive control on the page. The page stays, and the header's Undo reverses
-           it (Slice 41). Cancelling writes nothing and navigates nowhere. -->
-      @if (confirming()) {
-        <div data-project-archive-confirm class="more-menu__confirm" role="group">
-          <p>Archive “{{ project().name }}”? It leaves the sidebar; you can undo it from the header.</p>
-          <button type="button" class="button button--danger" data-project-archive-confirm-yes (click)="archiveRequested.emit()">
-            Archive it
-          </button>
-          <button type="button" class="button" data-project-archive-cancel (click)="confirming.set(false)">Cancel</button>
-        </div>
-      }
-    </div>
+<button type="button" class="menu__item" role="menuitem" tabindex="-1" data-project-edit-details (click)="editDetailsRequested.emit()">Edit details…</button>
+<div role="group" aria-label="Status">
+  <span class="control-label">Status</span>
+  @for (status of statuses; track status) {
+    <button type="button" class="menu__item more-menu__status" role="menuitemradio" tabindex="-1"
+      data-project-status-option [attr.data-status]="status" [attr.aria-checked]="project().status === status"
+      (click)="statusRequested.emit(status)">{{ status.replace('_', ' ') }}</button>
   }
 </div>
+<div class="menu__separator" role="separator"></div>
+<button type="button" class="menu__item" role="menuitem" tabindex="-1" data-project-open-archive (click)="openArchiveRequested.emit()">Open archive</button>
+@if (project().status !== 'archived') {
+  <div class="menu__separator" role="separator"></div>
+  <button type="button" class="menu__item menu__item--danger" role="menuitem" tabindex="-1" data-project-archive (click)="archiveRequested.emit()">{{ isWorkUnit() ? 'Archive workstream…' : 'Archive project…' }}</button>
+}

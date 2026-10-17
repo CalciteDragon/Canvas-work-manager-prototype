@@ -2,7 +2,7 @@
  * Slice 58's phone layout: the global navigation drawer, the project column's re-collapse and
  * the Task List details drawer at 375 px, by touch and keyboard, in both themes, and across a
  * resize. Everything here is what jsdom cannot show — a real focus trap, `inert` actually
- * blocking the workspace, container-query stacking, horizontal overflow and `matchMedia`.
+ * blocking the workspace, modal task sheets, horizontal overflow and `matchMedia`.
  */
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import type { ProjectSection } from '@cwm/contracts';
@@ -345,26 +345,27 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await choose('[data-project-page-tab][data-page-kind="home"]', /\/projects\/project-renovation\/pages\/home$/, 'Home renovation');
   });
 
-  test('a Task List row’s Delete stays tappable while its details drawer is open', async ({ page }) => {
+  test('quick-add keeps the task list usable and Delete stays tappable after closing its sheet', async ({ page }) => {
     const root = await createRoot('Phone Task List');
     await addSection(root.id, { type: 'task-list' });
     await page.goto(`/projects/${root.id}`);
     await useTheme(page, theme);
     await page.locator('[data-quick-task-title]').fill('Phone delete task');
     await page.locator('[data-quick-create] button[type="submit"]').tap();
+    await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
+    await page.locator('button[data-task-title]').tap();
     await expect(page.locator('[data-task-drawer]')).toBeVisible();
-
-    // Stacked below the rows, not a second track laid over them.
-    const row = (await page.locator('[data-task-row]').boundingBox())!;
+    await expect(page.locator('[data-task-drawer]')).toHaveCSS('transform', 'none');
     const details = (await page.locator('[data-task-drawer]').boundingBox())!;
-    expect(details.y).toBeGreaterThanOrEqual(row.y + row.height);
-
+    expect(details.y).toBe(0);
+    expect(details.height).toBe(812);
+    await page.locator('[data-close-drawer]').tap();
     await page.locator('[data-task-delete]').tap();
     await expect(page.locator('[data-task-row]')).toHaveCount(0);
     await expect(page.locator('[data-task-delete-recovery]')).toContainText('Phone delete task');
   });
 
-  test('a title tap opens the stacked task drawer, Close returns focus, and a done checkbox reopens by touch', async ({ page }) => {
+  test('a title tap opens the task sheet, Close returns focus, and a done checkbox reopens by touch', async ({ page }) => {
     await page.goto('/projects/project-kitchen');
     await useTheme(page, theme);
     const row = page.locator('[data-task-row][data-task-id="task-kitchen-completed"]');
@@ -373,9 +374,12 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     const details = page.locator('[data-task-drawer]');
     await expect(details).toBeVisible();
     await expect(title).toHaveAttribute('aria-current', 'true');
-    const rowBox = (await row.boundingBox())!;
+    await expect(details).toHaveCSS('transform', 'none');
     const drawerBox = (await details.boundingBox())!;
-    expect(drawerBox.y).toBeGreaterThanOrEqual(rowBox.y + rowBox.height);
+    expect(drawerBox.y).toBe(0);
+    expect(drawerBox.height).toBe(812);
+    await expect(details).toHaveAttribute('aria-modal', 'true');
+    await expect(details.locator('h2')).toBeFocused();
     await details.getByRole('button', { name: 'Close task details' }).tap();
     await expect(details).toHaveCount(0);
     await expect(title).toBeFocused();

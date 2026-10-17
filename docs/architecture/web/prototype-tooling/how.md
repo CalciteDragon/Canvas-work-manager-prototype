@@ -28,6 +28,10 @@
    shared Buttons and Inputs primitives, the Controls panel (every primitive and state over a pane
    and a sheet, with forced hover, focus and pressed through the shared state mixins), the other
    primitive panels' markup, plus a busy-ground plane/lift panel and a transform-only motion demo.
+   The plane panel uses the shared `.lift` classes for the side drawer, dialog, menu and page
+   popover; the live Drawer panel renders `TaskDetailDrawer` with `contained`, so it remains in
+   the catalogue without opening a native top-layer surface. `shared/lifts/lifts.stories.ts`
+   exercises native open/Escape/focus-return behaviour separately in a real browser.
    Solid planes writes the same solid backgrounds and disabled filters as the stylesheet fallback;
    reduced motion caps duration tokens at 80 ms. Sheet blur is an opt-in experiment through
    an intermediate property, so real fallback media retain control of the final filter.

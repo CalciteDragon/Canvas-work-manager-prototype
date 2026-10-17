@@ -19,7 +19,7 @@ import {
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
@@ -37,9 +37,25 @@ import { ProjectCanvas } from './project-canvas';
 import { TaskListSection } from './sections/tasks/task-list-section';
 import { ShortcutFrame } from './shortcuts/shortcut-frame';
 import { ProjectPageNavigation } from './project-page-navigation';
-import { ProjectWorkspaceShell } from './project-workspace-shell';
+import { ProjectColumnFocusRequest, ProjectWorkspaceShell } from './project-workspace-shell';
 
 const AT = '2026-08-27T16:00:00.000Z';
+const nativeOriginals = [
+  { target: HTMLElement.prototype, key: 'hidePopover', descriptor: Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidePopover') },
+  ...['showModal', 'close'].map((key) => ({ target: HTMLDialogElement.prototype, key, descriptor: Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, key) })),
+];
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, 'hidePopover', { configurable: true, value() {} });
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); } });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() { this.removeAttribute('open'); } });
+});
+afterEach(() => {
+  TestBed.resetTestingModule();
+  for (const { target, key, descriptor } of nativeOriginals) {
+    if (descriptor) Object.defineProperty(target, key, descriptor);
+    else Reflect.deleteProperty(target, key);
+  }
+});
 
 const project = (
   id: string,
@@ -167,6 +183,70 @@ const query = (harness: RouterTestingHarness, selector: string) =>
 
 const queryAll = (harness: RouterTestingHarness, selector: string) =>
   [...harness.fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
+
+describe('Slice 73 Archive landing', () => {
+  it('lands on the Archive heading after enabling and navigating', async () => {
+    const { harness, component } = await open('/projects/project-kitchen');
+    await (component as ProjectWorkspaceShell).openArchive();
+    await settle(harness);
+    expect(document.activeElement).toBe(query(harness, '#archive-page-title'));
+    expect(TestBed.inject(ProjectColumnFocusRequest).archiveUrl()).toBeNull();
+  });
+
+  for (const control of ['data-project-more', 'data-open-archive', 'data-todo-open-archive']) {
+    it(`restores ${control} when Archive enabling is refused`, async () => {
+      const { harness, component } = await open('/projects/project-renovation', {
+        failOn: { 'pages.setEnabled': new GatewayError('conflict', 409, 'Archive enable refused') },
+      });
+      const returnTo = control === 'data-project-more' ? query(harness, '[data-project-more]')! : document.createElement('button');
+      if (control !== 'data-project-more') { returnTo.setAttribute(control, ''); harness.fixture.nativeElement.append(returnTo); }
+      returnTo.focus();
+      const pending = (component as ProjectWorkspaceShell).openArchive(returnTo);
+      returnTo.blur();
+      await pending;
+      await settle(harness);
+      expect(document.activeElement).toBe(returnTo);
+    });
+  }
+
+  it('drops an Archive landing when another navigation wins, including outside the project shell', async () => {
+    const { harness, router } = await open('/projects/project-renovation');
+    const request = TestBed.inject(ProjectColumnFocusRequest);
+    request.archiveUrl.set('/projects/project-renovation/pages/archive');
+    await router.navigateByUrl('/app');
+    await settle(harness);
+    expect(request.archiveUrl()).toBeNull();
+  });
+
+  it('clears the landing and returns to More when Archive navigation is cancelled', async () => {
+    const { harness, component, router } = await open('/projects/project-renovation');
+    const returnTo = query(harness, '[data-project-more]')!;
+    returnTo.focus();
+    vi.spyOn(router, 'navigate').mockResolvedValue(false);
+    const pending = (component as ProjectWorkspaceShell).openArchive(returnTo);
+    returnTo.blur();
+    await pending;
+    await settle(harness);
+    expect(TestBed.inject(ProjectColumnFocusRequest).archiveUrl()).toBeNull();
+    expect(document.activeElement).toBe(returnTo);
+  });
+
+  it('keeps the user\'s new focus when Archive enabling is refused', async () => {
+    const { harness, component } = await open('/projects/project-renovation', {
+      failOn: { 'pages.setEnabled': new GatewayError('conflict', 409, 'Archive enable refused') },
+    });
+    const returnTo = query(harness, '[data-project-more]')!;
+    const other = document.createElement('button');
+    harness.fixture.nativeElement.append(other);
+    returnTo.focus();
+    const pending = (component as ProjectWorkspaceShell).openArchive(returnTo);
+    other.focus();
+    await pending;
+    await settle(harness);
+    expect(document.activeElement).toBe(other);
+    expect(TestBed.inject(ProjectColumnFocusRequest).archiveUrl()).toBeNull();
+  });
+});
 
 const projectAddEntry = (actionId: string, label: string): OperationHistoryEntry => ({
   actionId: actionId as OperationHistoryEntry['actionId'],
@@ -635,9 +715,12 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
 
     query(harness, '[data-project-more]')!.click();
     harness.fixture.detectChanges();
+    query(harness, '[data-project-edit-details]')!.click();
+    await settle(harness);
     const name = query(harness, '[data-project-rename-input]') as HTMLInputElement;
     name.value = 'Renovation, renamed';
-    query(harness, '[data-project-rename-submit]')!.click();
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    query(harness, '[data-project-details-save]')!.click();
     await settle(harness);
 
     expect(query(harness, '[data-project-name]')?.textContent).toContain('Renovation, renamed');
@@ -1013,7 +1096,7 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     query(refused.harness, '[data-project-more]')!.click();
     refused.harness.fixture.detectChanges();
     query(refused.harness, '[data-project-archive]')!.click();
-    refused.harness.fixture.detectChanges();
+    await settle(refused.harness);
     query(refused.harness, '[data-project-archive-confirm-yes]')!.click();
     await settle(refused.harness);
 
@@ -1026,7 +1109,7 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     query(accepted.harness, '[data-project-more]')!.click();
     accepted.harness.fixture.detectChanges();
     query(accepted.harness, '[data-project-archive]')!.click();
-    accepted.harness.fixture.detectChanges();
+    await settle(accepted.harness);
     query(accepted.harness, '[data-project-archive-confirm-yes]')!.click();
     await settle(accepted.harness);
 
@@ -1058,7 +1141,7 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     const callback = shell.rendererInputs()!.onOpenArchive;
 
     expect(shell.rendererInputs()!.onOpenArchive).toBe(callback);
-    callback();
+    callback(query(harness, '[data-project-more]')!);
     await settle(harness);
 
     expect(router.url).toBe('/projects/project-renovation/pages/archive');

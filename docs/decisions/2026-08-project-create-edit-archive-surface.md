@@ -124,3 +124,13 @@ restores the same project and page ids ([project creation history](2026-09-proje
 A task title now selects and opens the drawer, where its Title field commits on Enter or blur;
 the separate Details button is removed. This entry's project controls are unchanged
 ([decision](2026-09-task-checkbox-reopen-and-selection.md)).
+
+**Amended, 2026-10-16 — Slice 73.** More is now a native top-layer menu with Edit details,
+four immediate status radios, Open archive, a separator and Archive project/workstream. Name,
+Description and Target/Due date move into one modal details draft, with one Save and one PATCH
+containing only changed fields. Dirty dismissal asks Discard changes; a failure retains the draft
+and displays the error inside the dialog. Archive has a separate modal danger confirmation and
+still stays on the archived project with header Undo. Closing a lift restores More; Open archive
+lands on its heading and restores the caller if opening fails. This replaces the three-form
+edit surface and its unresolved commit-model question; sidebar creation stays as recorded.
+Spec §26 is corrected ([details decision](2026-10-more-is-a-menu-with-a-details-dialog.md)).

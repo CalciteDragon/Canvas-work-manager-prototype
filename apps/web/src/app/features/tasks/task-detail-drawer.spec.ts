@@ -26,6 +26,13 @@ const render = async () => {
 };
 
 describe('TaskDetailDrawer', () => {
+  it('names its dialog with a focusable heading', async () => {
+    const { element } = await render();
+    const drawer = element.querySelector('[data-task-drawer]')!;
+    expect(drawer.getAttribute('role')).toBe('dialog');
+    expect(drawer.getAttribute('aria-modal')).toBe('false');
+    expect(element.querySelector('h2')?.getAttribute('tabindex')).toBe('-1');
+  });
   const titleInput = (element: HTMLElement) => element.querySelector<HTMLInputElement>('[data-task-drawer-title]')!;
   const typeTitle = (element: HTMLElement, title: string) => {
     const control = titleInput(element);
@@ -141,6 +148,22 @@ describe('TaskDetailDrawer', () => {
     expect(emitted.mock.calls).toEqual([[{ id: value.id, title: 'Draft' }], [{ id: 'task-b', title: 'Draft' }]]);
   });
 
+  it('prevents native Escape from closing a dirty sheet, then closes on the next Escape', async () => {
+    const { component, element } = await render();
+    const closed = vi.fn();
+    component.closed.subscribe(closed);
+    const control = typeTitle(element, 'Unsaved draft');
+    const first = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    control.dispatchEvent(first);
+    expect(first.defaultPrevented).toBe(true);
+    expect(component.draft()).toBe(value.title);
+    expect(closed).not.toHaveBeenCalled();
+    const second = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    control.dispatchEvent(second);
+    expect(second.defaultPrevented).toBe(true);
+    expect(closed).toHaveBeenCalledOnce();
+  });
+
   it('closes on Escape outside the title or in a clean title', async () => {
     const { component, element } = await render();
     const closed = vi.fn();
@@ -154,7 +177,7 @@ describe('TaskDetailDrawer', () => {
     const { element } = await render();
     const drawer = element.querySelector('[data-task-drawer]');
 
-    expect(drawer?.getAttribute('role')).toBe('complementary');
+    expect(drawer?.getAttribute('role')).toBe('dialog');
     expect(drawer?.getAttribute('aria-labelledby')).toBe('task-drawer-title');
     expect(element.querySelector('#task-drawer-title')?.textContent).toContain(value.title);
     expect(element.querySelector('[data-task-description]')?.textContent).toContain('research notes');

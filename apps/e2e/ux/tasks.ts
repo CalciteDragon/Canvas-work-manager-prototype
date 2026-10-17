@@ -54,6 +54,7 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       const section=page.getByRole('region',{name:'Rename Baseline tasks',exact:true});
       for(const title of ['Baseline one','Baseline two']){
         await type(section.getByRole('textbox',{name:'Task title'}),title,'Task List'); await click(section.getByRole('button',{name:'Add task',exact:true}),'Add task','Task List');
+        if (!process.env['UX_BEFORE']) await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
         await click(section.getByRole('checkbox',{name:`Complete ${title}`,exact:true}),'Complete task','Task List'); await expect(section.getByRole('checkbox',{name:`Reopen task ${title}`})).toBeChecked();
       } break;
     }
@@ -85,6 +86,7 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await nav(); await click(button('Project page settings for Home renovation'),'Page settings','Project navigation');
       await click(page.getByRole('checkbox',{name:'Show Reflections page'}),'Hide Reflections','Page settings');
       await expect(page.getByRole('checkbox',{name:'Show Reflections page'})).not.toBeChecked();
+      await expect(page.getByRole('checkbox',{name:'Show Reflections page'})).not.toHaveAttribute('aria-disabled', 'true');
       await click(page.getByRole('checkbox',{name:'Show Reflections page'}),'Enable Reflections','Page settings');
       await expect(page.getByRole('checkbox',{name:'Show Reflections page'})).toBeChecked(); break;
     case 'T09': {

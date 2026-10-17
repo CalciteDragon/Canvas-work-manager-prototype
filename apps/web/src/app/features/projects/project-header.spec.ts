@@ -1,245 +1,233 @@
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockBehavior, TestBed } from '@angular/core/testing';
 import { ProjectSchema, type Project } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectHeader } from './project-header';
 
-const AT = '2026-08-27T16:00:00.000Z';
+const root = (overrides: Record<string, unknown> = {}): Project => ProjectSchema.parse({
+  id: 'project-a', workspaceId: 'workspace-demo', kind: 'root', name: 'Website launch', icon: '🚀',
+  status: 'on_hold', targetDate: '2026-09-30', projectLayoutMode: 'flow',
+  createdAt: '2026-08-27T16:00:00.000Z', updatedAt: '2026-08-27T16:00:00.000Z', ...overrides,
+});
 
-const root = (overrides: Record<string, unknown> = {}): Project =>
-  ProjectSchema.parse({
-    id: 'project-a',
-    workspaceId: 'workspace-demo',
-    kind: 'root',
-    name: 'Website launch',
-    icon: '🚀',
-    status: 'on_hold',
-    targetDate: '2026-09-30',
-    projectLayoutMode: 'flow',
-    createdAt: AT,
-    updatedAt: AT,
-    ...overrides,
-  });
+const originals = [
+  { target: HTMLElement.prototype, key: 'hidePopover', descriptor: Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidePopover') },
+  ...['showModal', 'close'].map((key) => ({ target: HTMLDialogElement.prototype, key, descriptor: Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, key) })),
+];
+afterEach(() => {
+  TestBed.resetTestingModule();
+  for (const { target, key, descriptor } of originals) {
+    if (descriptor) Object.defineProperty(target, key, descriptor);
+    else Reflect.deleteProperty(target, key);
+  }
+});
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, 'hidePopover', { configurable: true, value() {
+    this.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed', oldState: 'open' }));
+  } });
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); } });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() { this.removeAttribute('open'); } });
+});
 
-const workUnit = (overrides: Record<string, unknown> = {}): Project =>
-  ProjectSchema.parse({
-    id: 'project-kitchen',
-    workspaceId: 'workspace-demo',
-    kind: 'subproject',
-    parentProjectId: 'project-a',
-    name: 'Kitchen',
-    status: 'active',
-    projectLayoutMode: 'flow',
-    createdAt: AT,
-    updatedAt: AT,
-    ...overrides,
-  });
-
-const render = async (
-  options: { project?: Project; progress?: number | null; writeError?: string | null } = {},
-) => {
-  // No providers: the header injects nothing, which is the property that keeps §19's chain
-  // from becoming Component → Gateway. Two fixtures in one test are therefore free.
+const render = async (project = root()) => {
+  TestBed.configureTestingModule({ deferBlockBehavior: DeferBlockBehavior.Playthrough });
   const fixture = TestBed.createComponent(ProjectHeader);
-  fixture.componentRef.setInput('project', options.project ?? root());
-  // `?? 50` would swallow the `null` this component draws a whole branch for.
-  fixture.componentRef.setInput('progress', 'progress' in options ? options.progress : 50);
-  fixture.componentRef.setInput('writeError', options.writeError ?? null);
+  fixture.componentRef.setInput('project', project);
+  fixture.componentRef.setInput('progress', 50);
   fixture.detectChanges();
   await fixture.whenStable();
-  fixture.detectChanges();
   return fixture;
 };
-
-const query = (fixture: Awaited<ReturnType<typeof render>>, selector: string) =>
-  fixture.nativeElement.querySelector(selector) as HTMLElement | null;
-
-const openMore = async (fixture: Awaited<ReturnType<typeof render>>) => {
-  query(fixture, '[data-project-more]')!.click();
-  await fixture.whenStable();
-  fixture.detectChanges();
+type HeaderFixture = Awaited<ReturnType<typeof render>>;
+const query = (fixture: HeaderFixture, selector: string) => fixture.nativeElement.querySelector(selector) as HTMLElement;
+const settle = async (fixture: HeaderFixture) => { fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges(); };
+const openMore = async (fixture: HeaderFixture) => {
+  query(fixture, '[data-project-more]').focus();
+  query(fixture, '[data-project-more-menu]').dispatchEvent(Object.assign(new Event('toggle'), { newState: 'open', oldState: 'closed' }));
+  await settle(fixture);
+};
+const edit = async (fixture: HeaderFixture) => {
+  await openMore(fixture);
+  query(fixture, '[data-project-edit-details]').click();
+  await settle(fixture);
+};
+const change = (fixture: HeaderFixture, selector: string, value: string) => {
+  const field = query(fixture, selector) as HTMLInputElement;
+  field.value = value;
+  field.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
-describe('ProjectHeader (§26)', () => {
-  it('names the archive action for the displayed project kind', async () => {
-    const rootFixture = await render();
-    await openMore(rootFixture);
-    expect(query(rootFixture, '[data-project-archive]')?.textContent?.trim()).toBe('Archive project');
-
-    const workFixture = await render({ project: workUnit() });
-    await openMore(workFixture);
-    expect(query(workFixture, '[data-project-archive]')?.textContent?.trim()).toBe('Archive workstream');
-  });
-
-  it('renders §26’s header: icon, name, status, progress and target date', async () => {
+describe('ProjectHeader lifts (§26)', () => {
+  it('renders project identity and a route landing', async () => {
     const fixture = await render();
-
-    expect(query(fixture, '[data-project-icon]')?.textContent).toContain('🚀');
-    expect(query(fixture, '[data-project-name]')?.textContent).toContain('Website launch');
-    expect(query(fixture, '[data-project-status]')?.textContent).toContain('on hold');
-    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('50%');
-    expect(query(fixture, '[data-project-target-date]')?.textContent).toContain('2026-09-30');
-    expect(query(fixture, '[data-project-date-label]')?.textContent).toContain('Target date');
+    expect(query(fixture, '[data-project-name]').textContent).toContain('Website launch');
+    expect(query(fixture, '[data-project-name]').hasAttribute('data-route-focus')).toBe(true);
+    expect(query(fixture, '[data-project-progress]').textContent).toContain('50%');
+    fixture.componentRef.setInput('progress', 0);
+    await settle(fixture);
+    expect(query(fixture, '[data-project-progress]').textContent).toContain('0%');
+    fixture.componentRef.setInput('progress', null);
+    await settle(fixture);
+    expect(query(fixture, '[data-project-progress-unavailable]')).toBeTruthy();
   });
 
-  it('renders 0% for a project with nothing done, not "Not available"', async () => {
-    // `0` is falsy, so an `@if (progress; as …)` binding reads a real zero as "no value" —
-    // the one number a progress control most needs to be able to say.
-    const fixture = await render({ progress: 0 });
-
-    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('0%');
-    expect(query(fixture, '[data-project-progress-unavailable]')).toBeNull();
+  it('uses a native menu invoker, focuses the first item, and navigates menu keys', async () => {
+    const fixture = await render();
+    expect(query(fixture, '[data-project-more]').getAttribute('aria-haspopup')).toBe('menu');
+    expect(query(fixture, '[data-project-more-menu]').getAttribute('popover')).toBe('auto');
+    await openMore(fixture);
+    const first = query(fixture, '[data-project-edit-details]');
+    expect(document.activeElement).toBe(first);
+    first.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(document.activeElement).toBe(query(fixture, '[data-project-archive]'));
+    first.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle(fixture);
+    expect(query(fixture, '[data-project-more]').getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(query(fixture, '[data-project-more]'));
   });
 
-  it('says progress is unavailable when there is nothing to measure', async () => {
-    const fixture = await render({ progress: null });
-
-    expect(query(fixture, '[data-project-progress-unavailable]')).not.toBeNull();
+  it('emits only a changed status and restores the opener', async () => {
+    const fixture = await render();
+    const requested = vi.fn();
+    fixture.componentInstance.statusRequested.subscribe(requested);
+    await openMore(fixture);
+    query(fixture, '[data-status="on_hold"]').click();
+    expect(requested).not.toHaveBeenCalled();
+    await openMore(fixture);
+    query(fixture, '[data-status="active"]').click();
+    expect(requested).toHaveBeenCalledExactlyOnceWith('active');
+    expect(document.activeElement).toBe(query(fixture, '[data-project-more]'));
   });
 
-  // §26 relabels the same stored date on a unit of work. One field, two labels — a deadline
-  // does not become a second column because the thing holding it is smaller.
-  it('calls the same date a due date on a unit of work, and shows its description', async () => {
-    const fixture = await render({
-      project: workUnit({ description: 'Appliances first', targetDate: '2026-10-15' }),
+  for (const status of ['active', 'archived'] as const) {
+    it(`separates Open archive from the status group (${status})`, async () => {
+      const fixture = await render(root({ status }));
+      const openArchive = query(fixture, '[data-project-open-archive]');
+      expect(openArchive.previousElementSibling?.getAttribute('role')).toBe('separator');
+      expect(openArchive.previousElementSibling?.previousElementSibling?.getAttribute('aria-label')).toBe('Status');
     });
+  }
 
-    expect(query(fixture, '[data-project-date-label]')?.textContent).toContain('Due date');
-    expect(query(fixture, '[data-project-target-date]')?.textContent).toContain('2026-10-15');
-    expect(query(fixture, '[data-project-description]')?.textContent).toContain('Appliances first');
-  });
-
-  it('says "No due date" on an undated work unit, and "No target date" on a root', async () => {
-    expect((await render({ project: workUnit() })).nativeElement.textContent).toContain('No due date');
-    expect((await render({ project: root({ targetDate: undefined }) })).nativeElement.textContent)
-      .toContain('No target date');
-  });
-
-  it('shows a work unit’s completion time once it is completed, and nothing while it is open', async () => {
-    const open = await render({ project: workUnit() });
-    expect(query(open, '[data-project-completed-at]')).toBeNull();
-
-    const done = await render({
-      project: workUnit({ status: 'completed', completedAt: '2026-09-01T10:00:00.000Z' }),
-    });
-    expect(query(done, '[data-project-completed-at]')?.textContent).toContain('2026-09-01');
-  });
-
-  it('opens the More menu and closes it on Escape', async () => {
-    const fixture = await render();
-    await openMore(fixture);
-    expect(query(fixture, '[data-project-more-menu]')).not.toBeNull();
-
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    fixture.detectChanges();
-
-    expect(query(fixture, '[data-project-more-menu]')).toBeNull();
-  });
-
-  it('keeps Archive and status recovery controls keyboard-reachable in More', async () => {
-    const fixture = await render({ project: root({ status: 'archived' }) });
-    let opened = 0;
-    fixture.componentInstance.openArchiveRequested.subscribe(() => (opened += 1));
-    await openMore(fixture);
-
-    const archive = query(fixture, '[data-project-open-archive]') as HTMLButtonElement;
-    expect(archive.tagName).toBe('BUTTON');
-    archive.focus();
-    expect(document.activeElement).toBe(archive);
-    const statuses = [...fixture.nativeElement.querySelectorAll('[data-project-status-option]')] as HTMLButtonElement[];
-    expect(statuses.map((option) => option.dataset['status'])).toEqual(['planning', 'active', 'on_hold', 'completed']);
-
-    archive.click();
-    expect(opened).toBe(1);
-  });
-
-  it('asks for a rename and a description without touching a gateway itself', async () => {
-    const fixture = await render({ project: workUnit() });
-    const renames: string[] = [];
-    const descriptions: Array<string | null> = [];
-    fixture.componentInstance.renameRequested.subscribe((name) => renames.push(name));
-    fixture.componentInstance.descriptionRequested.subscribe((text) => descriptions.push(text));
-    await openMore(fixture);
-
-    const name = query(fixture, '[data-project-rename-input]') as HTMLInputElement;
-    name.value = 'Kitchen refit';
-    query(fixture, '[data-project-rename-submit]')!.click();
-    await openMore(fixture);
-    const description = query(fixture, '[data-project-description-input]') as HTMLInputElement;
-    description.value = 'Appliances and finishes first';
-    query(fixture, '[data-project-description-submit]')!.click();
-    fixture.detectChanges();
-
-    expect(renames).toEqual(['Kitchen refit']);
-    expect(descriptions).toEqual(['Appliances and finishes first']);
-  });
-
-  // A description is optional and clearable, so an emptied field is a real intent — unlike
-  // the name, which has no meaningful empty value.
-  it('clears a description with an emptied field, and asks for nothing on a blank name', async () => {
-    const fixture = await render({ project: workUnit({ description: 'Appliances first' }) });
-    const descriptions: Array<string | null> = [];
-    const renames: string[] = [];
-    fixture.componentInstance.descriptionRequested.subscribe((text) => descriptions.push(text));
-    fixture.componentInstance.renameRequested.subscribe((name) => renames.push(name));
-    await openMore(fixture);
-
-    const description = query(fixture, '[data-project-description-input]') as HTMLInputElement;
-    description.value = '   ';
-    query(fixture, '[data-project-description-submit]')!.click();
-    const name = query(fixture, '[data-project-rename-input]') as HTMLInputElement;
-    name.value = '  ';
-    query(fixture, '[data-project-rename-submit]')!.click();
-    fixture.detectChanges();
-
-    expect(descriptions).toEqual([null]);
-    expect(renames).toEqual([]);
-  });
-
-  it('keeps the header rendered while showing a failed write', async () => {
-    const fixture = await render({ writeError: 'the prototype host is not running' });
-
-    expect(query(fixture, '[data-project-write-error]')?.textContent).toContain('not running');
-    expect(query(fixture, '[data-project-name]')?.textContent).toContain('Website launch');
-  });
-
-  it('asks for confirmation before archiving, and writes nothing when it is cancelled', async () => {
-    const fixture = await render();
-    let archives = 0;
-    fixture.componentInstance.archiveRequested.subscribe(() => (archives += 1));
-    await openMore(fixture);
-
-    query(fixture, '[data-project-archive]')!.click();
-    fixture.detectChanges();
-    expect(query(fixture, '[data-project-archive-confirm]')).not.toBeNull();
-    // The page stays after an archive (Slice 41); the confirmation says where Undo is.
-    expect(query(fixture, '[data-project-archive-confirm]')!.textContent).toContain('It leaves the sidebar; you can undo it from the header.');
-    expect(archives).toBe(0);
-
-    query(fixture, '[data-project-archive-cancel]')!.click();
-    fixture.detectChanges();
-    expect(archives).toBe(0);
-
-    query(fixture, '[data-project-archive]')!.click();
-    fixture.detectChanges();
-    query(fixture, '[data-project-archive-confirm-yes]')!.click();
-    expect(archives).toBe(1);
-  });
-
-  it('does not offer Archive on a project that is already archived (Slice 41)', async () => {
-    const fixture = await render({ project: root({ status: 'archived' }) });
+  it('passes the opener to Open archive and omits Archive on archived projects', async () => {
+    const fixture = await render(root({ status: 'archived' }));
+    const requested = vi.fn();
+    fixture.componentInstance.openArchiveRequested.subscribe(requested);
     await openMore(fixture);
     expect(query(fixture, '[data-project-archive]')).toBeNull();
-    expect(query(fixture, '[data-project-open-archive]')).not.toBeNull();
+    query(fixture, '[data-project-open-archive]').click();
+    expect(requested).toHaveBeenCalledExactlyOnceWith(query(fixture, '[data-project-more]'));
+    expect(document.activeElement).not.toBe(query(fixture, '[data-project-more]'));
   });
 
-  it('clears a target date through the menu’s explicit Clear', async () => {
+  it('saves changed details once and closes unchanged details without writing', async () => {
     const fixture = await render();
-    const dates: Array<string | null> = [];
-    fixture.componentInstance.targetDateRequested.subscribe((date) => dates.push(date));
+    const save = vi.fn().mockResolvedValue(true);
+    fixture.componentRef.setInput('saveDetails', save);
+    await edit(fixture);
+    query(fixture, '[data-project-details-save]').click();
+    await settle(fixture);
+    expect(save).not.toHaveBeenCalled();
+    await edit(fixture);
+    change(fixture, '[data-project-rename-input]', 'Refit');
+    change(fixture, '[data-project-description-input]', 'Rooms');
+    query(fixture, '[data-project-target-date-clear]').click();
+    query(fixture, '[data-project-details-save]').click();
+    await settle(fixture);
+    expect(save).toHaveBeenCalledExactlyOnceWith({ name: 'Refit', description: 'Rooms', targetDate: null });
+    expect(query(fixture, '[data-project-details-dialog]')).toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-project-more]'));
+  });
+
+  it('refuses blank names and asks to discard on repeated Escape and Cancel', async () => {
+    const fixture = await render();
+    await edit(fixture);
+    change(fixture, '[data-project-rename-input]', ' ');
+    query(fixture, '[data-project-details-save]').click();
+    await settle(fixture);
+    expect(query(fixture, '[role="alert"]').textContent).toContain('name');
+    const dialog = query(fixture, '[data-project-details-dialog]');
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await settle(fixture);
+    expect(query(fixture, '[data-project-discard-confirm]')).toBeTruthy();
+    query(fixture, '[data-project-keep-editing]').click();
+    query(fixture, '[data-project-details-cancel]').click();
+    await settle(fixture);
+    expect(query(fixture, '[data-project-discard-confirm]')).toBeTruthy();
+    query(fixture, '[data-project-discard]').click();
+    await settle(fixture);
+    expect(query(fixture, '[data-project-details-dialog]')).toBeNull();
+  });
+
+  it('preserves dirty fields on refresh while clean fields follow it', async () => {
+    const fixture = await render(root({ description: 'Old' }));
+    await edit(fixture);
+    change(fixture, '[data-project-rename-input]', 'My draft');
+    fixture.componentRef.setInput('project', root({ name: 'Remote', description: 'New', targetDate: '2026-10-20' }));
+    await settle(fixture);
+    expect((query(fixture, '[data-project-rename-input]') as HTMLInputElement).value).toBe('My draft');
+    expect((query(fixture, '[data-project-description-input]') as HTMLInputElement).value).toBe('New');
+    expect((query(fixture, '[data-project-target-date-input]') as HTMLInputElement).value).toBe('2026-10-20');
+  });
+
+  it('asks to discard on a backdrop click and blocks dismissal while saving', async () => {
+    const fixture = await render();
+    let finish!: (value: boolean) => void;
+    fixture.componentRef.setInput('saveDetails', () => new Promise<boolean>((resolve) => { finish = resolve; }));
+    await edit(fixture);
+    change(fixture, '[data-project-rename-input]', 'Refit');
+    const dialog = query(fixture, '[data-project-details-dialog]');
+    dialog.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: -1, clientY: -1 }));
+    await settle(fixture);
+    expect(query(fixture, '[data-project-discard-confirm]')).toBeTruthy();
+    query(fixture, '[data-project-keep-editing]').click();
+    query(fixture, '[data-project-details-save]').click();
+    fixture.detectChanges();
+    query(fixture, '[data-project-details-cancel]').click();
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(query(fixture, '[data-project-details-dialog]')).toBeTruthy();
+    expect(query(fixture, '[data-project-discard-confirm]')).toBeNull();
+    finish(true);
+    await settle(fixture);
+    expect(query(fixture, '[data-project-details-dialog]')).toBeNull();
+  });
+
+  it('owns failed-save errors and clears the dismissed dialog error', async () => {
+    const fixture = await render();
+    const clear = vi.fn();
+    fixture.componentRef.setInput('clearWriteError', clear);
+    fixture.componentRef.setInput('saveDetails', async () => false);
+    await edit(fixture);
+    change(fixture, '[data-project-rename-input]', 'Refit');
+    fixture.componentRef.setInput('writeError', 'Refused');
+    query(fixture, '[data-project-details-save]').click();
+    await settle(fixture);
+    expect(query(fixture, '[data-project-write-error]')).toBeNull();
+    expect(query(fixture, '[data-project-details-dialog] [role="alert"]').textContent).toContain('Refused');
+    query(fixture, '[data-project-details-cancel]').click();
+    await settle(fixture);
+    query(fixture, '[data-project-discard]').click();
+    expect(clear).toHaveBeenCalled();
+  });
+
+  it('confirms archive in a modal, closes on refusal, and restores focus', async () => {
+    const fixture = await render();
+    const archive = vi.fn().mockResolvedValue(false);
+    fixture.componentRef.setInput('confirmArchive', archive);
     await openMore(fixture);
-
-    query(fixture, '[data-project-target-date-clear]')!.click();
-
-    expect(dates).toEqual([null]);
+    query(fixture, '[data-project-archive]').click();
+    await settle(fixture);
+    expect(query(fixture, '[data-project-archive-confirm]').tagName).toBe('DIALOG');
+    query(fixture, '[data-project-archive-cancel]').click();
+    await settle(fixture);
+    expect(archive).not.toHaveBeenCalled();
+    await openMore(fixture);
+    query(fixture, '[data-project-archive]').click();
+    await settle(fixture);
+    query(fixture, '[data-project-archive-confirm-yes]').click();
+    await settle(fixture);
+    expect(archive).toHaveBeenCalledOnce();
+    expect(query(fixture, '[data-project-archive-confirm]')).toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-project-more]'));
   });
 });

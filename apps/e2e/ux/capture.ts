@@ -13,7 +13,7 @@ import { collectEvidence } from './evidence.mjs';
 // @ts-expect-error Browser-serializable helper is also exercised by node:test.
 import { collectControls, collectPlaneBoxes } from './layout.mjs';
 
-const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const commit = process.env['UX_BEFORE'] || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const out = resolve('ux-output', commit);
 const escape = (s: string) => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 async function state(page: Page, cell: CaptureCell) {
@@ -24,6 +24,10 @@ async function state(page: Page, cell: CaptureCell) {
   }
   switch (cell.state) {
     case 'more': await button('More project actions').click(); break;
+    case 'project-details': case 'archive-confirm':
+      await button('More project actions').click();
+      if (!process.env['UX_BEFORE']) await page.getByRole('menuitem', { name: cell.state === 'project-details' ? 'Edit details…' : /^Archive (project|workstream)…$/, exact: true }).click();
+      break;
     case 'page-settings': await button('Project page settings for Home renovation').click(); break;
     case 'work-create': await button('Add workstream').click(); break;
     case 'section-create': case 'shortcut-picker':
@@ -32,6 +36,12 @@ async function state(page: Page, cell: CaptureCell) {
       break;
     case 'markdown-edit': await button(/^Edit Markdown for/).first().click(); break;
     case 'task-drawer': await button(/, open details$/).first().click(); break;
+    case 'task-drawer-scrolled': {
+      const title = button(/, open details$/).last();
+      await title.scrollIntoViewIfNeeded();
+      await title.click();
+      break;
+    }
     case 'collapsed': await button(/^Collapse /).first().click(); break;
     case 'remove-feedback': await button(/^Remove section /).first().click(); break;
     case 'refused':
@@ -64,6 +74,7 @@ test('capture matrix', async ({ browser }) => {
     page.on('pageerror', error => consoleErrors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
     const record: Record<string, unknown> = { ...cell, commit, clock: SEED_NOW, status: 'failed' };
+    if (process.env['UX_BEFORE'] && ['project-details', 'archive-confirm'].includes(cell.state)) record['baselineEquivalent'] = 'The pre-slice inline More panel; separate details and confirmation lifts do not exist at the baseline.';
     let release: (() => void) | undefined;
     try {
       // Initial settled page establishes persona and theme before inducing loading/error.

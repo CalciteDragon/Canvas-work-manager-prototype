@@ -1,0 +1,127 @@
+@use './breakpoints';
+
+.lift {
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--space-5);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--plane-lift-background);
+  backdrop-filter: var(--plane-lift-filter);
+  box-shadow: var(--lift-shadow);
+  color: var(--color-text);
+  z-index: var(--z-lift);
+  opacity: 0;
+  transform: translateY(var(--lift-enter-offset));
+  transition: opacity var(--duration-fast) var(--ease-in), transform var(--duration-fast) var(--ease-in), display var(--duration-fast) allow-discrete, overlay var(--duration-fast) allow-discrete;
+}
+
+.lift:popover-open,
+.lift[open],
+.lift--contained {
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--ease-out);
+}
+
+@starting-style {
+  .lift:popover-open,
+  .lift[open] { opacity: 0; transform: translateY(var(--lift-enter-offset)); }
+}
+
+.lift--side {
+  position: fixed;
+  inset: var(--layout-top-bar-height) 0 0 auto;
+  inline-size: var(--layout-drawer-width);
+  block-size: calc(100dvh - var(--layout-top-bar-height));
+  max-block-size: none;
+  overflow-y: auto;
+}
+
+.lift--sheet {
+  position: fixed;
+  inset: 0;
+  inline-size: 100%;
+  max-inline-size: none;
+  block-size: 100dvh;
+  max-block-size: none;
+  overflow-y: auto;
+}
+
+.lift--popover {
+  position: fixed;
+  inset: calc(var(--layout-top-bar-height) + var(--space-4)) var(--space-4) auto auto;
+  inline-size: min(var(--layout-drawer-width), calc(100vw - var(--space-6)));
+  max-block-size: calc(100dvh - var(--layout-top-bar-height) - var(--space-6));
+  overflow-y: auto;
+}
+
+@supports (anchor-name: --a) {
+  .lift--popover {
+    inset: auto;
+    top: anchor(bottom);
+    left: anchor(left);
+    margin-block-start: var(--space-2);
+    position-try-fallbacks: flip-inline, flip-block, --lift-gutter, --lift-gutter flip-block;
+  }
+
+  // A popover wider than the room on either side of its opener (More at 375 px) sits on the
+  // viewport gutter, below the opener or else above it, rather than keeping a base position that
+  // overflows.
+  @position-try --lift-gutter {
+    top: anchor(bottom);
+    left: var(--space-4);
+  }
+}
+
+.lift--dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  inline-size: min(var(--layout-reading-width), calc(100vw - var(--space-6)));
+  max-block-size: calc(100dvh - var(--space-6));
+  overflow-y: auto;
+}
+
+dialog.lift::backdrop {
+  background: var(--color-background);
+  opacity: var(--opacity-scrim);
+}
+
+.lift--contained {
+  position: relative;
+  inset: auto;
+  inline-size: auto;
+  block-size: auto;
+  max-block-size: none;
+}
+
+.menu { padding: var(--space-2); }
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--size-target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.menu__item:hover, .menu__item:focus-visible { background: var(--control-secondary-fill-hover); }
+.menu__item[aria-checked='true'] { box-shadow: inset var(--border-focus) 0 var(--color-accent); }
+.menu__item--danger { color: var(--color-danger); }
+.menu__separator { border: 0; border-block-start: var(--border-hairline) solid var(--color-border); margin: var(--space-2) 0; }
+
+@media (hover: none), (any-pointer: coarse) {
+  .menu__item { min-block-size: var(--size-hit-target); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lift { transform: none; transition-property: opacity, display, overlay; }
+  @starting-style { .lift:popover-open, .lift[open] { transform: none; } }
+}

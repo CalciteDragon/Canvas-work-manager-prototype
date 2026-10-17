@@ -2,6 +2,7 @@ import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -10,12 +11,18 @@ import {
   inject,
   input,
   signal,
+  untracked,
+  viewChild,
 } from '@angular/core';
 import type { ProjectSection, SectionConfig, SectionId, Task, TaskId, TaskPriority } from '@cwm/contracts';
 import { TaskDetailDrawer } from '../../../tasks/task-detail-drawer';
+import { TaskDrawerCoordinator } from '../../../tasks/task-drawer-coordinator';
 import { TaskListStore } from '../../../tasks/task-list-store';
 import { TaskRow } from '../../../tasks/task-row';
 import { ProjectPageStore } from '../../project-page-store';
+import { SHELL_NARROW_QUERY } from '../../../../core/shell/app-shell';
+import { LiftFocus } from '../../../../shared/lifts/lift-focus';
+import { LiftStack } from '../../../../shared/lifts/lift-stack';
 
 /** A CDK drop-list id per section, so two lists on one canvas can be connected by name. */
 export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
@@ -55,6 +62,16 @@ export class TaskListSection {
   private currentSectionId: SectionId | null = null;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
+  private readonly stack = inject(LiftStack);
+  private readonly coordinator = inject(TaskDrawerCoordinator, { optional: true });
+  private readonly drawer = viewChild(TaskDetailDrawer);
+  readonly narrow = signal(false);
+  private openedTaskId: TaskId | null = null;
+  private openedDrawer: TaskDetailDrawer | null = null;
+  private drawerFocus: LiftFocus | null = null;
+  private releaseStack: (() => void) | null = null;
+  private releaseCoordinator: (() => void) | null = null;
+  private destroyed = false;
   /**
    * Optional on purpose. The section needs the *canvas* to know which other lists exist,
    * but §66 asks that a section stay removable and renderable on its own — a hard
@@ -79,6 +96,43 @@ export class TaskListSection {
   );
 
   constructor() {
+    const destroy = inject(DestroyRef);
+    const media = globalThis.matchMedia?.(SHELL_NARROW_QUERY);
+    if (media) {
+      this.narrow.set(media.matches);
+      const change = (event: { matches: boolean }): void => {
+        if (event.matches === this.narrow()) return;
+        this.closeDrawer();
+        this.narrow.set(event.matches);
+      };
+      media.addEventListener('change', change);
+      destroy.onDestroy(() => media.removeEventListener('change', change));
+    }
+    destroy.onDestroy(() => {
+      this.destroyed = true;
+      this.openedDrawer?.hide();
+      this.releaseStack?.();
+      this.releaseCoordinator?.();
+    });
+    effect(() => {
+      const task = this.store.selectedTask();
+      const drawer = this.drawer();
+      untracked(() => {
+        if (task === null) {
+          if (this.openedTaskId !== null) this.closeDrawer();
+          return;
+        }
+        if (!drawer || task.id === this.openedTaskId) return;
+        this.openedTaskId = task.id;
+        this.openedDrawer = drawer;
+        this.drawerFocus = new LiftFocus(this.taskTitle(task.id), () => this.quickTitle());
+        this.releaseStack?.();
+        this.releaseStack = this.stack.open(() => this.closeDrawer());
+        this.releaseCoordinator?.();
+        this.releaseCoordinator = this.coordinator?.select(this.section().id, () => this.closeDrawer()) ?? null;
+        this.focusDrawer(task.id, drawer);
+      });
+    });
     effect(() => {
       const sectionId = this.section().id;
       if (this.currentSectionId !== sectionId) {
@@ -151,24 +205,52 @@ export class TaskListSection {
     if (await this.store.reopen(id) && this.section().id === sectionId) this.onProjectDataChange()();
   }
 
-  /** Close the non-modal drawer, returning its focus to the selected row when appropriate. */
-  closeDrawer(): void {
-    const id = this.store.selectedTaskId();
-    const sectionId = this.section().id;
-    const drawer = this.host.nativeElement.querySelector<HTMLElement>('[data-task-drawer]');
-    const active = document.activeElement;
-    const returnFocus = active === document.body || active === null || (drawer?.contains(active) ?? false);
-    this.store.selectTask(null);
-    if (!returnFocus) return;
+  /** Every explicit row selection lands on the drawer heading, including a repeated selection. */
+  selectTask(id: TaskId): void {
+    if (this.readOnly()) return;
+    this.store.selectTask(id);
+    if (this.openedTaskId === id && this.openedDrawer) this.focusDrawer(id, this.openedDrawer);
+  }
+
+  private focusDrawer(id: TaskId, drawer: TaskDetailDrawer): void {
     afterNextRender(() => {
-      if (this.section().id !== sectionId || this.store.selectedTaskId() !== null) return;
-      const current = document.activeElement;
-      if (current !== document.body && current !== null && !(drawer?.contains(current) ?? false)) return;
-      const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-task-row]')]
-        .find((candidate) => candidate.getAttribute('data-task-id') === id);
-      const target = row?.querySelector<HTMLElement>('[data-task-title]') ??
-        this.host.nativeElement.querySelector<HTMLInputElement>('[data-quick-task-title]');
-      target?.focus();
+      if (this.destroyed || this.store.selectedTaskId() !== id || this.openedDrawer !== drawer) return;
+      drawer.open();
+      this.drawerFocus?.enter(drawer.element.querySelector('h2'));
+    }, { injector: this.injector });
+  }
+
+  private taskTitle(id: TaskId): HTMLElement | null {
+    const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-task-row]')]
+      .find((candidate) => candidate.getAttribute('data-task-id') === id);
+    return row?.querySelector<HTMLElement>('[data-task-title]') ?? null;
+  }
+
+  private quickTitle(): HTMLInputElement | null {
+    return this.host.nativeElement.querySelector<HTMLInputElement>('[data-quick-task-title]');
+  }
+
+  /** Close either native mode, clearing selection and restoring only focus the drawer owned. */
+  closeDrawer(): void {
+    const sectionId = this.section().id;
+    const drawer = this.openedDrawer;
+    const focus = this.drawerFocus;
+    const element = drawer?.element;
+    const active = document.activeElement;
+    const returnFocus = active === null || active === document.body || (element?.contains(active) ?? false);
+    this.openedTaskId = null;
+    this.openedDrawer = null;
+    this.drawerFocus = null;
+    this.releaseStack?.();
+    this.releaseStack = null;
+    this.releaseCoordinator?.();
+    this.releaseCoordinator = null;
+    drawer?.hide();
+    this.store.selectTask(null);
+    if (!focus || !returnFocus) return;
+    afterNextRender(() => {
+      if (this.destroyed || this.section().id !== sectionId || this.store.selectedTaskId() !== null) return;
+      focus.restore(element);
     }, { injector: this.injector });
   }
 

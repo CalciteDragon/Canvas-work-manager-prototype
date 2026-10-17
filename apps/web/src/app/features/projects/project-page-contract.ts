@@ -28,7 +28,7 @@ export interface ProjectPageRendererInputs extends Record<string, unknown> {
   /** Something on this page may have moved the work hierarchy — the column re-reads it. */
   onProjectHierarchyChange: () => void;
   /** Open the root Archive through the shell's existing enable-and-navigate path. */
-  onOpenArchive: () => void;
+  onOpenArchive: (returnTo: HTMLElement) => void;
 }
 
 /**

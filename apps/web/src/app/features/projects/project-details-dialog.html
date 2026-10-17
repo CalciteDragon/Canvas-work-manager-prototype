@@ -1,0 +1,35 @@
+<dialog #dialog class="lift lift--dialog project-details" closedby="none" aria-labelledby="project-details-title"
+  data-project-details-dialog (keydown)="keydown($event)" (cancel)="$event.preventDefault()" (click)="backdrop($event)">
+  <h2 id="project-details-title">Project details</h2>
+  <form (submit)="submit($event)">
+    <div class="project-details__fields">
+      <label class="control-label" for="project-rename">Name</label>
+      <input id="project-rename" class="field" data-project-rename-input autocomplete="off" [value]="name()" [readOnly]="pending()" (input)="setField('name', $event)" />
+      <label class="control-label" for="project-description">Description</label>
+      <textarea id="project-description" class="field" data-project-description-input [value]="description()" [readOnly]="pending()" (input)="setField('description', $event)"></textarea>
+      <label class="control-label" for="project-target-date">{{ isWorkUnit() ? 'Due date' : 'Target date' }}</label>
+      <div class="project-details__date">
+        <input id="project-target-date" class="field" type="date" data-project-target-date-input [value]="targetDate()" [readOnly]="pending()" (input)="setField('targetDate', $event)" />
+        <button type="button" class="button button--ghost" data-project-target-date-clear [attr.aria-disabled]="pending()" (click)="clearDate()">Clear</button>
+      </div>
+    </div>
+    @if (error(); as error) {
+      <p class="project-details__error" role="alert">{{ error }}</p>
+    } @else if (failed()) {
+      <p class="project-details__error" role="alert">{{ writeError() ?? 'The project details could not be saved.' }}</p>
+    }
+    @if (discarding()) {
+      <div data-project-discard-confirm>
+        <p>Discard changes?</p>
+        <div class="project-details__actions">
+          <button type="button" class="button button--danger" data-project-discard (click)="discard()">Discard</button>
+          <button type="button" class="button" data-project-keep-editing (click)="keepEditing()">Keep editing</button>
+        </div>
+      </div>
+    }
+    <div class="project-details__actions">
+      <button type="submit" class="button button--primary" data-project-details-save [attr.aria-disabled]="pending()">{{ pending() ? 'Saving…' : 'Save' }}</button>
+      <button type="button" class="button" data-project-details-cancel [attr.aria-disabled]="pending()" (click)="requestClose()">Cancel</button>
+    </div>
+  </form>
+</dialog>

@@ -1,5 +1,8 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, effect, inject, input, output, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, effect, inject, input, output, signal } from '@angular/core';
+import { NavigationStart, Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { LiftStack } from '../../shared/lifts/lift-stack';
+import { LiftFocus } from '../../shared/lifts/lift-focus';
 import type { Project, ProjectId, ProjectPage, ProjectPageKind } from '@cwm/contracts';
 import type { WorkTreeNode } from './project-workspace-store';
 import {
@@ -30,6 +33,12 @@ import { Icon } from '../../shared/components/icon/icon';
   styleUrl: './project-page-navigation.scss',
 })
 export class ProjectPageNavigation {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  private readonly lifts = inject(LiftStack);
+  private releaseLift: (() => void) | null = null;
+  private get panel(): HTMLElement | null { return this.host.nativeElement.querySelector('[data-project-page-manager]'); }
+  private get gear(): HTMLElement | null { return this.host.nativeElement.querySelector('[data-project-settings-toggle]'); }
   readonly root = input.required<Project>();
   /** Every root page, including disabled records: the manager needs both states. */
   readonly pages = input.required<readonly ProjectPage[]>();
@@ -68,7 +77,7 @@ export class ProjectPageNavigation {
     let rootId: ProjectId | null = null;
     effect(() => {
       const nextRootId = this.root().id;
-      if (rootId !== nextRootId) this.settingsOpen.set(false);
+      if (rootId !== nextRootId) this.closeSettings(false);
       rootId = nextRootId;
     });
     // Captured on the host, not a `(click)` host listener: a link to the other project route
@@ -79,22 +88,44 @@ export class ProjectPageNavigation {
     const onClick = (event: MouseEvent): void => this.reportLink(event);
     host.addEventListener('click', onClick, { capture: true });
     inject(DestroyRef).onDestroy(() => host.removeEventListener('click', onClick, { capture: true }));
+    inject(DestroyRef).onDestroy(() => this.releaseLift?.());
+    inject(Router).events.pipe(takeUntilDestroyed()).subscribe(event => {
+      if (event instanceof NavigationStart && this.settingsOpen()) this.closeSettings(true);
+    });
   }
 
   requestWorkCreate(): void {
     if (this.workCreateBlocked() === null) this.workCreateRequested.emit();
   }
 
-  toggleSettings(): void {
-    this.settingsOpen.update((open) => !open);
+  settingsBeforeToggle(event: Event): void {
+    if ((event as ToggleEvent).newState === 'open') {
+      this.releaseLift = this.lifts.open(() => this.closeSettings(false));
+    }
+  }
+
+  settingsToggle(event: Event): void {
+    const open = (event as ToggleEvent).newState === 'open';
+    this.settingsOpen.set(open);
+    if (open) afterNextRender(() => {
+      if (this.settingsOpen()) new LiftFocus(this.gear, () => this.gear).enter(this.panel?.querySelector<HTMLInputElement>('input:not(:disabled)') ?? null);
+    }, { injector: this.injector });
+    else { this.releaseLift?.(); this.releaseLift = null; }
+  }
+
+  private closeSettings(restore: boolean): void {
+    const panel = this.panel;
+    const focus = new LiftFocus(this.gear, () => this.gear);
+    if (restore) focus.restore(panel);
+    panel?.hidePopover?.();
+    this.settingsOpen.set(false);
+    this.releaseLift?.(); this.releaseLift = null;
   }
 
   settingsKeydown(event: KeyboardEvent): void {
     if (event.key !== 'Escape') return;
     event.preventDefault();
-    this.settingsOpen.set(false);
-    (event.currentTarget as HTMLElement).closest('nav')
-      ?.querySelector<HTMLButtonElement>('[data-project-settings-toggle]')?.focus();
+    this.closeSettings(true);
   }
 
   private reportLink(event: MouseEvent): void {
@@ -116,7 +147,7 @@ export class ProjectPageNavigation {
 
   requestPageToggle(kind: OptionalProjectPageKind, event: Event): void {
     const control = event.target as HTMLInputElement;
-    this.pageToggleRequested.emit({
+    if (!this.pageWritePending()) this.pageToggleRequested.emit({
       kind,
       enabled: control.checked,
     });

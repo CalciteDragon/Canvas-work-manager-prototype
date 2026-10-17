@@ -75,3 +75,9 @@ Slice 70 adds an opt-in Playwright/axe capture harness in apps/e2e/ux, separate 
 Slice 71 adds an isolated blur measurement in `apps/e2e/ux/spike`, also outside ordinary
 tests. It compares injected glass variants on realistic seeds before the user chooses a
 product blur rule.
+
+Slice 73 adds the native-lift keyboard and touch journeys in `lifts.spec.ts`, plus an opt-in
+`UX_LIFTS=1` evidence collector for focus, blur layers, solid fallbacks and reported muted-text
+contrast. The before/after sheet's profile 73 gates closed-state geometry and open-lift semantics;
+open-lift and Design Lab geometry changes are reported. Native top-layer behaviour is proved in
+real browsers; component specs stub the native methods and test the component rules.

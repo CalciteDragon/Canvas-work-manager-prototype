@@ -103,11 +103,10 @@
 }
 
 .project-nav__manager {
-  padding: var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
+  position-anchor: --page-settings;
 }
+
+[data-project-settings-toggle] { anchor-name: --page-settings; }
 
 .project-nav__manager h2 {
   margin: 0;

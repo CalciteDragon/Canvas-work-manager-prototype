@@ -28,7 +28,7 @@
     }
   </section>
 } @else if (store.project(); as project) {
-  <div class="project-workspace">
+  <div class="project-workspace" [class.project-workspace--drawer-open]="drawerCoordinator.open()">
     @if (store.root(); as root) {
       @defer (when true) {
       <app-project-page-navigation
@@ -68,12 +68,12 @@
         [project]="project"
         [progress]="store.progress()"
         [writeError]="store.writeError()"
-        (renameRequested)="rename($event)"
-        (descriptionRequested)="setDescription($event)"
+        [saveDetails]="saveDetails"
+        [confirmArchive]="archiveProject"
+        [clearWriteError]="clearWriteError"
+        [routeLanding]="activeKind() === null || activeKind() === 'home'"
         (statusRequested)="setStatus($event)"
-        (targetDateRequested)="setTargetDate($event)"
-        (archiveRequested)="confirmArchive()"
-        (openArchiveRequested)="openArchive()"
+        (openArchiveRequested)="openArchive($event)"
       >
         <app-project-history-controls
           projectHistoryControls

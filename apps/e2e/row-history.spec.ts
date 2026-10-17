@@ -25,6 +25,7 @@ test('browser row commits record once and HTTP history updates Home, Todos, Arch
   await page.locator('[data-quick-task-title]').fill('First title');
   await page.locator('[data-quick-create] button[type="submit"]').click();
   await expect(page.locator('[data-task-title]')).toHaveText('First title');
+  await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
   expect((await history(root.id)).revision).toBe(baseline + 1);
 
   await page.locator('[data-task-title]').click();

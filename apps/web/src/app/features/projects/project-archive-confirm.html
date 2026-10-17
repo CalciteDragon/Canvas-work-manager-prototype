@@ -1,0 +1,7 @@
+<dialog #dialog class="lift lift--dialog" closedby="none" aria-labelledby="project-archive-title" data-project-archive-confirm
+  (keydown)="keydown($event)" (cancel)="$event.preventDefault()">
+  <h2 id="project-archive-title">Archive “{{ project().name }}”?</h2>
+  <p>It leaves the sidebar; you can undo it from the header.</p>
+  <button type="button" class="button button--danger" data-project-archive-confirm-yes [attr.aria-disabled]="pending()" (click)="confirm()">{{ pending() ? 'Archiving…' : 'Archive it' }}</button>
+  <button type="button" class="button" data-project-archive-cancel [attr.aria-disabled]="pending()" (click)="close()">Cancel</button>
+</dialog>

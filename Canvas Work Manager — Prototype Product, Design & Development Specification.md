@@ -983,12 +983,21 @@ Project hierarchy should optionally expand inline.
 ## The project navigation column
 
 *Corrected in Slice 60 (2026-09-30).* The gear beside the root name opens the same root-scoped
-page settings from every route. It is a disclosure with fixed Home, optional Todos/Archive/
-Reflections, pending/refusal/retry states and Escape focus return. The plus beside **Work** opens
+page settings from every route. Since Slice 73 it is a native auto popover with fixed Home,
+optional Todos/Archive/Reflections, pending/refusal/retry states and Escape focus return. Opening
+focuses its first enabled toggle; pending toggles retain focus with aria-disabled, and outside
+dismissal preserves the clicked control. The plus beside **Work** opens
 **Add workstream**, with Name and explicit Parent, root by default. Completed parents are marked;
 archived ancestry is unavailable. Creation is awaited, keeps the current route, refreshes the
 tree and uses the header's existing child's-history feedback and Open link. An archived root's
 plus stays focusable with its reason. No Work page toggle is added.
+
+After a later navigation preceded by trusted pointer or keyboard input, Slice 73 recovers focus
+only if it was lost to body. It waits for the new page/header heading, bounded to two seconds,
+then falls back to main; initial loads and input-free redirects move nothing. Existing history,
+column and phone navigation hand-offs take precedence. Open archive explicitly lands on its
+heading across both reused and replaced project shells, returning to its caller on failure
+([decision](docs/decisions/2026-10-route-focus-lands-lost-focus.md)).
 
 A root project is a workspace with pages (§26), so opening one adds a **second navigation
 column** between the sidebar and the main workspace:
@@ -1215,6 +1224,18 @@ content, children, references, field changes or another actor's history depend o
 project and its canonical page return with their original ids on Redo. The parent header does not
 gain the child action; it names the child's history and links to it
 ([why](docs/decisions/2026-09-project-creation-history.md)).
+
+*Slice 73.* More is a top-layer menu: Edit details, a group of four status radios, a separator,
+Open archive, a separator and Archive project/workstream (absent while archived). Arrow keys wrap, Home/End
+jump, and Tab or Escape close it. Edit details opens a modal draft for Name, Description and
+Target date (Due date for a workstream), with Clear, one primary Save and Cancel. One Save sends
+one PATCH containing only changed fields, and records one history step. Unchanged Save writes
+nothing; a blank name is refused. Clean fields follow live refreshes while dirty fields retain
+their base. Dirty Cancel, Escape or backdrop dismissal asks Discard changes; failure retains
+the draft and owns one dialog error. Archive opens a separate modal danger confirmation; it
+still stays on the project with Undo. Closing returns focus to More, while Open archive
+lands on its heading. These replace the former inline More forms
+([decision](docs/decisions/2026-10-more-is-a-menu-with-a-details-dialog.md)).
 
 ## Two kinds of project
 
@@ -2116,15 +2137,23 @@ the row list, including when its last row disappears. An optimistic Todos remova
 announce success before commit; a refused write restores the row and leaves the failure
 visible. New attempts and navigation clear stale success.
 
-Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
+Detailed task editing uses a non-modal side lift on desktop, with workspace width reserved.
+Below 48rem it uses a viewport-filling modal sheet. Both escape section containment through the
+browser top layer; the desktop lift stays fixed below the top bar. Crossing the breakpoint
+closes details and clears selection. A shell-scoped coordinator permits one selected list, and
+the shared lift stack closes details when another lift opens
+([decision](docs/decisions/2026-10-lifts-use-the-top-layer.md)).
 
 *Amended 2026-10-01, Slice 61:* Clicking a Task List row background or its title selects the task
-and opens the drawer; the title button supports Enter and Space. Selection is idempotent and the
+and opens details; the title button supports Enter and Space. Since Slice 73, opening focuses
+the drawer heading and the next Tab reaches Title. Selection is idempotent and the
 separate Details button is removed. A mouse/pen drag or a background text-selection gesture does
 not select. Checkbox and Delete retain their own intents. A done task's checkbox reopens it to
 `todo`, and the domain clears `completedAt`; completion time is never invented in the browser.
 Title editing lives in the drawer, where a blank draft is refused and Escape discards a dirty draft
-before it closes the drawer. Close and closing Escape return focus to the selected row title.
+before it closes the drawer. Close and closing Escape return focus to the selected row title,
+or quick-add if the row vanished, while preserving focus moved outside. Quick-add preserves any
+existing selection and keeps keyboard focus in the add field; it never opens details.
 
 ## The Todos page
 
@@ -3675,9 +3704,14 @@ errors
 
 This supplements Storybook with a full-app design environment.
 
-*Corrected at Slice 70 Gate 1 (2026-10-14).* The Lab shows the three planes and the lifts (drawer, dialog, menu, toast) over a busy backing. It has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
+*Corrected through Slice 73 (2026-10-16).* The Lab shows the three planes and real lift-class
+specimens (side drawer, dialog, menu and page-settings popover) over a busy backing, in contained
+mode. Its live Drawer panel renders the real TaskDetailDrawer without fixed positioning or
+the top layer. Four Storybook lift stories exercise native opening, Escape and opener return.
+Toast remains for the feedback slice. It has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
 
-*Corrected at slice 72 (2026-10-15).* Buttons and inputs are the shared primitives, rendered as they are, and a Controls panel shows every primitive in every variant, size and state over a pane and a sheet. Its forced hover, focus and pressed specimens include the same state mixins the real states use. Cards, project cards, menus and states remain representative markup labelled not yet a shared component.
+*Corrected at slice 72 (2026-10-15).* Buttons and inputs are the shared primitives, rendered as they are, and a Controls panel shows every primitive in every variant, size and state over a pane and a sheet. Its forced hover, focus and pressed specimens include the same state mixins the real states use. Cards, project cards, the primitive-panel menu examples and states remain representative markup
+labelled not yet a shared component; the plane panel uses the real lift/menu classes.
 
 ---
 

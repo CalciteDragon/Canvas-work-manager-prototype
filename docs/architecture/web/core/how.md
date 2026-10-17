@@ -136,3 +136,15 @@ pnpm --filter web lint            # includes the token lint that covers app-shel
   and hiding a focused link first drops focus before `AppShell` can rescue it. The `48rem`
   threshold lives in `core/layout/breakpoints.ts` and `styles/_breakpoints.scss`; the token lint
   proves their equality, and the two stylesheets import the CSS-free Sass partial.
+
+## Route focus
+
+An app initializer constructs RouteFocus from core/a11y/route-focus.ts
+([API](../../../api/injectables/RouteFocus.html)). It listens for trusted pointerdown/keydown
+and later NavigationEnd, skips the first navigation, and acts only when active focus is body
+or absent. afterEveryRender waits for [data-route-page-focus] inside main before the shared
+[data-route-focus] header; a two-second timer falls back to main. It rechecks focus before
+moving it and cancels waiting when another control already owns focus. Initial loads and
+input-free redirects do nothing. route-focus.spec.ts pins the policy and async landing;
+native route journeys are in apps/e2e/lifts.spec.ts. The service imports no feature and
+never reads project navigation state; explicit Archive and column requests remain in projects.

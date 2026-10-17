@@ -17,10 +17,10 @@ flowchart TB
   layout["ProjectLayoutControl"] --> gw["WorkManagerGateway.projects<br/>projectLayoutMode"]
   route2["/prototype/design"] --> lab["DesignLabPage"]
   lab --> lstore["DesignLabStore (root)<br/>inline design properties and two fallback toggles"]
-  lab --> live["LivePanels<br/>real components over design-lab-fixtures"]
+  lab --> live["LivePanels<br/>real components over design-lab-fixtures; contained task drawer"]
   lab --> prim["PrimitivePanels<br/>shared buttons and inputs; cards, menus, states not yet"]
   lab --> controls["ControlPanels<br/>every control primitive and state"]
-  lab --> planes["PlanePanels<br/>busy ground, pane, sheets, lifts, motion"]
+  lab --> planes["PlanePanels<br/>busy ground, pane, sheets, real contained lift classes, motion"]
   lab --> export["design-lab-export<br/>Copy CSS"]
   lstore --> tokens["design-lab-tokens.ts<br/>eighteen controls as data, no literals"]
 ```

@@ -1,7 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import { isSubproject, type Project } from '@cwm/contracts';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { isSubproject, type Project, type UpdateProjectInput } from '@cwm/contracts';
 import { Icon } from '../../shared/components/icon/icon';
+import { LiftFocus } from '../../shared/lifts/lift-focus';
+import { LiftStack } from '../../shared/lifts/lift-stack';
 import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
+import { ProjectDetailsDialog } from './project-details-dialog';
+import { ProjectArchiveConfirm } from './project-archive-confirm';
 
 /**
  * §26's Project Header, rendered once per project by `ProjectWorkspaceShell` — at the top of
@@ -21,54 +25,92 @@ import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu
 @Component({
   selector: 'app-project-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectMoreMenu, Icon],
+  imports: [ProjectMoreMenu, ProjectDetailsDialog, ProjectArchiveConfirm, Icon],
   templateUrl: './project-header.html',
   styleUrl: './project-header.scss',
-  // The More menu closes on Escape from anywhere on the page, which is what a menu opened
-  // with the pointer needs. Quick Add declares its own, on the canvas that owns it.
-  host: { '(document:keydown.escape)': 'closeMore()' },
 })
 export class ProjectHeader {
   readonly project = input.required<Project>();
   /** §39's percentage, or `null` for "not available" — which is not the same as 0%. */
   readonly progress = input<number | null>(null);
   readonly writeError = input<string | null>(null);
+  readonly routeLanding = input(true);
+  readonly saveDetails = input<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>(async () => false);
+  readonly confirmArchive = input<() => Promise<boolean>>(async () => false);
+  readonly clearWriteError = input<() => void>(() => {});
 
-  readonly renameRequested = output<string>();
-  /** §26's work-unit description. `null` clears it. */
-  readonly descriptionRequested = output<string | null>();
   readonly statusRequested = output<SettableProjectStatus>();
-  /** `null` clears it, which is what puts the "No due date" branch in reach. */
-  readonly targetDateRequested = output<string | null>();
-  readonly archiveRequested = output<void>();
-  readonly openArchiveRequested = output<void>();
+  readonly openArchiveRequested = output<HTMLElement>();
 
   readonly moreOpen = signal(false);
+  readonly detailsOpen = signal(false);
+  readonly archiveOpen = signal(false);
+  readonly moreButton = viewChild.required<ElementRef<HTMLButtonElement>>('moreButton');
+  private readonly menuElement = viewChild.required<ProjectMoreMenu>(ProjectMoreMenu);
+  private readonly menuHost = viewChild.required('menuHost', { read: ElementRef<HTMLElement> });
+  private readonly injector = inject(Injector);
+  private readonly stack = inject(LiftStack);
+  private release: (() => void) | null = null;
+  private focus: LiftFocus | null = null;
+  private restoreOnMenuClose = true;
 
   /** §26's unit of work. The three labels below are the whole difference. */
   readonly isWorkUnit = computed(() => isSubproject(this.project()));
 
-  toggleMore(): void {
-    this.moreOpen.update((open) => !open);
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.release?.());
   }
 
-  closeMore(): void {
+  moreToggled(event: Event): void {
+    const open = (event as ToggleEvent).newState === 'open';
+    this.moreOpen.set(open);
+    if (open) {
+      this.restoreOnMenuClose = true;
+      this.focus = new LiftFocus(this.moreButton().nativeElement, () => document.querySelector<HTMLElement>('main'));
+      this.release = this.stack.open(() => this.closeMore());
+      afterNextRender(() => {
+        if (this.moreOpen()) this.menuElement().focusFirst();
+      }, { injector: this.injector });
+    } else {
+      this.release?.();
+      this.release = null;
+      if (this.restoreOnMenuClose) this.focus?.restore(this.menuHost().nativeElement);
+    }
+  }
+
+  closeMore(restore = true): void {
+    this.restoreOnMenuClose = restore;
     this.moreOpen.set(false);
+    this.release?.();
+    this.release = null;
+    const menu = this.menuHost().nativeElement;
+    menu.hidePopover();
+    if (restore) this.focus?.restore(menu);
   }
 
-  /** Every menu choice closes the menu and hands the intent up. */
-  emit<T>(target: { emit: (value: T) => void }, value: T): void {
+  setStatus(status: SettableProjectStatus): void {
     this.closeMore();
-    target.emit(value);
+    if (status !== this.project().status) this.statusRequested.emit(status);
   }
 
-  archive(): void {
-    this.closeMore();
-    this.archiveRequested.emit();
+  editDetails(): void {
+    this.closeMore(false);
+    this.clearWriteError()();
+    this.detailsOpen.set(true);
+  }
+
+  closeDetails(): void {
+    this.clearWriteError()();
+    this.detailsOpen.set(false);
+  }
+
+  requestArchive(): void {
+    this.closeMore(false);
+    this.archiveOpen.set(true);
   }
 
   openArchive(): void {
-    this.closeMore();
-    this.openArchiveRequested.emit();
+    this.closeMore(false);
+    this.openArchiveRequested.emit(this.moreButton().nativeElement);
   }
 }

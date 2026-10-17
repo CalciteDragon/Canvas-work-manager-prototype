@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -31,6 +32,7 @@ import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-st
 import { SectionCreateDialog } from './section-create-dialog';
 import { SectionRecoveryNotice } from './section-recovery-notice';
 import { Icon } from '../../shared/components/icon/icon';
+import { LiftStack } from '../../shared/lifts/lift-stack';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
 import { moveDirectionFor } from './canvas-chrome/move-keys';
@@ -80,7 +82,9 @@ export class ProjectCanvas {
   readonly onProjectDataChange = input<() => void>(() => {});
   /** Page contract input; the canvas no longer writes the work hierarchy (Slice 66). */
   readonly onProjectHierarchyChange = input<() => void>(() => {});
-  readonly onOpenArchive = input<() => void>(() => {});
+  readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
+  private readonly lifts = inject(LiftStack);
+  private releaseLift: (() => void) | null = null;
 
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
@@ -166,12 +170,16 @@ export class ProjectCanvas {
   };
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.releaseLift?.());
     effect(() => {
       const projectId = this.projectId();
       const pageId = this.pageId();
       const shortcutsAllowed = this.shortcutsAllowed();
       // Tracked: a cross-root move changes a workstream's root, and its canvas reloads for it.
       const rootProjectId = this.rootProjectId();
+      this.releaseLift?.();
+      this.releaseLift = null;
+      this.returnFocusTo = null;
       this.createDialogOpen.set(false);
       this.pendingInsertion.set(null);
       untracked(() => void this.store.load(projectId, pageId, shortcutsAllowed, rootProjectId));
@@ -264,6 +272,7 @@ export class ProjectCanvas {
 
   openCreate(intent: InsertionIntent): void {
     if (!this.store.orderComplete()) return;
+    this.releaseLift = this.lifts.open(() => this.closeCreate());
     this.pendingInsertion.set(intent);
     this.returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.createDialogOpen.set(true);
@@ -278,6 +287,7 @@ export class ProjectCanvas {
   }
 
   closeCreate(): void {
+    this.releaseLift?.(); this.releaseLift = null;
     this.createDialogOpen.set(false);
     this.pendingInsertion.set(null);
     const focusTarget = this.returnFocusTo;
@@ -423,7 +433,8 @@ export class ProjectCanvas {
   }
 
   openArchiveFromNotice(): void {
-    this.onOpenArchive()();
+    const returnTo = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]');
+    if (returnTo) this.onOpenArchive()(returnTo);
   }
 
   retryFailedRemoval(): void {

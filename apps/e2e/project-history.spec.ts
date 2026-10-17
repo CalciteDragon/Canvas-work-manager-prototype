@@ -147,8 +147,9 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
 
   // The project itself, through the header's More menu.
   await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-edit-details]').click();
   await page.locator('[data-project-rename-input]').fill('House renovation');
-  await page.locator('[data-project-rename-submit]').click();
+  await page.locator('[data-project-details-save]').click();
   await expect(page.locator('[data-project-name]')).toHaveText('House renovation');
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Renamed "Home renovation" to "House renovation"');
   await expect(page.locator('[data-undo-action]')).toHaveCount(0);

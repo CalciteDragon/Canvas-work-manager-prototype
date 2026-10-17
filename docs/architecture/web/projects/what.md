@@ -8,7 +8,10 @@ flowchart TB
   wstore["ProjectWorkspaceStore<br/>record, progress, writes, work tree"]
   nav["ProjectPageNavigation<br/>pages, toggles, work tree (ProjectWorkItem)"]
   workcreate["WorkCreateDialog<br/>Name, live Parent, awaited create"]
-  header["ProjectHeader → ProjectMoreMenu"]
+  header["ProjectHeader → ProjectMoreMenu<br/>native menu, immediate status"]
+  details["ProjectDetailsDialog · ProjectArchiveConfirm<br/>deferred native modal lifts"]
+  drawer["TaskDrawerCoordinator<br/>shell selection + desktop width reservation"]
+  focus["ProjectColumnFocusRequest<br/>root-lived column and Archive URLs"]
   hist["ProjectHistoryStore<br/>summary, pending, transitions; OPERATION_HISTORY_REPORTER"]
   controls["ProjectHistoryControls · ProjectHistoryFeedback<br/>projected into the header"]
   reg["PROJECT_PAGE_REGISTRY<br/>home · todos · archive · reflections → renderer"]
@@ -39,6 +42,8 @@ flowchart TB
   shell --> nav
   shell --> workcreate
   workcreate -. "create callback" .-> wstore
+  shell --> drawer & focus
+  header --> details
   shell --> header
   shell --> hist
   header --> controls --> hist
@@ -85,8 +90,9 @@ sequenceDiagram
 | `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header and `#history-controls` focus after render; page resolution and fallback notice; breadcrumbs for a subproject; creator recovery at a missing project's URL, with a generic Retry when the summary read is unavailable for any reason but `not_found` |
 | `ProjectWorkspaceStore`, `WorkTreeNode` | `project-workspace-store.ts` | Project-level state and writes; authoritative `missing` state after a not-found read |
 | `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows; `linkSelected` reports a plain link activation from a capture-phase listener |
-| `ProjectColumnFocusRequest` | `project-workspace-shell.ts` | Root-scoped: the URL of a narrow column choice until its toggle, or the rendered branch heading, can take focus |
-| `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; projection slots for the history controls and their feedback; rename/status/date/archive (Archive not offered on an archived project). Since slice 72 its inline edits are secondary buttons with no primary, and Archive and its "Archive it" confirm sit apart in a `.danger-zone` below a separator (W4-019) |
+| `ProjectColumnFocusRequest` | `project-workspace-shell.ts` | Root-scoped: narrow column and explicit Archive URL requests until their rendered targets can take focus |
+| `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; projection slots for the history controls and their feedback; rename/status/date/archive (Archive not offered on an archived project). More is an auto-popover menu with immediate status radios, Edit details, Open archive set apart from the status radios by a separator, and a separated danger Archive item; deferred details and confirm dialogs return focus to More |
+| `ProjectDetailsDialog`, `ProjectArchiveConfirm` | `project-details-dialog.ts`, `project-archive-confirm.ts` | Native modal lifts: one draft Save and dirty-dismissal handling; separate archive confirmation |
 | `ProjectHistoryStore` | `history/project-history-store.ts` | The displayed project's summary, generation and revision guards, coalesced re-reads, per-generation pending with owed reads, one transition at a time; implements `OperationHistoryReporter` |
 | `ProjectHistoryControls`, `ProjectHistoryFeedback` | `history/project-history-controls.ts`, `history/project-history-feedback.ts` | Two `aria-disabled` icon buttons named by their step or reason, Retry when unreadable; one polite feedback line with a cross-owner Open link |
 | `ProjectCreationRecovery` | `project-creation-recovery.stories.ts` | Storybook coverage for available Redo, pending and archived-parent blocked recovery states |

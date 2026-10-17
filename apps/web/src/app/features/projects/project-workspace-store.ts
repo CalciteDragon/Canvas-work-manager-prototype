@@ -544,6 +544,25 @@ export class ProjectWorkspaceStore {
     }
   }
 
+  /** Commits the details dialog's changed fields together as one optimistic project write. */
+  saveDetails(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>): Promise<boolean> {
+    if (Object.keys(patch).length === 0) return Promise.resolve(true);
+    return this.writeProject(patch, (project) => {
+      const next = { ...project };
+      if (patch.name !== undefined) next.name = patch.name;
+      if (patch.description === null) delete next.description;
+      else if (patch.description !== undefined) next.description = patch.description;
+      if (patch.targetDate === null) delete next.targetDate;
+      else if (patch.targetDate !== undefined) next.targetDate = patch.targetDate;
+      return next;
+    });
+  }
+
+  /** Withdraws the details dialog's dismissed write failure from the header. */
+  clearWriteError(): void {
+    this.writeErrorState.set(null);
+  }
+
   /** §26's Rename, optimistic per §63. */
   rename(name: string): Promise<boolean> {
     return this.writeProject({ name }, (project) => ({ ...project, name }));

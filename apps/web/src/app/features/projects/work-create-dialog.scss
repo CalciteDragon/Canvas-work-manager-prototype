@@ -28,10 +28,6 @@
   max-block-size: calc(100dvh - var(--space-6));
   overflow-y: auto;
   padding: var(--space-5);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-raised);
-  box-shadow: var(--shadow-md);
 }
 
 .work-create-dialog h2 { margin: 0; font-size: var(--font-size-lg); }

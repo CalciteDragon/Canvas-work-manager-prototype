@@ -20,8 +20,7 @@
 }
 
 .plane-pane,
-.plane-sheet,
-.plane-lift {
+.plane-sheet {
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
@@ -46,11 +45,11 @@
   gap: var(--space-4);
 }
 
-.plane-lift {
+.plane-lifts > .lift {
   flex: 1 1 var(--layout-sidebar-width);
-  background: var(--plane-lift-background);
-  backdrop-filter: var(--plane-lift-filter);
-  box-shadow: var(--lift-shadow);
+  display: grid;
+  gap: var(--space-3);
+  min-inline-size: 0;
 }
 
 .plane-ground h3,

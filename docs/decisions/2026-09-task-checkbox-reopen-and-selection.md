@@ -73,3 +73,13 @@ Keep idempotent selection as the current default. A real HTTP MCP client reopene
 overflow. This retains the known phone discoverability question and the possible `Updated`
 label wording question for sustained use, recorded in [§79 notes](../../.prototype/notes.json)
 as `note-2026-10-01-002`.
+
+**Amended, 2026-10-16 — Slice 73.** Opening details now moves focus to the drawer heading;
+the next Tab reaches Title. Desktop details are a non-modal top-layer side lift with workspace
+width reserved, and below 48rem they are a modal sheet. Explicit Close and closing Escape return
+to the selected title, or quick-add if that row vanished, while preserving focus moved outside.
+Dirty-title Escape still discards the draft before a second Escape closes. Quick-add preserves
+the current selection and never opens details. This replaces the opening-focus and stacked-phone
+choices above; checkbox, pointer guards and commit rules stay as recorded. Spec §34 is corrected
+with this implementation ([lifts](2026-10-lifts-use-the-top-layer.md),
+[creation defaults](2026-10-creation-defaults-follow-the-open-work.md)).

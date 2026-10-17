@@ -19,7 +19,7 @@
     </p>
   }
 
-  <div class="task-workspace" [class.task-workspace--drawer-open]="store.selectedTask() !== null">
+  <div class="task-workspace">
     @if (readOnly()) {
       <div class="task-list" [attr.aria-busy]="store.loading()">
         @if (store.loading()) {
@@ -65,7 +65,7 @@
               (completionRequested)="complete($event)"
               (reopenRequested)="reopen($event)"
               (deleteRequested)="archive($event)"
-              (selectedRequested)="store.selectTask($event)"
+              (selectedRequested)="selectTask($event)"
             />
           }
         }
@@ -74,6 +74,7 @@
       @if (store.selectedTask(); as selectedTask) {
         <app-task-detail-drawer
           [task]="selectedTask"
+          [modal]="narrow()"
           (titleChanged)="editTitle($event)"
           (priorityChanged)="changePriority($event)"
           (dueDateChanged)="changeDueDate($event)"

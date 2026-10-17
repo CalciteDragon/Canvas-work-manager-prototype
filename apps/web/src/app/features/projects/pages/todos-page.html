@@ -1,6 +1,6 @@
 <section class="todos" aria-labelledby="todos-heading">
   <header class="todos__header">
-    <h2 id="todos-heading" class="todos__heading" tabindex="-1">What is coming up</h2>
+    <h2 id="todos-heading" class="todos__heading" tabindex="-1" data-route-focus data-route-page-focus>What is coming up</h2>
     <p class="todos__hint">
       Everything under this project, in due-date order. Open a row to work on it where it lives.
     </p>
@@ -13,7 +13,7 @@
     <div data-todo-delete-recovery class="todos__recovery" role="status" aria-live="polite">
       <span>{{ recovery.title }} was archived.</span>
       <span>
-        Open root <button data-todo-open-archive type="button" class="link" (click)="onOpenArchive()()">Archive</button>
+        Open root <button #archiveOpener data-todo-open-archive type="button" class="link" (click)="onOpenArchive()(archiveOpener)">Archive</button>
         to recover it when its owner is ready.
       </span>
       @if (recovery.owner; as owner) {

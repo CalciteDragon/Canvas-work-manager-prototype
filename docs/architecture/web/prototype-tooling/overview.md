@@ -28,7 +28,8 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
   solid-planes and reduced-motion simulations; a **Copy CSS** export; live panels of real components
   and primitive panels — Buttons and Inputs render the shared primitives and a Controls panel shows
   every primitive and state; cards, menus and states stay marked *not yet a shared component* — plus
-  inert plane/lift and motion specimens.
+  real lift-class specimens over a busy backing and a motion specimen. The live Drawer panel
+  renders `TaskDetailDrawer` in contained mode, with neither fixed positioning nor the top layer.
 
 ## Not responsible for
 

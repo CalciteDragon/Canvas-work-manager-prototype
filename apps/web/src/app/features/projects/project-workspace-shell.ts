@@ -18,7 +18,10 @@ import {
 import { DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
-import { canonicalPageKindFor, type ProjectId, type ProjectPageKind } from '@cwm/contracts';
+import { canonicalPageKindFor, type ProjectId, type ProjectPageKind, type UpdateProjectInput } from '@cwm/contracts';
+import { TaskDrawerCoordinator } from '../tasks/task-drawer-coordinator';
+import { LiftStack } from '../../shared/lifts/lift-stack';
+import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
 import { WORKSPACE_NARROW_BREAKPOINT } from '../../core/layout/breakpoints';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
@@ -57,6 +60,8 @@ const NARROW = `(max-width: ${WORKSPACE_NARROW_BREAKPOINT})`;
 export class ProjectColumnFocusRequest {
   /** The chosen link's URL, as `Router.url` will read once the navigation lands. */
   readonly url = signal<string | null>(null);
+  /** Open archive's landing survives a replacement of the routed shell. */
+  readonly archiveUrl = signal<string | null>(null);
 
   constructor() {
     // A navigation that lands anywhere else ends the request, including on a route with no
@@ -67,6 +72,9 @@ export class ProjectColumnFocusRequest {
       .subscribe((event) => {
         if (event instanceof NavigationEnd && this.url() !== null && event.urlAfterRedirects !== this.url()) {
           this.url.set(null);
+        }
+        if (event instanceof NavigationEnd && this.archiveUrl() !== null && event.urlAfterRedirects !== this.archiveUrl()) {
+          this.archiveUrl.set(null);
         }
       });
   }
@@ -98,6 +106,7 @@ export class ProjectColumnFocusRequest {
   providers: [
     ProjectWorkspaceStore,
     ProjectHistoryStore,
+    TaskDrawerCoordinator,
     { provide: OPERATION_HISTORY_REPORTER, useExisting: ProjectHistoryStore },
   ],
   templateUrl: './project-workspace-shell.html',
@@ -116,6 +125,12 @@ export class ProjectWorkspaceShell {
   readonly store = inject(ProjectWorkspaceStore);
   /** §26's Undo/Redo: the displayed project's history (Slice 41). */
   readonly history = inject(ProjectHistoryStore);
+  readonly drawerCoordinator = inject(TaskDrawerCoordinator);
+  private readonly lifts = inject(LiftStack);
+  private releaseWorkLift: (() => void) | null = null;
+  readonly saveDetails = (patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>): Promise<boolean> => this.store.saveDetails(patch);
+  readonly clearWriteError = (): void => this.store.clearWriteError();
+  readonly archiveProject = (): Promise<boolean> => this.confirmArchive();
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -213,7 +228,7 @@ export class ProjectWorkspaceShell {
    */
   private readonly onProjectDataChange = (): void => void this.store.refreshProgress();
   private readonly onProjectHierarchyChange = (): void => this.store.notifyHierarchyChanged();
-  private readonly onOpenArchive = (): void => void this.openArchive();
+  private readonly onOpenArchive = (returnTo: HTMLElement): void => void this.openArchive(returnTo);
 
   readonly rendererInputs = computed<ProjectPageRendererInputs | null>(() => {
     const rendered = this.rendered();
@@ -240,6 +255,7 @@ export class ProjectWorkspaceShell {
   });
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.releaseWorkLift?.());
     effect(() => {
       const loading = this.store.loading();
       const rootId = this.store.root()?.id ?? null;
@@ -248,7 +264,7 @@ export class ProjectWorkspaceShell {
     });
     // A direct load resolves asynchronously and a fragment-only navigation can reuse the shell.
     // Inspect the current URL after each render until its matching header exists, then focus once.
-    afterEveryRender(() => this.focusHistoryFragment(), { injector: this.injector });
+    afterEveryRender(() => { this.focusHistoryFragment(); this.focusArchiveLanding(); }, { injector: this.injector });
 
     // Re-loads when the route changes projects, which sidebar navigation does without
     // re-creating this component. Moving between two pages of the same project changes only
@@ -416,11 +432,15 @@ export class ProjectWorkspaceShell {
 
   /** The column requests the dialog; the loaded root determines whether creation is available. */
   openWorkCreate(): void {
-    if (!this.store.loading() && this.workCreateBlocked() === null) this.workCreateOpen.set(true);
+    if (!this.store.loading() && this.workCreateBlocked() === null) {
+      this.releaseWorkLift = this.lifts.open(() => this.closeWorkCreate());
+      this.workCreateOpen.set(true);
+    }
   }
 
   /** A chosen close restores focus after the deferred dialog leaves the view. Loads move no focus. */
   closeWorkCreate(): void {
+    this.releaseWorkLift?.(); this.releaseWorkLift = null;
     this.workCreateOpen.set(false);
     afterNextRender(() => {
       const host = this.host.nativeElement;
@@ -472,17 +492,33 @@ export class ProjectWorkspaceShell {
     void this.store.setTargetDate(targetDate);
   }
 
-  async openArchive(): Promise<void> {
+  async openArchive(returnTo?: HTMLElement): Promise<void> {
     if (this.archiveNavigationPendingState()) return;
     this.archiveNavigationPendingState.set(true);
     try {
       if (await this.store.openArchive()) {
         const root = this.store.root();
-        if (root !== null) await this.router.navigate(['/projects', root.id, 'pages', 'archive']);
+        if (root !== null) {
+          const target = ['/projects', root.id, 'pages', 'archive'];
+          this.columnFocus.archiveUrl.set(this.router.serializeUrl(this.router.createUrlTree(target)));
+          if (await this.router.navigate(target)) {
+            this.focusArchiveLanding();
+            return;
+          }
+          this.columnFocus.archiveUrl.set(null);
+        }
       }
+      if (returnTo) new LiftFocus(returnTo, () => this.host.nativeElement.querySelector('[data-project-more]')).restore();
     } finally {
       this.archiveNavigationPendingState.set(false);
     }
+  }
+
+  private focusArchiveLanding(): void {
+    const url = this.columnFocus.archiveUrl();
+    if (url === null || this.router.url !== url) return;
+    const heading = this.host.nativeElement.querySelector<HTMLElement>('#archive-page-title');
+    if (heading) { this.columnFocus.archiveUrl.set(null); heading.focus(); }
   }
 
   async retryArchiveOpen(): Promise<void> {
@@ -504,14 +540,15 @@ export class ProjectWorkspaceShell {
    * place the archive can be reversed — the dashboard has no header to offer it. A refusal leaves
    * the domain's own reason in the header.
    */
-  async confirmArchive(): Promise<void> {
+  async confirmArchive(): Promise<boolean> {
     const project = this.store.project();
-    if (project === null) return;
-    if (!await this.store.archive()) return;
+    if (project === null) return false;
+    if (!await this.store.archive()) return false;
     // Only if the person is still on it: after a sidebar move during the awaited PATCH, this header
     // belongs to another project, whose history holds no such step.
-    if (this.projectId() !== project.id) return;
+    if (this.projectId() !== project.id) return true;
     this.history.announce(archivedHereFeedback(project.name));
+    return true;
   }
 
   readonly undo = (): void => void this.history.undo();

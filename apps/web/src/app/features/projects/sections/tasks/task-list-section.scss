@@ -1,11 +1,5 @@
-@use '../../../../../styles/breakpoints';
-
 :host {
   display: block;
-  // Slice 58: named so this section's width, not the viewport's, decides whether the details
-  // drawer fits beside the rows. A Grid-layout section can be narrow at desktop width too, and
-  // an element cannot query its own size, so the host is the container.
-  container: task-list / inline-size;
 }
 
 .task-list-section {
@@ -52,22 +46,8 @@
   align-items: start;
 }
 
-.task-workspace--drawer-open {
-  grid-template-columns: minmax(0, 1fr) var(--layout-drawer-width);
-}
-
 .task-list {
   display: grid;
   gap: var(--space-3);
   min-width: 0;
-}
-
-// Too narrow for the rows plus `--layout-drawer-width` (22rem): stack the drawer below them
-// rather than as a second track that overflows over them. The named breakpoint is the list's
-// working minimum plus that token; `task-detail-drawer.scss` uses the same Sass partial to
-// unstick the drawer at exactly this width.
-@container task-list (width < #{breakpoints.$task-list-narrow}) {
-  .task-workspace--drawer-open {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }

@@ -23,6 +23,7 @@ import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
+import { LiftStack } from '../../shared/lifts/lift-stack';
 import { ProjectCanvas } from './project-canvas';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { ProjectPageStore } from './project-page-store';
@@ -200,6 +201,27 @@ const completeDeferredBlocks = async (fixture: Awaited<ReturnType<typeof render>
 };
 
 describe('ProjectCanvas (§27, §31, §32)', () => {
+  it('releases section creation on destruction without invoking a dead canvas when another lift opens', async () => {
+    const { fixture } = await render();
+    fixture.componentInstance.openCreate({ kind: 'end', beforeId: null, columnSpan: 12 });
+    const close = vi.spyOn(fixture.componentInstance, 'closeCreate');
+    fixture.destroy();
+    expect(() => TestBed.inject(LiftStack).open(vi.fn())).not.toThrow();
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('releases section creation on a page change without restoring its old opener', async () => {
+    const { fixture } = await render();
+    fixture.componentInstance.openCreate({ kind: 'end', beforeId: null, columnSpan: 12 });
+    const close = vi.spyOn(fixture.componentInstance, 'closeCreate');
+    fixture.componentRef.setInput('pageId', 'page-next');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.createDialogOpen()).toBe(false);
+    TestBed.inject(LiftStack).open(vi.fn());
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it('reloads for page inputs without tracking signals read inside the store load', async () => {
     const internalState = signal(0);
     const load = vi.spyOn(ProjectPageStore.prototype, 'load').mockImplementation(async () => {

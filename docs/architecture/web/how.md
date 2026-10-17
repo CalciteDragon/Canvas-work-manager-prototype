@@ -124,3 +124,21 @@ pnpm storybook:build              # apps/web/storybook-static (git-ignored)
 **Controls (slice 72).** A control takes its look from a class in `_controls.scss`; the component's SCSS keeps only layout (grid placement, gaps, inline size, margins). Emulated encapsulation makes a component's `button {…}` (0,1,1) and `.x {…}` (0,2,0) beat a global `.button` (0,1,0), so adopting a primitive means **deleting** the component's control paint, never overriding it. Each control class sets `--control-fill`, `--control-edge`, `--control-ink` and their hover/pressed partners; `_control-states.scss` holds the hover, pressed, field-hover and focus-ring mixins that the real states and the Design Lab's forced specimens both include, so a specimen cannot drift. Every interactive primitive is at least `--size-target-min` and grows to `--size-hit-target` under the app's touch query; heights follow the density knob, targets never do. Forced colours returns checkbox, radio and select to `appearance: auto`.
 
 Depth planes use only --plane-*-background/filter in container styles. `_tokens.scss` resolves solid fallbacks for reduced transparency, unsupported backdrop filters and forced colors, and caps reduced-motion durations at 80ms. `_breakpoints.scss` holds CSS-free Sass constants; the token lint checks the two TS queries against it and rejects literal z-index, weight, query lengths and non-endpoint opacity.
+
+**Lifts (slice 73).** The global _lifts.scss is imported after controls and supplies the
+shared lift/menu classes. Owners use native auto popovers for menus/settings, a manual popover
+for desktop task details and modal dialogs for phone details and project edits. Shared
+[LiftFocus](../../api/classes/LiftFocus.html) remembers the real opener, preserves focus
+moved outside and chooses a named fallback if the opener vanished;
+[LiftStack](../../api/injectables/LiftStack.html) coordinates the single transient slot.
+[menuKeys](../../api/miscellaneous/functions.html#menuKeys) supplies menu keyboard movement.
+Creation dialogs keep their existing CDK traps and join the same stack. Native focus, light
+dismissal and inertness require browser checks; unit specs stub native methods.
+[RouteFocus](../../api/injectables/RouteFocus.html), started from the composition root,
+recovers body focus after eligible navigation without overriding a connected control.
+Lift paint and enter/leave motion use tokens; reduced motion crossfades. CSS anchor positioning
+has fixed placement fallback. **Trap:** each popover names its opener with `anchor-name` and
+`position-anchor` (More in `project-header.scss`, the gear in `project-page-navigation.scss`);
+Chromium does not resolve the invoker's implicit anchor, and an unresolved popover lands at the
+viewport's top-left. A popover too wide for either side of its opener falls back to the
+`--lift-gutter` position, below or above it. `lifts.spec.ts` pins both openers. The shell reserves desktop drawer width outside the lift.

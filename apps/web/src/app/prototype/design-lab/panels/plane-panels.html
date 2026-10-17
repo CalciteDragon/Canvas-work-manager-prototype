@@ -1,6 +1,6 @@
 <section class="panel" data-panel="planes" data-panel-kind="token">
   <h2 class="panel__title">Planes and motion <span class="panel__badge">token specimens</span></h2>
-  <p class="panel__note">Ground carries ambient colour. Panes recede, sheets hold content, and lifts float. These lifts are inert specimens.</p>
+  <p class="panel__note">Ground carries ambient colour. Panes recede, sheets hold content, and lifts float. These specimens use the real lift classes.</p>
   <div class="plane-ground">
     <div class="plane-backing" aria-hidden="true">Plan · Write · Review · Launch · Plan · Write · Review · Launch</div>
     <div class="plane-pane">
@@ -13,10 +13,10 @@
       </div>
     </div>
     <div class="plane-lifts">
-      <article class="plane-lift" data-lift="drawer"><h3>Drawer</h3><p>Task details</p><p class="plane-muted">Owner · Due date · Description</p></article>
-      <article class="plane-lift" data-lift="dialog"><h3>Dialog</h3><p>Ready to create?</p><p class="plane-muted">Create · Cancel</p></article>
-      <article class="plane-lift" data-lift="menu"><h3>Menu</h3><p>Rename</p><p>Duplicate</p><p>Archive</p></article>
-      <article class="plane-lift" data-lift="toast"><h3>Toast</h3><p>Changes saved</p><p class="plane-muted">Your work is up to date.</p></article>
+      <article class="lift lift--side lift--contained" data-lift="drawer"><h3>Drawer</h3><p>Task details</p><p class="plane-muted">Owner · Due date · Description</p></article>
+      <article class="lift lift--dialog lift--contained" data-lift="dialog"><h3>Dialog</h3><p>Ready to create?</p><button class="button button--primary" type="button">Create</button><button class="button" type="button">Cancel</button></article>
+      <article class="lift lift--popover lift--contained menu" data-lift="menu"><h3>Menu</h3><button class="menu__item" type="button">Edit details…</button><button class="menu__item" type="button">Open archive</button></article>
+      <article class="lift lift--popover lift--contained" data-lift="popover"><h3>Pages</h3><label><input class="checkbox" type="checkbox" checked /> Reflections</label><p class="plane-muted">Choose your optional pages.</p></article>
     </div>
   </div>
   <div class="plane-motion">

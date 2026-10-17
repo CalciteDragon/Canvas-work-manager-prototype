@@ -106,6 +106,7 @@ test('Open archive records one action, and reversing it sends a viewer of that p
   await page.locator('[data-project-more]').click();
   await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
+  await expect(page.locator('#archive-page-title')).toBeFocused();
   const archivePage = (await pageOf(root.id, 'archive'))!;
   const afterOpen = await history(root.id);
   expect(afterOpen.undo).toMatchObject({ operation: 'page.add' });

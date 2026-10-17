@@ -28,7 +28,7 @@ export class ArchivePage implements ProjectPageRenderer {
   readonly rootProjectId = input<ProjectId | null>(null);
   readonly onProjectDataChange = input.required<() => void>();
   readonly onProjectHierarchyChange = input.required<() => void>();
-  readonly onOpenArchive = input<() => void>(() => {});
+  readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
 
   readonly store = inject(ArchivePageStore);
 

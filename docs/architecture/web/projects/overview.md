@@ -33,6 +33,8 @@ schema-version-6 converter was removed in Slice 66.
   creation Undo it renders creator-only recovery at the original project URL; if the history read
   fails while that project is missing, the unavailable state offers a generic Retry — but not
   for a `not_found` history, which is what everyone but the creator receives.
+- The shell provides `TaskDrawerCoordinator`, reserves desktop drawer width and keeps explicit
+  Archive-heading requests in root-lived `ProjectColumnFocusRequest` across shell replacement.
 - `ProjectWorkspaceStore`: the project record, §39's progress, §26's writes, the `missing` state
   used by creation recovery, and the root's work tree — the things that describe the *project*
   rather than one page.
@@ -42,8 +44,11 @@ schema-version-6 converter was removed in Slice 66.
   inside the workspace reports its receipts to it; it holds the server summary, the pending
   state that covers each write's owed re-read, transitions and one feedback line, and words
   all of it through the pure `history-feedback.ts`.
+- `ProjectHeader`, `ProjectMoreMenu`, `ProjectDetailsDialog`, `ProjectArchiveConfirm`: the
+  native menu, single-commit details draft and archive confirmation, with focus returned to More.
 - `ProjectPageNavigation`: the column — pages, the root-name page-settings gear, the Work plus and work tree —
-  placed beside the sidebar by one `:has()` rule.
+  placed beside the sidebar by one `:has()` rule. Its gear opens a native page-settings popover
+  whose pending toggles retain focus.
 - `WorkCreateDialog`: Name and an explicit live Parent for a new workstream, with draft retention
   on refusal. The shell supplies the callback; the workspace store uses the existing project create.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in

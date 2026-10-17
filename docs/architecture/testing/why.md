@@ -116,3 +116,10 @@ visually moved after a refused toggle — none of it visible to a unit test.
 
 §60 MCP tests without a server · §69 testing strategy · §77 design-first loop · §12 and
 §21 (the lints' rules) · §75 workflow.
+
+Native popover light dismissal, modal inertness and focus restoration are browser behavior;
+jsdom stubs cannot establish them. Slice 73 therefore splits component policy checks from real
+Storybook/e2e interactions and the opt-in before/after evidence
+([top-layer decision](../../decisions/2026-10-lifts-use-the-top-layer.md),
+[route focus](../../decisions/2026-10-route-focus-lands-lost-focus.md)). The profile-73 sheet
+keeps pre-existing prototype scroll-region limitations visible while gating product overflow.

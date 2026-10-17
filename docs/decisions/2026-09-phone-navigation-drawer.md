@@ -99,3 +99,12 @@ real use shows the stacked details drawer is missed below the fold, which would 
 scrolling it into view after quick create.
 
 **Amended, 2026-10-14 (Slice 70 Gate 1).** Reopened by [one navigation tree](2026-10-one-navigation-tree.md): phones get one navigation pattern instead of the drawer plus the separate project-column toggle (L7-006). The focus rules here (trap, Escape, focus to what was opened) remain the bar for the replacement.
+
+**Amended, 2026-10-16 — Slice 73.** The task-details stacking rule above is replaced by a
+non-modal desktop side lift and a modal phone sheet, using the shell's 48rem breakpoint rather
+than the Task List's width. Selection takes focus into details; quick-add no longer selects.
+Resizing across the breakpoint closes details and clears selection. The global navigation drawer
+and project-column hand-offs retain their existing behavior. Root creation from phone navigation
+still lands on main; the new route-focus fallback preserves that hand-off. Spec §§23 and 34
+reflect these distinctions ([lifts](2026-10-lifts-use-the-top-layer.md),
+[route focus](2026-10-route-focus-lands-lost-focus.md)). The one-tree redesign remains pending.

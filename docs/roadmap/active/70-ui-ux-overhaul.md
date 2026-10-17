@@ -305,12 +305,13 @@ still records the options as they were presented.
 
 **Slice 72.1 completed (2026-10-15):** [Primitives follow-ups](../completed/72.1-primitives-follow-ups.md) answered 72's open questions: ghost buttons keep a faint edge at rest, the token lint reads style values held in TypeScript, and the stdio and domain import-lint timeouts grow with the child processes they start.
 
-**State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slices 1 and 2 are
-[71](../completed/71-depth-tokens-and-theme.md) and [72](../completed/72-primitives.md), both
-complete. The umbrella stays active.
-**Next: plan redesign slice 3, Lifts and focus (TH06), as roadmap slice 73.** Planning only: write
-the plan and run the reviewer rounds (AGENTS.md steps 1–2). Then bring the plan to the user before
-any implementation.
+**Slice 73 completed (2026-10-17):** [Lifts and focus](../completed/73-lifts-and-focus.md), redesign slice 3 (TH06 plus L2-006); Gate 2 accepted. Quick-add no longer opens details; redesign slice 4 keeps scroll-into-view and feedback. Its Outcome lists the deferrals to slices 4, 5, 7 and 9 and the open questions: 57 bytes of bundle headroom, reported muted-on-lift contrast, and core tasks T07 and T10 blocked since the baseline.
+
+**State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slices 1–3 are
+[71](../completed/71-depth-tokens-and-theme.md), [72](../completed/72-primitives.md) and
+[73](../completed/73-lifts-and-focus.md), all complete. The umbrella stays active. **Next:**
+plan redesign slice 4 (feedback: toast, inline Undo, pending, scroll new items into view), and
+settle the bundle ceiling first.
 
 ### Slice 72 (Primitives) — planning brief
 
@@ -378,7 +379,8 @@ closed, capture scope, visual acceptance, and behaviour versus appearance.
    route changes.
 4. **Feedback pattern** (TH07, plus the task-add part of TH15). An inline Undo toast at the point
    of action, pending within 100 ms, new items scrolled into view and focused, a saved
-   indicator, transform/opacity motion. Adding a task does not open its drawer.
+   indicator, transform/opacity motion. Slice 73 already makes adding a task preserve selection
+   without opening its drawer.
 5. **Section chrome** (TH08). Tools quiet at rest, a persistent add-section affordance, the full
    insertion hit area, headings that name their section (not "Rename X").
 6. **Objects and states** (TH09, TH10). One task-row shape across surfaces; inert-looking rows

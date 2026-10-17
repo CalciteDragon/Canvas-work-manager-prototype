@@ -65,6 +65,10 @@ and states that everyone keeps re-styling are shown as representative markup mar
 yet a shared component*; extracting them has not been earned. Slice 72 earned it for
 buttons and inputs: those panels and the Controls panel render the shared primitives, so the
 Lab shows the real thing, with forced states built from the same mixins as the real ones.
+Slice 73 also uses the real lift/menu classes in PlanePanels, with a contained modifier that
+keeps specimens in flow, and the real TaskDetailDrawer in the live Drawer panel. Primitive-panel
+menu examples remain representative; native interaction proof belongs to Storybook and e2e
+([top-layer decision](../../../decisions/2026-10-lifts-use-the-top-layer.md)).
 
 ## Consequences
 

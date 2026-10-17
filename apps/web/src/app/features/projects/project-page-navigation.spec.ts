@@ -88,6 +88,15 @@ const render = async (
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
+  const panel = fixture.nativeElement.querySelector('[data-project-page-manager]') as HTMLElement;
+  const gear = fixture.nativeElement.querySelector('[data-project-settings-toggle]') as HTMLElement;
+  const toggle = (open: boolean) => {
+    const event = new Event('toggle');
+    Object.defineProperty(event, 'newState', { value: open ? 'open' : 'closed' });
+    panel.dispatchEvent(event);
+  };
+  panel.hidePopover = vi.fn(() => toggle(false));
+  gear.addEventListener('click', () => toggle(!fixture.componentInstance.settingsOpen()));
   return fixture;
 };
 
@@ -98,6 +107,19 @@ const queryAll = (fixture: Awaited<ReturnType<typeof render>>, selector: string)
   [...fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
 
 describe('ProjectPageNavigation (§23)', () => {
+  it('keeps pending toggles focusable and refuses repeated writes', async () => {
+    const fixture = await render();
+    const emitted = vi.fn();
+    fixture.componentInstance.pageToggleRequested.subscribe(emitted);
+    fixture.componentRef.setInput('pageWritePending', true);
+    fixture.detectChanges();
+    const control = query(fixture, '[data-page-toggle-kind="todos"] input') as HTMLInputElement;
+    expect(control.disabled).toBe(false);
+    expect(control.getAttribute('aria-disabled')).toBe('true');
+    control.click();
+    expect(emitted).not.toHaveBeenCalled();
+    expect(control.checked).toBe(true);
+  });
   it('gear toggles a rendered hidden panel with the right accessible name and controls; Escape closes and focuses it', async () => {
     const fixture = await render();
     const gear = query(fixture, '[data-project-settings-toggle]')!;
@@ -105,14 +127,15 @@ describe('ProjectPageNavigation (§23)', () => {
     expect(gear).not.toBeNull();
     expect(gear.getAttribute('aria-label')).toBe('Project page settings for Home renovation');
     expect(gear.getAttribute('aria-controls')).toBe(panel.id);
-    expect(panel.hidden).toBe(true);
+    expect(panel.getAttribute('popover')).toBe('auto');
+    expect(fixture.componentInstance.settingsOpen()).toBe(false);
     gear.click();
     fixture.detectChanges();
     expect(gear.getAttribute('aria-expanded')).toBe('true');
-    expect(panel.hidden).toBe(false);
+    expect(fixture.componentInstance.settingsOpen()).toBe(true);
     panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     fixture.detectChanges();
-    expect(panel.hidden).toBe(true);
+    expect(fixture.componentInstance.settingsOpen()).toBe(false);
     expect(document.activeElement).toBe(gear);
   });
 
@@ -123,10 +146,10 @@ describe('ProjectPageNavigation (§23)', () => {
     fixture.componentRef.setInput('pageWritePending', true);
     fixture.componentRef.setInput('root', { ...ROOT, name: 'Renamed' });
     fixture.detectChanges();
-    expect(query(fixture, '[data-project-page-manager]')!.hidden).toBe(false);
+    expect(fixture.componentInstance.settingsOpen()).toBe(true);
     fixture.componentRef.setInput('root', project('project-other', 'Other'));
     fixture.detectChanges();
-    expect(query(fixture, '[data-project-page-manager]')!.hidden).toBe(true);
+    expect(fixture.componentInstance.settingsOpen()).toBe(false);
   });
 
   it('plus requests work creation; a blocked plus remains focusable and names its reason', async () => {
@@ -295,11 +318,11 @@ describe('ProjectPageNavigation (§23)', () => {
     expect(todos.checked).toBe(true);
   });
 
-  it('disables page controls and reports a pending or failed write', async () => {
+  it('marks page controls unavailable and reports a pending or failed write', async () => {
     const pending = await render();
     pending.componentRef.setInput('pageWritePending', true);
     pending.detectChanges();
-    expect(queryAll(pending, '[data-page-toggle-kind] input').every((input) => (input as HTMLInputElement).disabled))
+    expect(queryAll(pending, '[data-page-toggle-kind]:not([data-page-toggle-kind="home"]) input').every((input) => input.getAttribute('aria-disabled') === 'true'))
       .toBe(true);
     expect(query(pending, '[data-page-toggle-pending]')?.textContent).toContain('Saving');
 

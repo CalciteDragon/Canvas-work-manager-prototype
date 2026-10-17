@@ -12,7 +12,8 @@
    the checkbox is the shared `.checkbox` primitive over the native input, the Delete the quiet
    trash `.tool`, and the details drawer's Close an `.icon-button` that keeps its "Close task
    details" name; the drawer's fields use `.field` and `.select`.
-3. A quick create posts `{ projectId, sectionId, title }` and unwraps `result.task`; a completion
+3. A quick create posts `{ projectId, sectionId, title }` and unwraps `result.task` without changing
+   selection or opening a drawer; keyboard quick-add keeps focus in the add field. A completion
    paints first, posts second and reconciles from the same strict envelope, guarded as drawn in
    [what](what.md). Reopen uses `tasks.update(id, { status: 'todo' })`, clears `completedAt`
    optimistically and restores the exact saved fields on failure. Both toggle answers are
@@ -25,20 +26,31 @@
    flight, in which case the re-read waits. `pendingMutations` coalesces those reads;
    `loadGeneration` rejects answers crossing a container switch, and a read crossed by a
    mutation is queued again. Per-field revisions keep an old write from reverting a newer edit.
+   A successful refresh clears the selected id when the task is absent.
 5. TaskRow's **Delete** emits the task id to the section, which calls `tasks.archive`. The
    section captures the title before the write and announces the committed archive in a polite
    status outside the rows. It clears the cue on a new attempt or section switch and rejects a
    late answer for another section. The store returns the committed result even when its quiet
    follow-up read fails; a failed write announces nothing. A fresh list containing the task
    after Undo or Restore withdraws the cue. Root Archive restores through the same gateway.
-6. The Task List section's host is a named size container, `task-list`. Narrower than `42rem`
-   (the list's working minimum plus `--layout-drawer-width`), `task-list-section.scss` stacks
-   `TaskDetailDrawer` below the rows and `task-detail-drawer.scss` drops its sticky position, so
-   the drawer cannot cover a row's Delete. A container rather than a media query, because a
-   Grid-layout section is narrow at desktop width too; the drawer is not scrolled into view
-   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
-7. Closing the drawer returns focus to the selected row title, or quick-create if the row has
-   gone, only when focus was in the drawer or on the body. Opening leaves focus in place.
+6. `TaskDetailDrawer` renders one native `<dialog>`. On desktop, `popover="manual"` and
+   `showPopover()` place its `.lift--side` surface in the top layer, with `aria-modal="false"`.
+   Under core's `SHELL_NARROW_QUERY`, `showModal()` opens `.lift--sheet` with
+   `aria-modal="true"`. Switching between these widths closes and clears the selection.
+   The section has no drawer column or named size container. The shell reserves the desktop
+   width for its header and canvas ([mechanism](../../../decisions/2026-10-lifts-use-the-top-layer.md)).
+   `contained` mode opens the Lab specimen in flow without entering the top layer.
+7. Every explicit title or background selection focuses the drawer's `tabindex="-1"` heading
+   after rendering; the next Tab reaches Title. The visually header-positioned Close control
+   follows the fields in DOM order. `LiftFocus` records the row title and restores it, or
+   quick-create when it vanished, only while focus still belongs to the drawer or body. A selected
+   task disappearing on refresh uses the same fallback; section removal leaves focus to the
+   canvas. Dirty Title Escape prevents native dismissal and discards the draft; another Escape
+   closes. `closedby="none"` keeps native cancellation from bypassing that rule.
+   The optionally injected `TaskDrawerCoordinator` is provided by `ProjectWorkspaceShell`.
+   A selection claims both the coordinator and shared `LiftStack`; another list or lift closes
+   it and clears its selection, so the same row can reopen. Destruction releases registrations
+   without scheduling a competing focus handoff.
 8. Todos does not render `TaskRow`: `TodosPageStore` serializes task complete, reopen and Delete
    writes on one slot. Task toggles reset synchronously from the optimistic store value, before
    awaiting the request. Workstreams keep their one-way Complete button; cancelled tasks have
@@ -52,6 +64,7 @@
 | `TaskRow` | component | The row | [API](../../../api/components/TaskRow.html) |
 | `TaskDetailDrawer` | component | The drawer | [API](../../../api/components/TaskDetailDrawer.html) |
 | `TaskListStore` | injectable | One container's rows and writes | [API](../../../api/injectables/TaskListStore.html) |
+| `TaskDrawerCoordinator` | injectable | The shell's selected Task List and open state | [API](../../../api/injectables/TaskDrawerCoordinator.html) |
 | `TaskGateway` | interface (core) | The seven task operations | [API](../../../api/interfaces/TaskGateway.html) |
 
 ## Dependencies
@@ -63,10 +76,13 @@
   the reporter).
 - [contracts](../../contracts/overview.md) — `Task`, `CreateTaskInput`, `UpdateTaskInput`,
   `TaskStatus`, `TaskPriority`.
+- Shared `LiftFocus` and `LiftStack` ([web](../overview.md)) provide focus restoration and
+  one-lift ownership to the Task List section. The section reads core's `SHELL_NARROW_QUERY`.
 
 **Depended on by**
 
-- [projects](../projects/overview.md) — the Task List section provides the store; the
+- [projects](../projects/overview.md) — the shell provides the coordinator and reserves desktop
+  drawer width, the Task List section provides the store; the
   Todos page owns its own row and store.
 - [prototype-tooling](../prototype-tooling/overview.md) — the Design Lab's live panels
   render the six variants from fixtures.
@@ -80,15 +96,18 @@
   TodosPageStore separately uses a write epoch for its projected chronology.
 - **Six variants, pinned by stories and `task-row.spec.ts`.**
 - **Tokens only** in `task-row.scss` and `task-detail-drawer.scss`.
-- **The `42rem` stacking threshold comes from one Sass partial** — `task-list-section.scss`
-  and `task-detail-drawer.scss` import `styles/_breakpoints.scss`; `phone-layout.spec.ts` taps
-  Delete with the drawer open.
+- **Native top-layer behavior is browser-tested** — `task-lifts.spec.ts` covers viewport
+  placement, phone inertness, heading-to-Title focus, forced closes, live removal and breakpoint
+  changes in both themes. Unit specs stub native calls and check component decisions.
+- **Quick create never selects** — `task-list-store.spec.ts`; **one drawer belongs to the
+  shell** — `task-drawer-coordinator.spec.ts`, with standalone sections covered by the section spec.
 
 ## Commands
 
 ```bash
 pnpm --filter web test -- tasks
 pnpm storybook                       # TaskRow's six variants with the theme toolbar
+pnpm --filter @cwm/e2e e2e task-lifts.spec.ts
 ```
 
 Manual check the store's tests cannot replace: set Network Delay to 3 s in the panel,

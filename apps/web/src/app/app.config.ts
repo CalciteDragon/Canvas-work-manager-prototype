@@ -1,5 +1,6 @@
 import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { ThemeService } from './core/theme/theme-service';
+import { RouteFocus } from './core/a11y/route-focus';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
 import { PrototypeWorkManagerGateway } from './core/gateway/prototype-work-manager-gateway';
@@ -23,6 +24,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideAppInitializer(() => { inject(ThemeService); }),
+    provideAppInitializer(() => { inject(RouteFocus); }),
     provideRouter(routes, withComponentInputBinding()),
     PrototypeIdentityProvider,
     { provide: IDENTITY_PROVIDER, useExisting: PrototypeIdentityProvider },

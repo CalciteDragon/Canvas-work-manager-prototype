@@ -107,7 +107,8 @@ through transform and opacity, and every value a token
 [direction](../../roadmap/70-ui-ux/direction.md)).
 
 The same gate also decided four more things. Theme behavior and split accents are implemented;
-navigation and creation-default changes remain for their redesign slices.
+navigation and workstream creation-default changes remain for their redesign slices. Task quick-add
+now preserves selection without opening details (Slice 73).
 
 - The theme follows the device preference and persists an explicit choice
   ([decision](../../decisions/2026-10-theme-follows-device-and-persists.md)).
@@ -130,3 +131,11 @@ structure, section structure, design lab, route map · §69 component tests.
 Slice 71 adopts Depth using [V2](../../decisions/2026-10-depth-blur-budget.md): blurred panes and unblurred translucent sheets. Contrast is reported under the user amendment, rather than gating the demo tints. [Breakpoints beside the tokens](../../decisions/2026-10-breakpoints-beside-the-tokens.md) preserve existing reflow without emitting global token CSS per component.
 
 Slice 72 builds the control primitives as [global classes over native elements](../../decisions/2026-10-control-primitives-are-global-classes.md) and app-owned icons as [one monochrome SVG set](../../decisions/2026-10-app-icons-are-one-svg-set.md), while user emoji stay content. Both are adopted on every product surface. Global classes keep every native behaviour the e2e suite relies on and add no JavaScript; the price is that Angular's encapsulated component rules outrank them, so adopting a primitive means deleting the component's own control paint rather than overriding it. Slice 72.1 gives [ghost buttons a faint edge at rest](../../decisions/2026-10-ghost-buttons-have-a-faint-resting-edge.md), because without one they read as labels.
+
+Native lifts escape canvas containment and use browser light dismissal and modal inertness
+without another overlay dependency ([top-layer decision](../../decisions/2026-10-lifts-use-the-top-layer.md)).
+Their explicit opener/fallback rule keeps focus predictable across menus and deferred dialogs.
+[Route focus](../../decisions/2026-10-route-focus-lands-lost-focus.md) recovers only lost focus,
+so feature-owned hand-offs retain priority.
+[More's menu and details dialog](../../decisions/2026-10-more-is-a-menu-with-a-details-dialog.md)
+separate immediate choices from a single-commit draft.

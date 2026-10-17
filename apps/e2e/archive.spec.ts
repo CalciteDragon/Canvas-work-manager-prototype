@@ -103,6 +103,7 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
   await expect(page.locator('[data-archive-page]')).toBeVisible();
+  await expect(page.locator('#archive-page-title')).toBeFocused();
 
   // The parent owns its cascade; blocked child rows are not actionable Archive entries.
   await expect(page.locator(`[data-archived-item][data-archived-id="${section.id}"]`)).toBeVisible();

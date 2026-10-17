@@ -376,3 +376,39 @@ After a capture, run the report generator with node --import tsx ux/report.ts ux
 Slice 71 capture preparation uses its own ownership-guarded `.prototype/ux-data.json` (`prepare-data.ts --capture`), independent of an existing e2e host. The opt-in `UX_DEPTH=1` verification collects forced-color, reduced-transparency and simulated unsupported-filter captures, built CSS fallback equality, keyboard focus rings, live Lab controls and device-theme reload evidence. `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs` compares commit-keyed boxes and reports axe violations and incomplete counts plus composite contrast.
 
 Slice 72 moves the control collector into `ux/layout.mjs` as `collectControls`, where `harness.test.mjs` exercises it (`node --test apps/e2e/ux/harness.test.mjs`; `pnpm test` does not run it). Each control record carries tag, type, role, class, computed border and a `scope`: `prototype` on a `/prototype/` route or inside the dev panel, `prose` inside rendered Markdown, otherwise `product`, the only scope the census gates. A checkbox or radio also records `target`, the larger of its own box and its label's, as WCAG 2.5.8 measures it. The capture enables axe's `target-size` rule, which axe-core 4.13 ships disabled. The opt-in `UX_PRIMITIVES=1` run (`ux/primitives-verification.ts`) captures Kitchen and Settings in both themes under forced colours and writes `primitives-verification.json`, keyed by surface and theme. The same run captures the Design Lab's Controls panel at 1440 in both themes and at 375 on touch (`primitives-lab.json`), releasing the shell's scroll region so the whole panel paints and, at 375 only, stacking the Lab's fixed rail, which has no phone layout. `-g "Lab Controls checkpoint"` runs just those. Build the web app first: the capture serves `apps/web/dist/web/browser`.
+
+### Lifts and focus (Slice 73)
+
+`lifts.spec.ts` drives the native top layer with keyboard and touch, including route landings,
+focus return, dirty dialog dismissal, one-lift ownership and the phone task sheet. The component
+specs stub `showPopover`, `hidePopover`, `showModal` and `close`; they prove application state and
+permission/failure rules rather than browser inertness, light dismiss or native restoration.
+
+The matrix includes Project details, archive confirmation and a task opened after scrolling the
+overdue list. `UX_BEFORE=<commit>` labels baseline output and maps the new details/confirmation
+states to their former inline More surface. The baseline web build must match that commit;
+the environment variable does not check out or build it. `UX_MATCH` still selects and merges cells.
+
+`UX_LIFTS=1` enables `ux/lifts-verification.ts`: six lift kinds in both themes, closed/open
+persistent blur counts, at most one transient blur, forced-colour and reduced-transparency
+fallback captures, focus logs and a reported muted-text composite ratio over sheet/text backings.
+Run it with the capture config after building the web app. `ux/slice73.config.ts` provides separate
+ports 4241/4341 and `.prototype/ux-slice73.json` when the usual capture file is owned. Initialize
+that new scratch file from `prototype/seeds/empty.json` before its first run. Its baseline mode
+serves the preserved `ux-output/slice73-baseline-web` build; normal mode serves the current dist.
+`UX_STATIC_ORIGIN` is the browser forwarding override, defaulting to the ordinary 4201 server.
+After the ordinary capture run releases those ports, run
+`UX_BEFORE=<commit> pnpm --filter @cwm/e2e exec playwright test --config ux/slice73.config.ts -g 'Genuine before lift layer budget'`
+against the preserved baseline build. This supplemental collector writes `lift-baseline.json`
+without overwriting the matrix; profile 73 compares both after counts with that genuine-before
+budget and requires matching baseline provenance. In PowerShell, set the environment variable
+with `$env:UX_BEFORE='<commit>'` before the command and remove it for after runs.
+
+`node docs/roadmap/70-ui-ux/tooling/build-sheet.mjs <before> <after> <sheet> --profile 73`
+gates closed-state boxes at 1 px, required lift roles/names and nested-interactive axe rules,
+phone document overflow and product scroll-region overflow, complete lift/focus/fallback evidence
+and the T03/T04/T08 baseline budgets. Only the known Design Lab `main.workspace` phone overflow
+is listed as an exception, with the baseline client width (375 px) and a scroll width no wider
+than the baseline's (625 px); new or increased overflow, including on `/prototype/state`, fails.
+Open-lift and Lab geometry is listed as intended movement. Contrast stays reported-only. Run
+`node --test docs/roadmap/70-ui-ux/tooling/build-sheet.test.mjs` for its fixture-based gates.

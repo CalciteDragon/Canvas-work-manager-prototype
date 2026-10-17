@@ -1,0 +1,39 @@
+@use '../../../styles/breakpoints';
+
+.project-details h2 {
+  margin: 0 0 var(--space-4);
+}
+
+.project-details__fields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3) var(--space-4);
+  align-items: baseline;
+}
+
+.project-details__fields > .field {
+  min-inline-size: 0;
+  inline-size: 100%;
+  box-sizing: border-box;
+}
+
+.project-details__date,
+.project-details__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.project-details__actions {
+  justify-content: flex-end;
+  margin-block-start: var(--space-4);
+}
+
+.project-details__error {
+  color: var(--color-danger);
+}
+
+@media (max-width: breakpoints.$compact) {
+  .project-details__fields { grid-template-columns: minmax(0, 1fr); }
+}

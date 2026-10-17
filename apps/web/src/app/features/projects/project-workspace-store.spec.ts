@@ -91,6 +91,31 @@ const deferred = <T>() => {
 };
 
 describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
+  it('saves all changed project details in one optimistic PATCH and reports one receipt', async () => {
+    const reporter = provideRecordingReporter();
+    const { store, gateway } = storeWith({ projects: renovation() });
+    await store.load('project-renovation' as ProjectId);
+    const pending = store.saveDetails({ name: 'Refit', description: 'Rooms', targetDate: '2026-10-20' });
+    expect(store.project()).toMatchObject({ name: 'Refit', description: 'Rooms', targetDate: '2026-10-20' });
+    expect(await pending).toBe(true);
+    expect(gateway.calls.filter(({ method }) => method === 'projects.update')).toHaveLength(1);
+    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-renovation', input: { name: 'Refit', description: 'Rooms', targetDate: '2026-10-20' } });
+    expect(store.project()).toMatchObject({ name: 'Refit', description: 'Rooms', targetDate: '2026-10-20' });
+    expect(reporter.reports()).toHaveLength(1);
+  });
+
+  it('reverts all optimistic details on failure and clears the dismissed dialog error', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    await store.load('project-renovation' as ProjectId);
+    gateway.projects.update = async () => { throw new Error('Details refused'); };
+    expect(await store.saveDetails({ name: 'Refit', description: 'Rooms', targetDate: null })).toBe(false);
+    expect(store.project()?.name).toBe('Home renovation');
+    expect(store.project()?.description).toBeUndefined();
+    expect(store.writeError()).toBe('Details refused');
+    store.clearWriteError();
+    expect(store.writeError()).toBeNull();
+  });
+
   it('creates a workstream under the chosen parent and reports the child receipt, then refreshes without live frames', async () => {
     const reporter = provideRecordingReporter();
     const { store, gateway } = storeWith({ projects: renovation() });

@@ -1,20 +1,18 @@
-@use '../../../styles/breakpoints';
-
 :host {
   display: block;
   min-width: 0;
 }
 
 .drawer {
-  position: sticky;
-  top: 0;
-  display: grid;
+  display: none;
   gap: var(--space-5);
-  padding: var(--space-5);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-raised);
-  box-shadow: var(--shadow-md);
+  align-content: start;
+}
+
+.drawer[open],
+.drawer:popover-open,
+.drawer.lift--contained {
+  display: grid;
 }
 
 .drawer__header {
@@ -22,6 +20,13 @@
   align-items: start;
   justify-content: space-between;
   gap: var(--space-3);
+  padding-inline-end: var(--size-hit-target);
+}
+
+.drawer__close {
+  position: absolute;
+  inset-block-start: var(--space-5);
+  inset-inline-end: var(--space-5);
 }
 
 .drawer__header h2,
@@ -68,13 +73,4 @@
 .drawer__facts dd {
   margin: 0;
   text-align: end;
-}
-
-// Stacked below the rows in a narrow Task List (Slice 58), a sticky drawer would slide over the
-// rows it follows. The `task-list` container and this stylesheet share the named breakpoint
-// from the CSS-free Sass partial (the list's minimum plus `--layout-drawer-width`).
-@container task-list (width < #{breakpoints.$task-list-narrow}) {
-  .drawer {
-    position: static;
-  }
 }

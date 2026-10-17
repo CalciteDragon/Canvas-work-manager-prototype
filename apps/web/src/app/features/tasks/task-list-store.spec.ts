@@ -166,7 +166,7 @@ describe('TaskListStore', () => {
     expect(gateway.tasks.list).toHaveBeenCalledWith({ sectionId: 'section-project-b-tasks', includeArchived: false });
   });
 
-  it('creates a trimmed task in the loaded project and selects the server result', async () => {
+  it('creates a trimmed task in the loaded project without selecting the server result', async () => {
     const { store, gateway } = setup();
     await store.load(section('project-b'));
 
@@ -180,7 +180,20 @@ describe('TaskListStore', () => {
       sectionId: 'section-project-b-tasks',
     });
     expect(store.tasks().at(-1)?.id).toBe('task-created');
-    expect(store.selectedTask()?.id).toBe('task-created');
+    expect(store.selectedTaskId()).toBeNull();
+    store.selectTask(store.tasks()[0]!.id);
+    const selected = store.selectedTaskId();
+    expect(await store.create('Another task')).toBe(true);
+    expect(store.selectedTaskId()).toBe(selected);
+  });
+
+  it('clears a vanished selection on a quiet refresh', async () => {
+    const { store, gateway } = setup();
+    await store.load(section());
+    store.selectTask(store.tasks()[0]!.id);
+    gateway.tasks.list = vi.fn(async () => []);
+    await store.refresh();
+    expect(store.selectedTaskId()).toBeNull();
   });
 
   it('updates and clears an estimate through the shared task update path', async () => {

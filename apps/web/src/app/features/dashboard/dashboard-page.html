@@ -1,6 +1,6 @@
 <main class="dashboard">
   <header class="dashboard__header">
-    <h1 class="dashboard__heading">Home</h1>
+    <h1 class="dashboard__heading" tabindex="-1" data-route-focus>Home</h1>
     <!-- Gated on `!loading` as well as on the data: during a reload the previous day's
          date would otherwise sit above a body that says "Loading…". -->
     @if (!store.loading() && store.dashboard(); as dashboard) {

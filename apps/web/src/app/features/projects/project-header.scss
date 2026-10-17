@@ -66,10 +66,10 @@
 }
 
 
-.project-header__more-menu {
-  display: block;
-  grid-column: 1 / -1;
-}
+// Slice 73: More's menu names its anchor, as the page settings popover does. Chromium did not
+// resolve the invoker's implicit anchor, and the menu fell back to the viewport's top-left corner.
+[data-project-more] { anchor-name: --project-more; }
+[data-project-more-menu] { position-anchor: --project-more; }
 
 .project-header__history-feedback {
   grid-column: 1 / -1;

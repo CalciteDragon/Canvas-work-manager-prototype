@@ -22,9 +22,11 @@ handles, insertion labels and keyboard move announcements. Local sections still 
 The frame follows current resolved identity; the header displays the server's captured history
 label, so an owner rename does not rewrite older steps.
 
-The root-name gear opens a hidden, root-scoped page-settings disclosure. Its local state survives
-page-kind changes while the column stays mounted; Escape closes and focuses the gear, and a live
-root change closes it. The Work plus requests the shell's deferred `WorkCreateDialog`, with an
+The root-name gear declaratively opens a root-scoped auto popover. Its toggle event keeps
+settingsOpen in sync, opening focuses the first enabled toggle, and navigation or a root change
+closes it. Escape or the gear restores the gear; outside dismissal preserves the clicked control.
+Pending toggles use aria-disabled and reset refused native state so the pressed toggle keeps
+focus through settlement. The Work plus requests the shell's deferred `WorkCreateDialog`, with an
 inner `@if` so closing destroys its draft. Parent options flatten the live tree, root first;
 completed parents are marked. A disappearing parent resets to the root with a named polite note,
 deferred until a pending submit settles. The shell closes on `store.loading()` or a root change;
@@ -254,9 +256,12 @@ its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carr
 - [core](../core/overview.md) — `WORK_MANAGER_GATEWAY` (`projects`, `projectPages`,
   `sections`, `sectionShortcuts`, `history`, `progress`, `todos`, `archive`, `journal`,
   `reflections`, `timeline`), `LIVE_UPDATES`, `OPERATION_HISTORY_REPORTER` and `reportedWrite`,
-  `PrototypeSettings` for the layout flags.
+  `PrototypeSettings` for the layout flags and `SHELL_NARROW_QUERY` for task sheet selection.
 - [tasks](../tasks/overview.md) — `TaskListStore`, `TaskRow`, `TaskDetailDrawer` inside
-  the Task List section. Todos owns its separate task row and store.
+  the Task List section; `TaskDrawerCoordinator` provides shell-scoped selection ownership.
+  Todos owns its separate task row and store.
+- `shared/lifts` — `LiftFocus`, `LiftStack` and `menuKeys` for focus, one-open ownership
+  and menu keyboard movement; no transport or domain dependency.
 - `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section.
 - [contracts](../../contracts/overview.md) — `nameOf`, `shortcutNameOf`, `SECTION_OWNERSHIP` (through the
   registry's `kind`), `NAVIGABLE_PAGE_KINDS`, `isRootProject`, and every shape.
@@ -333,3 +338,35 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   `linkSelected` is reported from a capture-phase listener and the request is root-scoped.
 
 Plane containers use --plane-pane-background/filter or --plane-sheet-background/filter. Global token fallbacks resolve solid surfaces, and shared focus tokens draw every focus-visible outline. No spacing or layout rules change for Depth.
+
+## Native project lifts and Archive landing
+
+ProjectHeader owns the native More popover and defers ProjectDetailsDialog and
+ProjectArchiveConfirm until requested. ProjectMoreMenu supplies menu/radio semantics and
+shared keyboard movement. Status commits immediately; Edit details opens a three-field draft
+with one Save. ProjectWorkspaceStore.saveDetails uses its existing optimistic project write,
+sending only changed name/description/date fields in one PATCH. Clean fields follow refreshes;
+dirty fields retain their base. Unchanged Save closes without writing, blank name refuses,
+dirty dismissal asks Discard changes, and a failed Save keeps the draft and one dialog alert.
+Discard clears that error before the header returns. Archive confirmation uses the existing
+archive callback, keeps header Undo and returns focus to More, including refusal.
+
+All surfaces register with shared LiftStack; custom work/section creation dialogs retain
+their existing CDK traps and adopt the lift paint. The canvas releases section creation's
+registration on page/context changes and destruction, without scheduling focus into the old
+view. The shell provides TaskDrawerCoordinator
+and reserves --layout-drawer-width while desktop details are open. Task List sections own
+native opening and focus; no feature writes bypass the gateway.
+
+openArchive(returnTo) first enables/loads Archive through the store and records the target
+URL in root-lived ProjectColumnFocusRequest.archiveUrl before navigation. A rendered shell
+consumes the matching request when #archive-page-title exists; a different winning URL
+clears it. More, Todos recovery and the removal notice supply their own caller for failure focus.
+This explicit request survives replacement of the initiating shell and also handles reused shells.
+Generic core route focus remains a fallback, not the owner of this intent.
+
+| Symbol | Kind | Role | Reference |
+|---|---|---|---|
+| ProjectDetailsDialog | component | Single-commit project draft | [API](../../../api/components/ProjectDetailsDialog.html) |
+| ProjectArchiveConfirm | component | Modal archive confirmation | [API](../../../api/components/ProjectArchiveConfirm.html) |
+| ProjectColumnFocusRequest | injectable | Cross-shell column and Archive focus requests | [API](../../../api/injectables/ProjectColumnFocusRequest.html) |

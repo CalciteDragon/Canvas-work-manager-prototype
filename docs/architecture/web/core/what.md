@@ -21,6 +21,7 @@ flowchart LR
     th["ThemeService<br/>device + saved browser choice → data-theme"]
     ps["PrototypeSettings<br/>flags, delay, failure — sessionStorage"]
   end
+  routeFocus["RouteFocus<br/>trusted input + later NavigationEnd → lost-focus landing"]
   subgraph shell["Shell"]
     as["AppShell"]
     ss["ShellStore<br/>project tree, createProject"]
@@ -91,6 +92,7 @@ sequenceDiagram
 | `OperationHistoryReporter`, `OperationWriteHandle`, `OperationWriteReport`, `OPERATION_HISTORY_REPORTER`, `reportedWrite` | `core/history/operation-history-reporter.ts` | The write-reporting port; `RecordingReporter` in `core/history/testing/` for writer specs |
 | `PROTOTYPE_API_BASE_URL` | `core/config/prototype-config.ts` | Where the host is |
 | `PrototypeSettings`, `PrototypeFlags`, `StoredSettings` | `core/config/prototype-settings.ts` | §47 flags; delay; failure rate |
+| `RouteFocus` | `core/a11y/route-focus.ts` | Initializer-backed body-focus recovery after trusted-input navigation; page/header heading then bounded main fallback |
 | `ThemeService` | `core/theme/theme-service.ts` | §22 |
 | `AppShell`, `ShellStore`, `ProjectTreeNode`, `SHELL_NARROW_QUERY` | `core/shell/` | §23 layout and the project tree; the phone drawer's open state, focus moves and resize reset are `AppShell`'s |
 | `Sidebar`, `ProjectTreeItem`, `TopBar` | `core/shell/sidebar/`, `core/shell/top-bar/` | Presentational; `TopBar` renders the Menu and reports it, `Sidebar` focuses its visibly labelled "Project name" field when New project opens the form and again after a failed create |

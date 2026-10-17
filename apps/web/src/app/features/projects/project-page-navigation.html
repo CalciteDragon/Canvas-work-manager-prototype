@@ -32,7 +32,7 @@
       [attr.aria-label]="'Project page settings for ' + root().name"
       [attr.aria-expanded]="settingsOpen()"
       aria-controls="project-page-settings"
-      (click)="toggleSettings()"
+      popovertarget="project-page-settings"
     ><app-icon name="settings" /></button>
   </div>
 
@@ -63,8 +63,9 @@
     }
   </ul>
 
-  <div id="project-page-settings" data-project-page-manager class="project-nav__manager"
-    [hidden]="!settingsOpen()" aria-labelledby="project-page-settings-title" (keydown)="settingsKeydown($event)">
+  <div id="project-page-settings" data-project-page-manager class="lift lift--popover project-nav__manager" popover="auto"
+    (beforetoggle)="settingsBeforeToggle($event)" (toggle)="settingsToggle($event)"
+    aria-labelledby="project-page-settings-title" (keydown)="settingsKeydown($event)">
     <h2 id="project-page-settings-title">Pages</h2>
     <p class="project-nav__manager-help">Choose which optional views appear in this project.</p>
     <div class="project-nav__page-controls">
@@ -84,7 +85,7 @@
             class="checkbox"
             type="checkbox"
             [checked]="pageEnabled(definition.kind)"
-            [disabled]="pageWritePending()"
+            [attr.aria-disabled]="pageWritePending()"
             [attr.aria-label]="'Show ' + definition.label + ' page'"
             (change)="requestPageToggle(definition.kind, $event)"
           />

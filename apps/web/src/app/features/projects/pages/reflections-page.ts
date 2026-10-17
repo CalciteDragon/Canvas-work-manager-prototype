@@ -32,7 +32,7 @@ export class ReflectionsPage implements ProjectPageRenderer {
   readonly rootProjectId = input<ProjectId | null>(null);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
-  readonly onOpenArchive = input<() => void>(() => {});
+  readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
 
   readonly store = inject(ReflectionsPageStore);
   readonly selectedSubject = signal<ReflectionSubjectView | null>(null);

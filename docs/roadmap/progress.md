@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 73 | Slice 73 — Lifts and focus | Redesign slice 3 (TH06): the task drawer, More and page settings become lifts that take focus, close on Escape and return it; focus survives route changes | [73-lifts-and-focus.md](active/73-lifts-and-focus.md) |
 
 ### Planned
 
@@ -112,4 +111,5 @@ verification follow-ups rather than feature slices.
 | 71 | Slice 71 — Depth tokens, Lab knobs, blur spike and device theme | 2026-10-14 | Depth V2 in tokens: blurred panes, unblurred translucent sheets, solid fallbacks, one focus ring, z-index/weight/breakpoint tokens with lint, Lab glass and motion knobs; theme follows the device and persists; Gate 2 accepted | [71-depth-tokens-and-theme.md](completed/71-depth-tokens-and-theme.md) |
 | 72 | Slice 72 — Primitives | 2026-10-16 | Shared control primitives and one SVG icon set adopted on every product surface; 33 findings closed, 4 advanced; Gate 2 accepted | [72-primitives.md](completed/72-primitives.md) |
 | 72.1 | Slice 72.1 — Primitives follow-ups | 2026-10-16 | Ghost buttons keep a faint edge at rest; the token lint reads style values held in TypeScript; stdio and import-lint timeouts grow with child processes | [72.1-primitives-follow-ups.md](completed/72.1-primitives-follow-ups.md) |
+| 73 | Slice 73 — Lifts and focus | 2026-10-17 | Redesign slice 3 (TH06): the task drawer, More and page settings are native top-layer lifts that take focus, close on Escape and return it; lost focus lands on the page heading after navigation. Gate 2 accepted. | [73-lifts-and-focus.md](completed/73-lifts-and-focus.md) |
 <!-- roadmap:end -->

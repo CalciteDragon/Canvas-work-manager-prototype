@@ -8,10 +8,11 @@ import { resolve, join } from 'node:path';
 const args = process.argv.slice(2);
 const profileAt = args.indexOf('--profile');
 const profile = profileAt === -1 ? '71' : args[profileAt + 1];
-if (!['71', '72'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+if (!['71', '72', '73'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
 const positional = args.filter((_, index) => profileAt === -1 || (index !== profileAt && index !== profileAt + 1));
 const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
-if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72]');
+if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73]');
+const liftCell = cell => ['more', 'project-details', 'archive-confirm', 'page-settings', 'task-drawer', 'task-drawer-scrolled', 'section-create', 'work-create'].includes(cell.state) || cell.route === '/prototype/design';
 /**
  * Slice 72's pre-listed census exceptions, each owned by a later slice. A matching control is
  * reported on the sheet, never silently passed; anything else that is too small fails.
@@ -88,7 +89,31 @@ for (const a of after.cells) {
       if (intended.length) intendedChanges.push({ cell: a.id, changes: intended });
       const moved = changes.filter(change => !intended.includes(change) && !integrity.includes(change));
       if (moved.length) geometryReport.push({ cell: a.id, family, changes: moved });
+    } else if (profile === '73' && liftCell(a)) {
+      const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
+      if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
+      if (changes.length) geometryReport.push({ cell: a.id, family, changes });
     } else if (changes.length) failures.push({ cell: a.id, family, changes });
+  }
+  if (profile === '73') {
+    const touch = a.viewport?.width === 375;
+    if (touch && al.document > al.viewport + 1) failures.push({ cell: a.id, reason: 'scrolls sideways', document: al.document, viewport: al.viewport });
+    for (const [index, region] of (touch ? al.scrollRegions ?? [] : []).entries()) {
+      if (region.scrollWidth <= region.width + 1) continue;
+      const baseline = bl.scrollRegions?.[index];
+      const knownLab = a.route === '/prototype/design' && region.tag === 'MAIN' && region.class === 'workspace'
+        && baseline?.tag === region.tag && baseline.class === region.class
+        && baseline.width === region.width && region.scrollWidth <= baseline.scrollWidth
+        && baseline.scrollWidth > baseline.width + 1;
+      if (knownLab) exceptions.push({ cell: a.id, reason: 'Lab workspace phone overflow no wider than the genuine baseline; Lab has no phone layout', baselineScrollWidth: baseline.scrollWidth, region: region.class, width: region.width, scrollWidth: region.scrollWidth });
+      else failures.push({ cell: a.id, reason: 'scroll region scrolls sideways', region: region.class, width: region.width, scrollWidth: region.scrollWidth, baseline });
+    }
+    if (liftCell(a)) {
+      const axe = await read(join(afterDir, a.artifacts.axe));
+      for (const violation of axe.violations ?? []) {
+        if (['aria-allowed-role', 'aria-required-children', 'aria-dialog-name', 'nested-interactive'].includes(violation.id)) failures.push({ cell: a.id, reason: `axe ${violation.id}`, nodes: violation.nodes.map(node => node.target) });
+      }
+    }
   }
   if (profile === '72') {
     const touch = (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
@@ -137,6 +162,36 @@ for (const a of after.cells) {
 }
 const verification = await read(join(verificationDir, 'depth-verification.json'));
 const optional = path => read(path).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
+const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-verification.json')) : null;
+const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
+const captureProvenance = profile === '73' ? await optional(join(afterDir, 'production-build.json')) : null;
+const finalBuild = profile === '73' ? await optional(join(afterDir, 'final-production-build.json')) : null;
+const tasks = profile === '73' ? await optional(join(afterDir, 'tasks/tasks.json')) : null;
+if (profile === '73') {
+  for (const [id, clicks, keystrokes] of [['T03', 10, 38], ['T04', 1, 0], ['T08', 3, 0]]) {
+    const task = tasks?.find(task => task.id === id);
+    if (!task || task.status !== 'completed' || task.deadEnds !== 0 || !Number.isFinite(task.clicks) || !Number.isFinite(task.keystrokes) || task.clicks > clicks || task.keystrokes > keystrokes) failures.push({ reason: 'core task regression', id, task, budget: { clicks, keystrokes } });
+  }
+}
+if (profile === '73' && !lifts) failures.push({ reason: 'lifts-verification.json missing; run UX_LIFTS=1' });
+if (profile === '73' && lifts) {
+  if (!liftBaseline?.complete || liftBaseline.commit !== before.commit) failures.push({ reason: 'genuine before persistent-blur evidence missing' });
+  if (!lifts.complete) failures.push({ reason: 'incomplete lift evidence' });
+  for (const theme of ['dark', 'light']) for (const finding of ['W3-003', 'W3-005', 'W3-006', 'L5-009', 'L5-010']) {
+    if (!lifts.focus?.some(entry => entry.theme === theme && entry.passed && entry.findings?.includes(finding))) failures.push({ reason: 'focus evidence missing', theme, finding });
+  }
+  for (const theme of ['dark', 'light']) for (const kind of ['side', 'sheet', 'menu', 'popover', 'details', 'confirm']) {
+    const entry = lifts.lifts?.find(entry => entry.theme === theme && entry.kind === kind);
+    if (!entry) { failures.push({ reason: 'incomplete lift evidence', theme, kind }); continue; }
+    const baseline = liftBaseline?.layers?.find(layer => layer.theme === theme && layer.width === (kind === 'sheet' ? 375 : 1440));
+    if (!baseline || !Number.isFinite(baseline.persistent) || entry.persistentBefore > baseline.persistent || entry.persistent > baseline.persistent) failures.push({ reason: 'persistent blur exceeds genuine before or baseline measurement is missing', theme, kind, baseline, closedAfter: entry.persistentBefore, openAfter: entry.persistent });
+    if (!Number.isFinite(entry.transient) || !Number.isFinite(entry.persistent) || !Number.isFinite(entry.persistentBefore) || entry.transient > 1 || entry.persistent > entry.persistentBefore) failures.push({ reason: 'lift adds blur layers or its measurement is missing', theme, kind });
+    for (const mode of ['forced-colors', 'reduced-transparency']) {
+      const fallback = entry.fallbacks?.find(fallback => fallback.mode === mode);
+      if (!fallback || fallback.backdropFilter !== 'none') failures.push({ reason: 'lift solid fallback missing', theme, kind, mode });
+    }
+  }
+}
 const primitives = profile === '72' ? await optional(join(verificationDir, 'primitives-verification.json')) : null;
 const primitivesLab = profile === '72' ? await optional(join(verificationDir, 'primitives-lab.json')) : null;
 const baselinePrimitives = profile === '72' ? await optional(join(beforeDir, 'primitives-verification.json')) : null;
@@ -172,11 +227,23 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
 failures.push(...censusFailures);
-const report = { profile, before: before.commit, after: after.commit, pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives };
+const report = { profile, before: before.commit, after: after.commit, pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
-const card = p => `<article><h3>${esc(p.id)}</h3><div class="pair">${['before','after'].map(phase => figure(`${phase}-${p.id}.png`, phase)).join('')}</div></article>`;
-const coreIds = profile === '72'
+// Profile 73's "Visual acceptance pairs" table: which findings each core cell demonstrates.
+const shows = profile === '73' ? {
+  'overdue-chaos-task-drawer-dark-1440': 'W1-032, W3-014', 'overdue-chaos-task-drawer-light-375': 'W2-016',
+  'kitchen-more-dark-1440': 'W1-045, W2-027, W4-018', 'kitchen-more-light-375': 'W1-045, W2-027, W4-018',
+  'kitchen-project-details-dark-1440': 'L3-025, L1-021, L2-006', 'kitchen-project-details-light-375': 'L3-025, L1-021, L2-006',
+  'kitchen-archive-confirm-dark-1440': 'L2-006 (danger apart)', 'kitchen-page-settings-light-1440': 'L5-010',
+  'kitchen-page-settings-light-375': 'L5-010', 'kitchen-section-create-light-1440': 'creation dialog lift paint only',
+  'prototype-design-dark-1440': 'Lab lift foundations', 'prototype-design-light-1440': 'Lab lift foundations',
+} : {};
+const phoneExceptions = exceptions.filter(e => e.reason?.includes('Lab workspace phone overflow'));
+const card = p => `<article><h3>${esc(p.id)}</h3>${shows[p.id] ? `<p>Shows ${esc(shows[p.id])}</p>` : ''}<div class="pair">${['before','after'].map(phase => figure(`${phase}-${p.id}.png`, phase)).join('')}</div></article>`;
+const coreIds = profile === '73'
+  ? ['overdue-chaos-task-drawer-dark-1440', 'overdue-chaos-task-drawer-light-375', 'kitchen-more-dark-1440', 'kitchen-more-light-375', 'kitchen-project-details-dark-1440', 'kitchen-project-details-light-375', 'kitchen-archive-confirm-dark-1440', 'kitchen-page-settings-light-1440', 'kitchen-page-settings-light-375', 'kitchen-section-create-light-1440', 'prototype-design-dark-1440', 'prototype-design-light-1440']
+  : profile === '72'
   ? ['busy-week-project-dark-1440', 'nested-projects-project-dark-1440', 'kitchen-section-create-light-1440', 'kitchen-more-dark-1440', 'archive-dark-1440', 'todos-light-1440', 'settings-agents-dark-1440', 'settings-light-1440', 'settings-archived-projects-light-1440', 'new-project-dark-1440', 'new-project-light-375', 'nested-projects-project-light-1440', 'kitchen-task-drawer-dark-1440', 'kitchen-more-light-375', 'kitchen-page-settings-light-375', 'archive-light-375', 'settings-agents-light-375', 'prototype-design-dark-1440', 'prototype-design-light-1440']
   : ['busy-week-project-dark-1440', 'busy-week-project-light-1440', 'agent-heavy-dashboard-dark-1440', 'kitchen-grid-light-375', 'prototype-design-dark-1440', 'prototype-design-light-1440'];
 const core = coreIds.map(id => pairs.find(p => p.id === id)).filter(Boolean);
@@ -216,7 +283,20 @@ for (const item of auxiliary) {
   await copyFile(join(verificationDir,item.file),join(output,item.file));
   if (item.baseline) await copyFile(join(beforeDir,item.baseline.file),join(output,'before-'+item.baseline.file));
 }
-const verificationSection = `<section><h2>Runtime verification captures</h2><p>Verification run at ${esc(String(verification.commit ?? after.commit).slice(0,8))}. ${baselineVerification ? 'Keyboard and fallback captures pair genuine baseline and after evidence.' : 'Only after verification was supplied; baseline keyboard and fallback captures are unavailable.'} Keyboard focus after implementation uses the same computed outline on More, sidebar, navigation and dialog fields in both themes. Fallback captures show solid planes with no backdrop filter; the no-filter browser case is explicitly simulated. Device persistence and Lab reset are shown separately.</p><div class="verification">${auxiliary.map(item => `<article><h3>${esc(item.caption)}</h3><div class="pair">${item.baseline ? figure('before-'+item.baseline.file,item.baseline.caption) : ''}${figure(item.file,'after')}</div></article>`).join('')}</div></section>`;
+let verificationSection = `<section><h2>Runtime verification captures</h2><p>Verification run at ${esc(String(verification.commit ?? after.commit).slice(0,8))}. ${baselineVerification ? 'Keyboard and fallback captures pair genuine baseline and after evidence.' : 'Only after verification was supplied; baseline keyboard and fallback captures are unavailable.'} Keyboard focus after implementation uses the same computed outline on More, sidebar, navigation and dialog fields in both themes. Fallback captures show solid planes with no backdrop filter; the no-filter browser case is explicitly simulated. Device persistence and Lab reset are shown separately.</p><div class="verification">${auxiliary.map(item => `<article><h3>${esc(item.caption)}</h3><div class="pair">${item.baseline ? figure('before-'+item.baseline.file,item.baseline.caption) : ''}${figure(item.file,'after')}</div></article>`).join('')}</div></section>`;
+if (profile === '73') {
+  const source = await readFile(new URL('../../../../apps/e2e/lifts.spec.ts', import.meta.url), 'utf8').catch(error => { if (error.code === 'ENOENT') return null; throw error; });
+  if (source) {
+    await writeFile(join(output, 'lifts.spec.ts.txt'), source);
+    const names = [...source.matchAll(/test\('([^']+)'/g)].map(match => match[1]);
+    verificationSection += `<section><h2>Behaviour journeys</h2><p><a href="lifts.spec.ts.txt">Browser acceptance source</a>. These tests are defined for both themes at desktop and touch widths; the focus log above records the separate runtime observations.</p><ul>${names.map(name => `<li>${esc(name)}</li>`).join('')}</ul></section>`;
+  }
+  const liftImages = (lifts?.lifts ?? []).flatMap(entry => [{ file: entry.screenshot, caption: `${entry.theme} ${entry.kind}` }, ...(entry.fallbacks ?? []).map(fallback => ({ file: fallback.screenshot, caption: `${entry.theme} ${entry.kind} ${fallback.mode}` }))]).filter(entry => entry.file);
+  for (const entry of liftImages) await copyFile(join(verificationDir, entry.file), join(output, entry.file));
+  await writeFile(join(output, 'lifts-verification.json'), JSON.stringify(lifts, null, 2));
+  await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 73 · Lifts and focus · Gate 2</title><style>:root{color-scheme:dark}body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}a{color:#ffad7f}.overview,.verification{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.overview{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.overview h3{font-size:12px;overflow-wrap:anywhere;margin:0 0 4px}.overview img{height:130px}.overview figcaption{font-size:11px}.overview article{min-width:0}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}img{width:100%;max-height:70vh;object-fit:contain;object-position:top}figure{margin:0}pre{white-space:pre-wrap;overflow-wrap:anywhere}td,th{padding:8px;border-bottom:1px solid #455}section{margin-block:30px}@media(max-width:700px){.overview,.verification,.pair{grid-template-columns:1fr}}</style><h1>Lifts and focus / Slice 73</h1>${captureProvenance ? `<p>Capture provenance: ${esc(captureProvenance.note)} ${finalBuild ? esc(finalBuild.note) : "Final rebuild evidence pending."} Asset hashes and byte counts are in the full report.</p>` : ""}<p>Gate 2 · awaiting visual acceptance. Before ${esc(before.commit.slice(0,8))} → after ${esc(after.commit.slice(0,8))}. ${pairs.length} paired cells · ${failures.length} gate failures. Closed-state boxes stay within 1 px. Open lifts and Lab changes are reported. All phone cells are checked for overflow${phoneExceptions.length ? ` (listed exception: ${esc(phoneExceptions.map(e => `${e.cell} ${e.region} ${e.scrollWidth}/${e.width} px, baseline ${e.baselineScrollWidth} px`).join("; "))} — the Lab has no phone layout and its overflow may not grow)` : ""}; open lifts are checked for named dialogs, valid roles and nested controls.</p><p><a href="report.json">Full gate report</a> · <a href="lifts-verification.json">Focus log and computed lift evidence</a>. Keyboard and touch journeys: apps/e2e/lifts.spec.ts (More, details, confirm, page settings, one lift, route focus, anchoring, canvas lift release) and apps/e2e/task-lifts.spec.ts (W3-014 drawer focus, below-fold drawer, sheet, forced close and reopen). The task drawer still displays the raw projectId fact, deferred to slice 9. Muted contrast is reported, without a gate.</p><section><h2>Visual acceptance</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} pairs</summary>${[...core,...extras].map(card).join('')}</details><section><h2>Focus and layers</h2><p>Persistent layers are compared with each closed page. Transient blur is at most one. Focus logs cover W3-003, W3-005, W3-006, L5-009 and L5-010.</p><pre>${esc(JSON.stringify(lifts?.focus ?? [], null, 2))}</pre><div class="verification">${liftImages.map(entry => figure(entry.file, entry.caption)).join('')}</div></section><section><h2>Gate failures</h2><pre>${esc(JSON.stringify(failures, null, 2))}</pre><details><summary>Intended geometry movement</summary><pre>${esc(JSON.stringify(geometryReport, null, 2))}</pre></details></section><section><h2>Contrast</h2>${contrastTable}${compositeTable}${serious}</section>${verificationSection}</html>`);
+}
+if (profile !== '73')
 await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${profile === '72' ? 'Slice 72 · Primitives' : 'Slice 71 · Depth'} · Gate 2</title><style>:root{color-scheme:dark}
 body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}h1{margin-bottom:0}h2{font-size:21px}h3{font-size:15px;overflow-wrap:anywhere}p{max-width:110ch}a{color:#ffad7f}section,details{margin-block:24px}.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}img{width:100%;max-height:75vh;object-fit:contain;object-position:top;background:#20253a}.overview img{height:190px}.verification{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.verification img{height:220px}figcaption{font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:8px 14px;border-bottom:1px solid #394156}summary{cursor:pointer}article{margin-bottom:24px}@media(max-width:900px){.overview,.verification{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){body{margin:12px}.overview,.verification,.pair{grid-template-columns:1fr}table{font-size:12px}th,td{padding:5px}}
 </style><h1>${profile === '72' ? 'Primitives / Slice 72' : 'Depth / Slice 71'}</h1><p>Gate 2 · awaiting visual acceptance. Before ${esc(before.commit.slice(0,8))} → after ${esc(after.commit.slice(0,8))}. ${profile === '72' ? 'Shared control primitives adopted on every product surface.' : 'V2: blurred panes, translucent sheets without blur.'}</p><p>${pairs.length} paired cells · ${failures.length} ${profile === '72' ? 'gate failures (census, axe names, overflow) · ' + censusExceptions.length + ' listed census exceptions · ' + intendedChanges.length + ' cells with intended control renames · ' + geometryReport.length + ' cell families with reported geometry movement. Geometry is reported, not gated, in this slice.' : 'geometry failures · ' + exceptions.length + ' intentional Lab additions. All other recorded boxes must stay within 1px.'} Click any image for full resolution. <a href="report.json">Full geometry and axe report</a></p><section><h2>Visual acceptance</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} before / after pairs</summary>${[...core,...extras].map(card).join('')}</details>${profile === '72' ? `<section><h2>Control census</h2><p>Gated: product-scope controls are at least 24 px with a pointer and 44 px tall on touch, buttons use at most two heights and fields one, no 375 cell scrolls sideways, and axe reports no select-name, aria-progressbar-name or button-name violation.</p><h3>Failures (${censusFailures.length})</h3><pre>${esc(JSON.stringify(censusFailures,null,2))}</pre><details><summary>Listed exceptions and their owners (${censusExceptions.length})</summary><pre>${esc(JSON.stringify(censusExceptions,null,2))}</pre></details><details><summary>Intended control renames and count changes (${intendedChanges.length} cells)</summary><pre>${esc(JSON.stringify(intendedChanges,null,2))}</pre></details><details><summary>Reported geometry movement (${geometryReport.length})</summary><pre>${esc(JSON.stringify(geometryReport,null,2))}</pre></details></section>` : ''}<section><h2>Contrast report</h2><p>Axe counts are affected-node assessments summed across captured cells in each theme. Incomplete translucent-background assessments are included; the same node may be assessed on several surfaces.</p>${contrastTable}<h3>Worst-case composite contrast</h3><p>Backings are what really sits behind each plane. Panes and sheets sit on the ground: its solid colour and each art glow at full strength. Lifts float over page content, so they are also measured over the solid sheet and text-coloured busy content. Values below use the after tokens.</p>${compositeTable}${serious}<details><summary>Per-cell before / after axe counts and all accepted exceptions</summary><pre>${esc(JSON.stringify(contrast,null,2))}</pre></details></section>${verificationSection}</html>`);

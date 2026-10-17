@@ -21,6 +21,13 @@
   min-height: 100%;
 }
 
+@media (min-width: breakpoints.$shell-narrow) {
+  .project-workspace--drawer-open {
+    --lift-side-offset: var(--layout-drawer-width);
+    padding-inline-end: var(--layout-drawer-width);
+  }
+}
+
 .project-workspace__nav {
   // Load-bearing, not decoration: a stretched grid item is already the full height of the
   // row, so sticky would have no travel and the column would scroll away with the canvas.

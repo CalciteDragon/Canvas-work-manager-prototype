@@ -136,6 +136,10 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 ## Web app
 
+- [Lifts use the browser's top layer](2026-10-lifts-use-the-top-layer.md) — current; Slice 73 native modes and one transient lift.
+- [Route focus lands lost focus after user navigation](2026-10-route-focus-lands-lost-focus.md) — current; Slice 73 bounded heading/main landing.
+- [More is a menu with a single-commit details dialog](2026-10-more-is-a-menu-with-a-details-dialog.md) — current; Slice 73 status radios and one details PATCH.
+
 | Entry | Settled | Status |
 |---|---|---|
 | [The redesign follows direction B, Depth, held to the eight principles and the glass constraints](2026-10-frosted-glass-depth-direction.md) | Depth aesthetic; principles and AA win where they conflict; blur budget settled by a spike | current (Slice 70 Gate 1) |
@@ -143,8 +147,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [The theme follows the device preference, and an explicit choice persists](2026-10-theme-follows-device-and-persists.md) | prefers-color-scheme by default; explicit choice in localStorage; Match device in Settings and panel; no persona seeding | amended (Slice 71) |
 | [The accent stays orange in dark and blue in light](2026-10-accents-stay-split-per-theme.md) | Split accents kept; state cues by shape (principle 4) | current (Slice 70 Gate 1) |
 | [Navigation condenses into one tree](2026-10-one-navigation-tree.md) | One hierarchy with root pages and workstreams; one current marker; shell-layer slice | current (Slice 70 Gate 1) |
-| [Add workstream defaults to the open workstream, and adding a task does not open its details](2026-10-creation-defaults-follow-the-open-work.md) | Parent = open workstream; add keeps focus in the field | current (Slice 70 Gate 1) |
-| [Below 48rem the global sidebar is a modal drawer, and a chosen link hands focus to what it opened](2026-09-phone-navigation-drawer.md) | Phone drawer semantics, focus after route choice and resize, project-column re-collapse, Task List details stacking | amended; reopened by one navigation tree (Slice 70 Gate 1) |
+| [Add workstream defaults to the open workstream, and adding a task does not open its details](2026-10-creation-defaults-follow-the-open-work.md) | Parent = open workstream; add keeps focus in the field | amended; task-add selection implemented in Slice 73; workstream defaults pending |
+| [Below 48rem the global sidebar is a modal drawer, and a chosen link hands focus to what it opened](2026-09-phone-navigation-drawer.md) | Phone drawer semantics, focus after route choice and resize, project-column re-collapse, task details breakpoint | amended; Slice 73 replaces task-detail stacking with lifts; one navigation tree remains pending |
 | [Task Delete names its existing recovery routes](2026-09-task-delete-recovery-feedback.md) | Committed Task List and Todos Delete show archive status and point to root Archive and the owner's header history | amended; feedback at the point of action (Slice 70 Gate 1) |
 | [Descendant rows link to their owner's existing header history](2026-09-descendant-history-discovery.md) | Root Todos and Archive offer a named owner route to the existing header; focus and actor scope stay there | current (Slice 56) |
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
@@ -160,8 +164,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Flow and grid both remain prototype layout candidates](2026-08-flow-vs-grid-layout-experiment.md) | Both modes persist per project; no freeform canvas | open experiment |
 | [View Mode shows work; Edit Layout Mode shows canvas chrome](2026-08-view-mode-section-chrome.md) | Earlier mode-based visibility rules | superseded |
 | [The project header's Quick Add adds a section](2026-08-project-header-quick-add.md) | Quick Add's former meaning and placement | amended |
-| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history; Slice 41 keeps the archived project on screen; Slice 42 records create and keeps its recovery at the project URL; Slice 61 retires the inline-task-edit comparison |
-| [Task checkboxes reopen and task titles select](2026-09-task-checkbox-reopen-and-selection.md) | Reopen to todo on both task surfaces; idempotent selection, drawer title editing, focus and pointer guards | current; Slice 61 |
+| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history; Slice 41 keeps the archived project on screen; Slice 42 records create and keeps its recovery at the project URL; Slice 61 retires the inline-task-edit comparison; Slice 73 replaces edit forms with a menu and details dialog |
+| [Task checkboxes reopen and task titles select](2026-09-task-checkbox-reopen-and-selection.md) | Reopen to todo on both task surfaces; idempotent selection, drawer title editing, focus and pointer guards | amended; Slice 73 moves focus into native details lifts |
 | [§4's *Agent Modified* task row has no data behind it](2026-08-agent-modified-has-no-data-behind-it.md) | Six of seven `TaskRow` variants; the seventh is a §58 question | current |
 | [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended; reopened by one navigation tree (Slice 70 Gate 1) |
 | [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | amended; moves with one navigation tree (Slice 70 Gate 1) |

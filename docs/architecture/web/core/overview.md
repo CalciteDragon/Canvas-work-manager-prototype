@@ -8,10 +8,11 @@ tests. The shell tree refreshes on project-record frames after recovery.
 store depends on and the one adapter that implements them over HTTP (§8–§10); the
 identity provider (§18); the live-updates port and its `EventSource` adapter (§62); the
 operation-history reporter port every browser writer reports through (§31, Slice 41); the
-prototype settings and flags (§47); the theme service (§22); and `AppShell` with its
+prototype settings and flags (§47); the theme service (§22); lost-focus recovery after user
+navigation (`RouteFocus`); and `AppShell` with its
 sidebar and top bar (§23). Nothing in `core/` depends on `prototype/` or on any feature.
 
-**Code:** `apps/web/src/app/core/{config,gateway,history,identity,live,shell,theme}` ·
+**Code:** `apps/web/src/app/core/{a11y,config,gateway,history,identity,live,shell,theme}` ·
 **Tests:** `*.spec.ts` beside each file; fakes in `gateway/testing`, `live/testing` ·
 **Parent:** [web](../overview.md)
 
@@ -38,6 +39,8 @@ operation-discriminated transition result; feature stores report receipts throug
 - `PrototypeSettings`: §47's six flags, network delay and failure rate, kept in
   `sessionStorage` so the panel's own reload does not wipe them.
 - `ThemeService`: the sole `data-theme` owner; follows the device live, with guarded browser persistence for explicit choices and Match device to clear them. An app initializer constructs it on every route.
+- `RouteFocus`: a root initializer-backed service that recovers body focus after trusted-input
+  navigation, waits for a page/header landing heading, and falls back to main after two seconds.
 - `AppShell`, `ShellStore`, `Sidebar`, `ProjectTreeItem`, `TopBar`: §23's layout and the
   project tree; `ShellStore.createProject` is where a root is created. Below 48rem the same
   sidebar instance becomes a modal navigation drawer behind the top bar's **Menu**, whose

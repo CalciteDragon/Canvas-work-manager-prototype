@@ -13,6 +13,8 @@ for (const kind of ['todos','reflections','archive']) surfaces.push({ id: kind, 
 for (const route of ['/calendar','/search','/settings','/settings/agents','/settings/archived-projects','/prototype/design','/prototype/state','/not-a-route']) surfaces.push({ id: route.slice(1).replaceAll('/','-'), seed: 'agent-heavy', route, state: 'default' });
 for (const state of ['more','page-settings','work-create','section-create','shortcut-picker','markdown-edit','task-drawer','collapsed','remove-feedback','refused','loading','error','archived','grid']) surfaces.push({ id: `kitchen-${state}`, seed: 'nested-projects', route: state === 'archived' ? '/projects/project-legacy' : '/projects/project-kitchen', state });
 for (const state of ['dev-panel','new-project','phone-menu']) surfaces.push({ id: state, seed: 'nested-projects', route: '/app', state });
+for (const state of ['project-details', 'archive-confirm']) surfaces.push({ id: `kitchen-${state}`, seed: 'nested-projects', route: '/projects/project-kitchen', state });
+surfaces.push({ id: 'overdue-chaos-task-drawer', seed: 'overdue-chaos', route: '/projects/project-client-migration', state: 'task-drawer-scrolled' });
 export const MATRIX: CaptureCell[] = surfaces.flatMap(s => THEMES.flatMap(theme =>
   (s.allWidths ? VIEWPORTS : s.state === 'phone-menu' ? [VIEWPORTS[2]] : [VIEWPORTS[0], VIEWPORTS[2]]).map(viewport => ({ ...s, id: `${s.id}-${theme}-${viewport.width}`, theme, viewport, persona: 'user-demo' }))));
 

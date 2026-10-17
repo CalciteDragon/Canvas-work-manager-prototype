@@ -432,6 +432,7 @@ test('frame indicators and direct controls work in both themes and collapse stat
   await page.locator('[data-project-more]').click();
   await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${HOME_RENOVATION}/pages/archive$`));
+  await expect(page.locator('#archive-page-title')).toBeFocused();
 });
 
 test('contextual insertion preserves a combined order, remembers anchors and reports failed creates', async ({ page }) => {
