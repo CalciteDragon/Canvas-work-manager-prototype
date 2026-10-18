@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 74 | Slice 74 — Feedback: toast and Undo where the user acted | Redesign slice 4a (TH07): one toast lift carries every confirmation and its Undo at the point of action; Archive is always visitable, so opening it records nothing | [74-feedback-toast-and-undo.md](active/74-feedback-toast-and-undo.md) |
 
 ### Planned
 
@@ -28,6 +29,7 @@ verification follow-ups rather than feature slices.
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
+| 75 | Slice 75 — Feedback: pending, saved and new items in view | Redesign slice 4b (TH07, TH15 task-add): pending within 100 ms, a saved cue, failures on the row, new items scrolled into view and focused, a canvas that holds still | [75-feedback-pending-and-placement.md](planned/75-feedback-pending-and-placement.md) |
 
 ### Completed
 
