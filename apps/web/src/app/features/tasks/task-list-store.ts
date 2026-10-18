@@ -30,6 +30,13 @@ const taskReport = ({ task, operation }: TaskWriteResult): OperationWriteReport 
  */
 @Injectable()
 export class TaskListStore {
+  /**
+   * The committed Delete receipt for one archived task, retained for the owning section's
+   * toast. Kept per task so replies arriving out of order cannot hand one row's toast
+   * another row's Undo.
+   */
+  archiveReport(id: TaskId): OperationWriteReport | null { return this.archiveReports.get(id) ?? null; }
+  private readonly archiveReports = new Map<TaskId, OperationWriteReport>();
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
   private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
@@ -339,7 +346,9 @@ export class TaskListStore {
       this.errorState.set(null);
       this.archivingIdsState.update((ids) => new Set([...ids, id]));
       try {
-        await reportedWrite(this.reporter, () => this.gateway.tasks.archive(id), taskReport);
+        const result = await reportedWrite(this.reporter, () => this.gateway.tasks.archive(id),
+          value => ({ ...taskReport(value), feedback: 'own' }));
+        this.archiveReports.set(id, { ...taskReport(result), feedback: 'own' });
         return true;
       } catch (error) {
         this.errorState.set(messageOf(error));

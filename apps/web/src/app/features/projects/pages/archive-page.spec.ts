@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
+import { RECEIPT_UNDO, inertReceiptUndo, type ReceiptUndo, type ReceiptUndoOffer } from '../../../core/history/receipt-undo';
 import {
   ProjectArchiveItemSchema,
   ProjectArchiveResultSchema,
@@ -9,7 +11,7 @@ import {
   type ProjectId,
   type ProjectPageId,
 } from '@cwm/contracts';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
@@ -17,6 +19,17 @@ import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { ArchivePage } from './archive-page';
 
+const popoverMethods = ['showPopover', 'hidePopover'].map(key => ({ key, descriptor: Object.getOwnPropertyDescriptor(HTMLElement.prototype, key) }));
+beforeEach(() => {
+  for (const { key } of popoverMethods) Object.defineProperty(HTMLElement.prototype, key, { configurable: true, value: vi.fn() });
+});
+afterEach(() => {
+  TestBed.resetTestingModule();
+  for (const { key, descriptor } of popoverMethods) {
+    if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+    else Reflect.deleteProperty(HTMLElement.prototype, key);
+  }
+});
 const AT = '2026-09-02T06:13:32.422Z';
 const PROJECT = 'project-archive-page' as ProjectId;
 const root = ProjectSchema.parse({
@@ -67,7 +80,7 @@ const archive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
   ],
 });
 
-const render = async (answer: ProjectArchiveResult = archive) => {
+const render = async (answer: ProjectArchiveResult = archive, receiptUndo?: ReceiptUndo) => {
   const gateway = new FakeWorkManagerGateway({ projects: [root], sections: [section], archive: answer });
   const live = new FakeLiveUpdates();
   const dataChanged = vi.fn();
@@ -79,6 +92,7 @@ const render = async (answer: ProjectArchiveResult = archive) => {
       provideRouter([]),
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
       { provide: LIVE_UPDATES, useValue: live },
+      ...(receiptUndo === undefined ? [] : [{ provide: RECEIPT_UNDO, useValue: receiptUndo }]),
     ],
   });
   const fixture = TestBed.createComponent(ArchivePage);
@@ -98,6 +112,86 @@ const render = async (answer: ProjectArchiveResult = archive) => {
 };
 
 describe('ArchivePage (§31)', () => {
+  it('confirms Restore in the toast with its canonical route, Undo, and focus recovery', async () => {
+    const { fixture, gateway } = await render(archive, { ...inertReceiptUndo(), offer: () => 'ready' });
+    const host = fixture.nativeElement as HTMLElement;
+    gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
+    const restore = host.querySelector<HTMLButtonElement>('[data-archived-restore]')!;
+    restore.focus(); restore.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(host.querySelector('[data-toast]')?.textContent).toContain('Restored “Backlog” to Website launch › Home.');
+    const go = host.querySelector<HTMLAnchorElement>('[data-restore-go]')!;
+    expect(go?.getAttribute('href')).toBe('/projects/project-archive-page/pages/home#section-section-archive-page');
+    expect(host.querySelector('[data-restore-undo]')).not.toBeNull();
+    expect(document.activeElement).toBe(go);
+    host.querySelector<HTMLButtonElement>('[data-toast-dismiss]')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(document.activeElement).toBe(host.querySelector('#archive-page-title'));
+  });
+
+  it('names a saving Undo and withdraws it when the receipt becomes unavailable', async () => {
+    const offer = signal<ReceiptUndoOffer>('saving');
+    const { fixture, gateway } = await render(archive, { ...inertReceiptUndo(), offer: () => offer() });
+    gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
+    fixture.nativeElement.querySelector('[data-archived-restore]').click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-restore-undo]')?.getAttribute('aria-label')).toBe('Undo (saving…)');
+    expect(fixture.nativeElement.querySelector('[data-restore-undo]')?.getAttribute('aria-disabled')).toBe('true');
+    offer.set('unavailable'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-restore-undo]')).toBeNull();
+  });
+
+  it.each([false, true])('withdraws the restored destination after Undo and shows its returned owner link: %s', async (hasLink) => {
+    const result = { tone: 'status' as const, message: 'Undone: Restored Backlog.',
+      ...(hasLink ? { link: { projectId: 'project-kitchen' as ProjectId, label: 'Open Kitchen' } } : {}) };
+    const { fixture, gateway } = await render(archive, { ...inertReceiptUndo(), offer: () => 'ready', undo: async () => result });
+    gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
+    fixture.nativeElement.querySelector('[data-archived-restore]').click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-restore-go]')).not.toBeNull();
+    await fixture.componentInstance.toast.undo();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-restore-go]')).toBeNull();
+    const owner = fixture.nativeElement.querySelector('a[data-toast-open]');
+    expect(owner?.getAttribute('href') ?? null).toBe(hasLink ? '/projects/project-kitchen' : null);
+    expect(owner?.textContent?.trim() ?? null).toBe(hasLink ? 'Open Kitchen' : null);
+  });
+
+  it('names a disabled origin page and offers no Go to it', async () => {
+    const item = archive.items[0]!;
+    const { fixture, gateway } = await render({ ...archive, items: [{ ...item, origin: { ...item.origin, pageEnabled: false } }] });
+    gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
+    fixture.nativeElement.querySelector('[data-archived-restore]').click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-toast]')?.textContent).toContain('Home, which is switched off.');
+    expect(fixture.nativeElement.querySelector('[data-restore-go]')).toBeNull();
+  });
+
+  it('links a restored workstream to its own route and refreshes the hierarchy', async () => {
+    const child = ProjectSchema.parse({ ...root, id: 'project-kitchen', kind: 'subproject', parentProjectId: PROJECT, name: 'Kitchen', status: 'archived' });
+    const item = ProjectArchiveItemSchema.parse({ kind: 'subproject', project: child,
+      origin: { ...archive.items[0]!.origin, projectId: child.id, pageKind: 'work', breadcrumb: [{ projectId: PROJECT, name: root.name }, { projectId: child.id, name: child.name }] },
+      cause: { kind: 'own' }, restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' } });
+    const { fixture, gateway, hierarchyChanged } = await render({ ...archive, items: [item] });
+    gateway.options.projects = [root, child];
+    gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
+    fixture.nativeElement.querySelector('[data-archived-restore]').click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-restore-go]')?.getAttribute('href')).toBe('/projects/project-kitchen');
+    expect(hierarchyChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismissal focuses the next surviving Restore', async () => {
+    const next = ProjectArchiveItemSchema.parse({ ...archive.items[0], section: { ...section, id: 'section-next', title: 'Next' } });
+    const { fixture, gateway } = await render({ ...archive, items: [archive.items[0]!, next] });
+    gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [next] });
+    const host = fixture.nativeElement as HTMLElement;
+    const restore = host.querySelector<HTMLButtonElement>('[data-archived-restore]')!;
+    restore.focus(); restore.click(); await fixture.whenStable(); fixture.detectChanges();
+    host.querySelector<HTMLButtonElement>('[data-toast-dismiss]')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(document.activeElement).toBe(host.querySelector('[data-archived-restore]'));
+  });
   it('renders archive rows and their owning-page origin', async () => {
     const { fixture } = await render();
 

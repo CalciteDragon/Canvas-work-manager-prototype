@@ -166,11 +166,12 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   }
   await expect(page.locator(`[data-archived-item][data-archived-id="${mcpTask.id}"]`)).toHaveCount(0);
 
-  // Turning the optional tab off does not strand the archive. Its old URL falls back to Home,
-  // where the same root navigation control enables it again and opens the page.
+  // Hiding a navigation entry does not strand Archive or change its routability.
+  await api('PATCH', `/api/projects/${root.id}/pages/archive`, { enabled: true });
   await api('PATCH', `/api/projects/${root.id}/pages/archive`, { enabled: false });
   await page.goto(`/projects/${root.id}/pages/archive`);
-  await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/home$`));
+  await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
+  await expect(page.locator('[data-page-notice]')).toHaveCount(0);
   await page.locator('[data-project-more]').click();
   await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
@@ -269,7 +270,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   assertProjection(await archiveItems(ROOT));
   expect((await api<{ sectionId: string }>('GET', `/api/tasks/${moved.id}`)).sectionId).toBe(`section-${ROOT}-tasks`);
 
-  // From a nested route, More → Open archive enables the tab and opens the root's Archive.
+  // From a nested route, More → Open archive navigates to the root's Archive without a write.
   await page.goto('/projects/project-kitchen');
   await page.locator('[data-project-more]').click();
   await page.locator('[data-project-open-archive]').click();
@@ -432,7 +433,7 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     await middleFrame.locator('[data-section-remove]').click();
     const secondReceipt = ((await (await secondRemoval).json()) as { operation: { historyId: string; actionId: string } }).operation;
     await expect(middleFrame).toHaveCount(0);
-    await page.locator('[data-open-archive]').click();
+    await page.locator('[data-toast]:popover-open [data-open-archive]').click();
     await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
     const row = page.locator(`[data-archived-item][data-archived-id="${middle.id}"]`);
     await row.locator('[data-archived-restore]').click();
@@ -447,8 +448,8 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
 
     // Neither removal receipt can move the section right now, and for the same reason in both
     // cases: a newer step of this person's is next in their stack. The first receipt was undone and
-    // then discarded by the second removal's write; the second sits below the Restore and the page
-    // enable Open archive made. Recording Restore turned what used to be a retirement into an
+    // then discarded by the second removal's write; the second sits below the Restore.
+    // Open archive only navigated. Recording Restore turned what used to be a retirement into an
     // ordinary "not next", which is the point — the way back is to undo the Restore, not to lose the removal.
     const eventsBeforeRefusals = await api<unknown[]>('GET', '/api/activity?limit=5');
     for (const receipt of [firstReceipt, secondReceipt]) {
@@ -475,22 +476,11 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     const afterRestoreUndo = await api<{ revision: number; undo: { actionId: string; operation: string } }>(
       'GET', `/api/projects/${root.id}/history`,
     );
-    // Open archive first-enabled the Archive tab, and since Slice 38 that enable is its own
-    // `page.add` step, between the Restore and the removal. Undo it too, and the removal is next.
-    expect(afterRestoreUndo.undo).toMatchObject({ operation: 'page.add' });
-    await api('POST', `/api/history/${summary.historyId}/transition`, {
-      actionId: afterRestoreUndo.undo.actionId, direction: 'undo', expectedRevision: afterRestoreUndo.revision,
-    });
-    const belowPage = await api<{ revision: number; undo: { actionId: string; operation: string }; redo: { actionId: string } }>(
-      'GET', `/api/projects/${root.id}/history`,
-    );
-    expect(belowPage.undo).toMatchObject({ actionId: secondReceipt.actionId, operation: 'section.remove' });
-    await api('POST', `/api/history/${summary.historyId}/transition`, {
-      actionId: belowPage.redo.actionId, direction: 'redo', expectedRevision: belowPage.revision,
-    });
+    // Open archive wrote nothing, so the removal is immediately below the Restore.
+    expect(afterRestoreUndo.undo).toMatchObject({ actionId: secondReceipt.actionId, operation: 'section.remove' });
     // Put it back the way the page showed it, so the checks below read the restored canvas.
     await api('POST', `/api/history/${summary.historyId}/transition`, {
-      actionId: summary.undo.actionId, direction: 'redo', expectedRevision: belowPage.revision + 1,
+      actionId: summary.undo.actionId, direction: 'redo', expectedRevision: afterRestoreUndo.revision,
     });
     await expect.poll(combined).toEqual(appended);
     // The person's history is not the agent connection's to reach. The baseline is re-read here:

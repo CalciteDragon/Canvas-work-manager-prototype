@@ -21,6 +21,10 @@ Undo stays inside this boundary: the gateway owns the typed write envelopes (inc
 operation-discriminated transition result; feature stores report receipts through
 `OPERATION_HISTORY_REPORTER` and never see HTTP or inverse snapshots.
 
+`RECEIPT_UNDO` exposes receipt-specific Undo with an inert default outside a workspace.
+`ReceiptToast` composes that port with shared feedback ownership, so task and project components
+can confirm a write and undo it without importing another feature's store.
+
 ## Responsibilities
 
 - `WorkManagerGateway` and its fifteen sub-interfaces (`TaskGateway`,

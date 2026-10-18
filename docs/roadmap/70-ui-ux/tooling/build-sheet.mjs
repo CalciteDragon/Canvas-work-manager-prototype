@@ -8,11 +8,34 @@ import { resolve, join } from 'node:path';
 const args = process.argv.slice(2);
 const profileAt = args.indexOf('--profile');
 const profile = profileAt === -1 ? '71' : args[profileAt + 1];
-if (!['71', '72', '73'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+if (!['71', '72', '73', '74'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
 const positional = args.filter((_, index) => profileAt === -1 || (index !== profileAt && index !== profileAt + 1));
 const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
 if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73]');
 const liftCell = cell => ['more', 'project-details', 'archive-confirm', 'page-settings', 'task-drawer', 'task-drawer-scrolled', 'section-create', 'work-create'].includes(cell.state) || cell.route === '/prototype/design';
+/** Slice 74's one listed closed-state change: the project header exactly 12 px shorter at the same top. */
+const FEEDBACK_ROW = 12;
+const removedFeedbackRow = (bl, al) => {
+  const [was, now] = [bl, al].map(layout => layout.planes?.find(plane => plane.selector === 'app-project-header'));
+  if (!was || !now || Math.abs(was.y - now.y) > 1 || Math.abs(was.height - now.height - FEEDBACK_ROW) > 0.5) return null;
+  return { top: now.y, bottom: now.y + now.height, left: now.x, right: now.x + now.width, shift: was.height - now.height };
+};
+/** Undoes only that row: the header's height, the boxes below it, and containers that shrank by exactly it. */
+const restoreFeedbackRow = (box, was, { top, bottom, left, right, shift }, family) => {
+  if (box.selector === 'app-project-header') return { ...box, height: box.height + shift };
+  // Only the header's own column moves; the sidebar and project column beside it do not.
+  const besideHeader = typeof box.x === 'number' && (box.x + box.width <= left + 0.5 || box.x >= right - 0.5);
+  if (besideHeader) return box;
+  // Controls in an anchored lift (More, a dialog) stay where they were; page content moves.
+  if (box.y >= bottom - 0.5) return family === 'controls' && Math.abs(was?.y - box.y) <= 0.5 ? box : { ...box, y: box.y + shift };
+  if (box.y > top || box.y + box.height < bottom - 0.5 || !was) return box;
+  const restored = { ...box };
+  for (const field of ['height', 'scrollHeight']) {
+    if (typeof box[field] === 'number' && Math.abs(was[field] - box[field] - shift) <= 0.5) restored[field] = box[field] + shift;
+  }
+  return restored;
+};
+const feedbackCell = cell => ['remove-feedback', 'page-settings'].includes(cell.state) || cell.route === '/prototype/design';
 /**
  * Slice 72's pre-listed census exceptions, each owned by a later slice. A matching control is
  * reported on the sheet, never silently passed; anything else that is too small fails.
@@ -41,9 +64,16 @@ for (const a of after.cells) {
   const b = before.cells.find(b => b.id === a.id);
   if (!b || a.status !== 'captured' || b.status !== 'captured') { failures.push({ cell: a.id, reason: 'missing or incomplete evidence' }); continue; }
   const [bl, al] = await Promise.all([read(join(beforeDir, b.artifacts.layout)), read(join(afterDir, a.artifacts.layout))]);
+  const removedRow = profile === '74' ? removedFeedbackRow(bl, al) : null;
   for (const family of ['planes', 'controls', 'scrollRegions']) {
     let old = bl[family], next = al[family];
     if (!old || !next) { failures.push({ cell: a.id, family, reason: 'collector missing' }); continue; }
+    if (removedRow) {
+      // The user accepted this on 2026-10-17: the deleted wrapper was never hidden by its `:empty`
+      // rule, so the baseline carried a blank row and its grid gap. Put the row back, then gate.
+      if (family === 'planes') exceptions.push({ cell: a.id, reason: 'empty header feedback row removed', shift: removedRow.shift });
+      next = next.map((box, index) => restoreFeedbackRow(box, old[index], removedRow, family));
+    }
     if (profile === '71' && a.route === '/prototype/design' && family === 'controls') {
       // Keep all original controls: shell, header, seven knobs and the live catalogue.
       // This slice inserts eleven knobs and two toggles after the original seven, then
@@ -89,13 +119,13 @@ for (const a of after.cells) {
       if (intended.length) intendedChanges.push({ cell: a.id, changes: intended });
       const moved = changes.filter(change => !intended.includes(change) && !integrity.includes(change));
       if (moved.length) geometryReport.push({ cell: a.id, family, changes: moved });
-    } else if (profile === '73' && liftCell(a)) {
+    } else if ((profile === '73' && liftCell(a)) || (profile === '74' && feedbackCell(a))) {
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
       if (changes.length) geometryReport.push({ cell: a.id, family, changes });
     } else if (changes.length) failures.push({ cell: a.id, family, changes });
   }
-  if (profile === '73') {
+  if (profile === '73' || profile === '74') {
     const touch = a.viewport?.width === 375;
     if (touch && al.document > al.viewport + 1) failures.push({ cell: a.id, reason: 'scrolls sideways', document: al.document, viewport: al.viewport });
     for (const [index, region] of (touch ? al.scrollRegions ?? [] : []).entries()) {
@@ -111,7 +141,7 @@ for (const a of after.cells) {
     if (liftCell(a)) {
       const axe = await read(join(afterDir, a.artifacts.axe));
       for (const violation of axe.violations ?? []) {
-        if (['aria-allowed-role', 'aria-required-children', 'aria-dialog-name', 'nested-interactive'].includes(violation.id)) failures.push({ cell: a.id, reason: `axe ${violation.id}`, nodes: violation.nodes.map(node => node.target) });
+        if ((profile === '74' ? ['aria-allowed-role', 'region', 'nested-interactive'] : ['aria-allowed-role', 'aria-required-children', 'aria-dialog-name', 'nested-interactive']).includes(violation.id)) failures.push({ cell: a.id, reason: `axe ${violation.id}`, nodes: violation.nodes.map(node => node.target) });
       }
     }
   }
@@ -166,7 +196,28 @@ const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-ver
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
 const captureProvenance = profile === '73' ? await optional(join(afterDir, 'production-build.json')) : null;
 const finalBuild = profile === '73' ? await optional(join(afterDir, 'final-production-build.json')) : null;
-const tasks = profile === '73' ? await optional(join(afterDir, 'tasks/tasks.json')) : null;
+const tasks = ['73', '74'].includes(profile) ? await optional(join(afterDir, 'tasks/tasks.json')) : null;
+const feedback = profile === '74' ? await optional(join(verificationDir, 'feedback-verification.json')) : null;
+if (profile === '74') {
+  for (const [id, clicks] of [['T05', 2], ['T09', 1]]) {
+    const task = tasks?.find(task => task.id === id);
+    if (!task || task.status !== 'completed' || task.deadEnds !== 0 || !Number.isFinite(task.clicks) || task.clicks > clicks || task.keystrokes !== 0) failures.push({ reason: 'core task regression', id, task, budget: { clicks, keystrokes: 0 } });
+  }
+  if (!feedback?.complete) failures.push({ reason: 'feedback-verification.json missing or incomplete; run UX_FEEDBACK=1' });
+  for (const theme of ['dark', 'light']) for (const width of [1440, 375]) {
+    const entry = feedback?.entries?.find(entry => entry.theme === theme && entry.width === width);
+    if (!entry) { failures.push({ reason: 'feedback geometry evidence missing', theme, width }); continue; }
+    if (!Number.isFinite(entry.inlineClearance) || entry.inlineClearance < -1 || entry.drawerIntersection !== false || entry.focusedIntersection !== false) failures.push({ reason: 'toast clearance', theme, width, entry });
+    if (!Number.isFinite(entry.transient) || entry.transient > 1) failures.push({ reason: 'toast blur budget', theme, width, entry });
+    for (const mode of ['forced-colors', 'reduced-transparency']) {
+      if (!entry.fallbacks?.some(fallback => fallback.mode === mode && fallback.backdropFilter === 'none')) failures.push({ reason: 'toast solid fallback missing', theme, width, mode });
+    }
+    if (width === 375 && (!entry.suppression?.hidden || !entry.suppression?.returned)) failures.push({ reason: 'toast phone suppression missing', theme });
+  }
+  for (const row of ['remove-listed', 'remove-unlisted', 'task-delete', 'project-archive', 'header-transition', 'cross-owner', 'archive-restore', 'todos-complete']) {
+    if (!feedback?.focus?.some(entry => entry.row === row && entry.passed)) failures.push({ reason: 'feedback focus evidence missing', row });
+  }
+}
 if (profile === '73') {
   for (const [id, clicks, keystrokes] of [['T03', 10, 38], ['T04', 1, 0], ['T08', 3, 0]]) {
     const task = tasks?.find(task => task.id === id);
@@ -227,7 +278,7 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
 failures.push(...censusFailures);
-const report = { profile, before: before.commit, after: after.commit, pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild };
+const report = { profile, before: before.commit, after: after.commit, pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
 // Profile 73's "Visual acceptance pairs" table: which findings each core cell demonstrates.

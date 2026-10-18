@@ -87,7 +87,7 @@ test('1. both controls render on every project page, are reachable, and fit a ph
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
-test('2–3, 8. every family is undone and redone from the header, survives reload, and the notice offers no Undo', async ({ page }) => {
+test('2–3, 8. every family is undone and redone from the header, survives reload, and the acting toast also offers Undo', async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto(`/projects/${ROOT}`);
   await expectEmptyControls(page, 'seeded Home');
@@ -122,10 +122,11 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await brief.locator('[data-section-remove]').click();
   await expect(brief).toHaveCount(0);
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Markdown section');
-  // 8. The recovery notice keeps Archive and says where Undo lives; it has no Undo of its own.
-  await expect(page.locator('[data-recovery-message]')).toHaveText('Removed the Markdown section. Undo is in the header.');
-  await expect(page.locator('[data-recovery-notice] [data-open-archive]')).toBeVisible();
-  await page.locator('[data-dismiss-recovery-notice]').click();
+  // 8. One acting toast carries the confirmation, Undo and durable Archive recovery.
+  await expect(page.locator('[data-toast]:popover-open .toast__message')).toHaveText('Removed the Markdown section.');
+  await expect(page.locator('[data-toast]:popover-open [data-open-archive]')).toBeVisible();
+  await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeVisible();
+  await page.locator('[data-toast]:popover-open [data-toast-dismiss]').click();
 
   // A Home shortcut: add through the contextual dialog, collapse, remove.
   await page.locator('app-insertion-point[data-insertion-point="end"] [data-insertion-point-button]').click();
@@ -143,7 +144,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await shortcut.locator('[data-shortcut-remove]').click();
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Progress (Kitchen) shortcut');
   // A shortcut removal leaves nothing for Archive, so there is no notice at all.
-  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-toast]:popover-open')).toHaveCount(0);
 
   // The project itself, through the header's More menu.
   await page.locator('[data-project-more]').click();
@@ -271,10 +272,10 @@ test('4. a write recorded in another project’s history says so, and its link l
   await expectEmptyControls(page, 'Todos');
   const row = page.locator('[data-todo-row][data-todo-id="task-kitchen-appliances"]');
   await row.locator('[data-todo-toggle]').click();
-  await expect(historyFeedback(page)).toHaveText('Completed "Choose appliance finishes" was recorded in Kitchen’s history.');
+  await expect(historyFeedback(page)).toHaveText('Completed “Choose appliance finishes”.');
   await expectEmptyControls(page, 'Todos after a cross-owner write');
 
-  await page.locator('[data-history-open]').click();
+  await page.locator('[data-toast]:popover-open [data-toast-open]').click();
   await expect(page).toHaveURL(/\/projects\/project-kitchen$/);
   await undoFromHeader(page, 'Completed "Choose appliance finishes"');
   await expect.poll(async () => (await api.get<Task>('/api/tasks/task-kitchen-appliances')).status).toBe('todo');
@@ -287,7 +288,7 @@ test('5. archiving from the header stays on the project with its Undo, and an ar
   await page.locator('[data-project-archive-confirm-yes]').click();
   await expect(page).toHaveURL(/\/projects\/project-garden$/);
   await expect(page.locator('[data-project-status]')).toHaveText(/archived/i);
-  await expect(historyFeedback(page)).toHaveText('Garden is archived. Undo is available here.');
+  await expect(historyFeedback(page)).toHaveText('Archived Garden.');
   await page.locator('[data-project-more]').click();
   await expect(page.locator('[data-project-archive]')).toHaveCount(0);
   await page.locator('[data-project-more]').click();
@@ -360,7 +361,7 @@ test('6. controls are pending through a write and its re-read, and a stale tab i
     const refused = await stepFromHeader(tabB, 'undo', 'Collapsed the Progress section');
     expect(refused.response.status()).toBe(409);
     expect((refused.body as unknown as { details: { reason: string } }).details.reason).toBe('history_revision_stale');
-    await expect(historyFeedback(tabB)).toContainText('history changed elsewhere');
+    await expect(historyFeedback(tabB)).toContainText('Someone changed this project since');
     open();
     for (const direction of ['undo', 'redo'] as const) {
       await expect(historyControl(tabB, direction)).toHaveAttribute('aria-label', (await historyControl(page, direction).getAttribute('aria-label'))!);
@@ -405,9 +406,9 @@ test('7. a conflicting later edit refuses with its subject and next step, and ex
   await expect(list.locator('[data-task-row]', { hasText: 'Call the yard (agent)' })).toBeVisible();
 
   await undoFromHeader(page, label);
-  await expect(page.locator('[data-history-conflict]')).toHaveCount(1);
-  await expect(page.locator('[data-history-conflict]')).toContainText('Call the yard (agent)');
-  await expect(page.locator('[data-history-conflict]')).toContainText('Make the change again by hand.');
+  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toHaveCount(1);
+  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toContainText('Call the yard (agent)');
+  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toContainText('Make the change again by hand.');
 
   // Twenty-five hours on: the clock change reloads the host, and nothing is offered any more.
   await setClock('2026-09-16T13:00:00.000Z');
@@ -467,13 +468,15 @@ test('Slice 45 · 1. the controls work with Archive disabled, populated off Home
       await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
     };
 
-    // Archive is disabled, and its URL falls back to Home; no page, populated or not, loses the controls.
+    // A hidden Archive remains visitable; no page, populated or not, loses the controls.
     for (const url of [`/projects/${ROOT}`, `/projects/${ROOT}/pages/todos`, `/projects/${ROOT}/pages/reflections`, `/projects/${ROOT}/pages/archive`]) {
       await visit(url);
       await expect(historyControl(page, 'undo'), `${colorScheme} ${url}`).toHaveAttribute('aria-label', 'Undo: Created "Populated root"');
       await expect(historyControl(page, 'undo'), `${colorScheme} ${url}`).not.toHaveAttribute('aria-disabled', 'true');
       await expect(historyControl(page, 'redo'), `${colorScheme} ${url}`).toHaveAttribute('aria-label', 'Nothing to redo');
     }
+    await expect(page.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveAttribute('aria-current', 'page');
+    await visit(`/projects/${ROOT}`);
     await expect(page.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveCount(0);
     await visit('/projects/project-kitchen');
     await expect(historyControl(page, 'undo'), `${colorScheme} sub-project`).toHaveAttribute('aria-label', 'Undo: Created "Populated kitchen"');

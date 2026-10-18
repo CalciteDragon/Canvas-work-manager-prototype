@@ -28,9 +28,10 @@ import type {
 } from '@cwm/contracts';
 import { nameOf, shortcutNameOf } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
+import { ReceiptToast } from '../../core/history/receipt-toast';
 import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
 import { SectionCreateDialog } from './section-create-dialog';
-import { SectionRecoveryNotice } from './section-recovery-notice';
+import { Toast } from '../../shared/feedback/toast';
 import { Icon } from '../../shared/components/icon/icon';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
@@ -41,6 +42,7 @@ import { ProjectSectionFrame } from './sections/section-frame/project-section-fr
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 import { ShortcutFrame } from './shortcuts/shortcut-frame';
 import { ShortcutStore } from './shortcuts/shortcut-store';
+import { canvasRefreshFailedFeedback, sectionRemoveFailedFeedback } from './history/history-feedback';
 
 interface GridInsertionTarget {
   index: number;
@@ -63,7 +65,7 @@ interface GridInsertionTarget {
     InsertionPoint,
     ProjectSectionFrame,
     SectionCreateDialog,
-    SectionRecoveryNotice,
+    Toast,
     SectionResizeHandle,
     ShortcutFrame,
   ],
@@ -72,6 +74,7 @@ interface GridInsertionTarget {
   styleUrl: './project-canvas.scss',
 })
 export class ProjectCanvas {
+  readonly toast = new ReceiptToast();
   readonly projectId = input.required<ProjectId>();
   readonly pageId = input.required<ProjectPageId>();
   readonly projectLayoutMode = input.required<ProjectLayoutMode>();
@@ -185,6 +188,17 @@ export class ProjectCanvas {
       untracked(() => void this.store.load(projectId, pageId, shortcutsAllowed, rootProjectId));
     });
     this.watchNavigationTarget();
+    effect(() => {
+      const notice = this.store.recoveryNotice();
+      const failed = this.store.failedRemoval();
+      untracked(() => {
+        if (failed !== null) this.toast.show(sectionRemoveFailedFeedback(failed.message), undefined, this.canvasFallback);
+        else if (notice !== null && !notice.undoing) this.toast.show({ tone: 'status',
+          message: notice.refreshFailed ? canvasRefreshFailedFeedback().message : notice.message,
+        }, notice.refreshFailed ? undefined : notice.report, this.canvasFallback);
+        else if (notice === null) this.toast.close();
+      });
+    });
   }
 
   private watchNavigationTarget(): void {
@@ -359,12 +373,11 @@ export class ProjectCanvas {
     this.pendingRemovalFocus = null;
     const focusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusStartedInRemoval = this.focusIsInSection(id) || this.focusIsInRecoveryNotice();
-    const removed = await this.store.removeSection(id);
+    const removed = await this.store.removeSection(id, { exempt: this.focusIsInRecoveryNotice() });
     if (this.projectId() !== projectId || this.pageId() !== pageId) return removed;
 
     if (!removed) return false;
-    // The section that held focus is gone. Undo is in the header (Slice 41); here focus goes to the
-    // recovery notice's Open Archive when one is offered, else to the canvas.
+    // A vanished control hands focus to this action's first toast control.
     const active = document.activeElement;
     const focusWasNotMovedElsewhere = active === document.body || active === null || active === focusedElement;
     if (focusStartedInRemoval && focusWasNotMovedElsewhere) {
@@ -374,7 +387,7 @@ export class ProjectCanvas {
     return true;
   }
 
-  /** Called after render and by the deferred notice once it renders, so slow chunk loading cannot lose focus. */
+  /** Focus only after the toast's actions render, preserving a move made during the request. */
   focusAfterRemoval(): void {
     const pending = this.pendingRemovalFocus;
     if (pending === null) return;
@@ -387,59 +400,41 @@ export class ProjectCanvas {
       this.pendingRemovalFocus = null;
       return;
     }
-    const target = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]') ??
-      this.host.nativeElement.querySelector<HTMLElement>('[data-recovery-notice]');
-    // The notice is deferred; its `ready` calls back here once it has rendered.
+    const target = this.host.nativeElement.querySelector<HTMLElement>(':scope > app-toast [data-toast] button, :scope > app-toast [data-toast] a[href]');
     if (target === null && this.store.recoveryNotice() !== null) return;
     this.pendingRemovalFocus = null;
     (target ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]') ??
       this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
   }
 
-  dismissRecoveryNotice(): void {
-    this.pendingRemovalFocus = null;
-    const projectId = this.projectId();
-    const pageId = this.pageId();
-    this.store.dismissRecoveryNotice();
-    afterNextRender(() => {
-      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.recoveryNotice() !== null) return;
-      const retry = this.store.failedRemoval() === null
-        ? null
-        : this.host.nativeElement.querySelector<HTMLElement>('[data-retry-remove]');
-      const firstTitle = this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]');
-      (retry ?? firstTitle ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
-    }, { injector: this.injector });
-  }
-
-  dismissFailedRemoval(): void {
-    const projectId = this.projectId();
-    const pageId = this.pageId();
-    const failedSectionId = this.store.failedRemoval()?.sectionId;
-    this.store.dismissFailedRemoval();
-    afterNextRender(() => {
-      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.failedRemoval() !== null) return;
-      if (this.store.recoveryNotice() !== null) {
-        const archiveAction = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]');
-        const notice = this.host.nativeElement.querySelector<HTMLElement>('[data-recovery-notice]');
-        (archiveAction ?? notice)?.focus();
-        return;
-      }
-      const dismissedSectionTitle = failedSectionId === undefined
-        ? null
-        : this.findSectionElement(failedSectionId)?.querySelector<HTMLElement>('[data-section-title]');
-      const firstTitle = this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]');
-      (dismissedSectionTitle ?? firstTitle ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
-    }, { injector: this.injector });
-  }
-
-  openArchiveFromNotice(): void {
-    const returnTo = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]');
-    if (returnTo) this.onOpenArchive()(returnTo);
-  }
-
   retryFailedRemoval(): void {
     const failed = this.store.failedRemoval();
     if (failed !== null) void this.removeSectionFromCanvas(failed.sectionId);
+  }
+
+  readonly canvasFallback = (): HTMLElement | null => this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]') ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]');
+
+  dismissToast(): void {
+    this.pendingRemovalFocus = null;
+    this.toast.close();
+    this.store.dismissRecoveryNotice();
+    this.store.dismissFailedRemoval();
+  }
+
+  async undoRemoval(): Promise<void> {
+    const id = this.store.recoveryNotice()?.removal?.sectionId;
+    this.store.retainRemovalNoticeForUndo();
+    await this.toast.undo(() => {
+      const deadline = Date.now() + 2000;
+      const focusReturnedSection = (): void => {
+        const popover = this.host.nativeElement.querySelector<HTMLElement>(':scope > app-toast [data-toast]');
+        if (!popover?.contains(document.activeElement)) return;
+        const heading = id === undefined ? null : this.findSectionElement(id)?.querySelector<HTMLElement>('[data-section-title]');
+        if (heading) heading.focus();
+        else if (Date.now() < deadline) setTimeout(focusReturnedSection, 50);
+      };
+      focusReturnedSection();
+    });
   }
 
   async retryRefresh(): Promise<void> {
@@ -453,8 +448,7 @@ export class ProjectCanvas {
       if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.recoveryNotice()?.refreshFailed) return;
       const active = document.activeElement;
       if (active !== null && active !== document.body && active !== retry) return;
-      const target = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]') ??
-        this.host.nativeElement.querySelector<HTMLElement>('[data-dismiss-recovery-notice]') ??
+      const target = this.host.nativeElement.querySelector<HTMLElement>(':scope > app-toast [data-toast] button, :scope > app-toast [data-toast] a[href]') ??
         this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]') ??
         this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]');
       target?.focus();
@@ -468,7 +462,7 @@ export class ProjectCanvas {
 
   private focusIsInRecoveryNotice(): boolean {
     const active = document.activeElement;
-    return active instanceof HTMLElement && active.closest('app-section-recovery-notice') !== null;
+    return active instanceof HTMLElement && this.host.nativeElement.contains(active) && active.closest('[data-toast]') !== null;
   }
 
   private findSectionElement(id: SectionId): HTMLElement | undefined {

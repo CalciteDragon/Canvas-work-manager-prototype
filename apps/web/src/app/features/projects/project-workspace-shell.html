@@ -12,10 +12,6 @@
       (redoRequested)="redo()"
       (retryRequested)="history.retry()"
     />
-    <app-project-history-feedback
-      [feedback]="history.feedback()"
-      (dismissed)="history.dismissFeedback()"
-    />
   </section>
 } @else if (store.error(); as error) {
   <section class="project-workspace__notice" aria-labelledby="project-error-heading">
@@ -84,18 +80,7 @@
           (redoRequested)="redo()"
           (retryRequested)="history.retry()"
         />
-        <app-project-history-feedback
-          projectHistoryFeedback
-          [feedback]="history.feedback()"
-          (dismissed)="history.dismissFeedback()"
-        />
       </app-project-header>
-
-      @if (archiveRetryNeeded()) {
-        <button type="button" data-archive-open-retry class="button project-workspace__retry" (click)="retryArchiveOpen()">
-          Retry opening Archive
-        </button>
-      }
 
       <!-- §68: an unknown, disabled or unbuilt page falls back "with an explanation". The URL
            was already replaced; this is the sentence that goes with it. -->
@@ -114,8 +99,7 @@
       @if (unavailable(); as reason) {
         <p data-page-unavailable class="project-workspace__error" role="alert">{{ reason }}</p>
       } @else if (rendered(); as rendered) {
-        <!-- Mounted only once the page is resolved: the renderer's `pageId` is required, and
-             resolving it needs a second round trip after the project itself. -->
+        <!-- Mounted once resolved; Archive needs no page record because its read is root-wide. -->
         <ng-container
           [ngComponentOutlet]="rendered.component"
           [ngComponentOutletInputs]="rendererInputs() ?? {}"
@@ -129,3 +113,16 @@
     }
   }
 }
+
+<app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'"
+  [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []"
+  [suppressed]="toast.slot.suppressed()" [pendingUndo]="toast.pendingUndo()"
+  (dismissed)="toast.close(); history.dismissFeedback()">
+  @if (toast.offer() !== 'unavailable') {
+    <button data-toast-undo type="button" class="button" [attr.aria-disabled]="toast.offer() !== 'ready' || toast.pendingUndo() ? 'true' : null"
+      [attr.aria-label]="toast.offer() === 'saving' ? 'Undo (saving…)' : 'Undo'" (click)="toast.undo()">Undo</button>
+  }
+  @if (toast.state()?.link; as link) {
+    <a class="button" data-toast-open [routerLink]="['/projects', link.projectId]">{{ link.label }}</a>
+  }
+</app-toast>

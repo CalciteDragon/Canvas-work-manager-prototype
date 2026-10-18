@@ -9,9 +9,8 @@ import { expect, test } from '@playwright/test';
 import { addSection, api, createRoot, createSubprojects, seed, setClock } from './seed';
 
 /**
- * Slice 37's browser half. There is no header Undo control yet — that is explicitly later Stage C
- * work — so the person's gestures come from the real UI and the transitions are driven through the
- * **same user's** HTTP history endpoint, which is what a header control will call. What is under
+ * Slice 37's browser half. The person's gestures come from the real UI and transitions are driven
+ * through the **same user's** HTTP history endpoint, independently of the acting controls. What is under
  * test here is reconciliation: that a canvas someone is looking at, in this tab and in another,
  * shows what the history just did.
  */

@@ -6,7 +6,7 @@ import type {
   ProjectRestoreStatus,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
-import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
+import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { isProjectRecordEvent, type LiveEvent } from '@cwm/contracts';
 
@@ -30,6 +30,7 @@ export class ArchivePageStore {
   private readonly loadingState = signal(true);
   private readonly errorState = signal<string | null>(null);
   private readonly restoringState = signal<ReadonlySet<string>>(new Set());
+  private readonly restoreReportState = signal<OperationWriteReport | null>(null);
   private projectIdState = signal<ProjectId | null>(null);
   private generation = 0;
   private destroyed = false;
@@ -39,6 +40,8 @@ export class ArchivePageStore {
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly restoring = this.restoringState.asReadonly();
+  /** The latest committed Restore's exact response receipt, for its own toast. */
+  readonly restoreReport = this.restoreReportState.asReadonly();
 
   constructor() {
     const unsubscribe = inject(LIVE_UPDATES).subscribe(
@@ -68,6 +71,7 @@ export class ArchivePageStore {
     const previousProjectId = this.projectIdState();
     this.projectIdState.set(projectId);
     if (previousProjectId !== projectId) {
+      this.restoreReportState.set(null);
       this.resultState.set(null);
       this.errorState.set(null);
     }
@@ -102,25 +106,31 @@ export class ArchivePageStore {
     if (projectId === null) return false;
     const generation = ++this.generation;
     const id = this.idOf(item);
+    this.restoreReportState.set(null);
     this.restoringState.update((ids) => new Set([...ids, id]));
     let written = false;
+    let report: OperationWriteReport | null = null;
+    const retainedReport = (value: OperationWriteReport): OperationWriteReport => {
+      report = { ...value, feedback: 'own' };
+      return report;
+    };
     try {
       switch (item.kind) {
         case 'subproject':
           await reportedWrite(this.reporter, () => this.gateway.projects.update(item.project.id, { status }),
-            ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
+            ({ project, operation }) => retainedReport({ projectId: project.id, projectName: project.name, receipt: operation }));
           break;
         case 'section':
           await reportedWrite(this.reporter, () => this.gateway.sections.restore(item.section.id),
-            ({ section, operation }) => ({ projectId: section.projectId, receipt: operation }));
+            ({ section, operation }) => retainedReport({ projectId: section.projectId, receipt: operation }));
           break;
         case 'task':
           await reportedWrite(this.reporter, () => this.gateway.tasks.restore(item.task.id),
-            ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }));
+            ({ task, operation }) => retainedReport({ projectId: task.projectId, receipt: operation }));
           break;
         case 'reflection':
           await reportedWrite(this.reporter, () => this.gateway.reflections.restore(item.reflection.id),
-            ({ reflection, operation }) => ({ projectId: reflection.projectId, receipt: operation }));
+            ({ reflection, operation }) => retainedReport({ projectId: reflection.projectId, receipt: operation }));
           break;
       }
       written = true;
@@ -128,6 +138,7 @@ export class ArchivePageStore {
       // mutation succeeded, but this instance must not report it as current and make the shell
       // refresh the next root's progress or hierarchy.
       if (!this.current(generation, projectId)) return false;
+      this.restoreReportState.set(report);
       const refreshPromise = this.load(projectId);
       const refreshGeneration = this.generation;
       const refreshed = await refreshPromise;
@@ -163,6 +174,7 @@ export class ArchivePageStore {
     const projectId = this.projectIdState();
     if (projectId === null) return;
     if (event.type === 'prototype.reloaded') {
+      this.restoreReportState.set(null);
       // A reload replaces the document and perhaps the persona: nothing on screen still holds.
       // It runs even while a Restore is pending; its read supersedes that Restore's refresh.
       this.resultState.set(null);

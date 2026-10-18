@@ -13,7 +13,7 @@ import {
   type UpdateProjectInput,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
-import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../core/history/operation-history-reporter';
+import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { GatewayError } from '../../core/gateway/gateway-error';
 
@@ -350,12 +350,7 @@ export class ProjectWorkspaceStore {
    */
   setPageEnabled(kind: ProjectPageKind, enabled: boolean): Promise<boolean> {
     if (kind === 'home' || kind === 'work') return Promise.resolve(false);
-    return this.writePage(kind, enabled, 'page');
-  }
-
-  /** §31–32: Archive remains reachable from project controls when its optional tab is disabled. */
-  openArchive(): Promise<boolean> {
-    return this.writePage('archive', true, 'archive');
+    return this.writePage(kind, enabled);
   }
 
   /** Read-only retry after a committed optional-page write could not reconcile its context. */
@@ -364,18 +359,12 @@ export class ProjectWorkspaceStore {
     const enabled = this.pageWriteRetryEnabledState();
     return kind === null || enabled === null
       ? Promise.resolve(false)
-      : this.reconcilePageContext(kind, enabled, 'page');
-  }
-
-  /** Read-only retry after an Archive page enable committed but context reconciliation failed. */
-  retryArchiveContext(): Promise<boolean> {
-    return this.reconcilePageContext('archive', true, 'archive');
+      : this.reconcilePageContext(kind, enabled);
   }
 
   private writePage(
     kind: ConfigurablePageKind,
     enabled: boolean,
-    surface: 'page' | 'archive',
   ): Promise<boolean> {
     return this.track(async () => {
       const root = this.root();
@@ -389,12 +378,11 @@ export class ProjectWorkspaceStore {
         routedProjectId === undefined ||
         this.pageWritePendingState()
       ) return false;
-      if (surface === 'archive' && this.pagesState().some((page) => page.kind === 'archive' && page.enabled)) return true;
 
       const generation = this.loadGeneration;
       const epoch = ++this.contextWriteEpoch;
       this.pageWritePendingState.set(true);
-      this.clearPageFeedback(surface);
+      this.clearPageFeedback();
       try {
         try {
           // The page's own project — the root — names the history, never the routed sub-project.
@@ -402,7 +390,7 @@ export class ProjectWorkspaceStore {
             (written) => ({ projectId: written.page.projectId, projectName: root.name, receipt: written.operation }));
         } catch (error) {
           if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
-            this.setPageOperationError(surface, messageOf(error));
+            this.setPageOperationError(messageOf(error));
           }
           return false;
         }
@@ -412,11 +400,11 @@ export class ProjectWorkspaceStore {
           const context = await this.readContext(routedProjectId);
           if (!this.pageOperationCurrent(generation, epoch, routedProjectId)) return false;
           this.applyContext(context);
-          this.clearPageFeedback(surface);
+          this.clearPageFeedback();
           return true;
         } catch (error) {
           if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
-            this.setPageOperationError(surface, this.pageRefreshError(kind, enabled, error), kind, enabled);
+            this.setPageOperationError(this.pageRefreshError(kind, enabled, error), kind, enabled);
           }
           return false;
         }
@@ -430,7 +418,6 @@ export class ProjectWorkspaceStore {
   private reconcilePageContext(
     kind: ConfigurablePageKind,
     enabled: boolean,
-    surface: 'page' | 'archive',
   ): Promise<boolean> {
     return this.track(async () => {
       const routedProjectId = this.requestedProjectId;
@@ -449,11 +436,11 @@ export class ProjectWorkspaceStore {
         const context = await this.readContext(routedProjectId);
         if (!this.pageOperationCurrent(generation, epoch, routedProjectId)) return false;
         this.applyContext(context);
-        this.clearPageFeedback(surface);
+        this.clearPageFeedback();
         return true;
       } catch (error) {
         if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
-          this.setPageOperationError(surface, this.pageRefreshError(kind, enabled, error), kind, enabled);
+          this.setPageOperationError(this.pageRefreshError(kind, enabled, error), kind, enabled);
         }
         return false;
       } finally {
@@ -467,29 +454,20 @@ export class ProjectWorkspaceStore {
     return !this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch && this.requestedProjectId === projectId;
   }
 
-  private clearPageFeedback(surface: 'page' | 'archive'): void {
-    if (surface === 'page') {
-      this.pageWriteErrorState.set(null);
-      this.pageWriteRetryKindState.set(null);
-      this.pageWriteRetryEnabledState.set(null);
-    } else {
-      this.writeErrorState.set(null);
-    }
+  private clearPageFeedback(): void {
+    this.pageWriteErrorState.set(null);
+    this.pageWriteRetryKindState.set(null);
+    this.pageWriteRetryEnabledState.set(null);
   }
 
   private setPageOperationError(
-    surface: 'page' | 'archive',
     message: string,
     retryKind?: ConfigurablePageKind,
     retryEnabled?: boolean,
   ): void {
-    if (surface === 'page') {
-      this.pageWriteErrorState.set(message);
-      this.pageWriteRetryKindState.set(retryKind ?? null);
-      this.pageWriteRetryEnabledState.set(retryEnabled ?? null);
-    } else {
-      this.writeErrorState.set(message);
-    }
+    this.pageWriteErrorState.set(message);
+    this.pageWriteRetryKindState.set(retryKind ?? null);
+    this.pageWriteRetryEnabledState.set(retryEnabled ?? null);
   }
 
   private pageRefreshError(kind: ConfigurablePageKind, enabled: boolean, error: unknown): string {
@@ -606,8 +584,12 @@ export class ProjectWorkspaceStore {
    * without waiting for a frame.
    */
   archive(): Promise<boolean> {
+    this.archiveReport.set(null);
     return this.writeProject({ status: 'archived' }, null);
   }
+
+  /** The committed archive's own receipt, retained for the shell's confirmation Undo. */
+  readonly archiveReport = signal<OperationWriteReport | null>(null);
 
   /**
    * One project write, optimistic unless `paint` is `null` (archive alone, which is awaited). The
@@ -636,7 +618,13 @@ export class ProjectWorkspaceStore {
       this.whileWriting(async () => {
         try {
           const { project: updated } = await reportedWrite(this.reporter, () => this.gateway.projects.update(projectId, input),
-            ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
+            ({ project, operation }) => {
+              const report: OperationWriteReport = { projectId: project.id, projectName: project.name, receipt: operation,
+                ...(input.status === 'archived' ? { feedback: 'own' as const } : {}),
+              };
+              if (current() && input.status === 'archived') this.archiveReport.set(report);
+              return report;
+            });
           // The server's record, not the paint: the host may have normalised something.
           if (current()) this.projectState.set(updated);
           return true;

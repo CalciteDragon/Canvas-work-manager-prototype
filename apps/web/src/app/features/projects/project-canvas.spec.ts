@@ -24,6 +24,7 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { LiftStack } from '../../shared/lifts/lift-stack';
+import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
 import { ProjectCanvas } from './project-canvas';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { ProjectPageStore } from './project-page-store';
@@ -189,10 +190,10 @@ const render = async (
 };
 
 const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string) =>
-  fixture.nativeElement.querySelector(selector) as HTMLElement | null;
+  fixture.nativeElement.querySelector(selector.startsWith('[data-toast') ? `:scope > app-toast ${selector}` : selector) as HTMLElement | null;
 
 const queryAll = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string) =>
-  [...fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
+  [...fixture.nativeElement.querySelectorAll(selector.startsWith('[data-toast') ? `:scope > app-toast ${selector}` : selector)] as HTMLElement[];
 
 const completeDeferredBlocks = async (fixture: Awaited<ReturnType<typeof render>>['fixture']): Promise<void> => {
   const blocks = await fixture.getDeferBlocks();
@@ -583,7 +584,10 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(document.activeElement).toBe(query(fixture, `${item} [data-shortcut-drag-handle]`));
   });
 
-  it('moves focus from the removed section to the recovery notice’s Open Archive, and offers no Undo here', async () => {
+  it('moves focus from a removed section to the toast Undo before Open archive', async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: RECEIPT_UNDO, useValue: {
+      writeSequence: signal(0), generation: signal(0), offer: () => 'ready', undo: vi.fn(),
+    } }] });
     const { fixture } = await render();
     const remove = query(fixture, '[data-section-id="section-text"] [data-section-remove]') as HTMLButtonElement;
     remove.focus();
@@ -594,12 +598,10 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    // Slice 41: Undo is the header's; the notice keeps only recovery the header cannot offer.
-    expect(query(fixture, '[data-undo-action]')).toBeNull();
-    expect(query(fixture, '[data-recovery-message]')?.textContent).toBe('Removed the Markdown section. Undo is in the header.');
+    expect(query(fixture, '[data-toast]')?.textContent).toContain('Removed the Markdown section.');
     const archive = query(fixture, '[data-open-archive]') as HTMLButtonElement;
     expect(archive).not.toBeNull();
-    expect(document.activeElement).toBe(archive);
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-undo]'));
   });
 
   it('does not steal focus when a removal was started outside its section frame', async () => {
@@ -609,7 +611,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-recovery-notice]')).not.toBeNull();
+    expect(query(fixture, '[data-toast]')?.textContent).toContain('Removed the Markdown section.');
     expect(document.activeElement).not.toBe(query(fixture, '[data-open-archive]'));
   });
 
@@ -620,15 +622,16 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     remove.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    query(fixture, '[data-dismiss-recovery-notice]')!.click();
+    query(fixture, '[data-toast-dismiss]')!.focus();
+    query(fixture, '[data-toast-dismiss]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
+    expect(fixture.componentInstance.toast.state()).toBeNull();
     expect(document.activeElement).toBe(query(fixture, '[data-section-title]'));
   });
 
-  it('dismisses the recovery notice and remove failures independently and focuses the remaining action', async () => {
+  it('replaces a previous confirmation with one retry toast after a failed removal', async () => {
     const { fixture, gateway } = await render();
     const removeSection = gateway.sections.remove.bind(gateway.sections);
     gateway.sections.remove = async (id) => {
@@ -642,24 +645,15 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     query(fixture, '[data-section-id="section-tasks"] [data-section-remove]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-open-archive]')).not.toBeNull();
+    expect(query(fixture, '[data-open-archive]')).toBeNull();
     expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
-
-    query(fixture, '[data-dismiss-removal-error]')!.click();
+    expect(queryAll(fixture, '[data-toast]')).toHaveLength(1);
+    query(fixture, '[data-toast-dismiss]')!.focus();
+    query(fixture, '[data-toast-dismiss]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-open-archive]')).not.toBeNull();
-    expect(document.activeElement).toBe(query(fixture, '[data-open-archive]'));
-
-    query(fixture, '[data-section-id="section-tasks"] [data-section-remove]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    query(fixture, '[data-dismiss-recovery-notice]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
-    expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
-    expect(document.activeElement).toBe(query(fixture, '[data-retry-remove]'));
+    expect(fixture.componentInstance.toast.state()).toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-section-title]'));
   });
 
   it('shows no notice after a forward write whose read succeeded: the header label is its confirmation', async () => {

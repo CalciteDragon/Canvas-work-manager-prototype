@@ -7,23 +7,6 @@
   </div>
 </section>
 
-<!-- Recovery only: Undo and Redo live in the project header (Slice 41). -->
-@defer (when store.recoveryNotice() !== null || store.failedRemoval() !== null) {
-  @if (store.recoveryNotice() !== null || store.failedRemoval() !== null) {
-    <app-section-recovery-notice
-      [state]="store.recoveryNotice()"
-      [failedRemoval]="store.failedRemoval()"
-      [busy]="store.recoveryBusy()"
-      (retryRemove)="retryFailedRemoval()"
-      (retryRefresh)="retryRefresh()"
-      (openArchive)="openArchiveFromNotice()"
-      (dismissNotice)="dismissRecoveryNotice()"
-      (dismissFailure)="dismissFailedRemoval()"
-      (ready)="focusAfterRemoval()"
-    />
-  }
-}
-
 <div data-canvas-live-region class="visually-hidden" aria-live="polite" aria-atomic="true">
   {{ liveAnnouncement() }}
 </div>
@@ -132,6 +115,7 @@
                 (collapseToggled)="collapse($event)"
                 (moveRequested)="moveWithKeyboard(placement.section.id, $event)"
                 [saveConfig]="saveSectionConfig"
+                [onOpenArchive]="onOpenArchive()"
                 (projectDataChanged)="projectDataChanged()"
                 (removeRequested)="removeSectionFromCanvas($event)"
               />
@@ -210,6 +194,23 @@
     }
   </div>
 }
+
+<app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'"
+  [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []"
+  [suppressed]="toast.slot.suppressed()" [pendingUndo]="toast.pendingUndo()"
+  (dismissed)="dismissToast()">
+  @if (toast.offer() !== 'unavailable') {
+    <button data-toast-undo type="button" class="button" [attr.aria-disabled]="toast.offer() !== 'ready' || toast.pendingUndo() ? 'true' : null"
+      [attr.aria-label]="toast.offer() === 'saving' ? 'Undo (saving…)' : 'Undo'" (click)="undoRemoval()">Undo</button>
+  }
+  @if (toast.state() !== null && store.failedRemoval() !== null) {
+    <button data-retry-remove type="button" class="button" [attr.aria-disabled]="store.recoveryBusy()" (click)="retryFailedRemoval()">Retry remove</button>
+  } @else if (toast.state() !== null && store.recoveryNotice()?.refreshFailed) {
+    <button data-retry-refresh type="button" class="button" [attr.aria-disabled]="store.recoveryBusy()" (click)="retryRefresh()">Retry refresh</button>
+  } @else if (toast.report() !== null && store.recoveryNotice()?.removal && store.recoveryNotice()?.removal?.archiveListed !== false) {
+    <button #archiveOpener data-open-archive type="button" class="button" (click)="onOpenArchive()(archiveOpener)">Open archive</button>
+  }
+</app-toast>
 
 @defer (when createDialogOpen()) {
   @if (createDialogOpen()) {

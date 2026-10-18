@@ -71,7 +71,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    URL, and use **Enable Todos** in the Home fallback; the tab and route return only after the
    setting has been saved and fresh page context has arrived. Reload to confirm the setting.
    Use the plus beside **Work** to add a workstream; choose Parent and check the "Inside …"
-   line before Create. The route stays put, and the header's Open link reaches its own history.
+   line before Create. The route stays put; the confirmation toast offers Undo and an Open link.
 7. **Root context on a workstream.** Open **Kitchen**, then **Cabinets**. The root's project
    column and manager remain visible, but there is no Work toggle and no `/pages/work` tab. The
    main area is the workstream's one canvas, and its breadcrumbs lead back through Home renovation
@@ -104,9 +104,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     undone the same way, from the header, and the history survives a reload. Disposable views are
     absent from Archive; retained content such as nonempty notes or cascaded rows can be restored
     from Archive. To see the two recoveries disagree on purpose, remove a nonempty notes section that
-    sits between two placements — the canvas says "Undo is in the header" and offers **Open
-    Archive** — and choose the header's **Undo**: it returns between them. Remove it again, choose
-    **Open Archive** and **Restore saved content**: it returns at the **end** of the page. That
+    sits between two placements — its toast offers **Undo** and **Open archive** — and choose
+    the toast's **Undo**: it returns between them. Remove it again, choose **Open archive**
+    (which records nothing) and **Restore saved content**: it returns at the **end** of the page. That
     Restore is itself one of your actions now — undoing it puts the section back in Archive rather
     than re-running the removal, and the removal is still there underneath it.
 12. **Collapse and rename.** Click the collapse control to hide a section's body while leaving

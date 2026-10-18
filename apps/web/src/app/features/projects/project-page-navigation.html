@@ -86,11 +86,11 @@
             type="checkbox"
             [checked]="pageEnabled(definition.kind)"
             [attr.aria-disabled]="pageWritePending()"
-            [attr.aria-label]="'Show ' + definition.label + ' page'"
+            [attr.aria-label]="definition.kind === 'archive' ? 'Show Archive in navigation' : 'Show ' + definition.label + ' page'"
             (change)="requestPageToggle(definition.kind, $event)"
           />
           <app-icon [name]="definition.icon" />
-          <span>{{ definition.label }}</span>
+          <span>{{ definition.kind === 'archive' ? 'Show Archive in navigation' : definition.label }}</span>
         </label>
       }
     </div>

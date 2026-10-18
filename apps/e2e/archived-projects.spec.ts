@@ -119,6 +119,8 @@ test.describe('narrow touch recovery', () => {
       if (theme === 'dark') await restore.press('Enter');
       else await restore.tap();
       await expect(row(page, project.id)).toHaveCount(0);
+      await expect(page.locator('[data-toast]:popover-open [data-restore-open]')).toBeFocused();
+      await page.locator('[data-toast]:popover-open [data-toast-dismiss]').click();
       await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();
       await expect(page.locator('[data-archived-empty]')).toBeVisible();
     }
@@ -161,17 +163,19 @@ test.describe('narrow touch recovery', () => {
       await expect(row(page, sibling.id)).toBeVisible();
       await expect(row(page, child.id)).toHaveCount(0);
 
-      // Another row remains: focus its status, not its still-disabled Restore.
+      // A successful Restore focuses Open it; dismissal falls back to the heading when the next Restore is disabled.
       await status(sibling.id).selectOption('planning');
       await activate(restore(sibling.id), theme);
       await expect(row(page, sibling.id)).toHaveCount(0);
-      await expect(status(parent.id)).toBeFocused();
+      await expect(page.locator('[data-toast]:popover-open [data-restore-open]')).toBeFocused();
+      await page.locator('[data-toast]:popover-open [data-toast-dismiss]').click();
+      await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();
 
-      // Restoring the parent reveals its child, which takes the focus.
+      // Restoring the parent reveals its child while the toast owns focus.
       await status(parent.id).selectOption('active');
       await activate(restore(parent.id), theme);
       await expect(row(page, parent.id)).toHaveCount(0);
-      await expect(status(child.id)).toBeFocused();
+      await expect(page.locator('[data-toast]:popover-open [data-restore-open]')).toBeFocused();
 
       // A failed refresh keeps the row blocked and focuses Retry; a successful Retry moves on.
       await status(child.id).selectOption('on_hold');
@@ -191,7 +195,7 @@ test.describe('narrow touch recovery', () => {
       await activate(restore(child.id), theme);
       await expect(page.locator('[data-archived-error]')).toContainText('Restore succeeded');
       await expect(restore(child.id)).toBeDisabled();
-      await expect(page.locator('[data-archived-retry]')).toBeFocused();
+      await expect(page.locator('[data-toast]:popover-open [data-restore-open]')).toBeFocused();
       await page.unroute('**/api/archived-projects', failList);
       await page.unroute(`**/api/projects/${child.id}`, armOnWrite);
       await activate(page.locator('[data-archived-retry]'), theme);

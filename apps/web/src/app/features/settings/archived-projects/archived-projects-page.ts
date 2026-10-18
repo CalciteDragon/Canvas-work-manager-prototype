@@ -1,13 +1,16 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, PendingTasks, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, PendingTasks, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectRestoreStatus } from '@cwm/contracts';
 import { ArchivedProjectsStore } from './archived-projects-store';
+import { Toast } from '../../../shared/feedback/toast';
+import { ReceiptToast } from '../../../core/history/receipt-toast';
+import { restoredProjectFeedback } from '../../projects/history/history-feedback';
 
 /** Settings recovery works independently of a project route or enabled Archive page. */
 @Component({
   selector: 'app-archived-projects-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, Toast],
   providers: [ArchivedProjectsStore],
   templateUrl: './archived-projects-page.html',
   styleUrl: './archived-projects-page.scss',
@@ -18,8 +21,16 @@ export class ArchivedProjectsPage {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly pendingTasks = inject(PendingTasks);
+  readonly toast = new ReceiptToast();
+  readonly restoredProjectId = signal<ProjectId | null>(null);
 
-  constructor() { void this.store.load(); }
+  constructor() {
+    void this.store.load();
+    // Settings has no project-scoped history provider to advance the toast's generation.
+    effect(() => {
+      if (this.store.restoreReport() === null) untracked(() => this.toast.close('write'));
+    });
+  }
 
   protected choose(id: ProjectId, event: Event): void {
     this.store.chooseStatus(id, (event.target as HTMLSelectElement).value as ProjectRestoreStatus | '');
@@ -28,7 +39,25 @@ export class ArchivedProjectsPage {
   /** Stability waits for the focus move too, not only for the store's write and re-read. */
   protected restore(id: ProjectId): Promise<void> {
     const index = this.store.items().findIndex(({ project }) => project.id === id);
-    return this.keepFocus('data-archived-restore', () => this.store.restore(id), index);
+    const project = this.store.items()[index]?.project;
+    const status = this.store.statusFor(id);
+    const owner = document.activeElement;
+    const owned = owner === document.body || owner instanceof HTMLElement && this.host.nativeElement.contains(owner) && owner.hasAttribute('data-archived-restore');
+    return (async () => {
+      const restored = await this.store.restore(id);
+      if (restored && project && status !== '') {
+        this.restoredProjectId.set(this.store.restoreReport()?.projectId ?? id);
+        this.toast.show(restoredProjectFeedback(project.name, status), undefined, () => {
+          const rows = this.host.nativeElement.querySelectorAll<HTMLElement>('[data-archived-project]');
+          return rows[index]?.querySelector<HTMLElement>('[data-archived-restore]:not(:disabled)') ?? this.heading()?.nativeElement ?? null;
+        });
+        this.changeDetector.detectChanges();
+        if (owned && (document.activeElement === document.body || document.activeElement === owner)) this.toast.focusFirst();
+      } else if (owned) {
+        this.changeDetector.detectChanges();
+        if (document.activeElement === document.body || document.activeElement === owner) this.focusNext(index);
+      }
+    })().finally(this.pendingTasks.add());
   }
 
   /** A successful Retry removes itself with the error, so it hands focus on the same way. */
@@ -37,10 +66,8 @@ export class ArchivedProjectsPage {
   }
 
   /**
-   * Runs a request started from `control` and, if that control owned focus and focus has been
-   * lost by the time it settles, moves focus on. Restore disables its own button while pending
-   * and a successful refresh removes its row, so focus is usually lost by then. A person who
-   * moved focus elsewhere during the request keeps it there (Slice 47).
+   * Runs a Retry and, if its control owned focus and focus is lost when the error disappears,
+   * moves focus on. A person who moved focus elsewhere during the request keeps it there.
    */
   private keepFocus(control: string, request: () => Promise<boolean>, index: number): Promise<void> {
     const owner = document.activeElement;

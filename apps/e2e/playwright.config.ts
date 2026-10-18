@@ -29,7 +29,8 @@ const dataFile = fileURLToPath(new URL('../../.prototype/e2e-data.json', import.
 
 export default defineConfig({
   testDir: '.',
-  testIgnore: ['**/ux/**'],
+  // ux-output may hold an archived baseline checkout whose own tests must never be collected.
+  testIgnore: ['**/ux/**', '**/ux-output/**'],
   fullyParallel: false,
   // The two specs seed the same host, so they must not race each other.
   workers: 1,

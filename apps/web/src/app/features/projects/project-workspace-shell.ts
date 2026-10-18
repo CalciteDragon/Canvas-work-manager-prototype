@@ -17,16 +17,18 @@ import {
 } from '@angular/core';
 import { DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router } from '@angular/router';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { canonicalPageKindFor, type ProjectId, type ProjectPageKind, type UpdateProjectInput } from '@cwm/contracts';
 import { TaskDrawerCoordinator } from '../tasks/task-drawer-coordinator';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
+import { ReceiptToast } from '../../core/history/receipt-toast';
+import { Toast } from '../../shared/feedback/toast';
 import { WORKSPACE_NARROW_BREAKPOINT } from '../../core/layout/breakpoints';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
 import { ProjectHistoryControls } from './history/project-history-controls';
-import { ProjectHistoryFeedback } from './history/project-history-feedback';
 import { ProjectHistoryStore } from './history/project-history-store';
 import { ProjectHeader } from './project-header';
 import { ProjectPageNavigation } from './project-page-navigation';
@@ -99,7 +101,7 @@ export class ProjectColumnFocusRequest {
 @Component({
   selector: 'app-project-workspace-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, ProjectHeader, ProjectHistoryControls, ProjectHistoryFeedback, ProjectPageNavigation, WorkCreateDialog],
+  imports: [NgComponentOutlet, ProjectHeader, ProjectHistoryControls, Toast, ProjectPageNavigation, WorkCreateDialog, RouterLink],
   // `providers`, not `viewProviders`: the page renderers are mounted through `NgComponentOutlet`,
   // and every writer store inside them must resolve the header's history as its reporter
   // (Slice 41). The inert root default would otherwise hide a wiring mistake.
@@ -108,6 +110,7 @@ export class ProjectColumnFocusRequest {
     ProjectHistoryStore,
     TaskDrawerCoordinator,
     { provide: OPERATION_HISTORY_REPORTER, useExisting: ProjectHistoryStore },
+    { provide: RECEIPT_UNDO, useExisting: ProjectHistoryStore },
   ],
   templateUrl: './project-workspace-shell.html',
   styleUrl: './project-workspace-shell.scss',
@@ -117,6 +120,7 @@ export class ProjectColumnFocusRequest {
   host: { 'data-flush-workspace': '' },
 })
 export class ProjectWorkspaceShell {
+  readonly toast = new ReceiptToast();
   /** Bound from the route by `withComponentInputBinding()` (§68). */
   readonly projectId = input.required<ProjectId>();
   /** Absent on `/projects/:projectId`, which means "this project's canonical page". */
@@ -173,7 +177,6 @@ export class ProjectWorkspaceShell {
   /** §23's narrow-width collapse. The column is simply present at desktop widths. */
   readonly collapsed = computed(() => this.narrowState() && this.collapsedState());
   readonly archiveNavigationPending = this.archiveNavigationPendingState.asReadonly();
-  readonly archiveRetryNeeded = computed(() => this.store.writeError()?.startsWith('Archive was enabled') ?? false);
   /** Only the creating actor's held project.add Redo can recover a missing route. */
   readonly creationRecovery = computed(() => {
     const summary = this.history.summary();
@@ -255,6 +258,12 @@ export class ProjectWorkspaceShell {
   });
 
   constructor() {
+    effect(() => {
+      const feedback = this.history.feedback();
+      untracked(() => {
+        if (feedback !== null) this.toast.show(feedback, feedback.report, () => this.host.nativeElement.querySelector<HTMLElement>('[data-project-name], #project-creation-recovery-heading'));
+      });
+    });
     inject(DestroyRef).onDestroy(() => this.releaseWorkLift?.());
     effect(() => {
       const loading = this.store.loading();
@@ -324,7 +333,7 @@ export class ProjectWorkspaceShell {
       // resolution object. That object is a fresh literal whenever the project record is
       // replaced, and every optimistic write replaces it; re-reading history state on each one
       // would undo a notice the user had already dismissed.
-      const settled = resolution.outcome === 'render' ? resolution.pageId : 'unavailable';
+      const settled = resolution.outcome === 'render' ? resolution.pageId ?? resolution.kind : 'unavailable';
       untracked(() => {
         if (this.noticedFor === settled) return;
         this.noticedFor = settled;
@@ -414,7 +423,7 @@ export class ProjectWorkspaceShell {
 
   private isOptionalNoticeKind(kind: unknown): kind is OptionalProjectPageKind {
     return typeof kind === 'string' &&
-      (kind === 'todos' || kind === 'archive' || kind === 'reflections') &&
+      (kind === 'todos' || kind === 'reflections') &&
       isOptionalProjectPageKind(kind as ProjectPageKind);
   }
 
@@ -496,17 +505,15 @@ export class ProjectWorkspaceShell {
     if (this.archiveNavigationPendingState()) return;
     this.archiveNavigationPendingState.set(true);
     try {
-      if (await this.store.openArchive()) {
-        const root = this.store.root();
-        if (root !== null) {
-          const target = ['/projects', root.id, 'pages', 'archive'];
-          this.columnFocus.archiveUrl.set(this.router.serializeUrl(this.router.createUrlTree(target)));
-          if (await this.router.navigate(target)) {
-            this.focusArchiveLanding();
-            return;
-          }
-          this.columnFocus.archiveUrl.set(null);
+      const root = this.store.root();
+      if (root !== null) {
+        const target = ['/projects', root.id, 'pages', 'archive'];
+        this.columnFocus.archiveUrl.set(this.router.serializeUrl(this.router.createUrlTree(target)));
+        if (await this.router.navigate(target)) {
+          this.focusArchiveLanding();
+          return;
         }
+        this.columnFocus.archiveUrl.set(null);
       }
       if (returnTo) new LiftFocus(returnTo, () => this.host.nativeElement.querySelector('[data-project-more]')).restore();
     } finally {
@@ -519,19 +526,6 @@ export class ProjectWorkspaceShell {
     if (url === null || this.router.url !== url) return;
     const heading = this.host.nativeElement.querySelector<HTMLElement>('#archive-page-title');
     if (heading) { this.columnFocus.archiveUrl.set(null); heading.focus(); }
-  }
-
-  async retryArchiveOpen(): Promise<void> {
-    if (this.archiveNavigationPendingState()) return;
-    this.archiveNavigationPendingState.set(true);
-    try {
-      if (await this.store.retryArchiveContext()) {
-        const root = this.store.root();
-        if (root !== null) await this.router.navigate(['/projects', root.id, 'pages', 'archive']);
-      }
-    } finally {
-      this.archiveNavigationPendingState.set(false);
-    }
   }
 
   /**
@@ -547,7 +541,11 @@ export class ProjectWorkspaceShell {
     // Only if the person is still on it: after a sidebar move during the awaited PATCH, this header
     // belongs to another project, whose history holds no such step.
     if (this.projectId() !== project.id) return true;
-    this.history.announce(archivedHereFeedback(project.name));
+    // The confirmation's caller closes its native modal before the next render paints feedback.
+    afterNextRender(() => {
+      if (this.projectId() === project.id) this.toast.show(archivedHereFeedback(project.name), this.store.archiveReport() ?? undefined,
+        () => this.host.nativeElement.querySelector<HTMLElement>('[data-project-more]'));
+    }, { injector: this.injector });
     return true;
   }
 

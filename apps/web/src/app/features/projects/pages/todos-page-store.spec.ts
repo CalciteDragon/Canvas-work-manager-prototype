@@ -295,7 +295,8 @@ describe('TodosPageStore — deleting tasks (§34)', () => {
     write.resolve({ task: task('task-parent', { projectId: 'project-kitchen', archivedAt: AT }), operation: action });
     expect(await deleting).toBe(true);
     expect(store.deleting()).toBeNull();
-    expect(reporter.events).toEqual(['begin', { projectId: 'project-kitchen', receipt: action }, 'end']);
+    expect(reporter.events).toEqual(['begin', { projectId: 'project-kitchen', receipt: action, feedback: 'own' }, 'end']);
+    expect(store.lastFeedbackReport()).toEqual({ projectId: 'project-kitchen', receipt: action, feedback: 'own' });
   });
 
   it('rejects Delete while Complete is pending', async () => {
@@ -798,7 +799,7 @@ describe('TodosPageStore reports completions to the header’s history (Slice 41
 
     expect(reporter.events).toEqual([
       'begin', { projectId: 'project-kitchen', receipt: null }, 'end',
-      'begin', expect.objectContaining({ projectId: 'project-kitchen', projectName: expect.any(String), receipt: null }), 'end',
+      'begin', expect.objectContaining({ projectId: 'project-kitchen', projectName: expect.any(String), receipt: null, feedback: 'own' }), 'end',
     ]);
   });
 });

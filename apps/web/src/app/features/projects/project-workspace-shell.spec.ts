@@ -185,19 +185,48 @@ const queryAll = (harness: RouterTestingHarness, selector: string) =>
   [...harness.fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
 
 describe('Slice 73 Archive landing', () => {
-  it('lands on the Archive heading after enabling and navigating', async () => {
-    const { harness, component } = await open('/projects/project-kitchen');
+  it.each(['missing', 'disabled', 'enabled'])('directly renders Archive with a %s page record', async (state) => {
+    const pages = defaults().pages;
+    if (state !== 'missing') pages.push(page('page-archive', RENOVATION.id, 'archive', state === 'enabled'));
+    const { harness, router, gateway } = await open('/projects/project-renovation/pages/archive', { pages });
+    await settle(harness);
+    expect(router.url).toBe('/projects/project-renovation/pages/archive');
+    expect(query(harness, '[data-archive-page]')).not.toBeNull();
+    expect(query(harness, '[data-page-notice]')).toBeNull();
+    expect(gateway.calls.some(({ method }) => method === 'pages.setEnabled')).toBe(false);
+  });
+
+  it('keeps Archive rendered as its record appears, changes and vanishes', async () => {
+    const { harness, component, gateway, router, live } = await open('/projects/project-renovation/pages/archive');
+    for (const state of ['enabled', 'disabled', 'missing']) {
+      vi.spyOn(gateway.pages, 'list').mockResolvedValue([
+        page('page-renovation-home', RENOVATION.id, 'home'),
+        ...(state === 'missing' ? [] : [page('page-archive', RENOVATION.id, 'archive', state === 'enabled')]),
+      ]);
+      live.emit({ type: 'project.updated', entityType: 'project', entityId: RENOVATION.id,
+        projectId: RENOVATION.id, rootProjectId: RENOVATION.id,
+        actor: { kind: 'agent', id: 'agent-1', name: 'Claude' }, at: AT } as never);
+      await settle(harness);
+      expect(router.url).toBe('/projects/project-renovation/pages/archive');
+      expect((component as ProjectWorkspaceShell).rendered()?.pageId).toBe(state === 'missing' ? null : 'page-archive');
+      expect(query(harness, '[data-archive-page]')).not.toBeNull();
+      expect(query(harness, '[data-page-notice]')).toBeNull();
+    }
+  });
+
+  it('lands on the Archive heading after navigating without a write', async () => {
+    const { harness, component, gateway } = await open('/projects/project-kitchen');
     await (component as ProjectWorkspaceShell).openArchive();
     await settle(harness);
     expect(document.activeElement).toBe(query(harness, '#archive-page-title'));
+    expect(gateway.calls.some(({ method }) => method === 'pages.setEnabled')).toBe(false);
     expect(TestBed.inject(ProjectColumnFocusRequest).archiveUrl()).toBeNull();
   });
 
   for (const control of ['data-project-more', 'data-open-archive', 'data-todo-open-archive']) {
-    it(`restores ${control} when Archive enabling is refused`, async () => {
-      const { harness, component } = await open('/projects/project-renovation', {
-        failOn: { 'pages.setEnabled': new GatewayError('conflict', 409, 'Archive enable refused') },
-      });
+    it(`restores ${control} when Archive navigation is cancelled`, async () => {
+      const { harness, component, router } = await open('/projects/project-renovation');
+      vi.spyOn(router, 'navigate').mockResolvedValue(false);
       const returnTo = control === 'data-project-more' ? query(harness, '[data-project-more]')! : document.createElement('button');
       if (control !== 'data-project-more') { returnTo.setAttribute(control, ''); harness.fixture.nativeElement.append(returnTo); }
       returnTo.focus();
@@ -231,10 +260,9 @@ describe('Slice 73 Archive landing', () => {
     expect(document.activeElement).toBe(returnTo);
   });
 
-  it('keeps the user\'s new focus when Archive enabling is refused', async () => {
-    const { harness, component } = await open('/projects/project-renovation', {
-      failOn: { 'pages.setEnabled': new GatewayError('conflict', 409, 'Archive enable refused') },
-    });
+  it('keeps the user\'s new focus when Archive navigation is cancelled', async () => {
+    const { harness, component, router } = await open('/projects/project-renovation');
+      vi.spyOn(router, 'navigate').mockResolvedValue(false);
     const returnTo = query(harness, '[data-project-more]')!;
     const other = document.createElement('button');
     harness.fixture.nativeElement.append(other);
@@ -499,7 +527,7 @@ describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
     expect(recovery?.textContent).toContain('Undo removed "Recoverable project".');
     expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label')).toBe('Redo: Created "Recoverable project"');
     expect(query(harness, '[data-history-redo]')?.getAttribute('aria-disabled')).toBeNull();
-    expect(query(harness, '[data-history-feedback]')).not.toBeNull();
+    expect(query(harness, 'app-project-workspace-shell > app-toast')).not.toBeNull();
     expect(projectGet).toHaveBeenCalledTimes(1);
     expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
   });
@@ -1106,6 +1134,15 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     // Slice 41: a successful archive no longer navigates to `/app`, where no header could offer
     // the one step the per-step blocker exists for.
     const accepted = await open('/projects/project-garden');
+    const update = accepted.gateway.projects.update.bind(accepted.gateway.projects);
+    accepted.gateway.projects.update = async (id, input) => {
+      const result = await update(id, input);
+      if (result.operation !== null) accepted.gateway.historySummaries.set(id, {
+        projectId: id, historyId: result.operation.historyId, revision: result.operation.revision,
+        undo: { ...result.operation, blockedBy: null }, redo: null, blockedBy: null,
+      });
+      return result;
+    };
     query(accepted.harness, '[data-project-more]')!.click();
     accepted.harness.fixture.detectChanges();
     query(accepted.harness, '[data-project-archive]')!.click();
@@ -1115,11 +1152,13 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
 
     expect(accepted.router.url).toBe('/projects/project-garden');
     expect(query(accepted.harness, '[data-project-status]')?.textContent?.trim()).toBe('archived');
-    expect(query(accepted.harness, '[data-history-message]')?.textContent).toBe('Garden is archived. Undo is available here.');
+    expect(query(accepted.harness, 'app-project-workspace-shell > app-toast [data-toast]')?.textContent).toContain('Archived Garden.');
+    expect(query(accepted.harness, 'app-project-workspace-shell > app-toast [data-toast-undo]')).not.toBeNull();
+    expect(query(accepted.harness, '.project-header [data-toast]')).toBeNull();
     expect(query(accepted.harness, '[data-history-undo]')).not.toBeNull();
   });
 
-  it('opens the root Archive from More after enabling its disabled page', async () => {
+  it('opens the root Archive from More without enabling its hidden page', async () => {
     const { harness, gateway, router } = await open('/projects/project-renovation');
 
     query(harness, '[data-project-more]')!.click();
@@ -1129,10 +1168,7 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
 
     expect(router.url).toBe('/projects/project-renovation/pages/archive');
     expect(query(harness, '[data-archive-page]')).not.toBeNull();
-    expect(gateway.calls).toContainEqual({
-      method: 'pages.setEnabled',
-      argument: { projectId: RENOVATION.id, input: { kind: 'archive', enabled: true } },
-    });
+    expect(gateway.calls.some(({ method }) => method === 'pages.setEnabled')).toBe(false);
   });
 
   it('passes a stable Archive callback through the page outlet', async () => {
@@ -1145,10 +1181,7 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     await settle(harness);
 
     expect(router.url).toBe('/projects/project-renovation/pages/archive');
-    expect(gateway.calls).toContainEqual({
-      method: 'pages.setEnabled',
-      argument: { projectId: RENOVATION.id, input: { kind: 'archive', enabled: true } },
-    });
+    expect(gateway.calls.some(({ method }) => method === 'pages.setEnabled')).toBe(false);
   });
 
   it('renders the enabled Reflections page through the page registry', async () => {

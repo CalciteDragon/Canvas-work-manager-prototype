@@ -6,6 +6,7 @@ import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway'
 import { PROTOTYPE_CONTROL } from '../control/prototype-control';
 import { FakePrototypeControl } from '../control/testing/fake-prototype-control';
 import { DevPanel } from './dev-panel';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 
 const render = async (deferBlockBehavior = DeferBlockBehavior.Playthrough) => {
   TestBed.configureTestingModule({
@@ -34,6 +35,21 @@ afterEach(() => {
 });
 
 describe('DevPanel (§46)', () => {
+  it('suppresses feedback while open and releases on close or destroy', async () => {
+    const fixture = await render();
+    const slot = TestBed.inject(ToastSlot);
+    document.dispatchEvent(chord());
+    await fixture.whenStable();
+    expect(slot.suppressed()).toBe(true);
+    document.dispatchEvent(chord());
+    await fixture.whenStable();
+    expect(slot.suppressed()).toBe(false);
+    document.dispatchEvent(chord());
+    await fixture.whenStable();
+    fixture.destroy();
+    expect(slot.suppressed()).toBe(false);
+  });
+
   it('is closed until the chord is pressed', async () => {
     const fixture = await render();
 

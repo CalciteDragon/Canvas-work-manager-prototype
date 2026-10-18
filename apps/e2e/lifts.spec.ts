@@ -4,7 +4,8 @@ import { seed, setClock } from './seed';
 
 const ROOT = 'project-renovation';
 const onlyOneLift = async (page: Page) => {
-  await expect.poll(() => page.locator('.lift:popover-open, dialog.lift[open]').count()).toBeLessThanOrEqual(1);
+  // A toast coexists with one interactive lift; the other lift's exclusivity is unchanged.
+  await expect.poll(() => page.locator('.lift:not(.lift--toast):popover-open, dialog.lift[open]').count()).toBeLessThanOrEqual(1);
 };
 const more = (page: Page) => page.locator('[data-project-more]');
 const editDetails = async (page: Page) => {
@@ -189,7 +190,7 @@ for (const theme of ['dark', 'light'] as const) {
         await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
         const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
         await brief.locator('[data-section-remove]').click();
-        await page.locator('[data-open-archive]').click();
+        await page.locator('[data-toast]:popover-open [data-open-archive]').click();
         await expect(page.locator('#archive-page-title')).toBeFocused();
 
         await page.goto(`/projects/${ROOT}`);

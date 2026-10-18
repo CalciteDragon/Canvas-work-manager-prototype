@@ -14,6 +14,8 @@ import { collectEvidence } from './evidence.mjs';
 import { collectControls, collectPlaneBoxes } from './layout.mjs';
 
 const commit = process.env['UX_BEFORE'] || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+/** Only Slice 73's baseline predates the native details and confirmation lifts; it opened the inline More panel instead. */
+const inlineMoreBaseline = process.env['UX_BEFORE'] === 'e56c7d7ca9f442b3d3dd6fd954e25ccee6d3ad78';
 const out = resolve('ux-output', commit);
 const escape = (s: string) => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 async function state(page: Page, cell: CaptureCell) {
@@ -26,7 +28,7 @@ async function state(page: Page, cell: CaptureCell) {
     case 'more': await button('More project actions').click(); break;
     case 'project-details': case 'archive-confirm':
       await button('More project actions').click();
-      if (!process.env['UX_BEFORE']) await page.getByRole('menuitem', { name: cell.state === 'project-details' ? 'Edit details…' : /^Archive (project|workstream)…$/, exact: true }).click();
+      if (!inlineMoreBaseline) await page.getByRole('menuitem', { name: cell.state === 'project-details' ? 'Edit details…' : /^Archive (project|workstream)…$/, exact: true }).click();
       break;
     case 'page-settings': await button('Project page settings for Home renovation').click(); break;
     case 'work-create': await button('Add workstream').click(); break;
@@ -48,7 +50,8 @@ async function state(page: Page, cell: CaptureCell) {
       await page.route('**/api/projects/*/sections', route => route.request().method() === 'POST'
         ? route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'conflict', message: 'The insertion location is no longer available. Reload and retry.' }) }) : route.fallback());
       await button('Insert at the end').click(); await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
-      await expect(page.getByRole('alert')).toBeVisible(); break;
+      // Scoped: the toasts' persistent live regions are alerts too (Slice 74).
+      await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible(); break;
     case 'dev-panel': await page.keyboard.press('Control+Shift+D'); await expect(page.getByRole('heading', { name: 'Prototype controls' })).toBeVisible(); break;
     case 'new-project':
       if (await button('Menu').isVisible()) await button('Menu').click();
@@ -74,7 +77,7 @@ test('capture matrix', async ({ browser }) => {
     page.on('pageerror', error => consoleErrors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
     const record: Record<string, unknown> = { ...cell, commit, clock: SEED_NOW, status: 'failed' };
-    if (process.env['UX_BEFORE'] && ['project-details', 'archive-confirm'].includes(cell.state)) record['baselineEquivalent'] = 'The pre-slice inline More panel; separate details and confirmation lifts do not exist at the baseline.';
+    if (inlineMoreBaseline && ['project-details', 'archive-confirm'].includes(cell.state)) record['baselineEquivalent'] = 'The pre-slice inline More panel; separate details and confirmation lifts do not exist at the baseline.';
     let release: (() => void) | undefined;
     try {
       // Initial settled page establishes persona and theme before inducing loading/error.

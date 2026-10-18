@@ -2,7 +2,7 @@ import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '
 import type { ArchivedProjectsResult, ProjectId, ProjectRestoreStatus } from '@cwm/contracts';
 import { isProjectRecordEvent } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
-import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
+import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -20,6 +20,7 @@ export class ArchivedProjectsStore {
   private readonly errorState = signal<string | null>(null);
   private readonly statusState = signal<ReadonlyMap<ProjectId, ProjectRestoreStatus>>(new Map());
   private readonly busyState = signal<ProjectId | null>(null);
+  private readonly restoreReportState = signal<OperationWriteReport | null>(null);
   private generation = 0;
   private destroyed = false;
 
@@ -27,10 +28,13 @@ export class ArchivedProjectsStore {
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly busy = this.busyState.asReadonly();
+  /** Latest Restore response, retained independently of the list it removes. */
+  readonly restoreReport = this.restoreReportState.asReadonly();
 
   constructor() {
     const unsubscribe = inject(LIVE_UPDATES).subscribe((event) => {
       if (event.type === 'prototype.reloaded') {
+        this.restoreReportState.set(null);
         this.resultState.set(null);
         this.statusState.set(new Map());
         void this.load();
@@ -87,18 +91,21 @@ export class ArchivedProjectsStore {
     const status = this.statusFor(id);
     if (status === '' || this.errorState() !== null || this.loadingState() || this.busyState() !== null || !this.items().some(({ project }) => project.id === id) || this.destroyed) return false;
     this.busyState.set(id);
+    this.restoreReportState.set(null);
     this.errorState.set(null);
     // Invalidate a read that began before this write. Its answer must not repaint a stale
     // workspace list while Restore is pending.
     const writeGeneration = ++this.generation;
     const settled = this.pendingTasks.add();
     try {
-      await reportedWrite(this.reporter, () => this.gateway.projects.update(id, { status }),
-        ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
-      if (this.destroyed || this.generation !== writeGeneration) return true;
+      const written = await reportedWrite(this.reporter, () => this.gateway.projects.update(id, { status }),
+        ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation, feedback: 'own' }));
+      if (this.destroyed || this.generation !== writeGeneration) return false;
+      this.restoreReportState.set({ projectId: written.project.id, projectName: written.project.name, receipt: written.operation, feedback: 'own' });
       const refresh = this.load({ quiet: true });
       const refreshGeneration = this.generation;
       const refreshed = await refresh;
+      if (!this.current(refreshGeneration)) return false;
       if (!refreshed && this.current(refreshGeneration)) this.errorState.set(COMMITTED_UNREFRESHED);
       return true;
     } catch (error) {

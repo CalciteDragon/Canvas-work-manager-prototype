@@ -90,3 +90,5 @@ project URL, the creator sees a recovery section when the project's history has 
 it uses the same header history controls and feedback, while other actors still see *Project
 unavailable*. A landed creation Undo or Redo frame triggers one context reload for that history
 revision, which refreshes the former root's tree too ([project creation history](2026-09-project-creation-history.md)).
+
+**Amended, 2026-10-17 (Slice 74).** Header Undo and Redo remain the full-history controls. They report into the single toast instead of a header row. Local confirmations also offer one receipt-specific Undo; the header is no longer the only browser Undo surface. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

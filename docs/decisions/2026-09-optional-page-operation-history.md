@@ -128,3 +128,5 @@ the project header, which reads the root's history on every root page. Undoing t
 displayed page still returns to Home; the store is re-created there and reads the fresh summary, so
 the transition's own feedback line is lost in that case and the changed header label is its
 confirmation ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-10-17 (Slice 74).** Archive stays rendered when its page record is removed or disabled by history. Its record is navigation preference only. Other optional-page redirects and their existing history ownership stay as recorded. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

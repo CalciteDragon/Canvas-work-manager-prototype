@@ -239,8 +239,9 @@ Undoing a `page.add` **removes** the page it created — the same id, and only w
 unchanged and nothing on it refers to it; a section on the page, live or archived, or a shortcut
 placement, refuses the whole call and tells you to remove that reference first. Redo brings the same
 page id back. Undoing a `page.update` writes the switch back and touches nothing else, so sections,
-rows and layout survive both directions. A toggle still works while the project is archived, because
-§31 keeps Open archive reachable; undoing one does not — the transition answers
+rows and layout survive both directions. A toggle still works while the project is archived as
+a navigation preference. Root Archive is visitable independently of that preference; undoing
+a page step still does not work while archived — the transition answers
 `history_blocked:` until the project is reactivated.
 
 `update_project`, `archive_project` and `restore_project` answer `{ project, operation }` too. The

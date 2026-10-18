@@ -48,15 +48,12 @@ before its first await, then reconciles again from the current row after settlem
 refusal cannot leave the browser's own state changed. Cancelled tasks have no toggle, and
 workstreams retain one-way Complete.
 
-Todos captures the task title and owner before its optimistic Delete removes the row. It
-shows no success while the write is pending; a committed answer paints a polite status
-outside the chronology, even after the final row leaves. The status offers the shell's
-existing guarded `onOpenArchive` callback. For a descendant it names and links the owner
-through the canonical `#history-controls` route; a root task refers to the displayed
-header. A failed write restores the row and keeps the existing error/focus path. A new
-Delete or root change clears the status, and a route generation guard drops a late answer
-from an earlier root. A fresh chronology containing the restored task withdraws the cue.
-The cue holds no receipt and cannot promise the next Undo step.
+Todos captures the task title and owner before optimistic Delete removes the row. A committed
+answer opens its own “Archived …” toast with receipt Undo and Open archive, even after the final
+row leaves. Workstream Complete opens “Completed …” with Undo and Open owner. A failed write
+retains the existing error/focus path. Receipt feedback closes on a later write, navigation or
+prototype generation change. Focus enters the toast only when the acted control or body owned
+focus, and dismissal falls back to a surviving row control or the heading.
 
 1. `ProjectWorkspaceShell` reads `projectId` and optional `pageKind` from the route,
    provides `ProjectWorkspaceStore`, and loads the project, its pages, progress and work
@@ -97,20 +94,15 @@ The cue holds no receipt and cannot promise the next Undo step.
    the domain cascades live owned rows and the canvas has no policy dialog. Every canvas write — section add, move,
    update and removal, and every shortcut placement write — runs through `reportedWrite`, which
    tells core's `OPERATION_HISTORY_REPORTER` the write began, what it committed (the response's own
-   project and receipt) and that it ended; the canvas holds no receipt. `SectionRecoveryNotice`
-   offers only what the header cannot: after a removal whose `archiveListed` is true, "Removed the
-   Notes section. Undo is in the header." with **Open Archive**; after a repeated removal whose
-   exact-actor receipt came back in `details`, that receipt is reported and the notice keeps Archive
-   (an unknown verdict); after a committed write whose follow-up read failed, a read-only
-   **Retry refresh**. After a successful read, if the notice remains, focus moves to **Open Archive**
-   when offered or **Dismiss** otherwise. If refresh clears the notice (refresh-only or unlisted
-   removal), focus moves to the first surviving section title, or to the canvas when no title remains.
-   Focus stays where the person moved it during the request. A forward write whose read succeeded shows no notice. If a remove response is
-   uncertain and a live frame has already removed the section, the store keeps that id and exposes
-   an explicit **Retry remove**. Leaving the page/project clears the notice. Angular `@defer` loads
-   the create dialog and recovery notice when needed; the
-   Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
-   eager route graph under the initial-bundle error ceiling (1100 kB since Slice 73 closed).
+   project and receipt) and that it ended. The canvas keeps the removal report for its
+   component-owned `ReceiptToast`. Both listed and unlisted removals confirm; only a listed
+   removal offers Open archive. An exact-actor repeated-removal receipt is reported and can offer
+   Undo. A failed follow-up read offers read-only Retry refresh; an uncertain removal retains its
+   exact id for explicit Retry remove with an exempt write handle. Live reads never repeat writes.
+   Undo begins as an aria-disabled saving action until its owed summary read settles. Focus moves
+   into the toast only from body or the removed control, and Undo morphs it in place before a
+   bounded restored-heading handoff. New writes, navigation and reloads close it. Angular `@defer`
+   loads the creation dialog; Archive loads `ArchivedRegion` after its read completes.
 5. **Undo and Redo** (Slice 41). The shell provides `ProjectHistoryStore` and binds
    `OPERATION_HISTORY_REPORTER` to it in `providers` (not `viewProviders`), so the page store, a
    task list inside a shortcut and the Todos, Archive and Reflections stores mounted through
@@ -128,12 +120,10 @@ The cue holds no receipt and cannot promise the next Undo step.
      navigation is ignored); a handle's `committed(report)` with a receipt from the held history, or
      while nothing is held, **owes a read requested after it** that reaches the receipt's revision
      (re-reading at most three times for it);
-     a receipt naming another, known history — or a fresh read that still names another — sets
-     "… was recorded in Kitchen's history." with an Open link (the name comes from the report or a
-     `projects.get`); a handle that ends without its own commit owes a read too, because a transport
-     error or 5xx may have committed. A removal notice withdraws itself once its section is back on
-     the canvas. Both controls are unavailable while any write or owed read is
-     pending;
+     a receipt naming another known history, or a fresh read that still names another, opens a
+     cross-owner toast with Undo and Open owner unless the report has `feedback: 'own'`. Its name
+     comes from the report or `projects.get`. An uncommitted handle owes a read too because a
+     transport error or 5xx may have committed. Both controls stay unavailable through owed reads;
    - runs one transition at a time with the held entry's `actionId` and the held `revision`,
      adopts the result's or a refusal's summary, words it through `history-feedback.ts`, and
      re-reads after a 404, a transport failure or `history_expired`. Content is reconciled by the
@@ -148,16 +138,23 @@ The cue holds no receipt and cannot promise the next Undo step.
    The accessible `Undo: …` and `Redo: …` names use the server summary's captured action label;
    section rename, Markdown source, collapse and resize now name their edit without a browser mapper;
    labels stored before version 6 keep their Rich Text wording.
-   `ProjectHistoryFeedback` is the always-present polite
-   region under the header's facts. `confirmArchive` stays on the project and `announce`s "X is
-   archived. Undo is available here."; the More menu does not offer Archive on an archived project.
+   Transition results and refusals flow into the shell's `ReceiptToast`; project archive confirms
+   “Archived {name}.” with receipt Undo after the modal closes. The More menu does not offer
+   Archive on an archived project.
+   The shell also binds `RECEIPT_UNDO` to this store. Same-history receipt Undo uses the held
+   revision; cross-owner Undo reads and validates the owner's next step, then transitions with
+   that read's revision without adopting its summary. Both paths share the header's transition
+   guard and return feedback to the acting toast without setting shell feedback. Cross-owner
+   failures distinguish stale/blocked, denied permission, missing action and uncertain response.
+   Public `writeSequence` and `generation` signals withdraw stale toasts; Retry remove's exempt
+   handle leaves the sequence unchanged.
 6. Live frames: progress re-reads on any frame naming the project; the record on
    `project.*`; sections through `refreshSections()` unless a write is in flight. A page action or
    transition frame is a `project.*` frame, so it reaches project-context refresh and page
-   resolution with no new case: undoing the enable that created the displayed page, or disabling it,
-   returns to Home with the existing explanation — without the re-enable offer, because there is no
+   resolution with no new case: undoing the enable that created a displayed page other than Archive,
+   or disabling it, returns to Home with the existing explanation — without the re-enable offer, because there is no
    record left to switch on — while enabling or recreating one restores its tab and forces no
-   navigation. Task/reflection
+   navigation. Archive remains rendered and only its navigation visibility changes. Task/reflection
    Add and Add Undo/Redo frames also re-resolve section existence because the row operation may
    own an implicit container; the
    tree on `rootProjectId`. Root pages re-read their projection on the same frames. Since Slice 39
@@ -229,9 +226,9 @@ its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carr
 | `ProjectCanvas` | component | One page's canvas, contextual editing and stable callback inputs | [API](../../../api/components/ProjectCanvas.html) |
 | `ProjectPageStore` | injectable | Sections and placements of one page | [API](../../../api/injectables/ProjectPageStore.html) |
 | `ProjectHistoryStore` | injectable | The displayed project's summary, pending state, transitions and feedback; the reporter | [API](../../../api/injectables/ProjectHistoryStore.html) |
-| `ProjectHistoryControls`, `ProjectHistoryFeedback` | components | Header Undo/Redo icons and their feedback line | [API](../../../api/components/ProjectHistoryControls.html) |
+| `ProjectHistoryControls` | component | Header Undo/Redo icons; results go to the shell toast | [API](../../../api/components/ProjectHistoryControls.html) |
 | `historyControl`, `transitionRefusalFeedback` | functions | Control names and refusal wording | [API](../../../api/miscellaneous/variables.html#historyControl) |
-| `SectionRecoveryNotice`, `SectionRecoveryNoticeState` | component / interface | Open Archive, Retry remove and Retry refresh; no Undo | [API](../../../api/components/SectionRecoveryNotice.html) |
+| `SectionRecoveryNoticeState` | interface | Removal report and recovery state consumed by the canvas toast | [API](../../../api/interfaces/SectionRecoveryNoticeState.html) |
 | `SECTION_REGISTRY`, `SectionDefinition` | const / interface | §29 | [API](../../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
 | `SectionContentComponent`, `SectionContentInputs` | interfaces | Content contract | [API](../../../api/interfaces/SectionContentComponent.html) |
 | `ProjectSectionFrame` | component | §31's chrome | [API](../../../api/components/ProjectSectionFrame.html) |
@@ -255,13 +252,16 @@ its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carr
 
 - [core](../core/overview.md) — `WORK_MANAGER_GATEWAY` (`projects`, `projectPages`,
   `sections`, `sectionShortcuts`, `history`, `progress`, `todos`, `archive`, `journal`,
-  `reflections`, `timeline`), `LIVE_UPDATES`, `OPERATION_HISTORY_REPORTER` and `reportedWrite`,
+  `reflections`, `timeline`), `LIVE_UPDATES`, `OPERATION_HISTORY_REPORTER`, `RECEIPT_UNDO`,
+  `ReceiptToast` and `reportedWrite`,
   `PrototypeSettings` for the layout flags and `SHELL_NARROW_QUERY` for task sheet selection.
 - [tasks](../tasks/overview.md) — `TaskListStore`, `TaskRow`, `TaskDetailDrawer` inside
   the Task List section; `TaskDrawerCoordinator` provides shell-scoped selection ownership.
   Todos owns its separate task row and store.
 - `shared/lifts` — `LiftFocus`, `LiftStack` and `menuKeys` for focus, one-open ownership
   and menu keyboard movement; no transport or domain dependency.
+- `shared/feedback` — presentational `Toast` and root `ToastSlot` for one confirmation, timer,
+  navigation dismissal and modal suppression; no feature or core-store dependency.
 - `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section.
 - [contracts](../../contracts/overview.md) — `nameOf`, `shortcutNameOf`, `SECTION_OWNERSHIP` (through the
   registry's `kind`), `NAVIGABLE_PAGE_KINDS`, `isRootProject`, and every shape.
@@ -291,9 +291,10 @@ its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carr
   `pendingWrites`; a stale response after navigation is discarded.
 - **The UI never decides a rule.** Where a write lands, whether a page accepts a kind,
   whether a removal is safe — the host answers; a refusal is shown, never softened.
-- **Undo is the header's alone.** No surface other than `ProjectHistoryControls` offers Undo or
-  Redo; the canvas reports receipts and never holds one. An explicit Retry remove uses the saved id
-  after an uncertain response.
+- **Receipt Undo cites exactly the reported step.** The toast removes Undo when the held step
+  changes or becomes blocked. Cross-owner transitions never adopt a foreign summary. Header and
+  receipt transitions exclude each other. An explicit Retry remove uses the saved id after an
+  uncertain response.
 - **Every browser write reports**, through `reportedWrite` or `begin`/`committed`/end, with the
   project named by its **response**. A new write site that forgets leaves the header offering a stale
   step until the next frame.
@@ -304,7 +305,7 @@ its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carr
 
 ```bash
 pnpm --filter web test -- projects      # the feature's specs
-pnpm storybook                          # ProjectCanvas, ProjectHistoryControls, SectionRecoveryNotice, SectionCreateDialog, navigation, pages, shortcuts, archive list
+pnpm storybook                          # ProjectCanvas, ProjectHistoryControls, Toast, SectionCreateDialog, navigation, pages, shortcuts, archive list
 pnpm e2e                                # project-history (header Undo/Redo), web, canvas editing, removal and section edit Undo, MCP, todos, archive, reflections
 ```
 
@@ -358,12 +359,18 @@ view. The shell provides TaskDrawerCoordinator
 and reserves --layout-drawer-width while desktop details are open. Task List sections own
 native opening and focus; no feature writes bypass the gateway.
 
-openArchive(returnTo) first enables/loads Archive through the store and records the target
-URL in root-lived ProjectColumnFocusRequest.archiveUrl before navigation. A rendered shell
-consumes the matching request when #archive-page-title exists; a different winning URL
-clears it. More, Todos recovery and the removal notice supply their own caller for failure focus.
-This explicit request survives replacement of the initiating shell and also handles reused shells.
-Generic core route focus remains a fallback, not the owner of this intent.
+openArchive(returnTo) records the target URL in root-lived ProjectColumnFocusRequest.archiveUrl
+and navigates without a write. Root Archive resolves whether its page record is absent, hidden or
+shown; only its renderer accepts a nullable page id. Navigation lists a hidden Archive while it
+is current, and the toggle reads “Show Archive in navigation”. A rendered shell consumes the
+matching request when #archive-page-title exists; a different winning URL clears it. This explicit
+request survives shell replacement. Generic core route focus remains a fallback.
+
+Archive restore toasts name the returned item's breadcrumb and page, with canonical Go to it and
+receipt Undo. A switched-off origin page gets explanatory copy and no Go to it. Project restore
+links to its own route. Settings recovery has Open it without Undo because it has no workspace
+history store. Restore focus moves to the first toast action only while the removed control or
+body still owns it; dismissal falls back to a surviving Restore or the heading.
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|

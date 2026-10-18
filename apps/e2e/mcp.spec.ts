@@ -171,8 +171,12 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       arguments: { projectId: SHOWCASE_ROOT, kind: 'archive', enabled: false },
     });
     expect(disabled.isError).not.toBe(true);
-    await expect(page).toHaveURL(new RegExp(`/projects/${SHOWCASE_ROOT}/pages/home$`), { timeout: 15_000 });
-    await expect(page.locator('[data-page-notice]')).toContainText('switched off');
+    // Archive is always visitable (Slice 74): hiding it from navigation leaves the reader where
+    // they are, and the page stays listed while it is current.
+    await expect.poll(async () => (await requestApi.get<Array<{ kind: string; enabled: boolean }>>(`/api/projects/${SHOWCASE_ROOT}/pages`)).find(({ kind }) => kind === 'archive')?.enabled).toBe(false);
+    await expect(page).toHaveURL(new RegExp(`/projects/${SHOWCASE_ROOT}/pages/archive$`));
+    await expect(page.locator('#archive-page-title')).toBeVisible();
+    await expect(page.locator('[data-page-notice]')).toHaveCount(0);
     const enabled = await client.callTool({
       name: 'set_project_page_enabled',
       arguments: { projectId: SHOWCASE_ROOT, kind: 'archive', enabled: true },

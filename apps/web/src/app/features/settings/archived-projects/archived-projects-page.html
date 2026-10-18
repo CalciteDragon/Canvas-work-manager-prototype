@@ -46,3 +46,10 @@
     }
   </ul>
 }
+<app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'"
+  [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []"
+  [suppressed]="toast.slot.suppressed()" (dismissed)="toast.close()">
+  @if (restoredProjectId(); as id) {
+    <a class="button button--primary" data-restore-open [routerLink]="['/projects', id]">Open it</a>
+  }
+</app-toast>

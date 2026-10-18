@@ -3,6 +3,7 @@ import {
   computed, effect, inject, input, output, signal,
 } from '@angular/core';
 import type { ProjectId } from '@cwm/contracts';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 
 /** One live parent choice in the root's work hierarchy. */
 export interface WorkCreateParent {
@@ -44,6 +45,9 @@ export class WorkCreateDialog {
   private destroyed = false;
 
   constructor() {
+    const toastSlot = inject(ToastSlot);
+    toastSlot.suppress(this);
+    inject(DestroyRef).onDestroy(() => toastSlot.release(this));
     inject(DestroyRef).onDestroy(() => (this.destroyed = true));
     effect(() => this.reconcileParent());
     afterNextRender(() => {

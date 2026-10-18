@@ -7,6 +7,78 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const builder = join(dirname(fileURLToPath(import.meta.url)), 'build-sheet.mjs');
+
+async function feedbackSheet(t, { changed = false, open = false, overflow = false, badGeometry = false, missingFocus = false } = {}) {
+  const f = await fixture(t);
+  f.cell.state = open ? 'remove-feedback' : 'populated';
+  f.cell.viewport = { width: 375, height: 812 };
+  for (const phase of [0, 1]) await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+  await f.json(1, 'layout.json', { ...f.layout, viewport: 375, document: overflow ? 400 : 375,
+    planes: [{ ...f.layout.planes[0], y: changed ? 20 : 0 }] });
+  await f.json(1, 'tasks/tasks.json', [{ id: 'T05', status: 'completed', clicks: 2, keystrokes: 0, deadEnds: 0 }, { id: 'T09', status: 'completed', clicks: 1, keystrokes: 0, deadEnds: 0 }]);
+  await f.json(1, 'feedback-verification.json', { complete: true, entries: ['dark', 'light'].flatMap(theme => [1440, 375].map(width => ({ theme, width,
+    inlineClearance: badGeometry ? -10 : 16, drawerIntersection: false, focusedIntersection: false, transient: 1,
+    fallbacks: ['forced-colors', 'reduced-transparency'].map(mode => ({ mode, backdropFilter: 'none' })),
+    suppression: width === 375 ? { hidden: true, returned: true } : null,
+  }))), focus: missingFocus ? [] : ['remove-listed', 'remove-unlisted', 'task-delete', 'project-archive', 'header-transition', 'cross-owner', 'archive-restore', 'todos-complete'].map(row => ({ row, passed: true })) });
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '74'], { encoding: 'utf8' });
+  return { result, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
+}
+
+test('profile 74 reports intended feedback movement and gates closed-state geometry', async t => {
+  const allowed = await feedbackSheet(t, { changed: true, open: true });
+  assert.equal(allowed.result.status, 0, allowed.report);
+  const closed = await feedbackSheet(t, { changed: true });
+  assert.equal(closed.result.status, 1);
+  assert.match(closed.report, /"field": "y"/);
+});
+
+/** A project header that loses `shrink` px, with a section and a control below it that move by `shift`. */
+async function headerSheet(t, { shrink, shift = -shrink }) {
+  const f = await fixture(t);
+  f.cell.state = 'populated';
+  f.cell.viewport = { width: 1440, height: 900 };
+  for (const phase of [0, 1]) await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+  const layout = (shrinkBy, moveBy) => ({ ...f.layout,
+    planes: [{ selector: 'app-top-bar', index: 0, x: 0, y: 0, width: 1440, height: 64 },
+      { selector: 'app-project-header', index: 0, x: 300, y: 100, width: 900, height: 180 - shrinkBy },
+      { selector: 'app-project-section-frame', index: 0, x: 300, y: 300 + moveBy, width: 900, height: 200 }],
+    // Settings sits in the sidebar beside the header, so it must not move.
+    controls: [{ tag: 'button', text: 'Undo', x: 1100, y: 120, width: 32, height: 32 }, { tag: 'button', text: 'Edit', x: 320, y: 340 + moveBy, width: 60, height: 32 },
+      { tag: 'a', text: 'Settings', x: 12, y: 410, width: 200, height: 32 },
+      // An open More item is anchored to its opener in the header, so it stays put too.
+      { tag: 'button', role: 'menuitemradio', text: 'Planning', x: 900, y: 300, width: 300, height: 38 }],
+    scrollRegions: [{ tag: 'MAIN', class: 'workspace', x: 300, y: 64, width: 900, height: 900 + moveBy, scrollWidth: 900, scrollHeight: 900 + moveBy }] });
+  await f.json(0, 'layout.json', layout(0, 0));
+  await f.json(1, 'layout.json', layout(shrink, shift));
+  await f.json(1, 'tasks/tasks.json', [{ id: 'T05', status: 'completed', clicks: 2, keystrokes: 0, deadEnds: 0 }, { id: 'T09', status: 'completed', clicks: 1, keystrokes: 0, deadEnds: 0 }]);
+  await f.json(1, 'feedback-verification.json', { complete: true, entries: ['dark', 'light'].flatMap(theme => [1440, 375].map(width => ({ theme, width,
+    inlineClearance: 16, drawerIntersection: false, focusedIntersection: false, transient: 1,
+    fallbacks: ['forced-colors', 'reduced-transparency'].map(mode => ({ mode, backdropFilter: 'none' })),
+    suppression: width === 375 ? { hidden: true, returned: true } : null,
+  }))), focus: ['remove-listed', 'remove-unlisted', 'task-delete', 'project-archive', 'header-transition', 'cross-owner', 'archive-restore', 'todos-complete'].map(row => ({ row, passed: true })) });
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '74'], { encoding: 'utf8' });
+  return { result, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
+}
+
+test('profile 74 lists the removed 12 px header feedback row and still gates any other movement', async t => {
+  const listed = await headerSheet(t, { shrink: 12 });
+  assert.equal(listed.result.status, 0, listed.report);
+  assert.match(listed.report, /empty header feedback row removed/);
+  // A different shrink, content moving by another amount, or a section left behind all fail.
+  for (const options of [{ shrink: 20 }, { shrink: 12, shift: -20 }, { shrink: 12, shift: 0 }]) {
+    const { result, report } = await headerSheet(t, options);
+    assert.equal(result.status, 1, report);
+  }
+});
+
+test('profile 74 refuses phone overflow, bad toast clearance and missing focus evidence', async t => {
+  for (const options of [{ overflow: true }, { badGeometry: true }, { missingFocus: true }]) {
+    const { result, report } = await feedbackSheet(t, options);
+    assert.equal(result.status, 1, report);
+    assert.match(report, /scrolls sideways|toast clearance|feedback focus evidence/);
+  }
+});
 async function liftSheet(t, { open = false, overflow = false, violation = false, missingFocus = false } = {}) {
   const fixtureData = await fixture(t);
   fixtureData.cell.state = open ? 'more' : 'populated';

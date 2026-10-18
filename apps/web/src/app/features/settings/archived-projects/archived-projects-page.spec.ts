@@ -1,26 +1,69 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ProjectSchema, type ArchivedProjectsResult, type ProjectWriteResult } from '@cwm/contracts';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { ArchivedProjectsPage } from './archived-projects-page';
+import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 
+const popoverMethods = ['showPopover', 'hidePopover'].map(key => ({ key, descriptor: Object.getOwnPropertyDescriptor(HTMLElement.prototype, key) }));
+beforeEach(() => {
+  for (const { key } of popoverMethods) Object.defineProperty(HTMLElement.prototype, key, { configurable: true, value: vi.fn() });
+});
+afterEach(() => {
+  TestBed.resetTestingModule();
+  for (const { key, descriptor } of popoverMethods) {
+    if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+    else Reflect.deleteProperty(HTMLElement.prototype, key);
+  }
+});
 const project = ProjectSchema.parse({ id: 'archived-page', workspaceId: 'workspace-demo', kind: 'root', name: 'Past launch',
   status: 'archived', projectLayoutMode: 'flow', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' });
 const archived: ArchivedProjectsResult = { items: [{ project, breadcrumb: [{ projectId: project.id, name: project.name }] }] };
 
 const render = async (gateway = new FakeWorkManagerGateway({ projects: [project], archivedProjects: archived })) => {
-  TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+  const live = new FakeLiveUpdates();
+  TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WORK_MANAGER_GATEWAY, useValue: gateway }, { provide: LIVE_UPDATES, useValue: live }] });
   const fixture = TestBed.createComponent(ArchivedProjectsPage);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
-  return { fixture, gateway };
+  return { fixture, gateway, live };
 };
 
 describe('ArchivedProjectsPage (Slice 44)', () => {
+  it('closes a restore toast on persona reload outside a project shell', async () => {
+    const { fixture, gateway, live } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    const select = host.querySelector<HTMLSelectElement>('[data-archived-status]')!;
+    select.value = 'active'; select.dispatchEvent(new Event('change')); fixture.detectChanges();
+    gateway.options.archivedProjects = { items: [] };
+    host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.componentInstance.toast.state()).not.toBeNull();
+    live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.componentInstance.toast.state()).toBeNull();
+  });
+  it('confirms the restored name and status with Open it and no Undo', async () => {
+    const { fixture, gateway } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    const select = host.querySelector<HTMLSelectElement>('[data-archived-status]')!;
+    select.value = 'on_hold'; select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    gateway.options.archivedProjects = { items: [] };
+    const restore = host.querySelector<HTMLButtonElement>('[data-archived-restore]')!;
+    restore.focus(); restore.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(host.querySelector('[data-toast]')?.textContent).toContain('Restored Past launch as On hold.');
+    const open = host.querySelector<HTMLAnchorElement>('[data-restore-open]');
+    expect(open?.getAttribute('href')).toBe('/projects/archived-page');
+    expect(host.querySelector('[data-restore-undo]')).toBeNull();
+    expect(document.activeElement).toBe(open);
+  });
   it('shows breadcrumb and Open project, and requires a status before Restore', async () => {
     const { fixture, gateway } = await render();
     const host = fixture.nativeElement as HTMLElement;
@@ -71,7 +114,7 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
     expect(host.querySelector('[data-archived-project]')).toBeNull();
   });
 
-  it('moves focus to the heading after the last restored row disappears', async () => {
+  it('moves focus to the toast, then the heading after the last restored row disappears', async () => {
     const { fixture, gateway } = await render();
     const host = fixture.nativeElement as HTMLElement;
     const select = host.querySelector<HTMLSelectElement>('[data-archived-status]')!;
@@ -81,12 +124,14 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
     const restore = host.querySelector<HTMLButtonElement>('[data-archived-restore]')!;
     restore.focus(); restore.click();
     await fixture.whenStable(); fixture.detectChanges();
+    expect(document.activeElement).toBe(host.querySelector('[data-restore-open]'));
+    host.querySelector<HTMLButtonElement>('[data-toast-dismiss]')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
     expect(document.activeElement).toBe(host.querySelector('h1'));
   });
 
-  // Slice 47: a later row's Restore is disabled until its status is chosen, so focus goes to
-  // the next enabled status selector — only while the Restore action still owns focus.
-  describe('focus after Restore (Slice 47)', () => {
+  // Slice 74 puts successful Restore focus in the toast; read-only Retry keeps Slice 47's guard.
+  describe('focus after Restore and Retry', () => {
     const entry = (id: string, name: string, parent?: string) => {
       const record = ProjectSchema.parse({ ...project, id, name, ...(parent === undefined ? {} : { kind: 'subproject', parentProjectId: parent }) });
       return { project: record, breadcrumb: [{ projectId: record.id, name }] };
@@ -116,42 +161,54 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
     const statusOf = (fixture: Awaited<ReturnType<typeof render>>['fixture'], id: string) =>
       (fixture.nativeElement as HTMLElement).querySelector(`[data-project-id="${id}"] [data-archived-status]`);
 
-    it('focuses the status of the row that takes the restored row’s place', async () => {
+    it('dismissal focuses the next Restore even when an earlier row has no chosen status', async () => {
+      const { fixture, gateway } = await render(gatewayOf([first, second, third]));
+      const host = fixture.nativeElement as HTMLElement;
+      const select = host.querySelector<HTMLSelectElement>(`[data-project-id="${third.project.id}"] [data-archived-status]`)!;
+      select.value = 'active'; select.dispatchEvent(new Event('change')); fixture.detectChanges();
+      gateway.options.archivedProjects = { items: [first, third] };
+      await restoreRow(fixture, second.project.id); await settle(fixture);
+      host.querySelector<HTMLButtonElement>('[data-toast-dismiss]')!.click(); await settle(fixture);
+      expect(document.activeElement).toBe(host.querySelector(`[data-project-id="${third.project.id}"] [data-archived-restore]`));
+    });
+
+    it('focuses Open it when the restored row disappears', async () => {
       const { fixture, gateway } = await render(gatewayOf([first, second, third]));
       gateway.options.archivedProjects = { items: [first, third] };
       await restoreRow(fixture, second.project.id);
       await settle(fixture);
-      expect(document.activeElement).toBe(statusOf(fixture, third.project.id));
+      expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('[data-restore-open]'));
     });
 
-    it('focuses the previous row’s status when the restored row was last', async () => {
+    it('focuses Open it when the restored row was last', async () => {
       const { fixture, gateway } = await render(gatewayOf([first, second]));
       gateway.options.archivedProjects = { items: [first] };
       await restoreRow(fixture, second.project.id);
       await settle(fixture);
-      expect(document.activeElement).toBe(statusOf(fixture, first.project.id));
+      expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('[data-restore-open]'));
     });
 
-    it('focuses a child the restore revealed', async () => {
+    it('focuses Open it when the restore reveals a child', async () => {
       const { fixture, gateway } = await render(gatewayOf([first]));
       gateway.options.archivedProjects = { items: [child] };
       await restoreRow(fixture, first.project.id);
       await settle(fixture);
-      expect(document.activeElement).toBe(statusOf(fixture, child.project.id));
+      expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('[data-restore-open]'));
     });
 
-    it('focuses Retry when the refresh fails and the retained row stays blocked', async () => {
+    it('confirms a committed Restore even when its refresh fails, then preserves Retry focus', async () => {
       const { fixture, gateway } = await render(gatewayOf([first, second]));
       gateway.options.failOn = { 'projects.archived': new GatewayError('unreachable', 503, 'Offline') };
       const restore = await restoreRow(fixture, first.project.id);
       await settle(fixture);
       const host = fixture.nativeElement as HTMLElement;
       expect(restore.disabled).toBe(true);
-      expect(document.activeElement).toBe(host.querySelector('[data-archived-retry]'));
+      expect(document.activeElement).toBe(host.querySelector('[data-restore-open]'));
 
       // A successful Retry removes itself with the error; focus moves on rather than dropping.
       gateway.options.failOn = {};
       gateway.options.archivedProjects = { items: [second] };
+      host.querySelector<HTMLButtonElement>('[data-archived-retry]')!.focus();
       host.querySelector<HTMLButtonElement>('[data-archived-retry]')!.click();
       await settle(fixture);
       expect(host.querySelector('[data-archived-retry]')).toBeNull();

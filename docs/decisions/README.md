@@ -17,6 +17,11 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 ## Whole prototype
 
+[Feedback is one toast with receipt-specific Undo](2026-10-feedback-is-one-toast-with-undo.md)
+and [Archive is always visitable](2026-10-archive-is-always-visitable.md) — current Slice 74
+product rules; the twelve earlier recovery, optional-page and history decisions carry dated
+2026-10-17 amendments. Gate 2 visual acceptance remains in the active slice.
+
 [Markdown source and rendering](2026-10-markdown-source-and-rendering.md) — source ownership, safe rendering and explicit authoring; amended after the approved bundle remedy, for the C2 conversion, and in Slice 64 (unreadable config shows no prose).
 
 | Entry | Settled | Status |

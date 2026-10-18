@@ -33,9 +33,15 @@
 }
 
 .workspace {
+  anchor-name: --toast-track;
   grid-area: workspace;
   padding: var(--space-5);
   overflow: auto;
+}
+
+:host:has(.lift--toast:popover-open) .workspace {
+  padding-block-end: calc(var(--toast-max-block-size) + var(--space-4));
+  scroll-padding-block-end: calc(var(--toast-max-block-size) + var(--space-4));
 }
 
 // Focused only by a drawer that closed behind a chosen link; uses the shared focus ring.

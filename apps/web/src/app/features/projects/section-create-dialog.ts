@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -12,6 +13,7 @@ import {
 import type { ProjectId, ProjectPageId, ShortcutSource } from '@cwm/contracts';
 import type { SectionDefinition } from './sections/registry';
 import { ShortcutPicker } from './shortcuts/shortcut-picker';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 
 /** One popup for a positioned section or shortcut create, on a canonical page (§27). */
 @Component({
@@ -41,6 +43,9 @@ export class SectionCreateDialog {
   private readonly injector = inject(Injector);
 
   constructor() {
+    const toastSlot = inject(ToastSlot);
+    toastSlot.suppress(this);
+    inject(DestroyRef).onDestroy(() => toastSlot.release(this));
     afterNextRender(() => {
       this.selectedType.set(this.types()[0]?.type ?? '');
       this.host.nativeElement.querySelector<HTMLSelectElement>('[data-create-section-type]')?.focus();

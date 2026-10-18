@@ -8,6 +8,7 @@ flowchart LR
     id["IdentityProvider<br/>IDENTITY_PROVIDER"]
     lu["LiveUpdates<br/>LIVE_UPDATES (inert default)"]
     rep["OperationHistoryReporter<br/>OPERATION_HISTORY_REPORTER (inert default), reportedWrite"]
+    undo["ReceiptUndo<br/>RECEIPT_UNDO (inert default)"]
     gw["WorkManagerGateway + 15 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
     err["GatewayError"]
   end
@@ -22,6 +23,8 @@ flowchart LR
     ps["PrototypeSettings<br/>flags, delay, failure — sessionStorage"]
   end
   routeFocus["RouteFocus<br/>trusted input + later NavigationEnd → lost-focus landing"]
+  toast["ReceiptToast<br/>receipt availability, replacement, Undo feedback and focus"]
+  slot["shared/feedback<br/>ToastSlot + Toast"]
   subgraph shell["Shell"]
     as["AppShell"]
     ss["ShellStore<br/>project tree, createProject"]
@@ -37,6 +40,7 @@ flowchart LR
   ss --> lu
   as --> sb & tb
   th --> id
+  toast --> undo & slot
 ```
 
 ## Sub-interfaces of `WorkManagerGateway`
@@ -90,6 +94,8 @@ sequenceDiagram
 | `IdentityProvider`, `IDENTITY_PROVIDER`, `PrototypeIdentityProvider` | `core/identity/` | §18 |
 | `LiveUpdates`, `LIVE_UPDATES`, `PrototypeLiveUpdates` | `core/live/` | §62 client side |
 | `OperationHistoryReporter`, `OperationWriteHandle`, `OperationWriteReport`, `OPERATION_HISTORY_REPORTER`, `reportedWrite` | `core/history/operation-history-reporter.ts` | The write-reporting port; `RecordingReporter` in `core/history/testing/` for writer specs |
+| `ReceiptUndo`, `ReceiptUndoResult`, `RECEIPT_UNDO` | `core/history/receipt-undo.ts` | Receipt-specific Undo port with an inert default; public write and generation signals |
+| `ReceiptToast` | `core/history/receipt-toast.ts` | Component-owned feedback controller over the receipt port and shared toast slot |
 | `PROTOTYPE_API_BASE_URL` | `core/config/prototype-config.ts` | Where the host is |
 | `PrototypeSettings`, `PrototypeFlags`, `StoredSettings` | `core/config/prototype-settings.ts` | §47 flags; delay; failure rate |
 | `RouteFocus` | `core/a11y/route-focus.ts` | Initializer-backed body-focus recovery after trusted-input navigation; page/header heading then bounded main fallback |

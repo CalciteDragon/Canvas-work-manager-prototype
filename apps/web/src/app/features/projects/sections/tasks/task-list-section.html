@@ -13,12 +13,6 @@
     <p data-tasks-error class="task-list-section__error" role="alert">{{ error }}</p>
   }
 
-  @if (deleteRecovery(); as recovery) {
-    <p data-task-delete-recovery class="task-list-section__recovery" role="status" aria-live="polite">
-      {{ recovery.title }} was archived. Recover it in the root Archive when its owner is ready, or use the owning project's header Undo if this is still the latest step.
-    </p>
-  }
-
   <div class="task-workspace">
     @if (readOnly()) {
       <div class="task-list" [attr.aria-busy]="store.loading()">
@@ -85,3 +79,14 @@
     }
   </div>
 </div>
+<app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'" [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []"
+    [suppressed]="toast.slot.suppressed()" [pendingUndo]="toast.pendingUndo()" (dismissed)="toast.close()">
+    @if (toast.report() !== null && toast.offer() !== 'unavailable') {
+      <button data-toast-undo class="button" type="button" [attr.aria-disabled]="toast.offer() !== 'ready' || toast.pendingUndo() ? 'true' : null" (click)="undoDelete()">{{ toast.pendingUndo() ? 'Undoing…' : toast.offer() === 'saving' ? 'Undo (saving…)' : 'Undo' }}</button>
+    }
+    @if (toast.state()?.link; as link) {
+      <a class="button button--ghost" [routerLink]="['/projects', link.projectId]">{{ link.label }}</a>
+    } @else if (toast.report() !== null) {
+      <button #archiveOpener data-toast-open-archive class="button button--ghost" type="button" (click)="onOpenArchive()(archiveOpener)">Open archive</button>
+    }
+</app-toast>

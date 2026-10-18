@@ -15,7 +15,7 @@ properties, and it depends on the host **only** through gateway interfaces and o
 **Code:** `apps/web/src/app` · **Styles:** `apps/web/src/styles/_tokens.scss`,
 `_base.scss`, `_controls.scss`, `_lifts.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
 `@angular/build:unit-test`); `*.stories.ts` for Storybook · **Package:** `web` ·
-**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`. Within the app, `core` imports only `shared/components/icon` from outside itself (slice 72)
+**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`. Within the app, `core` imports only `shared/components/icon` and `shared/feedback` from outside itself.
 
 ## Responsibilities
 
@@ -26,13 +26,15 @@ properties, and it depends on the host **only** through gateway interfaces and o
   Gateway`, never a global store.
 - Paint optimistic writes and revert them visibly on failure (§63).
 - Validate write envelopes at the gateway boundary; feature stores unwrap the returned entity and
-  report the operation receipt to the project header's history, whose Undo and Redo are the one
-  browser surface for history (Slice 41).
+  report the operation receipt to the project history store. Header Undo/Redo cover the displayed
+  project; a write's toast also offers receipt-specific Undo, including a descendant owner.
 - Re-read the affected stores when the host announces a change (§62), quietly.
 - Use design tokens for every colour, spacing and radius (§21); switch themes by one
   attribute (§22).
 - Coordinate native top-layer lifts through shared opener/fallback focus and one-open-lift
   ownership; recover lost focus after user navigation through core's `RouteFocus`.
+- Present confirmations in one toast slot docked in the content track and suppressed beneath
+  modal lifts. Archive is always visitable for a root, independently of its navigation toggle.
 
 ## Not responsible for
 

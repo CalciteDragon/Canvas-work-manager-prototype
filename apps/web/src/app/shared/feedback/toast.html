@@ -1,0 +1,12 @@
+<div class="toast__announcement" role="status">@if (open() && !suppressed() && tone() === 'status') { {{ message() }} @for (line of lines(); track $index) { {{ line }} } }</div>
+<div class="toast__announcement" role="alert">@if (open() && !suppressed() && tone() === 'alert') { {{ message() }} @for (line of lines(); track $index) { {{ line }} } }</div>
+<section #popover class="lift lift--toast" popover="manual" data-toast
+  [attr.data-toast-open]="open() && !suppressed() ? '' : null"
+  (keydown.escape)="escape($event)" (mouseenter)="hovered.set(true)" (mouseleave)="hovered.set(false)"
+  (focusin)="focused.set(true)" (focusout)="focusOut($event)">
+  <p class="toast__message">{{ message() }}</p>
+  @if (lines().length) {
+    <ul class="toast__lines">@for (line of lines(); track $index) { <li>{{ line }}</li> }</ul>
+  }
+  <div class="toast__actions"><ng-content /><button type="button" class="button button--ghost" data-toast-dismiss (click)="dismissed.emit()">Dismiss</button></div>
+</section>

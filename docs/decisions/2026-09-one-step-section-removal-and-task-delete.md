@@ -53,3 +53,5 @@ that ordinary task movement cannot make clear, or people mistake reversible **De
 permanent purge. Any reconsideration must preserve exact-actor history and Archive recovery.
 
 **Amended, 2026-10-14 (Slice 70 Gate 1).** One-step removal stands. Under principle 6 of the [Depth direction](2026-10-frosted-glass-depth-direction.md), the removal's confirmation and Undo appear beside the removed section, not only in the header (W1-036, L4-026).
+
+**Amended, 2026-10-17 (Slice 74).** The one-step write stands. Its confirmation and receipt Undo use one toast docked in the content track, reachable from the acted region through local Tab order and guarded focus entry. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

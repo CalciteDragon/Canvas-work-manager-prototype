@@ -6,6 +6,7 @@ import { GatewayError } from '../gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
 import { AppShell } from './app-shell';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 
 const render = async (options: Parameters<typeof shellTestProviders>[0] = {}) => {
   TestBed.configureTestingModule({ imports: [AppShell], providers: shellTestProviders(options) });
@@ -127,6 +128,20 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     };
     return { fixture, element, q, stable, openDrawer };
   };
+
+  it('suppresses feedback only while phone navigation is open and releases on destroy', async () => {
+    const { fixture, q, stable, openDrawer } = await renderAt(true);
+    const slot = TestBed.inject(ToastSlot);
+    expect(slot.suppressed()).toBe(false);
+    await openDrawer();
+    expect(slot.suppressed()).toBe(true);
+    q('[data-shell-drawer-close]')!.click();
+    await stable();
+    expect(slot.suppressed()).toBe(false);
+    await openDrawer();
+    fixture.destroy();
+    expect(slot.suppressed()).toBe(false);
+  });
 
   it('keeps the inline sidebar at desktop width, with no Menu and no dialog semantics', async () => {
     const { q } = await renderAt(false);

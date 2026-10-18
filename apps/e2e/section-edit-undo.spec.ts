@@ -164,7 +164,7 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   if (added === undefined) throw new Error('The contextual section was not created');
   // Slice 41: a forward write shows no notice; the header's label is its confirmation.
   await undoFromHeader(page, 'Added the Contextual add section');
-  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  await expect(historyFeedback(page)).toHaveText('Undone: Added the Contextual add section.');
   await expect(page.locator(`[data-section-item][data-section-id="${added.id}"]`)).toHaveCount(0);
 
   const notesFrame = page.locator(`[data-section-item][data-section-id="${notes.id}"]`);
@@ -230,7 +230,7 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   await expect(page.locator('[data-reflections-no-container]')).toBeVisible();
   await page.locator('[data-reflections-add-container]').click();
   await expect(page.locator('[data-reflections-container-name]')).toBeVisible();
-  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-toast]:popover-open')).toHaveCount(0);
   // The container add's live frame returns the page to its prompt without a reload.
   await undoFromHeader(page, 'Added the Reflections section');
   await expect(page.locator('[data-reflections-no-container]')).toBeVisible();
@@ -404,10 +404,10 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
 
   await undoFromHeader(page, label);
-  await expect(page.locator('[data-history-conflict]')).toHaveCount(1);
+  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toHaveCount(1);
   // The agent's edit is in the agent connection's own history, never this person's, so the repair
   // is to make the change by hand — never a receipt this person cannot use (note-2026-09-15-005).
-  await expect(page.locator('[data-history-conflict]')).toContainText('Someone else changed it since. Make the change again by hand.');
+  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toContainText('Someone else changed it since. Make the change again by hand.');
   // A changed field can be changed back, so the refusal is repairable and Undo stays enabled.
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', label);
   await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-disabled', 'true');

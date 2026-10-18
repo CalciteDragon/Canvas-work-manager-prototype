@@ -4,12 +4,12 @@ Settings routes `/settings/archived-projects` to `ArchivedProjectsPage` outside 
 navigation. Its store reads `projects.archived()` via the gateway, keeps an explicit status per
 row, reports the existing project write to history and refreshes after success or refusal. It
 keeps an acknowledged success when only the following read fails and offers a read-only Retry.
-Project frames and reconnects refresh the workspace list. When Restore or Retry owned focus and
-focus is lost once it settles, the page moves it to Retry while an error blocks the list; else,
-after Restore, to the enabled status selector now at the restored row's place (the next row, a
-revealed child, or the previous row) and, after Retry, to the first enabled status selector; else
-to the heading. Focus moved elsewhere during the request stays there. A later failed read keeps
-a "Restore succeeded" error, so the committed write stays reported; any other error is replaced.
+Project frames and reconnects refresh the workspace list. Committed Restore opens one toast
+naming the project and resulting status, with Open it and no Undo outside a workspace. Focus
+moves to its first action only when the removed Restore control or body still owns focus;
+dismissal falls back to a surviving Restore or the heading. Failed Restore and Retry retain the
+existing bounded list-focus recovery, and a person who moved focus elsewhere keeps it. A later
+failed read keeps a “Restore succeeded” error so the committed write stays acknowledged.
 
 ## Runtime flow
 
@@ -38,6 +38,13 @@ title, links get safe new-tab attributes, and table alignment uses classes.
 `ViewEncapsulation.None` reaches inserted markup with every style scoped beneath
 `.markdown-renderer`, using design tokens including `--font-mono`. The parser loads lazily.
 
+Shared feedback uses `Toast` and root `ToastSlot`. A second claim closes the first; navigation
+closes feedback, and modal suppression hides it without dropping it. Status toasts dismiss after
+eight unattended seconds; hover, focus and suppression pause and restart that timer. Alerts and
+pending Undo never time out. `ReceiptToast` in core composes this presentational layer with the
+workspace's inert-default receipt port. The toast docks in the content track with a matching
+reserve and becomes solid whenever another lift is open.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -52,6 +59,9 @@ title, links get safe new-tab attributes, and table alignment uses classes.
 | `SECTION_REGISTRY`, `DASHBOARD_WIDGET_REGISTRY`, `PROJECT_PAGE_REGISTRY` | consts | The three open-ended lists | [API](../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
 | `MarkdownRenderer`, `renderMarkdown` | component / function | Safe source presentation | [API](../../api/components/MarkdownRenderer.html) |
 | `Icon` | component | Shared decorative SVG marks (`shared/components/icon`) | [API](../../api/components/Icon.html) |
+
+| `Toast` | component | Presentational feedback, live regions and timer | [API](../../api/components/Toast.html) |
+| `ToastSlot` | injectable | One visible toast, navigation dismissal and modal suppression | [API](../../api/injectables/ToastSlot.html) |
 
 Each subsystem's `how.md` lists its own.
 

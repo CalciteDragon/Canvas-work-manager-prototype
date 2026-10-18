@@ -84,6 +84,54 @@
   overflow-y: auto;
 }
 
+// The viewport placement remains usable without CSS anchors. Only this fallback subtracts
+// the drawer: the anchored track already has its width reserved by the workspace shell.
+.lift--toast {
+  position: fixed;
+  inset: auto calc(var(--space-4) + var(--lift-side-offset)) var(--space-4) var(--space-4);
+  margin-inline: auto;
+  inline-size: min(var(--toast-max-inline-size), calc(100vw - var(--space-4) - var(--space-4) - var(--lift-side-offset)));
+  max-block-size: var(--toast-max-block-size);
+  overflow: auto;
+  display: none;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.lift--toast:popover-open { display: flex; }
+.lift--toast.lift--contained { display: flex; max-inline-size: 100%; translate: none; }
+.toast__message { flex: 0 1 auto; min-block-size: 0; margin: 0; overflow-wrap: anywhere; overflow-y: auto; }
+.toast__lines { min-block-size: 0; margin: 0; padding-inline-start: var(--space-5); overflow-y: auto; }
+.toast__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+// Fixed, not absolute: with no positioned ancestor an absolute region sits at its static place at
+// the bottom of the scrolled track, and the document itself would scroll behind the app's track.
+.toast__announcement {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--border-hairline);
+  block-size: var(--border-hairline);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// The project column is outside this anchor, and an open side drawer is already reserved.
+.project-workspace__main { anchor-name: --toast-track; }
+@supports (anchor-name: --a) {
+  .lift--toast {
+    position-anchor: --toast-track;
+    inset-inline: auto;
+    left: anchor(center);
+    translate: -50% 0;
+    margin-inline: 0;
+    inline-size: min(var(--toast-max-inline-size), calc(anchor-size(width) - var(--space-4) - var(--space-4)));
+  }
+}
+:root:has(.lift:not(.lift--toast):popover-open, dialog.lift[open], [data-modal-lift]) .lift--toast {
+  background: var(--plane-lift-solid);
+  backdrop-filter: none;
+}
+
 dialog.lift::backdrop {
   background: var(--color-background);
   opacity: var(--opacity-scrim);

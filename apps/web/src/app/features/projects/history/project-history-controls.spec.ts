@@ -1,10 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
-import type { ProjectId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import type { HistoryControlView, HistoryFeedback } from './history-feedback';
+import type { HistoryControlView } from './history-feedback';
 import { ProjectHistoryControls } from './project-history-controls';
-import { ProjectHistoryFeedback } from './project-history-feedback';
 
 const render = async (undo: HistoryControlView, redo: HistoryControlView, retryAvailable = false) => {
   const fixture = TestBed.createComponent(ProjectHistoryControls);
@@ -61,30 +58,5 @@ describe('ProjectHistoryControls (Slice 41)', () => {
     fixture.componentInstance.retryRequested.subscribe(() => (retried += 1));
     retry!.click();
     expect(retried).toBe(1);
-  });
-});
-
-describe('ProjectHistoryFeedback (Slice 41)', () => {
-  it('is a polite status region, and its Open link routes to the owning project', async () => {
-    TestBed.configureTestingModule({ providers: [provideRouter([{ path: '**', children: [] }])] });
-    const fixture = TestBed.createComponent(ProjectHistoryFeedback);
-    const feedback: HistoryFeedback = {
-      tone: 'status',
-      message: 'Completed "Tile" was recorded in Kitchen’s history.',
-      link: { projectId: 'project-kitchen' as ProjectId, label: 'Open Kitchen' },
-    };
-    fixture.componentRef.setInput('feedback', feedback);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
-    const region = element.querySelector('[data-history-feedback]')!;
-    expect(region.getAttribute('role')).toBe('status');
-    expect(region.getAttribute('aria-live')).toBe('polite');
-    expect(element.querySelector('[data-history-message]')!.textContent).toContain('Kitchen’s history');
-    const link = element.querySelector<HTMLAnchorElement>('[data-history-open]')!;
-    expect(link.textContent?.trim()).toBe('Open Kitchen');
-    link.click();
-    await fixture.whenStable();
-    expect(TestBed.inject(Router).url).toBe('/projects/project-kitchen');
   });
 });

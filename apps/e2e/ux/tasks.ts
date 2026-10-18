@@ -72,7 +72,8 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await click(button(/^Remove section /).first(),'Remove first section','Work canvas');
       await page.waitForLoadState('networkidle');
       await c.step('Verify exact section left the canvas','Work canvas',{},()=>expect(button(removedName!)).toHaveCount(0));
-      await click(button(/^Undo:/),'Undo removal','Project history');
+      if (process.env['UX_BEFORE']) await click(button(/^Undo:/),'Undo removal through header','Project history');
+      else await click(page.locator('[data-toast]:popover-open').getByRole('button', { name: 'Undo', exact: true }), 'Undo removal through toast', 'Toast');
       await c.step('Verify removed section returns','Work canvas',{},()=>expect(button(removedName!)).toBeVisible()); break; }
     case 'T06':
       await click(button(/^Edit Markdown for/).first(),'Edit Markdown','Markdown');

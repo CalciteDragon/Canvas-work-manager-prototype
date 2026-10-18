@@ -14,6 +14,13 @@ export interface OperationWriteReport {
   projectName?: string;
   /** The write's receipt, or `null` for a no-op that recorded nothing. */
   receipt: OperationReceipt | null;
+  /** The writer supplies its own toast; omit the cross-owner announcement. */
+  feedback?: 'own';
+}
+
+/** Retry from an existing toast must not dismiss that same toast as a newer write. */
+export interface OperationWriteOptions {
+  exempt?: boolean;
 }
 
 /**
@@ -42,7 +49,7 @@ export interface OperationWriteHandle {
  * `reportedWrite` does all three.
  */
 export interface OperationHistoryReporter {
-  begin(): OperationWriteHandle;
+  begin(options?: OperationWriteOptions): OperationWriteHandle;
 }
 
 /**
@@ -69,8 +76,9 @@ export const reportedWrite = async <T>(
   reporter: OperationHistoryReporter,
   write: () => Promise<T>,
   report: (result: T) => OperationWriteReport,
+  options?: OperationWriteOptions,
 ): Promise<T> => {
-  const handle = reporter.begin();
+  const handle = options === undefined ? reporter.begin() : reporter.begin(options);
   try {
     const result = await write();
     handle.committed(report(result));

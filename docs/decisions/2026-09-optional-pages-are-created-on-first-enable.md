@@ -84,3 +84,5 @@ creating enable, `page.update` for a later boolean — while the no-op above sti
 returns a `null` receipt. The archive exemption is unchanged for the toggle and does **not** extend
 to those transitions, which answer `history_blocked` on an archived root in both directions
 ([decision](2026-09-optional-page-operation-history.md)).
+
+**Amended, 2026-10-17 (Slice 74).** Archive remains created on its first navigation-toggle write. Its archived-root freeze exemption stands for editing a navigation preference; it is no longer needed to reach Archive, which renders without a record. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

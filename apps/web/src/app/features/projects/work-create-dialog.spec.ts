@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 import type { ProjectId } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkCreateDialog, type WorkCreateParent } from './work-create-dialog';
@@ -36,6 +37,14 @@ const chooseKitchen = (fixture: Awaited<ReturnType<typeof render>>) => {
 };
 
 describe('WorkCreateDialog (§23, §26)', () => {
+  it('suppresses the toast until the custom modal is destroyed', async () => {
+    const fixture = await render();
+    const slot = TestBed.inject(ToastSlot);
+    expect(slot.suppressed()).toBe(true);
+    expect(query(fixture, '[data-modal-lift]')).not.toBeNull();
+    fixture.destroy();
+    expect(slot.suppressed()).toBe(false);
+  });
   it('focuses required name; defaults to root and lists indented parents with completed marked', async () => {
     const fixture = await render();
     const name = query<HTMLInputElement>(fixture, '[data-create-work-name]');

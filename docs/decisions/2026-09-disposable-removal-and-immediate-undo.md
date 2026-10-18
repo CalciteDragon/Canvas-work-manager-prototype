@@ -137,3 +137,5 @@ server; the browser reports that receipt to the header instead of holding it.
 
 
 **Amended, 2026-09-24 (Slice 43).** Removal no longer returns a `section_not_empty` refusal or opens a policy dialog. The canvas and gateway send only the section id; live owned rows cascade in that same operation. An uncertain retry repeats the same ID-only request, and a retired policy or target field is refused at the transport contract. The header remains the Undo surface.
+
+**Amended, 2026-10-17 (Slice 74).** Every removal now confirms in the local toast, including disposable unlisted views. Its exact receipt offers Undo, followed by Open archive only when listed. Retry remove and Retry refresh share that toast; SectionRecoveryNotice is removed. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

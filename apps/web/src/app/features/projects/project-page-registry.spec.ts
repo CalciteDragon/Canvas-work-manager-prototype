@@ -28,6 +28,17 @@ const ROOT = project('project-root', 'Root');
 const CHILD = project('project-child', 'Child', ROOT.id);
 
 describe('project page registry (§26, §68)', () => {
+  it.each(['missing', 'disabled', 'enabled'])('renders a root Archive with a %s record', (state) => {
+    const archive = page('page-archive', ROOT.id, 'archive', state === 'enabled');
+    expect(resolveProjectPage({ project: ROOT,
+      ownPages: state === 'missing' ? [] : [archive], requestedKind: 'archive' }))
+      .toMatchObject({ outcome: 'render', kind: 'archive', pageId: state === 'missing' ? null : archive.id });
+  });
+
+  it('still redirects a workstream Archive URL to its canvas', () => {
+    expect(resolveProjectPage({ project: CHILD, ownPages: [], requestedKind: 'archive' }))
+      .toMatchObject({ outcome: 'redirect', to: ['/projects', CHILD.id] });
+  });
   // Slice 72 (L2-013, W1-012): page kinds take marks from the shared SVG set.
   it('gives each page kind its own mark from the shared icon set', () => {
     expect(PROJECT_PAGE_REGISTRY.map(({ kind, icon }) => [kind, icon])).toEqual([

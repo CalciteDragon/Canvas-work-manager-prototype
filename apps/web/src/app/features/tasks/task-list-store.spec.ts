@@ -74,6 +74,22 @@ const resultOf = (value: Task) => ({
   }),
 });
 
+it('keeps each archived task receipt when concurrent replies arrive out of order', async () => {
+  const first = task();
+  const second = task({ id: 'task-b' });
+  const a = deferred<TaskWriteResult>(), b = deferred<TaskWriteResult>();
+  const { store } = setup({ tasks: [first, second], archive: id => id === first.id ? a.promise : b.promise });
+  await store.load(section());
+  const earlier = store.archive(first.id), later = store.archive(second.id);
+  const secondResult = { ...resultOf(second), operation: OperationReceiptSchema.parse({ ...resultOf(second).operation, actionId: 'action-second' }) };
+  b.resolve(secondResult);
+  await later;
+  a.resolve(resultOf(first));
+  await earlier;
+  expect(store.archiveReport(second.id)?.receipt?.actionId).toBe('action-second');
+  expect(store.archiveReport(first.id)?.receipt?.actionId).toBe('action-test');
+});
+
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -711,6 +727,8 @@ describe('TaskListStore reports every write to the header’s history (Slice 41)
     await store.updateTitle(owned.id, 'Renamed');
     await store.complete(owned.id);
     await store.archive(owned.id);
+    expect(reporter.reports()[3]).toMatchObject({ projectId: 'project-b', feedback: 'own' });
+    expect(store.archiveReport(owned.id)).toEqual(reporter.reports()[3]);
     await store.receive('task-elsewhere' as TaskId, 'section-project-b-tasks' as ProjectSection['id']);
 
     expect(reporter.events.filter((event) => event === 'begin')).toHaveLength(5);

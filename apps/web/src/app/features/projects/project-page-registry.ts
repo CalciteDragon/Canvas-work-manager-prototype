@@ -68,22 +68,25 @@ export const OPTIONAL_PROJECT_PAGE_DEFINITIONS: readonly OptionalProjectPageDefi
 export const pageDefinitionFor = (kind: ProjectPageKind): ProjectPageDefinition | undefined =>
   PROJECT_PAGE_REGISTRY.find((definition) => definition.kind === kind);
 
-/** The tabs the column shows: navigable, enabled by this root, and renderable by this build. */
-export const navigablePages = (pages: readonly ProjectPage[]): ProjectPageDefinition[] =>
+/** Enabled tabs, plus Archive while it is the current page, even when hidden in navigation. */
+export const navigablePages = (pages: readonly ProjectPage[], activeKind: ProjectPageKind | null = null): ProjectPageDefinition[] =>
   PROJECT_PAGE_REGISTRY.filter((definition) =>
+    (definition.kind === 'archive' && activeKind === 'archive') ||
     pages.some((page) => page.kind === definition.kind && page.enabled),
   );
 
 /**
  * §68's resolution, as one **positive** rule: a `/pages/:kind` URL renders that page only when
- * the project is a root, the kind is navigable, the root has that page enabled, and this build
- * can draw it. Everything else redirects, because §68 asks for a fallback to Home "with an
- * explanation" rather than a blank screen or a 404.
+ * the project is a root, the kind is navigable, the root has that page enabled (except Archive),
+ * and this build can draw it. Archive is always visitable and needs no record. Everything else
+ * redirects, because §68 asks for a fallback to Home "with an explanation" rather than a blank
+ * screen or a 404.
  *
  * Pure, and separate from the shell, so every branch is testable without a router.
  */
 export type ProjectPageResolution =
-  | { outcome: 'render'; kind: ProjectPageKind; pageId: ProjectPageId; component: Type<ProjectPageRenderer> }
+  | { outcome: 'render'; kind: Exclude<ProjectPageKind, 'archive'>; pageId: ProjectPageId; component: Type<ProjectPageRenderer> }
+  | { outcome: 'render'; kind: 'archive'; pageId: ProjectPageId | null; component: Type<ProjectPageRenderer> }
   | { outcome: 'redirect'; to: unknown[]; reason: string; enableKind?: OptionalProjectPageKind }
   | { outcome: 'unavailable'; reason: string };
 
@@ -129,6 +132,9 @@ export const resolveProjectPage = (input: {
     return toHome(`There is no “${kind}” page. Showing Home instead.`);
   }
   const page = ownPages.find((candidate) => candidate.kind === kind);
+  if (kind === 'archive' && definition !== undefined) {
+    return { outcome: 'render', kind, pageId: page?.id ?? null, component: definition.component };
+  }
   if (page === undefined || !page.enabled) {
     const fallback = toHome(`The ${labelFor(kind)} page is switched off for this project. Showing Home instead.`);
     // Only a real, disabled optional record gets an enable affordance. A missing record is the

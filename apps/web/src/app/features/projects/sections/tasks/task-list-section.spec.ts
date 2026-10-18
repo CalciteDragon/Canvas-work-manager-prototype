@@ -1,4 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { RECEIPT_UNDO } from '../../../../core/history/receipt-undo';
+import { ToastSlot } from '../../../../shared/feedback/toast-slot';
 import { ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskId, type TaskWriteResult } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
@@ -87,6 +90,98 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('TaskListSection (§30, §66)', () => {
+  it('offers one receipt Undo for a descendant-owned task and lands lost Delete focus on it', async () => {
+    const undo = vi.fn(async () => ({ tone: 'status' as const, message: 'Undone: Archived “Task task-1”.' }));
+    TestBed.configureTestingModule({ providers: [{ provide: RECEIPT_UNDO, useValue: {
+      offer: () => 'ready', undo, writeSequence: signal(0), generation: signal(0),
+    } }] });
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1', 'project-child')] });
+    const { fixture } = await render(gateway);
+    const announcement = query(fixture, '[role=status]');
+    expect(announcement?.textContent).toBe('');
+    const claim = vi.spyOn(TestBed.inject(ToastSlot), 'claim');
+    const remove = query(fixture, '[data-task-delete]')!;
+    remove.focus(); remove.click();
+    await fixture.whenStable();
+    const action = query(fixture, '[data-toast-undo]')!;
+    expect(document.activeElement).toBe(action);
+    expect(query(fixture, '[data-toast-open]')?.textContent).toContain('Archived “Task task-1”.');
+    expect(claim).toHaveBeenCalledOnce();
+    expect(query(fixture, '[role=status]')).toBe(announcement);
+    action.click();
+    await fixture.whenStable();
+    expect(undo).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-child', feedback: 'own' }));
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-dismiss]'));
+    query(fixture, '[data-toast-dismiss]')!.click();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(query(fixture, '[data-quick-task-title]'));
+  });
+
+  it('lands row Delete focus on the toast when a live refresh closes the deleted task’s drawer first', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    let release!: () => void;
+    const original = gateway.tasks.archive;
+    gateway.tasks.archive = (id) => new Promise((resolve) => { release = () => { void original(id).then(resolve); }; });
+    const { fixture, store } = await render(gateway);
+    query(fixture, 'button[data-task-title]')!.click();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-task-drawer]')).not.toBeNull();
+    const reads: Array<() => void> = [];
+    gateway.tasks.list = () => new Promise((resolve) => reads.push(() => resolve([])));
+    const remove = query(fixture, '[data-task-delete]') as HTMLButtonElement;
+    remove.focus(); remove.click();
+    fixture.detectChanges();
+    expect(remove.disabled).toBe(true);
+    expect(store.selectedTaskId()).toBe('task-1');
+    // A browser drops focus from the disabled control to the body; jsdom keeps it there.
+    const stand = document.body.appendChild(document.createElement('input'));
+    stand.focus(); stand.remove();
+    expect(document.activeElement).toBe(document.body);
+    // The live event of the same write asks for a re-read; the store coalesces it until the
+    // write settles, so it is answered, and rendered, before Delete's own re-read.
+    await store.refresh();
+    release();
+    await vi.waitFor(() => expect(reads).toHaveLength(2));
+    reads[0]!();
+    await new Promise((resolve) => setTimeout(resolve));
+    fixture.autoDetectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(store.selectedTaskId()).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve));
+    reads[1]!();
+    await fixture.whenStable();
+    expect(document.activeElement?.closest('[data-toast]')).not.toBeNull();
+  });
+
+  it('keeps focus moved elsewhere while Delete is pending', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    let release!: () => void;
+    const original = gateway.tasks.archive;
+    gateway.tasks.archive = (id) => new Promise((resolve) => { release = () => { void original(id).then(resolve); }; });
+    const { fixture } = await render(gateway);
+    const remove = query(fixture, '[data-task-delete]')!;
+    remove.focus(); remove.click();
+    const input = query(fixture, '[data-quick-task-title]')!;
+    input.focus();
+    release();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-toast-open]')).not.toBeNull();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('does not reclaim feedback after the section was destroyed during Delete', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    let release!: () => void;
+    const original = gateway.tasks.archive;
+    gateway.tasks.archive = (id) => new Promise((resolve) => { release = () => { void original(id).then(resolve); }; });
+    const { fixture } = await render(gateway);
+    const claim = vi.spyOn(TestBed.inject(ToastSlot), 'claim');
+    const write = fixture.componentInstance.archive('task-1' as TaskId);
+    fixture.destroy();
+    release();
+    await write;
+    expect(claim).not.toHaveBeenCalled();
+  });
   it('opens a modal sheet on narrow screens and closes with title focus at a breakpoint change', async () => {
     let changed!: (event: { matches: boolean }) => void;
     const removeEventListener = vi.fn();
@@ -334,7 +429,7 @@ describe('TaskListSection (§30, §66)', () => {
 
     expect(archive).toHaveBeenCalledWith('task-1');
     expect(gateway.argumentTo('tasks.archive')).toBe('task-1');
-    expect(document.activeElement).toBe(query(fixture, '[data-task-row] [data-task-delete]'));
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-open-archive]'));
   });
 
   it('announces a committed Delete outside the rows, including the final completed row', async () => {
@@ -352,18 +447,18 @@ describe('TaskListSection (§30, §66)', () => {
 
     query(fixture, '[data-task-delete]')!.click();
     fixture.detectChanges();
-    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
     release();
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(query(fixture, '[data-task-row]')).toBeNull();
-    const cue = query(fixture, '[data-task-delete-recovery]');
-    expect(cue?.getAttribute('aria-live')).toBe('polite');
+    const cue = query(fixture, '[data-toast-open]');
+    expect(query(fixture, '[role=status]')?.textContent).toContain('Archived');
     expect(cue?.textContent).toContain('Task task-1');
-    expect(cue?.textContent).toContain('archived');
-    expect(cue?.textContent).toContain('Archive');
-    expect(cue?.textContent).toContain('header Undo');
+    expect(cue?.textContent).toContain('Archived');
+    expect(cue?.textContent).toContain('Open archive');
+    expect(cue?.textContent).not.toContain('header');
   });
 
   it('clears committed feedback on another Delete attempt and never announces refusal', async () => {
@@ -371,13 +466,13 @@ describe('TaskListSection (§30, §66)', () => {
     const { fixture } = await render(gateway);
     query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
-    expect(query(fixture, '[data-task-delete-recovery]')).not.toBeNull();
+    expect(query(fixture, '[data-toast-open]')).not.toBeNull();
 
     gateway.tasks.archive = async () => { throw new GatewayError('permission_denied', 403, 'No task grant'); };
     query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
     expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('No task grant');
   });
 
@@ -390,7 +485,7 @@ describe('TaskListSection (§30, §66)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-task-delete-recovery]')?.textContent).toContain('was archived');
+    expect(query(fixture, '[data-toast-open]')?.textContent).toContain('Archived');
     // Quiet reconciliation leaves the old row until a later live read; the archive verdict
     // still comes from the committed write, and must not be recast as a failed Delete.
     expect(query(fixture, '[data-tasks-error]')).toBeNull();
@@ -402,12 +497,12 @@ describe('TaskListSection (§30, §66)', () => {
     gateway.tasks.list = async () => [];
     query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
-    expect(query(fixture, '[data-task-delete-recovery]')).not.toBeNull();
+    expect(query(fixture, '[data-toast-open]')).not.toBeNull();
 
     gateway.tasks.list = async () => [task('task-1')];
     await store.refresh();
     fixture.detectChanges();
-    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
   it('does not announce a transport refusal or a late commit from another section', async () => {
@@ -416,7 +511,7 @@ describe('TaskListSection (§30, §66)', () => {
     gateway.tasks.archive = async () => { throw new GatewayError('unreachable', 0, 'Offline'); };
     query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
-    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
 
     let release!: () => void;
     gateway.tasks.archive = () => new Promise((resolve) => {
@@ -428,7 +523,7 @@ describe('TaskListSection (§30, §66)', () => {
     release();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
   it('tells the page a successful archive happened, so projections can refresh', async () => {

@@ -14,6 +14,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import type { ProjectSection, SectionConfig, SectionId, Task, TaskId, TaskPriority } from '@cwm/contracts';
 import { TaskDetailDrawer } from '../../../tasks/task-detail-drawer';
 import { TaskDrawerCoordinator } from '../../../tasks/task-drawer-coordinator';
@@ -23,6 +24,9 @@ import { ProjectPageStore } from '../../project-page-store';
 import { SHELL_NARROW_QUERY } from '../../../../core/shell/app-shell';
 import { LiftFocus } from '../../../../shared/lifts/lift-focus';
 import { LiftStack } from '../../../../shared/lifts/lift-stack';
+import { Toast } from '../../../../shared/feedback/toast';
+import { ReceiptToast } from '../../../../core/history/receipt-toast';
+import { taskArchivedFeedback } from '../../history/history-feedback';
 
 /** A CDK drop-list id per section, so two lists on one canvas can be connected by name. */
 export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
@@ -41,7 +45,7 @@ export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
 @Component({
   selector: 'app-task-list-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDrag, CdkDropList, TaskRow, TaskDetailDrawer],
+  imports: [CdkDrag, CdkDropList, TaskRow, TaskDetailDrawer, Toast, RouterLink],
   providers: [TaskListStore],
   templateUrl: './task-list-section.html',
   styleUrl: './task-list-section.scss',
@@ -54,11 +58,15 @@ export class TaskListSection {
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
+  readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
 
   readonly store = inject(TaskListStore);
+  readonly toast = new ReceiptToast();
   readonly deleteRecovery = signal<{ id: TaskId; title: string } | null>(null);
   private recoverySnapshot: readonly Task[] | null = null;
   private deleteGeneration = 0;
+  /** Row Deletes awaiting their reply; while any is, lost focus belongs to its toast, not the drawer. */
+  private deletesInFlight = 0;
   private currentSectionId: SectionId | null = null;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -139,6 +147,7 @@ export class TaskListSection {
         this.currentSectionId = sectionId;
         this.deleteGeneration += 1;
         this.deleteRecovery.set(null);
+        this.toast.close('navigation');
       }
     });
     effect(() => {
@@ -146,6 +155,7 @@ export class TaskListSection {
       const tasks = this.store.tasks();
       if (recovery !== null && tasks !== this.recoverySnapshot && tasks.some(({ id }) => id === recovery.id)) {
         this.deleteRecovery.set(null);
+        if (this.toast.report() !== null) this.toast.close();
       }
     });
     // The same rule `ReflectionsSection` follows: load on mount, quietly re-read whenever
@@ -237,7 +247,8 @@ export class TaskListSection {
     const focus = this.drawerFocus;
     const element = drawer?.element;
     const active = document.activeElement;
-    const returnFocus = active === null || active === document.body || (element?.contains(active) ?? false);
+    const lost = (active === null || active === document.body) && this.deletesInFlight === 0;
+    const returnFocus = lost || (element?.contains(active) ?? false);
     this.openedTaskId = null;
     this.openedDrawer = null;
     this.drawerFocus = null;
@@ -264,17 +275,22 @@ export class TaskListSection {
     const title = this.store.tasks().find((task) => task.id === id)?.title;
     const generation = ++this.deleteGeneration;
     this.deleteRecovery.set(null);
-    const deleteButtons = [...this.host.nativeElement.querySelectorAll<HTMLButtonElement>('[data-task-delete]')];
-    const focusIndex = deleteButtons.findIndex((button) => button === document.activeElement);
-    const focusedDelete = focusIndex >= 0 ? deleteButtons[focusIndex] : null;
-    if (!(await this.store.archive(id))) return;
+    this.toast.close('write');
+    const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-task-row]')]
+      .find(candidate => candidate.getAttribute('data-task-id') === id);
+    const focusedDelete = row?.querySelector<HTMLButtonElement>('[data-task-delete]') ?? null;
+    this.deletesInFlight += 1;
+    let archived: boolean;
+    try { archived = await this.store.archive(id); } finally { this.deletesInFlight -= 1; }
+    if (!archived) return;
+    if (this.destroyed) return;
     this.onProjectDataChange()();
     if (this.section().id !== sectionId || generation !== this.deleteGeneration) return;
     if (title !== undefined) {
       this.recoverySnapshot = this.store.tasks();
       this.deleteRecovery.set({ id, title });
+      this.toast.show(taskArchivedFeedback(title), this.store.archiveReport(id) ?? undefined, () => this.quickTitle());
     }
-    if (focusedDelete === null) return;
 
     const active = document.activeElement;
     if (active !== document.body && active !== null && active !== focusedDelete) return;
@@ -282,11 +298,16 @@ export class TaskListSection {
       if (this.section().id !== sectionId) return;
       const activeAfterRender = document.activeElement;
       if (activeAfterRender !== document.body && activeAfterRender !== null && activeAfterRender !== focusedDelete) return;
-      const buttons = [...this.host.nativeElement.querySelectorAll<HTMLButtonElement>('[data-task-delete]')];
-      const next = buttons[focusIndex] ?? buttons[focusIndex - 1] ??
-        this.host.nativeElement.querySelector<HTMLInputElement>('[data-quick-task-title]');
-      next?.focus();
+      this.toast.focusFirst();
     }, { injector: this.injector });
+  }
+
+  async undoDelete(): Promise<void> {
+    await this.toast.undo();
+    if (this.toast.state()?.tone === 'status' && this.toast.report() === null) {
+      this.onProjectDataChange()();
+      void this.store.refresh();
+    }
   }
 
   async changeEstimate(event: { id: TaskId; estimate: number | null }): Promise<void> {

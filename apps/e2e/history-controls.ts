@@ -1,7 +1,6 @@
 /**
- * The project header's Undo and Redo (Slice 41), as journeys drive them. The header is the only
- * browser surface that offers Undo, so every journey that used the canvas notice's button now goes
- * through these two helpers.
+ * The project header's full-history Undo and Redo, as journeys drive them. Acting toasts also
+ * offer their own receipt-specific Undo (Slice 74).
  */
 import { expect, type Locator, type Page, type Response } from '@playwright/test';
 import type { OperationHistoryTransitionResult } from '@cwm/contracts';
@@ -37,5 +36,5 @@ export const stepFromHeader = async (
 export const undoFromHeader = (page: Page, label: string | RegExp) => stepFromHeader(page, 'undo', label);
 export const redoFromHeader = (page: Page, label: string | RegExp) => stepFromHeader(page, 'redo', label);
 
-/** The one feedback line the controls speak through. */
-export const historyFeedback = (page: Page): Locator => page.locator('[data-history-message]');
+/** The active toast message after a header transition. */
+export const historyFeedback = (page: Page): Locator => page.locator('[data-toast]:popover-open .toast__message');

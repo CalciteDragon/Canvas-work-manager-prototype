@@ -36,7 +36,7 @@ const render = async (
     pages?: ProjectPage[];
     workTree?: WorkTreeNode[];
     currentProjectId?: string;
-    activeKind?: 'home' | null;
+    activeKind?: 'home' | 'archive' | null;
     breadcrumbs?: Project[];
     collapsed?: boolean;
   } = {},
@@ -107,6 +107,17 @@ const queryAll = (fixture: Awaited<ReturnType<typeof render>>, selector: string)
   [...fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
 
 describe('ProjectPageNavigation (§23)', () => {
+  it.each(['missing', 'disabled'])('keeps a %s Archive in navigation only while it is current', async (state) => {
+    const pages = state === 'missing' ? [] : [ProjectPageSchema.parse({
+      id: 'page-archive', projectId: ROOT.id, kind: 'archive', enabled: false, createdAt: AT, updatedAt: AT,
+    })];
+    const fixture = await render({ pages, activeKind: 'archive' });
+    expect(query(fixture, '[data-page-kind="archive"]')?.getAttribute('aria-current')).toBe('page');
+    expect(query(fixture, '[data-page-toggle-kind="archive"]')?.textContent).toContain('Show Archive in navigation');
+    fixture.componentRef.setInput('activeKind', 'home');
+    fixture.detectChanges();
+    expect(query(fixture, '[data-page-kind="archive"]')).toBeNull();
+  });
   it('keeps pending toggles focusable and refuses repeated writes', async () => {
     const fixture = await render();
     const emitted = vi.fn();

@@ -94,8 +94,8 @@ test('Work plus creates once without navigation, refreshes a second tab and rese
   expect(after.length).toBe(before.length + 1);
   expect(after.filter(({ name }) => name === 'Paint samples')).toHaveLength(1);
   expect(child.parentProjectId).toBe(ROOT);
-  await expect(page.locator('[data-history-feedback]')).toContainText('Created "Paint samples" was recorded in Paint samples’s history.');
-  await expect(page.locator('[data-history-open]')).toHaveAttribute('href', `/projects/${child.id}`);
+  await expect(page.locator('[data-toast]:popover-open')).toContainText('Created “Paint samples”.');
+  await expect(page.locator('[data-toast]:popover-open [data-toast-open]')).toHaveAttribute('href', `/projects/${child.id}`);
   await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
   await expect(watcher.locator(`[data-todo-id="${child.id}"]`)).toContainText('Workstream');
 

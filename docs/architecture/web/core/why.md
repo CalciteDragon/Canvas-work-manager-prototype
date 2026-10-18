@@ -72,6 +72,8 @@ get one.
 
 ## Decisions that shape this system
 
+- [Feedback is one toast with Undo](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md) — the receipt port has an inert root default; the component controller composes it with shared feedback without importing a feature store.
+
 - [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — the shared gateway keeps workspace Settings off HTTP details.
 
 - [The gateway interface grows with its implementations](../../../decisions/2026-08-gateway-surface-grows-with-implementations.md)

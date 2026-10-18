@@ -200,9 +200,9 @@ pnpm storybook                                        # :6006
   persona's unavailable route and a same-workspace MCP agent's separate summary. The component
   specs cover task and unit-of-work rows, all four Archive item kinds and root-owned omission.
 - **Task Delete recovery feedback** lives in `row-history.spec.ts` and `todos.spec.ts`:
-  a Task List and the root chronology retain a polite status after the row leaves; the
-  journeys check header Undo, guarded Archive opening and Restore, keyboard/touch activation,
-  failure and 375 px themes. The focused web component specs drive pending, refusal, final-row
+  a Task List and the root chronology raise the shared toast after the row leaves; the
+  journeys check its local Undo and the "Undone:" morph, Open archive and Restore,
+  keyboard/touch activation, failure and 375 px themes. The focused web component specs drive pending, refusal, final-row
   and route-generation boundaries before those browser journeys.
 - **Task interaction** lives in `task-interaction.spec.ts`: isolated `nested-projects` scratch
   roots exercise both task checkbox surfaces, reload, progress and reflection projections, exact
@@ -386,8 +386,9 @@ specs stub `showPopover`, `hidePopover`, `showModal` and `close`; they prove app
 permission/failure rules rather than browser inertness, light dismiss or native restoration.
 
 The matrix includes Project details, archive confirmation and a task opened after scrolling the
-overdue list. `UX_BEFORE=<commit>` labels baseline output and maps the new details/confirmation
-states to their former inline More surface. The baseline web build must match that commit;
+overdue list. `UX_BEFORE=<commit>` labels baseline output. Only Slice 73's baseline,
+`e56c7d7`, maps the details/confirmation states to their former inline More surface; later
+baselines already have the native lifts and open them normally. The baseline web build must match that commit;
 the environment variable does not check out or build it. `UX_MATCH` still selects and merges cells.
 
 `UX_LIFTS=1` enables `ux/lifts-verification.ts`: six lift kinds in both themes, closed/open
@@ -413,3 +414,25 @@ is listed as an exception, with the baseline client width (375 px) and a scroll 
 than the baseline's (625 px); new or increased overflow, including on `/prototype/state`, fails.
 Open-lift and Lab geometry is listed as intended movement. Contrast stays reported-only. Run
 `node --test docs/roadmap/70-ui-ux/tooling/build-sheet.test.mjs` for its fixture-based gates.
+
+### Feedback toast (Slice 74)
+
+`feedback.spec.ts` drives the shared toast at 1440 with the keyboard and at 375 on touch:
+removal Undo first, the "Undone:" morph and restored-heading focus, the paused timer,
+replacement by a newer write, closing on navigation, an Open archive visit that writes
+nothing, hidden-Archive direct routes for Alex and Sam, a stale cross-owner receipt refused
+without replacing the displayed history, and a long task title that keeps Undo and Dismiss
+inside the phone toast. It runs in the ordinary suite, and against the production build with
+`--config ux/slice74-behavior.config.ts`. The ordinary config ignores `ux-output/`, which
+can hold an archived baseline checkout with its own test files.
+
+`UX_FEEDBACK=1` enables `ux/feedback-verification.ts`, which writes
+`feedback-verification.json`: content-track clearance, focus logs for each starred row,
+whether the toast covers the acted region (reported), blur counts with the toast alone and with
+the task drawer, More or a dialog open (at most one transient layer), forced-colour and
+reduced-transparency fallbacks, phone drawer suppression and a reported muted-text contrast
+ratio, in both themes at 1440 and 375. `ux/slice74.config.ts` owns ports
+4242/4342 and `.prototype/ux-slice74.json`; with `UX_BEFORE` it serves the archived
+`ux-output/slice74-baseline-source` build. Build the web app first.
+`build-sheet.mjs --profile 74` gates that file, closed-state geometry, phone overflow and the
+T05/T09 task costs, and fails when the verification is missing or incomplete.

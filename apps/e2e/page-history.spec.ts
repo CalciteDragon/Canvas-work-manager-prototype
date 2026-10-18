@@ -13,9 +13,9 @@ import { api, connectMcp, createRoot, createSubprojects, seed, setClock } from '
  * Slice 38 (§§26, 31, 63, 68): the optional-page toggle and its inverses in the real browser.
  *
  * The toggles are driven through the **page manager and Open archive**, the controls a person
- * actually uses, while the transitions go through the same-persona HTTP history endpoints — Undo
- * and Redo have no header controls yet, and inventing one here would test a surface the phase
- * deliberately did not build. A second tab watches the live frames, and a reload proves the state
+ * actually uses, while the transitions go through the same-persona HTTP history endpoints.
+ * This isolates page reconciliation from the header and toast controls tested elsewhere.
+ * A second tab watches the live frames, and a reload proves the state
  * came from the file rather than from a signal.
  */
 
@@ -95,24 +95,25 @@ test('a first enable is reversible in the browser, and its page returns under th
   await watcher.close();
 });
 
-test('Open archive records one action, and reversing it sends a viewer of that page back to Home', async ({ page, context }) => {
+test('Open archive writes nothing, and reversing its navigation setting keeps Archive visitable', async ({ page, context }) => {
   await seed('nested-projects');
   await setClock('2026-09-21T12:00:00.000Z');
   const root = await createRoot('Archive history');
   const [child] = await createSubprojects(root.id, 1);
   await page.goto(`/projects/${root.id}`);
 
-  // Open archive from More: a committed state change, hence exactly one action.
+  const beforeOpen = await history(root.id);
+  // Open archive from More is navigation, even before an Archive record exists.
   await page.locator('[data-project-more]').click();
   await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
   await expect(page.locator('#archive-page-title')).toBeFocused();
-  const archivePage = (await pageOf(root.id, 'archive'))!;
   const afterOpen = await history(root.id);
-  expect(afterOpen.undo).toMatchObject({ operation: 'page.add' });
+  expect(afterOpen).toEqual(beforeOpen);
+  expect(await pageOf(root.id, 'archive')).toBeUndefined();
   const revisionAfterOpen = afterOpen.revision;
 
-  // Opening an already-enabled page is navigation, not a write: no second action.
+  // Repeating Open archive still sends no write.
   await page.goto(`/projects/${root.id}/pages/home`);
   await page.locator('[data-project-more]').click();
   await page.locator('[data-project-open-archive]').click();
@@ -123,6 +124,9 @@ test('Open archive records one action, and reversing it sends a viewer of that p
   await page.goto(`/projects/${child.id}`);
   await page.locator('[data-project-settings-toggle]').click();
   await page.locator('[data-page-toggle-kind="archive"] input').click();
+  await expect.poll(async () => (await pageOf(root.id, 'archive'))?.enabled).toBe(true);
+  const archivePage = (await pageOf(root.id, 'archive'))!;
+  await page.locator('[data-page-toggle-kind="archive"] input').click();
   await expect.poll(async () => (await pageOf(root.id, 'archive'))?.enabled).toBe(false);
   const afterNested = await history(root.id);
   expect(afterNested.undo).toMatchObject({ operation: 'page.update' });
@@ -130,8 +134,7 @@ test('Open archive records one action, and reversing it sends a viewer of that p
   const childHistory = await history(child.id);
   expect(childHistory).toMatchObject({ revision: 1, undo: { operation: 'project.add' }, redo: null });
 
-  // Undo the disable, then Undo the enable beneath it while a second tab is on that very page:
-  // removing the displayed page returns to Home with the existing explanation.
+  // Undo the hide, then Undo the first-enable record while another tab displays Archive.
   await step(root.id, 'undo');
   const viewer = await context.newPage();
   await viewer.goto(`/projects/${root.id}/pages/archive`);
@@ -139,11 +142,13 @@ test('Open archive records one action, and reversing it sends a viewer of that p
 
   const removed = await step(root.id, 'undo');
   expect(removed.result).toMatchObject({ operation: 'page.add', outcome: 'removed', pageId: archivePage.id });
-  await expect(viewer).toHaveURL(new RegExp(`/projects/${root.id}/pages/home$`), { timeout: 15_000 });
-  // The explanation, without the re-enable offer: there is no record left to switch back on,
-  // which is exactly what distinguishes an undone creation from a disabled page.
-  await expect(viewer.locator('[data-page-notice]')).toBeVisible();
+  await expect(viewer).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
+  await expect(viewer.locator('[data-archive-page]')).toBeVisible();
+  await expect(viewer.locator('[data-page-notice]')).toHaveCount(0);
   await expect(viewer.locator('[data-page-notice-enable]')).toHaveCount(0);
+  await expect(viewer.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveAttribute('aria-current', 'page');
+  await viewer.locator('[data-project-page-tab][data-page-kind="home"]').click();
+  await expect(viewer.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveCount(0);
   // Enabling again restores the tab; it does not drag anyone to it.
   await step(root.id, 'redo');
   await expect(viewer.locator('[data-project-page-tab][data-page-kind="archive"]')).toBeVisible();

@@ -367,8 +367,9 @@ describe('ArchivePageStore reports every Restore to the header’s history (Slic
 
     expect(reporter.events).toEqual([
       'begin',
-      expect.objectContaining({ projectId: section.projectId }),
+      expect.objectContaining({ projectId: section.projectId, feedback: 'own' }),
       'end',
     ]);
+    expect(store.restoreReport()).toEqual(reporter.events[1]);
   });
 });

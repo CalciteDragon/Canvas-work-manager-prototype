@@ -134,3 +134,5 @@ still stays on the archived project with header Undo. Closing a lift restores Mo
 lands on its heading and restores the caller if opening fails. This replaces the three-form
 edit surface and its unresolved commit-model question; sidebar creation stays as recorded.
 Spec §26 is corrected ([details decision](2026-10-more-is-a-menu-with-a-details-dialog.md)).
+
+**Amended, 2026-10-17 (Slice 74).** Project archive stays on the project and confirms after its modal closes, with exact-receipt Undo in the toast. Header Undo remains available without a timer. The former Undo-is-available-here line is removed. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

@@ -816,7 +816,7 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
 
   // Slice 41: a committed width shows no notice over the viewport's end corner — the header's Undo
   // label is its confirmation — so the pointer drag below reaches the shortcut's handle directly.
-  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-toast]:popover-open')).toHaveCount(0);
 
   const shortcutWrapper = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcut.id}"]`);
   const shortcutHandle = shortcutWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
@@ -846,7 +846,7 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const nextBefore = await nextWrapper.boundingBox();
   const textBeforeResize = await flowText.boundingBox();
   if (nextBefore === null || textBeforeResize === null) throw new Error('Flow neighbor did not render');
-  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-toast]:popover-open')).toHaveCount(0);
   await dragResize(
     page,
     flowWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]'),
@@ -1055,9 +1055,10 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await expect(insertedWrapper).toHaveCount(0);
   const archived = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?includeArchived=true&pageId=${home}`);
   expect(archived.some(({ id }) => id === insertedSection.id)).toBe(false);
-  // Deleted rather than archived, so there is no notice; the header names the removal it can undo.
+  // A disposable removal still confirms with Undo, and offers no empty Archive destination.
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Removed the Keyboard renamed section/);
-  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-toast]:popover-open')).toContainText('Removed the Keyboard renamed section section.');
+  await expect(page.locator('[data-toast]:popover-open [data-open-archive]')).toHaveCount(0);
   expect((await orderOf(root.id, home)).map(({ id }) => id)).toEqual([first.id, shortcut.id, second.id]);
 });
 
@@ -1101,7 +1102,7 @@ test('keyboard removal of a live Home Task List archives its live task tree and 
   expect(await task(child.id)).not.toHaveProperty('archivedWithTaskId');
   expect(await task(filed.id)).toMatchObject({ archivedAt: expect.any(String) });
   expect(await task(filed.id)).not.toHaveProperty('archivedWithSectionId');
-  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Removed the Keyboard cascade tasks section/);
 });
 
@@ -1254,7 +1255,7 @@ test.describe('coarse pointer', () => {
     const touchRemove = page.locator(`[data-section-item][data-section-id="${touchTasks.id}"] [data-section-remove]`);
     await touchRemove.tap();
     await expect(page.locator(`[data-section-item][data-section-id="${touchTasks.id}"]`)).toHaveCount(0);
-    await expect(page.locator('[data-open-archive]')).toBeFocused();
+    await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
     await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Touch tasks section');
     expect(await api.get<{ archivedAt?: string; archivedWithSectionId?: string }>(`/api/tasks/${cascadedTask.id}`))
       .toMatchObject({ archivedAt: expect.any(String), archivedWithSectionId: touchTasks.id });
@@ -1270,7 +1271,7 @@ test.describe('coarse pointer', () => {
     await expect(touchReflectionFrame).toContainText('A live reflection removed by touch.');
     await touchReflectionFrame.locator('[data-section-remove]').tap();
     await expect(touchReflectionFrame).toHaveCount(0);
-    await expect(page.locator('[data-open-archive]')).toBeFocused();
+    await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
     await expect(historyControl(page, 'undo')).toHaveAttribute(
       'aria-label',
       'Undo: Removed the Touch work reflections section',

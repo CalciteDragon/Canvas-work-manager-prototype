@@ -92,6 +92,122 @@ const commit = (store: ProjectHistoryStore, report: OperationWriteReport) => {
 
 const refusal = (details: OperationHistoryRefusalDetails) => new GatewayError('rule_violation', 409, `${details.reason}: refused`, details);
 
+describe('receipt Undo (Slice 74)', () => {
+  const root = { projectId: ROOT, receipt: receipt(HISTORY, 3), feedback: 'own' as const };
+  const kitchen = { projectId: KITCHEN, projectName: 'Kitchen', receipt: receipt(KITCHEN_HISTORY, 7), feedback: 'own' as const };
+  const ready = async () => {
+    const harness = setup(); harness.store.load(ROOT); await harness.answer(summaryOf()); return harness;
+  };
+  it('waits for the owed read, then withdraws a newer, blocked or unreadable step', async () => {
+    const { store, answer, live } = await ready();
+    const report = { ...root, receipt: receipt(HISTORY, 4) };
+    commit(store, report);
+    expect(store.offer(report)).toBe('saving');
+    await answer(summaryOf());
+    expect(store.offer(report)).toBe('saving');
+    await answer(summaryOf({ revision: 4, undo: entry('operation-4', 'Tile') }));
+    expect(store.offer(report)).toBe('ready');
+    live.emitConnected();
+    await answer(summaryOf({ revision: 5, undo: entry('operation-5', 'Newer') }));
+    expect(store.offer(report)).toBe('unavailable');
+    live.emitConnected();
+    await answer(summaryOf({ revision: 6, undo: entry('operation-4', 'Tile', {projectId: OTHER, title: 'Attic'}) }));
+    expect(store.offer(report)).toBe('unavailable');
+    live.emitConnected(); await answer(new GatewayError('unreachable', 0, 'down'));
+    expect(store.offer(report)).toBe('unavailable');
+  });
+  it('keeps saving, never unavailable, while the adopted summary is older than the receipt', async () => {
+    const { store, answer, pending, live } = await ready();
+    const report = { ...root, receipt: receipt(HISTORY, 4) };
+    commit(store, report);
+    while (pending() > 0) await answer(summaryOf());
+    expect(store.offer(report)).toBe('saving');
+    live.emitConnected();
+    await answer(summaryOf({ revision: 4, undo: entry('operation-4', 'Tile') }));
+    expect(store.offer(report)).toBe('ready');
+  });
+  it('classifies a report reactively while loading and suppresses both cross-owner announcement paths', async () => {
+    const { store, answer } = setup(); store.load(ROOT); commit(store, kitchen);
+    expect(store.offer(kitchen)).toBe('saving');
+    await answer(empty()); expect(store.offer(kitchen)).toBe('saving');
+    await answer(empty()); expect(store.offer(kitchen)).toBe('ready');
+    expect(store.feedback()).toBeNull();
+    commit(store, kitchen); expect(store.feedback()).toBeNull();
+  });
+  it('runs same-history receipt Undo with the held revision and no shell feedback', async () => {
+    const { store, transition, transitions } = await ready();
+    const undoing = store.undo(root); void store.undo();
+    expect(transition).toHaveBeenCalledTimes(1);
+    expect(transition).toHaveBeenCalledWith(HISTORY, { actionId: 'operation-3', direction: 'undo', expectedRevision: 3 });
+    transitions[0]!.resolve({ direction: 'undo', actionId: 'operation-3' as OperationActionId, result: { operation: 'section.update' } as never, summary: summaryOf({ revision: 4, undo: null }) });
+    expect((await undoing)?.message).toBe('Undone: Completed “Tile”.');
+    expect(store.feedback()).toBeNull(); expect(store.offer(root)).toBe('unavailable');
+  });
+  it('reads cross-owner revision, excludes header transitions and never adopts', async () => {
+    const { store, answer, transition, transitions } = await ready(); const held = store.summary();
+    const undoing = store.undo(kitchen); void store.undo();
+    expect(store.undoControl().name).toBe('Saving a change…');
+    await answer(summaryOf({ historyId: KITCHEN_HISTORY, revision: 9, undo: entry('operation-7', 'Tile') }));
+    expect(transition).toHaveBeenCalledTimes(1);
+    expect(transition).toHaveBeenCalledWith(KITCHEN_HISTORY, { actionId: 'operation-7', direction: 'undo', expectedRevision: 9 });
+    transitions[0]!.resolve({ direction: 'undo', actionId: 'operation-7' as OperationActionId, result: { operation: 'task.update' } as never, summary: empty(KITCHEN) });
+    expect((await undoing)?.tone).toBe('status'); expect(store.summary()).toBe(held);
+    expect(store.feedback()).toBeNull(); expect(store.offer(kitchen)).toBe('unavailable');
+  });
+  it.each(['mismatch', 'blocked', 'forbidden', 'not_found', 'transport', 'rule_violation'] as const)('words cross-owner %s without adopting', async (failure) => {
+    const { store, answer, transitions } = await ready(); const held = store.summary(); const undoing = store.undo(kitchen);
+    if (failure === 'mismatch' || failure === 'blocked') {
+      await answer(summaryOf({ historyId: KITCHEN_HISTORY, undo: entry(failure === 'mismatch' ? 'operation-8' : 'operation-7', 'Tile', failure === 'blocked' ? {projectId: OTHER, title: 'Attic'} : null) }));
+    } else if (failure === 'rule_violation') {
+      await answer(summaryOf({ historyId: KITCHEN_HISTORY, undo: entry('operation-7', 'Tile') }));
+      transitions[0]!.reject(refusal({ reason: 'history_revision_stale', historyId: KITCHEN_HISTORY, actionId: 'operation-7' as OperationActionId, summary: empty(KITCHEN) }));
+    } else await answer(new GatewayError(failure === 'transport' ? 'unreachable' : failure === 'forbidden' ? 'permission_denied' : failure, failure === 'transport' ? 0 : failure === 'forbidden' ? 403 : 404, 'failed'));
+    const expected = failure === 'mismatch' || failure === 'blocked' ? 'That is no longer the latest change in Kitchen.'
+      : failure === 'forbidden' ? 'You cannot undo changes in Kitchen.' : failure === 'not_found' ? 'That change can no longer be undone.'
+      : failure === 'rule_violation' ? 'Someone changed this project since. Try Undo again.' : 'Undo may not have completed. Check Kitchen before trying again.';
+    expect((await undoing)?.message).toBe(expected); expect(store.summary()).toBe(held);
+    expect(store.feedback()).toBeNull(); expect(store.offer(kitchen)).toBe('unavailable');
+  });
+  it('exempts retry begins from writeSequence and header Undo withdraws a receipt', async () => {
+    const { store, transitions } = await ready(); const sequence = store.writeSequence();
+    const exempt = store.begin({exempt: true}); expect(store.writeSequence()).toBe(sequence);
+    exempt.committed({projectId: ROOT, receipt: null}); exempt.end();
+    const ordinary = store.begin(); expect(store.writeSequence()).toBe(sequence + 1);
+    ordinary.committed({projectId: ROOT, receipt: null}); ordinary.end();
+    const undoing = store.undo();
+    transitions[0]!.resolve({ direction: 'undo', actionId: 'operation-3' as OperationActionId, result: { operation: 'section.update' } as never, summary: summaryOf({ revision: 4, undo: null }) });
+    await undoing; expect(store.offer(root)).toBe('unavailable');
+  });
+  it('drops cross-owner results after a reload and exposes the new generation', async () => {
+    const { store, answer, transitions, live } = await ready(); const generation = store.generation();
+    const undoing = store.undo(kitchen);
+    await answer(summaryOf({ historyId: KITCHEN_HISTORY, undo: entry('operation-7', 'Tile') }));
+    live.emit({ type: 'prototype.reloaded', entityId: 'workspace' });
+    expect(store.generation()).toBe(generation + 1);
+    transitions[0]!.resolve({ direction: 'undo', actionId: 'operation-7' as OperationActionId, result: { operation: 'task.update' } as never, summary: empty(KITCHEN) });
+    expect(await undoing).toBeNull(); expect(store.feedback()).toBeNull();
+  });
+  it('a header transition excludes a different receipt transition', async () => {
+    const { store, transition, transitions } = await ready(); const undoing = store.undo();
+    expect(await store.undo(kitchen)).toBeNull(); expect(transition).toHaveBeenCalledTimes(1);
+    transitions[0]!.resolve({ direction: 'undo', actionId: 'operation-3' as OperationActionId, result: { operation: 'section.update' } as never, summary: summaryOf({ revision: 4, undo: null }) });
+    await undoing;
+  });
+  it('resolves the response owner name when a task receipt has no projectName', async () => {
+    const { store, answer } = await ready();
+    const undoing = store.undo({ ...kitchen, projectName: undefined });
+    await flush();
+    await answer(empty(KITCHEN));
+    expect(await undoing).toMatchObject({ message: 'That is no longer the latest change in Kitchen.', link: {projectId: KITCHEN, label: 'Open Kitchen'} });
+  });
+  it('keeps a known cross-owner receipt ready when the displayed summary read fails', async () => {
+    const { store, live, answer } = await ready(); live.emitConnected();
+    await answer(new GatewayError('unreachable', 0, 'down'));
+    expect(store.offer(kitchen)).toBe('ready');
+    expect(store.offer(root)).toBe('unavailable');
+  });
+});
+
 afterEach(() => TestBed.resetTestingModule());
 
 describe('ProjectHistoryStore — reading the summary', () => {
@@ -215,9 +331,9 @@ describe('ProjectHistoryStore — reports and pending', () => {
     await answer(empty());
     await Promise.resolve();
     expect(store.writePending()).toBe(false);
-    expect(store.feedback()).toEqual({
+    expect(store.feedback()).toMatchObject({
       tone: 'status',
-      message: 'Completed "Tile" was recorded in Kitchen’s history.',
+      message: 'Completed “Tile”.',
       link: { projectId: KITCHEN, label: 'Open Kitchen' },
     });
     expect(store.undoControl().name).toBe('Nothing to undo');
@@ -348,7 +464,7 @@ describe('ProjectHistoryStore — transitions', () => {
       summary: summaryOf({ revision: 4, undo: null, redo: entry('operation-3', 'Resized the Notes section') }),
     });
     await undoing;
-    expect(store.feedback()?.message).toBe('Undid: Resized the Notes section.');
+    expect(store.feedback()?.message).toBe('Undone: Resized the Notes section.');
     expect(store.undoControl().name).toBe('Nothing to undo');
     expect(store.redoControl()).toEqual({ name: 'Redo: Resized the Notes section', enabled: true });
   });
@@ -390,7 +506,7 @@ describe('ProjectHistoryStore — transitions', () => {
       transitions[0]!.reject(error);
       await undoing;
       expect(summary).toHaveBeenCalledTimes(2);
-      expect(store.feedback()?.message).toMatch(error.code === 'not_found' ? /no longer available/ : /may not have completed/);
+      expect(store.feedback()?.message).toMatch(error.code === 'not_found' ? /can no longer be undone/ : /may not have completed/);
       TestBed.resetTestingModule();
     }
   });

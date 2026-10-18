@@ -54,7 +54,8 @@ the record — §26's first enable — a `page.update` receipt when it moved an 
 removes that page again, while it is unchanged and nothing on it references it; undoing a
 `page.update` writes the boolean back and touches nothing else. The action belongs to the owning
 root's history whatever route the toggle came from. A toggle still succeeds while the project is
-archived, so Open archive stays reachable; a page **transition** does not.
+archived as a navigation preference; root Archive is visitable independently of its record or
+toggle. A page **transition** remains blocked while archived.
 
 `update_project`, `archive_project` and `restore_project` return `{ project, operation }`: a
 `project.archive` receipt when the status entered `archived`, `project.reactivate` when it left it,

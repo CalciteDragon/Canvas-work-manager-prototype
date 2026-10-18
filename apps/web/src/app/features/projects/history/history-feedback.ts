@@ -8,6 +8,8 @@ import type {
   UndoConflictNextStep,
   UndoResult,
 } from '@cwm/contracts';
+import type { ReceiptUndoResult } from '../../../core/history/receipt-undo';
+import type { OperationWriteReport } from '../../../core/history/operation-history-reporter';
 
 /**
  * **Every sentence the header's Undo/Redo controls say** (Slice 41, §31), as pure functions over
@@ -16,16 +18,38 @@ import type {
  */
 
 /** One line of header feedback. `link` is the cross-owner "Open Kitchen" route. */
-export interface HistoryFeedback {
-  tone: 'status' | 'alert';
-  message: string;
-  /** One line per conflicting subject and its repair, for a `history_conflict`. */
-  lines?: readonly string[];
-  link?: { projectId: ProjectId; label: string };
+export interface HistoryFeedback extends ReceiptUndoResult {
+  /** Cross-owner writes retain the receipt for the shell's acting toast. */
+  report?: OperationWriteReport;
 }
+
+/** Normalize captured labels to the same curly quotes as newly worded toast copy. */
+const curly = (text: string): string => text.replace(/"([^"]*)"/g, '“$1”');
+
+/** Section removal, including a recovered receipt from an explicit retry. */
+export const sectionRemovedFeedback = (name: string, already = false): HistoryFeedback => ({
+  tone: 'status', message: already ? `The ${name} section was already removed.` : `Removed the ${name} section.`,
+});
+/** A failed removal keeps its explicit retry in the acting toast. */
+export const sectionRemoveFailedFeedback = (reason: string): HistoryFeedback => ({ tone: 'alert', message: `Could not remove the section. ${reason}` });
+/** A saved write is acknowledged independently from its failed follow-up read. */
+export const canvasRefreshFailedFeedback = (): HistoryFeedback => ({ tone: 'status', message: 'The change was saved, but this canvas could not be refreshed.' });
+/** A deleted task remains recoverable in Archive. */
+export const taskArchivedFeedback = (title: string): HistoryFeedback => ({ tone: 'status', message: `Archived “${title}”.` });
+/** The workstream completion acknowledgement. */
+export const workstreamCompletedFeedback = (name: string): HistoryFeedback => ({ tone: 'status', message: `Completed ${name}.` });
+/** Restore names the actual destination, including a switched-off page. */
+export const restoredItemFeedback = (title: string, breadcrumb: string, page: string, pageEnabled = true): HistoryFeedback => ({
+  tone: 'status', message: `Restored “${title}” to ${breadcrumb} › ${page}${pageEnabled ? '.' : ', which is switched off.'}`,
+});
+/** Project restore names the selected resulting status. */
+export const restoredProjectFeedback = (name: string, status: string): HistoryFeedback => ({
+  tone: 'status', message: `Restored ${name} as ${RESTORED_STATUS[status] ?? status}.`,
+});
 
 const VERB: Record<OperationHistoryDirection, string> = { undo: 'Undo', redo: 'Redo' };
 const PAST: Record<OperationHistoryDirection, string> = { undo: 'undone', redo: 'redone' };
+const RESTORED_STATUS: Record<string, string> = { planning: 'Planning', active: 'Active', on_hold: 'On hold', completed: 'Completed' };
 
 /** The repair each conflict's `nextStep` asks for, ending in the direction's retry. */
 export const nextStepCopy = (step: UndoConflictNextStep, direction: OperationHistoryDirection): string => {
@@ -85,13 +109,7 @@ export const transitionResultFeedback = (
   label: string,
   result: UndoResult | RedoResult,
 ): HistoryFeedback => {
-  const done = `${direction === 'undo' ? 'Undid' : 'Redid'}: ${label}.`;
-  if (result.operation === 'project.add') {
-    return {
-      tone: 'status',
-      message: `${direction === 'undo' ? 'Undid' : 'Redid'} creation of ${createdSubjectOf(label)}.`,
-    };
-  }
+  const done = `${direction === 'undo' ? 'Undone' : 'Redone'}: ${curly(label)}.`;
   if (direction === 'undo' && result.operation === 'section.remove' && 'placement' in result) {
     const { placement } = result;
     if (!placement.pageEnabled) {
@@ -117,20 +135,20 @@ export const transitionRefusalFeedback = (
   switch (refusal.reason) {
     case 'history_revision_stale':
     case 'history_not_next':
-      return { tone: 'status', message: 'This project’s history changed elsewhere. The controls now show the current step.' };
+      return { tone: 'status', message: `Someone changed this project since. Try ${verb} again.` };
     case 'history_retired':
       return {
         tone: 'alert',
-        message: `“${label}” can no longer be ${PAST[direction]} and was skipped. The controls now show the next step.`,
+        message: `“${curly(label)}” can no longer be ${PAST[direction]}, so it was skipped.`,
       };
     case 'history_expired':
-      return { tone: 'status', message: `“${label}” expired at ${refusal.expiresAt}. The controls now show the current history.` };
+      return { tone: 'status', message: `“${curly(label)}” is too old to ${direction}.` };
     case 'history_blocked':
       return { tone: 'alert', message: `${verb} is blocked while ${refusal.blockingProjectTitle} is archived. Reactivate it, then try again.` };
     case 'history_conflict':
       return {
         tone: 'alert',
-        message: `Could not ${direction} “${label}”: something it changed has changed since.`,
+        message: `Could not ${direction} “${curly(label)}”: something it changed has changed since.`,
         lines: conflictLines(refusal.conflicts, direction),
       };
     case 'history_unavailable':
@@ -150,26 +168,26 @@ export const transitionRefusalFeedback = (
 /** A 404: the history the controls cited is gone (a reset, a pruned history). */
 export const historyGoneFeedback = (): HistoryFeedback => ({
   tone: 'status',
-  message: 'That history is no longer available. The controls now show the current history.',
+  message: 'That change can no longer be undone or redone.',
 });
 
 /** A transport failure or 5xx: the transition may have landed, so the store re-reads rather than guessing. */
 export const transitionUncertainFeedback = (direction: OperationHistoryDirection): HistoryFeedback => ({
   tone: 'alert',
-  message: `${VERB[direction]} may not have completed. The controls now show the current history; check the page before trying again.`,
+  message: `${VERB[direction]} may not have completed. Check the page before trying again.`,
 });
 
 /** A write that recorded into another project's history: the header here will not show it. */
 export const crossOwnerFeedback = (label: string, projectId: ProjectId, projectName: string): HistoryFeedback => ({
   tone: 'status',
-  message: `${label} was recorded in ${projectName}’s history.`,
+  message: `${curly(label)}.`,
   link: { projectId, label: `Open ${projectName}` },
 });
 
 /** The sentence a header archive leaves, on the page that stays (Slice 41). */
 export const archivedHereFeedback = (projectName: string): HistoryFeedback => ({
   tone: 'status',
-  message: `${projectName} is archived. Undo is available here.`,
+  message: `Archived ${projectName}.`,
 });
 
 /** Where the controls' read of the history stands. */

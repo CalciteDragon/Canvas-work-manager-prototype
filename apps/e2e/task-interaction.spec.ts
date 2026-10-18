@@ -149,9 +149,9 @@ test('Todos toggles persist, keep keyboard focus, and record descendant history 
   await page.goto('/projects/project-renovation/pages/todos');
   await todo(page, 'task-kitchen-completed').locator('[data-todo-toggle]').click();
   const title = (await read('task-kitchen-completed')).title;
-  await expect(page.locator('[data-history-message]')).toHaveText(`Updated "${title}" was recorded in Kitchen’s history.`);
+  await expect(page.locator('[data-toast]:popover-open .toast__message')).toHaveText(`Updated “${title}”.`);
   await expect(page.locator('[data-todo-kind="subproject"] [data-todo-complete]')).not.toHaveCount(0);
-  await page.locator('[data-history-open]').click();
+  await page.locator('[data-toast]:popover-open [data-toast-open]').click();
   await undoFromHeader(page, new RegExp('Undo: Updated'));
   expect(await read('task-kitchen-completed')).toMatchObject({ status: 'done', completedAt: '2026-08-22T18:00:00.000Z' });
   await redoFromHeader(page, new RegExp('Redo: Updated'));

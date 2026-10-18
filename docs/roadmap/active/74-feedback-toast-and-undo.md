@@ -721,6 +721,18 @@ they chose the alternative, an 8 s timer.
 
 ## Revisions
 
+**Execution preparation (2026-10-17).** Stage 0 re-grep found 139 references across the
+changed feedback surfaces and their tests, including the listed phone Delete assertion.
+The genuine `74b243a` source was archived into ignored evidence storage and built separately
+for before captures. The five pre-existing untracked Slice 73 evidence files are preserved.
+The receipt/history reviewer reviewed an additional `core/history/receipt-toast.ts` helper
+and its spec before implementation. It composes only the core Undo port and shared slot;
+each adopter still renders its own `Toast`. Its tests cover reactive owed-read offers,
+late Undo answers after replacement/navigation/reload, double presses, focus ownership and
+bounded restored-heading handoff. These are shared mechanics of the six adopters, not a
+new feature store. `apps/e2e/ux/slice74.config.ts` gives evidence its own scratch document
+and ports, preserving the developer's running app.
+
 **Round 1 (2026-10-17).** The reviewer returned 2 blocking findings, 19 substantive and 5 minor. The
 orchestrator spot-checked the load-bearing claims against the code before revising:
 
@@ -839,3 +851,246 @@ header's untimed Undo as the equivalent path. Implementation has not started.
 ## Outcome
 
 *Not yet written.*
+
+## Execution handoff — paused at the user's request (2026-10-17)
+
+The user requested an immediate stopping point and a handoff for a new chat. **The slice is
+active and incomplete. Gate 2 has not been presented or accepted. No execution commits were
+made.** All implementation, test and documentation edits remain in the working tree on top
+of `efe8616` (the reviewed plan). Read `AGENTS.md` first, then this plan; do not restart planning.
+All five product questions above were answered before execution.
+
+### What is implemented
+
+- Toast/ToastSlot foundations, lift/tokens, timer and persistent live regions, native stories,
+  content-track anchor/reserve, phone/dev-panel/creation-dialog suppression and Lab specimen.
+- `core/history/receipt-undo.ts` and the reviewed additional
+  `core/history/receipt-toast.ts` controller. Each adopter still renders its own persistent Toast.
+  The controller composes the Undo port and shared slot, never a feature store. It handles
+  replacement/navigation/write/reload invalidation, async result staleness and focus ownership.
+- Same- and cross-owner receipt Undo in ProjectHistoryStore, shared transition guard,
+  writeSequence/generation, reporter exempt handles and `feedback: 'own'`, plus pure copy helpers.
+- Archive is always visitable; Open archive navigates and writes nothing. Its toggle means
+  navigation visibility; hidden Archive is listed while current. Missing Archive `pageId` is nullable.
+- Canvas removal (including unlisted Progress), Task List/Todos Delete, header transitions,
+  project archive, cross-owner writes, Archive Restore and Settings Restore adopt the toast.
+  Retired SectionRecoveryNotice and ProjectHistoryFeedback were deleted. CURRENT_SLICE is 74.
+- Two decision entries and twelve dated amendments, direction principle 6 amendment, spec and
+  web architecture changes, plus partial guide/testing documentation updates. Documentation
+  still needs a final audit against the final code.
+- Existing browser behavior assertions were adapted; `apps/e2e/feedback.spec.ts`, isolated
+  `ux/slice74*.config.ts`, `ux/feedback-verification.ts` and sheet profile 74 were added.
+
+Additional file-list changes: `core/history/receipt-toast.ts` and `.spec.ts`,
+`sections/section-frame/project-section-frame.ts` (stable Archive callback only to Task List),
+`project-header.html/.scss` (remove feedback row), TaskList/Todos `.scss` (remove old cue paint),
+and the isolated evidence configs. These are within the existing acceptance scope.
+
+### Verified evidence, with limits
+
+- Genuine before source `74b243a` was built independently. Full before matrix passed (16.2 min),
+  at `apps/e2e/ux-output/74b243a/`. Archived source/build is under ignored
+  `apps/e2e/ux-output/slice74-baseline-source/`; its dependency junctions point into this workspace.
+- Foundation checks: Toast/Slot 12, shell 27, dialogs/dev panel 40 tests passed. TaskList/Todos
+  adopter batch 133 passed; an additional Todos fallback review regression was red then its
+  27-test suite passed. History 47 tests passed across four suites. Root canvas/store/shell/
+  ReceiptToast batch 219 passed. Earlier Archive routing/workspace batch 149 and restore/
+  navigation batch 69 passed.
+- Five real Storybook plays passed, screenshots inspected:
+  `apps/e2e/ux-output/slice74-toast-stories/results.json` and its PNGs. Storybook build passed.
+  Real Escape required preventDefault as well as stopPropagation. Callers explicitly restore
+  surviving opener focus after native hide; the primitive remains presentational.
+- Full web lint passed before the final review repairs. E2e TypeScript lint passed before the
+  most recent collector/test additions. `docs:api` and `docs:check` passed before later guide/
+  decision/testing-doc additions. Sheet-builder tests passed **28/28** including profile 74.
+- New feedback browser journeys passed **8/8** at desktop/touch, including Undo morph and
+  restored-heading focus, timer pause, no-write Archive, Alex/Sam own-workspace direct routes,
+  and stale cross-owner refusal. These predate the ninth long-title regression below.
+- Latest production build passed at about **1,068.49 kB**, under 1,100 kB. It contains the
+  long-text CSS repair and recent adopter repairs; it predates the unfinished receipt-per-task fix.
+- Full `pnpm test` first failed to start contract tests on sandbox TEMP rename EPERM. An
+  escalated retry with workspace TEMP passed contracts **370** and repositories **202** and
+  reached web tests; it was **interrupted at the user's pause request**, not a full pass.
+  Log: `.prototype/slice74-test-full.log`; original environment failure log:
+  `.prototype/slice74-test.log`.
+- Existing e2e was stopped: **116/252 executed, 110 passed, 6 failed**. Five failures were
+  stale assertions corrected during the run and awaiting rerun. One light/1440 page-settings
+  first-toggle focus failure remains unresolved. Do not claim the suite green.
+
+TDD evidence includes history readiness fault (2 intended failures), copied-source ToastSlot
+replacement fault (1 intended failure), suppression/timer tests, and the review regressions.
+**All temporary fault injections were restored/removed**; no unavailable/unavailable history
+readiness stub remains. A separate normal TDD scaffold for the pending task-receipt issue
+below deliberately remains red.
+
+### Resumed 2026-10-17 (second session)
+
+Still no commits; still no Gate 2. Closed since the pause:
+
+- **Per-task receipt.** `TaskListStore.archiveReport(id)` now reads a per-task map; the global
+  `lastArchiveReport` is gone and `TaskListSection` asks for the deleted row's receipt. The
+  out-of-order regression went green unchanged (store 39, section 35).
+- **Drawer stole Delete focus.** Real browser evidence: when the deleted task's drawer was open,
+  the coalesced live re-read closed it a render before Delete's reply resumed, and its focus
+  return put focus on quick-add, so the toast's guard declined. `TaskListSection` now counts
+  in-flight row Deletes and the drawer does not claim body focus while one is pending. New
+  section regression (red, then green) reproduces that order in jsdom.
+- **Stale assertions.** Project-archive reporter event now carries `feedback: 'own'`;
+  `feedback.spec.ts` uses `#archive-page-title` (the archived region has a second "Archive"
+  heading); `mcp.spec.ts` expects hiding Archive to keep the reader on Archive, per
+  [the decision](../../decisions/2026-10-archive-is-always-visitable.md).
+- **E2e discovery.** `playwright.config.ts` ignores `ux-output/`, whose archived baseline
+  checkout was being collected as tests.
+- **Provenance.** `ux/capture.ts` maps details/confirmation to inline More only for Slice 73's
+  baseline `e56c7d7`. The affected `74b243a` before cells (`project-details`, `archive-confirm`)
+  **have not been recaptured yet**.
+- **Collector.** `feedback-verification.ts` now records blur/drawer intersection with the task
+  drawer, More and a dialog open (gated at one transient layer; the dialog suppresses the toast)
+  and a reported muted-text ratio (7.31:1 in both themes). Rerun: complete, 32 focus rows.
+- **Offer from a stale summary.** `row-history.spec.ts` line 82 (second Delete after header
+  Undo) failed under full-suite load twice: Undo was not focused. `ProjectHistoryStore.offer`
+  said `unavailable` when the adopted same-history summary predated the receipt, so the toast
+  hid Undo and focus took Open archive before Undo appeared. It now says `saving` while
+  `summary.revision < receipt.revision`. Store regression red, then green; the row-history spec
+  passed 12/12 with `--repeat-each 3`. That this was the load race is inferred, not observed.
+- **Verified:** full `pnpm test` green (root 9, contracts 370, repositories 202, web 1116,
+  prototype-data 112, domain 846, mcp-tools 181, host 291); production build 1,068.60 kB before
+  the offer fix; feedback journeys 9/9 on the production rig; `pnpm lint` with `docs:check`
+  green; Storybook build green. Existing e2e: see the last run recorded below.
+- `canvas-editing.spec.ts:1065` timed out once in-suite (45 s against 2 s alone) and passed 3/3
+  alone; recorded as a load stall.
+- Temporary `apps/web/tsconfig.*-temp.json` files were removed.
+
+- **Evidence run.** The eight `74b243a` before cells for details/confirmation were recaptured
+  (the matrix PNG does not paint the modal top layer at either commit; the ARIA tree shows the
+  dialog). The after matrix (194 cells), core tasks, depth and feedback evidence ran on one
+  build. `refused` cells needed `getByRole('dialog').getByRole('alert')`: the toasts'
+  persistent live regions are alerts too.
+- **`feedback.spec.ts` extended** to every starred row × keyboard/pointer at 1440 and touch at
+  375, the drawer + Escape path, insertion-dialog suppression, the phone drawer and the 8 s
+  timer: **37/37** on the production rig. Archive-page Restore of a workstream reads "Restored
+  {name} as {status}.", which the row accepts.
+- **Profile 74 sheet: 298 geometry failures, not yet resolved.** Three distinct causes:
+  1. *Header gap (−12 px, every project cell).* The deleted `project-header__history-feedback`
+     wrapper was never hidden by its `:empty` rule (it held whitespace), so the baseline carried
+     a blank 12 px grid row. **The user chose to list it** (2026-10-17). Profile 74 lists it
+     only for an exact 12 px header shrink at the same top, with the header's column below it
+     moving by that amount (fixture test added); everything else stays gated. Applying it showed
+     a second gap: the shell's empty `<app-toast>` host was a grid item at the bottom of
+     `.project-workspace__main`. `Toast` now has `:host { display: contents; }` (spec red, then
+     green). After recapture, 1440 and 1024 have no geometry failures; 64 cells list the row.
+     Controls in an anchored lift below the header may stay put; planes and scroll regions in
+     its column must move by exactly the row.
+  2. *Touch targets at 375 (44 → 32 px in after cells).* **Resolved 2026-10-18.** The toast's
+     absolutely positioned live regions sat at the bottom of the scrolled track and made the
+     phone document as tall as the content (2,894 px on 812). Playwright then took the
+     full-page screenshot beyond the viewport, which drops Chromium's touch emulation, so the
+     layout collected after it measured pointer sizes. The window could also scroll behind the
+     app's own track, so this was a real phone bug. The regions are now `position: fixed`;
+     a `feedback.spec.ts` test (red at 2,398 px, then green) holds the document to the viewport.
+  3. *Task-drawer cells at 1440 (drawer not taking its column).* Flaked once in the full run;
+     a single-cell recapture is correct (576 px, three scroll regions).
+  After both fixes the whole after matrix, core tasks, depth and feedback evidence were
+  recaptured on one build. **Profile 74 now reports 0 gate failures**, with the header row
+  listed in 108 cells; T05 costs 2 clicks and T09 1 click, both within budget.
+
+- **Final suite runs (2026-10-18, after both CSS fixes):** `pnpm test` green (root 9, contracts
+  370, repositories 202, web 1117, prototype-data 112, domain 846, mcp-tools 181, host 291);
+  `pnpm lint` with `docs:check` green; full `pnpm e2e` **185/185** in one run, with no
+  intermittents this time (the earlier row-history, canvas-editing and Settings Restore
+  failures did not recur).
+
+Still open: profile 74's feedback screenshot gallery and findings mapping in the sheet HTML; real use with `.prototype/notes.json`;
+goals/umbrella handoff; a final diff review; then Gate 2.
+
+### First next step — finish the current red test (done; kept for the record)
+
+`features/tasks/task-list-store.spec.ts`, test **keeps each archived task receipt when concurrent
+replies arrive out of order**, has just failed correctly: expected `action-second`, received
+`action-test` (**38 passed, 1 failed**). Two concurrent archives can overwrite the global
+`lastArchiveReport` before an adopter reads it. A compile-ready scaffold
+`TaskListStore.archiveReport(_id)` currently returns that same global signal; **it is not the fix**.
+
+Implement per-task receipt retention (or an equally small per-call result), then have
+`sections/tasks/task-list-section.ts` read the requested task's receipt instead of
+`lastArchiveReport()`. Update the older receipt assertion as needed; no contract change.
+Run the failing store test green, then the TaskList adopter tests. The regression has real
+out-of-order responses and must not be weakened or removed. It is the best point to resume TDD.
+
+### Review findings and remaining validation
+
+Independent diff reviewer completed a named boundary pass with no substantive boundary
+violation. The proposed Settings pure-copy import finding was withdrawn: acceptance 9
+deliberately centralizes copy in history-feedback.ts. Three substantive findings:
+
+1. **Long title clips actions at 375.** Browser reproduced it: action bottom 1603.5 while
+   toast bottom 796. Ninth feedback test is red evidence. `_lifts.scss` now lets the message
+   shrink/scroll and provides scrollable overflow; **rerun the ninth test against the new build**.
+2. **Archive actions stale after Undo / offer unavailable.** `archive-page.html` fixes are in:
+   Go to it is gated by the retained report, Undo follows saving/ready/unavailable and saving
+   naming, result owner links render. New tests first failed correctly. Final Archive 12-test
+   rerun was interrupted after correcting a test query to `a[data-toast-open]` (the popover also
+   carries data-toast-open). **Run it green** using `tsconfig.archive-review-temp.json`.
+3. **Todos skips next workstream control.** Red regression caught heading focus; nextControl
+   now includes enabled workstream Complete as well as task checkboxes. **27/27 passed**.
+
+Re-review these repairs and the per-task receipt fix. Reviewer did not see the evidence sheet
+and made no visual-acceptance claim. Full correctness/spec/boundary/documentation review and
+Gate 2 evidence review must close before marking the slice complete.
+
+Other concrete remaining work:
+
+- Existing e2e corrections await rerun. Agent stopped its ordinary 4200/4310 runners. Failure
+  categories: two Archive enable/history assumptions; project-history conflict selector and
+  hidden-but-current Archive assertion; section-edit conflict selector. Isolate the unchanged
+  `lifts.spec.ts` light/1440 gear-focus failure to distinguish timing from a real defect.
+- Feedback collector's first run got through desktop rows, then failed at phone suppression
+  because it tried to click the covered backdrop. It now clicks `[data-shell-drawer-close]`;
+  **rerun** `UX_FEEDBACK=1 ... --config ux/slice74.config.ts -g 'Feedback runtime evidence'`.
+  Only partial `feedback-verification.json` exists under `ux-output/efe8616.../`.
+- Collector still needs drawer/menu/dialog blur/clearance evidence beyond its toast-alone
+  entries, contrast reporting, and coverage audit against acceptance 13. New feedback e2e
+  needs the remaining starred/suppression/modal/Escape paths from the plan; do not assume the
+  eight passing journeys cover every acceptance row.
+- Before capture harness inherited Slice 73's `UX_BEFORE` mapping of details/confirmation to
+  old inline More. For `74b243a` that is wrong: native dialogs already existed. Fix that
+  provenance rule narrowly and recapture only affected before cells with UX_MATCH.
+- Capture after matrix, run T05/T09 task evidence (T05 now records toast vs header), and depth
+  token evidence required by sheet builder. Generate profile 74 sheet with **zero gate
+  failures**; include all visual acceptance pairs, not only the old removal matrix cells.
+  Profile 74 currently has fixture-backed geometry/overflow/task/focus/blur/fallback gates,
+  but its HTML still needs a feedback screenshot gallery and findings mapping.
+- Check closed-state geometry. Removing the previously empty header feedback wrapper may
+  remove a grid gap; **measure it**, preserve the plan's 1 px gate rather than exempting it.
+- Run real use on busy-week/nested-projects at both sizes and record friction in
+  `.prototype/notes.json` (not yet changed). No MCP behavior changed; no domain/host work is due.
+- Finish testing/how.md, test inventory, goals/umbrella handoff, plan revisions and final
+  documentation audit. Do not write Outcome/complete until evidence and user Gate 2 acceptance.
+- Run full pnpm test, lint/docs:check, Storybook build and full pnpm e2e after fixes. Root docs
+  tests temporarily create invalid links, so never run docs lint concurrently with them.
+
+### Commands and workspace cautions
+
+Use workspace scratch TEMP to avoid sandbox Vite rename failures:
+`$env:TEMP=(Resolve-Path .prototype).Path; $env:TMP=$env:TEMP`.
+Host/browser runs needed escalation for ownership-file publishing/loopback. Use ordinary
+`pnpm e2e` only when 4200/4310 are free; it owns disposable e2e-data, never developer data.
+Slice 74 evidence config owns **4242/4342** and `.prototype/ux-slice74.json`.
+Build before static-browser runs: `pnpm --filter web build`.
+Evidence config output directories were separated after concurrent runs overwrote a trace.
+
+Useful targeted command:
+`pnpm --filter web test --include='**/task-list-store.spec.ts'`.
+Root's `tsconfig.feedback-temp.json` narrows canvas/store/shell/controller specs;
+`tsconfig.shell-feedback-temp.json` and `tsconfig.archive-review-temp.json` are also temporary.
+Remove temporary configs/caches after use; never stage them. Avoid simultaneous Angular builds:
+the machine has 8 GB, and concurrent full/unit/app builds became very slow.
+
+Five **pre-existing untracked Slice 73 files must be preserved**:
+`.prototype/slice73-canvas-browser.mjs`, `slice73-real-use.mjs`, `slice73-story-browser.mjs`,
+`ux-slice73-use.json`, `ux-slice73.json`. Other untracked scratch/cache files and the toast
+story reproducer are execution artifacts, not source to stage. Stage intended source/docs
+explicitly. No branch switch, push, developer-data reset or worktree operation was performed.
+
+Background root and subagent test sessions were stopped at pause; the last production build
+finished successfully as it was being collected. Resume from the working tree, not a reset.

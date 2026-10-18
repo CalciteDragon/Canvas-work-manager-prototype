@@ -93,18 +93,16 @@ test('disposable sections stay out of Archive and Undo restores config, layout, 
 
     await expect(frame).toHaveCount(0);
     expect(await archiveHasSection(root.id, section.id)).toBe(false);
-    // Slice 41: Archive will not list a deleted view, so there is no notice at all — no route to a
-    // page with no entry for it (note-2026-09-15-006) — and the header's label confirms the removal.
-    await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+    // Even a disposable removal confirms with receipt Undo, without an empty Archive destination.
+    await expect(page.locator('[data-toast]:popover-open')).toContainText(`Removed the ${section.title} section.`);
     await expect(page.locator('[data-open-archive]')).toHaveCount(0);
     // Slice 33: unreferenced disposable removal is a deletion, not a hidden tombstone.
     expect((await api.get<ProjectSection[]>('/api/projects/' + root.id + '/sections?includeArchived=true&pageId=' + home.id)).some(({ id }) => id === section.id)).toBe(false);
 
     const label = `Removed the ${section.title} section`;
     if (index === 0) {
-      // Keyboard only: focus that sat in the removed frame stays on the canvas, and the header's
-      // Undo is reachable and names what it will restore.
-      await expect(page.locator('[data-section-title]').first()).toBeFocused();
+      // The first toast action owns focus after its removed control disappears.
+      await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
       const undo = historyControl(page, 'undo');
       await expect(undo).toHaveAttribute('aria-label', `Undo: ${label}`);
       await undo.focus();
@@ -227,8 +225,9 @@ test('a shortcut on another browser page follows source removal and same-page Un
 
     await sourceFrame.locator('[data-section-remove]').click();
     await expect(sourceFrame).toHaveCount(0);
-    // Retained only for the shortcut, so Archive will not list it and there is no notice.
-    await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+    // Retained only for the shortcut: confirmed with Undo, but no empty Archive destination.
+    await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeVisible();
+    await expect(page.locator('[data-toast]:popover-open [data-open-archive]')).toHaveCount(0);
     await expect(shortcutFrame).toHaveAttribute('data-shortcut-availability', 'source_archived');
     await expect(shortcutFrame.locator('[data-shortcut-unavailable]')).toContainText('source section is archived');
     expect(await homeLayoutOf()).toEqual(homeLayoutBefore);
@@ -301,13 +300,13 @@ test('retained content survives reload and Archive restore, while independently 
 
   await page.locator(`[data-section-item][data-section-id="${cascade.id}"] [data-section-remove]`).click();
   await expect(page.locator(`[data-section-item][data-section-id="${cascade.id}"]`)).toHaveCount(0);
-  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Saved tasks section');
   expect(await archiveHasSection(root.id, cascade.id)).toBe(true);
 
   await page.locator('[data-section-item][data-section-id="' + reflectionSection.id + '"] [data-section-remove]').click();
   await expect(page.locator('[data-section-item][data-section-id="' + reflectionSection.id + '"]')).toHaveCount(0);
-  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Saved reflections section');
   expect(await archiveHasSection(root.id, reflectionSection.id)).toBe(true);
 
@@ -563,7 +562,7 @@ test('one-step cross-page reflection removal rejects old reassign fields and pre
     await expect(workFrame).toContainText('A live reflection on the work canvas.');
     await workFrame.locator('[data-section-remove]').click();
     await expect(workFrame).toHaveCount(0);
-    await expect(reflectionsPage.locator('[data-open-archive]')).toBeFocused();
+    await expect(reflectionsPage.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
     expect(await workRows()).toEqual([{
       id: workReflection.id,
       sectionId: workContainer.id,
@@ -587,7 +586,7 @@ test('one-step cross-page reflection removal rejects old reassign fields and pre
     await keyboardRemove.focus();
     await keyboardRemove.press('Enter');
     await expect(keyboardFrame).toHaveCount(0);
-    await expect(reflectionsPage.locator('[data-open-archive]')).toBeFocused();
+    await expect(reflectionsPage.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
     await expect(historyControl(reflectionsPage, 'undo')).toHaveAttribute(
       'aria-label',
       'Undo: Removed the Keyboard work reflections section',
@@ -638,14 +637,14 @@ test('Retry remove repeats an uncertain ID-only removal and recovers the same re
 
   const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
   await frame.locator('[data-section-remove]').click();
-  await expect(page.locator('[data-removal-error]')).toBeVisible();
+  await expect(page.locator('[data-toast]:popover-open .toast__message')).toBeVisible();
   await expect(page.locator('[data-retry-remove]')).toBeVisible();
   expect(await archiveHasSection(root.id, section.id)).toBe(true);
 
   await page.locator('[data-retry-remove]').click();
   await expect(frame).toHaveCount(0);
-  await expect(page.locator('[data-removal-error]')).toHaveCount(0);
-  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(page.locator('[data-toast]:popover-open .toast__message')).toContainText('already removed');
+  await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Retry this removal section');
   expect(attempts).toBe(2);
   expect(retryOperation).toEqual(firstOperation);
@@ -685,7 +684,7 @@ test('Retry refresh performs only a read after removal commits but its canvas re
 
   const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
   await frame.locator('[data-section-remove]').click();
-  await expect(page.locator('[data-recovery-refresh-error]')).toBeVisible();
+  await expect(page.locator('[data-toast]:popover-open .toast__message')).toBeVisible();
   await expect(page.locator('[data-retry-refresh]')).toBeVisible();
   expect(removals).toBe(1);
   expect(await archiveHasSection(root.id, section.id)).toBe(true);
@@ -698,13 +697,13 @@ test('Retry refresh performs only a read after removal commits but its canvas re
   await page.locator('[data-retry-refresh]').click();
   expect((await retryRead).status()).toBe(200);
   await expect(page.locator('[data-retry-refresh]')).toHaveCount(0);
-  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
   expect(sectionReads).toBe(readsBeforeRetry + 1);
   expect(removals).toBe(1);
   await expect(frame).toHaveCount(0);
 });
 
-test('Retry refresh returns focus to the canvas after an unlisted removal clears its notice', async ({ page }) => {
+test('Retry refresh keeps Undo focused after confirming an unlisted removal', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
   const root = await createRoot('Unlisted removal refresh retry');
@@ -744,9 +743,9 @@ test('Retry refresh returns focus to the canvas after an unlisted removal clears
   const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
   await frame.locator('[data-section-remove]').click();
   await expect(frame).toHaveCount(0);
-  await expect(page.locator('[data-recovery-refresh-error]')).toBeVisible();
+  await expect(page.locator('[data-toast]:popover-open .toast__message')).toBeVisible();
   await expect(page.locator('[data-open-archive]')).toHaveCount(0);
-  await expect(page.locator('[data-dismiss-recovery-notice]')).toBeVisible();
+  await expect(page.locator('[data-toast]:popover-open [data-toast-dismiss]')).toBeVisible();
   expect(await archiveHasSection(root.id, section.id)).toBe(false);
   expect((await api.get<ProjectSection[]>(`/api/projects/${child.id}/sections?includeArchived=true`))
     .find(({ id }) => id === section.id)?.archivedAt).toEqual(expect.any(String));
@@ -760,8 +759,8 @@ test('Retry refresh returns focus to the canvas after an unlisted removal clears
   await retry.focus();
   await retry.press('Enter');
   expect((await retryRead).status()).toBe(200);
-  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
-  await expect(page.locator('[data-section-canvas]')).toBeFocused();
+  await expect(page.locator('[data-toast]:popover-open')).toContainText('Removed the Shortcut-only container section.');
+  await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
   expect(sectionReads).toBe(readsBeforeRetry + 1);
   expect(removals).toBe(1);
 });
@@ -789,7 +788,7 @@ test('live task-container removal keeps its focus and recovery behavior at a nar
     await expect(remove).toBeVisible();
     await remove.click();
     await expect(frame).toHaveCount(0);
-    await expect(page.locator('[data-open-archive]')).toBeFocused();
+    await expect(page.locator('[data-toast]:popover-open [data-toast-undo]')).toBeFocused();
     await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Narrow cascade section');
     expect(await api.get<{ archivedAt?: string; archivedWithSectionId?: string }>(`/api/tasks/${task.id}`))
       .toMatchObject({ archivedAt: expect.any(String), archivedWithSectionId: section.id });

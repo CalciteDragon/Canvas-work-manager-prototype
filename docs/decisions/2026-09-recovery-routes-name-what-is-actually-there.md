@@ -109,3 +109,5 @@ current ancestry can later make its row wait behind an archived owner. The More-
 route remains available. Workspace Settings gives archived roots and ready subprojects their
 own recovery route, independent of an Archive tab. See
 [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md).
+
+**Amended, 2026-10-17 (Slice 74).** SectionRecoveryNotice is replaced by the single acting toast. The archiveListed verdict still governs its Open archive action, while every removal gains receipt Undo and confirmation. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

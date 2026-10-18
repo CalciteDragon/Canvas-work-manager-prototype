@@ -54,6 +54,7 @@ export class ProjectSectionFrame {
   readonly removeRequested = output<SectionId>();
   /** Awaited content writes retain a draft on refusal. */
   readonly saveConfig = input.required<(id: SectionId, config: SectionConfig) => Promise<boolean>>();
+  readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
   readonly projectDataChanged = output<void>();
 
   readonly configOpen = signal(false);
@@ -77,6 +78,7 @@ export class ProjectSectionFrame {
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
     readOnly: false,
+    ...(this.section().type === 'task-list' ? { onOpenArchive: this.onOpenArchive() } : {}),
   }));
 
   constructor() {

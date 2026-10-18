@@ -20,6 +20,7 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import type { LiveEvent } from '@cwm/contracts';
+import { canvasRefreshFailedFeedback, sectionRemovedFeedback } from './history/history-feedback';
 import type { SectionDefinition } from './sections/registry';
 
 const messageOf = (error: unknown): string =>
@@ -35,7 +36,7 @@ const sectionReport = ({ section, operation }: { section: ProjectSection; operat
   ({ projectId: section.projectId, receipt: operation });
 
 /** The notice sentence after a committed write whose follow-up read failed. */
-const SAVED_REFRESH_FAILED = 'Saved. Undo is in the header.';
+const SAVED_REFRESH_FAILED = canvasRefreshFailedFeedback().message;
 
 export type ProjectCanvasPlacement =
   | { kind: 'section'; section: ProjectSection }
@@ -60,6 +61,9 @@ const byPlacementPosition = (a: ProjectCanvasPlacement, b: ProjectCanvasPlacemen
  */
 export interface SectionRecoveryNoticeState {
   message: string;
+  report?: OperationWriteReport;
+  /** A toast Undo owns its confirmation while the returning section is rendered. */
+  undoing?: boolean;
   /**
    * Set for a removal this canvas made or recovered; Archive is offered unless `archiveListed` is
    * `false`. The notice withdraws itself once `sectionId` is back on the canvas — a header Undo.
@@ -482,7 +486,7 @@ export class ProjectPageStore {
     // A removal notice that says "Removed … Open Archive" is wrong once the section is back (the
     // header's Undo, or anyone's): withdraw it rather than leave a stale route on screen.
     const removed = this.recoveryNoticeState()?.removal?.sectionId;
-    if (removed !== undefined && next.some((placement) => placement.kind === 'section' && placement.section.id === removed)) {
+    if (!this.recoveryNoticeState()?.undoing && removed !== undefined && next.some((placement) => placement.kind === 'section' && placement.section.id === removed)) {
       this.recoveryNoticeState.set(null);
     }
     this.sectionsState.set(
@@ -737,7 +741,7 @@ export class ProjectPageStore {
    * Open Archive when Archive will list the section, and Retry refresh when the follow-up read
    * fails. One request always cascades live owned rows with the section.
    */
-  removeSection(id: SectionId): Promise<boolean> {
+  removeSection(id: SectionId, options: { exempt?: boolean } = {}): Promise<boolean> {
     if (this.removalPendingState()) return Promise.resolve(false);
     const unresolved = this.failedRemovalState();
     if (unresolved !== null && !this.isSameFailedRemoval(unresolved, id)) {
@@ -745,24 +749,26 @@ export class ProjectPageStore {
       return Promise.resolve(false);
     }
     const name = this.sectionsState().find((section) => section.id === id);
-    const removedName = name === undefined ? 'the section' : `the ${nameOf(name)} section`;
+    const removedName = name === undefined ? 'requested' : nameOf(name);
     this.removalPendingState.set(true);
     let failed = false;
     const operation = this.mutate(async ({ current, projectId, pageId, generation }) => {
       let result: Awaited<ReturnType<typeof this.gateway.sections.remove>>;
       try {
-        result = await reportedWrite(this.reporter, () => this.gateway.sections.remove(id), sectionReport);
+        result = await reportedWrite(this.reporter, () => this.gateway.sections.remove(id),
+          value => ({ ...sectionReport(value), feedback: 'own' }), options);
       } catch (error) {
         if (!current()) return;
         if (error instanceof GatewayError && error.code === 'rule_violation') {
           const available = SectionAlreadyRemovedDetailsSchema.safeParse(error.details);
           if (available.success && available.data.sectionId === id) {
             // The exact actor's earlier removal: its receipt goes to the header, not to a button here.
-            const recovered = this.reporter.begin();
-            recovered.committed({ projectId, receipt: available.data.operation });
+            const recovered = this.reporter.begin({ exempt: true });
+            const report: OperationWriteReport = { projectId, receipt: available.data.operation, feedback: 'own' };
+            recovered.committed(report);
             recovered.end();
             this.clearFailedRemovalFor(id);
-            this.recoveryNoticeState.set({ message: 'This section was already removed. Undo is in the header.', removal: { sectionId: id } });
+            this.recoveryNoticeState.set({ message: sectionRemovedFeedback(removedName, true).message, removal: { sectionId: id }, report });
             this.removePlacement(id);
             this.notifyProjectDataChanged();
             await this.waitForOtherSectionWrites();
@@ -779,9 +785,10 @@ export class ProjectPageStore {
       this.clearFailedRemovalFor(id);
       // Archive is offered only when the removal says Archive will list the section
       // (`note-2026-09-15-006`); otherwise the header's changed label is the confirmation.
-      this.recoveryNoticeState.set(result.archiveListed
-        ? { message: `Removed ${removedName}. Undo is in the header.`, removal: { sectionId: id, archiveListed: true } }
-        : null);
+      this.recoveryNoticeState.set({ message: sectionRemovedFeedback(removedName).message,
+        removal: { sectionId: id, archiveListed: result.archiveListed },
+        report: { ...sectionReport(result), feedback: 'own' },
+      });
       // Paint the committed removal immediately. Neighbor positions still come from the
       // authoritative read.
       this.removePlacement(id);
@@ -827,6 +834,11 @@ export class ProjectPageStore {
 
   dismissRecoveryNotice(): void {
     this.recoveryNoticeState.set(null);
+  }
+
+  /** Keep the acting toast when its Undo brings the section back; a header Undo still withdraws it. */
+  retainRemovalNoticeForUndo(): void {
+    this.recoveryNoticeState.update(notice => notice === null ? null : { ...notice, undoing: true });
   }
 
   /** Dismisses only the failed remove message; any recovery notice stays. */

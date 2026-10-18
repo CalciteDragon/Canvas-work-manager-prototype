@@ -1033,8 +1033,9 @@ column is sticky, so a long canvas scrolls beneath it rather than taking it alon
 collapses behind a labelled button and its links leave the tab order with it.
 
 Today the column lists Home, any enabled optional page this build can render, and the work
-hierarchy. Archive and Reflections are both registered renderers; Archive also remains reachable
-through the project controls when its tab is disabled.
+hierarchy. Archive is also listed while it is current, even when hidden. Its page-settings toggle
+reads **Show Archive in navigation**. Root Archive is always visitable, including without a page
+record; Open archive navigates and records no write (*Slice 74*).
 
 Workspace **Settings → Archived projects** is a separate recovery route. It lists archived roots
 and subprojects whose ancestors are live across the actor's workspace, even if a root's optional
@@ -1175,7 +1176,7 @@ More
 open one creation dialog at the selected location; they do not use a Quick Add header or controls
 row. A canonical canvas's dialog — a root's Home or a workstream's Work canvas (*Slice 65*) — also
 offers **Add shortcut**. The project **More** menu keeps the
-project-level actions, including **Open archive** when the Archive page is disabled
+project-level actions, including **Open archive** regardless of its navigation visibility
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 *Landed in Slice 27.* The former Quick Add and Edit Layout controls are removed; the canvas
@@ -1186,14 +1187,16 @@ The header itself is rendered **once per project** — at the top of the workspa
 project, not the page, and a header living inside Home would vanish the moment another page
 rendered.
 
-*Landed in Slice 41.* **Undo** and **Redo** are two always-present icons in the header, before More,
-and they are the only browser surface that offers Undo. They act on the **displayed project's**
+*Landed in Slice 41, amended in Slice 74.* **Undo** and **Redo** are two always-present icons in the header, before More.
+A committed write's toast also offers Undo of its exact receipt. Header controls act on the **displayed project's**
 history (§31): a root's on every root page, a sub-project's on its work page. Each is enabled only
 when the server summary offers a step in that direction and that step is not blocked; otherwise it
 stays focusable and says why — "Nothing to undo", "Saving a change…", "Undo unavailable while
-Legacy attic is archived". One polite feedback line under the facts says what a transition did or
-why it was refused, and a write recorded in another project's history names that project with an
-Open link. Archiving from More no longer leaves the page: the archived project stays on screen with
+Legacy attic is archived". Results and refusals appear in one toast docked at the bottom of the
+content track. A cross-owner write whose writer has no toast of its own offers Undo and Open owner
+there; receipt Undo checks the owner's current next step without replacing the header's summary.
+Header and toast transitions exclude each other. Archiving from More closes its confirmation,
+then opens “Archived {name}.” with Undo. The archived project stays on screen with
 its Undo enabled. Below 40rem the header's actions move to their own row under the identity, so the
 name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)). *Repaired in
 Slice 45:* that row and the Undo/Redo pair wrap, so the controls stay inside the header and can be
@@ -1204,13 +1207,24 @@ tapped at 375 px even though the global sidebar keeps its width.
 the group after the owner loads, including on reload. The link offers the current owner's history,
 not a guaranteed Undo of that row; a root-owned row adds no link.
 
-*Since Slice 57,* a committed task Delete from a Task List or root Todos leaves a polite
-status outside the removed rows. It names the archived task, root Archive as durable
-recovery when the owner is ready, and the owning project's header Undo when that step is
-available. Todos names and links a descendant owner to these existing controls; a root
-task refers to the displayed header. The status is not another Undo action and does not
-promise Delete remains the next step after opening a disabled Archive page, which can
-record its own enable action ([why](docs/decisions/2026-09-task-delete-recovery-feedback.md)).
+*Since Slice 74,* a committed task Delete from a Task List or root Todos opens `Archived “{title}”.`
+with receipt Undo and Open archive. Undo stays present but aria-disabled while its owed summary
+read settles; it disappears when that receipt is no longer the enabled next step. Opening Archive
+records no write, so it does not replace Delete as the latest action
+([why](docs/decisions/2026-10-feedback-is-one-toast-with-undo.md)).
+
+*Slice 74 feedback.* One toast owns the confirmation, actions and transition result. It follows
+the acted region in Tab order and is docked at the content track's bottom, with a matching reserve.
+Status feedback closes after eight unattended seconds. Hover, focus and modal suppression pause
+that timer and restart eight seconds when the pause ends; alerts and pending Undo never time out.
+Header Undo remains the untimed equivalent path. Escape inside a toast closes only that toast.
+Navigation, a newer write and prototype reload close it; an explicit Retry remove is exempt from
+the newer-write rule. Under a modal lift the toast is hidden without being discarded, and it is
+solid whenever another lift is open. Focus moves to it only from body or the removed control;
+dismissal falls back to a surviving action or heading. Receipt Undo morphs the same toast, focuses
+Dismiss, and may hand focus to a restored section heading with a bounded wait. Restore toasts name
+the actual title, breadcrumb and page and offer Go to it when that origin page is enabled.
+Settings project recovery instead names the resulting status and offers Open it without Undo.
 
 *Since Slice 55,* a newly recorded section update's header label names a lone rename (including
 the resulting default after a title clear), Markdown edit (`Edited Markdown in …`), collapse or expand, or resize to
@@ -1344,7 +1358,7 @@ writes nothing — a collapsed target is opened for that visit only.*
 
 *Slice 25.8 completed the person-facing optional-page path. The project navigation manager shows
 the root's actual page records, updates navigation only after the page write and fresh context read
-settle, and preserves the confirmed state on refusal. A URL for a disabled optional page falls back
+settle, and preserves the confirmed state on refusal. A URL for a disabled optional page other than Archive falls back
 to Home with an exact re-enable action for that kind; unknown, unbuilt, Home, work and subproject
 page requests do not acquire an enable action.*
 
@@ -1363,8 +1377,9 @@ cleaned up on its behalf, because a page toggle must never destroy content. Redo
 id and `createdAt` back. Undoing a later toggle writes the switch back and nothing else, so sections,
 their layout, their rows and every reference survive both directions.
 
-Enabling a page is still allowed while the project is archived, so §31's Open archive stays
-reachable. Reversing one through history is **not**: a page transition is blocked on an archived
+Enabling a page is still allowed while the project is archived: its navigation visibility can be
+adjusted without changing content. Open archive itself requires no enable write (*Slice 74*).
+Reversing a page toggle through history is **not** allowed: a page transition is blocked on an archived
 root in either direction, like every other family, so history is not a way around the freeze
 ([why](docs/decisions/2026-09-optional-page-operation-history.md)).
 
@@ -1511,8 +1526,10 @@ on leaving the canvas or reloading, and does not depend on Archive being enabled
 remove response is uncertain, the canvas exposes an explicit retry with the original action
 after the section has disappeared from a live refresh. A live refresh never repeats a write
 ([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)). *Amended in
-Slice 41:* the removal's receipt goes to the project header's history instead, and its Undo is the
-header's; the canvas keeps only Open Archive and the explicit retries ([why](docs/decisions/2026-09-project-header-history-controls.md)).
+Slice 74:* the removal's receipt is reported to the project history store and retained by the
+acting toast. “Removed the {name} section.” offers receipt Undo for listed and unlisted removals,
+plus Open archive when listed. Explicit Retry remove and read-only Retry refresh stay in that
+same toast ([why](docs/decisions/2026-10-feedback-is-one-toast-with-undo.md)).
 
 *Landed in Slice 32.* Explicit section creation, movement and editable settings writes use the
 same page-local receipt surface. A completed contextual add records `section.add`; a completed
@@ -1796,10 +1813,10 @@ Creation, movement and settings edits are also explicit writes. The contextual c
 returns a `section.add` receipt after the combined placement is committed. Drag and keyboard
 movement returns one `section.move` receipt only after the final placement is committed. Inline
 title, inspector configuration, collapse and supported width writes return a `section.update`
-receipt containing only the normalized fields that changed. *Amended in Slice 41:* every one of
-these is undone and redone from the project header (§26), not from the canvas; the canvas-local
-notice offers only recovery the header cannot — Archive after a removal Archive will list, Retry
-remove and Retry refresh ([why](docs/decisions/2026-09-project-header-history-controls.md)).
+receipt containing only the normalized fields that changed. Header Undo and Redo cover every
+recorded family (§26); since Slice 74 a removal toast also offers its exact receipt's Undo,
+Open archive when listed, Retry remove for an uncertain response or read-only Retry refresh
+([why](docs/decisions/2026-10-feedback-is-one-toast-with-undo.md)).
 
 ## Where archived work is found
 
@@ -1824,11 +1841,10 @@ refused**, exactly as it is today, and archiving a project never archives anythi
 an implicit cascade would archive work the caller never named. A whole-tree Archive page makes
 archived work *findable*; it does not make archiving *contagious*.
 
-Because undo must never be behind a toggle, disabling the Archive page leaves **Open archive**
-in the project **More** menu, which enables and opens it. The control is available from root and
-nested work routes, and it navigates only after the root page context has reconciled successfully.
-If reconciliation fails after enabling, the current location is preserved and a read-only retry
-is offered.
+*Slice 74.* Archive is always visitable for a root, whether its record is missing, hidden or
+shown. **Open archive** in More and recovery toasts navigates directly and writes nothing. Its
+page-settings switch controls navigation visibility only; a hidden Archive remains listed while
+it is current. A workstream's page URL still redirects to that workstream's canonical canvas.
 
 *Landed in Slice 27.* The secondary navigation column has no Open archive button; the project's
 More menu is the single recovery entry point from root and nested work routes.
@@ -1929,13 +1945,13 @@ section-cascaded rows report the section as the single repair, while an independ
 reports the task and, when needed, the section. Leaving `done` remains allowed on an archived task
 in a live section ([why](docs/decisions/2026-09-archived-task-completion-history.md)).
 
-*Amended in Slice 41.* The browser offers **Undo** and **Redo** in the project header (§26), driven by
-the server's history summary rather than by a receipt the page holds. Every browser write reports
-its receipt to the header's history store; a write the store cannot place in the displayed
-project's history is named with an Open link to the project that owns it. After a removal that
-Archive will list, the canvas shows "Removed the Notes section. Undo is in the header." with **Open
-Archive**; a removal Archive will not list, and every forward write, shows no notice unless its
-follow-up read failed ([why](docs/decisions/2026-09-project-header-history-controls.md)).
+*Amended in Slice 74.* Header **Undo** and **Redo** remain driven by the displayed project's
+server summary (§26). Every write reports its receipt to that store. A removal toast confirms
+listed and unlisted removals, offers receipt Undo, and includes Open archive only when listed.
+A writer that shows no toast of its own receives cross-owner feedback with Undo and Open owner;
+the owner's current next step and revision are checked on press. A toast transition returns its
+result in place and never opens a second shell toast
+([why](docs/decisions/2026-10-feedback-is-one-toast-with-undo.md)).
 The server action remains independently scoped to the exact actor for 24 hours. If a removal
 response is lost, repeating it remains a refusal; while that removal is still the actor's applied,
 unexpired action, the exact actor receives its receipt in HTTP `details` or MCP error text, without a
@@ -2029,7 +2045,7 @@ visible control can preserve input and report an error rather than losing a fail
 
 The **Archive** page is *not* canvas chrome and stays reachable: it is content. Archive Restore
 remains the durable recovery path for retained content; the removal's Undo is also available,
-from the project header (§26, *since Slice 41*). *Since Slice 37* a section Restore is itself one of
+from the project header and the acting removal toast (§26, *since Slice 74*). *Since Slice 37* a section Restore is itself one of
 the actor's actions, reversible from the same history — durability and reversibility are not in
 tension, because Restore still needs no receipt to invoke and still survives every expiry. The canvas's **Open Archive** action lets a
 person check saved content without promising that a deleted disposable view will appear there.
@@ -2182,7 +2198,9 @@ and links to its canonical owner; completing one there and completing it here ar
 operation on the same row. A task row also offers **Delete**, including when finished; this archives
 the canonical task and removes it from the projection until it is restored.
 For a descendant-owned task or unit of work, a separate named link opens that owner's
-existing header history (§26); it does not change the canonical row link or add Undo here.
+existing header history (§26); it does not change the canonical row link. Since Slice 74 a
+committed Delete or workstream Complete also opens a toast with its own receipt Undo. Workstream
+Complete offers Open owner; Delete offers Open archive.
 
 There is no drag ordering on Todos. The order is the chronology.
 
@@ -3519,16 +3537,17 @@ them where it already inserted, replaced or optimistically resized a placement: 
 pending-write counting, the complete-combined-order guard, resize rollback and the read-only refresh
 retry are all unchanged. Archive Restore still reports success when the write committed and only the
 follow-up projection read failed. *Since Slice 41* these receipts are reported to the header's
-history like every other, and the canvas notice offers no Undo.
+history like every other. *Since Slice 74* the removal toast also offers Undo of its own receipt.
 
 *Landed in Slice 38.* The optional-page toggle answers a receipt, and the page manager deliberately
 ignores it: §26's confirmed page is still painted only after the write and a fresh context read both
 settle, and the write/read separation, the project and generation guards and the read-only retry are
 unchanged. A page action or transition frame is an ordinary project frame, so it reaches project
-context and page resolution with no new case — undoing the enable that created the displayed page, or
-disabling it, returns to Home with the existing explanation and, because there is no record left to
+context and page resolution with no new case — undoing the enable that created a displayed page
+other than Archive, or disabling it, returns to Home with the existing explanation and, because there is no record left to
 switch on, without the re-enable offer, while enabling or recreating one restores its tab and forces
-no navigation. *Since Slice 41* the toggle reports its receipt to the header's history, which is
+no navigation. Since Slice 74 Archive keeps rendering regardless of the toggle or page record.
+*Since Slice 41* the toggle reports its receipt to the header's history, which is
 where its Undo lives.
 
 *Landed in Slice 39.* Project writes answer a receipt, and every browser caller — the header's
@@ -3708,7 +3727,7 @@ This supplements Storybook with a full-app design environment.
 specimens (side drawer, dialog, menu and page-settings popover) over a busy backing, in contained
 mode. Its live Drawer panel renders the real TaskDetailDrawer without fixed positioning or
 the top layer. Four Storybook lift stories exercise native opening, Escape and opener return.
-Toast remains for the feedback slice. It has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
+*Slice 74* adds the real toast specimen over the busy backing in both themes. The Lab has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
 
 *Corrected at slice 72 (2026-10-15).* Buttons and inputs are the shared primitives, rendered as they are, and a Controls panel shows every primitive in every variant, size and state over a pane and a sheet. Its forced hover, focus and pressed specimens include the same state mixins the real states use. Cards, project cards, the primitive-panel menu examples and states remain representative markup
 labelled not yet a shared component; the plane panel uses the real lift/menu classes.
@@ -3782,14 +3801,14 @@ seed/state inspector
 re-uses the instance across a parameter change, so moving between a root's pages keeps its
 context loaded once. `/projects/:projectId` **stays valid** rather than redirecting: it is what
 the sidebar and project creation link to. Resolution is a positive
-rule — the project is a root, the kind is navigable, the root has it enabled, and this build can
+rule — the project is a root, the kind is navigable, the root has it enabled except for Archive, and this build can
 render it — so `/pages/work` on a root falls back like any other kind that is not a tab. A
 fallback replaces the URL and carries its reason in navigation state, which is what lets the
 explanation survive the sub-project case, where the redirect crosses route configurations and
 destroys the component.*
 
 *The 25.8 page-manager path now makes the disabled-page re-enable promise executable: a disabled
-optional route carries its exact kind to an **Enable …** action, and navigation waits for persisted
+optional route other than Archive carries its exact kind to an **Enable …** action, and navigation waits for persisted
 state plus fresh page context. The manager is root-scoped and remains visible from descendant work
 routes; `/pages/work` and subproject page requests carry no enable action.*
 

@@ -58,7 +58,7 @@ export class ProjectPageNavigation {
   /** A disclosure belongs to this mounted column; a live root change closes it. */
   readonly settingsOpen = signal(false);
 
-  readonly visiblePages = () => navigablePages(this.pages());
+  readonly visiblePages = () => navigablePages(this.pages(), this.activeKind());
   readonly optionalPageDefinitions = OPTIONAL_PROJECT_PAGE_DEFINITIONS;
 
   readonly toggleRequested = output<void>();

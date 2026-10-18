@@ -362,7 +362,7 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await page.locator('[data-close-drawer]').tap();
     await page.locator('[data-task-delete]').tap();
     await expect(page.locator('[data-task-row]')).toHaveCount(0);
-    await expect(page.locator('[data-task-delete-recovery]')).toContainText('Phone delete task');
+    await expect(page.locator('[data-toast]:popover-open')).toContainText('Phone delete task');
   });
 
   test('a title tap opens the task sheet, Close returns focus, and a done checkbox reopens by touch', async ({ page }) => {

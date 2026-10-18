@@ -573,7 +573,7 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
     await Promise.resolve();
 
     openingRead = true;
-    expect(await store.openArchive()).toBe(true);
+    expect(await store.setPageEnabled('archive', true)).toBe(true);
     expect(store.pages().find(({ kind }) => kind === 'archive')?.enabled).toBe(true);
 
     gate.resolve(projects[0]!);
@@ -743,7 +743,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     await expect(toggling).resolves.toBe(false);
   });
 
-  it('keeps Open archive reachable for an archived root', async () => {
+  it('keeps the Archive navigation setting writable for an archived root', async () => {
     const archivedRoot = root('project-renovation', 'Home renovation', { status: 'archived' });
     const { store } = storeWith({
       projects: [archivedRoot],
@@ -751,7 +751,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     });
     await store.load('project-renovation' as ProjectId);
 
-    expect(await store.openArchive()).toBe(true);
+    expect(await store.setPageEnabled('archive', true)).toBe(true);
     expect(store.pages().find(({ kind }) => kind === 'archive')?.enabled).toBe(true);
   });
 
@@ -864,7 +864,8 @@ describe('ProjectWorkspaceStore reports to the header’s history (Slice 41)', (
     expect(store.project()?.status).toBe('archived');
     expect(reporter.events).toEqual([
       'begin',
-      { projectId: 'project-garden', projectName: 'Garden', receipt: expect.objectContaining({ operation: 'project.archive' }) },
+      // Slice 74: the archive renders its own toast, so the reporter must not raise a second one.
+      { projectId: 'project-garden', projectName: 'Garden', receipt: expect.objectContaining({ operation: 'project.archive' }), feedback: 'own' },
       'end',
     ]);
   });

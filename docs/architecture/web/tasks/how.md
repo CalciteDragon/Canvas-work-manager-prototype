@@ -28,11 +28,13 @@
    mutation is queued again. Per-field revisions keep an old write from reverting a newer edit.
    A successful refresh clears the selected id when the task is absent.
 5. TaskRow's **Delete** emits the task id to the section, which calls `tasks.archive`. The
-   section captures the title before the write and announces the committed archive in a polite
-   status outside the rows. It clears the cue on a new attempt or section switch and rejects a
-   late answer for another section. The store returns the committed result even when its quiet
-   follow-up read fails; a failed write announces nothing. A fresh list containing the task
-   after Undo or Restore withdraws the cue. Root Archive restores through the same gateway.
+   section captures the title before the write and confirms the committed archive in a toast
+   with receipt Undo and Open archive. The report is marked `feedback: 'own'` so cross-owner
+   reporting opens no second toast. A failed write announces no success; a successful write
+   remains acknowledged when only its quiet follow-up read fails. The toast closes on navigation,
+   reload or a newer write. Focus enters it only from body or the vanished Delete control, and
+   dismissal returns to quick-add or another surviving control. Root Archive restores through
+   the same gateway.
 6. `TaskDetailDrawer` renders one native `<dialog>`. On desktop, `popover="manual"` and
    `showPopover()` place its `.lift--side` surface in the top layer, with `aria-modal="false"`.
    Under core's `SHELL_NARROW_QUERY`, `showModal()` opens `.lift--sheet` with

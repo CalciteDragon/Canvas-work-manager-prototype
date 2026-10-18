@@ -50,3 +50,5 @@ leave it open, and Home/Work scope and confirmed-state writes are unchanged. See
 [navigation controls](2026-09-project-navigation-gear-and-work-create.md).
 
 **Amended, 2026-10-14 (Slice 70 Gate 1).** Reopened by [one navigation tree](2026-10-one-navigation-tree.md): page management moves with the tree. Where it sits, labelled with its root scope, is decided in the shell slice. Auditors also found the gear hard to discover (W1-044, W2-026, W4-017).
+
+**Amended, 2026-10-17 (Slice 74).** The Archive row now says Show Archive in navigation. A hidden Archive route renders directly, with Archive listed while current; it has no Enable offer. Other optional-page enable paths are unchanged. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

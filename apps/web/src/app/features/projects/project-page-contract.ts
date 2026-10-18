@@ -13,7 +13,7 @@ import type { ProjectId, ProjectLayoutMode, ProjectPageId } from '@cwm/contracts
  */
 export interface ProjectPageRendererInputs extends Record<string, unknown> {
   projectId: ProjectId;
-  pageId: ProjectPageId;
+  pageId: ProjectPageId | null;
   projectLayoutMode: ProjectLayoutMode;
   restoreBlocked: boolean;
   /** Shortcut placement belongs to a project's canonical page: a root's Home or a workstream's Work (§27). */
@@ -27,7 +27,7 @@ export interface ProjectPageRendererInputs extends Record<string, unknown> {
   onProjectDataChange: () => void;
   /** Something on this page may have moved the work hierarchy — the column re-reads it. */
   onProjectHierarchyChange: () => void;
-  /** Open the root Archive through the shell's existing enable-and-navigate path. */
+  /** Navigate to the root Archive and land on its heading, without writing. */
   onOpenArchive: (returnTo: HTMLElement) => void;
 }
 

@@ -1,7 +1,7 @@
 import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/core';
 import { isProjectRecordEvent, type LiveEvent, type ProjectId, type ProjectTodoItem } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
-import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
+import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -49,6 +49,8 @@ const taskSubtreeIds = (items: readonly ProjectTodoItem[], rootId: string): Set<
  */
 @Injectable()
 export class TodosPageStore {
+  /** Last committed Delete or workstream Complete, for the page's own receipt toast. */
+  readonly lastFeedbackReport = signal<OperationWriteReport | null>(null);
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
   /**
@@ -174,12 +176,14 @@ export class TodosPageStore {
         this.replace(id, { ...item, project: { ...item.project, status: 'completed' } });
         // §26's completion of a unit of work is an ordinary status update, so it goes through
         // the same call the header uses — and it does **not** complete anything beneath it.
-        const { project: record } = await this.track(() => reportedWrite(
+        const result = await this.track(() => reportedWrite(
           this.reporter,
           () => this.gateway.projects.update(item.project.id, { status: 'completed' }),
-          ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }),
+          ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation, feedback: 'own' }),
         ));
         if (!current()) return false;
+        const record = result.project;
+        this.lastFeedbackReport.set({ projectId: record.id, projectName: record.name, receipt: result.operation, feedback: 'own' });
         // A root coming back here would mean the id named something else entirely; keep the
         // optimistic row rather than putting a shape this page cannot render into the list.
         if (record.kind !== 'subproject') return false;
@@ -280,12 +284,13 @@ export class TodosPageStore {
     this.itemsState.set(before.filter((candidate) => candidate.kind !== 'task' || !removedIds.has(candidate.task.id)));
 
     try {
-      await this.track(() => reportedWrite(
+      const result = await this.track(() => reportedWrite(
         this.reporter,
         () => this.gateway.tasks.archive(id),
-        ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }),
+        ({ task, operation }) => ({ projectId: task.projectId, receipt: operation, feedback: 'own' }),
       ));
       if (!current()) return false;
+      this.lastFeedbackReport.set({ projectId: result.task.projectId, receipt: result.operation, feedback: 'own' });
       return true;
     } catch (error) {
       if (!current()) return false;

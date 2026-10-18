@@ -13,7 +13,9 @@ import type {
   OperationHistoryReporter,
   OperationWriteHandle,
   OperationWriteReport,
+  OperationWriteOptions,
 } from '../../../core/history/operation-history-reporter';
+import type { ReceiptUndo, ReceiptUndoOffer, ReceiptUndoResult } from '../../../core/history/receipt-undo';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import {
   crossOwnerFeedback,
@@ -66,13 +68,18 @@ const MAX_OWED_RETRIES = 3;
  * write's `finally` and its re-read would enable the controls on the pre-write entry.
  */
 @Injectable()
-export class ProjectHistoryStore implements OperationHistoryReporter {
+export class ProjectHistoryStore implements OperationHistoryReporter, ReceiptUndo {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
 
   private projectId: ProjectId | null = null;
   /** Navigation, `prototype.reloaded` and destruction each start a new one; late answers are dropped. */
-  private generation = 0;
+  private readonly generationState = signal(0);
+  readonly generation = this.generationState.asReadonly();
+  private readonly writeSequenceState = signal(0);
+  readonly writeSequence = this.writeSequenceState.asReadonly();
+  private readonly receiptTransitionState = signal(false);
+  private readonly withdrawnState = signal<ReadonlySet<string>>(new Set());
   private alive = true;
   /** The id of the newest summary request; an owed read is settled only by a later one. */
   private readSequence = 0;
@@ -104,7 +111,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   readonly feedback = this.feedbackState.asReadonly();
   readonly transitionPending = this.transitionState.asReadonly();
   /** A write, or a re-read it owes, has not settled. */
-  readonly writePending = computed(() => this.writesState() > 0 || this.owedState() > 0);
+  readonly writePending = computed(() => this.writesState() > 0 || this.owedState() > 0 || this.receiptTransitionState());
   /** A not-found read is an answer, not a transport failure, so a second read cannot change it. */
   readonly retryAvailable = computed(() => this.readStateSignal() === 'unavailable' && !this.readNotFoundState());
   readonly undoControl = computed<HistoryControlView>(() => this.control('undo'));
@@ -119,7 +126,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
       // A transition that navigates (undoing the displayed page's enable) destroys this store
       // mid-flight; its late result is dropped here and the new shell's `load` shows the truth.
       this.alive = false;
-      this.generation += 1;
+      this.generationState.update((value) => value + 1);
       unsubscribe();
     });
   }
@@ -147,18 +154,87 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
     this.feedbackState.set(null);
   }
 
-  undo(): Promise<void> {
-    return this.step('undo');
+  undo(): Promise<void>;
+  undo(report: OperationWriteReport): Promise<ReceiptUndoResult | null>;
+  undo(report?: OperationWriteReport): Promise<void | ReceiptUndoResult | null> {
+    return report === undefined ? this.step('undo') : this.undoReceipt(report);
   }
 
   redo(): Promise<void> {
     return this.step('redo');
   }
 
-  begin(): OperationWriteHandle {
+  /** Receipt-specific availability stays reactive through the write's owed summary read. */
+  offer(report: OperationWriteReport): ReceiptUndoOffer {
+    const receipt = report.receipt;
+    if (receipt === null || !this.alive || this.withdrawnState().has(`${receipt.historyId}:${receipt.actionId}`)) return 'unavailable';
+    if (this.readStateSignal() === 'loading' || this.writePending() || this.transitionState() !== null) return 'saving';
+    const summary = this.summaryState();
+    if (summary?.historyId !== null && summary?.historyId !== undefined && summary.historyId !== receipt.historyId) return 'ready';
+    if (this.readStateSignal() !== 'ready') return 'unavailable';
+    if (summary?.historyId !== receipt.historyId) return 'ready';
+    // A summary from before this write cannot judge it yet; the read that follows the write will.
+    if (summary.revision < receipt.revision) return 'saving';
+    return summary.undo?.actionId === receipt.actionId && this.undoControl().enabled ? 'ready' : 'unavailable';
+  }
+
+  /** Uses a separate owner read without ever adopting another project's summary. */
+  private async undoReceipt(report: OperationWriteReport): Promise<ReceiptUndoResult | null> {
+    if (this.offer(report) !== 'ready' || report.receipt === null) return null;
+    const receipt = report.receipt;
+    const generation = this.generation();
+    const sameHistory = this.summaryState()?.historyId === receipt.historyId;
+    this.receiptTransitionState.set(true);
+    const settled = this.pendingTasks.add();
+    let name = report.projectName ?? 'another project';
+    let link = { projectId: report.projectId, label: `Open ${name}` };
+    const withdraw = () => this.withdrawnState.update((held) => new Set([...held, `${receipt.historyId}:${receipt.actionId}`]));
+    try {
+      if (!sameHistory && report.projectName === undefined) {
+        try { name = (await this.gateway.projects.get(report.projectId)).name; } catch { /* The owner read still decides whether Undo is possible. */ }
+        if (!this.current(generation)) return null;
+        link = { projectId: report.projectId, label: `Open ${name}` };
+      }
+      const summary = sameHistory ? this.summaryState()! : await this.gateway.history.summary(report.projectId);
+      if (!this.current(generation)) return null;
+      if (summary.historyId !== receipt.historyId || summary.undo?.actionId !== receipt.actionId || summary.undo.blockedBy !== null) {
+        withdraw();
+        return { tone: 'status', message: `That is no longer the latest change in ${name}.`, link };
+      }
+      const transition = await this.gateway.history.transition(receipt.historyId, {
+        actionId: receipt.actionId, direction: 'undo', expectedRevision: summary.revision,
+      });
+      if (!this.current(generation)) return null;
+      if (sameHistory) this.adopt(transition.summary);
+      withdraw();
+      return transitionResultFeedback('undo', receipt.label, transition.result);
+    } catch (error) {
+      if (!this.current(generation)) return null;
+      withdraw();
+      const parsed = error instanceof GatewayError && error.code === 'rule_violation'
+        ? OperationHistoryRefusalDetailsSchema.safeParse(error.details) : null;
+      if (parsed?.success) {
+        if (sameHistory) {
+          this.adopt(parsed.data.summary);
+          if (parsed.data.reason === 'history_expired') this.refresh();
+        }
+        return transitionRefusalFeedback('undo', receipt.label, parsed.data);
+      }
+      if (sameHistory) this.refresh();
+      if (error instanceof GatewayError && error.code === 'permission_denied') return { tone: 'alert', message: `You cannot undo changes in ${name}.` };
+      if (error instanceof GatewayError && error.code === 'not_found') return { tone: 'status', message: 'That change can no longer be undone.' };
+      return sameHistory ? transitionUncertainFeedback('undo') : { tone: 'alert', message: `Undo may not have completed. Check ${name} before trying again.`, link };
+    } finally {
+      if (this.current(generation)) this.receiptTransitionState.set(false);
+      settled();
+    }
+  }
+
+  begin(options?: OperationWriteOptions): OperationWriteHandle {
     // Everything below is for this one write, in the generation it began in: a response that lands
     // after navigation neither unblocks nor reports into the next project's controls.
-    const generation = this.generation;
+    const generation = this.generation();
+    if (!options?.exempt) this.writeSequenceState.update((value) => value + 1);
     let committed = false;
     let ended = false;
     this.writesState.update((count) => count + 1);
@@ -203,7 +279,9 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   }
 
   private startGeneration(): void {
-    this.generation += 1;
+    this.generationState.update((value) => value + 1);
+    this.withdrawnState.set(new Set());
+    this.receiptTransitionState.set(false);
     this.owed = [];
     this.owedState.set(0);
     this.writesState.set(0);
@@ -242,7 +320,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
       return;
     }
     this.readInFlight = true;
-    const generation = this.generation;
+    const generation = this.generation();
     const sequence = ++this.readSequence;
     const settled = this.pendingTasks.add();
     this.gateway.history.summary(this.projectId).then(
@@ -270,7 +348,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   }
 
   private current(generation: number): boolean {
-    return this.alive && generation === this.generation;
+    return this.alive && generation === this.generation();
   }
 
   /** Takes `summary` unless it is an older revision of the history already held. */
@@ -314,8 +392,8 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   /** Words a write recorded elsewhere, naming the owning project from the write's own response. */
   private async announceCrossOwner(report: OperationWriteReport): Promise<void> {
     const { receipt, projectId } = report;
-    if (receipt === null) return;
-    const generation = this.generation;
+    if (receipt === null || report.feedback === 'own') return;
+    const generation = this.generation();
     let name = report.projectName;
     if (name === undefined) {
       try {
@@ -324,7 +402,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
         name = 'another project';
       }
     }
-    if (this.current(generation)) this.feedbackState.set(crossOwnerFeedback(receipt.label, projectId, name));
+    if (this.current(generation)) this.feedbackState.set({ ...crossOwnerFeedback(receipt.label, projectId, name), report: { ...report, projectName: name } });
   }
 
   /** One transition at a time, citing the held entry's action and the held revision. */
@@ -333,7 +411,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
     const entry = summary?.[direction] ?? null;
     const view = direction === 'undo' ? this.undoControl() : this.redoControl();
     if (!view.enabled || summary === null || summary.historyId === null || entry === null) return;
-    const generation = this.generation;
+    const generation = this.generation();
     this.transitionState.set(direction);
     this.feedbackState.set(null);
     const settled = this.pendingTasks.add();

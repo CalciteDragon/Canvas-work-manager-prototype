@@ -34,3 +34,5 @@ Approved prototype rule, with unit policy and native browser route checks.
 **Revisit when**
 
 The one-tree redesign replaces existing phone and project-column hand-offs.
+
+**Amended, 2026-10-17 (Slice 74).** Open archive still lands on the Archive heading across reused or replaced shells. It is reached by navigation alone, without an enabling write. Toast close during navigation skips local fallback focus. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

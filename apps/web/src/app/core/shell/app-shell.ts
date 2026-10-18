@@ -18,6 +18,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { SHELL_NARROW_BREAKPOINT } from '../layout/breakpoints';
 import { ShellStore } from './shell-store';
 import { Icon } from '../../shared/components/icon/icon';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 import { Sidebar } from './sidebar/sidebar';
 import { TopBar } from './top-bar/top-bar';
 
@@ -94,6 +95,12 @@ export class AppShell {
 
   constructor() {
     void this.store.load();
+    const toastSlot = inject(ToastSlot);
+    effect((onCleanup) => {
+      if (this.drawerOpen()) toastSlot.suppress(this);
+      else toastSlot.release(this);
+      onCleanup(() => toastSlot.release(this));
+    });
 
     // A create that fails after the drawer was dismissed would report, and reopen its form, inside
     // a hidden, inert drawer. Reopened without taking focus: the sidebar puts it in the name input.

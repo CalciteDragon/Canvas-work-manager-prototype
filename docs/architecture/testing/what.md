@@ -1,7 +1,13 @@
 # What the testing system is made of
 
+Slice 74 adds `apps/e2e/feedback.spec.ts` for local receipt Undo, keyboard/touch focus, the
+timer, cross-owner staleness and no-write Archive visits. Its opt-in
+`ux/feedback-verification.ts` measures the toast's content-track clearance, focus, blur,
+fallbacks and phone suppression in both themes at 1440 and 375. Profile 74 of the sheet builder
+gates these measurements, closed-state geometry, phone overflow and T05/T09 task costs.
+
 `apps/e2e/archived-projects.spec.ts` covers Settings recovery, persona isolation and the
-disabled-Archive path beside `archive.spec.ts`'s ready-only root projection. Host acceptance
+hidden-Archive path beside `archive.spec.ts`'s ready-only root projection. Host acceptance
 scripts check exact IDs over HTTP and both MCP transports; focused contract and domain tests
 pin the structural eligibility and read result shapes.
 

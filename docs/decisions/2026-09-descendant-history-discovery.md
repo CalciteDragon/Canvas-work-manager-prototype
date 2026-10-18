@@ -25,3 +25,5 @@ Medium-high: component tests cover the projection variants and focus guard; the 
 **Revisit when**
 
 Real use shows that people mistake the owner link for a guaranteed Undo of the listed row, or cannot find it in a long chronology or Archive list.
+
+**Amended, 2026-10-17 (Slice 74).** The owner-history links remain available for discovery. Confirmation toasts also offer the exact receipt Undo through the owning history, without replacing the displayed header summary. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).

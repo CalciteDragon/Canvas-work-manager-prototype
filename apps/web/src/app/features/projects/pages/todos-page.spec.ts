@@ -1,4 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { RECEIPT_UNDO, type ReceiptUndo } from '../../../core/history/receipt-undo';
+import { ToastSlot } from '../../../shared/feedback/toast-slot';
 import { provideRouter } from '@angular/router';
 import {
   ProjectSchema,
@@ -92,6 +95,7 @@ const MIXED: ProjectTodoItem[] = [
 ];
 
 interface RenderOptions {
+  receiptUndo?: ReceiptUndo;
   items?: ProjectTodoItem[];
   restoreBlocked?: boolean;
   failWith?: GatewayError;
@@ -152,6 +156,7 @@ const render = async (options: RenderOptions = {}) => {
       provideRouter([]),
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
       { provide: LIVE_UPDATES, useValue: new FakeLiveUpdates() },
+      ...(options.receiptUndo ? [{ provide: RECEIPT_UNDO, useValue: options.receiptUndo }] : []),
     ],
   });
   const fixture = TestBed.createComponent(TodosPage);
@@ -327,7 +332,7 @@ describe('TodosPage (§34)', () => {
     expect(archive).toHaveBeenCalledWith('task-cancelled');
     expect(query(fixture, '[data-todo-id="task-cancelled"]')).toBeNull();
     expect(dataChanged).toHaveBeenCalledOnce();
-    expect(document.activeElement).toBe(rowFor(fixture, 'task-undated').querySelector('[data-todo-link]'));
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-open-archive]'));
   });
 
   it('offers a labelled native checkbox that a keyboard reaches, and none on a cancelled row', async () => {
@@ -370,7 +375,7 @@ describe('TodosPage (§34)', () => {
     expect(query(inFlight.fixture, '[data-todo-id="task-early"]')).toBeNull();
     expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-delete]') as HTMLButtonElement).disabled).toBe(true);
     expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-toggle]') as HTMLInputElement).getAttribute('aria-disabled')).toBe('true');
-    expect(document.activeElement).toBe(rowFor(inFlight.fixture, 'project-kitchen').querySelector('[data-todo-link]'));
+    expect(document.activeElement).toBe(document.body);
     inFlight.releaseArchive();
     await inFlight.fixture.whenStable();
     expect(query(inFlight.fixture, '[data-todo-id="task-early"]')).toBeNull();
@@ -394,19 +399,19 @@ describe('TodosPage (§34)', () => {
     (rowFor(fixture, 'task-only').querySelector('[data-todo-delete]') as HTMLButtonElement).click();
     fixture.detectChanges();
     expect(query(fixture, '[data-todo-id="task-only"]')).toBeNull();
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
     releaseArchive();
     await fixture.whenStable();
     fixture.detectChanges();
-    const status = query(fixture, '[data-todo-delete-recovery]')!;
-    expect(status.getAttribute('role')).toBe('status');
-    expect(status.getAttribute('aria-live')).toBe('polite');
-    expect(status.textContent).toContain('Task task-only was archived');
-    expect(status.textContent).toContain('when its owner is ready');
-    expect(status.textContent).toContain('header Undo');
+    const status = query(fixture, '[data-toast-open]')!;
+    expect(query(fixture, '[role=status]')?.textContent).toContain('Archived');
+    expect(status.getAttribute('popover')).toBe('manual');
+    expect(status.textContent).toContain('Archived “Task task-only”.');
+    expect(status.textContent).toContain('Open archive');
+    expect(status.textContent).not.toContain('header');
     expect(status.querySelector('[data-todo-recovery-owner]')).toBeNull();
     expect(query(fixture, '[data-todos-empty]')).not.toBeNull();
-    (status.querySelector('[data-todo-open-archive]') as HTMLButtonElement).click();
+    (status.querySelector('[data-toast-open-archive]') as HTMLButtonElement).click();
     expect(openArchive).toHaveBeenCalledOnce();
     expect(query(fixture, '[data-history-undo]')).toBeNull();
   });
@@ -415,24 +420,89 @@ describe('TodosPage (§34)', () => {
     const { fixture, todosGet } = await render({ items: [taskItem('task-only')] });
     (rowFor(fixture, 'task-only').querySelector('[data-todo-delete]') as HTMLButtonElement).click();
     await fixture.whenStable();
-    expect(query(fixture, '[data-todo-delete-recovery]')).not.toBeNull();
+    expect(query(fixture, '[data-toast-open]')).not.toBeNull();
 
     todosGet.mockResolvedValueOnce({ projectId: ROOT, items: [taskItem('task-only')] });
     await fixture.debugElement.injector.get(TodosPageStore).load(ROOT);
     fixture.detectChanges();
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
-  it('names and links the descendant owner after Delete using its canonical history route', async () => {
-    const { fixture } = await render();
+  it('offers descendant Delete Undo directly, through the receipt owner', async () => {
+    const undo = vi.fn(async () => ({ tone: 'status' as const, message: 'Undone: Archived “Task task-nested”.' }));
+    const { fixture } = await render({ receiptUndo: {
+      offer: () => 'ready', undo, writeSequence: signal(0), generation: signal(0),
+    } });
     (rowFor(fixture, 'task-nested').querySelector('[data-todo-delete]') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
-    const status = query(fixture, '[data-todo-delete-recovery]')!;
-    expect(status.textContent).toContain('Task task-nested was archived');
-    const owner = status.querySelector('[data-todo-recovery-owner]') as HTMLAnchorElement;
-    expect(owner.textContent).toContain('Kitchen');
-    expect(owner.getAttribute('href')).toBe('/projects/project-kitchen#history-controls');
+    const status = query(fixture, '[data-toast-open]')!;
+    expect(status.textContent).toContain('Archived “Task task-nested”.');
+    (status.querySelector('[data-toast-undo]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(undo).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-kitchen', feedback: 'own' }));
+  });
+
+  it('confirms workstream Complete once with Undo and Open Kitchen, and recovers toast focus', async () => {
+    const undo = vi.fn(async () => ({ tone: 'status' as const, message: 'Undone: Completed Kitchen.' }));
+    const { fixture } = await render({ receiptUndo: {
+      offer: () => 'ready', undo, writeSequence: signal(0), generation: signal(0),
+    } });
+    const claim = vi.spyOn(TestBed.inject(ToastSlot), 'claim');
+    const control = rowFor(fixture, 'project-kitchen').querySelector<HTMLElement>('[data-todo-complete]')!;
+    control.focus(); control.click();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-toast-open]')?.textContent).toContain('Completed Kitchen.');
+    const open = query(fixture, '[data-toast-open-owner]') as HTMLAnchorElement;
+    expect(open.textContent).toContain('Open Kitchen');
+    expect(open.getAttribute('href')).toBe('/projects/project-kitchen');
+    expect(claim).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-undo]'));
+    query(fixture, '[data-toast-undo]')!.click();
+    await fixture.whenStable();
+    expect(undo).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-kitchen', feedback: 'own' }));
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-dismiss]'));
+    query(fixture, '[data-toast-dismiss]')!.click();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(rowFor(fixture, 'task-nested').querySelector('[data-todo-toggle]'));
+  });
+
+  it('returns dismissed Complete feedback to the next incomplete workstream control', async () => {
+    const { fixture } = await render({ items: [
+      subprojectItem('project-kitchen'),
+      subprojectItem('project-garden', { name: 'Garden' }),
+    ] });
+    const complete = rowFor(fixture, 'project-kitchen').querySelector<HTMLElement>('[data-todo-complete]')!;
+    complete.focus(); complete.click();
+    await fixture.whenStable();
+    const dismiss = query(fixture, '[data-toast-dismiss]')!;
+    dismiss.focus(); dismiss.click();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(rowFor(fixture, 'project-garden').querySelector('[data-todo-complete]'));
+  });
+
+  it('keeps focus moved to another row while Delete is pending', async () => {
+    const { fixture, releaseArchive } = await render({ gateArchive: true });
+    const remove = rowFor(fixture, 'task-early').querySelector<HTMLElement>('[data-todo-delete]')!;
+    remove.focus(); remove.click(); fixture.detectChanges();
+    const elsewhere = rowFor(fixture, 'task-nested').querySelector<HTMLElement>('[data-todo-link]')!;
+    elsewhere.focus();
+    releaseArchive();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-toast-open]')).not.toBeNull();
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it('does not schedule a focus handoff after destruction during Delete', async () => {
+    const { fixture, releaseArchive } = await render({ gateArchive: true });
+    const claim = vi.spyOn(TestBed.inject(ToastSlot), 'claim');
+    const item = fixture.debugElement.injector.get(TodosPageStore).items().find(candidate => candidate.kind === 'task')!;
+    rowFor(fixture, 'task-early').querySelector<HTMLElement>('[data-todo-delete]')!.focus();
+    const write = fixture.componentInstance.delete(item);
+    fixture.destroy();
+    releaseArchive();
+    await write;
+    expect(claim).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -445,7 +515,7 @@ describe('TodosPage (§34)', () => {
     fixture.detectChanges();
     expect(query(fixture, '[data-todo-id="task-early"]')).not.toBeNull();
     expect(query(fixture, '[data-todo-write-error]')?.textContent).toContain(failure.message);
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
   it('clears old feedback on a new Delete and a root navigation, ignoring a late commit', async () => {
@@ -454,17 +524,17 @@ describe('TodosPage (§34)', () => {
     releaseArchive();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-todo-delete-recovery]')).not.toBeNull();
+    expect(query(fixture, '[data-toast-open]')).not.toBeNull();
 
     (rowFor(fixture, 'task-nested').querySelector('[data-todo-delete]') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
     fixture.componentRef.setInput('projectId', 'project-other' as ProjectId);
     fixture.detectChanges();
     releaseArchive();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
   it('does not paint an old Delete after navigating away and back to the same root', async () => {
@@ -477,7 +547,7 @@ describe('TodosPage (§34)', () => {
     releaseArchive();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
   it('withdraws a prior success when the next Delete is refused', async () => {
@@ -486,17 +556,17 @@ describe('TodosPage (§34)', () => {
     (rowFor(fixture, 'task-early').querySelector('[data-todo-delete]') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-todo-delete-recovery]')).not.toBeNull();
+    expect(query(fixture, '[data-toast-open]')).not.toBeNull();
 
     options.archiveRejects = new GatewayError('permission_denied', 403, 'tasks.write is required');
     (rowFor(fixture, 'task-nested').querySelector('[data-todo-delete]') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(query(fixture, '[data-todo-id="task-nested"]')).not.toBeNull();
     expect(query(fixture, '[data-todo-write-error]')?.textContent).toContain('tasks.write');
-    expect(query(fixture, '[data-todo-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
   it('reports a rejected completion, restores the row and does not tell the shell', async () => {

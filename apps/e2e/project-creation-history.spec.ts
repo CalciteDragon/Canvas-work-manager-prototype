@@ -98,9 +98,9 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   expect(child.kind).toBe('subproject');
   expect(child.parentProjectId).toBe(root.id);
   expect(childOperation).toMatchObject({ operation: 'project.add', label: 'Created "Field study"' });
-  await expect(page.locator('[data-history-feedback]')).toContainText('recorded in Field study’s history');
+  await expect(page.locator('[data-toast]:popover-open')).toContainText('Created “Field study”.');
   await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
-  await page.locator('[data-history-open]').click();
+  await page.locator('[data-toast]:popover-open [data-toast-open]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
   await expect(page.locator('[data-project-name]')).toHaveText('Field study');
 
@@ -192,7 +192,7 @@ test('creation under a live workstream refreshes the ancestor work, Todos and Ar
   await expect(todosWatcher.locator(`[data-todo-id="${child.id}"]`)).toContainText('Workstream');
   await expect(archiveWatcher.locator('[data-archive-page]')).toBeVisible();
 
-  await page.locator('[data-history-open]').click();
+  await page.locator('[data-toast]:popover-open [data-toast-open]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
   await undoFromHeader(page, 'Created "Field study follow-up"');
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');

@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 import { type ProjectId, type ProjectPageId, type SectionId, type ShortcutSource } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
@@ -50,6 +51,14 @@ const query = (fixture: ReturnType<typeof render>, selector: string) =>
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('SectionCreateDialog (§27)', () => {
+  it('suppresses the toast until the custom modal is destroyed', () => {
+    const fixture = render();
+    const slot = TestBed.inject(ToastSlot);
+    expect(slot.suppressed()).toBe(true);
+    expect(query(fixture, '[data-modal-lift]')).not.toBeNull();
+    fixture.destroy();
+    expect(slot.suppressed()).toBe(false);
+  });
   it('lists registered types and sends null when the name is blank', async () => {
     const create = vi.fn(async () => null);
     const fixture = render({ create });

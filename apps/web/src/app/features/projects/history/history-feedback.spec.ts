@@ -10,9 +10,18 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
   archivedHereFeedback,
+  sectionRemovedFeedback,
+  sectionRemoveFailedFeedback,
+  canvasRefreshFailedFeedback,
+  taskArchivedFeedback,
+  workstreamCompletedFeedback,
+  restoredItemFeedback,
+  restoredProjectFeedback,
   conflictLines,
   crossOwnerFeedback,
   historyControl,
+  historyGoneFeedback,
+  transitionUncertainFeedback,
   nextStepCopy,
   transitionRefusalFeedback,
   transitionResultFeedback,
@@ -44,13 +53,13 @@ describe('history feedback (Slice 41)', () => {
     for (const direction of ['undo', 'redo'] as OperationHistoryDirection[]) {
       const verb = direction === 'undo' ? 'Undo' : 'Redo';
       const said = Object.fromEntries(REFUSALS.map((refusal) => [refusal.reason, transitionRefusalFeedback(direction, 'Renamed "A" to "B"', refusal)]));
-      expect(said['history_revision_stale']!.message).toMatch(/history changed elsewhere/);
-      expect(said['history_not_next']!.message).toMatch(/history changed elsewhere/);
-      expect(said['history_expired']!.message).toContain(expiresAt);
+      expect(said['history_revision_stale']!.message).toBe(`Someone changed this project since. Try ${verb} again.`);
+      expect(said['history_not_next']!.message).toBe(`Someone changed this project since. Try ${verb} again.`);
+      expect(said['history_expired']!.message).toBe(`“Renamed “A” to “B”” is too old to ${direction}.`);
       expect(said['history_blocked']!.message).toBe(`${verb} is blocked while Legacy attic is archived. Reactivate it, then try again.`);
       expect(said['history_conflict']!.lines).toEqual([`Notes [section-1]: Someone else changed it since. Make the change again by hand.`]);
       expect(said['history_unavailable']!.message).toMatch(new RegExp(`try ${verb} again`));
-      expect(said['history_retired']!.message).toBe(`“Renamed "A" to "B"” can no longer be ${direction === 'undo' ? 'undone' : 'redone'} and was skipped. The controls now show the next step.`);
+      expect(said['history_retired']!.message).toBe(`“Renamed “A” to “B”” can no longer be ${direction === 'undo' ? 'undone' : 'redone'}, so it was skipped.`);
     }
     expect(transitionRefusalFeedback('undo', 'x', { ...REFUSALS[5], problem: 'shortcut-on-fallback-page' } as OperationHistoryRefusalDetails).message)
       .toMatch(/^A shortcut on the fallback page/);
@@ -74,30 +83,52 @@ describe('history feedback (Slice 41)', () => {
       placement: { pageId: 'page-2', index: 0, pageEnabled, strategy },
     }) as unknown as UndoResult;
     expect(transitionResultFeedback('undo', 'Removed the Notes section', removal('restored', 'previous')).message)
-      .toBe('Undid: Removed the Notes section.');
+      .toBe('Undone: Removed the Notes section.');
     expect(transitionResultFeedback('undo', 'Removed the Notes section', removal('partial', 'fallback-page')).message)
-      .toBe('Undid: Removed the Notes section. It landed on another available page (page-2).');
+      .toBe('Undone: Removed the Notes section. It landed on another available page (page-2).');
     expect(transitionResultFeedback('undo', 'Removed the Notes section', removal('restored', 'previous', false)).message)
       .toMatch(/disabled page \(page-2\)/);
-    expect(transitionResultFeedback('redo', 'Renamed "A" to "B"', { operation: 'project.update' } as never).message).toBe('Redid: Renamed "A" to "B".');
+    expect(transitionResultFeedback('redo', 'Renamed "A" to "B"', { operation: 'project.update' } as never).message).toBe('Redone: Renamed “A” to “B”.');
   });
 
   it('names project creation in both transition directions', () => {
     const removed = { operation: 'project.add', outcome: 'removed', projectId: 'project-1' } as unknown as UndoResult;
     const restored = { operation: 'project.add', outcome: 'reapplied' } as unknown as UndoResult;
     expect(transitionResultFeedback('undo', 'Created "Recoverable project"', removed).message)
-      .toBe('Undid creation of "Recoverable project".');
+      .toBe('Undone: Created “Recoverable project”.');
     expect(transitionResultFeedback('redo', 'Created "Recoverable project"', restored).message)
-      .toBe('Redid creation of "Recoverable project".');
+      .toBe('Redone: Created “Recoverable project”.');
   });
 
   it('words cross-owner guidance with its link, and the archive that stays', () => {
     expect(crossOwnerFeedback('Completed "Tile"', 'project-kitchen' as ProjectId, 'Kitchen')).toEqual({
       tone: 'status',
-      message: 'Completed "Tile" was recorded in Kitchen’s history.',
+      message: 'Completed “Tile”.',
       link: { projectId: 'project-kitchen', label: 'Open Kitchen' },
     });
-    expect(archivedHereFeedback('Garden').message).toBe('Garden is archived. Undo is available here.');
+    expect(archivedHereFeedback('Garden').message).toBe('Archived Garden.');
+  });
+
+  it('words every adopter feedback without naming absent controls', () => {
+    const rows = [
+      [sectionRemovedFeedback('Notes'), 'Removed the Notes section.'],
+      [sectionRemovedFeedback('Notes', true), 'The Notes section was already removed.'],
+      [sectionRemoveFailedFeedback('Try again.'), 'Could not remove the section. Try again.'],
+      [canvasRefreshFailedFeedback(), 'The change was saved, but this canvas could not be refreshed.'],
+      [taskArchivedFeedback('Tile'), 'Archived “Tile”.'],
+      [workstreamCompletedFeedback('Kitchen'), 'Completed Kitchen.'],
+      [restoredItemFeedback('Tile', 'Renovation › Kitchen', 'Work'), 'Restored “Tile” to Renovation › Kitchen › Work.'],
+      [restoredItemFeedback('Tile', 'Renovation', 'Home', false), 'Restored “Tile” to Renovation › Home, which is switched off.'],
+      [restoredProjectFeedback('Kitchen', 'active'), 'Restored Kitchen as Active.'],
+      [restoredProjectFeedback('Kitchen', 'on_hold'), 'Restored Kitchen as On hold.'],
+      [historyGoneFeedback(), 'That change can no longer be undone or redone.'],
+      [transitionUncertainFeedback('undo'), 'Undo may not have completed. Check the page before trying again.'],
+      [transitionUncertainFeedback('redo'), 'Redo may not have completed. Check the page before trying again.'],
+    ] as const;
+    for (const [feedback, expected] of rows) {
+      expect(feedback.message).toBe(expected);
+      expect(feedback.message).not.toMatch(/header|history|the controls|was recorded|\d{4}-\d{2}-\d{2}T|"/);
+    }
   });
 
   it('names each control state, enabled only for an unblocked step', () => {

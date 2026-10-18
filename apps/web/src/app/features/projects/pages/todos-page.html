@@ -9,23 +9,6 @@
   @if (store.writeError(); as writeError) {
     <p data-todo-write-error class="todos__error" role="alert">{{ writeError }}</p>
   }
-  @if (deleteRecovery(); as recovery) {
-    <div data-todo-delete-recovery class="todos__recovery" role="status" aria-live="polite">
-      <span>{{ recovery.title }} was archived.</span>
-      <span>
-        Open root <button #archiveOpener data-todo-open-archive type="button" class="link" (click)="onOpenArchive()(archiveOpener)">Archive</button>
-        to recover it when its owner is ready.
-      </span>
-      @if (recovery.owner; as owner) {
-        <span>
-          <a class="link" data-todo-recovery-owner [routerLink]="owner.route" fragment="history-controls">{{ owner.name }}'s header Undo</a>
-          may reverse the latest step when available.
-        </span>
-      } @else {
-        <span>This project's header Undo may reverse the latest step when available.</span>
-      }
-    </div>
-  }
   @if (store.refreshError(); as refreshError) {
     <!-- The list on screen is still the better answer than a blank page, so this says the
        chronology may be behind rather than replacing it. -->
@@ -115,3 +98,15 @@
     </ol>
   }
 </section>
+
+<app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'" [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []"
+    [suppressed]="toast.slot.suppressed()" [pendingUndo]="toast.pendingUndo()" (dismissed)="toast.close()">
+    @if (toast.report() !== null && toast.offer() !== 'unavailable') {
+      <button data-toast-undo class="button" type="button" [attr.aria-disabled]="toast.offer() !== 'ready' || toast.pendingUndo() ? 'true' : null" (click)="undoFeedback()">{{ toast.pendingUndo() ? 'Undoing…' : toast.offer() === 'saving' ? 'Undo (saving…)' : 'Undo' }}</button>
+    }
+    @if (toast.state()?.link; as link) {
+      <a data-toast-open-owner class="button button--ghost" [routerLink]="['/projects', link.projectId]">{{ link.label }}</a>
+    } @else if (toast.report() !== null) {
+      <button #archiveOpener data-toast-open-archive class="button button--ghost" type="button" (click)="onOpenArchive()(archiveOpener)">Open archive</button>
+    }
+</app-toast>

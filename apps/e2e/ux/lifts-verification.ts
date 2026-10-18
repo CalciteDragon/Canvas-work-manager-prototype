@@ -174,7 +174,7 @@ test('Lift runtime evidence', async ({ browser }) => {
     focus.push({ theme, findings: ['W3-003'], path: 'New project > Create', target: 'Lift focus project', passed: true });
     await page.goto('http://localhost:4200/projects/project-kitchen');
     await page.getByRole('button', { name: /^Remove section / }).first().click();
-    await page.locator('[data-open-archive]').click();
+    await page.locator('[data-toast]:popover-open [data-open-archive]').click();
     await expect(page.locator('#archive-page-title')).toBeFocused();
     focus.push({ theme, findings: ['W3-003'], path: 'Section removal notice > Open Archive', target: 'Archive', passed: true });
     await context.close();

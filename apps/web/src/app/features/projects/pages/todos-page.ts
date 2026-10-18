@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -13,6 +14,9 @@ import {
 import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectLayoutMode, ProjectPageId, ProjectTodoItem } from '@cwm/contracts';
 import { Icon } from '../../../shared/components/icon/icon';
+import { Toast } from '../../../shared/feedback/toast';
+import { ReceiptToast } from '../../../core/history/receipt-toast';
+import { taskArchivedFeedback, workstreamCompletedFeedback } from '../history/history-feedback';
 import { TodosPageStore, isTodoFinished, todoIdOf } from './todos-page-store';
 
 /** §33's and §26's statuses, in the words the page says them. */
@@ -47,7 +51,7 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-todos-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, Toast],
   providers: [TodosPageStore],
   templateUrl: './todos-page.html',
   styleUrl: './todos-page.scss',
@@ -69,8 +73,10 @@ export class TodosPage {
   readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
 
   readonly store = inject(TodosPageStore);
+  readonly toast = new ReceiptToast();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   private recoveryGeneration = 0;
   private recoverySnapshot: readonly ProjectTodoItem[] | null = null;
 
@@ -91,6 +97,7 @@ export class TodosPage {
     effect(() => {
       this.recoveryGeneration += 1;
       this.deleteRecovery.set(null);
+      this.toast.close('navigation');
       void this.store.load(this.projectId());
     });
     effect(() => {
@@ -99,6 +106,7 @@ export class TodosPage {
       if (recovery !== null && items !== this.recoverySnapshot &&
         items.some((item) => item.kind === 'task' && item.task.id === recovery.id)) {
         this.deleteRecovery.set(null);
+        if (this.toast.report() !== null) this.toast.close();
       }
     });
   }
@@ -171,12 +179,23 @@ export class TodosPage {
   }
 
   async complete(item: ProjectTodoItem): Promise<void> {
-    if (this.restoreBlocked()) return;
+    if (this.writesBlocked()) return;
+    this.deleteRecovery.set(null);
+    this.toast.close('write');
+    const projectId = this.projectId();
+    const generation = this.recoveryGeneration;
+    const oldIndex = this.store.items().findIndex(candidate => this.idOf(candidate) === this.idOf(item));
+    const control = this.row(this.idOf(item))?.querySelector<HTMLElement>('[data-todo-complete]') ?? null;
     const applied = await this.store.complete(item);
-    if (!applied) return;
+    if (!applied || this.projectId() !== projectId || generation !== this.recoveryGeneration) return;
     // §39's progress may have moved, and a completed unit of work moves the work tree too.
     this.onProjectDataChange()();
-    if (item.kind === 'subproject') this.onProjectHierarchyChange()();
+    if (item.kind === 'subproject') {
+      this.onProjectHierarchyChange()();
+      this.toast.show({ ...workstreamCompletedFeedback(item.project.name), link: { projectId: item.project.id, label: `Open ${item.project.name}` } },
+        this.store.lastFeedbackReport() ?? undefined, () => this.nextControl(oldIndex));
+      this.focusToast(control, projectId, generation);
+    }
   }
 
   /** Reset native checkbox state from the synchronous optimistic patch, before awaiting it. */
@@ -187,12 +206,17 @@ export class TodosPage {
     const generation = this.recoveryGeneration;
     const box = event.target as HTMLInputElement;
     const focused = document.activeElement === box;
+    if (!this.writesBlocked()) {
+      this.deleteRecovery.set(null);
+      this.toast.close('write');
+    }
     const write = this.writesBlocked()
       ? Promise.resolve(false)
       : item.task.status === 'done' ? this.store.reopen(item) : this.store.complete(item);
     const current = this.store.items().find((candidate) => candidate.kind === 'task' && candidate.task.id === id);
     box.checked = current?.kind === 'task' && current.task.status === 'done';
     const applied = await write;
+    if (this.destroyRef.destroyed) return;
     if (this.projectId() !== projectId || this.recoveryGeneration !== generation) return;
     // A synchronous refusal can settle before Angular renders the optimistic value. Its
     // binding then sees the same prior value and skips the native box; use the current row,
@@ -210,8 +234,9 @@ export class TodosPage {
   }
 
   async delete(item: ProjectTodoItem): Promise<void> {
-    if (this.restoreBlocked() || item.kind !== 'task') return;
+    if (this.writesBlocked() || item.kind !== 'task') return;
     this.deleteRecovery.set(null);
+    this.toast.close('write');
     const projectId = this.projectId();
     const recoveryGeneration = this.recoveryGeneration;
     const title = item.task.title;
@@ -222,37 +247,61 @@ export class TodosPage {
       .find((row) => row.getAttribute('data-todo-id') === id);
     const focusedDelete = focusedRow?.querySelector<HTMLButtonElement>('[data-todo-delete]') ?? null;
     const focusStartedInDelete = focusedDelete !== null && document.activeElement === focusedDelete;
-    let managedFocusTarget: HTMLElement | null = null;
     const deletion = this.store.delete(item);
     const scheduleFocus = (restore: boolean): void => {
       if (!focusStartedInDelete) return;
       afterNextRender(() => {
         if (this.projectId() !== projectId) return;
         const active = document.activeElement;
-        if (active !== document.body && active !== null && active !== focusedDelete && active !== managedFocusTarget) return;
+        if (active !== document.body && active !== null && active !== focusedDelete) return;
         if (restore) {
           const restoredRow = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')]
             .find((row) => row.getAttribute('data-todo-id') === id);
-          managedFocusTarget = restoredRow?.querySelector<HTMLElement>('[data-todo-delete]') ?? null;
-          managedFocusTarget?.focus();
+          restoredRow?.querySelector<HTMLElement>('[data-todo-delete]')?.focus();
           return;
         }
-        const rows = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')];
-        const nextRow = rows[Math.min(oldIndex, rows.length - 1)];
-        // The store freezes row writes until the archive settles. The title link remains
-        // available during that interval and keeps focus with the next row.
-        managedFocusTarget = nextRow?.querySelector<HTMLElement>('[data-todo-link]') ??
-          this.host.nativeElement.querySelector<HTMLElement>('#todos-heading');
-        managedFocusTarget?.focus();
+        this.toast.focusFirst();
       }, { injector: this.injector });
     };
-    scheduleFocus(false);
     const applied = await deletion;
+    if (this.destroyRef.destroyed) return;
     if (applied && this.projectId() === projectId && this.recoveryGeneration === recoveryGeneration) {
       this.recoverySnapshot = this.store.items();
       this.deleteRecovery.set({ id, title, owner });
       this.onProjectDataChange()();
+      const report = this.store.lastFeedbackReport();
+      this.toast.show(taskArchivedFeedback(title), report === null ? undefined : { ...report, ...(owner ? { projectName: owner.name } : {}) }, () => this.nextControl(oldIndex));
+      this.focusToast(focusedDelete, projectId, recoveryGeneration);
     }
     if (!applied) scheduleFocus(true);
+  }
+
+  private row(id: string): HTMLElement | null {
+    return [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')]
+      .find(candidate => candidate.getAttribute('data-todo-id') === id) ?? null;
+  }
+
+  private nextControl(index: number): HTMLElement | null {
+    const rows = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')];
+    const ordered = [...rows.slice(index), ...rows.slice(0, index).reverse()];
+    return ordered.map(row => row.querySelector<HTMLElement>('[data-todo-toggle]:not([aria-disabled="true"]), [data-todo-complete]:not([disabled])')).find(control => control !== null)
+      ?? this.host.nativeElement.querySelector<HTMLElement>('#todos-heading');
+  }
+
+  private focusToast(control: HTMLElement | null, projectId: ProjectId, generation: number): void {
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.recoveryGeneration !== generation) return;
+      const active = document.activeElement;
+      if (active === document.body || active === null || active === control) this.toast.focusFirst();
+    }, { injector: this.injector });
+  }
+
+  async undoFeedback(): Promise<void> {
+    const report = this.toast.report();
+    await this.toast.undo();
+    if (this.toast.state()?.tone === 'status' && this.toast.report() === null) {
+      this.onProjectDataChange()();
+      if (report?.receipt?.operation === 'project.update') this.onProjectHierarchyChange()();
+    }
   }
 }

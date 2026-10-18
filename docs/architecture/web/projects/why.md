@@ -52,7 +52,7 @@ the mega-store §20 forbids. One `:has()` rule keyed on a declared attribute pla
 The optional-page toggles sit in that column
 ([decision](../../../decisions/2026-09-optional-page-management-lives-in-project-navigation.md)).
 
-**Page resolution is a positive rule** — root, navigable kind, enabled, renderable — so
+**Page resolution is a positive rule** — root, navigable kind, renderable, and enabled except for Archive — so
 `/pages/work` on a root falls back like any other non-tab instead of rendering a
 subproject canvas on a workspace. `PROJECT_PAGE_REGISTRY` lists navigable kinds only.
 
@@ -67,28 +67,29 @@ prevents a re-render loop in a zoneless app (`project-page-contract.ts`,
 controls replace the View/Edit split: users move from a grip, resize in supported column
 steps, rename at the title, and create at a visible insertion point. Settings appear only
 for a type with an inspector; removal is one ID-only gesture whose cascade and recovery are
-decided by the domain, and its Undo is the header's
+decided by the domain, and its receipt Undo appears in the acting toast
 ([canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md),
 [removal and Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
-**Undo and Redo live in the header, over the server's summary, and nowhere else** (Slice 41).
-Every recorded family — sections, shortcuts, rows, pages, the project — reaches the same two
-controls, which act on the **displayed project's** history; the canvas notice's Undo, which held
-one receipt for a subset of surfaces, would have been a second button for the same step. The
-header decides availability from **each entry's own** `blockedBy`, never the project-level one, or
-an archived project could not undo its own archive
-([decision](../../../decisions/2026-09-project-header-history-controls.md)).
+**Header Undo/Redo and receipt Undo share one guard.** The header covers the displayed project's
+whole history; a toast offers the exact step just committed, including another owner's action.
+Same-history availability waits through the owed read and uses each entry's own `blockedBy`, so an
+archived project can still undo its own archive. Cross-owner Undo reads and validates the owner's
+step at press time without changing the header's held summary
+([header history](../../../decisions/2026-09-project-header-history-controls.md),
+[one toast](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md)).
 
 **Ownership is read from `historyId`, not guessed at the write site.** A task list inside a
 shortcut writes a row its source sub-project owns, and a restore from root Archive can record in a
 descendant; so a writer reports the response's own project only for wording, and the store compares
-the receipt's history with the one it holds — re-reading when it cannot tell — before saying a step
-was "recorded in Kitchen's history". **Pending lasts until the owed re-read lands**, so the window
+the receipt's history with the one it holds — re-reading when it cannot tell — before opening
+cross-owner feedback with its receipt and Open owner. **Pending lasts until the owed re-read lands**, so the window
 between a write's response and its summary read never offers the pre-write step
 ([decision](../../../decisions/2026-09-project-header-history-controls.md)).
 
 **A history refusal is mapped, not parsed.** Every refusal carries the caller's current summary,
-which the store adopts before it words the reason; a transport failure re-reads rather than
+which the store adopts only for its own held history before it words the reason; a transport
+failure re-reads rather than
 assuming either outcome, which is what makes a lost response safe without a retry cache
 ([deferrals](../../../decisions/2026-09-history-stage-a-deferrals.md),
 [retired actions](../../../decisions/2026-09-operation-history-retired-actions.md)).
@@ -118,14 +119,13 @@ An uncertain write keeps an ID-only Retry remove, while a failed follow-up read 
 refresh. Stored operation history still executes earlier reassign actions
 ([decision](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md)).
 
-**The canvas keeps only the recovery the header cannot offer.** `SectionRecoveryNotice` offers
-Open Archive after a removal the server said Archive lists, an explicit Retry remove using the
-saved section id after an uncertain response, and a read-only Retry refresh after a committed write
-whose follow-up read failed; a forward write shows nothing, because the header's changed label is
-its confirmation. It floats at the viewport's end corner rather than in flow, so it never pushes
-the canvas under the pointer
-([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md),
-[header controls](../../../decisions/2026-09-project-header-history-controls.md)).
+**One confirmation owns its recovery actions.** The canvas toast acknowledges both listed and
+unlisted removals and offers the exact receipt's Undo. Open archive still follows the server's
+listing verdict. An uncertain removal retains its saved id for explicit Retry remove, and a
+committed write whose follow-up read failed offers read-only Retry refresh. One shared slot and
+the writer's own-feedback marker keep one write from opening two confirmations. Docking in the
+content track makes feedback predictable while the reserve keeps content reachable
+([decision](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md)).
 
 **A route is offered only when the person can take it.** The notice reads `archiveListed` off the
 removal result rather than inferring Archive from the operation's name, and a conflict's copy in
@@ -148,8 +148,9 @@ opens a collapsed target through a transient input that leaves the record alone
 
 **A root projection names the descendant history owner.** Todos and Archive show work from
 the whole root tree, while the header holds only the displayed project's current actor history.
-A separate owner link reaches that same header and its focus target; it does not offer a second
-Undo action or imply the row is the next action
+A separate owner link reaches that same header and its focus target; it does not imply the row
+is the next action. A newly committed write's toast can separately
+undo its own receipt after checking that it remains next
 ([decision](../../../decisions/2026-09-descendant-history-discovery.md)).
 
 ## Consequences
@@ -164,6 +165,9 @@ Undo action or imply the row is the next action
   away with the canvas — §23's "disappearing" by another route.
 
 ## Decisions that shape this system
+
+- [Feedback is one toast with Undo](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md) — one docked confirmation, shared ownership, timer and cross-owner receipt checks.
+- [Archive is always visitable](../../../decisions/2026-10-archive-is-always-visitable.md) — navigation visibility never gates recovery or records an enable while opening Archive.
 
 - [The Sub-Projects section is retired; Work is the hierarchy surface](../../../decisions/2026-10-retiring-the-sub-projects-section.md)
 
@@ -200,7 +204,7 @@ Undo action or imply the row is the next action
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page envelope the store ignores, and a removed page's Home fallback
 - [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project envelope every caller unwraps, and root projections re-reading on project-record frames from any root
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the same-URL recovery state and creator-only summary after Undo
-- [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header-only action surface, per-step blockers, write reporting, archive stays on the project
+- [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header controls, per-step blockers, write reporting, archive stays on the project; amended for receipt Undo
 - [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — a narrow column choice re-collapses the column and focuses its toggle across a reload
 
 ## Spec sections
@@ -227,3 +231,5 @@ history step. [Route focus](../../../decisions/2026-10-route-focus-lands-lost-fo
 recovers generic lost focus; explicit Archive intent belongs to root-lived projects state because
 navigation can destroy its initiating shell. [Creation defaults](../../../decisions/2026-10-creation-defaults-follow-the-open-work.md)
 now keep task quick-add in the list; workstream default/navigation changes remain pending.
+
+[One toast with receipt Undo](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md) keeps confirmations reachable from each acted region. [Always-visitable Archive](../../../decisions/2026-10-archive-is-always-visitable.md) makes visiting recovery navigation only, preserving the removal as the latest Undo.

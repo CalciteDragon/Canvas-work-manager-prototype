@@ -1099,8 +1099,8 @@ describe('ProjectPageStore (§19, §26)', () => {
       ['section-tasks', 0],
     ]);
     expect(reporter.events).toEqual(['begin', expect.objectContaining({ projectId: PROJECT, receipt: expect.objectContaining({ actionId: 'undo-section-text' }) }), 'end']);
-    expect(store.recoveryNotice()).toEqual({
-      message: 'Removed the Markdown section. Undo is in the header.',
+    expect(store.recoveryNotice()).toMatchObject({
+      message: 'Removed the Markdown section.',
       removal: { sectionId: 'section-text', archiveListed: true },
     });
   });
@@ -1119,15 +1119,20 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.recoveryNotice()).toBeNull();
   });
 
-  it('shows no notice for a removal Archive will not list: the header label confirms it', async () => {
+  it('confirms an unlisted removal with its receipt and no Archive action (§31, Slice 74)', async () => {
     const first = section('section-text', 'markdown', 0);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-unlisted'), archiveListed: false });
-    const { store, reporter } = setup({ sectionOverrides: { remove } });
+    const list = vi.fn().mockResolvedValueOnce([first]).mockResolvedValue([]);
+    const { store, reporter } = setup({ sectionOverrides: { remove, list } });
     await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection(first.id)).toBe(true);
-    expect(store.recoveryNotice()).toBeNull();
+    expect(store.recoveryNotice()).toMatchObject({
+      message: 'Removed the Markdown section.',
+      removal: { sectionId: first.id, archiveListed: false },
+      report: { projectId: PROJECT, receipt: expect.objectContaining({ actionId: 'undo-unlisted' }), feedback: 'own' },
+    });
     expect(reporter.receipts()).toEqual([expect.objectContaining({ actionId: 'undo-unlisted' })]);
   });
 
@@ -1149,7 +1154,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
 
     expect(reporter.receipts()).toEqual([undo]);
-    expect(store.recoveryNotice()).toEqual({ message: 'This section was already removed. Undo is in the header.', removal: { sectionId: 'section-text' } });
+    expect(store.recoveryNotice()).toMatchObject({ message: 'The Markdown section was already removed.', removal: { sectionId: 'section-text' } });
     expect(store.sections()).toEqual([]);
     expect(remove).toHaveBeenCalledTimes(1);
   });
@@ -1230,7 +1235,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     listed = [];
     expect(await store.retryFailedRemoval()).toBe(true);
     expect(remove).toHaveBeenLastCalledWith(next.id);
-    expect(store.recoveryNotice()?.message).toBe('Removed the Task List section. Undo is in the header.');
+    expect(store.recoveryNotice()?.message).toBe('Removed the Task List section.');
     expect(reporter.receipts().map((held) => held?.actionId)).toEqual(['undo-first', 'undo-second']);
     expect(store.failedRemoval()).toBeNull();
   });
@@ -2160,7 +2165,7 @@ describe('ProjectPageStore — every canvas write reports to the header’s hist
     await store.load(PROJECT, PAGE);
 
     expect(await store.moveSection(tasks.id, 0)).toBe(true);
-    expect(store.recoveryNotice()).toEqual({ message: 'Saved. Undo is in the header.', refreshFailed: true });
+    expect(store.recoveryNotice()).toEqual({ message: 'The change was saved, but this canvas could not be refreshed.', refreshFailed: true });
 
     expect(await store.retryRefresh()).toBe(true);
     expect(move).toHaveBeenCalledTimes(1);

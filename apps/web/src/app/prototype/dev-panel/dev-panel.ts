@@ -1,5 +1,6 @@
 import { CdkTrapFocus } from '@angular/cdk/a11y';
-import { ChangeDetectionStrategy, Component, HostListener, effect, signal, viewChild, type ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, effect, inject, signal, viewChild, type ElementRef } from '@angular/core';
+import { ToastSlot } from '../../shared/feedback/toast-slot';
 import { DevPanelControls } from './dev-panel-controls';
 
 /**
@@ -26,6 +27,12 @@ export class DevPanel {
   private readonly dialog = viewChild<ElementRef<HTMLElement>>('dialog');
 
   constructor() {
+    const toastSlot = inject(ToastSlot);
+    effect((onCleanup) => {
+      if (this.open()) toastSlot.suppress(this);
+      else toastSlot.release(this);
+      onCleanup(() => toastSlot.release(this));
+    });
     // Focus is moved explicitly rather than by `cdkTrapFocusAutoCapture`: that resolves on
     // zone stability, and this app is zoneless, so the capture never fires. The trap still
     // does its real job — keeping Tab inside the dialog once focus is there.

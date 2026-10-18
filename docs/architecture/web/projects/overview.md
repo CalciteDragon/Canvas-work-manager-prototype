@@ -4,7 +4,8 @@ Root Archive now presents only the domain's currently restorable archived items,
 owner first. Restoring an owner can reveal independently archived children; hidden live content
 and blocked descendants are absent from the list. Archived-root recovery is in workspace Settings.
 Root Todos and Archive rows owned by descendants link to that owner's existing header history;
-the displayed project's controls remain the only browser Undo and Redo surface.
+the displayed project's controls retain full-history Undo and Redo. A committed write's toast
+also offers Undo of its exact receipt, including a descendant-owned write.
 
 `apps/web/src/app/features/projects` is the project workspace (§23, §26–§32): the shell
 that serves both project routes, the project navigation column with its page toggles,
@@ -26,7 +27,7 @@ schema-version-6 converter was removed in Slice 66.
 ## Responsibilities
 
 - `ProjectWorkspaceShell`: both §68 project routes; resolves the page positively (root,
-  navigable kind, enabled, renderable) and falls back with a notice that survives the
+  navigable kind, renderable, and enabled except Archive) and falls back with a notice that survives the
   redirect; a subproject opens on its work canvas and keeps its root's column. While the
   column is collapsible (≤60rem), a chosen column link collapses it again and focuses its toggle
   once any reload has rendered (Slice 58). After project
@@ -38,12 +39,12 @@ schema-version-6 converter was removed in Slice 66.
 - `ProjectWorkspaceStore`: the project record, §39's progress, §26's writes, the `missing` state
   used by creation recovery, and the root's work tree — the things that describe the *project*
   rather than one page.
-- `ProjectHistoryStore` + `ProjectHistoryControls` + `ProjectHistoryFeedback` (`history/`):
+- `ProjectHistoryStore` + `ProjectHistoryControls` (`history/`):
   the header's Undo and Redo of the **displayed project's** history (Slice 41). The store is
   provided by the shell and bound to core's `OPERATION_HISTORY_REPORTER`, so every writer
   inside the workspace reports its receipts to it; it holds the server summary, the pending
-  state that covers each write's owed re-read, transitions and one feedback line, and words
-  all of it through the pure `history-feedback.ts`.
+  state that covers each write's owed re-read and a shared transition guard. It implements
+  `RECEIPT_UNDO` for the component-owned toast; pure `history-feedback.ts` words every confirmation.
 - `ProjectHeader`, `ProjectMoreMenu`, `ProjectDetailsDialog`, `ProjectArchiveConfirm`: the
   native menu, single-commit details draft and archive confirmation, with focus returned to More.
 - `ProjectPageNavigation`: the column — pages, the root-name page-settings gear, the Work plus and work tree —
@@ -53,7 +54,7 @@ schema-version-6 converter was removed in Slice 66.
   on refusal. The shell supplies the callback; the workspace store uses the existing project create.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
   flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
-  one-gesture removal (live rows cascade with their owner), plus canonical navigation to
+  one-gesture removal (live rows cascade with their owner), removal feedback with Undo, plus canonical navigation to
   `#section-<id>`. Every canvas write reports its receipt to the header's history; the canvas
   holds no receipt.
 - `SECTION_REGISTRY` and the section types: Markdown, Task List,
@@ -62,14 +63,14 @@ schema-version-6 converter was removed in Slice 66.
 - The three root pages: `TodosPage`, `ArchivePage`, `ReflectionsPage`, each with its
   store over the matching derived read. Todos owns its own task rows and Delete writes;
   Todos and Archive link descendant owners to their header controls. After a committed
-  Delete, Todos keeps a polite recovery status outside the chronology, with root Archive
-  access and the task owner's header guidance.
+  Delete, Todos confirms with receipt Undo and root Archive access in its own toast;
+  workstream Complete and Archive Restore use the same shared feedback slot.
 - Shortcuts on a canonical page (Home or a workstream's Work): `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
-- `SectionRecoveryNotice`: the canvas's recovery the header cannot offer — Open Archive after a
-  removal Archive lists, Retry remove after an uncertain removal, Retry refresh after a committed
-  write whose read failed — fixed at the viewport's end corner so it never shifts the canvas. It
-  offers **no Undo**; the Reflections page has no notice.
+- The canvas's `ReceiptToast`: removal acknowledgement and Undo, Open archive for a listed
+  removal, Retry remove after an uncertain removal and Retry refresh after a committed write's
+  read failed. The toast is docked in the content track with reserved space; shared `ToastSlot`
+  keeps all confirmation surfaces mutually exclusive.
 
 ## Not responsible for
 

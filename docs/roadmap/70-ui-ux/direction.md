@@ -46,6 +46,11 @@ action per surface.
    and Undo appear next to the change. Pending shows within 100 ms, and failures name the row
    that failed. Today a new section lands at y=872 on a 900 px screen with focus on the body,
    and removal says "Undo is in the header" (TH07, TH10: W1-024, W1-036, L4-005).
+   **Amended, 2026-10-17 (Slice 74, user choice):** confirmation and immediate Undo use one
+   predictable toast docked in the content track. “Where the user acted” means reachable
+   from that region, through local Tab order and guarded focus entry after a control vanishes.
+   Showing it never scrolls. Its reserve keeps the end of the canvas reachable; overlap with
+   the acted region is reported for Gate 2 judgement. Placement and saved feedback stay in Slice 75.
 7. **Motion explains change, then gets out of the way.** Durations are 120–240 ms. Only
    `transform` and `opacity` animate. Entering eases out, leaving eases in. Long lists never
    animate their layout, and reduced motion becomes a crossfade of 80 ms or less. Today nothing

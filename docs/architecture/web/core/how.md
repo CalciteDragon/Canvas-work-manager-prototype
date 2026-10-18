@@ -54,6 +54,13 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    project workspace the inert default swallows all three; inside one the shell's binding makes
    them reach `ProjectHistoryStore` ([why](../../../decisions/2026-09-project-header-history-controls.md)).
 
+Receipt feedback uses `RECEIPT_UNDO`, whose root default offers nothing. The workspace binds it to
+its history store. A component's `ReceiptToast` claims the shared `ToastSlot`, captures the current
+write sequence and generation, and closes when either changes. Retry remove uses an exempt write
+handle so it retains its toast. A writer with its own confirmation marks the report
+`feedback: 'own'`; cross-owner reporting reconciles history without a second announcement. Receipt Undo
+returns feedback to that same toast and shares the header's transition guard.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -67,6 +74,9 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 | `LiveUpdates` | interface | Subscribe to "go and look" | [API](../../../api/interfaces/LiveUpdates.html) |
 | `OperationHistoryReporter`, `OperationWriteHandle`, `OperationWriteReport` | interfaces | `begin()` hands out a per-write handle with `committed` and `end` | [API](../../../api/interfaces/OperationHistoryReporter.html) |
 | `reportedWrite` | function | Runs one write under a reporter | [API](../../../api/miscellaneous/variables.html#reportedWrite) |
+| `ReceiptUndo`, `ReceiptUndoResult` | interfaces | Receipt-specific offer and result without a feature dependency | [API](../../../api/interfaces/ReceiptUndo.html) |
+| `RECEIPT_UNDO` | token | Inert by default; bound by the workspace | [API](../../../api/miscellaneous/variables.html#RECEIPT_UNDO) |
+| `ReceiptToast` | class | Component-owned toast state, staleness and focus | [API](../../../api/classes/ReceiptToast.html) |
 | `PrototypeLiveUpdates` | injectable | `EventSource` client with reconnect | [API](../../../api/injectables/PrototypeLiveUpdates.html) |
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |
 | `ThemeService` | injectable | `data-theme` | [API](../../../api/injectables/ThemeService.html) |
@@ -85,6 +95,8 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 - `@angular/core`, `router`, `common`.
 - `shared/components/icon` (slice 72) — the sidebar's New project plus and the drawer's Close.
   It imports nothing from `core`, `features` or `prototype`.
+- `shared/feedback` — `ToastSlot` ownership used by `ReceiptToast` and suppression in the phone
+  navigation drawer. Shared feedback imports no core store or feature.
 
 **Depended on by**
 
@@ -110,8 +122,11 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 - **The drawer's state is `AppShell`'s.** `ShellStore` never learns whether it is open (§20);
   `app-shell.spec.ts` stubs `matchMedia` and pins semantics, dismissal, route close, create
   and resize. `inert` blocking and the real focus trap are `apps/e2e/phone-layout.spec.ts`'s.
-- **The reporter token names no feature.** `core/history` imports only contracts; the projects
-  feature implements it, and a shell spec asserts the binding reaches every writer.
+- **The reporter token names no feature.** The projects feature implements the core port, and a
+  shell spec asserts the binding reaches every writer. The separate core toast controller may
+  import shared feedback, never a feature store.
+- **The receipt Undo token names no feature.** Component feedback uses the port and shared slot;
+  `receipt-undo.spec.ts` proves its inert default and `receipt-toast.spec.ts` covers staleness.
 
 ## Commands
 
