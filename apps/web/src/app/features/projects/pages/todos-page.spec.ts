@@ -196,6 +196,29 @@ const rowFor = (fixture: Fixture, id: string) =>
   queryAll(fixture, '[data-todo-row]').find((row) => row.getAttribute('data-todo-id') === id)!;
 
 describe('TodosPage (§34)', () => {
+  it('keeps its pending Undo toast when a live refresh returns the deleted task first', async () => {
+    let resolveUndo!: (value: { tone: 'status'; message: string }) => void;
+    const undo = vi.fn(() => new Promise<{ tone: 'status'; message: string }>(resolve => { resolveUndo = resolve; }));
+    const item = taskItem('task-live');
+    const { fixture } = await render({ items: [item], receiptUndo: {
+      offer: () => 'ready', undo, writeSequence: signal(0), generation: signal(0),
+    } });
+    await fixture.componentInstance.delete(item);
+    await fixture.whenStable();
+    query(fixture, '[data-toast-undo]')!.focus();
+    const pending = fixture.componentInstance.undoFeedback();
+    (TestBed.inject(LIVE_UPDATES) as FakeLiveUpdates).emit({ type: 'task.restored', projectId: ROOT, rootProjectId: ROOT, entityId: 'task-live' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.toast.pendingUndo()).toBe(true);
+    expect(fixture.componentInstance.toast.state()?.message).toBe('Archived “Task task-live”.');
+    resolveUndo({ tone: 'status', message: 'Undone: Archived “Task task-live”.' });
+    await pending;
+    await fixture.whenStable();
+    expect(fixture.componentInstance.toast.state()?.message).toBe('Undone: Archived “Task task-live”.');
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-dismiss]'));
+  });
+
   it('renders reversible task toggles, cancelled tasks without a toggle, and workstream Complete', async () => {
     const { fixture } = await render({ items: [taskItem('task-done', { status: 'done', completedAt: AT }), taskItem('task-cancelled', { status: 'cancelled' }), subprojectItem('project-kitchen')] });
     const toggle = rowFor(fixture, 'task-done').querySelector<HTMLInputElement>('[data-todo-toggle]')!;

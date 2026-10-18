@@ -244,10 +244,9 @@ pnpm storybook                                        # :6006
   reverted after those source assertions failed.
 - **Optional-page history** lives in `page-history.spec.ts`: a first enable through the page
   manager, undone to an absent record and redone to the same page id with a second tab watching the
-  live frames and a reload proving persistence; Open archive from More recording one action while
-  re-opening an already-enabled page records none, a toggle from a nested work route still belonging
-  to the root's history, and a viewer of the displayed Archive page returning to Home — without the
-  re-enable offer — when the enable that created it is undone; and an agent's Reflections container
+  live frames and a reload proving persistence; Open archive from More navigating without a write,
+  a toggle from a nested work route still belonging to the root's history, and a viewer of the
+  displayed Archive page staying there when Undo removes its first-enable record; and an agent's Reflections container
   and row blocking the first-enable Undo, with the root's whole business and history state read back
   unchanged after the refusal.
 - **Duplication, Restore and placement history** live in `canvas-history.spec.ts`: a shortcut
@@ -436,3 +435,19 @@ ratio, in both themes at 1440 and 375. `ux/slice74.config.ts` owns ports
 `ux-output/slice74-baseline-source` build. Build the web app first.
 `build-sheet.mjs --profile 74` gates that file, closed-state geometry, phone overflow and the
 T05/T09 task costs, and fails when the verification is missing or incomplete.
+The profile-74 HTML includes the runtime screenshot gallery, an explicit mapping of all twenty
+findings and a visual-pair inventory separate from its mechanical gates. Supplemental baseline
+screenshots use `feedback-verification.json` in the before directory with `visualFocus` entries keyed
+by `row`, `theme` and `width`, matching the runtime collector. The sheet copies each supplied image
+and labels after-only evidence; missing visual pairs remain visible even when all gates pass.
+Run `node apps/e2e/ux/feedback-visual-pairs.mjs` from the repository root against the isolated
+Slice 74 servers to supplement the after evidence, then serve the preserved baseline build on
+the same web port and run it with `--before`. This opt-in script reseeds the scratch host for each
+case; run it only after other captures release that host. `--host`, `--web-origin`, `--build-dir`
+and `--output` override the server and evidence paths. It records the served build's index hash
+and prepares the same Kitchen task for both Restore captures. Rebuild the profile-74 sheet after
+both runs; these screenshots supplement rather than replace the runtime measurement gates.
+The supplemental records and `feedback-visual-*` images remain separate from the original
+runtime `focus` records and images; the gallery identifies each source and pairs only matching
+supplemental fixtures when both sources exist. Earlier baseline visual-only `focus` records
+are also supported.

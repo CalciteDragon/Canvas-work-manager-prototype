@@ -106,7 +106,8 @@ export class TodosPage {
       if (recovery !== null && items !== this.recoverySnapshot &&
         items.some((item) => item.kind === 'task' && item.task.id === recovery.id)) {
         this.deleteRecovery.set(null);
-        if (this.toast.report() !== null) this.toast.close();
+        // Its own Undo can publish the returning row before the transition response arrives.
+        if (this.toast.report() !== null && !this.toast.pendingUndo()) this.toast.close();
       }
     });
   }

@@ -1245,6 +1245,38 @@
       "projectId": "project-client-migration",
       "slice": 73,
       "note": "Slice73 live use (overdue-chaos,375 touch light): task sheet takes focus and covers the list; reviewing another task requires Close first. Three keyboard quick-adds kept focus without opening details. Details failure retained the draft and Discard returned to More. Keyboard Reflections toggle retained focus. The full-screen sheet tradeoff is deliberate; batch review remains worth watching."
+    },
+    {
+      "id": "note-2026-10-18-001",
+      "createdAt": "2026-10-18T11:24:51.985Z",
+      "route": "/projects/project-launch/pages/archive",
+      "projectId": "project-launch",
+      "slice": 74,
+      "note": "Slice 74 live use (busy-week, 1440 keyboard dark): removed a section and used toast Undo; focus returned to its heading. Deleted three tasks consecutively and restored two archived items; each confirmation stayed in the same dock and Restore focused its first action. The dock makes recovery predictable; at phone size it occupies a sizeable bottom band, so the reserved scroll space matters. No new blocking friction observed in this pass."
+    },
+    {
+      "id": "note-2026-10-18-002",
+      "createdAt": "2026-10-18T11:24:54.950Z",
+      "route": "/projects/project-launch/pages/archive",
+      "projectId": "project-launch",
+      "slice": 74,
+      "note": "Slice 74 live use (busy-week, 375 touch light): removed a section and used toast Undo; focus returned to its heading. Deleted three tasks consecutively and restored two archived items; each confirmation stayed in the same dock and Restore focused its first action. The dock makes recovery predictable; at phone size it occupies a sizeable bottom band, so the reserved scroll space matters. No new blocking friction observed in this pass."
+    },
+    {
+      "id": "note-2026-10-18-005",
+      "createdAt": "2026-10-18T11:26:14.350Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 74,
+      "note": "Slice 74 live use (nested-projects, 1440 keyboard dark): removed a section and used toast Undo; focus returned to its heading. Deleted three tasks consecutively and restored two archived items; each confirmation stayed in the same dock and Restore focused its first action. Created Lighting under Kitchen and undid it; completed Kitchen in Todos and undid it from the toast. The dock makes recovery predictable; at phone size it occupies a sizeable bottom band, so the reserved scroll space matters. No new blocking friction observed in this pass."
+    },
+    {
+      "id": "note-2026-10-18-006",
+      "createdAt": "2026-10-18T11:27:06.138Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 74,
+      "note": "Slice 74 live use (nested-projects, 375 touch light): removed a section and used toast Undo; focus returned to its heading. Deleted three tasks consecutively and restored two archived items; each confirmation stayed in the same dock and Restore focused its first action. Created Lighting under Kitchen and undid it; completed Kitchen in Todos and undid it from the toast. The dock makes recovery predictable; at phone size it occupies a sizeable bottom band, so the reserved scroll space matters. No new blocking friction observed in this pass."
     }
   ]
 }

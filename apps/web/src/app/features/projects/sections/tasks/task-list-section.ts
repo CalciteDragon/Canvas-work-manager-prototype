@@ -155,7 +155,8 @@ export class TaskListSection {
       const tasks = this.store.tasks();
       if (recovery !== null && tasks !== this.recoverySnapshot && tasks.some(({ id }) => id === recovery.id)) {
         this.deleteRecovery.set(null);
-        if (this.toast.report() !== null) this.toast.close();
+        // Its own Undo can publish the returning row before the transition response arrives.
+        if (this.toast.report() !== null && !this.toast.pendingUndo()) this.toast.close();
       }
     });
     // The same rule `ReflectionsSection` follows: load on mount, quietly re-read whenever

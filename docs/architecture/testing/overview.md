@@ -81,3 +81,8 @@ Slice 73 adds the native-lift keyboard and touch journeys in `lifts.spec.ts`, pl
 contrast. The before/after sheet's profile 73 gates closed-state geometry and open-lift semantics;
 open-lift and Design Lab geometry changes are reported. Native top-layer behaviour is proved in
 real browsers; component specs stub the native methods and test the component rules.
+
+Slice 74 adds `feedback.spec.ts` for receipt Undo, confirmation focus, timer and suppression,
+and Archive visits without writes. `ux/feedback-verification.ts` records clearance, blur,
+fallbacks and focus in both themes at desktop and touch sizes. Profile 74 pairs the matrix,
+maps the twenty findings, and audits the required feedback pictures separately from its gates.

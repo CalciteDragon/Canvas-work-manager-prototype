@@ -22,8 +22,50 @@ async function feedbackSheet(t, { changed = false, open = false, overflow = fals
     suppression: width === 375 ? { hidden: true, returned: true } : null,
   }))), focus: missingFocus ? [] : ['remove-listed', 'remove-unlisted', 'task-delete', 'project-archive', 'header-transition', 'cross-owner', 'archive-restore', 'todos-complete'].map(row => ({ row, passed: true })) });
   const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '74'], { encoding: 'utf8' });
-  return { result, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
+  return { result, dirs: f.dirs, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
 }
+
+test('profile 74 renders all twenty findings, copies feedback images and reports unpaired visual evidence', async t => {
+  const f = await feedbackSheet(t);
+  const verification = JSON.parse(await readFile(join(f.dirs[1], 'feedback-verification.json'), 'utf8'));
+  verification.focus[0] = { ...verification.focus[0], theme: 'dark', width: 1440,
+    screenshot: 'feedback-remove-listed-dark-1440.png', intersectsActedRegion: true };
+  await writeFile(join(f.dirs[1], verification.focus[0].screenshot), 'feedback screenshot');
+  await writeFile(join(f.dirs[1], 'feedback-verification.json'), JSON.stringify(verification));
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '74'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const html = await readFile(join(f.dirs[2], 'index.html'), 'utf8');
+  assert.match(html, /<title>Slice 74 · Feedback/);
+  const report = JSON.parse(await readFile(join(f.dirs[2], 'report.json'), 'utf8'));
+  const ids = ['W1-036', 'L4-026', 'L3-009', 'L6-016', 'L3-010', 'W1-037', 'W2-021', 'L1-023', 'L3-005', 'L6-015', 'W1-013', 'W4-007', 'L3-020', 'W1-047', 'W2-029', 'L3-021', 'W4-021', 'L4-010', 'W3-004', 'W4-020'];
+  assert.deepEqual(report.feedbackFindings.map(row => row.id).sort(), ids.sort());
+  for (const id of ids) assert.ok(html.includes(id), id);
+  assert.match(html, /After only; baseline capture unavailable/);
+  assert.match(html, /intersects acted region: true/);
+  assert.equal(await readFile(join(f.dirs[2], verification.focus[0].screenshot), 'utf8'), 'feedback screenshot');
+  assert.ok(report.feedbackVisualPairs.some(row => row.status === 'missing before and after'));
+  assert.ok(report.feedbackVisualPairs.some(row => row.status === 'after only'));
+  assert.match(html, /Visual evidence gaps/);
+  await writeFile(join(f.dirs[0], 'feedback-verification.json'), JSON.stringify({ commit: 'before', focus: [verification.focus[0]] }));
+  await writeFile(join(f.dirs[0], verification.focus[0].screenshot), 'genuine before feedback');
+  const paired = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '74'], { encoding: 'utf8' });
+  assert.equal(paired.status, 0, paired.stderr);
+  assert.equal(await readFile(join(f.dirs[2], 'before-' + verification.focus[0].screenshot), 'utf8'), 'genuine before feedback');
+  const pairedReport = JSON.parse(await readFile(join(f.dirs[2], 'report.json'), 'utf8'));
+  assert.equal(pairedReport.feedbackVisualPairs.find(row => row.row === 'remove-listed' && row.theme === 'dark' && row.width === 1440).status, 'paired');
+  verification.visualFocus = [{ row: 'remove-listed', theme: 'dark', width: 1440, screenshot: 'visual.png', visualSupplement: true }];
+  await writeFile(join(f.dirs[1], 'visual.png'), 'separate supplemental fixture');
+  await writeFile(join(f.dirs[1], 'feedback-verification.json'), JSON.stringify(verification));
+  const supplemented = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '74'], { encoding: 'utf8' });
+  assert.equal(supplemented.status, 0, supplemented.stderr);
+  const supplementedReport = JSON.parse(await readFile(join(f.dirs[2], 'report.json'), 'utf8'));
+  assert.equal(supplementedReport.feedbackVisualPairs.find(row => row.row === 'remove-listed' && row.theme === 'dark' && row.width === 1440).after, 'visual.png');
+  assert.equal(supplementedReport.feedback.focus[0].screenshot, verification.focus[0].screenshot);
+  assert.equal(supplementedReport.feedback.focus[0].intersectsActedRegion, true);
+  const supplementedHtml = await readFile(join(f.dirs[2], 'index.html'), 'utf8');
+  assert.match(supplementedHtml, /supplemental visual capture/);
+  assert.match(supplementedHtml, /measured runtime capture/);
+});
 
 test('profile 74 reports intended feedback movement and gates closed-state geometry', async t => {
   const allowed = await feedbackSheet(t, { changed: true, open: true });

@@ -736,10 +736,10 @@ export class ProjectPageStore {
   }
 
   /**
-   * Removes or retains one section. Its receipt goes to the header's history, which is where the
-   * removal's Undo lives (Slice 41); the canvas keeps only the recovery the header cannot offer —
-   * Open Archive when Archive will list the section, and Retry refresh when the follow-up read
-   * fails. One request always cascades live owned rows with the section.
+   * Removes or retains one section. Its receipt updates the header's history and is retained in
+   * the removal report for the canvas toast's exact-step Undo. The toast also offers Open archive
+   * when Archive lists the section, and Retry refresh when the follow-up read fails.
+   * One request always cascades live owned rows with the section.
    */
   removeSection(id: SectionId, options: { exempt?: boolean } = {}): Promise<boolean> {
     if (this.removalPendingState()) return Promise.resolve(false);
@@ -762,7 +762,7 @@ export class ProjectPageStore {
         if (error instanceof GatewayError && error.code === 'rule_violation') {
           const available = SectionAlreadyRemovedDetailsSchema.safeParse(error.details);
           if (available.success && available.data.sectionId === id) {
-            // The exact actor's earlier removal: its receipt goes to the header, not to a button here.
+            // The exact actor's earlier removal supplies both the history and the recovery toast.
             const recovered = this.reporter.begin({ exempt: true });
             const report: OperationWriteReport = { projectId, receipt: available.data.operation, feedback: 'own' };
             recovered.committed(report);

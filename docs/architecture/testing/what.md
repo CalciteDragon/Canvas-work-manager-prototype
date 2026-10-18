@@ -114,3 +114,12 @@ owns separate static/host ports and a scratch file. Profile 73 in build-sheet.mj
 geometry, validates roles/names and phone product overflow, requires complete lift/focus/fallback
 evidence and checks T03/T04/T08 against baseline budgets. Open-lift and Lab movement is reported;
 existing prototype scroll-region exceptions and reported-only contrast stay explicit.
+
+Slice 74 adds `feedback.spec.ts`, the five `shared/feedback/toast.stories.ts` browser stories,
+`ux/feedback-verification.ts` and the isolated `ux/slice74*.config.ts` production rig.
+`ux/feedback-visual-pairs.mjs` supplies reproducible supplemental baseline/after screenshots,
+separate from measured runtime focus records.
+Profile 74 gates closed-state geometry, overflow, feedback clearance/focus/blur/fallbacks and
+T05/T09 task costs; its gallery maps twenty findings and lists required visual pairs.
+Task List and Todos component regressions also hold an Undo response behind a returning live
+row, proving that the acting toast survives and shows the transition result.

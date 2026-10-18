@@ -1,6 +1,12 @@
 <!-- plan id="74" status="active" summary="Redesign slice 4a (TH07): one toast lift carries every confirmation and its Undo at the point of action; Archive is always visitable, so opening it records nothing" -->
 # Slice 74 — Feedback: toast and Undo where the user acted
 
+**Current execution state (2026-10-18):** implementation, independent review repairs, real use
+and the full comparison sheet are ready. Gate 2 has not been accepted. See
+[Execution resumption](#execution-resumption--gate-2-candidate-2026-10-18) for current evidence;
+the earlier paused handoffs are historical. All final verification is green; user acceptance
+is the only remaining step before the Outcome and phase closure.
+
 Redesign slice 4a under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Theme **TH07**,
 "Feedback is detached from the action", in [themes.json](../70-ui-ux/themes.json). This slice takes
 its confirmation and Undo half. The pending, saved and scroll-into-view half is
@@ -1094,3 +1100,59 @@ explicitly. No branch switch, push, developer-data reset or worktree operation w
 
 Background root and subagent test sessions were stopped at pause; the last production build
 finished successfully as it was being collected. Resume from the working tree, not a reset.
+
+## Execution resumption — Gate 2 candidate (2026-10-18)
+
+The handoff's implementation and evidence were committed as `c0edf0e` before this session.
+The slice remains active; the user has not accepted Gate 2. The older handoff paragraphs above
+are chronological evidence, not an instruction to redo their completed work.
+
+**Final review and repair.** Independent correctness and boundary/documentation reviewers
+checked the actual `efe8616..c0edf0e` diff. Boundary review found no violation. Documentation
+review found obsolete claims that Open archive records a change, Undo removes the Archive
+viewer, and the canvas holds no receipt; testing/how, projects/overview and the public
+`ProjectPageStore.removeSection` comment now describe the implemented behavior.
+
+Correctness review found one additional race: the live task read could return a deleted row
+before its receipt Undo response, causing Task List or Todos to close and invalidate the
+acting toast. Two deferred-response regressions failed for that reason, then passed with
+guards that preserve the toast while its Undo is pending. The combined TaskListSection,
+TodosPage and ReceiptToast suites passed 68 tests. Independent re-review confirmed that
+navigation and newer writes still close the toast and invalidate late responses.
+
+**Sheet.** The profile-74 HTML now has its own title, a twenty-finding mapping, a feedback
+gallery and an explicit visual-pair audit. All sixteen required theme/size pairs are present,
+alongside the 194 matrix pairs, with zero mechanical gate failures. Supplemental before and
+after captures use `apps/e2e/ux/feedback-visual-pairs.mjs`, now part of the change list; its
+operation is documented in testing/how. The exact Kitchen Restore example is prepared by
+creating and archiving the same task fixture on each side. Settings restores the seed's
+Legacy attic project; Alex uses an Alex-owned root because he does not own the seeded
+renovation root.
+
+The matrix folder's after label is `efe8616`, the HEAD at capture time; those captures included
+the implementation working tree later committed in `c0edf0e`. They are not evidence that the
+plan-only commit contains the feature. Supplemental captures disclose their actual source
+commit, working changes, build directory and index hash. Their `visualFocus` records and
+`feedback-visual-*` files remain separate from the original measured runtime evidence;
+independent re-review checked that no prior pass or geometry was attached to a new picture.
+
+**Use.** Busy-week and nested-projects were each exercised at 1440 keyboard/dark and 375
+touch/light on a separate disposable file. Each pass removed and Undid a section, quick-added
+tasks, deleted three consecutively and restored two items. Nested-projects also created
+Lighting under Kitchen and Undid it, then completed and Undid Kitchen on Todos. Alex opened
+his hidden Archive without any API write. Four observations are recorded in
+`.prototype/notes.json` as `note-2026-10-18-001`, `002`, `005` and `006`; the bottom band takes
+substantial phone space, and the reserved scroll space matters. No blocking friction appeared
+in these passes. Two duplicate execution notes were removed. MCP behavior is unchanged.
+
+**Verification.** The final production build is 1,068.76 kB, below 1,100 kB; the 850 kB warning
+still reports. Sheet-builder regressions passed 30/30; the full offline suite passed (root 9,
+contracts 370, repositories 202, web 1119, prototype-data 112, domain 846, mcp-tools 181,
+host 291), and the final Storybook build passed. `pnpm lint` including `docs:check`, `docs:api`
+and the full browser suite passed; e2e is **185/185 in one run** (12.5 min), with no failures
+or skipped tests. Logs are `.prototype/slice74-resume-{test,lint,build,storybook,e2e,sheet-test,docs-api}.log`.
+The independent final sheet review inspected full-size pictures at both widths and themes,
+confirmed all sixteen pairs and twenty finding mappings, and returned no substantive findings.
+Phone content overlap remains explicitly for the user's visual judgment. Goals and the umbrella
+now identify Slice 74 as implemented with Gate 2 pending,
+and leave Slice 75 planned. No Outcome or completion move is written before user acceptance.

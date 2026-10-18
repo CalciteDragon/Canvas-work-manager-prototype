@@ -90,6 +90,30 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('TaskListSection (§30, §66)', () => {
+  it('keeps its pending Undo toast when a live refresh returns the deleted task first', async () => {
+    let resolveUndo!: (value: { tone: 'status'; message: string }) => void;
+    const undo = vi.fn(() => new Promise<{ tone: 'status'; message: string }>(resolve => { resolveUndo = resolve; }));
+    TestBed.configureTestingModule({ providers: [{ provide: RECEIPT_UNDO, useValue: {
+      offer: () => 'ready', undo, writeSequence: signal(0), generation: signal(0),
+    } }] });
+    const { fixture, store, gateway } = await render();
+    query(fixture, '[data-task-delete]')!.click();
+    await fixture.whenStable();
+    const action = query(fixture, '[data-toast-undo]')!;
+    action.focus();
+    const pending = fixture.componentInstance.undoDelete();
+    gateway.tasks.list = async () => [task('task-1'), task('task-2')];
+    await store.refresh();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.toast.pendingUndo()).toBe(true);
+    expect(fixture.componentInstance.toast.state()?.message).toBe('Archived “Task task-1”.');
+    resolveUndo({ tone: 'status', message: 'Undone: Archived “Task task-1”.' });
+    await pending;
+    await fixture.whenStable();
+    expect(fixture.componentInstance.toast.state()?.message).toBe('Undone: Archived “Task task-1”.');
+    expect(document.activeElement).toBe(query(fixture, '[data-toast-dismiss]'));
+  });
+
   it('offers one receipt Undo for a descendant-owned task and lands lost Delete focus on it', async () => {
     const undo = vi.fn(async () => ({ tone: 'status' as const, message: 'Undone: Archived “Task task-1”.' }));
     TestBed.configureTestingModule({ providers: [{ provide: RECEIPT_UNDO, useValue: {
