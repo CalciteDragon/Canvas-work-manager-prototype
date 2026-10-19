@@ -1034,7 +1034,7 @@ collapses behind a labelled button and its links leave the tab order with it.
 
 Today the column lists Home, any enabled optional page this build can render, and the work
 hierarchy. Archive is also listed while it is current, even when hidden. Its page-settings toggle
-reads **Show Archive in navigation**. Root Archive is always visitable, including without a page
+reads **Archive** and controls navigation visibility. Root Archive is always visitable, including without a page
 record; Open archive navigates and records no write (*Slice 74*).
 
 Workspace **Settings → Archived projects** is a separate recovery route. It lists archived roots

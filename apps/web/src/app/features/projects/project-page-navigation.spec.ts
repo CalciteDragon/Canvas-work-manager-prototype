@@ -113,7 +113,8 @@ describe('ProjectPageNavigation (§23)', () => {
     })];
     const fixture = await render({ pages, activeKind: 'archive' });
     expect(query(fixture, '[data-page-kind="archive"]')?.getAttribute('aria-current')).toBe('page');
-    expect(query(fixture, '[data-page-toggle-kind="archive"]')?.textContent).toContain('Show Archive in navigation');
+    expect(query(fixture, '[data-page-toggle-kind="archive"] span')?.textContent?.trim()).toBe('Archive');
+    expect(query(fixture, '[data-page-toggle-kind="archive"] input')?.getAttribute('aria-label')).toBe('Show Archive page');
     fixture.componentRef.setInput('activeKind', 'home');
     fixture.detectChanges();
     expect(query(fixture, '[data-page-kind="archive"]')).toBeNull();

@@ -362,7 +362,7 @@ native opening and focus; no feature writes bypass the gateway.
 openArchive(returnTo) records the target URL in root-lived ProjectColumnFocusRequest.archiveUrl
 and navigates without a write. Root Archive resolves whether its page record is absent, hidden or
 shown; only its renderer accepts a nullable page id. Navigation lists a hidden Archive while it
-is current, and the toggle reads “Show Archive in navigation”. A rendered shell consumes the
+is current, and the toggle reads “Archive” while controlling navigation visibility. A rendered shell consumes the
 matching request when #archive-page-title exists; a different winning URL clears it. This explicit
 request survives shell replacement. Generic core route focus remains a fallback.
 

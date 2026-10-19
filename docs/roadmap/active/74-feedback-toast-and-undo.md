@@ -423,7 +423,7 @@ All are reproduced in [reproduction.json](../70-ui-ux/reproduction.json).
     - **Navigation.** Project navigation lists Archive when its record is enabled, and also while
       Archive is the current page, marked current (Open question 4). A hidden Archive leaves the
       list on the next navigation.
-    - **Page settings.** The Archive row reads "Show Archive in navigation". Its write is the
+    - **Page settings.** The Archive row reads "Archive". Its write is the
       existing page toggle and still records a history step, because hiding the page is a choice
       the user made.
     - **Open archive** is a router navigation with the existing landing on `#archive-page-title`,
@@ -580,7 +580,7 @@ Paths are under `apps/web/src/app/` unless stated.
 | `features/projects/project-header.html`, `.scss` | modify | Remove the feedback row |
 | `features/projects/project-workspace-store.ts`, `.spec.ts` | modify | Delete the archive-enable path; archive confirmation shown after the confirm closes |
 | `features/projects/project-page-registry.ts`, `.spec.ts` | modify | Archive always resolves for a root; nullable `pageId` on that variant |
-| `features/projects/project-page-navigation.ts`, `.html`, `.spec.ts` | modify | Archive listed when shown or current; "Show Archive in navigation" |
+| `features/projects/project-page-navigation.ts`, `.html`, `.spec.ts` | modify | Archive listed when shown or current; short "Archive" label |
 | `features/projects/project-canvas.ts`, `.html`, `.spec.ts` | modify | Removal, failure, refresh and result states in the toast; focus rule; clearance |
 | `features/projects/project-page-store.ts`, `.spec.ts` | modify | Always set the removal notice; keep its receipt and owner |
 | `features/projects/section-recovery-notice.*` (5 files) | delete | Replaced by the canvas toast |
@@ -646,7 +646,7 @@ Paths are under `apps/web/src/app/` unless stated.
 | `archived-projects-page.spec.ts`: the restore toast names project and status; Open it; focus fallback | L4-010 |
 | `project-page-registry.spec.ts`: Archive renders for a root whose record is missing, disabled or enabled; a workstream's Archive redirects | W4-020, §68 |
 | `project-workspace-shell.spec.ts`: Open archive sends no write and lands on the heading; `pageId` flipping between an id and `null` re-settles without a notice; the dead `enableKind` branch for Archive is gone | W4-020 |
-| `project-page-navigation.spec.ts`: Archive listed when shown or current; the label "Show Archive in navigation" | W4-020 |
+| `project-page-navigation.spec.ts`: Archive listed when shown or current; the label "Archive" | W4-020 |
 | `feedback.spec.ts` (e2e) | Acceptance 3, 4, 6–10 |
 
 `feedback.spec.ts` covers:
@@ -1102,6 +1102,25 @@ Background root and subagent test sessions were stopped at pause; the last produ
 finished successfully as it was being collected. Resume from the working tree, not a reset.
 
 ## Execution resumption — Gate 2 candidate (2026-10-18)
+
+**Gate 2 revision requested, 2026-10-18.** The user wants the visible page-settings label to
+stay **Archive**, while retaining its navigation-only toggle behavior. Use the ordinary
+`definition.label` and `Show {label} page` accessible-name pattern for this row. Update the
+existing navigation assertions first, run them red then green, amend the Archive decision,
+and correct the spec and projects/how. No routing, write or history changes. Rebuild and
+recapture the page-settings matrix cells, merge those into the reviewed after matrix with
+explicit provenance, and regenerate the sheet. A focused navigation suite, production build,
+capture/gate check and docs check verify this copy-only revision; the preceding full-suite
+results remain evidence for unchanged behavior. Gate 2 remains pending.
+
+The independent plan reviewer found no substantive concerns. The two existing missing/hidden
+Archive cases then failed on the old visible copy (expected Archive, received Show Archive in
+navigation), before the template was changed to the ordinary page-label pattern.
+All 24 navigation tests and the production build then passed. The matrix contains four
+page-settings cells (both themes at 1440 and 375), rather than the six initially assumed;
+all four were recaptured. Their source is disclosed in the after index and sheet report's
+`recaptures` field. Independent diff review found no substantive issue. Routing, toggle
+handlers and history code have no change in this revision.
 
 The handoff's implementation and evidence were committed as `c0edf0e` before this session.
 The slice remains active; the user has not accepted Gate 2. The older handoff paragraphs above

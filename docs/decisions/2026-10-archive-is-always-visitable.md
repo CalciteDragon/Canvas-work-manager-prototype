@@ -34,3 +34,8 @@ Visual acceptance remains with Slice 74 Gate 2.
 
 The navigation-tree slice replaces the page list or real use finds the shown-while-current
 rule confusing.
+
+**Amended, 2026-10-18 (Slice 74 Gate 2).** The user chose the shorter visible label **Archive**,
+matching the other page names, and the usual accessible name **Show Archive page**. The
+navigation-only toggle behavior, always-visitable route and write-free Open archive stay as
+decided above. Spec §23 and the project architecture describe the shorter label.
