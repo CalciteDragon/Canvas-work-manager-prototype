@@ -317,7 +317,7 @@ user raised the bundle's hard ceiling to 1100 kB after slice 73
 
 **Redesign slice 4 is split (2026-10-17, the user's choice).** TH07's 38 findings would not fit
 one sheet. [Slice 74](../completed/74-feedback-toast-and-undo.md) (completed, Gate 2 accepted) delivers the toast,
-inline Undo and confirmations, 20 findings. [Slice 75](../planned/75-feedback-pending-and-placement.md)
+inline Undo and confirmations, 20 findings. [Slice 75](../active/75-feedback-pending-and-placement.md)
 takes pending, saved, row failures and new items in view, 13 findings, plus the four TH15 quick-add
 findings slice 73 implemented. L3-016 goes to slice 5, L3-017, L3-012 and W4-031 to slice 6, and
 L3-023 to the agent connections slice. The user also answered W4-020: Archive is always

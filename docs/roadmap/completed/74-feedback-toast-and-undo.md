@@ -10,7 +10,7 @@ records the accepted result and the limits of its verification.
 Redesign slice 4a under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Theme **TH07**,
 "Feedback is detached from the action", in [themes.json](../70-ui-ux/themes.json). This slice takes
 its confirmation and Undo half. The pending, saved and scroll-into-view half is
-[slice 75](../planned/75-feedback-pending-and-placement.md). The user chose this split on
+[slice 75](../active/75-feedback-pending-and-placement.md). The user chose this split on
 2026-10-17.
 
 ## Goal
@@ -886,7 +886,7 @@ Busy-week and nested-projects desktop/touch use, plus Alex's write-free hidden A
 are recorded in the execution evidence and `.prototype/notes.json`.
 
 Pending/saved cues, row failures, scrolling new items into view and placement remain with
-[Slice 75](../planned/75-feedback-pending-and-placement.md). Section collapse, drag, Markdown
+[Slice 75](../active/75-feedback-pending-and-placement.md). Section collapse, drag, Markdown
 editor states and agent Revoke remain with their already assigned later slices. There is no
 open question blocking this slice; phone dock occupancy and the timer's untimed header
 alternative remain observations for later use. Slice 75 remains planned.
