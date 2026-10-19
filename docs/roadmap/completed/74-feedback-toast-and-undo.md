@@ -1,13 +1,13 @@
-<!-- plan id="74" status="active" summary="Redesign slice 4a (TH07): one toast lift carries every confirmation and its Undo at the point of action; Archive is always visitable, so opening it records nothing" -->
+<!-- completed-record id="74" closed="2026-10-18" summary="One receipt-specific Undo toast across project surfaces; Archive always visitable, short Archive label; reviewed evidence and Gate 2 accepted" -->
 # Slice 74 — Feedback: toast and Undo where the user acted
 
-**Current execution state (2026-10-18):** implementation, independent review repairs, real use
-and the full comparison sheet are ready. Gate 2 has not been accepted. See
+**Current execution state (2026-10-18):** the user accepted Gate 2 after the short Archive-label
+revision. Implementation, independent review repairs, real use and comparison evidence are complete. See
 [Execution resumption](#execution-resumption--gate-2-candidate-2026-10-18) for current evidence;
-the earlier paused handoffs are historical. All final verification is green; user acceptance
-is the only remaining step before the Outcome and phase closure.
+the earlier paused handoffs and pending-gate statements below are historical. The Outcome
+records the accepted result and the limits of its verification.
 
-Redesign slice 4a under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Theme **TH07**,
+Redesign slice 4a under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Theme **TH07**,
 "Feedback is detached from the action", in [themes.json](../70-ui-ux/themes.json). This slice takes
 its confirmation and Undo half. The pending, saved and scroll-into-view half is
 [slice 75](../planned/75-feedback-pending-and-placement.md). The user chose this split on
@@ -856,7 +856,47 @@ header's untimed Undo as the equivalent path. Implementation has not started.
 
 ## Outcome
 
-*Not yet written.*
+The user accepted Gate 2 on 2026-10-18 after asking that page settings keep the short
+**Archive** label. One [Toast and ToastSlot](../../../apps/web/src/app/shared/feedback/toast.ts)
+now carries confirmations, refusals and receipt-specific Undo across the supported surfaces.
+The [receipt controller](../../../apps/web/src/app/core/history/receipt-toast.ts) preserves
+ownership and staleness; the header retains full-history Undo/Redo. Archive is always
+visitable, and opening it records no write. Independent correctness, boundary, documentation
+and evidence reviews closed their substantive findings, including the task live-refresh/Undo
+race. The 194-cell sheet has zero gate failures, all sixteen required visual pairs and all
+twenty findings mapped; T05 costs two clicks and T09 one, within their baseline budgets.
+
+The accepted choices are the content-track dock, solid toast beside another lift, eight-second
+status timer paused by interaction, and no Undo on Settings recovery. Their reasons and
+trade-offs are recorded in [one toast with Undo](../../decisions/2026-10-feedback-is-one-toast-with-undo.md)
+and [always-visitable Archive](../../decisions/2026-10-archive-is-always-visitable.md). The user
+accepted the dock's visible phone overlap and the listed 12 px empty-header-row removal.
+The short Archive label keeps the same navigation-only behavior. No domain, contract, host,
+persistence, MCP or gateway behavior changed.
+
+Execution added the shared receipt controller and supplemental visual capture script within
+the reviewed scope. Runtime measurements and supplemental pictures are separate, with source
+provenance disclosed. Review also repaired phone document height and the closed toast host's
+grid gap. The full offline suite passed 3,130 tests, all 185 browser journeys passed in one
+run, and Storybook, API docs, lint and documentation checks passed. The later copy-only label
+revision passed the 24 navigation tests, production build, four refreshed page-settings cells
+and zero-gate sheet; the full browser suite was not repeated for that copy change. The final
+initial bundle is 1,068.76 kB under the 1,100 kB ceiling, with the existing 850 kB warning.
+Busy-week and nested-projects desktop/touch use, plus Alex's write-free hidden Archive visit,
+are recorded in the execution evidence and `.prototype/notes.json`.
+
+Pending/saved cues, row failures, scrolling new items into view and placement remain with
+[Slice 75](../planned/75-feedback-pending-and-placement.md). Section collapse, drag, Markdown
+editor states and agent Revoke remain with their already assigned later slices. There is no
+open question blocking this slice; phone dock occupancy and the timer's untimed header
+alternative remain observations for later use. Slice 75 remains planned.
+
+The spec, web/core/projects/tasks and testing architecture, recovery/history/optional-page
+decision amendments, guides, goals and umbrella describe the result. Implementation and
+review commits are `c0edf0e`, `ad2856e` and `e6decef`; the execution handoffs below preserve
+the earlier failures and their resolutions. The accepted sheet is the local artifact
+`apps/e2e/ux-output/sheet-74/index.html`, reproducible with the capture tooling described in
+[testing/how](../../architecture/testing/how.md#feedback-toast-slice-74).
 
 ## Execution handoff — paused at the user's request (2026-10-17)
 

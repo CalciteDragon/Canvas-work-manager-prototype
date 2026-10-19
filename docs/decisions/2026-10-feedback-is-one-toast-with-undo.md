@@ -67,3 +67,8 @@ the content (2,894 px on a 812 px phone). The window could scroll behind the app
 and it hid the 375 touch-target evidence: Chromium drops touch emulation for a full-page
 capture beyond the viewport. The regions are now fixed to the viewport, and a browser test
 holds the document to the viewport height on a long phone page.
+
+**Amended, 2026-10-18 (Gate 2 accepted).** The user accepted Slice 74's revised comparison
+sheet after keeping the page-settings label Archive. The dock, including its reported phone
+content overlap, timer, focus policy and receipt-specific Undo are accepted. Pending/saved
+feedback and placement remain with Slice 75; its implementation may surface further findings.

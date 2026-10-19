@@ -39,3 +39,7 @@ rule confusing.
 matching the other page names, and the usual accessible name **Show Archive page**. The
 navigation-only toggle behavior, always-visitable route and write-free Open archive stay as
 decided above. Spec §23 and the project architecture describe the shorter label.
+
+**Amended, 2026-10-18 (Gate 2 accepted).** The user accepted Slice 74's revised comparison
+sheet with the short Archive label and unchanged navigation-only behavior. Visual acceptance
+is complete; the routing and no-write rule stand.

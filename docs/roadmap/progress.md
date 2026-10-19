@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 74 | Slice 74 — Feedback: toast and Undo where the user acted | Redesign slice 4a (TH07): one toast lift carries every confirmation and its Undo at the point of action; Archive is always visitable, so opening it records nothing | [74-feedback-toast-and-undo.md](active/74-feedback-toast-and-undo.md) |
 
 ### Planned
 
@@ -114,4 +113,5 @@ verification follow-ups rather than feature slices.
 | 72 | Slice 72 — Primitives | 2026-10-16 | Shared control primitives and one SVG icon set adopted on every product surface; 33 findings closed, 4 advanced; Gate 2 accepted | [72-primitives.md](completed/72-primitives.md) |
 | 72.1 | Slice 72.1 — Primitives follow-ups | 2026-10-16 | Ghost buttons keep a faint edge at rest; the token lint reads style values held in TypeScript; stdio and import-lint timeouts grow with child processes | [72.1-primitives-follow-ups.md](completed/72.1-primitives-follow-ups.md) |
 | 73 | Slice 73 — Lifts and focus | 2026-10-17 | Redesign slice 3 (TH06): the task drawer, More and page settings are native top-layer lifts that take focus, close on Escape and return it; lost focus lands on the page heading after navigation. Gate 2 accepted. | [73-lifts-and-focus.md](completed/73-lifts-and-focus.md) |
+| 74 | Slice 74 — Feedback: toast and Undo where the user acted | 2026-10-18 | One receipt-specific Undo toast across project surfaces; Archive always visitable, short Archive label; reviewed evidence and Gate 2 accepted | [74-feedback-toast-and-undo.md](completed/74-feedback-toast-and-undo.md) |
 <!-- roadmap:end -->

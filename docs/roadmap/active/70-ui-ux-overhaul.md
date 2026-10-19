@@ -309,12 +309,14 @@ still records the options as they were presented.
 
 **State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slices 1–3 are
 [71](../completed/71-depth-tokens-and-theme.md), [72](../completed/72-primitives.md) and
-[73](../completed/73-lifts-and-focus.md), all complete. The umbrella stays active. The
+[73](../completed/73-lifts-and-focus.md), all complete. Slice
+[74](../completed/74-feedback-toast-and-undo.md) completes redesign 4a; 4b remains planned as
+Slice 75. The umbrella stays active. The
 user raised the bundle's hard ceiling to 1100 kB after slice 73
 ([decision](../../decisions/2026-08-initial-bundle-budget.md)); the 850 kB warning still reports.
 
 **Redesign slice 4 is split (2026-10-17, the user's choice).** TH07's 38 findings would not fit
-one sheet. [Slice 74](74-feedback-toast-and-undo.md) (implemented, Gate 2 pending) takes the toast,
+one sheet. [Slice 74](../completed/74-feedback-toast-and-undo.md) (completed, Gate 2 accepted) delivers the toast,
 inline Undo and confirmations, 20 findings. [Slice 75](../planned/75-feedback-pending-and-placement.md)
 takes pending, saved, row failures and new items in view, 13 findings, plus the four TH15 quick-add
 findings slice 73 implemented. L3-016 goes to slice 5, L3-017, L3-012 and W4-031 to slice 6, and
@@ -322,11 +324,12 @@ L3-023 to the agent connections slice. The user also answered W4-020: Archive is
 visitable, and its toggle only shows or hides it in navigation, so opening it records no Undo step.
 Later slices keep their numbers in the sequence below, not roadmap ids.
 
-**Slice 74 execution (2026-10-18).** One content-track toast now confirms writes and offers
-receipt-specific Undo; Archive visits write nothing. The implementation is in `c0edf0e`, with
-final review repairs and comparison-sheet completion recorded in its active plan. Busy-week and
-nested-projects desktop/touch use is recorded in `.prototype/notes.json`. Keep Slice 75 planned
-until the user judges Slice 74's Gate 2 sheet; pending/saved cues and placement remain deferred.
+**Slice 74 completed (2026-10-18).** The user accepted Gate 2 after the short Archive-label
+revision. One content-track toast confirms writes and offers receipt-specific Undo; Archive
+visits write nothing. Its record contains the independent reviews, 194-cell zero-gate sheet,
+sixteen visual pairs, twenty finding mappings and 185 passing browser journeys. Busy-week and
+nested-projects desktop/touch use is recorded in `.prototype/notes.json`. Slice 75 remains
+planned and is the next feedback slice; pending/saved cues and placement remain deferred.
 
 ### Slice 72 (Primitives) — planning brief
 
