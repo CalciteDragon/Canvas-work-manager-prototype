@@ -1,5 +1,12 @@
 # What the testing system is made of
 
+Slice 75 adds `apps/e2e/placement.spec.ts` for the browser-only facts of pending and placement:
+the pending row within 100 ms and the refused second submit, a failed or unconfirmable add, the
+empty-title and blank-name refusals with native validation out of the way, row failures, the
+drawer's Saving…/Saved/revert, reveal and focus after a section or shortcut create, the list held
+still below Recent Activity, and the per-card agent failure, at 1440 and 375 touch. It runs on the
+regular servers or on the isolated rig through `ux/slice75-behavior.config.ts`.
+
 Slice 74 adds `apps/e2e/feedback.spec.ts` for local receipt Undo, keyboard/touch focus, the
 timer, cross-owner staleness and no-write Archive visits. Its opt-in
 `ux/feedback-verification.ts` measures the toast's content-track clearance, focus, blur,
