@@ -102,6 +102,8 @@ export class ProjectCanvas {
   private readonly injector = inject(Injector);
   private pendingInsertion = signal<InsertionIntent | null>(null);
   private returnFocusTo: HTMLElement | null = null;
+  /** The placement a dialog create just made; closing the dialog reveals it instead of returning focus. */
+  private createdPlacementId: string | null = null;
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
   private readonly releasedTarget = signal<SectionId | null>(null);
   private lastTargetKey: string | null = null;
@@ -156,6 +158,7 @@ export class ProjectCanvas {
       columnSpan: intent.columnSpan,
       ...(title === null ? {} : { title }),
     });
+    if (result.ok) this.createdPlacementId = result.placementId ?? null;
     return result.ok ? null : result.message;
   };
   readonly createShortcutFromDialog = async (source: ShortcutSource): Promise<string | null> => {
@@ -169,6 +172,7 @@ export class ProjectCanvas {
       position,
       columnSpan: intent.columnSpan,
     });
+    if (result.ok) this.createdPlacementId = result.placementId ?? null;
     return result.ok ? null : result.message;
   };
 
@@ -213,13 +217,18 @@ export class ProjectCanvas {
     });
   }
 
-  private revealTarget(sectionId: SectionId): void {
-    const wrapper = [...this.host.nativeElement.querySelectorAll('[data-section-id]')].find(
-      (element) => element.getAttribute('data-section-id') === sectionId,
-    ) as HTMLElement | undefined;
-    if (wrapper === undefined) return;
+  /**
+   * Scrolls a placement to its top and focuses its heading: an arrival target, or a section or
+   * shortcut a dialog create just made (Slice 75). Returns false when nothing by that id is drawn.
+   */
+  private revealTarget(id: string): boolean {
+    const wrapper = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-section-id], [data-shortcut-id]')].find(
+      (element) => element.getAttribute('data-section-id') === id || element.getAttribute('data-shortcut-id') === id,
+    );
+    if (wrapper === undefined) return false;
     wrapper.scrollIntoView?.({ block: 'start' });
-    (wrapper.querySelector('[data-section-title]') as HTMLElement | null)?.focus({ preventScroll: true });
+    wrapper.querySelector<HTMLElement>('[data-section-title], [data-shortcut-title]')?.focus({ preventScroll: true });
+    return true;
   }
 
   definitionFor(type: string) {
@@ -289,6 +298,7 @@ export class ProjectCanvas {
     this.releaseLift = this.lifts.open(() => this.closeCreate());
     this.pendingInsertion.set(intent);
     this.returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.createdPlacementId = null;
     this.createDialogOpen.set(true);
   }
 
@@ -305,8 +315,13 @@ export class ProjectCanvas {
     this.createDialogOpen.set(false);
     this.pendingInsertion.set(null);
     const focusTarget = this.returnFocusTo;
+    const created = this.createdPlacementId;
     this.returnFocusTo = null;
-    afterNextRender(() => focusTarget?.isConnected && focusTarget.focus(), { injector: this.injector });
+    this.createdPlacementId = null;
+    afterNextRender(() => {
+      if (created !== null && this.revealTarget(created)) return;
+      if (focusTarget?.isConnected) focusTarget.focus();
+    }, { injector: this.injector });
   }
 
   resolvePosition(intent: InsertionIntent): number | null {

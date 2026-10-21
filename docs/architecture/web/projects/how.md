@@ -326,6 +326,11 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   from the store and translate its message at the callback boundary. `ShortcutPicker` reports
   its pending state to `SectionCreateDialog`, which blocks Back, Cancel and Escape until a
   shortcut write settles; success closes the dialog and refusal keeps the picker error visible.
+  A successful create resolves `{ ok: true, placementId }`, and closing the dialog scrolls that
+  section or shortcut to its top and focuses its heading (`[data-section-title]` or
+  `[data-shortcut-title]`, both `tabindex="-1"`) instead of returning focus to the insertion
+  point (Slice 75). A cancel, or a create that landed after the page changed and so names no
+  placement, returns focus to the opener as before.
   On entering shortcut mode, focus the persistent mode-switch control while sources load; the
   dialog's Tab trap recovers focus to an in-dialog control if the active element is not present.
 - **Browser geometry:** add the assertion to `apps/e2e/canvas-editing.spec.ts`; unit

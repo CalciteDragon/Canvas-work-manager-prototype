@@ -706,7 +706,8 @@ describe('ProjectPageStore (§19, §26)', () => {
     const { store, gateway } = setup();
     await store.load(PROJECT, PAGE);
 
-    expect(await store.addSection(definition())).toEqual({ ok: true });
+    // Slice 75: the result names the created placement so the canvas can reveal and focus it.
+    expect(await store.addSection(definition())).toEqual({ ok: true, placementId: 'section-2' });
 
     // The registry's default is what has to reach persistence — otherwise a new type's
     // config would silently start life as `{}`.
@@ -776,7 +777,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     )).toEqual(['section-text', 'section-new', 'shortcut-a', 'section-tasks']);
 
     reconcile.resolve([existingSections[0]!, inserted, section('section-tasks', 'task-list', 3)]);
-    expect(await adding).toEqual({ ok: true });
+    expect(await adding).toEqual({ ok: true, placementId: 'section-new' });
     expect(store.placements().map((placement) =>
       placement.kind === 'section' ? placement.section.id : placement.shortcut.id,
     )).toEqual(['section-text', 'section-new', 'shortcut-a', 'section-tasks']);
@@ -915,7 +916,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     )).toEqual(['section-text', 'shortcut-new', 'shortcut-a', 'section-tasks']);
 
     reconcile.resolve([inserted, shortcut('shortcut-a', 2)]);
-    expect(await adding).toEqual({ ok: true });
+    expect(await adding).toEqual({ ok: true, placementId: 'shortcut-new' });
     expect(await store.addShortcut({
       pageId: PAGE,
       sourceSectionId: 'section-source' as SectionId,

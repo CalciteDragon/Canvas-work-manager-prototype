@@ -78,8 +78,12 @@ export interface FailedSectionRemoval {
   message: string;
 }
 
-/** A canvas creation result belongs to its popup, so failures are returned instead of stored. */
-export type CanvasWriteResult = { ok: true } | { ok: false; message: string };
+/**
+ * A canvas creation result belongs to its popup, so failures are returned instead of stored. A
+ * success names the created placement so the canvas can reveal and focus it (Slice 75); a write
+ * that landed after its page changed has nothing on this canvas to name.
+ */
+export type CanvasWriteResult = { ok: true; placementId?: string } | { ok: false; message: string };
 
 interface ColumnSpanWriteState {
   nextSequence: number;
@@ -545,6 +549,7 @@ export class ProjectPageStore {
       if (!current()) return;
       this.insertPlacement({ kind: 'section', section: result.section }, result.section.position);
       if (!(await this.reconcileSections(projectId, pageId, generation))) this.markRefreshFailed(current);
+      return result.section.id;
     });
   }
 
@@ -557,6 +562,7 @@ export class ProjectPageStore {
       if (!current()) return;
       this.insertPlacement({ kind: 'shortcut', shortcut }, shortcut.position);
       await this.reconcileSections(projectId, pageId, generation);
+      return shortcut.id;
     });
   }
 
@@ -1034,7 +1040,7 @@ export class ProjectPageStore {
       projectId: ProjectId;
       pageId: ProjectPageId;
       generation: number;
-    }) => Promise<void>,
+    }) => Promise<string | void>,
   ): Promise<CanvasWriteResult> {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
@@ -1053,8 +1059,8 @@ export class ProjectPageStore {
     return this.track(() =>
       this.whileWriting(async (): Promise<CanvasWriteResult> => {
         try {
-          await operation({ current, projectId, pageId, generation });
-          return { ok: true };
+          const placementId = await operation({ current, projectId, pageId, generation });
+          return placementId === undefined || !current() ? { ok: true } : { ok: true, placementId };
         } catch (error) {
           return current() ? { ok: false, message: messageOf(error) } : { ok: true };
         }

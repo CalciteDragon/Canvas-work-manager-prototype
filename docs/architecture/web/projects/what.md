@@ -99,8 +99,8 @@ sequenceDiagram
 | `historyControl`, `transitionResultFeedback`, `transitionRefusalFeedback`, `crossOwnerFeedback`, `archivedHereFeedback`, `nextStepCopy` | `history/history-feedback.ts` | Pure confirmation and transition copy, exhaustive over the contract unions |
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer, label and `IconName` mark |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
-| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
-| `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, ID-only removal/retry, write reporting and recovery-notice state |
+| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion that reveals and focuses what it created, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
+| `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation that names the created placement, ID-only removal/retry, write reporting and recovery-notice state |
 | `ReceiptToast`, `Toast` | `core/history/receipt-toast.ts`, `shared/feedback/toast.ts` | One docked confirmation with receipt Undo, Open archive when listed, explicit removal retry or read-only refresh retry |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or shortcut creation at the selected canvas position |
 | `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |

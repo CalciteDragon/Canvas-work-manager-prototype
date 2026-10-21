@@ -32,7 +32,7 @@
     </button>
 
     <div class="shortcut-frame__heading">
-      <h2 [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
+      <h2 data-shortcut-title tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
         <span class="shortcut-frame__icon"><app-icon name="open" /></span>
         {{ name() }}
       </h2>

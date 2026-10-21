@@ -18,7 +18,7 @@ import {
   type Task,
 } from '@cwm/contracts';
 import { BehaviorSubject } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
@@ -509,6 +509,82 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     });
     expect(queryAll(fixture, '[data-shortcut-frame]')).toHaveLength(1);
     expect(query(fixture, '[data-section-create-dialog]')).toBeNull();
+  });
+
+  describe('bringing a created placement into view (Slice 75, W1-024, W3-016)', () => {
+    let scrolled: Element[];
+    beforeEach(() => {
+      scrolled = [];
+      // jsdom has no layout, so the reveal's scroll is observed rather than measured.
+      HTMLElement.prototype.scrollIntoView = vi.fn(function (this: HTMLElement) { scrolled.push(this); });
+    });
+    afterEach(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+
+    const openBeforeTasks = (fixture: Awaited<ReturnType<typeof render>>['fixture']): HTMLButtonElement => {
+      const opener = fixture.nativeElement.querySelector(
+        'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
+      ) as HTMLButtonElement;
+      opener.focus();
+      opener.click();
+      fixture.detectChanges();
+      return opener;
+    };
+
+    it('scrolls to the new section and focuses its heading, not the opener', async () => {
+      const { fixture } = await render();
+      const opener = openBeforeTasks(fixture);
+      query(fixture, '[data-create-section-submit]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const created = queryAll(fixture, '[data-section-item]')[1]!;
+      expect(created.dataset['sectionId']).not.toBe('section-tasks');
+      expect(scrolled).toEqual([created]);
+      expect(document.activeElement).toBe(created.querySelector('[data-section-title]'));
+      expect(document.activeElement).not.toBe(opener);
+    });
+
+    it('scrolls to a new shortcut and focuses its heading through data-shortcut-id', async () => {
+      const { fixture } = await render({ shortcutsAllowed: true, shortcutSources: [shortcutSource] });
+      query(fixture, '[data-insertion-point-button]')!.click();
+      fixture.detectChanges();
+      query(fixture, '[data-create-shortcut-mode]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      query(fixture, '[data-shortcut-add]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const wrapper = query(fixture, '[data-shortcut-id]')!;
+      expect(scrolled).toEqual([wrapper]);
+      expect(document.activeElement).toBe(wrapper.querySelector('[data-shortcut-title]'));
+    });
+
+    it('returns focus to the opener when the create has nothing on this canvas to name', async () => {
+      const { fixture } = await render();
+      // A write that landed after its page changed resolves ok with no placement.
+      vi.spyOn(fixture.componentInstance.store, 'addSection').mockResolvedValue({ ok: true });
+      const opener = openBeforeTasks(fixture);
+      query(fixture, '[data-create-section-submit]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(scrolled).toEqual([]);
+      expect(document.activeElement).toBe(opener);
+    });
+
+    it('a cancelled dialog returns focus to the opener as before', async () => {
+      const { fixture } = await render();
+      const opener = openBeforeTasks(fixture);
+      query(fixture, '[data-create-section-cancel]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(scrolled).toEqual([]);
+      expect(document.activeElement).toBe(opener);
+    });
   });
 
   it.each(['flow', 'grid'] as const)('previews and commits a snapped width in %s without moving its position', async (mode) => {

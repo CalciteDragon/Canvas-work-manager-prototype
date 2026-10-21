@@ -79,6 +79,17 @@ describe('ShortcutFrame (§27)', () => {
     expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Launch brief');
   });
 
+  it('lets the canvas focus its heading without adding it to the tab order (Slice 75, W3-016)', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = render();
+    const heading = query(fixture, '[data-shortcut-title]')!;
+
+    expect(heading.tagName).toBe('H2');
+    expect(heading.getAttribute('tabindex')).toBe('-1');
+    heading.focus();
+    expect(document.activeElement).toBe(heading);
+  });
+
   it('keeps layout controls available without exposing source editing or sizing controls', () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     const fixture = render();
