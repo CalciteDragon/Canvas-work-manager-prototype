@@ -223,6 +223,10 @@ export class TaskListStore {
           return;
         }
         this.tasksState.set(tasks);
+        // A row error for a task that has left the list has nothing left to describe.
+        if ([...this.rowErrorsState().keys()].some((id) => !tasks.some((task) => task.id === id))) {
+          this.rowErrorsState.update((errors) => new Map([...errors].filter(([id]) => tasks.some((task) => task.id === id))));
+        }
         const selectedTask = this.selectedTaskIdState();
         if (selectedTask !== null && !tasks.some(({ id }) => id === selectedTask)) {
           this.selectedTaskIdState.set(null);
@@ -240,6 +244,10 @@ export class TaskListStore {
   }
 
   selectTask(id: TaskId | null): void {
+    // A settled Saved belongs to the moment it was said; reopening a drawer must not replay it.
+    if (id !== this.selectedTaskIdState() && [...this.fieldSavesState().values()].some(({ save }) => save.state === 'saved')) {
+      this.fieldSavesState.update((saves) => new Map([...saves].filter(([, { save }]) => save.state !== 'saved')));
+    }
     this.selectedTaskIdState.set(id);
   }
 
@@ -285,9 +293,15 @@ export class TaskListStore {
         try {
           const tasks = await this.gateway.tasks.list({ sectionId, includeArchived: false });
           if (!ours()) return 'stale';
-          this.tasksState.set(tasks);
           this.pendingCreateState.set(null);
-          if (tasks.some((task) => task.title === title && !known.has(task.id))) return 'added';
+          const committed = tasks.find((task) => task.title === title && !known.has(task.id));
+          if (this.pendingMutations > 1) {
+            // Other writes are in flight, so their rows keep their optimistic paint: only a
+            // committed row is merged, and the rest of the read waits for the queued refresh.
+            this.refreshQueued = true;
+            if (committed !== undefined) this.tasksState.update((current) => (current.some(({ id }) => id === committed.id) ? current : [...current, committed]));
+          } else this.tasksState.set(tasks);
+          if (committed !== undefined) return 'added';
           this.createErrorState.set(`Couldn’t add “${title}”. Try again. ${messageOf(error)}`);
           return 'failed';
         } catch {
@@ -507,7 +521,13 @@ export class TaskListStore {
   }
 
   private setFieldSave(id: TaskId, field: TaskDrawerField, save: TaskFieldSave): void {
-    this.fieldSavesState.update((saves) => new Map(saves).set(fieldKey(id, field), { id, field, save }));
+    // Re-inserted, not updated in place, so iteration order is recency and the drawer announces
+    // the field that changed last.
+    this.fieldSavesState.update((saves) => {
+      const next = new Map(saves);
+      next.delete(fieldKey(id, field));
+      return next.set(fieldKey(id, field), { id, field, save });
+    });
   }
 
   private enqueue<T>(key: string, operation: () => Promise<T>): Promise<T> {

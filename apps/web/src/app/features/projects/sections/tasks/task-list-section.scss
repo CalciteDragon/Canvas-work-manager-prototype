@@ -9,16 +9,33 @@
 
 // Sticky while its list is on screen (Slice 75, the user's answer to L4-023), so a long list can
 // scroll a new row into view without taking the add field, and its focus, off screen. At rest it
-// sits exactly where it did; once stuck it paints its section's sheet so rows pass beneath it.
+// is exactly what it was: transparent over its section's sheet. Only once stuck does its plate
+// paint the solid sheet so rows pass beneath it unseen. Painting it at rest would composite the translucent
+// sheet twice. Engines without scroll-state queries keep the rest state and show rows through.
 .quick-create {
   position: sticky;
   inset-block-start: 0;
   z-index: var(--z-sticky-control);
+  container-type: scroll-state;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: var(--space-3);
-  background: var(--plane-sheet-background);
+}
+
+.quick-create__plate {
+  position: absolute;
+  z-index: var(--z-behind);
+  inset: 0;
+  pointer-events: none;
+}
+
+// Solid, not the translucent sheet: rows passing beneath must not read through the field.
+@container scroll-state(stuck: top) {
+  .quick-create__plate {
+    background: var(--plane-sheet-solid);
+  }
 }
 
 .quick-create__error {

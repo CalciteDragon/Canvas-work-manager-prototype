@@ -985,3 +985,61 @@ describe('TaskListStore optimistic field edits (Slice 75, §63, L3-008)', () => 
     await editing;
   });
 });
+
+describe('TaskListStore after review (Slice 75)', () => {
+  it('orders field saves by recency, so the drawer announces the latest field', async () => {
+    const { store } = setup({ update: vi.fn(async (_id, input) => resultOf(task(input as Partial<Task>))) });
+    await store.load(section());
+    store.selectTask(task().id);
+
+    await store.updatePriority(task().id, 'high');
+    await store.updateDueDate(task().id, '2026-09-03');
+    await store.updatePriority(task().id, 'low');
+
+    expect(Object.keys(store.selectedFieldSaves()).at(-1)).toBe('priority');
+  });
+
+  it('a failed add’s owed read never repaints rows with edits in flight', async () => {
+    const answer = deferred<TaskWriteResult>();
+    const { store } = setup({
+      update: vi.fn(() => answer.promise),
+      create: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); }),
+    });
+    await store.load(section());
+
+    const editing = store.updatePriority(task().id, 'high');
+    expect(await store.create('Order tiles')).toBe('failed');
+    expect(store.tasks()[0]?.priority).toBe('high');
+
+    answer.resolve(resultOf(task({ priority: 'high' })));
+    await editing;
+  });
+
+  it('forgets a row error once its task has left the list', async () => {
+    const tasks = [task(), task({ id: 'task-b', title: 'B' })];
+    const { store, gateway } = setup({ tasks, complete: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); }) });
+    await store.load(section());
+    await store.complete('task-b' as TaskId);
+    expect(store.rowErrors().has('task-b' as TaskId)).toBe(true);
+
+    vi.mocked(gateway.tasks.list).mockResolvedValue([task()]);
+    await store.refresh();
+    expect(store.rowErrors().has('task-b' as TaskId)).toBe(false);
+  });
+
+  it('drops a settled Saved when another task is selected, keeping a failure', async () => {
+    const tasks = [task(), task({ id: 'task-b', title: 'B' })];
+    const update = vi.fn<WorkManagerGateway['tasks']['update']>()
+      .mockImplementationOnce(async () => resultOf(task({ priority: 'high' })))
+      .mockImplementationOnce(async () => { throw new GatewayError('unreachable', 0, 'offline'); });
+    const { store } = setup({ tasks, update });
+    await store.load(section());
+    await store.updatePriority(task().id, 'high');
+    await store.updateDueDate(task().id, '2026-09-03');
+
+    store.selectTask('task-b' as TaskId);
+    store.selectTask(task().id);
+    expect(store.fieldSave(task().id, 'priority')).toBeNull();
+    expect(store.fieldSave(task().id, 'dueAt')?.state).toBe('failed');
+  });
+});

@@ -93,6 +93,8 @@
   --duration-fast-base: 120ms;
   --duration-base-base: 180ms;
   --duration-slow-base: 240ms;
+  /* How long a field's "Saved" stays readable before it fades (Slice 75); a hold, not motion. */
+  --feedback-saved-hold: 2s;
   --motion-scale: 1;
   --motion-duration-cap: 9999ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);

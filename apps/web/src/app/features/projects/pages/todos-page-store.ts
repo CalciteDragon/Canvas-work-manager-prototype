@@ -395,6 +395,10 @@ export class TodosPageStore {
           return;
         }
         this.itemsState.set(result.items);
+        // A row error for a row that has left the chronology has nothing left to describe.
+        if ([...this.rowErrorsState().keys()].some((id) => !result.items.some((item) => todoIdOf(item) === id))) {
+          this.rowErrorsState.update((errors) => new Map([...errors].filter(([id]) => result.items.some((item) => todoIdOf(item) === id))));
+        }
         this.errorState.set(null);
         this.refreshErrorState.set(null);
       } catch (error) {

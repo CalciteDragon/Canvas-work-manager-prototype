@@ -379,7 +379,7 @@ textarea.field {
 // Saved stays legible for two seconds, then fades; reduced motion caps the fade itself.
 .field-status--saved {
   color: var(--color-success);
-  animation: field-status-settle var(--duration-slow) var(--ease-out) 2s forwards;
+  animation: field-status-settle var(--duration-slow) var(--ease-out) var(--feedback-saved-hold) forwards;
 }
 
 @keyframes field-status-settle {

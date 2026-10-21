@@ -6,7 +6,7 @@
  *
  * The working placement is the one holding focus, or the last one pressed. Each `check` compares
  * its top with the baseline and scrolls by the difference. Growth below it never moves its top,
- * so it never scrolls. Any scroll since the last check, whether the person's or a reveal's, is
+ * so it never scrolls. Any scroll the hold did not make, whether the person's or a reveal's, is
  * left standing and becomes the new baseline. At scroll offset 0, or with the placement off
  * screen, there is nothing in view to hold, so it only rebases.
  */
@@ -22,6 +22,14 @@ export class ScrollHold {
   setWorking(element: HTMLElement | null): void {
     this.working = element;
     this.rebase();
+  }
+
+  /**
+   * Called on the scroller's `scroll`: a scroll the hold did not make (the person's, or a reveal's)
+   * becomes the baseline at once, so growth that follows is held from where it left the page.
+   */
+  noteScroll(): void {
+    if (this.scroller.scrollTop !== this.baselineScroll) this.rebase();
   }
 
   /** Called after layout changes; scrolls by however far growth above moved the working placement. */
@@ -71,7 +79,11 @@ const scrollerOf = (element: HTMLElement): HTMLElement => {
  */
 export const attachScrollHold = (host: HTMLElement, placementSelector: string): (() => void) => {
   if (typeof ResizeObserver === 'undefined' || typeof MutationObserver === 'undefined') return () => undefined;
-  const hold = new ScrollHold(scrollerOf(host));
+  const scroller = scrollerOf(host);
+  const hold = new ScrollHold(scroller);
+  // The document's scroller reports scroll on the window, not on itself.
+  const scrollTarget: EventTarget = scroller === document.scrollingElement ? window : scroller;
+  const scrolled = () => hold.noteScroll();
   const dragging = () => host.querySelector('.cdk-drop-list-dragging') !== null;
   const resizes = new ResizeObserver(() => (dragging() ? hold.setWorking(null) : hold.check()));
   const observePlacements = () => host.querySelectorAll<HTMLElement>(placementSelector).forEach((element) => resizes.observe(element));
@@ -84,7 +96,9 @@ export const attachScrollHold = (host: HTMLElement, placementSelector: string): 
   mutations.observe(host, { childList: true, subtree: true });
   host.addEventListener('focusin', work);
   host.addEventListener('pointerdown', work);
+  scrollTarget.addEventListener('scroll', scrolled, { passive: true });
   return () => {
+    scrollTarget.removeEventListener('scroll', scrolled);
     resizes.disconnect();
     mutations.disconnect();
     host.removeEventListener('focusin', work);

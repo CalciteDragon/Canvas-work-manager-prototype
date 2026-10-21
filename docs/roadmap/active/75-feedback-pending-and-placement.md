@@ -535,3 +535,37 @@ implementation has not begun.
   now a utility in `styles/_base.scss`, used by the quick-add and drawer live regions as well.
 - **`apps/e2e/web.spec.ts:340`** reads the Todos completion error and changes with Open question
   5's answer; the Stage 0 re-grep added it to the e2e list.
+
+**Step 4 review (2026-10-20).** Two reviewers read the diff `e15f3b7..HEAD`: one for correctness
+and boundaries, one for spec, acceptance and documentation. No boundary violations. Each finding
+was checked against the code. Fixed, with tests:
+
+- **Drawer announcement.** Field saves were ordered by first edit, so the polite region could
+  repeat an older field and stay silent. Saves are now ordered by recency, and the region empties
+  while the latest field saves, so a repeat save is spoken again.
+- **The failed add's owed read.** It replaced the whole list while other edits were in flight,
+  repainting their old values. It now merges only a committed row and queues the refresh when
+  other writes are pending.
+- **The hold and scrolling.** `ScrollHold` now rebases on the scroller's `scroll` events it did
+  not cause, so a wheel scroll with no resize after it cannot be undone. `attachScrollHold`
+  gained a test with a stub `ResizeObserver`.
+- **The sticky add form.** Its translucent background composited twice at rest. Measured
+  per-pixel on both builds, it was a 6-level shift over 20–36k pixels. It is now transparent at
+  rest, and a solid sheet plate appears only when stuck, through `scroll-state(stuck: top)`. At
+  rest the form is pixel-identical. Engines without the query keep the rest state and show rows
+  through when stuck.
+- **Smaller fixes.** A refusal clears when the sidebar form reopens. A settled "Saved" is dropped
+  on reselect, so it never replays. Row errors for rows that left the list are pruned, on the
+  Task List and on Todos. The 2 s Saved hold is now the `--feedback-saved-hold` token.
+
+Recorded, not changed:
+
+- A failed Revoke still uses the agents page alert; Revoke was outside this slice.
+- Todos' workstream Complete keeps its pre-existing `[disabled]`.
+- `ScrollHold` re-queries placements on canvas mutations and never unobserves removed ones. This
+  is disposable code with a small cost.
+- Acceptance 16's in-view add and title edit are measured in the Execution notes probe, not by a
+  gate. The gate and `placement.spec.ts` assert the two completions.
+- Sam cannot open Kitchen, so the slice-73 pair uses a root of Sam's own with one Task List.
+- The pre-73 run's drawer selector found no open drawer. The pair's screenshots, not that
+  measurement, are the evidence for it.

@@ -1,6 +1,7 @@
 <div class="task-list-section">
   @if (!readOnly()) {
     <form data-quick-create class="quick-create" novalidate (submit)="quickCreate($any($event), quickTitle)">
+      <span class="quick-create__plate" aria-hidden="true"></span>
       <label class="control-label quick-create__title">
         <span>Task title</span>
         <input

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { ScrollHold } from './scroll-hold';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ScrollHold, attachScrollHold } from './scroll-hold';
 
 /** A scroller and placements whose geometry the test moves by hand, as layout would. */
 const harness = (options: { scrollTop?: number; viewport?: number } = {}) => {
@@ -139,5 +139,68 @@ describe('ScrollHold (Slice 75, W1-030, W2-010)', () => {
     second.moveBy(48);
     hold.check();
     expect(scrollTop()).toBe(448);
+  });
+});
+
+describe('ScrollHold after a scroll with no resize (Slice 75 review)', () => {
+  it('takes a scroll it did not make as the new baseline, so later growth is held from there', () => {
+    const { scroller, placement, scrollTop, scrollBy } = harness();
+    const list = placement(300);
+    const hold = new ScrollHold(scroller);
+    hold.setWorking(list.element);
+
+    scrollBy(200);
+    hold.noteScroll();
+    list.moveBy(48);
+    hold.check();
+
+    expect(scrollTop()).toBe(648);
+    expect(list.element.getBoundingClientRect().top).toBe(100);
+  });
+
+  it('ignores its own correction', () => {
+    const { scroller, placement, scrollTop } = harness();
+    const list = placement(300);
+    const hold = new ScrollHold(scroller);
+    hold.setWorking(list.element);
+    list.moveBy(48);
+    hold.check();
+    hold.noteScroll();
+    list.moveBy(10);
+    hold.check();
+    expect(scrollTop()).toBe(458);
+  });
+});
+
+describe('attachScrollHold (Slice 75 review)', () => {
+  let observed: Element[];
+  let disconnected: number;
+  beforeEach(() => {
+    observed = [];
+    disconnected = 0;
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      observe(element: Element) { observed.push(element); }
+      unobserve() { /* not used */ }
+      disconnect() { disconnected += 1; }
+    };
+  });
+  afterEach(() => {
+    delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+  });
+
+  it('observes the placements, follows focus into one, and lets go on dispose', () => {
+    const host = document.createElement('div');
+    host.innerHTML = '<div class="item"><button>A</button></div><div class="item"><button>B</button></div>';
+    document.body.append(host);
+    const listen = vi.spyOn(host, 'removeEventListener');
+
+    const release = attachScrollHold(host, '.item');
+    expect(observed).toEqual([...host.querySelectorAll('.item')]);
+    host.querySelectorAll('button')[1]!.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+
+    release();
+    expect(disconnected).toBe(1);
+    expect(listen.mock.calls.map(([type]) => type)).toEqual(expect.arrayContaining(['focusin', 'pointerdown']));
+    host.remove();
   });
 });

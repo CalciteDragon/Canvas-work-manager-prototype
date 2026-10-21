@@ -254,6 +254,21 @@ it('says its edits save automatically (Slice 75, L3-008)', async () => {
     expect(regions[0]!.textContent?.trim()).toBe('Estimate saved.');
   });
 
+  it('announces the field that changed last, and says a repeat save again', async () => {
+    const { fixture, element } = await render();
+    const region = () => element.querySelector('[data-task-save-announcement]')?.textContent?.trim();
+    fixture.componentRef.setInput('saveStates', { title: { state: 'saved' }, priority: { state: 'saved' } });
+    await fixture.whenStable();
+    expect(region()).toBe('Priority saved.');
+
+    fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, title: { state: 'saving' } });
+    await fixture.whenStable();
+    expect(region()).toBe('');
+    fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, title: { state: 'failed', message: 'Not saved. Try again. offline' } });
+    await fixture.whenStable();
+    expect(region()).toBe('Title: Not saved. Try again. offline');
+  });
+
   it('never shows the blank-title alert and a title save failure together', async () => {
     const { fixture, element } = await render();
     fixture.componentRef.setInput('saveStates', { title: { state: 'failed', message: 'Not saved. Try again. offline' } });

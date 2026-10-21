@@ -57,12 +57,13 @@ export class TaskDetailDrawer {
       return { text: statusText(save), state: save.state, id: `task-field-status-${this.task().id}-${field}` };
     };
   });
-  /** One polite sentence for the most recent change; failures and saves alike. */
+  /** One polite sentence for the field that changed last; failures and saves alike. */
   readonly announcement = computed(() => {
     const saves = this.saveStates();
-    const entries = (Object.keys(saves) as TaskDrawerField[]).filter((field) => saves[field]!.state !== 'saving');
-    const field = entries.at(-1);
-    if (field === undefined) return '';
+    // The store orders saves by recency. While the latest field is saving the region is empty, so
+    // the same field saved twice is said twice.
+    const field = (Object.keys(saves) as TaskDrawerField[]).at(-1);
+    if (field === undefined || saves[field]!.state === 'saving') return '';
     const save = saves[field]!;
     return save.state === 'saved' ? `${FIELD_NAMES[field]} saved.` : `${FIELD_NAMES[field]}: ${statusText(save)}`;
   });

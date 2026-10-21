@@ -178,6 +178,20 @@ describe('Sidebar', () => {
     expect(field.getAttribute('aria-invalid')).toBeNull();
   });
 
+  it('forgets a refusal when the form is closed and opened again', async () => {
+    const { fixture, element } = await render();
+    const name = await openCreateForm(fixture, element);
+    name.value = '';
+    element.querySelector<HTMLElement>('[data-create-project-submit]')!.click();
+    await fixture.whenStable();
+    expect(element.querySelector('[data-create-project-name-error]')).not.toBeNull();
+
+    element.querySelector<HTMLElement>('[data-new-project]')!.click();
+    await fixture.whenStable();
+    await openCreateForm(fixture, element);
+    expect(element.querySelector('[data-create-project-name-error]')).toBeNull();
+  });
+
   // The regression: `error` replaces the tree, so routing a failed creation onto it would
   // wipe navigation because one write failed.
   it('renders the project tree and the create error at the same time', async () => {
