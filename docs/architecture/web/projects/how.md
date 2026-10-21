@@ -333,6 +333,12 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   placement, returns focus to the opener as before.
   On entering shortcut mode, focus the persistent mode-switch control while sources load; the
   dialog's Tab trap recovers focus to an in-dialog control if the active element is not present.
+- **Layout that moves the scroll:** `ScrollHold` (`canvas-chrome/scroll-hold.ts`) is the one
+  mechanism. It keeps the working placement (the one holding focus, or the last one pressed) still
+  while placements above it change height, lets any scroll since its last check stand as the new
+  baseline, and holds nothing at offset 0, off screen or mid-drag. The canvas host sets
+  `overflow-anchor: none` so native anchoring never corrects the same growth too. A reveal that
+  scrolls (a quick-added row, a created placement) is a scroll like any other and is not undone.
 - **Browser geometry:** add the assertion to `apps/e2e/canvas-editing.spec.ts`; unit
   specs cannot prove pointer hit-testing, touch behavior or the absence of layout shift.
 - **The trap:** a page-scoped read that answers project-wide. Every read here names its

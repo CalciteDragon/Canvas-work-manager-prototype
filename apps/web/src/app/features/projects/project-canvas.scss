@@ -4,6 +4,10 @@
   display: grid;
   gap: var(--space-5);
   min-width: 0;
+  // Slice 75: ScrollHold is the one mechanism that moves the scroll for layout on the canvas, so
+  // native anchoring is kept out of it and can never correct the same growth twice. WebKit has
+  // no anchoring at all, so the two engines now behave alike.
+  overflow-anchor: none;
 }
 
 .project-canvas__muted {

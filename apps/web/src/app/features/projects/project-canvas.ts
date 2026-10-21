@@ -34,6 +34,7 @@ import { SectionCreateDialog } from './section-create-dialog';
 import { Toast } from '../../shared/feedback/toast';
 import { Icon } from '../../shared/components/icon/icon';
 import { LiftStack } from '../../shared/lifts/lift-stack';
+import { attachScrollHold } from './canvas-chrome/scroll-hold';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
 import { moveDirectionFor } from './canvas-chrome/move-keys';
@@ -104,6 +105,7 @@ export class ProjectCanvas {
   private returnFocusTo: HTMLElement | null = null;
   /** The placement a dialog create just made; closing the dialog reveals it instead of returning focus. */
   private createdPlacementId: string | null = null;
+  private releaseScrollHold: () => void = () => undefined;
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
   private readonly releasedTarget = signal<SectionId | null>(null);
   private lastTargetKey: string | null = null;
@@ -177,7 +179,14 @@ export class ProjectCanvas {
   };
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.releaseLift?.());
+    inject(DestroyRef).onDestroy(() => {
+      this.releaseLift?.();
+      this.releaseScrollHold();
+    });
+    // The working placement stays still while placements above it grow (Slice 75, W1-030).
+    afterNextRender(() => {
+      this.releaseScrollHold = attachScrollHold(this.host.nativeElement, '.section-canvas__item');
+    });
     effect(() => {
       const projectId = this.projectId();
       const pageId = this.pageId();

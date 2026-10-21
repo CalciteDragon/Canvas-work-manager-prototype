@@ -516,3 +516,22 @@ two substantive and two minor findings, all checked and accepted:
 **Round 3 (2026-10-18).** The reviewer confirmed the four round-2 findings resolved and returned
 no substantive findings. The plan is ready for the user's answers to the Open questions;
 implementation has not begun.
+
+**Execution notes (2026-10-20).** What implementation found that the plan did not say:
+
+- **Stage 0.** On the baseline build, native anchoring did not hold the nested-projects Kitchen
+  Task List added at the end of the page (scroller `main.workspace`): an add moved it 48.5 px at
+  1440 and 129 px at 375, and a synthetic 100 px insert above moved it, focused or not. No
+  `overflow-anchor: none`, `contain` or `content-visibility` was found, so `scroll-hold.ts` was
+  built. Mid-page, with content below the list, the baseline already held at 0 px; the failing
+  case is the end of the page. WebKit has no anchoring and is unverified here.
+- **The hold.** On the new build, the synthetic insert, two completions and the activity rows
+  they add hold the list to within 1 px at both widths. At the end of the page an add still moves
+  the list by the reveal of a new row that would otherwise sit below the fold, which Acceptance 17
+  allows; mid-page adds hold at 0 px. A frame trace confirmed the activity row that follows the
+  reveal is held against the reveal's new baseline. The canvas host sets `overflow-anchor: none`
+  so native anchoring and the hold can never correct the same growth twice.
+- **`.visually-hidden`.** `project-canvas.html` used the class with no definition anywhere; it is
+  now a utility in `styles/_base.scss`, used by the quick-add and drawer live regions as well.
+- **`apps/e2e/web.spec.ts:340`** reads the Todos completion error and changes with Open question
+  5's answer; the Stage 0 re-grep added it to the e2e list.
