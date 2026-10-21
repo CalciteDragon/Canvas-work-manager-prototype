@@ -31,6 +31,14 @@
   block-size: 100%;
 }
 
+:host([data-persistent-insertion]) {
+  position: static;
+  inset: auto;
+  block-size: auto;
+  justify-self: start;
+  opacity: 1;
+}
+
 button {
   position: relative;
   display: grid;

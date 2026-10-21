@@ -1,5 +1,9 @@
 # How the projects feature works
 
+The persistent end action uses a static `InsertionPoint` host after the drop list, projecting
+the labelled ghost button. Its end identity remains available to existing browser journeys;
+only before/gap points paint insertion overlays.
+
 `ArchivePageStore` passes the root's ready-only projection to `ArchivedRegion`. The component
 words the supplied origin, cause and recovery counts without determining eligibility. Restore
 uses the canonical project, section, task or reflection write and then re-reads; independent

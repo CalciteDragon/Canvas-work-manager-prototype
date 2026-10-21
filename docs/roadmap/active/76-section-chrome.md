@@ -588,6 +588,12 @@ nothing (8). The questions are kept below as they were asked.
   the concurrent batch; all 103 store tests pass. Re-review found no further substantive
   correctness or boundary findings. The final production build is **1,098.12 kB**, leaving
   **1.88 kB** below the initial ceiling; baseline was 1,089.72 kB.
+- The unedited `canvas-history.spec.ts` still locates the end `InsertionPoint` host. The
+  native-button-only implementation removed that host and failed this journey. Keep the
+  host as the static sibling after the drop list, projecting the labelled ghost button
+  instead of an overlay. This preserves the new interaction and the existing journey;
+  the canvas regression is written before that compatibility repair. The earlier spec's
+  rest-opacity assertion also compares numbers because CSS serializes `.55` as `0.55`.
 
 **Round 1 (2026-10-20).** An independent reviewer read the plan against the code, spec, findings,
 decisions and slices 72 and 75, and returned thirteen substantive and nine minor findings. Each was

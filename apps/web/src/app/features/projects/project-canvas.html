@@ -198,11 +198,14 @@
     }
   </div>
   @if (store.placements().length > 0 && store.orderComplete()) {
-    <button data-canvas-add type="button" class="button button--ghost"
-      [attr.inert]="sorting() ? '' : null" [class.project-canvas__add--sorting]="sorting()"
-      (click)="openCreate({ kind: 'end', beforeId: null, columnSpan: 12 })">
-      <app-icon name="plus" /> Add a section
-    </button>
+    <app-insertion-point kind="end" [beforeId]="null" [columnSpan]="12" label="Add a section"
+      [persistent]="true" [disabled]="sorting()" [attr.inert]="sorting() ? '' : null">
+      <button data-canvas-add type="button" class="button button--ghost"
+        [attr.inert]="sorting() ? '' : null" [class.project-canvas__add--sorting]="sorting()"
+        (click)="openCreate({ kind: 'end', beforeId: null, columnSpan: 12 })">
+        <app-icon name="plus" /> Add a section
+      </button>
+    </app-insertion-point>
   }
 }
 

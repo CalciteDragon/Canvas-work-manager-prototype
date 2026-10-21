@@ -202,12 +202,20 @@ const completeDeferredBlocks = async (fixture: Awaited<ReturnType<typeof render>
 };
 
 describe('ProjectCanvas (§27, §31, §32)', () => {
+  it('keeps the end insertion host for existing journeys while offering the labelled add', async () => {
+    const { fixture } = await render();
+    const host = query(fixture, 'app-insertion-point[data-insertion-point="end"]');
+    expect(host).not.toBeNull();
+    expect(host?.querySelector('[data-canvas-add]')?.textContent).toContain('Add a section');
+    expect(host?.previousElementSibling).toBe(query(fixture, '[data-section-canvas]'));
+  });
+
   it('offers Add a section after, and outside, the populated drop list', async () => {
     const { fixture } = await render();
     const add = query(fixture, '[data-canvas-add]')!;
     expect(add).not.toBeNull();
     expect(add.textContent).toContain('Add a section');
-    expect(add.previousElementSibling).toBe(query(fixture, '[data-section-canvas]'));
+    expect(add.parentElement?.previousElementSibling).toBe(query(fixture, '[data-section-canvas]'));
     expect(add.closest('[data-section-canvas]')).toBeNull();
     add.click();
     expect(fixture.componentInstance.resolvePosition({ kind: 'end', beforeId: null, columnSpan: 12 })).toBe(2);

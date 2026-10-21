@@ -12,12 +12,15 @@ export interface InsertionIntent {
   columnSpan: SectionColumnSpan;
 }
 
-/** A keyboard and pointer accessible line-and-plus overlay that only reports placement intent. */
+/** A placement affordance: a line-and-plus overlay or a static host for a labelled end action. */
 @Component({
   selector: 'app-insertion-point',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
+    @if (persistent()) {
+      <ng-content />
+    } @else {
     <button
       type="button"
       data-insertion-point-button
@@ -27,12 +30,14 @@ export interface InsertionIntent {
     >
       <app-icon name="plus" />
     </button>
+    }
   `,
   styleUrl: './insertion-point.scss',
   host: {
     '[attr.data-insertion-point]': 'kind()',
     '[attr.data-before-id]': 'beforeId()',
     '[style.--span]': 'columnSpan()',
+    '[attr.data-persistent-insertion]': 'persistent() ? "" : null',
   },
 })
 export class InsertionPoint {
@@ -46,6 +51,8 @@ export class InsertionPoint {
   readonly label = input.required<string>();
   /** Sorting suspends insertion, including programmatic activation. */
   readonly disabled = input(false);
+  /** Project a labelled action in normal flow instead of painting an insertion overlay. */
+  readonly persistent = input(false);
 
   /** Placement intent; the owning canvas resolves the anchor against its current order. */
   readonly selected = output<InsertionIntent>();
