@@ -222,15 +222,17 @@ describe('TaskRow', () => {
     expect(emitted).toHaveBeenCalledWith(task().id);
   });
 
-  it('keeps Delete unavailable while its archive write is under way', async () => {
+  it('keeps Delete focusable but unavailable while its archive write is under way', async () => {
     // A row is archived once. Without the guard a double click would send two requests, and
-    // the second would fail against a task the first has already archived.
+    // the second would fail against a task the first has already archived. Slice 75's pending
+    // vocabulary: aria-disabled, never disabled, so keyboard focus stays on the control.
     const { component, element } = await render(task(), { archiving: true });
     const emitted = vi.fn();
     component.deleteRequested.subscribe(emitted);
     const remove = element.querySelector<HTMLButtonElement>('[data-task-delete]')!;
 
-    expect(remove.disabled).toBe(true);
+    expect(remove.disabled).toBe(false);
+    expect(remove.getAttribute('aria-disabled')).toBe('true');
     expect(element.querySelector('[data-task-row]')?.getAttribute('aria-busy')).toBe('true');
 
     remove.click();
@@ -246,6 +248,29 @@ describe('TaskRow', () => {
     TestBed.resetTestingModule();
     const pending = await render(task(), { pending: true });
     expect(pending.element.querySelector<HTMLButtonElement>('[data-task-delete]')?.disabled).toBe(false);
+    expect(pending.element.querySelector('[data-task-delete]')?.hasAttribute('aria-disabled')).toBe(false);
+  });
+
+  it('shows a failed write on the row and links it to the checkbox', async () => {
+    const { fixture, element } = await render();
+    expect(element.querySelector('[data-task-error]')).toBeNull();
+    expect(element.querySelector('[data-task-complete]')?.hasAttribute('aria-describedby')).toBe(false);
+
+    fixture.componentRef.setInput('error', 'Couldn’t complete “Write the first draft”. Try again. Offline');
+    await fixture.whenStable();
+    const message = element.querySelector<HTMLElement>('[data-task-error]')!;
+    expect(message.getAttribute('role')).toBe('alert');
+    expect(message.textContent).toContain('Couldn’t complete “Write the first draft”. Try again.');
+    expect(message.id).not.toBe('');
+    expect(element.querySelector('[data-task-complete]')?.getAttribute('aria-describedby')).toBe(message.id);
+    expect(element.querySelector('[data-task-row]')?.classList.contains('task-row--failed')).toBe(true);
+  });
+
+  it('keeps a read-only row free of a write error', async () => {
+    const { fixture, element } = await render(task(), { readOnly: true });
+    fixture.componentRef.setInput('error', 'Ignored');
+    await fixture.whenStable();
+    expect(element.querySelector('[data-task-error]')).toBeNull();
   });
 
   it('exposes high-priority, selected, and compact states independently', async () => {

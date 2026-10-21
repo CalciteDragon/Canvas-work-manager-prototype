@@ -5,6 +5,7 @@ import { widgetDefinitionFor } from '../../../features/dashboard/widgets/registr
 import { DashboardWidgetFrame } from '../../../features/dashboard/widgets/widget-frame/dashboard-widget-frame';
 import { ProjectSectionFrame } from '../../../features/projects/sections/section-frame/project-section-frame';
 import { TaskDetailDrawer } from '../../../features/tasks/task-detail-drawer';
+import { PendingTaskRow } from '../../../features/tasks/pending-task-row';
 import { TaskRow } from '../../../features/tasks/task-row';
 import {
   labActivity,
@@ -37,6 +38,7 @@ import { SectionCanvasFrame } from '../section-canvas-frame';
     ProjectSectionFrame,
     SectionCanvasFrame,
     Sidebar,
+    PendingTaskRow,
     TaskDetailDrawer,
     TaskRow,
   ],
@@ -57,6 +59,7 @@ export class LivePanels {
     completedAt: '2026-08-20T09:00:00.000Z',
   });
   protected readonly high = labTask({ id: 'task-high', title: 'Fix the sign-up form', priority: 'high' });
+  protected readonly failed = labTask({ id: 'task-failed', title: 'Verify analytics events' });
   protected readonly now = Date.parse('2026-08-27T16:00:00.000Z');
 
   protected readonly sectionDefinition = stubSectionDefinition();

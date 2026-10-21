@@ -31,6 +31,28 @@
   </div>
 </section>
 
+<section class="panel" data-panel="field-status" data-panel-kind="shared">
+  <h3 class="panel__title">Field status <span class="panel__badge">shared</span></h3>
+  <div class="panel__body panel__body--row">
+    <label class="control-label">
+      <span class="control-label__row"><span>Priority</span><span class="field-status">Saving…</span></span>
+      <select class="select"><option>High</option></select>
+    </label>
+    <label class="control-label">
+      <span class="control-label__row"><span>Due date</span><span class="field-status field-status--saved">Saved</span></span>
+      <input class="field" type="date" value="2026-09-30" />
+    </label>
+    <label class="control-label">
+      <span class="control-label__row"><span>Estimate</span><span class="field-status field-status--failed">Not saved. Try again.</span></span>
+      <input class="field" type="number" value="3" aria-invalid="true" />
+    </label>
+    <label class="control-label">
+      <span class="control-label__row"><span>Project name</span><span class="field-status field-status--failed">Enter a name.</span></span>
+      <input class="field" type="text" aria-invalid="true" />
+    </label>
+  </div>
+</section>
+
 <section class="panel" data-panel="cards" data-panel-kind="primitive">
   <h3 class="panel__title">Cards <span class="panel__badge">not yet a shared component</span></h3>
   <div class="panel__body panel__body--row">

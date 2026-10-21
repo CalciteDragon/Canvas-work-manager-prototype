@@ -85,6 +85,32 @@ button.task-row__title {
   text-transform: capitalize;
 }
 
+.task-row--failed {
+  border-color: var(--color-danger);
+}
+
+.task-row__error {
+  margin: var(--space-1) 0 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+/* A task being created: the row's shape, quieter, with nothing to act on yet (Slice 75). */
+.task-row--adding {
+  grid-template-columns: 1fr auto;
+  box-shadow: none;
+  border-style: dashed;
+}
+
+.task-row--adding .task-row__title {
+  color: var(--color-text-muted);
+}
+
+.task-row__adding-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 .task-row__overdue-label {
   color: var(--color-danger);
 }

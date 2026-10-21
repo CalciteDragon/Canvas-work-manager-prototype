@@ -99,3 +99,11 @@ export const Reopening: Story = {
     await expect(checkbox).toBeChecked();
   },
 };
+
+/** Slice 75: a failed write names its row, beside the control it reverted. */
+export const Failed: Story = {
+  args: {
+    task: task({ title: 'Verify analytics events' }),
+    error: 'Couldn’t complete “Verify analytics events”. Try again. The server did not answer.',
+  },
+};

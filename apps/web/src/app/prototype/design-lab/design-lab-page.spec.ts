@@ -46,6 +46,7 @@ describe('DesignLabPage (§22, §67)', () => {
       'activity',
       'buttons',
       'inputs',
+      'field-status',
       'cards',
       'project-cards',
       'menus',

@@ -91,6 +91,23 @@ export const Fields: Story = {
   }),
 };
 
+/** Slice 75: what a field's own write is doing, beside its label; Saved fades once settled. */
+export const FieldStatus: Story = {
+  render: () => ({
+    template: `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--layout-project-column-width),1fr));gap:var(--space-3)">
+        <label class="control-label"><span class="control-label__row"><span>Priority</span><span class="field-status">Saving…</span></span>
+          <select class="select"><option>High</option></select></label>
+        <label class="control-label"><span class="control-label__row"><span>Due date</span><span class="field-status field-status--saved">Saved</span></span>
+          <input class="field" type="date" value="2026-09-30" /></label>
+        <label class="control-label"><span class="control-label__row"><span>Estimate</span><span class="field-status field-status--failed">Not saved. Try again.</span></span>
+          <input class="field" type="number" value="3" aria-invalid="true" /></label>
+        <label class="control-label"><span class="control-label__row"><span>Project name</span><span class="field-status field-status--failed">Enter a name.</span></span>
+          <input class="field" type="text" aria-invalid="true" /></label>
+      </div>`,
+  }),
+};
+
 /** Native checkboxes and radios, drawn from tokens, with targets sized for pointer and touch. */
 export const ChecksAndRadios: Story = {
   render: () => ({

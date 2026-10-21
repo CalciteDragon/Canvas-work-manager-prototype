@@ -12,6 +12,7 @@
   [class.task-row--selected]="selected()"
   [class.task-row--compact]="compact()"
   [class.task-row--archiving]="archiving()"
+  [class.task-row--failed]="shownError() !== null"
   [attr.aria-busy]="pending() || archiving()"
 >
   @if (!readOnly()) {
@@ -21,6 +22,7 @@
       type="checkbox"
       [checked]="completed()"
       [attr.aria-disabled]="pending()"
+      [attr.aria-describedby]="shownError() === null ? null : errorId()"
       [attr.aria-label]="(completed() ? 'Reopen task ' : 'Complete ') + task().title"
       (change)="toggleCompletion($event)"
     />
@@ -51,6 +53,9 @@
         <span class="task-row__overdue-label">Overdue</span>
       }
     </div>
+    @if (shownError(); as message) {
+      <p data-task-error class="task-row__error" role="alert" [id]="errorId()">{{ message }}</p>
+    }
   </div>
 
   @if (!readOnly()) {
@@ -58,7 +63,7 @@
       data-task-delete
       class="tool task-row__delete"
       type="button"
-      [disabled]="archiving()"
+      [attr.aria-disabled]="archiving() ? 'true' : null"
       [attr.aria-label]="'Delete task ' + task().title"
       [attr.title]="'Delete task ' + task().title"
       (click)="requestDelete()"

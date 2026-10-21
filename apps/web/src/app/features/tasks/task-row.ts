@@ -30,6 +30,8 @@ export class TaskRow {
    * different controls.
    */
   readonly archiving = input(false);
+  /** A failed write on this row (Slice 75): shown under the title, named by the checkbox. */
+  readonly error = input<string | null>(null);
   readonly now = input(Date.now());
   readonly readOnly = input(false);
 
@@ -51,6 +53,8 @@ export class TaskRow {
   } | null = null;
 
   readonly completed = computed(() => this.task().status === 'done');
+  readonly errorId = computed(() => `task-error-${this.task().id}`);
+  readonly shownError = computed(() => (this.readOnly() ? null : this.error()));
   readonly overdue = computed(() => {
     const value = this.task();
     return (

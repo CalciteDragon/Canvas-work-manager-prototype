@@ -356,6 +356,36 @@ textarea.field {
   font-weight: var(--font-weight-medium);
 }
 
+// A label line with room for a status at its end.
+.control-label__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+// Slice 75: the state of the write a field just started, beside its label. Saving is quiet,
+// Saved fades out with opacity once settled, and a failure stays until the next attempt.
+.field-status {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  opacity: 1;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+.field-status--saved {
+  color: var(--color-success);
+}
+
+.field-status--failed {
+  color: var(--control-danger-ink);
+}
+
+.field-status--settled {
+  opacity: 0;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
