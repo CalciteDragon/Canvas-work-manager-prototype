@@ -115,7 +115,13 @@ and new-item placement; it has not started.
 
 **Slice 75 completed — Gate 2 accepted (2026-10-20).** [Feedback: pending, saved and new items in view](completed/75-feedback-pending-and-placement.md)
 completes TH07. Writes show pending at once and failures stay on the object they concern; new
-items come into view with focus; the canvas holds the working list still. Redesign slice 5 is next.
+items come into view with focus; the canvas holds the working list still.
+
+**Slice 76 completed — Gate 2 accepted (2026-10-21).** [Section chrome](completed/76-section-chrome.md)
+delivers quiet visible tools, plain named headings, fewer Tab stops, full insertion targets,
+a persistent Add and immediate collapse. The accepted sheet has 194 pairs and zero gate
+failures. Initial bundle headroom is 1.13 kB. Redesign slice 6, Objects and states, is next;
+inert shortcut rows, the project-header edge and default names retain their later owners.
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:

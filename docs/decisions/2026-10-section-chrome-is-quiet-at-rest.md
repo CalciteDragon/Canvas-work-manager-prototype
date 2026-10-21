@@ -52,7 +52,7 @@ an unchanged read keeps it. A new toggle, navigation or generation clears it too
 **Confidence**
 
 The behavior is covered by component and store assertions; browser geometry, timing and
-visual evidence are the Gate 2 checks in [slice 76](../roadmap/active/76-section-chrome.md).
+visual evidence are the Gate 2 checks in [slice 76](../roadmap/completed/76-section-chrome.md).
 Gate 2 acceptance remains pending.
 
 **Revisit when**
@@ -60,3 +60,7 @@ Gate 2 acceptance remains pending.
 Real use finds the quiet tools too faint, toolbar navigation unexpected, or a placement's
 concurrent writes repaint an older intent. Inert shortcut rows belong to redesign slice 6;
 the project header's independent left edge belongs to slice 7.
+
+**Amended 2026-10-21 — Gate 2 accepted.** The user accepted slice 76's before/after sheet.
+Its completed record contains the measurements, verification limits and deferred findings;
+the quiet chrome direction is accepted.

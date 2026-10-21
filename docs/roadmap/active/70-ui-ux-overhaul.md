@@ -339,6 +339,13 @@ are revealed with focus, and the working list holds still under growing activity
 with the four TH15 quick-add findings. Its record lists the deferrals: a row error below the fold,
 agent Revoke, and the drawer's raw facts. The next redesign slice is 5.
 
+**Slice 76 completed (2026-10-21).** The user accepted [Section chrome](../completed/76-section-chrome.md)
+at Gate 2: 194 pairs, zero gate failures, fourteen findings fully closed and two partly closed.
+Tools stay quiet and visible; headings name sections; insertion owns the full plus; Add is
+persistent; collapse answers within 7.2 ms in the delayed-write evidence. T03/T05/T06 retain
+their budgets. Inert shortcut rows remain with slice 6, the project-header edge with slice 7
+and default names with slice 9. Initial bundle headroom is 1.13 kB; redesign slice 6 is next.
+
 ### Slice 72 (Primitives) — planning brief
 
 - **Scope.** Item 2 of the sequence below: TH04 and TH05 in

@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 76 | Slice 76 — Section chrome | Redesign slice 5 (TH08 plus L3-016): quiet tools at rest, a persistent add-section affordance, the full insertion hit area, headings that name their section, and collapse that answers at once | [76-section-chrome.md](active/76-section-chrome.md) |
 
 ### Planned
 
@@ -115,4 +114,5 @@ verification follow-ups rather than feature slices.
 | 73 | Slice 73 — Lifts and focus | 2026-10-17 | Redesign slice 3 (TH06): the task drawer, More and page settings are native top-layer lifts that take focus, close on Escape and return it; lost focus lands on the page heading after navigation. Gate 2 accepted. | [73-lifts-and-focus.md](completed/73-lifts-and-focus.md) |
 | 74 | Slice 74 — Feedback: toast and Undo where the user acted | 2026-10-18 | One receipt-specific Undo toast across project surfaces; Archive always visitable, short Archive label; reviewed evidence and Gate 2 accepted | [74-feedback-toast-and-undo.md](completed/74-feedback-toast-and-undo.md) |
 | 75 | Slice 75 — Feedback: pending, saved and new items in view | 2026-10-21 | Redesign slice 4b: pending within 100 ms, a saved cue, failures on their row, field or card, new items revealed with focus, and a canvas that holds the working list still; Gate 2 accepted | [75-feedback-pending-and-placement.md](completed/75-feedback-pending-and-placement.md) |
+| 76 | Slice 76 — Section chrome | 2026-10-21 | Redesign slice 5: quiet visible tools, plain section headings, fewer Tab stops, full insertion targets, persistent Add and immediate collapse; Gate 2 accepted | [76-section-chrome.md](completed/76-section-chrome.md) |
 <!-- roadmap:end -->

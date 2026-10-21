@@ -1,13 +1,58 @@
-<!-- plan id="76" status="active" summary="Redesign slice 5 (TH08 plus L3-016): quiet tools at rest, a persistent add-section affordance, the full insertion hit area, headings that name their section, and collapse that answers at once" -->
+<!-- completed-record id="76" closed="2026-10-21" summary="Redesign slice 5: quiet visible tools, plain section headings, fewer Tab stops, full insertion targets, persistent Add and immediate collapse; Gate 2 accepted" -->
 # Slice 76 — Section chrome
 
-**State (2026-10-20):** plan reviewed (three rounds), all eight Open questions answered; implementation
-in progress from step 3. Gate 2 remains open; no Outcome or completion until the user accepts the sheet.
+**State (2026-10-21):** complete. The user accepted the before/after sheet at Gate 2 on
+2026-10-21; see the Outcome.
 
-Redesign slice 5 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Theme **TH08**,
+Redesign slice 5 under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Theme **TH08**,
 "Section chrome is hidden yet heavy", in [themes.json](../70-ui-ux/themes.json), plus **L3-016**
 (collapse waits on the server), which slice 74's split moved here. It also owns slice 72's two
 remaining canvas census exceptions: the insertion points and the section title button.
+
+## Outcome
+
+The user accepted Gate 2 on 2026-10-21. Section, shortcut and unknown-section frames now have
+plain named headings, aligned title icons and quiet tools at rest. The roving toolbar keeps
+desktop chrome to two Tab stops before content and three per section. A persistent labelled
+Add follows the canvas, every insertion plus owns its full hit area, and the end resize handle
+has a 24 px asymmetric target. Collapse paints immediately, reconciles concurrent placement
+writes and keeps failures on their frame through
+[ProjectPageStore](../../../apps/web/src/app/features/projects/project-page-store.ts).
+Tokens, stories and Lab specimens expose the rest emphasis. Slice 75's ScrollHold, placement
+result and created-heading focus remain intact.
+
+The accepted [section-chrome decision](../../decisions/2026-10-section-chrome-is-quiet-at-rest.md)
+records the eight choices: plain headings with visible Rename and pointer naming, roving keys,
+content alignment, persistent Add with faint gap marks, deferred default names, frame-local
+collapse errors, the wider end handle and prefilled rename with no-op saves. It
+amends the [chrome](../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md) and
+[section-name](../../decisions/2026-09-a-section-has-a-name.md) decisions. The implementation
+retains a static end InsertionPoint host around the native Add button so unedited history
+journeys retain their stable target. Reviews also exposed a concurrent resize/owed-read race;
+tests reproduced it before confirmed fields were retained through the write batch. The
+isolated evidence proxy needed CONNECT support, and the sheet builder needed to exclude its
+accidental frozen-Depth dependency and account precisely for downstream Lab translation from
+shorter specimens. These execution departures are recorded below.
+
+The accepted local evidence is `apps/e2e/ux-output/sheet-76/`: 194 before/after pairs with zero
+gate failures, twelve runtime contexts per build, and every journey's result in `checks.md`.
+All 684 rest and 684 active insertion probes pass; delayed collapse's worst measurement fell
+from 2,076.3 to 7.2 ms. T03 remains 10 clicks / 38 keys, T05 2 / 0 and T06 2 / 16.
+Verification passed 3,218 offline tests, 46 tooling tests, lint including docs:check, the
+production build, Storybook build and all 227 unique Chromium journeys after the documented
+rig/test-setup re-runs. WebKit is unverified. The frozen Depth attempt failed on its retired
+label and remains explicitly unclaimed. The initial bundle rose from 1,089.72 to 1,098.87 kB,
+leaving 1.13 kB under the ceiling. Real desktop and touch use of nested-projects and busy-week
+is recorded in `.prototype/notes.json`.
+
+Fourteen findings close fully and two partly. L3-018's inert shortcut rows stay with redesign
+slice 6, L1-006's independent project-header edge with slice 7, and L6-010/W1-028 default names
+with slice 9; “Markdown” remains unchanged. No new product question remains open. The small
+bundle headroom and reported rest contrast (3.57:1 dark, 2.59:1 light over the solid sheet)
+remain measured constraints for subsequent slices. Documentation updated the spec,
+projects, prototype-tooling and testing architecture, the decision index and amendments,
+direction principles and the roadmap. The overhaul direction is unchanged; redesign slice 6
+is next.
 
 ## Goal
 
