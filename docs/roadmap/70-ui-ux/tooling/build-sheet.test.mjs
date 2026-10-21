@@ -419,3 +419,85 @@ test('profile 72 fails a 375 cell whose scroll region overflows sideways', async
   assert.equal(result.status, 1);
   assert.match(await readFile(join(f.dirs[2], 'report.json'), 'utf8'), /scroll region scrolls sideways/);
 });
+
+/** Complete passing Slice 75 placement evidence; `edit` changes one entry to prove a gate. */
+const placementEntries = () => [
+  ...['dark', 'light'].map((theme, i) => ({ row: 'section-create', theme, width: [1440, 375][i], focus: { heading: true, inView: true } })),
+  { row: 'shortcut-create', theme: 'dark', width: 1440, focus: { heading: true, inView: true } },
+  ...['dark', 'light'].map((theme, i) => ({ row: 'quick-add-pending', theme, width: [1440, 375][i], worstMs: 12 })),
+  { row: 'long-list', theme: 'dark', width: 1440, rowInView: true, fieldInView: true, fieldFocused: true },
+  { row: 'drawer-save', theme: 'dark', width: 1440, savingMs: 8, rowMs: 8 },
+  { row: 'drawer-saved', theme: 'dark', width: 1440, statusAfter: 'Saved' },
+  { row: 'phone-due-date', theme: 'light', width: 375, statusAfter: 'todo', fieldStatus: 'Saved' },
+  { row: 'row-failures', theme: 'dark', width: 1440, rowErrors: 2, sectionBanner: 0 },
+  { row: 'permission-failure', theme: 'dark', width: 1440, inCard: 1, pageAlert: 0 },
+  ...['empty-project-name', 'empty-work-name'].map(row => ({ row, theme: 'dark', width: 1440, message: 'Enter a name.' })),
+  ...['dark', 'light'].map((theme, i) => ({ row: 'hold-before', theme, width: [1440, 375][i], deltas: [0, 0.5], scrollTop: 400 })),
+  ...['dark', 'light'].map((theme, i) => ({ row: 'three-quick-adds', theme, width: [1440, 375][i], drawerOpen: false, fieldFocused: true })),
+];
+
+async function placementSheet(t, { edit = entries => entries, tasks = { clicks: 10, keystrokes: 38 }, state = 'populated', changed = false, pre73 = false } = {}) {
+  const f = await fixture(t);
+  f.cell.state = state;
+  for (const phase of [0, 1]) await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+  await f.json(1, 'layout.json', { ...f.layout, planes: [{ ...f.layout.planes[0], y: changed ? 20 : 0 }] });
+  await f.json(1, 'tasks/tasks.json', [{ id: 'T03', status: 'completed', deadEnds: 0, ...tasks }]);
+  const entries = edit(placementEntries());
+  entries[0].screenshot = 'placement-section-create-dark-1440.png';
+  await writeFile(join(f.dirs[1], entries[0].screenshot), 'after placement');
+  await f.json(1, 'placement-verification.json', { commit: 'after', complete: true, entries });
+  await f.json(0, 'placement-verification.json', { commit: 'before', complete: true, entries: [{ row: 'section-create', theme: 'dark', width: 1440, screenshot: 'placement-section-create-dark-1440.png', focus: { tag: 'BODY' } }] });
+  await writeFile(join(f.dirs[0], 'placement-section-create-dark-1440.png'), 'before placement');
+  const args = [builder, ...f.dirs, '--profile', '75'];
+  if (pre73) {
+    const dir = join(f.dirs[0], '..', 'pre73');
+    await mkdir(dir);
+    await writeFile(join(dir, 'placement-verification.json'), JSON.stringify({ commit: 'pre73', complete: true, entries: [{ row: 'three-quick-adds', theme: 'dark', width: 1440, screenshot: 'placement-three-quick-adds-dark-1440.png', drawerOpen: true }] }));
+    await writeFile(join(dir, 'placement-three-quick-adds-dark-1440.png'), 'pre-73 drawer open');
+    args.push('--pre73', dir);
+  }
+  const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
+  return { result, dirs: f.dirs, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
+}
+
+test('profile 75 renders the placement pairs, copies their images and passes complete evidence', async t => {
+  const f = await placementSheet(t, { pre73: true });
+  assert.equal(f.result.status, 0, f.report);
+  const html = await readFile(join(f.dirs[2], 'index.html'), 'utf8');
+  assert.match(html, /<title>Slice 75 · Pending and placement/);
+  for (const id of ['W1-024', 'W3-016', 'L3-007', 'L4-023', 'L3-008', 'W2-018', 'L4-005', 'L4-024', 'W1-030', 'W1-026']) assert.ok(html.includes(id), id);
+  assert.equal(await readFile(join(f.dirs[2], 'before-placement-section-create-dark-1440.png'), 'utf8'), 'before placement');
+  assert.equal(await readFile(join(f.dirs[2], 'after-placement-section-create-dark-1440.png'), 'utf8'), 'after placement');
+  assert.equal(await readFile(join(f.dirs[2], 'before-pre73-placement-three-quick-adds-dark-1440.png'), 'utf8'), 'pre-73 drawer open');
+  const report = JSON.parse(f.report);
+  assert.equal(report.placementPairs.find(pair => pair.row === 'section-create' && pair.theme === 'dark').status, 'paired');
+  assert.equal(report.placementPairs.find(pair => pair.row === 'three-quick-adds' && pair.theme === 'dark').status, 'before only');
+  assert.match(html, /Visual evidence gaps/);
+});
+
+test('profile 75 gates the pending row, the hold, the reveal and T03', async t => {
+  const cases = [
+    [entries => entries.map(e => e.row === 'quick-add-pending' && e.width === 375 ? { ...e, worstMs: 140 } : e), /pending row later than 100 ms/],
+    [entries => entries.map(e => e.row === 'hold-before' && e.width === 1440 ? { ...e, deltas: [0, 48.5] } : e), /working list moved more than 1 px/],
+    [entries => entries.map(e => e.row === 'section-create' && e.width === 375 ? { ...e, focus: { tag: 'BODY', heading: false, inView: false } } : e), /created section not revealed/],
+    [entries => entries.filter(e => e.row !== 'long-list'), /placement evidence missing/],
+    [entries => entries.map(e => e.row === 'row-failures' ? { ...e, error: 'Timeout' } : e), /row failures not on their rows/],
+  ];
+  for (const [edit, reason] of cases) {
+    const f = await placementSheet(t, { edit });
+    assert.equal(f.result.status, 1, String(reason));
+    assert.match(f.report, reason);
+  }
+  const slow = await placementSheet(t, { tasks: { clicks: 11, keystrokes: 38 } });
+  assert.equal(slow.result.status, 1);
+  assert.match(slow.report, /core task regression/);
+});
+
+test('profile 75 reports drawer and dialog movement and gates every other cell', async t => {
+  const drawer = await placementSheet(t, { state: 'task-drawer', changed: true });
+  assert.equal(drawer.result.status, 0, drawer.report);
+  assert.match(drawer.report, /"geometryReport": \[\s*\{/);
+  const rest = await placementSheet(t, { changed: true });
+  assert.equal(rest.result.status, 1);
+  assert.match(rest.report, /"field": "y"/);
+});

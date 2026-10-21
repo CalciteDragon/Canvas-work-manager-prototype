@@ -192,7 +192,7 @@ test('title and background selection, drawer drafts, focus return and read-only 
   const editor = drawer.locator('[data-task-drawer-title]');
   await editor.fill('');
   await editor.press('Tab');
-  await expect(drawer.getByRole('alert')).toContainText('A task title is required.');
+  await expect(drawer.getByRole('alert')).toContainText('Enter a task title.');
   await editor.fill('Discarded');
   await editor.press('Escape');
   await expect(editor).toHaveValue('B');

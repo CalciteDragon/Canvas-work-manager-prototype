@@ -122,6 +122,10 @@ geometry, validates roles/names and phone product overflow, requires complete li
 evidence and checks T03/T04/T08 against baseline budgets. Open-lift and Lab movement is reported;
 existing prototype scroll-region exceptions and reported-only contrast stay explicit.
 
+Slice 75 adds `placement.spec.ts`, `ux/placement-verification.ts` and the isolated
+`ux/slice75*.config.ts` rig; profile 75 gates its runtime facts and T03 and pairs the visual
+acceptance rows against the baseline and pre-73 builds.
+
 Slice 74 adds `feedback.spec.ts`, the five `shared/feedback/toast.stories.ts` browser stories,
 `ux/feedback-verification.ts` and the isolated `ux/slice74*.config.ts` production rig.
 `ux/feedback-visual-pairs.mjs` supplies reproducible supplemental baseline/after screenshots,

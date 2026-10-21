@@ -6,12 +6,14 @@ import { resolve, join } from 'node:path';
 // `--profile 71` (the default) gates Depth's paint-only change on geometry; `--profile 72` lets
 // geometry move, reports it, and gates on slice 72's control census and accessibility names.
 const args = process.argv.slice(2);
-const profileAt = args.indexOf('--profile');
-const profile = profileAt === -1 ? '71' : args[profileAt + 1];
-if (!['71', '72', '73', '74'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
-const positional = args.filter((_, index) => profileAt === -1 || (index !== profileAt && index !== profileAt + 1));
+const flag = name => { const at = args.indexOf(name); return at === -1 ? null : args[at + 1]; };
+const profile = flag('--profile') ?? '71';
+if (!['71', '72', '73', '74', '75'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+// Profile 75's slice-73 pair has its own "before": the pre-73 build's placement run.
+const pre73Dir = flag('--pre73') === null ? null : resolve(flag('--pre73'));
+const positional = args.filter((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
 const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
-if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74]');
+if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75] [--pre73 <dir>]');
 const liftCell = cell => ['more', 'project-details', 'archive-confirm', 'page-settings', 'task-drawer', 'task-drawer-scrolled', 'section-create', 'work-create'].includes(cell.state) || cell.route === '/prototype/design';
 /** Slice 74's one listed closed-state change: the project header exactly 12 px shorter at the same top. */
 const FEEDBACK_ROW = 12;
@@ -36,6 +38,8 @@ const restoreFeedbackRow = (box, was, { top, bottom, left, right, shift }, famil
   return restored;
 };
 const feedbackCell = cell => ['remove-feedback', 'page-settings'].includes(cell.state) || cell.route === '/prototype/design';
+/** Slice 75's "must change" cells: the drawer's autosave line, the dialog that now reveals, and the Lab. */
+const placementCell = cell => ['task-drawer', 'task-drawer-scrolled', 'section-create'].includes(cell.state) || cell.route === '/prototype/design';
 /**
  * Slice 72's pre-listed census exceptions, each owned by a later slice. A matching control is
  * reported on the sheet, never silently passed; anything else that is too small fails.
@@ -119,13 +123,13 @@ for (const a of after.cells) {
       if (intended.length) intendedChanges.push({ cell: a.id, changes: intended });
       const moved = changes.filter(change => !intended.includes(change) && !integrity.includes(change));
       if (moved.length) geometryReport.push({ cell: a.id, family, changes: moved });
-    } else if ((profile === '73' && liftCell(a)) || (profile === '74' && feedbackCell(a))) {
+    } else if ((profile === '73' && liftCell(a)) || (profile === '74' && feedbackCell(a)) || (profile === '75' && placementCell(a))) {
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
       if (changes.length) geometryReport.push({ cell: a.id, family, changes });
     } else if (changes.length) failures.push({ cell: a.id, family, changes });
   }
-  if (profile === '73' || profile === '74') {
+  if (['73', '74', '75'].includes(profile)) {
     const touch = a.viewport?.width === 375;
     if (touch && al.document > al.viewport + 1) failures.push({ cell: a.id, reason: 'scrolls sideways', document: al.document, viewport: al.viewport });
     for (const [index, region] of (touch ? al.scrollRegions ?? [] : []).entries()) {
@@ -141,7 +145,7 @@ for (const a of after.cells) {
     if (liftCell(a)) {
       const axe = await read(join(afterDir, a.artifacts.axe));
       for (const violation of axe.violations ?? []) {
-        if ((profile === '74' ? ['aria-allowed-role', 'region', 'nested-interactive'] : ['aria-allowed-role', 'aria-required-children', 'aria-dialog-name', 'nested-interactive']).includes(violation.id)) failures.push({ cell: a.id, reason: `axe ${violation.id}`, nodes: violation.nodes.map(node => node.target) });
+        if ((['74', '75'].includes(profile) ? ['aria-allowed-role', 'region', 'nested-interactive'] : ['aria-allowed-role', 'aria-required-children', 'aria-dialog-name', 'nested-interactive']).includes(violation.id)) failures.push({ cell: a.id, reason: `axe ${violation.id}`, nodes: violation.nodes.map(node => node.target) });
       }
     }
   }
@@ -196,7 +200,7 @@ const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-ver
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
 const captureProvenance = profile === '73' ? await optional(join(afterDir, 'production-build.json')) : null;
 const finalBuild = profile === '73' ? await optional(join(afterDir, 'final-production-build.json')) : null;
-const tasks = ['73', '74'].includes(profile) ? await optional(join(afterDir, 'tasks/tasks.json')) : null;
+const tasks = ['73', '74', '75'].includes(profile) ? await optional(join(afterDir, 'tasks/tasks.json')) : null;
 const feedback = profile === '74' ? await optional(join(verificationDir, 'feedback-verification.json')) : null;
 const baselineFeedback = profile === '74' ? await optional(join(beforeDir, 'feedback-verification.json')) : null;
 const feedbackGroups = [
@@ -253,6 +257,57 @@ if (profile === '74') {
   for (const row of ['remove-listed', 'remove-unlisted', 'task-delete', 'project-archive', 'header-transition', 'cross-owner', 'archive-restore', 'todos-complete']) {
     if (!feedback?.focus?.some(entry => entry.row === row && entry.passed)) failures.push({ reason: 'feedback focus evidence missing', row });
   }
+}
+const placement = profile === '75' ? await optional(join(verificationDir, 'placement-verification.json')) : null;
+const baselinePlacement = profile === '75' ? await optional(join(beforeDir, 'placement-verification.json')) : null;
+const pre73Placement = profile === '75' && pre73Dir ? await optional(join(pre73Dir, 'placement-verification.json')) : null;
+/** Visual acceptance rows: each names its findings; the slice-73 pair takes its "before" from the pre-73 build. */
+const placementRows = [
+  { row: 'section-create', views: [['dark', 1440], ['light', 375]], findings: 'W1-024, W2-008' },
+  { row: 'shortcut-create', views: [['dark', 1440]], findings: 'W3-016, W1-043' },
+  { row: 'quick-add-pending', views: [['dark', 1440], ['light', 375]], findings: 'L3-007, L4-004' },
+  { row: 'long-list', views: [['dark', 1440]], findings: 'L4-023' },
+  { row: 'drawer-save', views: [['dark', 1440]], findings: 'L3-008 (0.15 s after the change)' },
+  { row: 'drawer-saved', views: [['dark', 1440]], findings: 'L3-008 (after the response)' },
+  { row: 'phone-due-date', views: [['light', 375]], findings: 'W2-018' },
+  { row: 'row-failures', views: [['dark', 1440]], findings: 'L4-005' },
+  { row: 'permission-failure', views: [['dark', 1440]], findings: 'L4-005' },
+  { row: 'empty-project-name', views: [['dark', 1440]], findings: 'L4-024' },
+  { row: 'empty-work-name', views: [['dark', 1440]], findings: 'L4-024' },
+  { row: 'hold-before', views: [['dark', 1440], ['light', 375]], findings: 'W1-030, W2-010 (first frame)' },
+  { row: 'hold-after', views: [['dark', 1440], ['light', 375]], findings: 'W1-030, W2-010 (after two completions)' },
+  { row: 'three-quick-adds', views: [['dark', 1440], ['light', 375]], findings: 'W1-026, W3-012, W2-009, W4-008', pre73: true },
+];
+const placementEntry = (source, row, theme, width) => source?.entries?.find(entry => entry.row === row && entry.theme === theme && entry.width === width);
+const placementPairs = profile === '75' ? placementRows.flatMap(({ row, views, findings, pre73 }) => views.map(([theme, width]) => {
+  const after = placementEntry(placement, row, theme, width);
+  const before = placementEntry(pre73 ? pre73Placement : baselinePlacement, row, theme, width);
+  return { row, theme, width, findings, beforeSource: pre73 ? 'pre-73 build' : 'baseline build', beforeDir: pre73 ? pre73Dir : beforeDir, after, before,
+    status: after?.screenshot && before?.screenshot ? 'paired' : after?.screenshot ? 'after only' : before?.screenshot ? 'before only' : 'missing before and after' };
+})) : [];
+if (profile === '75') {
+  const task = tasks?.find(task => task.id === 'T03');
+  if (!task || task.status !== 'completed' || task.deadEnds !== 0 || !Number.isFinite(task.clicks) || !Number.isFinite(task.keystrokes) || task.clicks > 10 || task.keystrokes > 38) failures.push({ reason: 'core task regression', id: 'T03', task, budget: { clicks: 10, keystrokes: 38 } });
+  if (!placement?.complete) failures.push({ reason: 'placement-verification.json missing or incomplete; run UX_PLACEMENT=1' });
+  const need = (row, theme, width, test, reason) => {
+    const entry = placementEntry(placement, row, theme, width);
+    if (!entry) failures.push({ reason: 'placement evidence missing', row, theme, width });
+    else if (entry.error || !test(entry)) failures.push({ reason, row, theme, width, entry });
+  };
+  for (const [theme, width] of [['dark', 1440], ['light', 375]]) {
+    need('section-create', theme, width, e => e.focus?.heading && e.focus?.inView, 'created section not revealed with its heading focused');
+    need('quick-add-pending', theme, width, e => Number.isFinite(e.worstMs) && e.worstMs < 100, 'pending row later than 100 ms');
+    need('hold-before', theme, width, e => Array.isArray(e.deltas) && e.deltas.length === 2 && e.deltas.every(delta => Math.abs(delta) <= 1) && e.scrollTop > 0, 'working list moved more than 1 px');
+    need('three-quick-adds', theme, width, e => e.drawerOpen === false && e.fieldFocused === true, 'quick-adds opened the drawer or lost the field');
+  }
+  need('shortcut-create', 'dark', 1440, e => e.focus?.heading && e.focus?.inView, 'created shortcut not revealed with its heading focused');
+  need('long-list', 'dark', 1440, e => e.rowInView && e.fieldInView && e.fieldFocused, 'long-list add lost the row or the field');
+  need('drawer-save', 'dark', 1440, e => Number.isFinite(e.savingMs) && e.savingMs < 100 && Number.isFinite(e.rowMs) && e.rowMs < 100, 'drawer edit not shown within 100 ms');
+  need('drawer-saved', 'dark', 1440, e => e.statusAfter?.trim() === 'Saved', 'drawer did not say Saved');
+  need('phone-due-date', 'light', 375, e => !/Overdue/.test(e.statusAfter ?? 'Overdue') && e.fieldStatus?.trim() === 'Saved', 'due-date edit still Overdue or unsaved');
+  need('row-failures', 'dark', 1440, e => e.rowErrors === 2 && e.sectionBanner === 0, 'row failures not on their rows');
+  need('permission-failure', 'dark', 1440, e => e.inCard === 1 && e.pageAlert === 0, 'permission failure not in its card');
+  for (const row of ['empty-project-name', 'empty-work-name']) need(row, 'dark', 1440, e => e.message?.trim() === 'Enter a name.', 'blank name not refused on the field');
 }
 if (profile === '73') {
   for (const [id, clicks, keystrokes] of [['T03', 10, 38], ['T04', 1, 0], ['T08', 3, 0]]) {
@@ -314,7 +369,7 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
 failures.push(...censusFailures);
-const report = { profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs };
+const report = { placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
 // Profile 73's "Visual acceptance pairs" table: which findings each core cell demonstrates.
@@ -328,7 +383,9 @@ const shows = profile === '73' ? {
 } : {};
 const phoneExceptions = exceptions.filter(e => e.reason?.includes('Lab workspace phone overflow'));
 const card = p => `<article><h3>${esc(p.id)}</h3>${shows[p.id] ? `<p>Shows ${esc(shows[p.id])}</p>` : ''}<div class="pair">${['before','after'].map(phase => figure(`${phase}-${p.id}.png`, phase)).join('')}</div></article>`;
-const coreIds = profile === '74'
+const coreIds = profile === '75'
+  ? ['kitchen-task-drawer-dark-1440', 'overdue-chaos-task-drawer-light-375', 'kitchen-section-create-light-1440', 'prototype-design-dark-1440', 'prototype-design-light-1440']
+  : profile === '74'
   ? ['kitchen-remove-feedback-dark-1440', 'kitchen-remove-feedback-dark-375', 'kitchen-remove-feedback-light-1440', 'kitchen-remove-feedback-light-375', 'kitchen-page-settings-dark-1440', 'kitchen-page-settings-light-375', 'prototype-design-dark-1440', 'prototype-design-light-1440']
   : profile === '73'
   ? ['overdue-chaos-task-drawer-dark-1440', 'overdue-chaos-task-drawer-light-375', 'kitchen-more-dark-1440', 'kitchen-more-light-375', 'kitchen-project-details-dark-1440', 'kitchen-project-details-light-375', 'kitchen-archive-confirm-dark-1440', 'kitchen-page-settings-light-1440', 'kitchen-page-settings-light-375', 'kitchen-section-create-light-1440', 'prototype-design-dark-1440', 'prototype-design-light-1440']
@@ -403,7 +460,25 @@ if (profile === '74') {
   const visualAudit = `<table><thead><tr><th>Required pair</th><th>Status</th><th>Before</th><th>After</th></tr></thead><tbody>${feedbackVisualPairs.map(pair => `<tr><th>${esc(`${pair.row} · ${pair.theme} · ${pair.width}`)}</th><td>${esc(pair.status)}</td><td>${pair.before ? `<a href="${esc(pair.before)}">before</a>` : 'missing'}</td><td>${pair.after ? `<a href="${esc(pair.after)}">after</a>` : 'missing'}</td></tr>`).join('')}</tbody></table>`;
   await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 74 · Feedback · Gate 2</title><style>:root{color-scheme:dark}body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}a{color:#ffad7f}section{margin-block:28px}.overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}figure{margin:0;min-width:0}img{width:100%;max-height:80vh;object-fit:contain;object-position:top}th,td{text-align:left;padding:8px;border-bottom:1px solid #455}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:700px){.overview,.pair{grid-template-columns:1fr}}</style><h1>Feedback / Slice 74</h1><p>Gate 2 · awaiting visual acceptance. Matrix labels: before ${esc(before.commit)} → after ${esc(after.commit)}. Runtime verification label: ${esc(feedback?.commit ?? 'unavailable')}. Supplemental after source: ${esc(feedback?.visualProvenance?.sourceCommit ?? 'unavailable')} (working changes and build hash are in the full report).</p><p>${pairs.length} paired matrix cells · ${failures.length} gate failures. Closed-state boxes stay within 1 px except the listed removed 12 px header row. Toast and Lab movement is reported. <a href="report.json">Full gate report</a> · <a href="feedback-verification.json">Focus, clearance, blur and fallback evidence</a>.</p><section><h2>Visual evidence gaps</h2><p>${gaps.length} of ${feedbackVisualPairs.length} required visual acceptance pairs remain incomplete. Zero gate failures does not close these visual requirements or imply user acceptance. The Archive and Settings rows use dark and light respectively where the plan leaves theme open.</p>${visualAudit}</section><section><h2>Twenty findings and their evidence</h2><p>These map each finding to evidence to inspect. Behaviour assertions remain in feedback.spec.ts; screenshots alone do not prove focus, timing or a write-free route.</p>${mapping}</section><section><h2>Matrix before / after</h2><div class="overview">${core.map(card).join('')}</div></section><section><h2>Feedback runtime gallery</h2>${gallery}</section><details><summary>All ${pairs.length} matrix pairs</summary>${[...core,...extras].map(card).join('')}</details><section><h2>Gate failures</h2><pre>${esc(JSON.stringify(failures,null,2))}</pre><details><summary>Intended geometry changes</summary><pre>${esc(JSON.stringify(geometryReport,null,2))}</pre></details></section><section><h2>Contrast</h2><p>Contrast is reported only. Feedback-specific muted ratios, solid fallback measurements, suppression and blur counts are in the runtime evidence.</p>${contrastTable}${compositeTable}${serious}</section>${verificationSection}</html>`);
 }
-if (!['73', '74'].includes(profile))
+if (profile === '75') {
+  const copied = new Set();
+  for (const pair of placementPairs) {
+    for (const [phase, entry, dir] of [['after', pair.after, verificationDir], ['before', pair.before, pair.beforeDir]]) {
+      if (!entry?.screenshot || !dir) continue;
+      const name = `${phase}-${pair.beforeSource === 'pre-73 build' && phase === 'before' ? 'pre73-' : ''}${entry.screenshot}`;
+      if (!copied.has(name)) { await copyFile(join(dir, entry.screenshot), join(output, name)); copied.add(name); }
+      pair[`${phase}File`] = name;
+    }
+  }
+  await writeFile(join(output, 'placement-verification.json'), JSON.stringify({ after: placement, before: baselinePlacement, pre73: pre73Placement }, null, 2));
+  const gaps = placementPairs.filter(pair => pair.status !== 'paired');
+  const facts = entry => entry ? esc(JSON.stringify(Object.fromEntries(Object.entries(entry).filter(([key]) => !['row', 'theme', 'width', 'screenshot'].includes(key))))) : 'no entry';
+  const anchor = pair => `placement-${esc(pair.row)}-${pair.theme}-${pair.width}`;
+  const gallery = placementPairs.map(pair => `<article id="${anchor(pair)}"><h3>${esc(pair.row)} · ${pair.theme} · ${pair.width}</h3><p>${esc(pair.findings)} · before from the ${esc(pair.beforeSource)} · ${esc(pair.status)}</p><div class="pair">${pair.beforeFile ? figure(pair.beforeFile, 'before') : '<p>No before capture.</p>'}${pair.afterFile ? figure(pair.afterFile, 'after') : '<p>No after capture.</p>'}</div><details><summary>Measurements</summary><p>Before: <code>${facts(pair.before)}</code></p><p>After: <code>${facts(pair.after)}</code></p></details></article>`).join('');
+  const audit = `<table><thead><tr><th>Pair</th><th>Status</th></tr></thead><tbody>${placementPairs.map(pair => `<tr><th><a href="#${anchor(pair)}">${esc(`${pair.row} · ${pair.theme} · ${pair.width}`)}</a></th><td>${esc(pair.status)}</td></tr>`).join('')}</tbody></table>`;
+  await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 75 · Pending and placement · Gate 2</title><style>:root{color-scheme:dark}body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}a{color:#ffad7f}section{margin-block:28px}.overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}figure{margin:0;min-width:0}img{width:100%;max-height:80vh;object-fit:contain;object-position:top}code,pre{white-space:pre-wrap;overflow-wrap:anywhere}th,td{text-align:left;padding:8px;border-bottom:1px solid #455}@media(max-width:700px){body{margin:12px}.overview,.pair{grid-template-columns:1fr}}</style><h1>Pending and placement / Slice 75</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ${esc(before.commit)} → after ${esc(after.commit)}. Placement runtime evidence: after ${esc(placement?.commit ?? 'unavailable')}, before ${esc(baselinePlacement?.commit ?? 'unavailable')}, pre-73 ${esc(pre73Placement?.commit ?? 'unavailable')}.</p><p>${pairs.length} paired matrix cells · ${failures.length} gate failures. Closed-state boxes stay within 1 px; the task drawer, the creation dialog and the Lab are reported. Gated runtime facts: pending row under 100 ms, drawer cue and row under 100 ms, reveal with heading focus, the long-list row and field in view, the list held within 1 px, failures on their objects, blank names refused on the field, and T03 at most 10 clicks and 38 keystrokes. Behaviour assertions also run in apps/e2e/placement.spec.ts. <a href="report.json">Full gate report</a> · <a href="placement-verification.json">Runtime measurements</a>.</p><section><h2>Visual evidence gaps</h2><p>${gaps.length} of ${placementPairs.length} visual acceptance pairs are incomplete. Zero gate failures does not mean user acceptance.</p>${audit}</section><section><h2>Visual acceptance</h2>${gallery}</section><section><h2>Matrix before / after</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} matrix pairs</summary>${[...core, ...extras].map(card).join('')}</details><section><h2>Gate failures</h2><pre>${esc(JSON.stringify(failures, null, 2))}</pre><details><summary>Reported geometry movement</summary><pre>${esc(JSON.stringify(geometryReport, null, 2))}</pre></details></section><section><h2>Contrast</h2><p>Reported only.</p>${contrastTable}${compositeTable}${serious}</section>${verificationSection}</html>`);
+}
+if (!['73', '74', '75'].includes(profile))
 await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${profile === '72' ? 'Slice 72 · Primitives' : 'Slice 71 · Depth'} · Gate 2</title><style>:root{color-scheme:dark}
 body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}h1{margin-bottom:0}h2{font-size:21px}h3{font-size:15px;overflow-wrap:anywhere}p{max-width:110ch}a{color:#ffad7f}section,details{margin-block:24px}.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}img{width:100%;max-height:75vh;object-fit:contain;object-position:top;background:#20253a}.overview img{height:190px}.verification{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.verification img{height:220px}figcaption{font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:8px 14px;border-bottom:1px solid #394156}summary{cursor:pointer}article{margin-bottom:24px}@media(max-width:900px){.overview,.verification{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){body{margin:12px}.overview,.verification,.pair{grid-template-columns:1fr}table{font-size:12px}th,td{padding:5px}}
 </style><h1>${profile === '72' ? 'Primitives / Slice 72' : 'Depth / Slice 71'}</h1><p>Gate 2 · awaiting visual acceptance. Before ${esc(before.commit.slice(0,8))} → after ${esc(after.commit.slice(0,8))}. ${profile === '72' ? 'Shared control primitives adopted on every product surface.' : 'V2: blurred panes, translucent sheets without blur.'}</p><p>${pairs.length} paired cells · ${failures.length} ${profile === '72' ? 'gate failures (census, axe names, overflow) · ' + censusExceptions.length + ' listed census exceptions · ' + intendedChanges.length + ' cells with intended control renames · ' + geometryReport.length + ' cell families with reported geometry movement. Geometry is reported, not gated, in this slice.' : 'geometry failures · ' + exceptions.length + ' intentional Lab additions. All other recorded boxes must stay within 1px.'} Click any image for full resolution. <a href="report.json">Full geometry and axe report</a></p><section><h2>Visual acceptance</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} before / after pairs</summary>${[...core,...extras].map(card).join('')}</details>${profile === '72' ? `<section><h2>Control census</h2><p>Gated: product-scope controls are at least 24 px with a pointer and 44 px tall on touch, buttons use at most two heights and fields one, no 375 cell scrolls sideways, and axe reports no select-name, aria-progressbar-name or button-name violation.</p><h3>Failures (${censusFailures.length})</h3><pre>${esc(JSON.stringify(censusFailures,null,2))}</pre><details><summary>Listed exceptions and their owners (${censusExceptions.length})</summary><pre>${esc(JSON.stringify(censusExceptions,null,2))}</pre></details><details><summary>Intended control renames and count changes (${intendedChanges.length} cells)</summary><pre>${esc(JSON.stringify(intendedChanges,null,2))}</pre></details><details><summary>Reported geometry movement (${geometryReport.length})</summary><pre>${esc(JSON.stringify(geometryReport,null,2))}</pre></details></section>` : ''}<section><h2>Contrast report</h2><p>Axe counts are affected-node assessments summed across captured cells in each theme. Incomplete translucent-background assessments are included; the same node may be assessed on several surfaces.</p>${contrastTable}<h3>Worst-case composite contrast</h3><p>Backings are what really sits behind each plane. Panes and sheets sit on the ground: its solid colour and each art glow at full strength. Lifts float over page content, so they are also measured over the solid sheet and text-coloured busy content. Values below use the after tokens.</p>${compositeTable}${serious}<details><summary>Per-cell before / after axe counts and all accepted exceptions</summary><pre>${esc(JSON.stringify(contrast,null,2))}</pre></details></section>${verificationSection}</html>`);

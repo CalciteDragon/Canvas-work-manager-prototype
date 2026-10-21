@@ -82,6 +82,9 @@ contrast. The before/after sheet's profile 73 gates closed-state geometry and op
 open-lift and Design Lab geometry changes are reported. Native top-layer behaviour is proved in
 real browsers; component specs stub the native methods and test the component rules.
 
+Slice 75 adds `placement.spec.ts` for pending rows, failures on their objects, reveal after create
+and the held canvas; `ux/placement-verification.ts` measures them for profile 75's sheet.
+
 Slice 74 adds `feedback.spec.ts` for receipt Undo, confirmation focus, timer and suppression,
 and Archive visits without writes. `ux/feedback-verification.ts` records clearance, blur,
 fallbacks and focus in both themes at desktop and touch sizes. Profile 74 pairs the matrix,

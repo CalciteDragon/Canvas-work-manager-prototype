@@ -425,6 +425,19 @@ inside the phone toast. It runs in the ordinary suite, and against the productio
 `--config ux/slice74-behavior.config.ts`. The ordinary config ignores `ux-output/`, which
 can hold an archived baseline checkout with its own test files.
 
+`UX_PLACEMENT=1` enables `ux/placement-verification.ts` (Slice 75), which writes
+`placement-verification.json`. It records the keydown-to-pending time over five held POSTs, the
+drawer's Saving… and row times, focus and rect after a section or shortcut create, the long-list
+row and field, the held list's top across two completions, and the failure and refusal
+placements, each with a screenshot. It runs unchanged on the before build and records what it
+observed instead of asserting. `ux/slice75.config.ts` owns ports 4252/4352 and
+`.prototype/ux-slice75.json`. `UX_BEFORE` serves `ux-output/slice75-baseline-web`, and `UX_PRE73`
+serves `ux-output/slice73-baseline-web` for the slice-73 pair. Labels come from `UX_BEFORE` or HEAD.
+`build-sheet.mjs --profile 75 [--pre73 <dir>]` gates those facts and T03 (≤10 clicks, ≤38
+keystrokes). It reports, without gating, the task drawer, creation dialog and Lab cells, gates every
+other cell at 1 px, and lists each visual pair's status. `ux/slice75-behavior.config.ts` runs
+`placement.spec.ts` on the same rig.
+
 `UX_FEEDBACK=1` enables `ux/feedback-verification.ts`, which writes
 `feedback-verification.json`: content-track clearance, focus logs for each starred row,
 whether the toast covers the acted region (reported), blur counts with the toast alone and with
