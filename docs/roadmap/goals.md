@@ -110,8 +110,12 @@ would implement and the scope guards it inherits.
 **Slice 74 completed — Gate 2 accepted (2026-10-18).** [Feedback toast and Undo](completed/74-feedback-toast-and-undo.md)
 delivers the confirmation half of TH07: one toast in the content track, Undo of the write's
 own receipt, and Archive visits that record no change. The accepted revision keeps the short
-Archive label. Its record contains final review and evidence. [Slice 75](active/75-feedback-pending-and-placement.md) keeps pending/saved cues
+Archive label. Its record contains final review and evidence. [Slice 75](completed/75-feedback-pending-and-placement.md) keeps pending/saved cues
 and new-item placement; it has not started.
+
+**Slice 75 completed — Gate 2 accepted (2026-10-20).** [Feedback: pending, saved and new items in view](completed/75-feedback-pending-and-placement.md)
+completes TH07. Writes show pending at once and failures stay on the object they concern; new
+items come into view with focus; the canvas holds the working list still. Redesign slice 5 is next.
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:

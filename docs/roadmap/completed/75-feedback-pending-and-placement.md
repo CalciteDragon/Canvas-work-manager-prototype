@@ -1,8 +1,8 @@
-<!-- plan id="75" status="active" summary="Redesign slice 4b (TH07, TH15 task-add): pending within 100 ms, a saved cue, failures on the row, new items scrolled into view and focused, a canvas that holds still" -->
+<!-- completed-record id="75" closed="2026-10-21" summary="Redesign slice 4b: pending within 100 ms, a saved cue, failures on their row, field or card, new items revealed with focus, and a canvas that holds the working list still; Gate 2 accepted" -->
 # Slice 75 — Feedback: pending, saved and new items in view
 
-**State (2026-10-20):** plan reviewed in three rounds; the user accepted every Open question's
-recommendation on 2026-10-20. Implementation begins at Stage 0.
+**State (2026-10-20):** complete. The user accepted Gate 2 on 2026-10-20, including the listed
+24 px rise; see the Outcome.
 
 Redesign slice 4b under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Theme
 **TH07**, "Feedback is detached from the action", in [themes.json](../70-ui-ux/themes.json): this
@@ -598,3 +598,90 @@ Recorded, not changed:
 - **Real use.** busy-week and nested-projects at 1440 keyboard dark and 375 touch light, three
   notes in `.prototype/notes.json`. A row failure on the last visible row can fall partly below
   the fold. The drawer's raw Status and Project facts predate this slice.
+
+## Outcome
+
+The user accepted Gate 2 on 2026-10-20, including the listed 24 px rise on project pages.
+
+**Deliverables.**
+
+- **Quick-add.** It paints [PendingTaskRow](../../../apps/web/src/app/features/tasks/pending-task-row.ts)
+  ("Adding…", `aria-busy`) within 5 ms, against a bar of 100 ms, and refuses a second submit
+  while one is pending.
+- **No toast for a create.** The real row replaces the pending one in place, and a polite region
+  says "Added “X”.". On a long list the row scrolls into view under an add form that is sticky,
+  transparent at rest, with a solid plate only while stuck.
+- **The failed add.** It owes one read through
+  [TaskListStore](../../../apps/web/src/app/features/tasks/task-list-store.ts), so a retry
+  cannot duplicate a task that committed.
+- **Failures on their object.** They sit on the task row, the Todos row (Delete stays
+  page-level), the agent's card, or the field. Blank names and titles are refused beside the
+  field.
+- **The drawer.** It says "Changes save automatically.", shows Saving…, Saved or "Not saved. Try
+  again." beside each field, and reverts to the last server-confirmed value.
+- **Created placements.** A section or shortcut made in the dialog is revealed with its heading
+  focused.
+- **The held canvas.** [ScrollHold](../../../apps/web/src/app/features/projects/canvas-chrome/scroll-hold.ts)
+  keeps the working list still while Recent Activity grows above it: under 1 px, against
+  48.5 px per completion before. New activity rows fade in.
+- **Findings.** The slice closes thirteen TH07 findings and evidences the four TH15 quick-add
+  findings.
+
+**Deliberate choices.** All six Open question recommendations were taken as the user chose:
+
+- a sticky add field;
+- a refused second submit;
+- no toast for a create;
+- the title returned after the owed read;
+- the checked row as completion's confirmation, with failures on the row;
+- heading focus for every new section.
+
+The [feedback-stays-on-the-object decision](../../decisions/2026-10-feedback-stays-on-the-object.md)
+records them, with dated amendments to the one-toast, creation-defaults, checkbox,
+Delete-feedback and phone-drawer entries and to direction principle 6.
+
+Stage 0 measured that native scroll anchoring does not hold the canvas, so the JavaScript hold
+was built. The canvas now opts out of native anchoring, so the two never correct the same growth
+twice.
+
+**Deviations.**
+
+- `.visually-hidden` was used but never defined. Defining it moved the canvas live region out of
+  the grid, which is the accepted 24 px rise. Its first, absolute version stretched the phone
+  document, so it is now fixed to the viewport corner.
+- The drawer's field status is `aria-hidden`, so it never joins the field's accessible name.
+- The step-4 reviews found and fixed four things: the announcement order, the owed read
+  repainting other edits, the hold missing plain scrolls, and the sticky form darkening at rest.
+- Sam cannot open Kitchen, so the slice-73 pair uses a root of Sam's own.
+- `web.spec.ts` and the drawer copy in `task-interaction.spec.ts` changed with their behaviour
+  (§77).
+
+**Evidence.**
+
+- **Sheet.** `apps/e2e/ux-output/sheet-75/index.html` (local): 194 pairs, 0 gate failures and
+  19 paired visual rows, with T03 at 10 clicks and 38 keystrokes.
+- **Checks.** `pnpm test` passed 3,181 offline tests, and lint, docs, Storybook and every e2e
+  journey passed. The initial bundle is 1,089.7 kB, under the 1,100 kB ceiling.
+- **Unverified.** e2e is Chromium only, so WebKit is unverified.
+
+**Deferred.** Each item has its owner:
+
+- A row failure on the last visible row can land below the fold (`.prototype/notes.json`).
+- Agent Revoke failures still use the page alert (the agent connections slice).
+- Todos' workstream Complete keeps its pre-existing `[disabled]`.
+- The drawer's raw Status and Project facts (redesign slice 9).
+- Collapse, drag and Markdown editor states (slices 5 and 6, as already assigned).
+
+**Open questions.** Should a row error that would land off screen be brought into view? This is
+for the next feedback-adjacent slice to answer from use. The 850 kB bundle warning still reports,
+with 10 kB of headroom under the ceiling.
+
+**Documentation updated.**
+
+- The spec: §26, §27, §30, §34, §63 and §67.
+- The architecture folders: web tasks, projects, core, dashboard and prototype-tooling, the web
+  overview, what and why files, and testing.
+- The decision log: the new entry, six amendments and the README index.
+- The direction, goals and umbrella.
+
+The implementation runs from `043e27e` to `9fc3b9d`.

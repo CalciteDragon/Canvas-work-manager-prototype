@@ -21,7 +21,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 — Slice 75: pending vocabulary, the saved cue, failures on their row, field or card, new items
 in view with focus, and the canvas scroll hold. It amends the one-toast entry (no toast for a
 task create), creation defaults, checkbox reopen, task Delete feedback and the phone drawer on
-2026-10-20.
+2026-10-20. The user accepted Slice 75 Gate 2 the same day; the entry records it.
 
 [Feedback is one toast with receipt-specific Undo](2026-10-feedback-is-one-toast-with-undo.md)
 and [Archive is always visitable](2026-10-archive-is-always-visitable.md) — current Slice 74

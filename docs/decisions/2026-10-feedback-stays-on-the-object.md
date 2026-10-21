@@ -67,3 +67,8 @@ it. WebKit behaviour is reasoned from the absence of anchoring there, not measur
 
 Real use shows the sticky add field crowding short screens, a second quick-add wanted while one
 is pending, or a held list that a person expected to move.
+
+**Amended, 2026-10-20 (Gate 2 accepted).** The user accepted Slice 75's sheet, including the one
+listed closed-state change: the canvas live region left the grid, and project content rose 24 px.
+The sticky add form is transparent at rest, with a solid plate only while stuck. Field status
+stays out of the field's accessible name.

@@ -310,14 +310,15 @@ still records the options as they were presented.
 **State.** Phases 0–2 are complete and Gate 1 is answered. Redesign slices 1–3 are
 [71](../completed/71-depth-tokens-and-theme.md), [72](../completed/72-primitives.md) and
 [73](../completed/73-lifts-and-focus.md), all complete. Slice
-[74](../completed/74-feedback-toast-and-undo.md) completes redesign 4a; 4b remains planned as
-Slice 75. The umbrella stays active. The
+[74](../completed/74-feedback-toast-and-undo.md) completes redesign 4a and
+[75](../completed/75-feedback-pending-and-placement.md) completes 4b, so redesign slice 4 is done.
+The umbrella stays active. The
 user raised the bundle's hard ceiling to 1100 kB after slice 73
 ([decision](../../decisions/2026-08-initial-bundle-budget.md)); the 850 kB warning still reports.
 
 **Redesign slice 4 is split (2026-10-17, the user's choice).** TH07's 38 findings would not fit
 one sheet. [Slice 74](../completed/74-feedback-toast-and-undo.md) (completed, Gate 2 accepted) delivers the toast,
-inline Undo and confirmations, 20 findings. [Slice 75](../active/75-feedback-pending-and-placement.md)
+inline Undo and confirmations, 20 findings. [Slice 75](../completed/75-feedback-pending-and-placement.md)
 takes pending, saved, row failures and new items in view, 13 findings, plus the four TH15 quick-add
 findings slice 73 implemented. L3-016 goes to slice 5, L3-017, L3-012 and W4-031 to slice 6, and
 L3-023 to the agent connections slice. The user also answered W4-020: Archive is always
@@ -330,6 +331,13 @@ visits write nothing. Its record contains the independent reviews, 194-cell zero
 sixteen visual pairs, twenty finding mappings and 185 passing browser journeys. Busy-week and
 nested-projects desktop/touch use is recorded in `.prototype/notes.json`. Slice 75 remains
 planned and is the next feedback slice; pending/saved cues and placement remain deferred.
+
+**Slice 75 completed (2026-10-20).** The user accepted Gate 2, including a listed 24 px rise on
+project pages: the canvas live region left the grid. Pending rows paint within 5 ms. Failures sit
+on their row, field or card, and the drawer says Saving… and Saved. Created sections and shortcuts
+are revealed with focus, and the working list holds still under growing activity. TH07 is closed
+with the four TH15 quick-add findings. Its record lists the deferrals: a row error below the fold,
+agent Revoke, and the drawer's raw facts. The next redesign slice is 5.
 
 ### Slice 72 (Primitives) — planning brief
 
