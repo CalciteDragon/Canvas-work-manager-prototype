@@ -18,6 +18,25 @@ const render = (
 };
 
 describe('InsertionPoint (§27)', () => {
+  it('makes the entire painted mark a descendant of its button', () => {
+    const fixture = render('before', 'section-a');
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.contains(fixture.nativeElement.querySelector('app-icon'))).toBe(true);
+    // Actual rest/active boxes and all nine hit points are proved in section-chrome.spec.ts;
+    // jsdom has no layout engine.
+  });
+
+  it('refuses selection while sorting even when called programmatically', () => {
+    const fixture = render('before', 'section-a');
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    const seen: unknown[] = [];
+    fixture.componentInstance.selected.subscribe(intent => seen.push(intent));
+    fixture.componentInstance.select();
+    expect(seen).toEqual([]);
+    expect(fixture.nativeElement.querySelector('button').disabled).toBe(true);
+  });
+
   it('labels before, end, and grid-gap targets and emits the stable anchor intent', () => {
     const before = render('before', 'shortcut-a', 12, 'Add section before Weekly notes');
     const end = render('end', null, 12, 'Add section at the end');

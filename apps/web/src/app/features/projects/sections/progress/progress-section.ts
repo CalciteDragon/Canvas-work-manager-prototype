@@ -19,7 +19,7 @@ export class ProgressSection {
   /**
    * The bar's accessible name (slice 72, L5-004): what the frame displays, or the section's own
    * name outside a frame, with "progress" appended unless the name already says it. Never the
-   * frame's heading button, whose name is "Rename …".
+   * separate Rename tool.
    */
   protected readonly barName = computed(() => {
     const name = this.frameName?.() ?? nameOf(this.section());

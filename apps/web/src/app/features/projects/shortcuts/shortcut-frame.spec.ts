@@ -174,3 +174,24 @@ it('gives two untitled Progress shortcuts from different owners distinct bar nam
   }
   expect(names).toEqual(['Progress (Kitchen)', 'Progress (Garden)']);
 });
+
+
+it('slice 76 provides one named toolbar, a read-only cue and unlink remove', () => {
+  TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  const fixture = render();
+  const toolbar = query(fixture, '[role="toolbar"]')!;
+  expect(toolbar.getAttribute('aria-label')).toBe('Markdown (Website launch) tools');
+  expect([...toolbar.querySelectorAll('button')].map((button) => button.tabIndex)).toEqual([0, -1, -1]);
+  expect([...toolbar.querySelectorAll('button')].map((button) => button.getAttribute('aria-label'))).toEqual(['Collapse Markdown (Website launch)', 'Move shortcut to Markdown (Website launch)', 'Remove shortcut to Markdown (Website launch)']);
+  expect(query(fixture, '[data-shortcut-source]')!.textContent).toContain('Read-only');
+  expect(query(fixture, '[data-shortcut-remove]')!.classList.contains('tool--danger')).toBe(false);
+  expect(query(fixture, '[data-shortcut-remove] app-icon')!.getAttribute('name')).toBe('unlink');
+  expect(query(fixture, '[data-section-title-edit]')).toBeNull();
+  fixture.componentRef.setInput('collapseError', 'Shortcut collapse refused.');
+  fixture.componentRef.setInput('collapsePending', true); fixture.detectChanges();
+  const alert = query(fixture, '[role="alert"]')!;
+  expect(alert.textContent).toContain('Shortcut collapse refused.');
+  expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-describedby')).toBe(alert.id);
+  expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-busy')).toBe('true');
+  expect(query(fixture, '[data-shortcut-frame]')!.getAttribute('aria-busy')).toBe('true');
+});

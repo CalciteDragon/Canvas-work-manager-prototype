@@ -15,8 +15,7 @@
 <section class="panel" data-panel="section-frame" data-panel-kind="live">
   <h3 class="panel__title">Section frames <span class="panel__badge">live component</span></h3>
   <p class="panel__note">
-    Rendered inside the canvas wrapper the real page applies — without it every span is the
-    same width.
+    Rest and focus specimens use the same canvas emphasis tokens as the page. Focus any tool to try its keyboard toolbar.
   </p>
   <div class="panel__body panel__body--stack">
     <app-section-canvas-frame [columnSpan]="12">
@@ -29,7 +28,7 @@
         [projectHierarchyRevision]="0"
       />
     </app-section-canvas-frame>
-    <app-section-canvas-frame [columnSpan]="6">
+    <app-section-canvas-frame [columnSpan]="6" [focused]="true">
       <app-project-section-frame
         [section]="halfWidth"
         [definition]="sectionDefinition"

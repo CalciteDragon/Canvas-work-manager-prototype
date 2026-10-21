@@ -411,3 +411,82 @@ it('content config writes return the saveConfig result', async () => {
   expect(await fixture.componentInstance.contentInputs().onConfigChange({ text: 'draft' })).toBe(false);
   expect(save).toHaveBeenCalledWith('section-a', { text: 'draft' });
 });
+
+
+describe('slice 76 named section chrome', () => {
+  it('names a plain heading and a one-stop ordered toolbar, including optional settings', () => {
+    const fixture = render({ title: 'Launch' });
+    const heading = query(fixture, '[data-section-title]')!;
+    expect(heading.textContent?.trim()).toBe('Launch');
+    expect(heading.querySelector('button')).toBeNull();
+    expect(heading.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    const toolbar = query(fixture, '[role="toolbar"]')!;
+    expect(toolbar.getAttribute('aria-label')).toBe('Launch tools');
+    expect([...toolbar.querySelectorAll('button')].map((button) => button.getAttribute('aria-label'))).toEqual(['Rename Launch', 'Collapse Launch', 'Move Launch', 'Remove section Launch']);
+    expect([...toolbar.querySelectorAll('button')].map((button) => button.tabIndex)).toEqual([0, -1, -1, -1]);
+    expect(query(fixture, '[data-section-frame]')!.getAttribute('aria-labelledby')).toBe(heading.id);
+    const withSettings = render({}, { inspectorComponent: TestInspector });
+    expect(query(withSettings, '[role="toolbar"]')!.querySelectorAll('button').length).toBe(5);
+  });
+
+  it('fails closed for title clicks except mouse or pen pointerdown; Rename remains while editing', async () => {
+    const fixture = render();
+    document.body.append(fixture.nativeElement);
+    try {
+      const title = query(fixture, '[data-section-title]')!;
+      const pointer = (type: string) => {
+        const event = new Event('pointerdown', { bubbles: true });
+        Object.defineProperty(event, 'pointerType', { value: type }); title.dispatchEvent(event);
+      };
+      title.click(); fixture.detectChanges(); expect(query(fixture, '[data-section-name]')).toBeNull();
+      pointer('touch'); title.click(); fixture.detectChanges(); expect(query(fixture, '[data-section-name]')).toBeNull();
+      pointer('mouse'); title.click(); fixture.detectChanges(); await fixture.whenStable();
+      expect(query(fixture, '[data-section-name]')).not.toBeNull();
+      const rename = query(fixture, '[data-section-title-edit]')!;
+      const down = new Event('pointerdown', { bubbles: true, cancelable: true });
+      rename.dispatchEvent(down); expect(down.defaultPrevented).toBe(true);
+      rename.click();
+      expect(document.activeElement).toBe(query(fixture, '[data-section-name]'));
+    } finally { fixture.nativeElement.remove(); }
+  });
+
+  it('prefills and selects the default and treats unchanged Enter and blur as no write', async () => {
+    const rename = vi.fn(async () => true);
+    const fixture = render({}, {}, rename);
+    document.body.append(fixture.nativeElement);
+    try {
+      query(fixture, '[data-section-title-edit]')!.click(); fixture.detectChanges(); await fixture.whenStable();
+      const field = query(fixture, '[data-section-name]') as HTMLInputElement;
+      expect(field.value).toBe('Test Content'); expect(field.selectionStart).toBe(0); expect(field.selectionEnd).toBe(field.value.length);
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await fixture.whenStable(); fixture.detectChanges(); expect(rename).not.toHaveBeenCalled();
+      query(fixture, '[data-section-title-edit]')!.click(); fixture.detectChanges();
+      (query(fixture, '[data-section-name]') as HTMLInputElement).dispatchEvent(new Event('blur'));
+      await fixture.whenStable(); expect(rename).not.toHaveBeenCalled();
+    } finally { fixture.nativeElement.remove(); }
+  });
+
+  it('roves horizontally without moving the placement and follows programmatic focus', () => {
+    const fixture = render(); document.body.append(fixture.nativeElement);
+    try {
+      const move = query(fixture, '[data-section-drag-handle]')!;
+      const moves = vi.fn(); fixture.componentInstance.moveRequested.subscribe(moves);
+      move.focus();
+      expect(move.tabIndex).toBe(0);
+      move.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      expect(moves).not.toHaveBeenCalled(); expect(document.activeElement).toBe(query(fixture, '[data-section-remove]'));
+      move.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+      move.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      expect(moves.mock.calls).toEqual([['previous'], ['next']]);
+    } finally { fixture.nativeElement.remove(); }
+  });
+
+  it('links a frame collapse alert and exposes its pending state', () => {
+    const fixture = render(); fixture.componentRef.setInput('collapseError', 'Could not collapse.'); fixture.componentRef.setInput('collapsePending', true); fixture.detectChanges();
+    const alert = query(fixture, '[role="alert"]')!;
+    expect(alert.textContent).toContain('Could not collapse.');
+    expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-describedby')).toBe(alert.id);
+    expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-busy')).toBe('true');
+    expect(query(fixture, '[data-section-frame]')!.getAttribute('aria-busy')).toBe('true');
+  });
+});

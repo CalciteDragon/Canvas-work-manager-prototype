@@ -68,7 +68,7 @@ describe('DesignLabPage (§22, §67)', () => {
 
     expect([...element.querySelectorAll('[data-design-lab-control]')].map((control) =>
       control.getAttribute('data-design-lab-control'),
-    )).toEqual(['radius', 'spacing', 'surfaceContrast', 'accent', 'fontScale', 'elevation', 'sidebarWidth',
+    )).toEqual(['radius', 'spacing', 'surfaceContrast', 'accent', 'fontScale', 'elevation', 'sidebarWidth', 'canvasChromeRestOpacity',
       'paneTint', 'paneAlpha', 'paneBlur', 'sheetTint', 'sheetAlpha', 'sheetBlur',
       'liftTint', 'liftAlpha', 'liftBlur', 'groundArtStrength', 'motionScale']);
   });

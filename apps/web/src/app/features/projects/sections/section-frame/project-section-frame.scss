@@ -27,12 +27,8 @@
   min-width: 0;
 }
 
-.section-frame__handle,
-.section-frame__controls {
-  opacity: var(--canvas-chrome-opacity, 1);
-}
-
 .section-frame__header .tool {
+  opacity: var(--canvas-chrome-opacity, var(--canvas-chrome-rest-opacity));
   flex: none;
 }
 
@@ -52,40 +48,15 @@
 }
 
 .section-frame__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: text;
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
   overflow: hidden;
   font-size: var(--font-size-lg);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.section-frame__title-button {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  inline-size: 100%;
-  min-width: 0;
-  padding: var(--space-1);
-  border: var(--border-hairline) solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  text-align: start;
-  cursor: text;
-}
-
-.section-frame__title-button:hover,
-.section-frame__title-button:focus-visible {
-  border-color: var(--color-border);
-  background: var(--color-surface-sunken);
-}
-
-.section-frame__title-button > span:last-child {
-  min-width: 0;
-  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -114,3 +85,21 @@
 }
 
 
+.section-frame__title > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.section-frame__header .tool--danger {
+  --control-ink: var(--color-text-muted);
+}
+
+.section-frame__header .tool--danger:is(:hover, :focus, :active) {
+  --control-ink: var(--control-danger-ink);
+}
+
+.section-frame__error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}

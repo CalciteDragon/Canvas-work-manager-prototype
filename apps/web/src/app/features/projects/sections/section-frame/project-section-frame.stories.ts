@@ -1,3 +1,4 @@
+import { userEvent, within } from 'storybook/test';
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { componentWrapperDecorator, moduleMetadata } from '@storybook/angular-vite';
 import { labSection, stubSectionDefinition } from '../../../../prototype/design-lab/design-lab-fixtures';
@@ -63,3 +64,24 @@ export const EmptyContent: Story = {
 export const LoadingContent: Story = {
   args: { section: labSection({ title: 'Reflections', config: { state: 'loading' } }) },
 };
+
+export const Rest: Story = {};
+export const Hover: Story = {
+  play: async ({ canvasElement }) => { await userEvent.hover(canvasElement.querySelector('[data-section-frame]')!); },
+};
+export const FocusWithin: Story = {
+  play: async ({ canvasElement }) => { within(canvasElement).getByRole('button', { name: 'Rename Launch notes' }).focus(); },
+};
+export const Renaming: Story = {
+  play: async ({ canvasElement }) => { await userEvent.click(within(canvasElement).getByRole('button', { name: 'Rename Launch notes' })); },
+};
+export const CollapsePending: Story = { args: { collapsePending: true, section: labSection({ title: 'Launch notes', collapsed: true }) } };
+export const CollapseRefused: Story = { args: { collapseError: 'Couldn’t collapse “Launch notes”. Try again. The server did not answer.' } };
+
+/** Each specimen can also be switched with the global theme control. */
+export const RestLight: Story = { ...Rest, globals: { theme: 'light' } };
+export const HoverLight: Story = { ...Hover, globals: { theme: 'light' } };
+export const FocusWithinLight: Story = { ...FocusWithin, globals: { theme: 'light' } };
+export const RenamingLight: Story = { ...Renaming, globals: { theme: 'light' } };
+export const CollapsePendingLight: Story = { ...CollapsePending, globals: { theme: 'light' } };
+export const CollapseRefusedLight: Story = { ...CollapseRefused, globals: { theme: 'light' } };

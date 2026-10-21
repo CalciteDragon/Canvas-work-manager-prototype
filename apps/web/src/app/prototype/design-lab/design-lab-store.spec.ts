@@ -32,6 +32,7 @@ describe('DesignLabStore (§22)', () => {
       ['paneTint', '--plane-pane-tint', ''], ['paneAlpha', '--plane-pane-alpha', '%'], ['paneBlur', '--plane-pane-blur', 'px'],
       ['sheetTint', '--plane-sheet-tint', ''], ['sheetAlpha', '--plane-sheet-alpha', '%'], ['sheetBlur', '--plane-sheet-blur', 'px'],
       ['liftTint', '--plane-lift-tint', ''], ['liftAlpha', '--plane-lift-alpha', '%'], ['liftBlur', '--plane-lift-blur', 'px'],
+      ['canvasChromeRestOpacity', '--canvas-chrome-rest-opacity', ''],
       ['groundArtStrength', '--ground-art-strength', '%'], ['motionScale', '--motion-scale', ''],
     ];
     for (const [id, property, unit] of expected) {

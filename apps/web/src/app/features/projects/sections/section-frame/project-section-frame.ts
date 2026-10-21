@@ -18,6 +18,7 @@ import { SECTION_FRAME_NAME } from '../section-frame-name';
 import type { SectionContentInputs } from '../section-contract';
 import type { SectionDefinition } from '../registry';
 import { Icon } from '../../../../shared/components/icon/icon';
+import { toolbarKeydown, toolbarFocusin } from '../../canvas-chrome/toolbar-keys';
 import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 
 /**
@@ -36,6 +37,11 @@ import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 export class ProjectSectionFrame {
   readonly section = input.required<ProjectSection>();
   readonly definition = input.required<SectionDefinition>();
+  readonly collapsePending = input(false);
+  readonly collapseError = input<string | null>(null);
+  readonly toolbarKeydown = toolbarKeydown;
+  readonly toolbarFocusin = toolbarFocusin;
+  private titlePointerType = '';
   readonly movePending = input(false);
   readonly moveAllowed = input(true);
   readonly removalPending = input(false);
@@ -100,9 +106,23 @@ export class ProjectSectionFrame {
     this.configOpen.update((open) => !open);
   }
 
+  titlePointerdown(event: PointerEvent): void {
+    this.titlePointerType = event.pointerType;
+  }
+
+  titleClick(event: MouseEvent): void {
+    const pointer = this.titlePointerType;
+    this.titlePointerType = '';
+    if (event.button === 0 && (pointer === 'mouse' || pointer === 'pen')) this.beginRename();
+  }
+
   beginRename(): void {
     if (this.renamePending()) return;
-    this.nameDraft.set(this.override());
+    if (this.editingName()) {
+      this.host.nativeElement.querySelector<HTMLInputElement>('[data-section-name]')?.focus();
+      return;
+    }
+    this.nameDraft.set(this.name());
     this.editingName.set(true);
     afterNextRender(() => {
       const input = this.host.nativeElement.querySelector<HTMLInputElement>('[data-section-name]');
@@ -122,9 +142,9 @@ export class ProjectSectionFrame {
     if (this.renamePending() || !this.editingName()) return;
     const trimmed = input.value.trim();
     const next = trimmed === '' ? null : trimmed;
-    // Enter keeps the keyboard user on the title; a blur already moved focus where it belongs.
+    // Enter keeps the keyboard user on Rename; a blur already moved focus where it belongs.
     const returnFocus = event.type === 'keydown';
-    if ((next ?? '') === this.override()) {
+    if ((next ?? '') === this.override() || next === this.name()) {
       this.nameDraft.set(this.override());
       this.finishRename(returnFocus);
       return;

@@ -27,9 +27,8 @@
   min-width: 0;
 }
 
-.shortcut-frame__handle,
-.shortcut-frame__controls {
-  opacity: var(--canvas-chrome-opacity, 1);
+.shortcut-frame__header .tool {
+  opacity: var(--canvas-chrome-opacity, var(--canvas-chrome-rest-opacity));
 }
 
 .shortcut-frame__header .tool {
@@ -73,6 +72,8 @@
 }
 
 .shortcut-frame__source {
+  display: flex;
+  gap: var(--space-1);
   margin: var(--space-1) 0 0;
   overflow: hidden;
   color: var(--color-text-muted);
@@ -108,3 +109,19 @@
 }
 
 
+
+.shortcut-frame__error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.shortcut-frame__origin {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-shortcut-read-only] {
+  flex: none;
+}

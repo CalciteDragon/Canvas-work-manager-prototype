@@ -22,7 +22,7 @@ flowchart TB
   lab --> controls["ControlPanels<br/>every control primitive and state"]
   lab --> planes["PlanePanels<br/>busy ground, pane, sheets, real contained lift classes, motion"]
   lab --> export["design-lab-export<br/>Copy CSS"]
-  lstore --> tokens["design-lab-tokens.ts<br/>eighteen controls as data, no literals"]
+  lstore --> tokens["design-lab-tokens.ts<br/>nineteen controls, including section-chrome rest opacity"]
 ```
 
 ## The controls

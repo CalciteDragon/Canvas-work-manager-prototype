@@ -61,8 +61,7 @@
       @for (
         placement of store.placements();
         track store.canvasRevision() + ':' + placementId(placement);
-        let index = $index;
-        let last = $last
+        let index = $index
       ) {
         <div
           [attr.id]="placement.kind === 'section' ? 'section-' + placement.section.id : null"
@@ -74,6 +73,8 @@
           [attr.data-section-id]="placement.kind === 'section' ? placement.section.id : null"
           [attr.data-shortcut-id]="placement.kind === 'shortcut' ? placement.shortcut.id : null"
           [cdkDragData]="{ kind: placement.kind, id: placementId(placement) }"
+          (cdkDragStarted)="sorting.set(true)"
+          (cdkDragEnded)="sorting.set(false)"
           [class.section-canvas__item--span-12]="displayedSpan(placement) === 12"
           [class.section-canvas__item--span-8]="displayedSpan(placement) === 8"
           [class.section-canvas__item--span-6]="displayedSpan(placement) === 6"
@@ -84,6 +85,8 @@
               kind="before"
               [beforeId]="placementId(placement)"
               [columnSpan]="12"
+              [disabled]="sorting()"
+              [attr.inert]="sorting() ? '' : null"
               [label]="'Insert before ' + placementName(placement)"
               (selected)="openCreate($event)"
             />
@@ -94,6 +97,8 @@
               [shortcut]="placement.shortcut"
               [movePending]="keyboardMovePending().has(placement.shortcut.id)"
               [moveAllowed]="store.orderComplete()"
+              [collapsePending]="store.collapsePending().has(placement.shortcut.id)"
+              [collapseError]="store.collapseErrors()[placement.shortcut.id] ?? null"
               [projectDataRevision]="store.projectDataRevision()"
               [projectHierarchyRevision]="store.projectHierarchyRevision()"
               (collapseToggled)="collapseShortcut($event)"
@@ -108,6 +113,8 @@
                 [rename]="renameSection"
                 [movePending]="keyboardMovePending().has(placement.section.id)"
                 [moveAllowed]="store.orderComplete()"
+                [collapsePending]="store.collapsePending().has(placement.section.id)"
+                [collapseError]="store.collapseErrors()[placement.section.id] ?? null"
                 [removalPending]="store.removalPending()"
                 [transientlyExpanded]="transientTargetId() === placement.section.id"
                 [projectDataRevision]="store.projectDataRevision()"
@@ -122,25 +129,30 @@
             } @else {
               <section data-unknown-section class="unknown-section">
                 <header>
+                  <h2>Unrecognised section</h2>
+                  <div role="toolbar" [attr.aria-label]="'Unrecognised section ' + placement.section.type + ' tools'"
+                    (keydown)="toolbarKeydown($event)" (focusin)="toolbarFocusin($event)">
                   <button
                     data-unknown-section-drag-handle
                     cdkDragHandle
                     type="button"
                     class="tool unknown-section__handle"
+                    tabindex="0"
                     [attr.aria-disabled]="keyboardMovePending().has(placement.section.id) || !store.orderComplete()"
                     [attr.aria-label]="'Move unrecognised section ' + placement.section.type"
                     (keydown)="unknownMoveKeydown($event, placement.section.id)"
                   ><app-icon name="grip" /></button>
-                  <h2>Unrecognised section</h2>
                   <button
                     data-unknown-section-remove
                     type="button"
                     class="tool tool--danger"
+                    tabindex="-1"
                     [attr.aria-disabled]="store.removalPending()"
                     title="Remove section"
                     [attr.aria-label]="'Remove unrecognised section ' + placement.section.type"
                     (click)="removeSectionFromCanvas(placement.section.id)"
                   ><app-icon name="remove-section" /></button>
+                  </div>
                 </header>
                 <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
               </section>
@@ -168,21 +180,13 @@
             (cancel)="cancelResize(placement)"
           />
 
-          @if (last && store.orderComplete()) {
-            <app-insertion-point
-              kind="end"
-              [beforeId]="null"
-              [columnSpan]="12"
-              label="Insert at the end"
-              (selected)="openCreate($event)"
-            />
-          }
-
           @for (gap of gapTargetsAfter(placement); track gap.index) {
             <app-insertion-point
               kind="gap"
               [beforeId]="gap.beforeId"
               [columnSpan]="gap.columnSpan"
+              [disabled]="sorting()"
+              [attr.inert]="sorting() ? '' : null"
               [label]="'Insert in grid space after ' + placementName(placement)"
               [style.--gap-columns]="'var(--space-4)'"
               [style.--gap-width]="gapWidth(gap)"
@@ -193,6 +197,13 @@
       }
     }
   </div>
+  @if (store.placements().length > 0 && store.orderComplete()) {
+    <button data-canvas-add type="button" class="button button--ghost"
+      [attr.inert]="sorting() ? '' : null" [class.project-canvas__add--sorting]="sorting()"
+      (click)="openCreate({ kind: 'end', beforeId: null, columnSpan: 12 })">
+      <app-icon name="plus" /> Add a section
+    </button>
+  }
 }
 
 <app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'"

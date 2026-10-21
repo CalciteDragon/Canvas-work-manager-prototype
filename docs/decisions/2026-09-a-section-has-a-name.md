@@ -149,3 +149,14 @@ See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).
 `shortcutNameOf`: a titled source keeps its chosen name, while an untitled source includes its
 owning project in parentheses. `nameOf` and local section naming are unchanged. See
 [untitled shortcut source naming](2026-10-untitled-shortcut-sources-name-their-owner.md).
+
+**Amended, 2026-10-20 (Slice 76, accepted recommendations).**
+[Quiet section chrome](2026-10-section-chrome-is-quiet-at-rest.md) keeps rename awaited but
+makes collapse optimistic, with field-only rollback and an owed read after an uncertain
+failure. The earlier comparison between rename and `setCollapsed` no longer applies.
+The inline name field is now prefilled and selected. Unchanged saves and an untitled section's
+exact derived default write nothing. This intentionally reverses the browser case that allowed
+an untitled section to store its own default as a literal; a titled section can still be renamed
+to that text. Clearing still saves null. The plain heading names the region, the separate
+Rename tool opens the field, and Enter/Escape return focus to that tool. Default derivation
+and all contract, domain and MCP naming rules remain unchanged.

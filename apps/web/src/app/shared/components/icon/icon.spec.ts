@@ -16,3 +16,7 @@ describe('Icon (§27, slice 72)', () => {
     expect(svg?.querySelectorAll('path, circle, rect, line, polyline').length, name).toBeGreaterThan(0);
   });
 });
+
+it('includes the section Rename pencil in the shared icon set', () => {
+  expect(ICON_NAMES).toContain('rename');
+});

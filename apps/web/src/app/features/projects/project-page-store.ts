@@ -3,6 +3,7 @@ import {
   SectionConfigSchema,
   SectionAlreadyRemovedDetailsSchema,
   nameOf,
+  shortcutNameOf,
   type CreateSectionInput,
   type ProjectId,
   type ProjectPageId,
@@ -85,11 +86,13 @@ export interface FailedSectionRemoval {
  */
 export type CanvasWriteResult = { ok: true; placementId?: string } | { ok: false; message: string };
 
-interface ColumnSpanWriteState {
+type PlacementFieldValue = boolean | SectionColumnSpan;
+
+interface PlacementFieldWriteState {
   nextSequence: number;
   confirmedSequence: number;
-  confirmedSpan: SectionColumnSpan;
-  pending: Map<number, SectionColumnSpan>;
+  confirmedValue: PlacementFieldValue;
+  pending: Map<number, PlacementFieldValue>;
 }
 
 /**
@@ -177,7 +180,15 @@ export class ProjectPageStore {
   private sectionWriteEpoch = 0;
   private sectionRefresh: Promise<void> | null = null;
   private sectionRefreshQueued = false;
-  private readonly columnSpanWrites = new Map<string, ColumnSpanWriteState>();
+  private readonly fieldWrites = new Map<string, PlacementFieldWriteState>();
+  private readonly failedCollapseIntent = new Map<string, boolean>();
+
+  private readonly collapseErrorsState = signal<Partial<Record<string, string>>>({});
+  private readonly collapsePendingState = signal<ReadonlySet<string>>(new Set());
+  /** Collapse refusal text belongs to its placement, rather than the canvas banner. */
+  readonly collapseErrors = this.collapseErrorsState.asReadonly();
+  /** Placements with one or more collapse requests still in flight. */
+  readonly collapsePending = this.collapsePendingState.asReadonly();
 
   readonly sections = this.sectionsState.asReadonly();
   readonly shortcuts = this.shortcutsState.asReadonly();
@@ -335,6 +346,7 @@ export class ProjectPageStore {
           continue;
         }
         const sections = [...sectionsResult.value].sort(byPosition);
+        this.acceptCollapseRead(this.composePlacements(sections, shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : []));
         if (shortcutsResult.status === 'fulfilled') {
           this.setCanvas(this.composePlacements(sections, shortcutsResult.value));
           this.sectionErrorState.set(null);
@@ -384,6 +396,7 @@ export class ProjectPageStore {
           void this.refreshSections();
           return;
         }
+        this.acceptCollapseRead(this.composePlacements([], shortcuts));
         this.setCanvas(this.composePlacements(this.sectionsState(), shortcuts));
         this.orderCompleteState.set(true);
         this.sectionErrorState.set(null);
@@ -406,6 +419,10 @@ export class ProjectPageStore {
    */
   load(projectId: ProjectId, pageId: ProjectPageId, shortcutsAllowed = true, rootProjectId: ProjectId = projectId): Promise<void> {
     const generation = ++this.loadGeneration;
+    this.fieldWrites.clear();
+    this.failedCollapseIntent.clear();
+    this.collapseErrorsState.set({});
+    this.collapsePendingState.set(new Set());
     const current = () => generation === this.loadGeneration;
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
@@ -485,7 +502,7 @@ export class ProjectPageStore {
   }
 
   private setCanvas(placements: readonly ProjectCanvasPlacement[]): void {
-    const next = [...placements];
+    const next = placements.map(placement => this.withPendingFields(placement));
     this.placementsState.set(next);
     // A removal notice that says "Removed … Open Archive" is wrong once the section is back (the
     // header's Undo, or anyone's): withdraw it rather than leave a stale route on screen.
@@ -573,7 +590,7 @@ export class ProjectPageStore {
   }
 
   setCollapsed(id: SectionId, collapsed: boolean): Promise<boolean> {
-    return this.updateSection(id, { collapsed });
+    return this.collapsePlacement('section', id, collapsed);
   }
 
   /**
@@ -634,11 +651,11 @@ export class ProjectPageStore {
 
   /** Resizes one section optimistically, with rollback limited to its width field. */
   setColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): Promise<boolean> {
-    return this.resizeColumnSpan(
-      `section:${id}`,
+    return this.writePlacementField(
+      `section:${id}:columnSpan`,
       columnSpan,
       () => this.sectionsState().find((section) => section.id === id)?.columnSpan,
-      (span) => this.patchSectionColumnSpan(id, span),
+      (span) => this.patchSectionColumnSpan(id, span as SectionColumnSpan),
       () => reportedWrite(this.reporter, () => this.gateway.sections.update(id, { columnSpan }), sectionReport),
       (result) => result.section.columnSpan,
       (result) => this.replaceSection(result.section),
@@ -646,16 +663,16 @@ export class ProjectPageStore {
   }
 
   setCollapsedShortcut(id: SectionShortcutId, collapsed: boolean): Promise<boolean> {
-    return this.updateShortcut(id, { collapsed });
+    return this.collapsePlacement('shortcut', id, collapsed);
   }
 
   /** Resizes one shortcut placement without changing its source section. */
   setColumnSpanShortcut(id: SectionShortcutId, columnSpan: SectionColumnSpan): Promise<boolean> {
-    return this.resizeColumnSpan(
-      `shortcut:${id}`,
+    return this.writePlacementField(
+      `shortcut:${id}:columnSpan`,
       columnSpan,
       () => this.shortcutsState().find((shortcut) => shortcut.id === id)?.columnSpan,
-      (span) => this.patchShortcutColumnSpan(id, span),
+      (span) => this.patchShortcutColumnSpan(id, span as SectionColumnSpan),
       () => this.reportedShortcutWrite(() => this.gateway.shortcuts.update(id, { columnSpan })),
       (result) => result.shortcut.columnSpan,
       (result) => this.replaceShortcut(result.shortcut),
@@ -728,9 +745,8 @@ export class ProjectPageStore {
    * would silently stop tracking the registry.
    *
    * Deliberately **not** optimistic, unlike the project `rename` below. `updateSection`
-   * awaits the gateway and then patches, which is how `setCollapsed`, `setColumnSpan` and
-   * `updateConfig` all behave; rename joining them is one code path rather than a fourth
-   * idiom. §63 asks for optimism on *important interactions*, and a name committed on blur
+   * awaits the gateway and then patches, as does `updateConfig`. Collapse and width use
+   * field-only optimism. §63 asks for optimism on *important interactions*, and a name committed on blur
    * against a local host is not one.
    */
   renameSection(id: SectionId, title: string | null): Promise<boolean> {
@@ -907,16 +923,130 @@ export class ProjectPageStore {
     if (shortcut !== undefined) this.replaceShortcut({ ...shortcut, columnSpan });
   }
 
-  /** Width-only optimism keeps newer canvas chrome fields when a resize is refused. */
-  private resizeColumnSpan<T>(
+  /** Every record entering the canvas keeps the current intent for each in-flight field. */
+  private withPendingFields(placement: ProjectCanvasPlacement): ProjectCanvasPlacement {
+    const record = placement.kind === 'section' ? placement.section : placement.shortcut;
+    let fields: Partial<{ collapsed: boolean; columnSpan: SectionColumnSpan }> = {};
+    for (const field of ['collapsed', 'columnSpan'] as const) {
+      const state = this.fieldWrites.get(`${this.loadGeneration}:${placement.kind}:${placementId(placement)}:${field}`);
+      if (state !== undefined) this.paintPlacementField(state, value => { fields = { ...fields, [field]: value }; });
+    }
+    return placement.kind === 'section'
+      ? { kind: 'section', section: { ...record, ...fields } as ProjectSection }
+      : { kind: 'shortcut', shortcut: { ...record, ...fields } as ResolvedSectionShortcut };
+  }
+
+  private clearCollapseError(id: string): void {
+    this.failedCollapseIntent.delete(id);
+    this.collapseErrorsState.update(errors => {
+      const next = { ...errors };
+      delete next[id];
+      return next;
+    });
+  }
+
+  /** Only a read confirming the requested value clears a refusal without another toggle. */
+  private acceptCollapseRead(placements: readonly ProjectCanvasPlacement[], reconcileField = false): void {
+    for (const placement of placements) {
+      const id = placementId(placement);
+      const collapsed = placement.kind === 'section' ? placement.section.collapsed : placement.shortcut.collapsed;
+      const state = this.fieldWrites.get(`${this.loadGeneration}:${placement.kind}:${id}:collapsed`);
+      // An owed read supersedes rollback, but must survive older whole-record answers in this batch.
+      if (reconcileField && state !== undefined && state.pending.size === 0) state.confirmedValue = collapsed;
+      if (this.failedCollapseIntent.has(id) && this.failedCollapseIntent.get(id) === collapsed) this.clearCollapseError(id);
+    }
+  }
+
+  private collapsePlacement(kind: 'section' | 'shortcut', id: string, collapsed: boolean): Promise<boolean> {
+    const placement = this.placementsState().find(candidate => candidate.kind === kind && placementId(candidate) === id);
+    if (placement === undefined) return Promise.resolve(false);
+    const name = placement.kind === 'section' ? nameOf(placement.section)
+      : placement.shortcut.source === null ? 'section' : shortcutNameOf(placement.shortcut.source, placement.shortcut.sourceProjectName);
+    const record = () => kind === 'section'
+      ? this.sectionsState().find(section => section.id === id)
+      : this.shortcutsState().find(shortcut => shortcut.id === id);
+    const generation = this.loadGeneration;
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    this.clearCollapseError(id);
+    return this.writePlacementField(
+      `${kind}:${id}:collapsed`, collapsed,
+      () => record()?.collapsed,
+      value => {
+        const current = record();
+        if (current === undefined) return;
+        if (kind === 'section') this.replaceSection({ ...current, collapsed: value as boolean } as ProjectSection);
+        else this.replaceShortcut({ ...current, collapsed: value as boolean } as ResolvedSectionShortcut);
+      },
+      async () => {
+        if (kind === 'section') {
+          const result = await reportedWrite(this.reporter, () => this.gateway.sections.update(id as SectionId, { collapsed }), sectionReport);
+          return result.section;
+        }
+        const result = await this.reportedShortcutWrite(() => this.gateway.shortcuts.update(id as SectionShortcutId, { collapsed }));
+        return result.shortcut;
+      },
+      saved => saved.collapsed,
+      saved => {
+        if (kind === 'section') this.replaceSection(saved as ProjectSection);
+        else this.replaceShortcut(saved as ResolvedSectionShortcut);
+      },
+      () => {},
+      async (error, latest) => {
+        if (latest) {
+          this.failedCollapseIntent.set(id, collapsed);
+          this.collapseErrorsState.update(errors => ({ ...errors,
+            [id]: `Couldn't ${collapsed ? 'collapse' : 'expand'} “${name}”. Try again. ${messageOf(error)}` }));
+        }
+        if (!(error instanceof GatewayError) || !['unreachable', 'internal_error', 'invalid_response'].includes(error.code)) return;
+        // A possibly committed write owes one quiet read; it never repeats the write.
+        const epoch = this.sectionWriteEpoch;
+        const accept = () => {
+          if (!this.current(generation, projectId!, pageId!)) return false;
+          if (epoch === this.sectionWriteEpoch) return true;
+          // An intervening write made this read stale. Reconcile once the current writes settle.
+          this.sectionRefreshQueued = true;
+          return false;
+        };
+        try {
+          if (kind === 'section') {
+            const sections = await this.gateway.sections.list(projectId!, { pageId: pageId! });
+            if (!accept()) return;
+            this.acceptCollapseRead(this.composePlacements(sections, []), true);
+            this.setCanvas(this.composePlacements(sections, this.shortcutsState()));
+          } else {
+            const shortcuts = await this.gateway.shortcuts.list(projectId!, { pageId: pageId! });
+            if (!accept()) return;
+            this.acceptCollapseRead(this.composePlacements([], shortcuts), true);
+            this.setCanvas(this.composePlacements(this.sectionsState(), shortcuts));
+          }
+        } catch { /* Keep the rolled-back frame and its refusal until another toggle or confirming read. */ }
+      },
+    );
+  }
+
+  private syncCollapsePending(): void {
+    const pending = new Set<string>();
+    const prefix = `${this.loadGeneration}:`;
+    for (const [key, state] of this.fieldWrites) {
+      if (key.startsWith(prefix) && key.endsWith(':collapsed') && state.pending.size > 0) {
+        pending.add(key.slice(prefix.length).replace(/^(section|shortcut):/, '').slice(0, -':collapsed'.length));
+      }
+    }
+    this.collapsePendingState.set(pending);
+  }
+
+  /** Per-field optimism keeps newer canvas chrome fields when a write is refused. */
+  private writePlacementField<T>(
     key: string,
-    columnSpan: SectionColumnSpan,
-    readCurrent: () => SectionColumnSpan | undefined,
-    paint: (span: SectionColumnSpan) => void,
+    columnSpan: PlacementFieldValue,
+    readCurrent: () => PlacementFieldValue | undefined,
+    paint: (span: PlacementFieldValue) => void,
     write: () => Promise<T>,
-    readSavedSpan: (record: T) => SectionColumnSpan,
+    readSavedValue: (record: T) => PlacementFieldValue,
     applySaved: (record: T) => void,
     onSaved: (record: T) => void = () => {},
+    onFailure?: (error: unknown, latest: boolean) => Promise<void>,
   ): Promise<boolean> {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
@@ -926,75 +1056,79 @@ export class ProjectPageStore {
     const generation = this.loadGeneration;
     const current = () => this.current(generation, projectId, pageId);
     const stateKey = `${generation}:${key}`;
-    let state = this.columnSpanWrites.get(stateKey);
+    let state = this.fieldWrites.get(stateKey);
     if (state === undefined) {
       state = {
         nextSequence: 0,
         confirmedSequence: 0,
-        confirmedSpan: before,
+        confirmedValue: before,
         pending: new Map(),
       };
-      this.columnSpanWrites.set(stateKey, state);
+      this.fieldWrites.set(stateKey, state);
     }
     const sequence = ++state.nextSequence;
     state.pending.set(sequence, columnSpan);
+    this.syncCollapsePending();
     const latest = () => state!.nextSequence === sequence;
 
     return this.track(() =>
       this.whileWriting(async () => {
         if (current()) {
-          this.sectionErrorState.set(null);
+          if (onFailure === undefined) this.sectionErrorState.set(null);
           paint(columnSpan);
         }
         try {
           const saved = await write();
           state!.pending.delete(sequence);
           if (!current()) {
-            this.cleanupColumnSpanWrite(stateKey, state!);
+            this.cleanupFieldWrite(stateKey, state!);
             return true;
           }
-          const savedSpan = readSavedSpan(saved);
+          const savedValue = readSavedValue(saved);
           if (sequence > state!.confirmedSequence) {
             state!.confirmedSequence = sequence;
-            state!.confirmedSpan = savedSpan;
+            state!.confirmedValue = savedValue;
           }
           if (latest()) applySaved(saved);
           onSaved(saved);
-          this.paintColumnSpanWrite(state!, paint);
-          this.cleanupColumnSpanWrite(stateKey, state!);
+          this.paintPlacementField(state!, paint);
+          this.cleanupFieldWrite(stateKey, state!);
           return true;
         } catch (error) {
           state!.pending.delete(sequence);
           if (current()) {
-            this.paintColumnSpanWrite(state!, paint);
-            if (latest()) this.sectionErrorState.set(messageOf(error));
+            this.paintPlacementField(state!, paint);
+            this.cleanupFieldWrite(stateKey, state!);
+            if (onFailure !== undefined) await onFailure(error, latest());
+            else if (latest()) this.sectionErrorState.set(messageOf(error));
           }
-          this.cleanupColumnSpanWrite(stateKey, state!);
+          this.cleanupFieldWrite(stateKey, state!);
           return false;
         }
       }),
     );
   }
 
-  private paintColumnSpanWrite(
-    state: ColumnSpanWriteState,
-    paint: (span: SectionColumnSpan) => void,
+  private paintPlacementField(
+    state: PlacementFieldWriteState,
+    paint: (span: PlacementFieldValue) => void,
   ): void {
     let pendingSequence = state.confirmedSequence;
-    let pendingSpan: SectionColumnSpan | undefined;
+    let pendingValue: PlacementFieldValue | undefined;
     for (const [sequence, span] of state.pending) {
       if (sequence > pendingSequence) {
         pendingSequence = sequence;
-        pendingSpan = span;
+        pendingValue = span;
       }
     }
-    paint(pendingSpan ?? state.confirmedSpan);
+    paint(pendingValue ?? state.confirmedValue);
   }
 
-  private cleanupColumnSpanWrite(key: string, state: ColumnSpanWriteState): void {
-    if (state.pending.size === 0 && this.columnSpanWrites.get(key) === state) {
-      this.columnSpanWrites.delete(key);
+  private cleanupFieldWrite(key: string, state: PlacementFieldWriteState): void {
+    if (state.pending.size === 0 && this.pendingSectionWrites <= 1 && this.fieldWrites.get(key) === state) {
+      this.fieldWrites.delete(key);
     }
+    this.syncCollapsePending();
   }
 
   /**
@@ -1093,6 +1227,7 @@ export class ProjectPageStore {
     }
     if (sectionsResult.status === 'rejected') return false;
     const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
+    this.acceptCollapseRead(this.composePlacements(sectionsResult.value, shortcutsResult.status === 'fulfilled' ? shortcuts : []));
     this.setCanvas(this.composePlacements([...sectionsResult.value].sort(byPosition), shortcuts));
     this.loaded = true;
     if (shortcutsResult.status === 'fulfilled') this.sectionErrorState.set(null);
@@ -1115,6 +1250,14 @@ export class ProjectPageStore {
     this.sectionWriteEpoch += 1;
     return operation().finally(() => {
       this.pendingSectionWrites -= 1;
+      // A later whole-record answer from a concurrent write must still preserve confirmed
+      // chrome fields. Release those overlays only when the whole write batch has settled.
+      if (this.pendingSectionWrites === 0) {
+        for (const [key, state] of this.fieldWrites) {
+          if (state.pending.size === 0) this.fieldWrites.delete(key);
+        }
+        this.syncCollapsePending();
+      }
       this.pendingSectionWriteCountState.set(this.pendingSectionWrites);
       const waiting: typeof this.sectionWriteWaiters = [];
       for (const waiter of this.sectionWriteWaiters) {

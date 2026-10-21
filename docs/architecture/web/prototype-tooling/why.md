@@ -47,7 +47,7 @@ real project field and the flag is a computed over a signal.
 grid would break "no control exists twice"
 ([decision](../../../decisions/2026-08-agent-connection-panel-control-is-a-roster.md)).
 
-**The Design Lab is a route with knobs, not a third theme.** Eighteen controls write inline custom
+**The Design Lab is a route with knobs, not a third theme.** Nineteen controls write inline custom
 properties on `documentElement` reach the whole shell, which is the experiment; Reset
 *removes* the property so the stylesheet wins, theme-correct for free; two limits are
 stated on the controls — surface contrast reduces only, and the accent knob moves

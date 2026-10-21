@@ -112,3 +112,15 @@ export const DirectCanvasEditing: Story = {
 export const Empty: Story = {
   decorators: canvas([]),
 };
+
+/** Quiet insertion marks and the persistent add affordance, with no hovered or focused tool. */
+export const AtRestDark: Story = {
+  decorators: canvas(GRID),
+  args: { projectLayoutMode: 'grid' },
+  globals: { theme: 'dark' },
+};
+
+export const AtRestLight: Story = {
+  ...AtRestDark,
+  globals: { theme: 'light' },
+};

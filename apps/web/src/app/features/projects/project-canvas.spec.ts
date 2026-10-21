@@ -202,6 +202,44 @@ const completeDeferredBlocks = async (fixture: Awaited<ReturnType<typeof render>
 };
 
 describe('ProjectCanvas (§27, §31, §32)', () => {
+  it('offers Add a section after, and outside, the populated drop list', async () => {
+    const { fixture } = await render();
+    const add = query(fixture, '[data-canvas-add]')!;
+    expect(add).not.toBeNull();
+    expect(add.textContent).toContain('Add a section');
+    expect(add.previousElementSibling).toBe(query(fixture, '[data-section-canvas]'));
+    expect(add.closest('[data-section-canvas]')).toBeNull();
+    add.click();
+    expect(fixture.componentInstance.resolvePosition({ kind: 'end', beforeId: null, columnSpan: 12 })).toBe(2);
+    expect(fixture.componentInstance.createDialogOpen()).toBe(true);
+  });
+
+  it('keeps the empty primary add and withholds the populated add for an incomplete order', async () => {
+    const empty = await render({ sections: [] });
+    expect(query(empty.fixture, '[data-empty-canvas-add]')).not.toBeNull();
+    expect(query(empty.fixture, '[data-canvas-add]')).toBeNull();
+    empty.fixture.destroy();
+    TestBed.resetTestingModule();
+    const incomplete = await render({ shortcutsAllowed: true, failOn: {
+      'shortcuts.list': new GatewayError('unreachable', 0, 'Shortcut read failed'),
+    } });
+    expect(query(incomplete.fixture, '[data-canvas-add]')).toBeNull();
+  });
+
+  it('makes insertion and the sibling add inert while sorting', async () => {
+    const { fixture } = await render();
+    const item = fixture.debugElement.query(By.directive(CdkDrag));
+    item.triggerEventHandler('cdkDragStarted', {});
+    fixture.detectChanges();
+    expect(query(fixture, '[data-canvas-add]')?.hasAttribute('inert')).toBe(true);
+    expect(queryAll(fixture, 'app-insertion-point').every(mark => mark.hasAttribute('inert'))).toBe(true);
+    fixture.componentInstance.openCreate({ kind: 'end', beforeId: null, columnSpan: 12 });
+    expect(fixture.componentInstance.createDialogOpen()).toBe(false);
+    item.triggerEventHandler('cdkDragEnded', {});
+    fixture.detectChanges();
+    expect(query(fixture, '[data-canvas-add]')?.hasAttribute('inert')).toBe(false);
+  });
+
   it('releases section creation on destruction without invoking a dead canvas when another lift opens', async () => {
     const { fixture } = await render();
     fixture.componentInstance.openCreate({ kind: 'end', beforeId: null, columnSpan: 12 });
@@ -314,7 +352,8 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-section-error]')?.textContent).toContain('the host is not running');
+    expect(query(fixture, '[data-section-frame] [role="alert"]')?.textContent).toContain('the host is not running');
+    expect(query(fixture, '[data-section-error]')).toBeNull();
     // Still expanded: the write never landed, so nothing on the canvas moved.
     expect(query(fixture, '[data-section-collapse]')?.getAttribute('aria-expanded')).toBe('true');
   });
@@ -636,6 +675,8 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     ]);
     expect(query(fixture, '[data-canvas-live-region]')?.textContent).toContain('Moved Markdown to position 2 of 2');
     expect(document.activeElement).toBe(query(fixture, '[data-section-item][data-section-id="section-text"] [data-section-drag-handle]'));
+    expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
+    expect(queryAll(fixture, '[data-section-id="section-text"] [role="toolbar"] button').filter(button => button.tabIndex === 0)).toHaveLength(1);
   });
 
   it('qualifies shortcut resize, insertion and keyboard move names with the source owner', async () => {
@@ -1050,6 +1091,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId']),
     ).toEqual(['section-text', 'section-tasks']);
     expect(query(fixture, '[data-section-error]')?.textContent).toContain('move did not persist');
+    expect(query(fixture, '[data-canvas-add]')?.closest('[data-section-canvas]')).toBeNull();
   });
 
   it('does not remount the new canvas when the page left behind rejects a move', async () => {

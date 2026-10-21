@@ -946,6 +946,130 @@ describe('ProjectPageStore (§19, §26)', () => {
     });
   });
 
+  describe('optimistic collapse (Slice 76, §63)', () => {
+    const id = 'section-text' as SectionId;
+    it('paints before saving, reports pending and keeps a resize answer from repainting collapse', async () => {
+      const gate = deferred<ProjectSection>();
+      const { store } = setup({ sectionOverrides: { update: async (_id, input) => 'collapsed' in input ? gate.promise : section(id, 'markdown', 0, input) } });
+      await store.load(PROJECT, PAGE);
+      const saving = store.setCollapsed(id, true);
+      expect(store.sections()[0].collapsed).toBe(true);
+      expect(store.collapsePending().has(id)).toBe(true);
+      await store.setColumnSpan(id, 6);
+      expect(store.sections()[0]).toMatchObject({ collapsed: true, columnSpan: 6 });
+      gate.reject(new GatewayError('rule_violation', 0, 'refused')); await saving;
+      expect(store.sections()[0]).toMatchObject({ collapsed: false, columnSpan: 6 });
+      expect(store.collapsePending().has(id)).toBe(false);
+      expect(store.sectionError()).toBeNull();
+    });
+    it.each(['unreachable', 'internal_error', 'invalid_response', 'rule_violation'] as const)('reverts %s and only uncertain failures owe a quiet read', async code => {
+      const { store, gateway, live } = setup({ sectionOverrides: { update: async () => { throw new GatewayError(code, 200, 'refused'); } } });
+      await store.load(PROJECT, PAGE);
+      expect(await store.setCollapsed(id, true)).toBe(false);
+      expect(store.sections()[0].collapsed).toBe(false);
+      expect(calls(gateway.sections.list)).toBe(code === 'rule_violation' ? 1 : 2);
+      expect(store.collapseErrors()[id]).toContain('refused');
+      expect(store.sectionError()).toBeNull();
+      live.emit({ type: 'project.updated', entityId: PROJECT, projectId: PROJECT }); await settleLive();
+      expect(store.collapseErrors()[id]).toContain('refused');
+      vi.mocked(gateway.sections.list).mockResolvedValue([section(id, 'markdown', 0, { collapsed: true })]);
+      live.emit({ type: 'project.updated', entityId: PROJECT, projectId: PROJECT }); await settleLive();
+      expect(store.collapseErrors()[id]).toBeUndefined();
+    });
+    it('lets the owed read confirm a committed collapse', async () => {
+      let reads = 0;
+      const { store } = setup({ sectionOverrides: { list: async () => [section(id, 'markdown', 0, { collapsed: ++reads > 1 })], update: async () => { throw new GatewayError('unreachable', 0, 'lost answer'); } } });
+      await store.load(PROJECT, PAGE); await store.setCollapsed(id, true);
+      expect(store.sections()[0].collapsed).toBe(true);
+      expect(store.collapseErrors()[id]).toBeUndefined();
+    });
+    it('discards an old owed read after a newer toggle has already committed', async () => {
+      const owed = deferred<ProjectSection[]>();
+      let reads = 0;
+      let writes = 0;
+      const { store } = setup({ sectionOverrides: {
+        list: async () => ++reads === 2 ? owed.promise : [section(id, 'markdown', 0, { collapsed: false })],
+        update: async () => {
+          if (++writes === 1) throw new GatewayError('unreachable', 0, 'lost answer');
+          return section(id, 'markdown', 0, { collapsed: false });
+        },
+      } });
+      await store.load(PROJECT, PAGE);
+      const older = store.setCollapsed(id, true);
+      await settleLive();
+      expect(reads).toBe(2);
+      expect(await store.setCollapsed(id, false)).toBe(true);
+      owed.resolve([section(id, 'markdown', 0, { collapsed: true })]);
+      await older;
+      await settleLive();
+      expect(store.sections()[0].collapsed).toBe(false);
+      expect(store.collapseErrors()[id]).toBeUndefined();
+    });
+    it.each(['section', 'shortcut'] as const)('keeps a read-confirmed %s collapse through an older resize response', async kind => {
+      const resize = deferred<ProjectSection>();
+      const shortcutResize = deferred<Awaited<ReturnType<WorkManagerGateway['shortcuts']['update']>>>();
+      let reads = 0;
+      const { store } = setup(kind === 'section' ? { sectionOverrides: {
+        list: async () => [section(id, 'markdown', 0, { collapsed: ++reads > 1 })],
+        update: async (_id, input) => {
+          if ('collapsed' in input) throw new GatewayError('unreachable', 0, 'lost answer');
+          return resize.promise;
+        },
+      } } : { shortcuts: [shortcut('shortcut-a', 1)], shortcutOverrides: {
+        list: async () => [shortcut('shortcut-a', 1, { collapsed: ++reads > 1 })],
+        update: async (_id, input) => {
+          if ('collapsed' in input) throw new GatewayError('unreachable', 0, 'lost answer');
+          return shortcutResize.promise;
+        },
+      } });
+      await store.load(PROJECT, PAGE);
+      const width = kind === 'section' ? store.setColumnSpan(id, 6) : store.setColumnSpanShortcut('shortcut-a' as never, 6);
+      await (kind === 'section' ? store.setCollapsed(id, true) : store.setCollapsedShortcut('shortcut-a' as never, true));
+      const record = () => kind === 'section' ? store.sections()[0] : store.shortcuts()[0];
+      expect(record().collapsed).toBe(true);
+      expect(store.collapseErrors()[kind === 'section' ? id : 'shortcut-a']).toBeUndefined();
+      if (kind === 'section') resize.resolve(section(id, 'markdown', 0, { columnSpan: 6, collapsed: false }));
+      else shortcutResize.resolve({ shortcut: shortcut('shortcut-a', 1, { columnSpan: 6, collapsed: false }), operation: null });
+      await width;
+      expect(record()).toMatchObject({ collapsed: true, columnSpan: 6 });
+    });
+    it.each([true, false])('uses confirmed rollback when first toggle succeeds: %s', async firstSucceeds => {
+      const first = deferred<ProjectSection>(); const second = deferred<ProjectSection>(); let writes = 0;
+      const { store } = setup({ sectionOverrides: { update: () => ++writes === 1 ? first.promise : second.promise } });
+      await store.load(PROJECT, PAGE);
+      const a = store.setCollapsed(id, true); const b = store.setCollapsed(id, false);
+      expect(store.sections()[0].collapsed).toBe(false);
+      if (firstSucceeds) first.resolve(section(id, 'markdown', 0, { collapsed: true })); else first.reject(new GatewayError('rule_violation', 0, 'first'));
+      await a; expect(store.sections()[0].collapsed).toBe(false);
+      if (firstSucceeds) second.reject(new GatewayError('rule_violation', 0, 'second')); else second.resolve(section(id, 'markdown', 0, { collapsed: false }));
+      await b; expect(store.sections()[0].collapsed).toBe(firstSucceeds);
+    });
+    it('keeps pending fields through rename, move reconcile and collapse answers', async () => {
+      const collapse = deferred<ProjectSection>(); const resize = deferred<ProjectSection>();
+      const { store } = setup({ sectionOverrides: { update: async (_id, input) => 'collapsed' in input ? collapse.promise : 'columnSpan' in input ? resize.promise : section(id, 'markdown', 0, { title: 'New name' }) } });
+      await store.load(PROJECT, PAGE); const a = store.setCollapsed(id, true);
+      await store.renameSection(id, 'New name'); expect(store.sections()[0]).toMatchObject({ collapsed: true, title: 'New name' });
+      const b = store.setColumnSpan(id, 6); await store.moveSection(id, 1);
+      expect(store.sections().find(s => s.id === id)).toMatchObject({ collapsed: true, columnSpan: 6 });
+      collapse.resolve(section(id, 'markdown', 0, { collapsed: true })); await a;
+      expect(store.sections().find(s => s.id === id)?.columnSpan).toBe(6);
+      resize.resolve(section(id, 'markdown', 0, { columnSpan: 6, collapsed: false })); await b;
+      expect(store.sections().find(s => s.id === id)?.collapsed).toBe(true);
+    });
+    it('paints and reverts shortcuts, clearing errors on next toggle and generation change', async () => {
+      const gate = deferred<Awaited<ReturnType<WorkManagerGateway['shortcuts']['update']>>>();
+      const { store, gateway } = setup({ shortcuts: [shortcut('shortcut-a', 1)], shortcutOverrides: { update: () => gate.promise } });
+      await store.load(PROJECT, PAGE); const saving = store.setCollapsedShortcut('shortcut-a' as never, true);
+      expect(store.shortcuts()[0].collapsed).toBe(true);
+      gate.reject(new GatewayError('rule_violation', 0, 'shortcut refused')); await saving;
+      expect(store.shortcuts()[0].collapsed).toBe(false); expect(store.collapseErrors()['shortcut-a']).toContain('shortcut refused');
+      const next = deferred<Awaited<ReturnType<WorkManagerGateway['shortcuts']['update']>>>(); vi.spyOn(gateway.shortcuts, 'update').mockReturnValue(next.promise);
+      const retry = store.setCollapsedShortcut('shortcut-a' as never, true); expect(store.collapseErrors()['shortcut-a']).toBeUndefined();
+      next.reject(new GatewayError('rule_violation', 0, 'again')); await retry;
+      await store.load(PROJECT, OTHER_PAGE); expect(store.collapseErrors()).toEqual({}); expect(store.collapsePending().size).toBe(0);
+    });
+  });
+
   it('paints a section resize immediately and defers a live canvas refresh until it settles', async () => {
     const resize = deferred<ProjectSection>();
     const { store, gateway, live } = setup({
@@ -1765,7 +1889,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(await store.setCollapsedShortcut('shortcut-a' as never, true)).toBe(false);
 
     expect(store.placements()).toEqual(before);
-    expect(store.sectionError()).toContain('shortcut update failed');
+    expect(store.collapseErrors()['shortcut-a']).toContain('shortcut update failed');
   });
 
   it('removes only the placement and leaves the source section collection visible', async () => {

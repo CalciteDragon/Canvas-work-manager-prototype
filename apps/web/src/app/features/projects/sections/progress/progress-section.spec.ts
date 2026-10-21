@@ -83,7 +83,7 @@ describe('ProgressSection live invalidation', () => {
   });
 
   // Slice 72 (L5-004, W1-022): the bar is named from what its frame displays, never from the
-  // frame's "Rename …" heading button, and is described by its own summary.
+  // frame's separate Rename tool, and is described by its own summary.
   const renderNamed = async (value: typeof section, frameName?: string) => {
     const gateway = new FakeWorkManagerGateway({ progress: { projectId: value.projectId, formula: 'count', percentage: 50, completed: 1, total: 2, explanation: 'half done' } });
     TestBed.resetTestingModule();

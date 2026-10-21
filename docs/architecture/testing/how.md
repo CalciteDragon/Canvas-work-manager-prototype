@@ -8,6 +8,19 @@ a current read, so a race is verified against the canonical write refusal too.
 
 ## Runtime flow
 
+Slice 76 uses `apps/e2e/ux/slice76.config.ts` for before/after capture and
+`slice76-behavior.config.ts` for browser journeys, on web 4253, host 4353 and
+`.prototype/ux-slice76.json`. Its `e4ec0cb` baseline is exported to
+`apps/e2e/ux-output/slice76-baseline-web/browser`. `ux/chrome-verification.ts` records plus
+hit maps, per-section Tab walks, names, effective opacity/contrast, header/content alignment,
+resize midlines and delayed collapse timings. `section-chrome.spec.ts` asserts those paths;
+WebKit remains unverified.
+
+Sheet profile 76 runs the control census (including `[role=slider]`) without insertion/title
+exceptions, keeps the remaining slice-72 exceptions, gates content left edge/width within
+1 px and new canvas axe nodes matched by stable anchors, reports contrast, and requires
+complete `chrome-verification.json`. Earlier slices' runtime scripts remain frozen.
+
 1. `pnpm test` first runs `node --test scripts/roadmap.test.mjs scripts/check-docs.test.mjs` for roadmap and documentation guards,
    then `pnpm -r --if-present test`: `vitest run` in each package and the
    host, `ng test --no-watch` in the web app. No browser or external network is needed;
@@ -255,7 +268,7 @@ pnpm storybook                                        # :6006
   action, is undone back into Archive and redone, with the removal beneath it still its own step;
   and duplication, which stays an HTTP action because the frame has no Duplicate control yet.
 - **Untitled shortcut names (Slice 69)** are checked in `canvas-editing.spec.ts` with
-  `toHaveAccessibleName` on `[data-shortcut-frame]`: Kitchen's local `Rename Markdown` control
+  `toHaveAccessibleName` on `[data-shortcut-frame]`: Kitchen's local `Rename Markdown` tool
   sits beside `Markdown (Garden)`, and the seeded Home distinguishes `Reflections (Kitchen)`
   from `Reflections (Home renovation)`. `project-history.spec.ts` checks the qualified Progress
   shortcut's captured labels. Both MCP transports check the untitled Work Manager source's

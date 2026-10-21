@@ -64,6 +64,7 @@ export const DESIGN_LAB_TOKENS: readonly DesignLabToken[] = [
   { id: 'fontScale', label: 'Font scale', property: '--knob-font-scale', kind: 'range', unit: '', min: 0.75, max: 1.5, step: 0.05, fallback: 1 },
   { id: 'elevation', label: 'Elevation', property: '--knob-elevation', kind: 'range', unit: '', min: 0, max: 3, step: 0.1, fallback: 1 },
   { id: 'sidebarWidth', label: 'Sidebar width', property: '--layout-sidebar-width', kind: 'range', unit: 'rem', min: 10, max: 26, step: 0.5, fallback: null },
+  { id: 'canvasChromeRestOpacity', label: 'Section tools at rest', property: '--canvas-chrome-rest-opacity', kind: 'range', unit: '', min: 0, max: 1, step: 0.05, fallback: null },
   ...planeTokens('pane'),
   ...planeTokens('sheet'),
   ...planeTokens('lift'),

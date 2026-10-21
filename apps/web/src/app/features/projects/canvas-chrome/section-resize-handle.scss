@@ -10,16 +10,16 @@
   touch-action: none;
 }
 
-// Each handle straddles its own frame border: half in the canvas gap, half over the frame's
-// padding, never its content box. Neighbours in a grid row each keep a separate hit area; a
-// handle reaching across the whole gap was covered by the next item's start handle, so a
-// section's right edge resized its neighbour.
+// Start keeps the original straddle. End reaches half the gap outward and one padding inward;
+// the handles never cross the gap's midline to resize a neighbour.
 :host([data-edge='start']) {
   inset-inline-start: calc(var(--size-resize-handle) / -2);
+  opacity: var(--canvas-start-opacity, 0);
 }
 
 :host([data-edge='end']) {
-  inset-inline-end: calc(var(--size-resize-handle) / -2);
+  inline-size: var(--canvas-resize-end-hit-width);
+  inset-inline-end: calc(var(--space-4) / -2);
 }
 
 // The host's inline size is the hit area. The grip and its icon shrink to fit it, so the
@@ -47,10 +47,4 @@ app-icon {
 [data-resize-handle]:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
-}
-
-@media (hover: none), (any-pointer: coarse) {
-  :host {
-    opacity: var(--canvas-overlay-opacity, 1);
-  }
 }

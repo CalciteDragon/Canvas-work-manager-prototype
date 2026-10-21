@@ -38,6 +38,7 @@ import { attachScrollHold } from './canvas-chrome/scroll-hold';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
 import { moveDirectionFor } from './canvas-chrome/move-keys';
+import { toolbarFocusin, toolbarKeydown } from './canvas-chrome/toolbar-keys';
 import { SectionResizeHandle, type ResizeMeasurement } from './canvas-chrome/section-resize-handle';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
@@ -94,6 +95,10 @@ export class ProjectCanvas {
   readonly registry = SECTION_REGISTRY;
   readonly createDialogOpen = signal(false);
   readonly canvasMounted = signal(true);
+  /** Covers overlays and the sibling add control from CDK drag start until drag end. */
+  readonly sorting = signal(false);
+  readonly toolbarFocusin = toolbarFocusin;
+  readonly toolbarKeydown = toolbarKeydown;
   readonly resizePreview = signal<Record<string, SectionColumnSpan>>({});
   readonly keyboardMovePending = signal<ReadonlySet<string>>(new Set());
   readonly liveAnnouncement = signal('');
@@ -303,7 +308,7 @@ export class ProjectCanvas {
   }
 
   openCreate(intent: InsertionIntent): void {
-    if (!this.store.orderComplete()) return;
+    if (!this.store.orderComplete() || this.sorting()) return;
     this.releaseLift = this.lifts.open(() => this.closeCreate());
     this.pendingInsertion.set(intent);
     this.returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;

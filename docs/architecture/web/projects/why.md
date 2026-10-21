@@ -210,6 +210,11 @@ undo its own receipt after checking that it remains next
 
 ## Spec sections
 
+[Quiet section chrome](../../../decisions/2026-10-section-chrome-is-quiet-at-rest.md) makes
+organization discoverable on every device while preserving a plain section name and one toolbar
+stop. Its dated amendments replace hover-only desktop chrome, full-strength touch chrome and
+awaited collapse; default names remain for redesign slice 9.
+
 §23 shell and the navigation column · §26 project page and pages · §27 canvas, ownership,
 shortcuts · §28 layout flag · §29 registry · §30 section types · §31 frame and archive ·
 §32 editing · §34 the Todos page · §36 the Reflections page · §66 section structure ·

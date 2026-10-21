@@ -1,44 +1,22 @@
 <section
   data-section-frame
   class="section-frame"
+  [attr.aria-busy]="collapsePending()"
   [attr.data-section-type]="section().type"
   [attr.data-column-span]="section().columnSpan"
   [class.section-frame--collapsed]="effectiveCollapsed()"
   [attr.aria-labelledby]="'section-title-' + section().id"
 >
   <header class="section-frame__header">
-    <button
-      data-section-drag-handle
-      cdkDragHandle
-      class="tool section-frame__handle"
-      type="button"
-      [attr.aria-label]="'Move ' + name()"
-      [attr.aria-disabled]="movePending() || !moveAllowed()"
-      (keydown)="moveKeydown($event)"
-    >
-      <app-icon name="grip" />
-    </button>
-
-    <button
-      data-section-collapse
-      class="tool section-frame__collapse"
-      type="button"
-      [attr.aria-expanded]="!effectiveCollapsed()"
-      [attr.aria-label]="(effectiveCollapsed() ? 'Expand ' : 'Collapse ') + name()"
-      (click)="toggleCollapsed()"
-    >
-      <span [class.section-frame__chevron--collapsed]="effectiveCollapsed()">
-        <app-icon name="chevron" />
-      </span>
-    </button>
-
-    <!-- The heading remains focusable by canvas navigation; the button is in the tab order. -->
     <h2
       data-section-title
       tabindex="-1"
       [id]="'section-title-' + section().id"
       class="section-frame__title"
+      (pointerdown)="titlePointerdown($event)"
+      (click)="titleClick($event)"
     >
+      <span class="section-frame__icon" aria-hidden="true"><app-icon [name]="definition().icon" /></span>
       @if (editingName()) {
         <input
           class="field"
@@ -55,24 +33,51 @@
           (blur)="saveRename($event)"
         />
       } @else {
-        <button
-          data-section-title-edit
-          class="section-frame__title-button"
-          type="button"
-          [attr.aria-label]="'Rename ' + name()"
-          (click)="beginRename()"
-        >
-          <span class="section-frame__icon"><app-icon [name]="definition().icon" /></span>
-          <span>{{ name() }}</span>
-        </button>
+        <span>{{ name() }}</span>
       }
     </h2>
 
-    <div class="section-frame__controls">
+    <div class="section-frame__controls" role="toolbar" [attr.aria-label]="name() + ' tools'"
+      (keydown)="toolbarKeydown($event)" (focusin)="toolbarFocusin($event)">
+      <button data-section-title-edit class="tool" type="button" tabindex="0"
+        [attr.aria-label]="'Rename ' + name()" (pointerdown)="editingName() && $event.preventDefault()" (click)="beginRename()">
+        <app-icon name="rename" />
+      </button>
+    <button
+      data-section-collapse
+      class="tool section-frame__collapse"
+      type="button"
+      tabindex="-1"
+      [attr.aria-busy]="collapsePending()"
+      [attr.aria-describedby]="collapseError() ? 'section-collapse-error-' + section().id : null"
+      [attr.aria-expanded]="!effectiveCollapsed()"
+      [attr.aria-label]="(effectiveCollapsed() ? 'Expand ' : 'Collapse ') + name()"
+      (click)="toggleCollapsed()"
+    >
+      <span [class.section-frame__chevron--collapsed]="effectiveCollapsed()">
+        <app-icon name="chevron" />
+      </span>
+    </button>
+
+    <button
+      data-section-drag-handle
+      cdkDragHandle
+      class="tool section-frame__handle"
+      type="button"
+      tabindex="-1"
+      [attr.aria-label]="'Move ' + name()"
+      [attr.aria-disabled]="movePending() || !moveAllowed()"
+      (keydown)="moveKeydown($event)"
+    >
+      <app-icon name="grip" />
+    </button>
+
+
       @if (definition().inspectorComponent) {
         <button
           data-section-config
           type="button"
+          tabindex="-1"
           class="tool"
           [attr.aria-expanded]="configOpen()"
           title="Section settings"
@@ -86,6 +91,7 @@
         data-section-remove
         class="tool tool--danger"
         type="button"
+        tabindex="-1"
         [attr.aria-disabled]="removalPending()"
         title="Remove section"
         [attr.aria-label]="'Remove section ' + name()"
@@ -95,6 +101,10 @@
       </button>
     </div>
   </header>
+
+  @if (collapseError(); as error) {
+    <p class="section-frame__error" role="alert" [id]="'section-collapse-error-' + section().id">{{ error }}</p>
+  }
 
   @if (configOpen()) {
     @if (definition().inspectorComponent; as inspector) {

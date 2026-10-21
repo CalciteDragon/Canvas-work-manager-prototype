@@ -208,7 +208,7 @@ export function buildDesignLabExport(theme: Theme): DesignLabExport {
     '--color-accent-contrast', '--color-accent-surface']) {
     push(themeLines, property, declared(property));
   }
-  for (const property of ['--ground-art-strength', '--motion-scale', '--duration-fast-base',
+  for (const property of ['--canvas-chrome-rest-opacity', '--ground-art-strength', '--motion-scale', '--duration-fast-base',
     '--duration-base-base', '--duration-slow-base', '--ease-out', '--ease-in', '--glass-saturation']) {
     push(rootLines, property, declared(property));
   }

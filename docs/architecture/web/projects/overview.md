@@ -58,6 +58,9 @@ schema-version-6 converter was removed in Slice 66.
   one-gesture removal (live rows cascade with their owner), removal feedback with Undo, plus canonical navigation to
   `#section-<id>`. Every canvas write reports its receipt to the header's history; the canvas
   retains the removal report for its receipt-specific toast Undo.
+  Section headings name their regions, tools form one roving toolbar, and a persistent Add a
+  section follows the drop list. Collapse and width are optimistic placement fields; collapse
+  failures are reported on their own frame.
 - `SECTION_REGISTRY` and the section types: Markdown, Task List,
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.

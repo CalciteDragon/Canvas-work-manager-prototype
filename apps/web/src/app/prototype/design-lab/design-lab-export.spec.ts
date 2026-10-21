@@ -7,6 +7,7 @@ const values: Readonly<Record<string, string>> = {
   '--plane-lift-tint': '#506070', '--plane-lift-alpha': '80%', '--plane-lift-blur': '20px', '--plane-lift-solid': '#607080',
   '--plane-ground-solid': '#010203', '--art-warm': 'rgb(255 140 90 / 55%)',
   '--art-cool': 'rgb(120 90 255 / 50%)', '--art-teal': 'rgb(40 200 180 / 45%)', '--ground-art-strength': '75%',
+  '--canvas-chrome-rest-opacity': '0.55',
   '--motion-scale': '1.5', '--duration-fast-base': '120ms', '--duration-base-base': '180ms', '--duration-slow-base': '240ms',
   '--ease-out': 'ease-out', '--ease-in': 'ease-in', '--lift-shadow': 'none',
   '--lab-sheet-filter': 'blur(12px) saturate(140%)',

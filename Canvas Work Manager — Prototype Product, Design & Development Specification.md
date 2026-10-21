@@ -895,6 +895,10 @@ Example categories:
 
 Do not scatter literal styling values throughout components.
 
+*Slice 76.* Canvas chrome uses `--canvas-chrome-rest-opacity`, adjustable in the Design Lab,
+plus tokens for the resting insertion mark and asymmetric end resize hit width. Tools and
+marks are quiet but visible on pointer and touch, and interaction raises their emphasis.
+
 *Corrected at Slice 70 Gate 1 (2026-10-14).* The redesign adds token families for the frosted-glass **Depth** direction: plane tints and alphas (ground, pane, sheet, lift), blur radii, lift elevation, focus ring, durations and easings, plus the z-index, breakpoint and font-weight values that escape tokens today. Design values live in `_tokens.scss`; CSS-free breakpoint constants live beside it in `_breakpoints.scss`, with TS query agreement checked by the token lint. Contrast over the worst backing is measured and reported in both themes under the user contrast amendment; it does not gate the chosen demo tints. They fall back to solid token surfaces under reduced transparency, without `backdrop-filter`, and in forced colours ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md), [direction](docs/roadmap/70-ui-ux/direction.md)).
 
 *Corrected at slice 72 (2026-10-15).* Control primitives are global classes in `_controls.scss` over native elements, applied in templates: buttons in four ranks (primary, secondary, ghost, danger) and two heights, where ghost is unfilled but keeps a faint edge at rest (amended at slice 72.1), icon buttons, tools, one field and select treatment, checkbox and radio, pill, link, a visible control label and a separated danger zone. Every interactive primitive is at least 24 px with a pointer and 44 px on touch, and heights follow the density knob while targets never do. Components position a primitive and never paint one. App-owned marks are one monochrome SVG set; user-chosen project emoji stay content ([decision](docs/decisions/2026-10-control-primitives-are-global-classes.md), [decision](docs/decisions/2026-10-app-icons-are-one-svg-set.md)).
@@ -1181,6 +1185,10 @@ project-level actions, including **Open archive** regardless of its navigation v
 
 *Landed in Slice 27.* The former Quick Add and Edit Layout controls are removed; the canvas
 owns section and shortcut creation at the point where each will appear.
+
+*Slice 76.* A labelled ghost “Add a section” follows a populated canvas whenever its combined
+placement order is complete. It is a sibling after the drop list; the empty canvas keeps its
+primary add action. Small insertion marks remain visible before placements and in grid gaps.
 
 The header itself is rendered **once per project** — at the top of the workspace track, beside
 §23's full-height navigation column and above whichever page is showing. It describes the
@@ -1804,12 +1812,17 @@ remove
 
 The content component handles only its feature.
 
-*Landed in Slice 27.* The title itself opens rename. Resize handles snap the section or
+*Landed in Slice 27, amended in Slice 76.* A plain level-2 heading names the section and its
+region, with the type icon at the content's left edge. A separate Rename tool opens the current
+name, prefilled and selected. A primary mouse or pen title click also opens rename; a touch tap
+or click without a preceding pointerdown does not. Resize handles snap the section or
 shortcut placement to 4, 6, 8 or 12 columns. The frame has no Size dropdown or Duplicate
 button; settings remain available through a compact icon only when the registered type declares
 an inspector. Enter or blur saves the name; Escape restores the previous value, and clearing it
 restores the type's default. Clicking the title does not drag or collapse the frame. A failed
-rename keeps the entered text available to correct or retry
+rename keeps the entered text available to correct or retry. Unchanged saves, including an
+untitled section's exact derived default, write nothing. Enter or Escape returns focus to
+Rename; blur leaves focus where it went. The tool remains present while editing
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 **Remove preserves what the person can lose and deletes only an unreferenced disposable.**
@@ -2028,11 +2041,13 @@ tombstone; section content is preserved by refusing while any remains
 Canvas organization uses contextual controls rather than a separate layout-editing mode.
 Sections and shortcut placements share the page's ordered layout. Their drag handles,
 collapse controls, rename affordance, resize handles and removal controls are reserved in the
-frame but revealed on hover or keyboard focus. Controls remain visible on hoverless or coarse-
-pointer devices. Revealing them does not shift content, and the overlays are inert while a drag
-is in progress.
+frame and visible at low emphasis at rest, rising to full on hover or keyboard focus on pointer
+and touch alike. Canvas Remove ink is muted until its hover, focus or press. The header toolbar
+has one Tab stop: Left/Right wrap, Home/End jump, and any focus entry updates its active tool.
+The Move grip uses Up/Down in Flow and Grid. Revealing controls does not shift content, and
+insertion overlays and the sibling add action are hidden and inert while a drag is in progress.
 
-The canvas provides insertion points before placements and at the end; Grid also exposes
+The canvas provides insertion points before placements and a labelled add action at the end; Grid also exposes
 insertion targets in available gaps, but only when a supported width fits. A gap is an
 opportunity in the existing ordered layout, not a reserved cell. Selecting one opens the
 creation dialog at that location. The dialog provides section types permitted on the current
@@ -2041,7 +2056,11 @@ creates nothing, and a pending submission cannot create duplicates. A failed wri
 the entered values and displays an error. A canonical canvas — a root's Home or a workstream's
 Work canvas — additionally offers the eligible-source picker for **Add shortcut**; a root's optional
 pages do not (*amended in Slice 65*, which reversed "subproject work canvases do not"). A shortcut's source remains
-read-only and is edited through **Open source** (§27).
+read-only and is edited through **Open source** (§27). Its source line explicitly says Read-only;
+its toolbar contains Collapse, Move and unlink Remove, with no Rename.
+
+*Slice 76.* Insertion marks are small pluses at rest, with the line and full-size plus shown
+on the target's hover or focus. The button covers the entire painted plus in both states.
 
 Widths snap to the supported 4, 6, 8 or 12 column spans in Flow and Grid. Dragging previews the
 new arrangement and releasing saves it; Escape cancels. Order remains stable through resize, and
@@ -2050,6 +2069,10 @@ preview resize steps, commit a resize with Enter or blur, and cancel with Escape
 are optimistic: a failure restores only the previous column span, preserving unrelated placement
 changes. On narrow screens that render placements full-width, resize handles are hidden while
 the saved desktop spans remain unchanged.
+
+*Slice 76.* The end resize handle is visible at rest, reaching half `--space-4` outward into
+the gap and one `--space-4` inward over padding. Start keeps its original straddle and appears
+on item hover/focus, including on coarse-pointer tablets. Narrow layouts hide grid gap marks too.
 
 *Landed in Slice 27.* The separate Edit Layout Mode and its toggle are removed. Canvas controls
 are available in place, and accessible keyboard and touch interactions cover the same movement,
@@ -3535,6 +3558,15 @@ show error
 
 The development panel's failure injection should test these flows.
 
+*Slice 76.* Section and shortcut collapse paint immediately. The frame carries `aria-busy`
+while saving, without an extra pending cue. The last toggle wins; pending collapse and width
+fields are reapplied on every whole-record replace. A refusal restores only the last confirmed
+field and shows “Couldn't collapse [or expand] “{name}”. Try again.” with its reason under the
+frame header, as an alert describing Collapse. Gateway codes `unreachable`, `internal_error`
+and `invalid_response` may have committed and owe one quiet read after rollback. The read's
+answer wins; an error clears only when the read confirms the requested value, on a new toggle,
+navigation or generation change. History reporting stays unchanged.
+
 Settings recovery keeps a selected non-archived status and disables repeat Restore while its
 write is pending. A successful project write remains acknowledged even if the following list read
 fails; Retry repeats only the read. A concurrent archive blocker refuses the write and refreshes
@@ -3754,6 +3786,10 @@ errors
 ```
 
 This supplements Storybook with a full-app design environment.
+
+*Slice 76.* The Lab has a live section-chrome rest-opacity knob and section-frame specimens
+at rest and focus. Frame stories also cover hover, renaming, collapse pending and refused;
+canvas stories show the persistent add and resting insertion marks in both themes.
 
 *Corrected through Slice 73 (2026-10-16).* The Lab shows the three planes and real lift-class
 specimens (side drawer, dialog, menu and page-settings popover) over a busy backing, in contained

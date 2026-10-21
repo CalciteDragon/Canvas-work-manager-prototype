@@ -48,10 +48,6 @@
   display: grid;
   gap: var(--space-4);
   min-width: 0;
-  // The trailing insertion overlay sits below the last item, where no gap follows. End padding
-  // the size of the plus holds it, so the plus never extends the workspace's scrollable height
-  // past the sticky navigation column's containing block.
-  padding-block-end: var(--size-hit-target);
 }
 
 .section-canvas--flow {
@@ -67,14 +63,16 @@
 .section-canvas__item {
   position: relative;
   min-width: 0;
-  --canvas-chrome-opacity: 0;
-  --canvas-overlay-opacity: 0;
+  --canvas-chrome-opacity: var(--canvas-chrome-rest-opacity);
+  --canvas-overlay-opacity: var(--canvas-chrome-rest-opacity);
+  --canvas-start-opacity: 0;
 }
 
 .section-canvas__item:hover,
 .section-canvas__item:focus-within {
   --canvas-chrome-opacity: 1;
   --canvas-overlay-opacity: 1;
+  --canvas-start-opacity: 1;
 }
 
 .section-canvas--flow .section-canvas__item--span-12 {
@@ -153,9 +151,31 @@
   gap: var(--space-2);
 }
 
-// At-rest visibility stays the canvas's until slice 5 (TH08).
 .unknown-section header .tool {
   opacity: var(--canvas-chrome-opacity, 1);
+}
+
+.unknown-section [role='toolbar'] {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.unknown-section .tool--danger {
+  --control-ink: var(--color-text-muted);
+}
+
+.unknown-section .tool--danger:is(:hover, :focus, :active) {
+  --control-ink: var(--control-danger-ink);
+}
+
+[data-canvas-add] {
+  justify-self: start;
+}
+
+.project-canvas__add--sorting,
+app-insertion-point[inert] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .unknown-section__handle {
@@ -174,13 +194,6 @@
 .unknown-section p {
   margin: 0;
   color: var(--color-text-muted);
-}
-
-@media (hover: none), (any-pointer: coarse) {
-  .section-canvas__item {
-    --canvas-chrome-opacity: 1;
-    --canvas-overlay-opacity: 1;
-  }
 }
 
 @media (max-width: breakpoints.$shell-narrow) {

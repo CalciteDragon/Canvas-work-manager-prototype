@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
-import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
+import { applicationConfig, componentWrapperDecorator, moduleMetadata } from '@storybook/angular-vite';
 import { provideRouter } from '@angular/router';
 import {
   ProjectSectionSchema,
@@ -10,6 +10,7 @@ import {
 import { expect, fn, userEvent, within } from 'storybook/test';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { SectionCanvasFrame } from '../../../prototype/design-lab/section-canvas-frame';
 import { ShortcutFrame } from './shortcut-frame';
 
 const AT = '2026-09-05T10:00:00.000Z';
@@ -64,6 +65,8 @@ const meta: Meta<ShortcutFrame> = {
   title: 'Projects/ShortcutFrame',
   component: ShortcutFrame,
   decorators: [
+    moduleMetadata({ imports: [SectionCanvasFrame] }),
+    componentWrapperDecorator((story) => `<app-section-canvas-frame [columnSpan]="shortcut.columnSpan">${story}</app-section-canvas-frame>`),
     applicationConfig({ providers: [provideRouter([])] }),
     moduleMetadata({
       providers: [
@@ -135,3 +138,6 @@ export const RemovePlacement: Story = {
     await expect(args.removeRequested).toHaveBeenCalledWith('shortcut-story');
   },
 };
+
+export const CollapsePending: Story = { args: { collapsePending: true, shortcut: shortcut({ collapsed: true }) } };
+export const CollapseRefused: Story = { args: { collapseError: 'Couldn’t collapse this shortcut. Try again. The server did not answer.' } };

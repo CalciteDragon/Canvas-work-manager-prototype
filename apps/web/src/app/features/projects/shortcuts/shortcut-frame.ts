@@ -13,6 +13,7 @@ import {
 import type { SectionContentInputs } from '../sections/section-contract';
 import { definitionFor } from '../sections/registry';
 import { Icon } from '../../../shared/components/icon/icon';
+import { toolbarKeydown, toolbarFocusin } from '../canvas-chrome/toolbar-keys';
 import { moveDirectionFor } from '../canvas-chrome/move-keys';
 
 /** §27's read-only reference frame. It owns placement chrome and never the source's content. */
@@ -27,6 +28,10 @@ import { moveDirectionFor } from '../canvas-chrome/move-keys';
 })
 export class ShortcutFrame {
   readonly shortcut = input.required<ResolvedSectionShortcut>();
+  readonly collapsePending = input(false);
+  readonly collapseError = input<string | null>(null);
+  readonly toolbarKeydown = toolbarKeydown;
+  readonly toolbarFocusin = toolbarFocusin;
   readonly movePending = input(false);
   readonly moveAllowed = input(true);
   readonly projectDataRevision = input.required<number>();

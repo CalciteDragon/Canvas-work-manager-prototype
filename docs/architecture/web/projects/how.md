@@ -208,13 +208,34 @@ takes a per-instance prefix so a section and its shortcut on one page never shar
 `li` carries no state. A Progress bar is named from what its frame displays: each frame provides
 `SECTION_FRAME_NAME` (`nameOf` or `shortcutNameOf`) in its own `providers`, and outlet content
 inherits it. The bar appends "progress" unless the name already says it, never uses the frame's
-"Rename …" heading, and is described by its own summary through a per-instance id. The Reflections composer's prompt select and the
+heading's interactive state, and is described by its own summary through a per-instance id. The Reflections composer's prompt select and the
 Reflections page's subject picker carry visible `.control-label`s ("Prompt", per-instance id;
 "Subject"); the title and body stay named by their placeholders. Each shortcut picker Add is named by
 its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carries no title for
 `shortcutNameOf`.
 
 ## Key symbols
+
+**Section chrome (slice 76).** Plain `[data-section-title]` and `[data-shortcut-title]`
+headings name their regions and remain the create/reveal focus targets. The section's Rename
+tool opens a selected current name; unchanged saves write nothing. A title click requires a
+preceding mouse or pen pointerdown. `toolbarKeydown` handles Left/Right/Home/End;
+`toolbarFocusin` makes any focused tool the one Tab stop. Move uses Up/Down only, and the
+canvas restores its focus after successful and refused keyboard moves.
+
+The canvas supplies rest opacity to tools and end resize, with start resize hidden until
+item hover/focus. Insertion marks own a full-plus button box and show a line only on their own
+hover/focus. Add a section is a sibling after the drop list; `sorting` suspends it and the
+marks. End resize reaches `--space-4 / 2` into the gap and `--space-4` into frame padding;
+start keeps its original straddle. Narrow layouts still hide gap marks and resize handles.
+
+`ProjectPageStore` reapplies pending `collapsed` and `columnSpan` fields in `setCanvas`,
+including every `replaceSection` and `replaceShortcut`. Collapse records history normally,
+but paints before the response. `collapsePending` and `collapseErrors` are keyed by placement
+id and passed to frames. Refusals restore the confirmed field. The gateway codes
+`unreachable`, `internal_error` and `invalid_response` also owe one quiet read. A read clears
+an error only if it confirms the requested collapse value; the next toggle, load or generation
+clears it too. The frame's alert describes Collapse.
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
@@ -237,6 +258,7 @@ its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carr
 | `ProjectSectionFrame` | component | §31's chrome | [API](../../../api/components/ProjectSectionFrame.html) |
 | `SectionCreateDialog` | component | Section and shortcut creation; owns pending/error state | [API](../../../api/components/SectionCreateDialog.html) |
 | `InsertionPoint`, `SectionResizeHandle` | components | Canvas insertion and resize controls; their marks come from the shared `Icon` | [API](../../../api/components/InsertionPoint.html) |
+| `toolbarKeydown`, `toolbarFocusin` | functions | Roving toolbar movement and active tool on any focus entry | [API](../../../api/miscellaneous/functions.html#toolbarKeydown) |
 | `gridInsertionGaps` | function | Sparse grid gaps that can fit a supported width | [API](../../../api/miscellaneous/variables.html#gridInsertionGaps) |
 | `CanvasWriteResult` | type | Success or displayed canvas-write failure | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
 | `TaskListSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The five registered types beside Markdown | [API](../../../api/components/TaskListSection.html) |

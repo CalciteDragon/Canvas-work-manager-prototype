@@ -110,3 +110,18 @@ on a width change — instead of CSS `field-sizing: content`, so Flow resizing r
 browser, not only Chromium.
 
 **Amended, 2026-10-14 (Slice 70 Gate 1).** Only the at-rest emphasis is reopened. Under principle 5 of the [Depth direction](2026-10-frosted-glass-depth-direction.md), section tools and insertion stay visible at low emphasis at rest on pointer devices and rise on hover or focus, and adding a section is a persistent affordance. The evidence: insertion appears only inside a 16 px gap, and only the top strip of its plus is clickable (W1-017, W1-018, L3-001). The reserved space, the no-mode rule and touch behaviour stand.
+
+**Amended, 2026-10-20 (Slice 76, accepted recommendations).**
+[Quiet section chrome](2026-10-section-chrome-is-quiet-at-rest.md) applies the same low rest
+emphasis to touch, superseding the touch exception above. The reserved slot and no-mode rule
+stand. A plain heading names the section; Rename is a separate tool, with a mouse-or-pen
+primary title click as an additional path. Enter or Escape returns focus to Rename, superseding
+the 2026-09-13 title-focus sentence. A toolbar has one Tab stop and Left/Right/Home/End roving;
+the Move grip now uses Up/Down only. Rename keeps its result callback; collapse adds per-frame
+pending and error inputs and becomes optimistic with an owed read for uncertain failures.
+
+The persistent Add a section is outside the drop list. Every painted insertion mark is inside
+its button's hit area. End resize reaches half the gap outward and one padding inward, while
+start retains its original width and straddle, visible only on item hover or focus. This also
+removes start's full rest visibility on coarse-pointer tablets; end keeps the keyboard path.
+The old end-overlay padding is removed. All insertion controls are inert while sorting.

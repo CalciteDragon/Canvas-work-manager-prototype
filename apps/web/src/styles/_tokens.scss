@@ -177,6 +177,9 @@
   --size-icon-sm: 1rem;
   --size-hit-target: 2.75rem;
   --size-resize-handle: 0.75rem;
+  --canvas-chrome-rest-opacity: 0.55;
+  --canvas-insertion-rest-size: var(--space-3);
+  --canvas-resize-end-hit-width: calc(var(--space-4) * 1.5);
 
   // ── Slice 72's controls (`_controls.scss`). Heights follow the density knob; the two target
   // sizes never do, so density cannot shrink a control below WCAG 2.5.8's minimum. ──

@@ -1,5 +1,10 @@
 # What the testing system is made of
 
+Slice 76 adds `section-chrome.spec.ts` for named headings, roving tools, pointer/touch rename,
+insertion hit areas, resize separation and optimistic collapse. Its isolated capture/runtime
+rig uses `ux/slice76*.config.ts`, `ux/chrome-verification.ts` and sheet profile 76; the census
+collects sliders as well as native controls. Browser evidence remains Chromium-only.
+
 Slice 75 adds `apps/e2e/placement.spec.ts` for the browser-only facts of pending and placement:
 the pending row within 100 ms and the refused second submit, a failed or unconfirmable add, the
 empty-title and blank-name refusals with native validation out of the way, row failures, the

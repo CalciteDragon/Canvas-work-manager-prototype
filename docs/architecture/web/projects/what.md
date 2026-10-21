@@ -109,8 +109,13 @@ sequenceDiagram
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29; each type's `icon` is an `IconName`, never shared with a page kind except Reflections |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
-| `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |
+| `ProjectSectionFrame` | `sections/section-frame/` | Plain named heading, roving Rename/Collapse/Move/Settings/Remove toolbar, inline name draft, frame collapse alert |
 | Six section types | `sections/{markdown,tasks,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's shortcuts, on Home or a workstream's Work canvas |
 
 The column, header, section and shortcut frames consume shared plane tokens; their ownership and component composition stay unchanged.
+
+`canvas-chrome/toolbar-keys.ts` owns roving keyboard and focus-entry behavior. The canvas
+hosts persistent Add a section outside its drop list and suspends insertion during sorting.
+`ProjectPageStore` holds pending collapse/span intent and per-placement collapse errors;
+shortcut frames show the same toolbar behavior with a Read-only source cue and unlink Remove.

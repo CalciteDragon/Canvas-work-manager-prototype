@@ -7,7 +7,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export const ICON_NAMES = [
   'grip', 'chevron', 'plus', 'archive', 'remove', 'settings', 'resize', 'undo', 'redo',
   // Text glyphs `⋯ × ✓ ↗` and the three removal marks (W1-038, W4-032).
-  'more', 'close', 'check', 'open', 'unlink', 'remove-section',
+  'more', 'close', 'check', 'open', 'unlink', 'remove-section', 'rename',
   // Page kinds; `archive` above is the Archive page's mark.
   'home', 'todos', 'reflections',
   // Section types; Reflections sections share the page's mark.
@@ -32,6 +32,11 @@ export type IconName = (typeof ICON_NAMES)[number];
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (name()) {
+      @case ('rename') {
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+          <path d="m15 4 5 5M4 20l5-1L21 7l-4-4L5 15l-1 5Z" />
+        </svg>
+      }
       @case ('grip') {
         <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
           <circle cx="7" cy="5" r="1.5" />

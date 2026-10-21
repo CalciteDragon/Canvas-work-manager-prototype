@@ -21,6 +21,7 @@ export interface InsertionIntent {
     <button
       type="button"
       data-insertion-point-button
+      [disabled]="disabled()"
       [attr.aria-label]="label()"
       (click)="select()"
     >
@@ -43,12 +44,15 @@ export class InsertionPoint {
   readonly columnSpan = input.required<SectionColumnSpan>();
   /** Accessible action label shown to keyboard and assistive-technology users. */
   readonly label = input.required<string>();
+  /** Sorting suspends insertion, including programmatic activation. */
+  readonly disabled = input(false);
 
   /** Placement intent; the owning canvas resolves the anchor against its current order. */
   readonly selected = output<InsertionIntent>();
 
   /** Emit the stable anchor rather than an index that live placement reads could change. */
   select(): void {
+    if (this.disabled()) return;
     this.selected.emit({
       kind: this.kind(),
       beforeId: this.beforeId(),

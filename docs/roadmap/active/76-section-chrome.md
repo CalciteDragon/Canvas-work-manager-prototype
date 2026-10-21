@@ -1,8 +1,8 @@
 <!-- plan id="76" status="active" summary="Redesign slice 5 (TH08 plus L3-016): quiet tools at rest, a persistent add-section affordance, the full insertion hit area, headings that name their section, and collapse that answers at once" -->
 # Slice 76 — Section chrome
 
-**State (2026-10-20):** plan reviewed (three rounds) and all eight Open questions answered; implementation
-has not started.
+**State (2026-10-20):** plan reviewed (three rounds), all eight Open questions answered; implementation
+in progress from step 3. Gate 2 remains open; no Outcome or completion until the user accepts the sheet.
 
 Redesign slice 5 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Theme **TH08**,
 "Section chrome is hidden yet heavy", in [themes.json](../70-ui-ux/themes.json), plus **L3-016**
@@ -538,6 +538,56 @@ nothing (8). The questions are kept below as they were asked.
    "looks like the name was erased" half open.
 
 ## Revisions
+
+**Execution notes (2026-10-20).**
+
+- Stage 0 re-grepped the named browser/unit specs, harness locators and both amended decisions.
+  `CURRENT_SLICE` is 76. Baseline `e4ec0cb` is exported outside `apps/e2e/` into
+  `.prototype/slice76-baseline-source`, with dependency junctions, and built into
+  `apps/e2e/ux-output/slice76-baseline-web/browser`. Initial total: **1,089.72 kB**,
+  leaving 10.28 kB below the unchanged 1,100 kB ceiling.
+- Baseline Tab walk (Kitchen and Client migration): Insert before Markdown → Move Markdown →
+  Collapse Markdown → Rename Markdown → Remove section Markdown → Edit Markdown → Resize
+  Markdown, with five chrome stops before content and six per section (phone has no resize).
+  The heading button is named “Rename Markdown”; title icon offset is 80 px from content.
+  Shortcut Remove already uses `unlink`, with muted ink. At desktop rest, Move/Remove/Resize
+  effective opacity is 0 (glyph contrast 1:1); Collapse is 1. Touch tools are full strength;
+  section Remove is danger ink (`rgb(165,31,21)` light), shortcut Remove is muted
+  (`rgb(76,84,100)` light). Final scrolled hit maps and theme contrast are in the runtime file.
+- The shared `ux/isolation.ts` used `route.continue()`; it changes to `route.fallback()` to
+  satisfy this run's explicit isolation requirement. Earlier frozen verification scripts stay untouched.
+- The knob also requires `design-lab-export.ts`, and the Lab/story wrapper
+  `section-canvas-frame.ts` must replace its hardcoded zero/coarse-one reveal properties.
+  These dependency files extend the file-level list without changing scope.
+- Browser geometry is verified by the runtime hit maps and browser journeys: jsdom has no
+  layout engine and cannot prove a painted plus's box or a resize midline.
+- The shared icon set needed a `rename` pencil mark; its icon census test changes with it.
+  The knob's page census also changes (`design-lab-page.spec.ts`), and the tooling overview
+  now names nineteen controls.
+- Runtime TDD: the unified red run recorded 22 expected failures and 205 passes. The next
+  run recorded 271 passes and three failures (two test setup issues, plus the new Rename
+  pointerdown guard). Separate frame tests then proved both missing frame `aria-busy`
+  bindings red before adding them. Store tests found two extra stale-response cases: an old
+  owed read after a newer committed toggle, and a resize's stale whole record after collapse
+  committed. Confirmed fields now survive the concurrent write batch, and owed reads check
+  the write epoch. The store's 101 tests pass, including existing resize cases unedited.
+- Existing e2e journeys create contexts directly and cannot be changed just to inject routes.
+  The slice-76 behavior rig therefore uses a launch-level browser proxy on 4253, forwarding
+  the virtual host origin to 4353. No listener or physical request uses the developer ports.
+  A config-scoped fetch rewrite isolates the legacy Node-side host fetch as well. New file:
+  `apps/e2e/ux/slice76-server.mjs`; no production adapter or gateway changes.
+- Step 4's independent correctness and boundaries/documentation passes found no boundary
+  violations. Verified findings being repaired before Gate 2: preserve an owed-read-confirmed
+  collapse against an older concurrent resize answer; assert sorting's hidden/inert semantics;
+  require complete runtime measurements rather than a `complete` flag alone; include the
+  collapse-at-0.1-second and hit-map visual pairs; constrain Lab geometry exceptions; and
+  correct the remaining “eighteen controls” reference. The generated API was rebuilt for the
+  new toolbar helper links before re-running documentation checks.
+- The review race was reproduced first for both placement kinds (two new failures, 101 existing
+  store tests passing). An owed read now updates the retained field's confirmed value through
+  the concurrent batch; all 103 store tests pass. Re-review found no further substantive
+  correctness or boundary findings. The final production build is **1,098.12 kB**, leaving
+  **1.88 kB** below the initial ceiling; baseline was 1,089.72 kB.
 
 **Round 1 (2026-10-20).** An independent reviewer read the plan against the code, spec, findings,
 decisions and slices 72 and 75, and returned thirteen substantive and nine minor findings. Each was

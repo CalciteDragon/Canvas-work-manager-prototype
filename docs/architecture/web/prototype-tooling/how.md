@@ -21,7 +21,7 @@
    frame rather than from a report (Slice 41) — acceptable for prototype tooling.
 4. **Add Prototype Note** posts the text with the current route, project and
    `CURRENT_SLICE`; the host stamps real time.
-5. `/prototype/design` lazily loads `DesignLabPage`. Its rail binds each of the eighteen
+5. `/prototype/design` lazily loads `DesignLabPage`. Its rail binds each of the nineteen
    `design-lab-tokens.ts` controls to `DesignLabStore`, which sets inline custom
    properties on `documentElement`; Reset removes them; Copy CSS exports the current
    values. The catalogue renders live components over `design-lab-fixtures.ts`, the
@@ -35,6 +35,9 @@
    Solid planes writes the same solid backgrounds and disabled filters as the stylesheet fallback;
    reduced motion caps duration tokens at 80 ms. Sheet blur is an opt-in experiment through
    an intermediate property, so real fallback media retain control of the final filter.
+   The section-chrome rest-opacity knob exports with Copy CSS; the live section-frame panel
+   shows rest and focus specimens. Its wrapper follows the canvas's quiet defaults on pointer
+   and touch. `CURRENT_SLICE` is 76 for captured friction notes.
 
 ## Key symbols
 

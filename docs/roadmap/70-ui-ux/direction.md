@@ -42,6 +42,9 @@ action per surface.
    headings are announced as "Rename X" (TH08: W1-017, W1-018, L6-009). This reopens
    [canvas chrome is revealed, not moded](../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)
    only in its *at-rest emphasis*. The reserved space and the no-mode rule stand.
+   **Implemented in Slice 76 (2026-10-20):** the accepted touch rest emphasis, named headings,
+   roving toolbar and persistent insertion follow
+   [quiet section chrome](../../decisions/2026-10-section-chrome-is-quiet-at-rest.md).
 6. **Answer where the user acted.** New things scroll into view and take focus. Confirmation
    and Undo appear next to the change. Pending shows within 100 ms, and failures name the row
    that failed. Today a new section lands at y=872 on a 900 px screen with focus on the body,

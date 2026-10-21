@@ -1,27 +1,32 @@
 <section
   data-shortcut-frame
   class="shortcut-frame"
+  [attr.aria-busy]="collapsePending()"
   [attr.data-shortcut-availability]="shortcut().availability"
   [class.shortcut-frame--collapsed]="shortcut().collapsed"
   [attr.aria-labelledby]="'shortcut-title-' + shortcut().id"
 >
   <header class="shortcut-frame__header">
-    <button
-      data-shortcut-drag-handle
-      cdkDragHandle
-      class="tool shortcut-frame__handle"
-      type="button"
-      [attr.aria-label]="'Move shortcut to ' + name()"
-      [attr.aria-disabled]="movePending() || !moveAllowed()"
-      (keydown)="moveKeydown($event)"
-    >
-      <app-icon name="grip" />
-    </button>
+    <div class="shortcut-frame__heading">
+      <h2 data-shortcut-title tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
+        <span class="shortcut-frame__icon" aria-hidden="true"><app-icon name="open" /></span>
+        {{ name() }}
+      </h2>
+      <p data-shortcut-source class="shortcut-frame__source">
+        <span class="shortcut-frame__origin">{{ shortcut().breadcrumb.join(' / ') }} · {{ pageLabel() }}</span>
+        <span data-shortcut-read-only>· Read-only</span>
+      </p>
+    </div>
 
+    <div class="shortcut-frame__controls" role="toolbar" [attr.aria-label]="name() + ' tools'"
+      (keydown)="toolbarKeydown($event)" (focusin)="toolbarFocusin($event)">
     <button
       data-shortcut-collapse
       class="tool shortcut-frame__collapse"
       type="button"
+      tabindex="0"
+      [attr.aria-busy]="collapsePending()"
+      [attr.aria-describedby]="collapseError() ? 'shortcut-collapse-error-' + shortcut().id : null"
       [attr.aria-expanded]="!shortcut().collapsed"
       [attr.aria-label]="(shortcut().collapsed ? 'Expand ' : 'Collapse ') + name()"
       (click)="toggleCollapsed()"
@@ -31,21 +36,25 @@
       </span>
     </button>
 
-    <div class="shortcut-frame__heading">
-      <h2 data-shortcut-title tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
-        <span class="shortcut-frame__icon"><app-icon name="open" /></span>
-        {{ name() }}
-      </h2>
-      <p data-shortcut-source class="shortcut-frame__source">
-        {{ shortcut().breadcrumb.join(' / ') }} · {{ pageLabel() }}
-      </p>
-    </div>
+    <button
+      data-shortcut-drag-handle
+      cdkDragHandle
+      class="tool shortcut-frame__handle"
+      type="button"
+      tabindex="-1"
+      [attr.aria-label]="'Move shortcut to ' + name()"
+      [attr.aria-disabled]="movePending() || !moveAllowed()"
+      (keydown)="moveKeydown($event)"
+    >
+      <app-icon name="grip" />
+    </button>
 
-    <div class="shortcut-frame__controls">
+
       <button
         data-shortcut-remove
         class="tool"
         type="button"
+        tabindex="-1"
         title="Remove shortcut"
         [attr.aria-label]="'Remove shortcut to ' + name()"
         (click)="removeRequested.emit(shortcut().id)"
@@ -54,6 +63,10 @@
       </button>
     </div>
   </header>
+
+  @if (collapseError(); as error) {
+    <p class="shortcut-frame__error" role="alert" [id]="'shortcut-collapse-error-' + shortcut().id">{{ error }}</p>
+  }
 
   @if (shortcut().availability !== 'available') {
     <p data-shortcut-unavailable class="shortcut-frame__unavailable" role="status">
