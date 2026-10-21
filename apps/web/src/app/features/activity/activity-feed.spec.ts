@@ -128,6 +128,20 @@ describe('ActivityFeed (§57)', () => {
   });
 });
 
+describe('ActivityFeed arrivals (Slice 75)', () => {
+  it('fades in only the rows that arrive after the first render', async () => {
+    const fixture = await render([entry({ id: 'activity-old' })]);
+    const arriving = () => [...fixture.nativeElement.querySelectorAll('[data-activity-entry]')]
+      .map((row) => (row as HTMLElement).classList.contains('activity__row--arriving'));
+    expect(arriving()).toEqual([false]);
+
+    fixture.componentRef.setInput('entries', [entry({ id: 'activity-new' }), entry({ id: 'activity-old' })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(arriving()).toEqual([true, false]);
+  });
+});
+
 describe('ActivityFeed timestamps (§57)', () => {
   /**
    * §57 draws `11:32 AM`. Slice 11 learned that a bare time misleads: a feed is mostly

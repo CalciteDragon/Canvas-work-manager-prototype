@@ -42,17 +42,27 @@ export class ActivityFeed {
   /** What to say when there is nothing — the hosts word it differently. */
   readonly emptyMessage = input('Nothing has happened here yet.');
 
-  readonly rows = computed(() =>
-    this.entries().map((entry) => ({
+  /**
+   * The entries the feed first rendered with. Later rows fade in (Slice 75, W1-030): a new
+   * activity row above a list the person is working in arrives with opacity, never a slide, and
+   * the hosts mount the feed only once their read has landed, so a load never fades.
+   */
+  private initialIds: ReadonlySet<string> | null = null;
+
+  readonly rows = computed(() => {
+    const entries = this.entries();
+    const initial = (this.initialIds ??= new Set(entries.map(({ id }) => id)));
+    return entries.map((entry) => ({
       entry,
+      arriving: !initial.has(entry.id),
       actor: ACTORS[entry.actor],
       verb: verbOf(entry.action),
       // Falls back to the action's own subject when the entity has no title of its own —
       // a section, or a target a hand-edited data.json has since removed.
       target: entry.entityTitle ?? entry.entityType.replace('_', ' '),
       when: whenOf(entry.createdAt),
-    })),
-  );
+    }));
+  });
 }
 
 /**

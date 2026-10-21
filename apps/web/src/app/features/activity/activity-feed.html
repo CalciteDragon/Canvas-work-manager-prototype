@@ -3,7 +3,7 @@
 } @else {
   <ol class="activity__list">
     @for (row of rows(); track row.entry.id) {
-      <li data-activity-entry class="activity__row" [attr.data-actor]="row.entry.actor">
+      <li data-activity-entry class="activity__row" [class.activity__row--arriving]="row.arriving" [attr.data-actor]="row.entry.actor">
         <span class="pill activity__badge" [class.pill--accent]="row.entry.actor === 'user'" [class.pill--success]="row.entry.actor === 'agent'" [class.pill--warning]="row.entry.actor === 'system'" [attr.data-actor-badge]="row.entry.actor">
           <app-icon [name]="row.actor.icon" />
           <span class="activity__badge-label">{{ row.actor.label }}</span>

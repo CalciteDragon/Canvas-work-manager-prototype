@@ -265,7 +265,8 @@ its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carr
   and menu keyboard movement; no transport or domain dependency.
 - `shared/feedback` — presentational `Toast` and root `ToastSlot` for one confirmation, timer,
   navigation dismissal and modal suppression; no feature or core-store dependency.
-- `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section.
+- `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section. A row
+  that arrives later fades in; its growth above a working Task List is what `ScrollHold` holds.
 - [contracts](../../contracts/overview.md) — `nameOf`, `shortcutNameOf`, `SECTION_OWNERSHIP` (through the
   registry's `kind`), `NAVIGABLE_PAGE_KINDS`, `isRootProject`, and every shape.
 - `@angular/cdk/drag-drop`.

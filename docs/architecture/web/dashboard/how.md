@@ -31,7 +31,8 @@
 
 - [core](../core/overview.md) — `IDENTITY_PROVIDER` for the layout,
   `WORK_MANAGER_GATEWAY.dashboard` for the content, `LIVE_UPDATES`.
-- `features/activity` — `ActivityFeed` inside the agent-activity widget.
+- `features/activity` — `ActivityFeed` inside the agent-activity widget; the page mounts tiles
+  only once loaded, so a first load never fades and only later rows do (Slice 75).
 - [contracts](../../contracts/overview.md) — `dashboard.ts` and `DashboardWidgetType`.
 
 **Depended on by**

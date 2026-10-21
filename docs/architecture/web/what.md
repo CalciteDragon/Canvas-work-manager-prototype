@@ -96,7 +96,7 @@ header's history (Slice 41).
 | Dashboard | `src/app/features/dashboard/` | [dashboard](dashboard/overview.md) |
 | Tasks | `src/app/features/tasks/` | [tasks](tasks/overview.md) |
 | Prototype tooling | `src/app/prototype/` | [prototype-tooling](prototype-tooling/overview.md) |
-| Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore`; current-name display with captured-label fallback supplied by the host; each actor is a `.pill` with an `IconName` mark and a word |
+| Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore`; current-name display with captured-label fallback supplied by the host; each actor is a `.pill` with an `IconName` mark and a word; rows that arrive after the feed's first render fade in with opacity only (`activity__row--arriving`), and both hosts mount it only after their read lands |
 | Settings | `src/app/features/settings/` | `SettingsPage`; `agents/AgentConnectionsPage` (each agent's permissions a fieldset under its name; a refused change said in that card as "Couldn’t change <permission> for <agent>. Try again.", linked from the box; Revoke named by its agent), `AgentConnectionsStore`; `archived-projects/ArchivedProjectsPage`, `ArchivedProjectsStore`; Appearance is a group of shared `.radio`s |
 | Placeholders | `src/app/features/calendar/`, `features/search/`, `shared/components/placeholder-page/` | `CalendarPage`, `SearchPage`, `PlaceholderPage`, `NotFoundPage` |
 | Markdown renderer | `src/app/shared/components/markdown-renderer/` | `renderMarkdown` and `MarkdownRenderer`, loaded with the section body |

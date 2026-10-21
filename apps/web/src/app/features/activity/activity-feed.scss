@@ -20,6 +20,16 @@
   background: var(--color-surface-sunken);
 }
 
+// Slice 75: a row that arrives after the first render fades in, opacity only, so nothing beside
+// it moves twice. Reduced motion caps the duration through the token, leaving a short crossfade.
+.activity__row--arriving {
+  animation: activity-arrive var(--duration-slow) var(--ease-out) both;
+}
+
+@keyframes activity-arrive {
+  from { opacity: 0; }
+}
+
 // Slice 72: the badge is the shared pill; one tone per actor, with its mark and word.
 .activity__badge {
   justify-self: start;
