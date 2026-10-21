@@ -125,12 +125,12 @@ test('resize handles own their borders without taking the neighbour across a gri
 });
 
 test('a failed collapse owes one quiet read and the read can confirm it committed', async ({ page }) => {
-  await page.goto('/projects/project-kitchen'); let reads = 0;
+  await page.goto('/projects/project-kitchen'); await page.waitForLoadState('networkidle'); let reads = 0;
   await page.route('**/api/projects/project-kitchen/sections**', async route => { if (route.request().method() === 'GET') reads++; await route.fallback(); });
   await page.route('**/api/sections/*', async route => { if (route.request().method() !== 'PATCH') { await route.fallback(); return; } const response = await route.fetch({ url: route.request().url().replace('http://localhost:4310',process.env['CWM_E2E_HOST'] ?? 'http://127.0.0.1:4310').replace('http://127.0.0.1:4310',process.env['CWM_E2E_HOST'] ?? 'http://127.0.0.1:4310') }); expect(response.ok()).toBe(true); await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message: 'Lost response after commit' }) }); });
   const frame = page.getByRole('region', { name: 'Markdown', exact: true }).first(); await frame.getByRole('button', { name: 'Collapse Markdown', exact: true }).click();
   await expect(frame.getByRole('button', { name: 'Expand Markdown', exact: true })).toHaveAttribute('aria-expanded', 'false');
-  await expect.poll(() => reads).toBeGreaterThanOrEqual(1); await expect(frame.getByRole('alert')).toHaveCount(0);
+  await expect.poll(() => reads).toBeGreaterThanOrEqual(1); await page.waitForLoadState('networkidle'); await expect(frame.getByRole('button', { name: 'Expand Markdown', exact: true })).toHaveAttribute('aria-expanded', 'false'); await expect(frame.getByRole('alert')).toHaveCount(0);
 });
 
 test('prototype failure injection refuses collapse on that frame', async ({ page }) => {
