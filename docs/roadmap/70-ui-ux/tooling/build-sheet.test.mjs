@@ -534,11 +534,17 @@ async function chromeSheet(t, change = {}) {
   await f.json(0, 'layout.json', { ...f.layout, sectionContents: [{ id: 'a', x: 10, width: 100 }] });
   if (change.axe) await f.json(1, 'axe.json', { violations: change.axe, incomplete: [] });
   if (change.missing) await rm(join(f.dirs[1], 'chrome-verification.json'));
+  if (change.noDepth) await rm(join(f.dirs[1], 'depth-verification.json'));
   const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '76'], { encoding: 'utf8' });
   return { result, dirs:f.dirs, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
 }
 test('profile 76 accepts listed canvas changes and reports contrast', async t => {
   const { result, report } = await chromeSheet(t);
+  assert.equal(result.status, 0, report);
+});
+
+test('profile 76 does not require the frozen depth verifier output', async t => {
+  const { result, report } = await chromeSheet(t, { noDepth: true });
   assert.equal(result.status, 0, report);
 });
 test('profile 76 gates insertion targets, title controls, content widths, new axe nodes and missing evidence', async t => {
@@ -590,15 +596,17 @@ test('profile 76 rejects incomplete runtime contexts and each broken measurement
 });
 
 test('profile 76 keeps Lab Controls geometry and paint while allowing frame tools and the knob',async t=>{
-  for(const change of ['none','geometry','paint']) {
+  for(const change of ['none','geometry','paint','frame-flow','unexplained-y']) {
     const f=await chromeSheet(t);const index={commit:'fixture',cells:[{...JSON.parse(await readFile(join(f.dirs[0],'index.json'),'utf8')).cells[0],route:'/prototype/design'}]};
     for(const phase of [0,1])await writeFile(join(f.dirs[phase],'index.json'),JSON.stringify(index));
     const danger={text:'Danger icon button',class:'tool tool--danger',scope:'prototype',tag:'button',x:100,y:200,width:32,height:32,color:'rgb(255, 156, 156)',background:'transparent',border:'none'};
     const frame={...danger,text:'Move Notes',x:100,y:40};
     const base=JSON.parse(await readFile(join(f.dirs[0],'layout.json'),'utf8'));
-    await writeFile(join(f.dirs[0],'layout.json'),JSON.stringify({...base,controls:[frame,danger,{...danger,text:'Primary · Rest'}]}));
-    await writeFile(join(f.dirs[1],'layout.json'),JSON.stringify({...base,controls:[{...frame,x:50,panel:'section-frame'}, {...danger,x:change==='geometry'?102:100,color:change==='paint'?'rgb(76, 84, 100)':danger.color}, {...danger,text:'Primary · Rest'}, {id:'design-lab-canvasChromeRestOpacity',x:10,y:20,width:20,height:32,tag:'input',scope:'prototype'}]}));
+    const specimen={selector:'app-project-section-frame',index:0,x:100,y:40,width:100,height:100};
+    const shift=change==='frame-flow'||change==='unexplained-y'?-5:0;
+    await writeFile(join(f.dirs[0],'layout.json'),JSON.stringify({...base,planes:[...base.planes,specimen],controls:[frame,danger,{...danger,text:'Primary · Rest'}]}));
+    await writeFile(join(f.dirs[1],'layout.json'),JSON.stringify({...base,planes:[...base.planes,{...specimen,height:change==='frame-flow'?95:100}],controls:[{...frame,x:50,panel:'section-frame'}, {...danger,y:danger.y+shift,x:change==='geometry'?102:100,color:change==='paint'?'rgb(76, 84, 100)':danger.color}, {...danger,y:danger.y+shift,text:'Primary · Rest'}, {id:'design-lab-canvasChromeRestOpacity',x:10,y:20,width:20,height:32,tag:'input',scope:'prototype'}]}));
     const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','76'],{encoding:'utf8'});
-    assert.equal(result.status,change==='none'?0:1,result.stderr);
+    assert.equal(result.status,change==='none'||change==='frame-flow'?0:1,result.stderr);
   }
 });

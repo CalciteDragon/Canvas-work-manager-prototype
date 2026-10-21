@@ -110,6 +110,17 @@ for (const a of after.cells) {
       const isFrame=c=>/^(Move |Collapse |Expand |Rename |Remove section )/.test(c.text??'') || c.panel==='section-frame';
       const knob=next.find(c=>c.id==='design-lab-canvasChromeRestOpacity');
       old=old.filter(c=>!isFrame(c));next=next.filter(c=>!isFrame(c) && c!==knob);
+      // Frame headers are intentionally shorter. Only their measured total height change
+      // may translate the catalogue below them; control size, x and paint still gate.
+      const frames=bl.planes.filter(p=>p.selector==='app-project-section-frame');
+      const afterFrames=al.planes.filter(p=>p.selector==='app-project-section-frame');
+      if(frames.length && frames.length===afterFrames.length) {
+        const delta=afterFrames.reduce((sum,p)=>sum+p.height,0)-frames.reduce((sum,p)=>sum+p.height,0);
+        const beforeEnd=Math.max(...frames.map(p=>p.y+p.height));
+        const afterEnd=Math.max(...afterFrames.map(p=>p.y+p.height));
+        next=next.map((c,i)=>old[i]?.y>=beforeEnd && c.y>=afterEnd ? {...c,y:c.y-delta}:c);
+        if(delta)exceptions.push({cell:a.id,family,reason:'catalogue translates by measured section-frame height change',shift:delta});
+      }
       // Only the rail rows below the inserted knob shift; catalogue controls retain their boxes.
       if(knob)next=next.map((c,i)=>c.x<knob.x+knob.width && c.y>knob.y && old[i]?.tag===c.tag && old[i]?.text===c.text ? {...c,y:old[i].y}:c);
     }
@@ -225,7 +236,8 @@ for (const a of after.cells) {
   }
   pairs.push({ id: a.id, theme: a.theme });
 }
-const verification = await read(join(verificationDir, 'depth-verification.json'));
+// Section chrome owns its runtime evidence; the frozen Depth journey uses retired labels.
+const verification = profile === '76' ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
 const optional = path => read(path).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
 const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-verification.json')) : null;
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;

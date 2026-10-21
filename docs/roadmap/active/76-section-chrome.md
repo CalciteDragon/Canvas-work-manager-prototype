@@ -83,7 +83,7 @@ gives "section chrome and the config disclosure" to slice 5. No registered type 
 inspector, so the config disclosure is unreachable; it joins the toolbar unchanged.
 
 Under the recommended Open question 5, two findings (L6-010, W1-028: default titles are format
-names) are **handed to slice 9** and not claimed here, so this slice closes sixteen in full and
+names) are **handed to slice 9** and not claimed here, so this slice closes fourteen in full and
 two in part.
 
 **Decisions reopened.**
@@ -539,7 +539,11 @@ nothing (8). The questions are kept below as they were asked.
 
 ## Revisions
 
-**Execution notes (2026-10-20).**
+**Execution notes (2026-10-20–21).**
+
+- Corrected the Scope check's arithmetic: eighteen findings total, two deferred and two
+  partial means fourteen fully closed and two partly closed when Gate 2 is accepted. The
+  finding IDs and accepted scope are unchanged.
 
 - Stage 0 re-grepped the named browser/unit specs, harness locators and both amended decisions.
   `CURRENT_SLICE` is 76. Baseline `e4ec0cb` is exported outside `apps/e2e/` into
@@ -576,6 +580,10 @@ nothing (8). The questions are kept below as they were asked.
   the virtual host origin to 4353. No listener or physical request uses the developer ports.
   A config-scoped fetch rewrite isolates the legacy Node-side host fetch as well. New file:
   `apps/e2e/ux/slice76-server.mjs`; no production adapter or gateway changes.
+  Route-fetch journeys also required HTTP CONNECT forwarding in this isolated proxy; only
+  local virtual origins map to 4253/4353. Their initial proxy failures are re-run after the
+  rig repair. New browser tests wait for the canvas before enabling failure injection and
+  locate hidden/inert Add directly while sorting, since hidden controls leave the ARIA tree.
 - Step 4's independent correctness and boundaries/documentation passes found no boundary
   violations. Verified findings being repaired before Gate 2: preserve an owed-read-confirmed
   collapse against an older concurrent resize answer; assert sorting's hidden/inert semantics;
@@ -608,6 +616,45 @@ nothing (8). The questions are kept below as they were asked.
   Four realistic-seed walkthroughs passed on nested-projects and busy-week: 1440 keyboard dark
   and 375 touch light. The observations and screenshots are recorded in `.prototype/notes.json`
   and `apps/e2e/ux-output/slice76-real-use/`.
+
+- Final Gate 2 evidence (2026-10-21): both matrices captured **194/194** cells. Profile 76
+  pairs all 194 with **zero gate failures**, including the full target census and content-width
+  checks. Both runtime files contain all twelve required contexts. After runtime was captured
+  at `25b1cc7`; the matrix at `3ef7798`. Application source is unchanged since `ea37011`.
+  The final initial bundle is **1,098.87 kB**, versus baseline **1,089.72 kB**: +9.15 kB,
+  **1.13 kB** below the 1,100 kB ceiling.
+- Measured after results: **684/684** insertion probes hit at rest and **684/684** active;
+  desktop title-icon offset **0 px**; desktop chrome **two** stops before content and
+  **three** per section, grid-gap stops counted separately. End resize is **24 px**;
+  each desktop grid theme passes four inside-border and sixteen gap-ownership probes.
+  All tools have **0.55** rest opacity. Move glyph contrast over the solid-sheet token is
+  **3.57:1 dark / 2.59:1 light**, reported only. Five delayed-collapse runs per Kitchen
+  context have worst times **5.2 / 7.2 / 6.0 ms** (dark 1440 / light 1440 / light 375),
+  versus baseline **2,055.5 / 2,076.3 / 2,059.1 ms**. T03 remains **10 clicks / 38 keys**,
+  T05 **2 / 0**, and T06 **2 / 16**, all completed without dead ends.
+- The first real sheet build exposed an accidental shared-builder dependency on frozen Depth
+  output. An unnecessary attempted rerun stopped at its retired “Insert at the end” label;
+  its script remains untouched and no current Depth pass is claimed. A regression test proved
+  the missing-output failure before profile 76 was made independent of that frozen output.
+  Four Lab failures were uniformly translated downstream controls: **−35 px** desktop and
+  **−216 px** phone from the seven shorter frame specimens. The builder now normalizes only
+  their measured total height difference below those frames; x, dimensions and paint still
+  gate. Tests first reproduced the legitimate shift, and still reject unexplained y movement,
+  changed x and changed global danger ink. All **46** harness/sheet tests pass.
+- Final application verification: `pnpm test` **3,218 passed**; production build and Storybook
+  build passed; `pnpm lint` including `docs:check` passed (18 systems, 300 documents).
+  All **227 unique Chromium journeys** are verified. The original full run was 220 passed
+  and seven failed (five isolated-proxy CONNECT failures and two new-test setup failures);
+  the affected complete files then passed **36/36**, and the strengthened owed-read proof
+  passed **1/1**. All protected specs remain unedited. Plain `pnpm e2e` was not used because
+  its default listeners use developer ports; the isolated behavior config ran the journeys.
+  WebKit is unverified. Earlier slice-specific frozen verification journeys were not rerun;
+  the failed Depth attempt above is disclosed separately.
+- Independent source/runtime re-reviews found no remaining substantive correctness, boundary
+  or documentation issues. Final artifact review checked real images, runtime pairs, task
+  budgets and all image references. The sheet, measured results and every journey's final
+  status are in `apps/e2e/ux-output/sheet-76/`. Gate 2 awaits the user's visual acceptance;
+  no Outcome or roadmap completion has been written.
 
 **Round 1 (2026-10-20).** An independent reviewer read the plan against the code, spec, findings,
 decisions and slices 72 and 75, and returned thirteen substantive and nine minor findings. Each was

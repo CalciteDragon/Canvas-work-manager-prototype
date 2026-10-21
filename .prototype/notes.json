@@ -1301,6 +1301,14 @@
       "projectId": "project-kitchen",
       "slice": 75,
       "note": "Slice 75 live use: the task drawer still prints Status as the raw value (todo) and Project as an id (project-kitchen). Not this slice; raised again for the drawer redesign slice."
+    },
+    {
+      "id": "note-2026-10-21-004",
+      "createdAt": "2026-10-21T11:02:48.103Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 76,
+      "note": "Slice 76 live use (nested-projects and busy-week, 1440 keyboard dark and 375 touch light): Rename opened with the current name selected; Escape returned to Rename, and Right reached Collapse. Collapse hid content immediately and Expand restored it. A touch title tap left editing closed. Persistent Add a section created Snag list and focused its heading; the next Tab reached Rename. The phone toolbar uses its own row, keeping the title readable. Quiet insertion marks remain faint against the glass; the labelled Add at the bottom is much easier to identify. No blocking friction in these four walkthroughs."
     }
   ]
 }
