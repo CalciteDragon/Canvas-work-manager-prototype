@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 76 | Slice 76 — Section chrome | Redesign slice 5 (TH08 plus L3-016): quiet tools at rest, a persistent add-section affordance, the full insertion hit area, headings that name their section, and collapse that answers at once | [76-section-chrome.md](active/76-section-chrome.md) |
 
 ### Planned
 
