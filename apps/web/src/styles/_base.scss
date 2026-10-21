@@ -35,3 +35,13 @@ a {
 :focus-visible {
   @include states.focus-ring;
 }
+
+// Read by assistive technology, never painted: live regions whose words the screen already shows.
+.visually-hidden {
+  position: absolute;
+  inline-size: var(--border-hairline);
+  block-size: var(--border-hairline);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

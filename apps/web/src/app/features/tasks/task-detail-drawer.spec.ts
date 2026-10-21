@@ -64,7 +64,7 @@ describe('TaskDetailDrawer', () => {
     const control = typeTitle(element, '   ');
     enter(control);
     await fixture.whenStable();
-    expect(element.querySelector('[role="alert"]')?.textContent).toContain('A task title is required.');
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('Enter a task title.');
     expect(emitted).not.toHaveBeenCalled();
     escape(control);
     blur(control);
@@ -219,4 +219,61 @@ describe('TaskDetailDrawer', () => {
     expect(closed).toHaveBeenCalledOnce();
     expect(estimate.mock.calls).toEqual([[{ id: value.id, estimate: 5 }], [{ id: value.id, estimate: null }]]);
   });
+it('says its edits save automatically (Slice 75, L3-008)', async () => {
+    const { element } = await render();
+    expect(element.querySelector('[data-task-autosave]')?.textContent?.trim()).toBe('Changes save automatically.');
+  });
+
+  it('shows saving, saved and a failure beside the field that changed', async () => {
+    const { fixture, element } = await render();
+    expect(element.querySelector('[data-field-status]')).toBeNull();
+
+    fixture.componentRef.setInput('saveStates', { priority: { state: 'saving' } });
+    await fixture.whenStable();
+    const priority = element.querySelector<HTMLElement>('[data-field-status="priority"]')!;
+    expect(priority.textContent?.trim()).toBe('Saving…');
+    expect(priority.closest('label')?.querySelector('[data-task-priority]')).not.toBeNull();
+
+    fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, dueAt: { state: 'failed', message: 'Not saved. Try again. offline' } });
+    await fixture.whenStable();
+    expect(element.querySelector('[data-field-status="priority"]')?.textContent?.trim()).toBe('Saved');
+    expect(element.querySelector('[data-field-status="priority"]')?.classList.contains('field-status--saved')).toBe(true);
+    const due = element.querySelector<HTMLElement>('[data-field-status="dueAt"]')!;
+    expect(due.textContent?.trim()).toBe('Not saved. Try again. offline');
+    expect(element.querySelector('[data-task-due-date]')?.getAttribute('aria-invalid')).toBe('true');
+    expect(element.querySelector('[data-task-due-date]')?.getAttribute('aria-describedby')).toBe(due.id);
+  });
+
+  it('announces the latest save in one polite region', async () => {
+    const { fixture, element } = await render();
+    fixture.componentRef.setInput('saveStates', { estimate: { state: 'saved' } });
+    await fixture.whenStable();
+    const regions = element.querySelectorAll('[data-task-save-announcement]');
+    expect(regions).toHaveLength(1);
+    expect(regions[0]!.getAttribute('aria-live')).toBe('polite');
+    expect(regions[0]!.textContent?.trim()).toBe('Estimate saved.');
+  });
+
+  it('never shows the blank-title alert and a title save failure together', async () => {
+    const { fixture, element } = await render();
+    fixture.componentRef.setInput('saveStates', { title: { state: 'failed', message: 'Not saved. Try again. offline' } });
+    await fixture.whenStable();
+    const control = typeTitle(element, '   ');
+    enter(control);
+    await fixture.whenStable();
+    expect(element.querySelectorAll('[role="alert"]')).toHaveLength(1);
+    expect(element.querySelector('[data-field-status="title"]')).toBeNull();
+  });
+
+  it('reads Overdue in the Status fact with the row’s own rule', async () => {
+    const { fixture, element } = await render();
+    fixture.componentRef.setInput('now', Date.parse('2026-09-10T00:00:00.000Z'));
+    await fixture.whenStable();
+    expect(element.querySelector('[data-task-status]')?.textContent).toContain('Overdue');
+
+    fixture.componentRef.setInput('task', { ...value, dueAt: '2026-09-30T23:59:59.999Z' });
+    await fixture.whenStable();
+    expect(element.querySelector('[data-task-status]')?.textContent).not.toContain('Overdue');
+  });
 });
+

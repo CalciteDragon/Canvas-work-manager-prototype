@@ -7,6 +7,7 @@ import {
   type ProjectSection,
   type Task,
   type TaskId,
+  type TaskAddResult,
   type TaskWriteResult,
   OperationReceiptSchema,
   type UpdateTaskInput,
@@ -186,7 +187,7 @@ describe('TaskListStore', () => {
     const { store, gateway } = setup();
     await store.load(section('project-b'));
 
-    expect(await store.create('  New task  ')).toBe(true);
+    expect(await store.create('  New task  ')).toBe('added');
 
     // The container is named, not resolved: the domain would otherwise send the row to the
     // project's *first* task list, which may be a different one on the same canvas.
@@ -199,7 +200,7 @@ describe('TaskListStore', () => {
     expect(store.selectedTaskId()).toBeNull();
     store.selectTask(store.tasks()[0]!.id);
     const selected = store.selectedTaskId();
-    expect(await store.create('Another task')).toBe(true);
+    expect(await store.create('Another task')).toBe('added');
     expect(store.selectedTaskId()).toBe(selected);
   });
 
@@ -223,19 +224,20 @@ describe('TaskListStore', () => {
   it('refuses to create before its container has loaded', async () => {
     const { store, gateway } = setup();
 
-    expect(await store.create('New task')).toBe(false);
+    expect(await store.create('New task')).toBe('refused');
     expect(gateway.tasks.create).not.toHaveBeenCalled();
     // A task cannot exist without a container to render it, so there is nowhere to put one.
-    expect(store.error()).toContain('section');
+    expect(store.createError()).toContain('section');
   });
 
   it('rejects a blank quick-create title without calling the gateway', async () => {
     const { store, gateway } = setup();
     await store.load(section());
 
-    expect(await store.create('   ')).toBe(false);
+    expect(await store.create('   ')).toBe('refused');
     expect(gateway.tasks.create).not.toHaveBeenCalled();
-    expect(store.error()).toContain('title');
+    expect(store.createError()).toBe('Enter a task title.');
+    expect(store.error()).toBeNull();
   });
 
   it('updates title, priority, and date-only dueAt from the gateway results', async () => {
@@ -298,7 +300,8 @@ describe('TaskListStore', () => {
     await completion;
 
     expect(store.tasks()[0]).toEqual(before);
-    expect(store.error()).toContain('could not reach the prototype host');
+    expect(store.error()).toBeNull();
+    expect(store.rowErrors().get(before.id)).toContain('could not reach the prototype host');
   });
 
   it('does not let an older failed completion overwrite a newer title mutation', async () => {
@@ -352,7 +355,7 @@ describe('TaskListStore', () => {
     expect(callsWhileOlderPending).toBe(1);
     expect(callsAfterOlderSettled).toBe(2);
     expect(store.tasks()[0]?.title).toBe('Persisted title');
-    expect(store.error()).toContain('newer edit failed');
+    expect(store.fieldSave(task().id, 'title')).toEqual({ state: 'failed', message: expect.stringContaining('newer edit failed') });
   });
 });
 
@@ -377,7 +380,7 @@ describe('TaskListStore under the panel’s failure injection (§63)', () => {
 
     expect(store.tasks()[0]?.status).toBe('todo');
     expect(store.tasks()[0]?.completedAt).toBeUndefined();
-    expect(store.error()).toContain('prototype failure injection');
+    expect(store.rowErrors().get('task-a' as TaskId)).toContain('prototype failure injection');
   });
 });
 
@@ -412,7 +415,7 @@ describe('TaskListStore.reopen (§34, §62, §63)', () => {
     gate.reject(new GatewayError('conflict', 409, 'the task is archived'));
     expect(await reopening).toBe(false);
     expect(store.tasks()[0]).toEqual(before);
-    expect(store.error()).toContain('the task is archived');
+    expect(store.rowErrors().get(before.id)).toContain('the task is archived');
     expect(store.completingIds().has(before.id)).toBe(false);
   });
 
@@ -655,7 +658,7 @@ describe('TaskListStore.archive (§34)', () => {
 
     // The write was never optimistic, so there is nothing to revert — the row simply stayed.
     expect(store.tasks()).toEqual([before]);
-    expect(store.error()).toContain('could not reach the prototype host');
+    expect(store.rowErrors().get(before.id)).toContain('could not reach the prototype host');
   });
 });
 
@@ -704,7 +707,7 @@ describe('TaskListStore.archive', () => {
     expect(await store.archive(task().id)).toBe(false);
 
     expect(store.tasks().map(({ id }) => id)).toEqual([task().id]);
-    expect(store.error()).toContain('cannot be archived');
+    expect(store.rowErrors().get(task().id)).toContain('cannot be archived');
     expect(store.archivingIds().has(task().id)).toBe(false);
   });
 });
@@ -744,5 +747,241 @@ describe('TaskListStore reports every write to the header’s history (Slice 41)
 
     expect(await store.complete('task-a' as TaskId)).toBe(false);
     expect(reporter.events).toEqual(['begin', 'end']);
+  });
+});
+
+describe('TaskListStore quick-add pending row (Slice 75, §34, §63)', () => {
+  it('shows the pending title synchronously, then replaces it with the server row in place', async () => {
+    const created = deferred<TaskAddResult>();
+    const { store } = setup({ create: vi.fn<WorkManagerGateway['tasks']['create']>(() => created.promise) });
+    await store.load(section());
+
+    const adding = store.create('  Order tiles  ');
+    expect(store.pendingCreate()).toMatchObject({ title: 'Order tiles' });
+    expect(store.tasks()).toHaveLength(1);
+
+    created.resolve(resultOf(task({ id: 'task-tiles', title: 'Order tiles' })));
+    expect(await adding).toBe('added');
+    expect(store.pendingCreate()).toBeNull();
+    expect(store.tasks().map(({ id }) => id)).toEqual(['task-a', 'task-tiles']);
+    expect(store.createError()).toBeNull();
+  });
+
+  it('refuses a second submit while one is pending, without a request', async () => {
+    const created = deferred<TaskAddResult>();
+    const create = vi.fn<WorkManagerGateway['tasks']['create']>(() => created.promise);
+    const { store } = setup({ create });
+    await store.load(section());
+
+    const first = store.create('Order tiles');
+    expect(await store.create('Second')).toBe('refused');
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(store.pendingCreate()?.title).toBe('Order tiles');
+    created.resolve(resultOf(task({ id: 'task-tiles', title: 'Order tiles' })));
+    await first;
+  });
+
+  it('owes a read after a failed add, and names the title when the task is absent', async () => {
+    const { store, gateway } = setup({
+      create: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'could not reach the prototype host'); }),
+    });
+    await store.load(section());
+    const reads = vi.mocked(gateway.tasks.list).mock.calls.length;
+
+    expect(await store.create('Order tiles')).toBe('failed');
+    expect(vi.mocked(gateway.tasks.list).mock.calls.length).toBe(reads + 1);
+    expect(store.pendingCreate()).toBeNull();
+    expect(store.tasks().map(({ id }) => id)).toEqual(['task-a']);
+    expect(store.createError()).toBe('Couldn’t add “Order tiles”. Try again. could not reach the prototype host');
+    expect(store.error()).toBeNull();
+  });
+
+  it('keeps a task that committed behind a failed response, so a retry cannot duplicate it', async () => {
+    const committed = task({ id: 'task-tiles', title: 'Order tiles' });
+    const { store, gateway } = setup({
+      create: vi.fn(async () => { throw new GatewayError('internal_error', 500, 'the response was lost'); }),
+    });
+    await store.load(section());
+    gateway.tasks.list = vi.fn(async () => [task(), committed]);
+
+    expect(await store.create('Order tiles')).toBe('added');
+    expect(store.tasks().map(({ id }) => id)).toEqual(['task-a', 'task-tiles']);
+    expect(store.createError()).toBeNull();
+  });
+
+  it('does not count a same-title task that was already in the list as the committed add', async () => {
+    const existing = task({ id: 'task-milk', title: 'Buy milk' });
+    const { store } = setup({
+      tasks: [existing],
+      create: vi.fn(async () => { throw new GatewayError('internal_error', 500, 'refused'); }),
+    });
+    await store.load(section());
+
+    expect(await store.create('Buy milk')).toBe('failed');
+    expect(store.createError()).toContain('Couldn’t add “Buy milk”');
+  });
+
+  it('says the add could not be confirmed when the owed read also fails', async () => {
+    const { store, gateway } = setup({
+      create: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); }),
+    });
+    await store.load(section());
+    gateway.tasks.list = vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); });
+
+    expect(await store.create('Order tiles')).toBe('unconfirmed');
+    expect(store.pendingCreate()).toBeNull();
+    expect(store.createError()).toBe('Couldn’t confirm “Order tiles” was added. Check the list before adding it again.');
+  });
+
+  it('drops a pending add when the store loads another section, and its late answer paints nothing', async () => {
+    const created = deferred<TaskAddResult>();
+    const { store } = setup({ create: vi.fn<WorkManagerGateway['tasks']['create']>(() => created.promise) });
+    await store.load(section());
+    const adding = store.create('Order tiles');
+
+    await store.load(section('project-b'));
+    expect(store.pendingCreate()).toBeNull();
+    created.resolve(resultOf(task({ id: 'task-tiles', title: 'Order tiles' })));
+    expect(await adding).toBe('stale');
+    expect(store.tasks().some(({ id }) => id === 'task-tiles')).toBe(false);
+  });
+
+  it('defers a live re-read behind a pending add and lands one row, not two', async () => {
+    const created = deferred<TaskAddResult>();
+    const added = task({ id: 'task-tiles', title: 'Order tiles' });
+    const { store, gateway } = setup({ create: vi.fn<WorkManagerGateway['tasks']['create']>(() => created.promise) });
+    await store.load(section());
+    const adding = store.create('Order tiles');
+    const list = vi.fn(async () => [task(), added]);
+    gateway.tasks.list = list;
+
+    await store.refresh();
+    expect(list).not.toHaveBeenCalled();
+    expect(store.pendingCreate()?.title).toBe('Order tiles');
+    created.resolve(resultOf(added));
+    await adding;
+    await vi.waitFor(() => expect(list).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(store.tasks().filter(({ id }) => id === 'task-tiles')).toHaveLength(1);
+  });
+
+  it('clears the add message on the next successful add', async () => {
+    const create = vi.fn<WorkManagerGateway['tasks']['create']>()
+      .mockImplementationOnce(async () => { throw new GatewayError('unreachable', 0, 'offline'); })
+      .mockImplementationOnce(async (input) => resultOf(task({ id: 'task-later', ...input })));
+    const { store } = setup({ create });
+    await store.load(section());
+    await store.create('First');
+    expect(store.createError()).not.toBeNull();
+    expect(await store.create('Second')).toBe('added');
+    expect(store.createError()).toBeNull();
+  });
+});
+
+describe('TaskListStore failures stay on their row (Slice 75, L4-005)', () => {
+  it('keeps one message per failed row, and clears it on a new attempt or success', async () => {
+    const a = task(), b = task({ id: 'task-b', title: 'Verify analytics events' });
+    const complete = vi.fn<WorkManagerGateway['tasks']['complete']>(async () => {
+      throw new GatewayError('unreachable', 0, 'offline');
+    });
+    const { store } = setup({ tasks: [a, b], complete });
+    await store.load(section());
+
+    await store.complete(a.id);
+    await store.complete(b.id);
+    expect(store.rowErrors().get(a.id)).toBe('Couldn’t complete “Write the first draft”. Try again. offline');
+    expect(store.rowErrors().get(b.id)).toBe('Couldn’t complete “Verify analytics events”. Try again. offline');
+    expect(store.error()).toBeNull();
+
+    complete.mockImplementationOnce(async (id) => resultOf(task({ id, status: 'done', completedAt: AT })));
+    const attempt = store.complete(a.id);
+    expect(store.rowErrors().has(a.id)).toBe(false);
+    await attempt;
+    expect(store.rowErrors().has(a.id)).toBe(false);
+    expect(store.rowErrors().has(b.id)).toBe(true);
+  });
+
+  it('names a failed reopen and a failed Delete on their rows', async () => {
+    const done = task({ status: 'done', completedAt: AT });
+    const { store } = setup({
+      tasks: [done],
+      update: vi.fn(async () => { throw new GatewayError('conflict', 409, 'Reopen refused'); }),
+      archive: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); }),
+    });
+    await store.load(section());
+    await store.reopen(done.id);
+    expect(store.rowErrors().get(done.id)).toBe('Couldn’t reopen “Write the first draft”. Try again. Reopen refused');
+    await store.archive(done.id);
+    expect(store.rowErrors().get(done.id)).toBe('Couldn’t delete “Write the first draft”. Try again. offline');
+  });
+
+  it('keeps a blank drawer title on its field, not the section', async () => {
+    const { store, gateway } = setup();
+    await store.load(section());
+    expect(await store.updateTitle(task().id, '   ')).toBe(false);
+    expect(gateway.tasks.update).not.toHaveBeenCalled();
+    expect(store.error()).toBeNull();
+    expect(store.fieldSave(task().id, 'title')).toEqual({ state: 'failed', message: 'Enter a task title.' });
+  });
+});
+
+describe('TaskListStore optimistic field edits (Slice 75, §63, L3-008)', () => {
+  it('paints the edit at call time and moves from saving to saved', async () => {
+    const answer = deferred<TaskWriteResult>();
+    const { store } = setup({ update: vi.fn(() => answer.promise) });
+    await store.load(section());
+
+    const editing = store.updatePriority(task().id, 'high');
+    expect(store.tasks()[0]?.priority).toBe('high');
+    expect(store.fieldSave(task().id, 'priority')).toEqual({ state: 'saving' });
+
+    answer.resolve(resultOf(task({ priority: 'high' })));
+    expect(await editing).toBe(true);
+    expect(store.fieldSave(task().id, 'priority')).toEqual({ state: 'saved' });
+  });
+
+  it('restores the last confirmed value when an edit fails', async () => {
+    const { store } = setup({ update: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); }) });
+    await store.load(section());
+
+    const editing = store.updateDueDate(task().id, '2026-09-03');
+    expect(store.tasks()[0]?.dueAt).toBe('2026-09-03T23:59:59.999Z');
+    expect(await editing).toBe(false);
+    expect(store.tasks()[0]?.dueAt).toBeUndefined();
+    expect(store.fieldSave(task().id, 'dueAt')).toEqual({ state: 'failed', message: 'Not saved. Try again. offline' });
+    expect(store.error()).toBeNull();
+  });
+
+  it('restores the server value, not the first edit, when two same-field edits both fail', async () => {
+    const first = deferred<TaskWriteResult>(), second = deferred<TaskWriteResult>();
+    const update = vi.fn<WorkManagerGateway['tasks']['update']>()
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise);
+    const { store } = setup({ update });
+    await store.load(section());
+
+    const older = store.updatePriority(task().id, 'high');
+    const newer = store.updatePriority(task().id, 'low');
+    expect(store.tasks()[0]?.priority).toBe('low');
+    first.reject(new GatewayError('unreachable', 0, 'offline'));
+    await older;
+    expect(store.tasks()[0]?.priority).toBe('low');
+    await vi.waitFor(() => expect(update).toHaveBeenCalledTimes(2));
+    second.reject(new GatewayError('unreachable', 0, 'offline'));
+    await newer;
+    expect(store.tasks()[0]?.priority).toBe('medium');
+  });
+
+  it('defers a live re-read behind a queued edit, so the old value never repaints', async () => {
+    const answer = deferred<TaskWriteResult>();
+    const { store, gateway } = setup({ update: vi.fn(() => answer.promise) });
+    await store.load(section());
+    const editing = store.updatePriority(task().id, 'high');
+    gateway.tasks.list = vi.fn(async () => [task({ priority: 'medium' })]);
+
+    await store.refresh();
+    expect(store.tasks()[0]?.priority).toBe('high');
+    answer.resolve(resultOf(task({ priority: 'high' })));
+    await editing;
   });
 });

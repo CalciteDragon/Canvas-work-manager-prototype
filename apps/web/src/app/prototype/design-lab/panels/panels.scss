@@ -57,3 +57,8 @@
 .panel__body--row > * {
   flex: 0 1 var(--layout-sidebar-width);
 }
+
+// The specimen holds Saved still; in the product it fades two seconds after the save.
+[data-panel="field-status"] .field-status--saved {
+  animation: none;
+}

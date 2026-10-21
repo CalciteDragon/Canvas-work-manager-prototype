@@ -50,6 +50,16 @@
   color: var(--color-danger);
 }
 
+.drawer__autosave {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.drawer__overdue {
+  color: var(--color-danger);
+}
+
 .drawer__field .field,
 .drawer__field .select {
   width: 100%;

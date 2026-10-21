@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import type { Task, TaskId } from '@cwm/contracts';
 import { Icon } from '../../shared/components/icon/icon';
+import { isOverdue } from './task-overdue';
 
 @Component({
   selector: 'app-task-row',
@@ -55,15 +56,7 @@ export class TaskRow {
   readonly completed = computed(() => this.task().status === 'done');
   readonly errorId = computed(() => `task-error-${this.task().id}`);
   readonly shownError = computed(() => (this.readOnly() ? null : this.error()));
-  readonly overdue = computed(() => {
-    const value = this.task();
-    return (
-      value.dueAt !== undefined &&
-      value.status !== 'done' &&
-      value.status !== 'cancelled' &&
-      Date.parse(value.dueAt) < this.now()
-    );
-  });
+  readonly overdue = computed(() => isOverdue(this.task(), this.now()));
   readonly normal = computed(
     () =>
       !this.overdue() &&

@@ -106,6 +106,8 @@
   --z-behind: -1;
   --z-canvas-insertion: 1;
   --z-canvas-resize: 2;
+  /* A control that sticks while its section scrolls under it (Slice 75's quick-add). */
+  --z-sticky-control: 3;
   --z-notice: 10;
   --z-dialog: 20;
   --z-lift: 21;

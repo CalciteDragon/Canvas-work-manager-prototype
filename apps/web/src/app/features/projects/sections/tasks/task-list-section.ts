@@ -18,6 +18,7 @@ import { RouterLink } from '@angular/router';
 import type { ProjectSection, SectionConfig, SectionId, Task, TaskId, TaskPriority } from '@cwm/contracts';
 import { TaskDetailDrawer } from '../../../tasks/task-detail-drawer';
 import { TaskDrawerCoordinator } from '../../../tasks/task-drawer-coordinator';
+import { PendingTaskRow } from '../../../tasks/pending-task-row';
 import { TaskListStore } from '../../../tasks/task-list-store';
 import { TaskRow } from '../../../tasks/task-row';
 import { ProjectPageStore } from '../../project-page-store';
@@ -45,7 +46,7 @@ export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
 @Component({
   selector: 'app-task-list-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDrag, CdkDropList, TaskRow, TaskDetailDrawer, Toast, RouterLink],
+  imports: [CdkDrag, CdkDropList, TaskRow, PendingTaskRow, TaskDetailDrawer, Toast, RouterLink],
   providers: [TaskListStore],
   templateUrl: './task-list-section.html',
   styleUrl: './task-list-section.scss',
@@ -89,6 +90,9 @@ export class TaskListSection {
   private readonly page = inject(ProjectPageStore, { optional: true });
 
   readonly dropId = computed(() => taskListDropId(this.section().id));
+  readonly createErrorId = computed(() => `quick-create-error-${this.section().id}`);
+  /** The polite line that says a quick-add landed; the row itself is the visible confirmation. */
+  readonly announcement = signal('');
 
   /**
    * The other task lists on this canvas, named explicitly rather than through
@@ -179,13 +183,44 @@ export class TaskListSection {
     }
   }
 
+  /**
+   * Slice 75's quick-add. The store paints the pending row synchronously; the field clears only
+   * when that row is this submit's, so a refused second submit keeps its draft. Focus never
+   * leaves the field. A failed add gives its title back only to a field the person has not
+   * typed into since, and never when the owed read could not say whether it landed.
+   */
   async quickCreate(event: SubmitEvent, input: HTMLInputElement): Promise<void> {
     event.preventDefault();
     if (this.readOnly()) return;
-    if (await this.store.create(input.value)) {
-      input.value = '';
-      this.onProjectDataChange()();
+    const before = this.store.pendingCreate();
+    const result = this.store.create(input.value);
+    const pending = this.store.pendingCreate();
+    if (pending === null || pending === before) {
+      await result;
+      return;
     }
+    input.value = '';
+    this.announcement.set('');
+    const sectionId = this.section().id;
+    const known = new Set(this.store.tasks().map(({ id }) => id));
+    const outcome = await result;
+    if (this.destroyed || this.section().id !== sectionId) return;
+    if (outcome === 'failed' && input.value === '') input.value = pending.title;
+    if (outcome !== 'added') return;
+    this.announcement.set(`Added “${pending.title}”.`);
+    this.onProjectDataChange()();
+    const created = this.store.tasks().find((task) => !known.has(task.id) && task.title === pending.title);
+    if (created !== undefined) this.revealRow(created.id);
+  }
+
+  /** The new row comes into view; the sticky add form keeps the field on screen above it. */
+  private revealRow(id: TaskId): void {
+    afterNextRender(() => {
+      if (this.destroyed) return;
+      const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-task-row]')]
+        .find((candidate) => candidate.getAttribute('data-task-id') === id);
+      row?.scrollIntoView?.({ block: 'nearest' });
+    }, { injector: this.injector });
   }
 
   editTitle(event: { id: TaskId; title: string }): void {

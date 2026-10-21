@@ -370,20 +370,20 @@ textarea.field {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  opacity: 1;
-  transition: opacity var(--duration-slow) var(--ease-out);
-}
-
-.field-status--saved {
-  color: var(--color-success);
 }
 
 .field-status--failed {
   color: var(--control-danger-ink);
 }
 
-.field-status--settled {
-  opacity: 0;
+// Saved stays legible for two seconds, then fades; reduced motion caps the fade itself.
+.field-status--saved {
+  color: var(--color-success);
+  animation: field-status-settle var(--duration-slow) var(--ease-out) 2s forwards;
+}
+
+@keyframes field-status-settle {
+  to { opacity: 0; }
 }
 
 .pill {

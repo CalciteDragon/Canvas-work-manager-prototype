@@ -2,6 +2,7 @@ import { Injectable, PendingTasks, computed, inject, signal } from '@angular/cor
 import type { ProjectId, ProjectSection, SectionId, Task, TaskId, TaskPriority, TaskWriteResult, UpdateTaskInput } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
+import type { PendingTaskCreate, TaskCreateOutcome, TaskDrawerField, TaskFieldSave, TaskFieldSaves } from './task-write-state';
 
 type MutableTaskField = keyof Pick<
   Task,
@@ -9,6 +10,21 @@ type MutableTaskField = keyof Pick<
 >;
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/** Slice 75's failure copy: what did not happen, to which task, and what to do. */
+const failedOn = (verb: string, title: string, error: unknown): string => `Couldn’t ${verb} “${title}”. Try again. ${messageOf(error)}`;
+
+const fieldKey = (id: TaskId, field: TaskDrawerField): string => `${id}:${field}`;
+
+/** The task as an update would leave it: `null` clears an optional field. */
+const withInput = (task: Task, input: UpdateTaskInput): Task => {
+  const next: Record<string, unknown> = { ...task };
+  for (const [name, value] of Object.entries(input)) {
+    if (value === null) delete next[name];
+    else if (value !== undefined) next[name] = value;
+  }
+  return next as Task;
+};
 
 /**
  * A task write's report names the **task's** project, from the response: a list inside a Home
@@ -50,6 +66,17 @@ export class TaskListStore {
   private readonly loadFailedState = signal(false);
   private readonly completingIdsState = signal<ReadonlySet<TaskId>>(new Set());
   private readonly archivingIdsState = signal<ReadonlySet<TaskId>>(new Set());
+  private readonly pendingCreateState = signal<PendingTaskCreate | null>(null);
+  private readonly createErrorState = signal<string | null>(null);
+  private readonly rowErrorsState = signal<ReadonlyMap<TaskId, string>>(new Map());
+  private readonly fieldSavesState = signal<ReadonlyMap<string, { id: TaskId; field: TaskDrawerField; save: TaskFieldSave }>>(new Map());
+  private createKey = 0;
+  /**
+   * The server's value for each field with an edit in flight, keyed `id:field`. A failed edit
+   * reverts to this rather than to whatever the screen showed when it started, which may have
+   * been an earlier edit that failed too.
+   */
+  private readonly confirmedFields = new Map<string, { task: Task; pending: number }>();
 
   private revision = 0;
   private loadGeneration = 0;
@@ -75,14 +102,36 @@ export class TaskListStore {
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   /**
-   * Whether the *list* is missing, as opposed to a mutation having failed. `error` carries
-   * both — a blank quick-create title sets it just as an unreachable host does — so a
-   * reader that needs to know "are these tasks trustworthy" has to ask this instead.
+   * Whether the *list* is missing, as opposed to a drag-receive having failed. `error` carries
+   * both, so a reader that needs to know "are these tasks trustworthy" has to ask this instead.
+   * Row, field and quick-add failures have their own signals (Slice 75).
    */
   readonly loadFailed = this.loadFailedState.asReadonly();
   /** The rows with a completion toggle in flight. */
   readonly completingIds = this.completingIdsState.asReadonly();
   readonly archivingIds = this.archivingIdsState.asReadonly();
+  /** The quick-add waiting on the server, rendered as a pending row (Slice 75). */
+  readonly pendingCreate = this.pendingCreateState.asReadonly();
+  /** Why the last quick-add did not happen, shown beside the add field. */
+  readonly createError = this.createErrorState.asReadonly();
+  /** A failed complete, reopen or Delete, kept on its own row until that row is tried again. */
+  readonly rowErrors = this.rowErrorsState.asReadonly();
+  /** The selected task's drawer fields that are saving, saved or failed. */
+  readonly selectedFieldSaves = computed<TaskFieldSaves>(() => {
+    const id = this.selectedTaskIdState();
+    const saves: TaskFieldSaves = {};
+    for (const entry of this.fieldSavesState().values()) if (entry.id === id) saves[entry.field] = entry.save;
+    return saves;
+  });
+
+  /** Typing answers an empty-title refusal; a failed add keeps its message until the next add. */
+  clearTitleRefusal(): void {
+    if (this.createErrorState() === 'Enter a task title.') this.createErrorState.set(null);
+  }
+
+  fieldSave(id: TaskId, field: TaskDrawerField): TaskFieldSave | null {
+    return this.fieldSavesState().get(fieldKey(id, field))?.save ?? null;
+  }
   readonly selectedTask = computed(() => {
     const id = this.selectedTaskIdState();
     return id === null ? null : (this.tasksState().find((task) => task.id === id) ?? null);
@@ -107,6 +156,11 @@ export class TaskListStore {
       this.loadingState.set(true);
       this.errorState.set(null);
       this.loadFailedState.set(false);
+      // A new container starts with none of the old one's writes on screen.
+      this.pendingCreateState.set(null);
+      this.createErrorState.set(null);
+      this.rowErrorsState.set(new Map());
+      this.fieldSavesState.set(new Map());
       try {
         const tasks = await this.gateway.tasks.list({ sectionId: section.id, includeArchived: false });
         if (generation !== this.loadGeneration) return;
@@ -189,30 +243,59 @@ export class TaskListStore {
     this.selectedTaskIdState.set(id);
   }
 
-  create(rawTitle: string): Promise<boolean> {
-    return this.track(() => this.mutating(async () => {
-      const title = rawTitle.trim();
-      const projectId = this.projectIdState();
-      const sectionId = this.sectionIdState();
-      if (title === '') {
-        this.errorState.set('A task title is required.');
-        return false;
-      }
-      if (projectId === null || sectionId === null) {
-        this.errorState.set('Tasks cannot be created before the section loads.');
-        return false;
-      }
+  /**
+   * Quick-add (§34, Slice 75). The pending row paints synchronously, a second submit is refused
+   * while one is out, and a failure owes a read (§63): a write that failed in transit may still
+   * have committed, and handing the title back without looking would let a retry duplicate it.
+   * The read counts the add as committed only for a task with this title that was not in the
+   * list at submit.
+   */
+  create(rawTitle: string): Promise<TaskCreateOutcome> {
+    const title = rawTitle.trim();
+    if (title === '') {
+      this.createErrorState.set('Enter a task title.');
+      return Promise.resolve('refused');
+    }
+    if (this.pendingCreateState() !== null) return Promise.resolve('refused');
+    const projectId = this.projectIdState();
+    const sectionId = this.sectionIdState();
+    if (projectId === null || sectionId === null) {
+      this.createErrorState.set('Tasks cannot be created before the section loads.');
+      return Promise.resolve('refused');
+    }
 
-      this.errorState.set(null);
+    const generation = this.loadGeneration;
+    const pending: PendingTaskCreate = { key: ++this.createKey, title };
+    const known = new Set(this.tasksState().map(({ id }) => id));
+    this.createErrorState.set(null);
+    this.pendingCreateState.set(pending);
+    const ours = () => generation === this.loadGeneration && this.pendingCreateState() === pending;
+
+    return this.track(() => this.mutating(async (): Promise<TaskCreateOutcome> => {
       try {
         // Named, not resolved: this list owns the row, and the domain would otherwise send
         // it to the project's *first* task list, which may well be a different one.
         const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.create({ projectId, title, sectionId }), taskReport);
-        this.tasksState.update((tasks) => [...tasks, task]);
-        return true;
+        if (!ours()) return 'stale';
+        this.tasksState.update((tasks) => (tasks.some(({ id }) => id === task.id) ? tasks : [...tasks, task]));
+        this.pendingCreateState.set(null);
+        return 'added';
       } catch (error) {
-        this.errorState.set(messageOf(error));
-        return false;
+        if (!ours()) return 'stale';
+        try {
+          const tasks = await this.gateway.tasks.list({ sectionId, includeArchived: false });
+          if (!ours()) return 'stale';
+          this.tasksState.set(tasks);
+          this.pendingCreateState.set(null);
+          if (tasks.some((task) => task.title === title && !known.has(task.id))) return 'added';
+          this.createErrorState.set(`Couldn’t add “${title}”. Try again. ${messageOf(error)}`);
+          return 'failed';
+        } catch {
+          if (!ours()) return 'stale';
+          this.pendingCreateState.set(null);
+          this.createErrorState.set(`Couldn’t confirm “${title}” was added. Check the list before adding it again.`);
+          return 'unconfirmed';
+        }
       }
     }));
   }
@@ -220,23 +303,23 @@ export class TaskListStore {
   updateTitle(id: TaskId, rawTitle: string): Promise<boolean> {
     const title = rawTitle.trim();
     if (title === '') {
-      this.errorState.set('A task title is required.');
+      this.setFieldSave(id, 'title', { state: 'failed', message: 'Enter a task title.' });
       return Promise.resolve(false);
     }
-    return this.updateFields(id, { title }, ['title', 'updatedAt']);
+    return this.updateFields(id, 'title', { title }, ['title', 'updatedAt']);
   }
 
   updatePriority(id: TaskId, priority: TaskPriority): Promise<boolean> {
-    return this.updateFields(id, { priority }, ['priority', 'updatedAt']);
+    return this.updateFields(id, 'priority', { priority }, ['priority', 'updatedAt']);
   }
 
   updateDueDate(id: TaskId, dueDate: string): Promise<boolean> {
     const dueAt = dueDate === '' ? null : `${dueDate}T23:59:59.999Z`;
-    return this.updateFields(id, { dueAt }, ['dueAt', 'updatedAt']);
+    return this.updateFields(id, 'dueAt', { dueAt }, ['dueAt', 'updatedAt']);
   }
 
   updateEstimate(id: TaskId, estimate: number | null): Promise<boolean> {
-    return this.updateFields(id, { estimate }, ['estimate', 'updatedAt']);
+    return this.updateFields(id, 'estimate', { estimate }, ['estimate', 'updatedAt']);
   }
 
   complete(id: TaskId): Promise<boolean> {
@@ -245,7 +328,7 @@ export class TaskListStore {
       if (previous === undefined || previous.status === 'done' || this.completingIdsState().has(id)) return false;
       const generation = this.loadGeneration;
 
-      this.errorState.set(null);
+      this.setRowError(id, null);
       const fields: MutableTaskField[] = ['status', 'completedAt', 'updatedAt'];
       const operationRevision = this.claim(id, fields);
       this.patch(id, { status: 'done' });
@@ -259,7 +342,7 @@ export class TaskListStore {
       } catch (error) {
         if (generation !== this.loadGeneration) return false;
         this.patchCurrent(id, previous, fields, operationRevision);
-        this.errorState.set(messageOf(error));
+        this.setRowError(id, failedOn('complete', previous.title, error));
         return false;
       } finally {
         this.completingIdsState.update((ids) => {
@@ -278,7 +361,7 @@ export class TaskListStore {
       if (previous === undefined || previous.status !== 'done' || this.completingIdsState().has(id)) return false;
       const generation = this.loadGeneration;
 
-      this.errorState.set(null);
+      this.setRowError(id, null);
       const fields: MutableTaskField[] = ['status', 'completedAt', 'updatedAt'];
       const operationRevision = this.claim(id, fields);
       const optimistic = { ...previous, status: 'todo' as const };
@@ -294,7 +377,7 @@ export class TaskListStore {
       } catch (error) {
         if (generation !== this.loadGeneration) return false;
         this.patchCurrent(id, previous, fields, operationRevision);
-        this.errorState.set(messageOf(error));
+        this.setRowError(id, failedOn('reopen', previous.title, error));
         return false;
       } finally {
         this.completingIdsState.update((ids) => {
@@ -341,9 +424,10 @@ export class TaskListStore {
    */
   archive(id: TaskId): Promise<boolean> {
     return this.track(() => this.mutating(async () => {
-      if (!this.tasksState().some((task) => task.id === id)) return false;
+      const archived = this.tasksState().find((task) => task.id === id);
+      if (archived === undefined) return false;
 
-      this.errorState.set(null);
+      this.setRowError(id, null);
       this.archivingIdsState.update((ids) => new Set([...ids, id]));
       try {
         const result = await reportedWrite(this.reporter, () => this.gateway.tasks.archive(id),
@@ -351,7 +435,7 @@ export class TaskListStore {
         this.archiveReports.set(id, { ...taskReport(result), feedback: 'own' });
         return true;
       } catch (error) {
-        this.errorState.set(messageOf(error));
+        this.setRowError(id, failedOn('delete', archived.title, error));
         return false;
       } finally {
         this.archivingIdsState.update((ids) => {
@@ -368,30 +452,62 @@ export class TaskListStore {
     });
   }
 
+  /**
+   * A drawer field edit (Slice 75, §63): claimed and painted at call time, so the row and the
+   * drawer agree while it waits, and counted as in flight at call time too, so a live re-read
+   * cannot repaint the old value behind it. Edits to one field are still sent in order: a newer
+   * failed write must not let an older answer go unapplied. A failure reverts to the field's
+   * last server-confirmed value, never to an earlier edit that failed as well.
+   */
   private updateFields(
     id: TaskId,
+    field: TaskDrawerField,
     input: UpdateTaskInput,
     fields: MutableTaskField[],
   ): Promise<boolean> {
-    // Edits to one field are ordered. Otherwise a newer failed title write can retain
-    // ownership forever and suppress an older successful response, leaving the UI stale
-    // until reload. Different fields still run independently (for example, title editing
-    // does not wait behind a slow optimistic completion).
-    const queueKey = `${id}:${fields[0]}`;
-    return this.track(() =>
-      this.enqueue(queueKey, () => this.mutating(async () => {
-        this.errorState.set(null);
-        const operationRevision = this.claim(id, fields);
-        try {
-          const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.update(id, input), taskReport);
-          this.patchCurrent(id, task, fields, operationRevision);
-          return true;
-        } catch (error) {
-          this.errorState.set(messageOf(error));
-          return false;
+    const current = this.tasksState().find((task) => task.id === id);
+    if (current === undefined) return Promise.resolve(false);
+    const key = fieldKey(id, field);
+    const confirmed = this.confirmedFields.get(key) ?? { task: current, pending: 0 };
+    confirmed.pending += 1;
+    this.confirmedFields.set(key, confirmed);
+    const operationRevision = this.claim(id, fields);
+    this.patchCurrent(id, withInput(current, input), fields, operationRevision);
+    this.setFieldSave(id, field, { state: 'saving' });
+    const latest = () => this.fieldRevisions.get(id)?.get(fields[0]!) === operationRevision;
+
+    return this.track(() => this.mutating(() => this.enqueue(key, async () => {
+      try {
+        const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.update(id, input), taskReport);
+        confirmed.task = task;
+        this.patchCurrent(id, task, fields, operationRevision);
+        if (latest()) this.setFieldSave(id, field, { state: 'saved' });
+        return true;
+      } catch (error) {
+        if (latest()) {
+          this.patchCurrent(id, confirmed.task, fields, operationRevision);
+          this.setFieldSave(id, field, { state: 'failed', message: `Not saved. Try again. ${messageOf(error)}` });
         }
-      })),
-    );
+        return false;
+      } finally {
+        confirmed.pending -= 1;
+        if (confirmed.pending === 0 && this.confirmedFields.get(key) === confirmed) this.confirmedFields.delete(key);
+      }
+    })));
+  }
+
+  private setRowError(id: TaskId, message: string | null): void {
+    this.rowErrorsState.update((errors) => {
+      if (message === null && !errors.has(id)) return errors;
+      const next = new Map(errors);
+      if (message === null) next.delete(id);
+      else next.set(id, message);
+      return next;
+    });
+  }
+
+  private setFieldSave(id: TaskId, field: TaskDrawerField, save: TaskFieldSave): void {
+    this.fieldSavesState.update((saves) => new Map(saves).set(fieldKey(id, field), { id, field, save }));
   }
 
   private enqueue<T>(key: string, operation: () => Promise<T>): Promise<T> {

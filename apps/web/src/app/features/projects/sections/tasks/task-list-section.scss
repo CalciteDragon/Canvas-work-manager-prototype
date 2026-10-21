@@ -7,11 +7,23 @@
   gap: var(--space-4);
 }
 
+// Sticky while its list is on screen (Slice 75, the user's answer to L4-023), so a long list can
+// scroll a new row into view without taking the add field, and its focus, off screen. At rest it
+// sits exactly where it did; once stuck it paints its section's sheet so rows pass beneath it.
 .quick-create {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-sticky-control);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: var(--space-3);
+  background: var(--plane-sheet-background);
+}
+
+.quick-create__error {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 

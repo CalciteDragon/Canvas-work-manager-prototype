@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { RECEIPT_UNDO } from '../../../../core/history/receipt-undo';
 import { ToastSlot } from '../../../../shared/feedback/toast-slot';
-import { ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskId, type TaskWriteResult } from '@cwm/contracts';
+import { OperationReceiptSchema, ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskAddResult, type TaskId, type TaskWriteResult } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
@@ -155,9 +155,9 @@ describe('TaskListSection (§30, §66)', () => {
     const remove = query(fixture, '[data-task-delete]') as HTMLButtonElement;
     remove.focus(); remove.click();
     fixture.detectChanges();
-    expect(remove.disabled).toBe(true);
+    expect(remove.getAttribute('aria-disabled')).toBe('true');
     expect(store.selectedTaskId()).toBe('task-1');
-    // A browser drops focus from the disabled control to the body; jsdom keeps it there.
+    // Focus can still be lost to the body while Delete waits (here, simulated).
     const stand = document.body.appendChild(document.createElement('input'));
     stand.focus(); stand.remove();
     expect(document.activeElement).toBe(document.body);
@@ -364,12 +364,15 @@ describe('TaskListSection (§30, §66)', () => {
     editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await Promise.resolve();
     fixture.detectChanges();
-    expect(query(fixture, '[data-task-drawer] h2')?.textContent).toBe('Task task-1');
+    // Optimistic (Slice 75): the drawer and the row agree on the new title while it saves.
+    expect(query(fixture, '[data-task-drawer] h2')?.textContent).toBe('Retain this draft');
     reject(new GatewayError('conflict', 409, 'Title refused'));
     await fixture.whenStable();
     fixture.detectChanges();
     expect(editor.value).toBe('Retain this draft');
-    expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('Title refused');
+    expect(query(fixture, '[data-task-drawer] h2')?.textContent).toBe('Task task-1');
+    expect(query(fixture, '[data-field-status="title"]')?.textContent).toContain('Title refused');
+    expect(query(fixture, '[data-tasks-error]')).toBeNull();
     editor.dispatchEvent(new FocusEvent('blur'));
     expect(gateway.tasks.update).toHaveBeenCalledOnce();
     gateway.tasks.update = vi.fn(async () => ({ task: { ...task('task-1'), title: 'Retain this draft' }, operation: null }));
@@ -497,7 +500,7 @@ describe('TaskListSection (§30, §66)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(query(fixture, '[data-toast-open]')).toBeNull();
-    expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('No task grant');
+    expect(query(fixture, '[data-task-error]')?.textContent).toContain('No task grant');
   });
 
   it('keeps a committed cue when the follow-up read fails', async () => {
@@ -571,10 +574,10 @@ describe('TaskListSection (§30, §66)', () => {
     await fixture.whenStable();
 
     expect(onProjectDataChange).not.toHaveBeenCalled();
-    expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('offline');
+    expect(query(fixture, '[data-task-error]')?.textContent).toContain('offline');
   });
 
-  it('disables the row’s archive control while the store reports the write in flight', async () => {
+  it('marks the row’s archive control unavailable while the store reports the write in flight', async () => {
     const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
     let settle = (): void => undefined;
     gateway.tasks.archive = () => new Promise((resolve) => (settle = () => resolve({ task: task('task-1'), operation: null })));
@@ -586,7 +589,7 @@ describe('TaskListSection (§30, §66)', () => {
     // The row cannot paint the outcome itself, so the only honest feedback it can give while
     // the write is out is to refuse a second one.
     expect(store.archivingIds().has('task-1' as TaskId)).toBe(true);
-    expect((query(fixture, '[data-task-delete]') as HTMLButtonElement).disabled).toBe(true);
+    expect(query(fixture, '[data-task-delete]')?.getAttribute('aria-disabled')).toBe('true');
 
     settle();
     await fixture.whenStable();
@@ -640,10 +643,11 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
 
     expect(onProjectDataChange).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelectorAll('[data-task-row]')).toHaveLength(1);
-    expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('nope');
+    expect(query(fixture, '[data-task-error]')?.textContent).toContain('Couldn’t delete');
+    expect(query(fixture, '[data-tasks-error]')).toBeNull();
   });
 
-  it('disables only the row whose Delete archive is in flight', async () => {
+  it('marks only the row whose Delete archive is in flight', async () => {
     // Driven through a real pending write rather than a stubbed signal: the disabled state
     // has to survive the store's own change propagation, which is the part that can break.
     let release!: () => void;
@@ -657,11 +661,179 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
     fixture.detectChanges();
 
     const controls = [...fixture.nativeElement.querySelectorAll('[data-task-delete]')] as HTMLButtonElement[];
-    expect(controls.map((control) => control.disabled)).toEqual([true, false]);
+    expect(controls.map((control) => control.getAttribute('aria-disabled'))).toEqual(['true', null]);
     expect(controls[0]!.getAttribute('aria-label')).toBe('Delete task ' + task('task-1').title);
 
     release();
     await fixture.whenStable();
     archive.mockRestore();
+  });
+});
+
+describe('TaskListSection quick-add feedback (Slice 75, §34, §63)', () => {
+  const submit = (fixture: Awaited<ReturnType<typeof render>>['fixture'], title: string): HTMLInputElement => {
+    const input = query(fixture, '[data-quick-task-title]') as HTMLInputElement;
+    input.focus();
+    input.value = title;
+    query(fixture, '[data-quick-create]')!.dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+    return input;
+  };
+  const held = (gateway: FakeWorkManagerGateway) => {
+    let answer!: (value: TaskAddResult) => void;
+    let refuse!: (error: unknown) => void;
+    const create = vi.fn(() => new Promise<TaskAddResult>((yes, no) => {
+      answer = yes;
+      refuse = no;
+    }));
+    gateway.tasks.create = create as unknown as typeof gateway.tasks.create;
+    return { create, answer: (value: TaskAddResult) => answer(value), refuse: (error: unknown) => refuse(error) };
+  };
+  const added = (id: string, title: string): TaskAddResult => ({
+    task: { ...task(id), title },
+    operation: OperationReceiptSchema.parse({
+      historyId: 'history-a', actionId: `action-${id}`, revision: 1, operation: 'task.add', label: 'Added',
+      createdAt: AT, expiresAt: '2026-08-28T16:00:00.000Z',
+    }),
+  });
+
+  it('paints a pending row at once, clears and keeps focus in the field, and marks Add task busy', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const pending = held(gateway);
+    const { fixture } = await render(gateway);
+
+    const input = submit(fixture, 'Order tiles');
+    expect(query(fixture, '[data-task-pending]')?.textContent).toContain('Order tiles');
+    expect(input.value).toBe('');
+    expect(document.activeElement).toBe(input);
+    const button = query(fixture, '[data-quick-create] button[type="submit"]')!;
+    expect(button.textContent?.trim()).toBe('Adding…');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+
+    pending.answer(added('task-new', 'Order tiles'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-task-pending]')).toBeNull();
+    expect(query(fixture, '[data-task-id="task-new"]')).not.toBeNull();
+    expect(query(fixture, '[data-quick-create-status]')?.textContent?.trim()).toBe('Added “Order tiles”.');
+    expect(button.textContent?.trim()).toBe('Add task');
+    expect(button.hasAttribute('aria-disabled')).toBe(false);
+  });
+
+  it('keeps a second draft in the field while the first add is pending', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const pending = held(gateway);
+    const { fixture } = await render(gateway);
+
+    submit(fixture, 'Order tiles');
+    const input = submit(fixture, 'Second');
+    expect(input.value).toBe('Second');
+    expect(pending.create).toHaveBeenCalledTimes(1);
+    pending.answer(added('task-new', 'Order tiles'));
+    await fixture.whenStable();
+  });
+
+  it('replaces the empty state with the pending row, outside the drag list', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [] });
+    const pending = held(gateway);
+    const { fixture } = await render(gateway);
+    expect(query(fixture, '[data-tasks-empty]')).not.toBeNull();
+
+    submit(fixture, 'Order tiles');
+    expect(query(fixture, '[data-tasks-empty]')).toBeNull();
+    const row = query(fixture, '[data-task-pending]')!;
+    expect(row.closest('[cdkdrag], .cdk-drag')).toBeNull();
+    pending.answer(added('task-new', 'Order tiles'));
+    await fixture.whenStable();
+  });
+
+  it('returns a failed title to an empty field and names it beside the form', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const pending = held(gateway);
+    const { fixture } = await render(gateway);
+
+    const input = submit(fixture, 'Order tiles');
+    pending.refuse(new GatewayError('unreachable', 0, 'offline'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(input.value).toBe('Order tiles');
+    const message = query(fixture, '[data-quick-create-error]')!;
+    expect(message.textContent).toContain('Couldn’t add “Order tiles”. Try again.');
+    expect(input.getAttribute('aria-describedby')).toBe(message.id);
+    expect(query(fixture, '[data-tasks-error]')).toBeNull();
+  });
+
+  it('never overwrites a draft typed while the failed add was pending', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const pending = held(gateway);
+    const { fixture } = await render(gateway);
+
+    const input = submit(fixture, 'Order tiles');
+    input.value = 'Something newer';
+    pending.refuse(new GatewayError('unreachable', 0, 'offline'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(input.value).toBe('Something newer');
+    expect(query(fixture, '[data-quick-create-error]')?.textContent).toContain('Order tiles');
+  });
+
+  it('refuses an empty title on the field, sends nothing, and clears the message on typing', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const pending = held(gateway);
+    const { fixture } = await render(gateway);
+
+    const input = submit(fixture, '   ');
+    fixture.detectChanges();
+    expect(pending.create).not.toHaveBeenCalled();
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(query(fixture, '[data-quick-create-error]')?.textContent?.trim()).toBe('Enter a task title.');
+    expect(document.activeElement).toBe(input);
+
+    input.value = 'O';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(query(fixture, '[data-quick-create-error]')).toBeNull();
+    expect(input.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('shows a failed completion on its row, not as a section banner', async () => {
+    const { fixture } = await render(new FakeWorkManagerGateway({
+      tasks: [task('task-1'), task('task-2')],
+      failOn: { 'tasks.complete': new GatewayError('unreachable', 0, 'offline') },
+    }));
+    const rows = fixture.nativeElement.querySelectorAll('[data-task-row]') as NodeListOf<HTMLElement>;
+    (rows[1]!.querySelector('[data-task-complete]') as HTMLInputElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const refreshed = fixture.nativeElement.querySelectorAll('[data-task-row]') as NodeListOf<HTMLElement>;
+    expect(refreshed[0]!.querySelector('[data-task-error]')).toBeNull();
+    expect(refreshed[1]!.querySelector('[data-task-error]')?.textContent).toContain('Couldn’t complete “Task task-2”');
+    expect(query(fixture, '[data-tasks-error]')).toBeNull();
+  });
+
+  it('brings a new row into view without moving focus out of the field', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const pending = held(gateway);
+    const scrolled: Element[] = [];
+    const scroll = vi.fn(function (this: Element) { scrolled.push(this); });
+    Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scroll });
+    const { fixture } = await render(gateway);
+
+    const input = submit(fixture, 'Order tiles');
+    pending.answer(added('task-new', 'Order tiles'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(scrolled.some((element) => element.getAttribute('data-task-id') === 'task-new')).toBe(true);
+    expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(document.activeElement).toBe(input);
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it('renders no pending row or row error in a read-only list', async () => {
+    const { fixture, store } = await render(new FakeWorkManagerGateway({ tasks: [task('task-1')] }), true);
+    expect(query(fixture, '[data-quick-create]')).toBeNull();
+    expect(store.pendingCreate()).toBeNull();
+    expect(query(fixture, '[data-task-error]')).toBeNull();
   });
 });

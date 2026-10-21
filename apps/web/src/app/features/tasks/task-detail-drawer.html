@@ -18,6 +18,7 @@
     <div>
       <span class="drawer__eyebrow">Task details</span>
       <h2 id="task-drawer-title" tabindex="-1">{{ task().title }}</h2>
+      <p data-task-autosave class="drawer__autosave">Changes save automatically.</p>
     </div>
   </header>
 
@@ -26,13 +27,19 @@
   </p>
 
   <label class="control-label drawer__field">
-    <span>Title</span>
+    <span class="control-label__row">
+      <span>Title</span>
+      @if (fieldStatus()('title'); as status) {
+        <span data-field-status="title" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+      }
+    </span>
     <input
       class="field"
       data-task-drawer-title
       type="text"
       [value]="draft()"
-      [attr.aria-invalid]="titleError() !== null"
+      [attr.aria-invalid]="titleError() !== null || fieldStatus()('title')?.state === 'failed'"
+      [attr.aria-describedby]="fieldStatus()('title')?.state === 'failed' ? fieldStatus()('title')!.id : null"
       (input)="updateDraft($any($event.target).value)"
       (blur)="commitTitle(true)"
       (keydown.enter)="commitTitle()"
@@ -44,10 +51,17 @@
   </label>
 
   <label class="control-label drawer__field">
-    <span>Priority</span>
+    <span class="control-label__row">
+      <span>Priority</span>
+      @if (fieldStatus()('priority'); as status) {
+        <span data-field-status="priority" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+      }
+    </span>
     <select
       class="select"
       data-task-priority
+      [attr.aria-invalid]="fieldStatus()('priority')?.state === 'failed' ? 'true' : null"
+      [attr.aria-describedby]="fieldStatus()('priority')?.state === 'failed' ? fieldStatus()('priority')!.id : null"
       [value]="task().priority"
       (change)="changePriority($any($event.target).value)"
     >
@@ -58,10 +72,17 @@
   </label>
 
   <label class="control-label drawer__field">
-    <span>Due date</span>
+    <span class="control-label__row">
+      <span>Due date</span>
+      @if (fieldStatus()('dueAt'); as status) {
+        <span data-field-status="dueAt" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+      }
+    </span>
     <input
       class="field"
       data-task-due-date
+      [attr.aria-invalid]="fieldStatus()('dueAt')?.state === 'failed' ? 'true' : null"
+      [attr.aria-describedby]="fieldStatus()('dueAt')?.state === 'failed' ? fieldStatus()('dueAt')!.id : null"
       type="date"
       [value]="dueDate()"
       (change)="changeDueDate($any($event.target).value)"
@@ -69,14 +90,23 @@
   </label>
 
   <label class="control-label drawer__field">
-    <span>Estimate</span>
-    <input class="field" data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''" (change)="changeEstimate($any($event.target).value)" />
+    <span class="control-label__row">
+      <span>Estimate</span>
+      @if (fieldStatus()('estimate'); as status) {
+        <span data-field-status="estimate" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+      }
+    </span>
+    <input class="field" data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''"
+      [attr.aria-invalid]="fieldStatus()('estimate')?.state === 'failed' ? 'true' : null"
+      [attr.aria-describedby]="fieldStatus()('estimate')?.state === 'failed' ? fieldStatus()('estimate')!.id : null"
+      (change)="changeEstimate($any($event.target).value)" />
   </label>
+  <p data-task-save-announcement class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
 
   <dl class="drawer__facts">
     <div>
       <dt>Status</dt>
-      <dd>{{ task().status }}</dd>
+      <dd data-task-status>{{ task().status }}@if (overdue()) { · <span class="drawer__overdue">Overdue</span>}</dd>
     </div>
     <div>
       <dt>Project</dt>

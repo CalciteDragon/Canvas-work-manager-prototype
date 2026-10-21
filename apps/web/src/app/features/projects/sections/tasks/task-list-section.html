@@ -1,12 +1,29 @@
 <div class="task-list-section">
   @if (!readOnly()) {
-    <form data-quick-create class="quick-create" (submit)="quickCreate($any($event), quickTitle)">
+    <form data-quick-create class="quick-create" novalidate (submit)="quickCreate($any($event), quickTitle)">
       <label class="control-label quick-create__title">
         <span>Task title</span>
-        <input class="field" data-quick-task-title #quickTitle type="text" placeholder="Add a task" />
+        <input
+          class="field"
+          data-quick-task-title
+          #quickTitle
+          type="text"
+          placeholder="Add a task"
+          [attr.aria-invalid]="store.createError() === null ? null : 'true'"
+          [attr.aria-describedby]="store.createError() === null ? null : createErrorId()"
+          (input)="store.clearTitleRefusal()"
+        />
       </label>
-      <button type="submit" class="button button--primary">Add task</button>
+      <button
+        type="submit"
+        class="button button--primary"
+        [attr.aria-disabled]="store.pendingCreate() === null ? null : 'true'"
+      >{{ store.pendingCreate() === null ? 'Add task' : 'Adding…' }}</button>
+      @if (store.createError(); as message) {
+        <p data-quick-create-error class="quick-create__error field-status field-status--failed" role="alert" [id]="createErrorId()">{{ message }}</p>
+      }
     </form>
+    <p data-quick-create-status class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
   }
 
   @if (store.error(); as error) {
@@ -44,7 +61,7 @@
       >
         @if (store.loading()) {
           <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
-        } @else if (store.tasks().length === 0) {
+        } @else if (store.tasks().length === 0 && store.pendingCreate() === null) {
           <p data-tasks-empty class="task-list-section__muted">No tasks yet. Add the first one above.</p>
         } @else {
           @for (task of store.tasks(); track task.id) {
@@ -55,12 +72,16 @@
               [selected]="store.selectedTaskId() === task.id"
               [pending]="store.completingIds().has(task.id)"
               [archiving]="store.archivingIds().has(task.id)"
+              [error]="store.rowErrors().get(task.id) ?? null"
               [readOnly]="false"
               (completionRequested)="complete($event)"
               (reopenRequested)="reopen($event)"
               (deleteRequested)="archive($event)"
               (selectedRequested)="selectTask($event)"
             />
+          }
+          @if (store.pendingCreate(); as pending) {
+            <app-pending-task-row [title]="pending.title" />
           }
         }
       </div>
@@ -69,6 +90,7 @@
         <app-task-detail-drawer
           [task]="selectedTask"
           [modal]="narrow()"
+          [saveStates]="store.selectedFieldSaves()"
           (titleChanged)="editTitle($event)"
           (priorityChanged)="changePriority($event)"
           (dueDateChanged)="changeDueDate($event)"

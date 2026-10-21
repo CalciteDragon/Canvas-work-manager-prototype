@@ -12,6 +12,14 @@ import {
 } from '@angular/core';
 import { Icon } from '../../shared/components/icon/icon';
 import { TaskPrioritySchema, type Task, type TaskId, type TaskPriority } from '@cwm/contracts';
+import { isOverdue } from './task-overdue';
+import type { TaskDrawerField, TaskFieldSave, TaskFieldSaves } from './task-write-state';
+
+const FIELD_NAMES: Record<TaskDrawerField, string> = { title: 'Title', priority: 'Priority', dueAt: 'Due date', estimate: 'Estimate' };
+
+/** What a field's own write says beside its label (Slice 75). */
+const statusText = (save: TaskFieldSave): string =>
+  save.state === 'saving' ? 'Saving…' : save.state === 'saved' ? 'Saved' : save.message;
 
 @Component({
   imports: [Icon],
@@ -24,6 +32,9 @@ export class TaskDetailDrawer {
   readonly task = input.required<Task>();
   readonly modal = input(false);
   readonly contained = input(false);
+  /** The selected task's fields with a write in flight, saved, or refused (Slice 75). */
+  readonly saveStates = input<TaskFieldSaves>({});
+  readonly now = input(Date.now());
   readonly titleChanged = output<{ id: TaskId; title: string }>();
   readonly priorityChanged = output<{ id: TaskId; priority: TaskPriority }>();
   readonly dueDateChanged = output<{ id: TaskId; dueDate: string }>();
@@ -32,6 +43,29 @@ export class TaskDetailDrawer {
 
   readonly priorities = TaskPrioritySchema.options;
   readonly dueDate = computed(() => this.task().dueAt?.slice(0, 10) ?? '');
+  readonly overdue = computed(() => isOverdue(this.task(), this.now()));
+  /**
+   * The field status to show, if any. The drawer's own blank-title refusal outranks a title
+   * save failure, so one field never carries two alerts.
+   */
+  readonly fieldStatus = computed(() => {
+    const saves = this.saveStates();
+    const blankTitle = this.titleError() !== null;
+    return (field: TaskDrawerField): { text: string; state: TaskFieldSave['state']; id: string } | null => {
+      const save = saves[field];
+      if (save === undefined || (field === 'title' && blankTitle)) return null;
+      return { text: statusText(save), state: save.state, id: `task-field-status-${this.task().id}-${field}` };
+    };
+  });
+  /** One polite sentence for the most recent change; failures and saves alike. */
+  readonly announcement = computed(() => {
+    const saves = this.saveStates();
+    const entries = (Object.keys(saves) as TaskDrawerField[]).filter((field) => saves[field]!.state !== 'saving');
+    const field = entries.at(-1);
+    if (field === undefined) return '';
+    const save = saves[field]!;
+    return save.state === 'saved' ? `${FIELD_NAMES[field]} saved.` : `${FIELD_NAMES[field]}: ${statusText(save)}`;
+  });
   readonly draft = signal('');
   readonly titleError = signal<string | null>(null);
   private baseTitle = '';
@@ -69,6 +103,9 @@ export class TaskDetailDrawer {
   constructor() {
     effect(() => {
       const task = this.task();
+      // A refused title write reverts the task (Slice 75); the draft it refused stays, dirty, for
+      // an explicit retry rather than following the reverted value.
+      const titleRefused = this.saveStates().title?.state === 'failed';
       untracked(() => {
         if (task.id !== this.titleTaskId) {
           this.titleTaskId = task.id;
@@ -77,6 +114,8 @@ export class TaskDetailDrawer {
           this.titleError.set(null);
           this.lastEmitted = null;
         } else if (task.title === this.draft()) {
+          this.baseTitle = task.title;
+        } else if (titleRefused && this.draft() === this.lastEmitted) {
           this.baseTitle = task.title;
         } else if (this.draft() === this.baseTitle) {
           this.draft.set(task.title);
@@ -95,7 +134,7 @@ export class TaskDetailDrawer {
   commitTitle(fromBlur = false): void {
     const title = this.draft().trim();
     if (title === '') {
-      this.titleError.set('A task title is required.');
+      this.titleError.set('Enter a task title.');
       return;
     }
     this.titleError.set(null);
