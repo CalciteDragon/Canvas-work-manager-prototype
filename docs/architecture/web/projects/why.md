@@ -167,6 +167,7 @@ undo its own receipt after checking that it remains next
 ## Decisions that shape this system
 
 - [Feedback is one toast with Undo](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md) — one docked confirmation, shared ownership, timer and cross-owner receipt checks.
+- [Feedback stays on the object](../../../decisions/2026-10-feedback-stays-on-the-object.md) — a created placement revealed with focus, the scroll hold, Todos completion failures on the row.
 - [Archive is always visitable](../../../decisions/2026-10-archive-is-always-visitable.md) — navigation visibility never gates recovery or records an enable while opening Archive.
 
 - [The Sub-Projects section is retired; Work is the hierarchy surface](../../../decisions/2026-10-retiring-the-sub-projects-section.md)

@@ -51,3 +51,8 @@ would interrupt entry. Scroll-into-view and feedback remain with redesign slice 
 default and newly-created-workstream navigation choices remain for the navigation redesign;
 current workstream creation still defaults to the root and keeps the current route. Spec §26's
 quick-add rule now has its implementation.
+
+**Amended, 2026-10-20 (Slice 75).** Quick-add now paints a pending row at once, keeps focus in
+the field, refuses a second submit while one is pending, and on a long list scrolls the new row
+into view under a sticky add form. A section or shortcut created from the canvas dialog is
+revealed and its heading focused. See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).

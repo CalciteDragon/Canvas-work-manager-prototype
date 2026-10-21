@@ -12,12 +12,18 @@
    the checkbox is the shared `.checkbox` primitive over the native input, the Delete the quiet
    trash `.tool`, and the details drawer's Close an `.icon-button` that keeps its "Close task
    details" name; the drawer's fields use `.field` and `.select`.
-3. A quick create posts `{ projectId, sectionId, title }` and unwraps `result.task` without changing
-   selection or opening a drawer; keyboard quick-add keeps focus in the add field. A completion
+3. A quick create paints `pendingCreate` synchronously, then posts `{ projectId, sectionId, title }`
+   and unwraps `result.task` without changing selection or opening a drawer; keyboard quick-add
+   keeps focus in the add field. `create()` resolves an outcome (`added`, `refused`, `failed`,
+   `unconfirmed` or `stale`). A failure owes one list read, and a same-title task whose id was
+   absent at submit counts as committed. The trap: clear the field only when the pending entry
+   is this submit's, or a refused second submit loses its draft. A completion
    paints first, posts second and reconciles from the same strict envelope, guarded as drawn in
    [what](what.md). Reopen uses `tasks.update(id, { status: 'todo' })`, clears `completedAt`
    optimistically and restores the exact saved fields on failure. Both toggle answers are
    guarded by the load generation, so a late answer cannot paint another section.
+   Field edits (`updateFields`) claim, paint and raise `pendingMutations` at call time, and a
+   failure restores `confirmedFields`, never an older optimistic value.
    The drawer's Title commits on Enter/blur, refuses blank text and keeps dirty drafts through
    live refreshes. Dirty compares against its last synced base title. Escape discards a dirty
    draft before blur; otherwise it closes. Blur after Enter does not send a second PATCH;
@@ -64,6 +70,8 @@
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `TaskRow` | component | The row | [API](../../../api/components/TaskRow.html) |
+| `PendingTaskRow` | component | The "Adding…" row of a quick-add in flight | [API](../../../api/components/PendingTaskRow.html) |
+| `isOverdue` | function | §4's overdue rule, shared by the row and the drawer | [API](../../../api/miscellaneous/variables.html#isOverdue) |
 | `TaskDetailDrawer` | component | The drawer | [API](../../../api/components/TaskDetailDrawer.html) |
 | `TaskListStore` | injectable | One container's rows and writes | [API](../../../api/injectables/TaskListStore.html) |
 | `TaskDrawerCoordinator` | injectable | The shell's selected Task List and open state | [API](../../../api/injectables/TaskDrawerCoordinator.html) |

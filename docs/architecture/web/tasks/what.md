@@ -47,7 +47,7 @@ sequenceDiagram
   alt success
     S->>S: reconcile current field claims and load generation, pendingMutations--, re-read
   else failure
-    S->>S: revert current field claims and exact completion time, show error, pendingMutations--
+    S->>S: revert current field claims and exact completion time, set rowErrors[id], pendingMutations--
   end
 ```
 
@@ -56,7 +56,9 @@ sequenceDiagram
 | Part | Path | Role |
 |---|---|---|
 | `TaskRow` | `task-row.ts`, `.html`, `.scss`, `.stories.ts` | The Task List row and six §4 variants; the completion control is the shared `.checkbox` (still a native input) and Delete the quiet trash `.tool` (slice 72); Delete emits intent and shows the archive write pending state |
-| `TaskDetailDrawer` | `task-detail-drawer.ts`, `.html`, `.scss` | Native side lift or modal sheet editing, with contained Lab mode and dirty-title Escape protection |
+| `PendingTaskRow` | `pending-task-row.ts`, `.stories.ts` | The "Adding…" row, `aria-busy`, no controls, sharing `task-row.scss` |
+| `TaskDetailDrawer` | `task-detail-drawer.ts`, `.html`, `.scss` | Native side lift or modal sheet editing, with contained Lab mode, dirty-title Escape protection, the autosave line and per-field save status |
+| Write state | `task-write-state.ts`, `task-overdue.ts` | `PendingTaskCreate`, `TaskCreateOutcome`, `TaskFieldSaves`; the shared overdue rule |
 | `TaskListStore` | `task-list-store.ts` | One container's rows; optimistic writes; quiet live re-reads; create preserves selection and refresh clears vanished selections |
 | `TaskDrawerCoordinator` | `task-drawer-coordinator.ts` | Shell-scoped optional selection ownership and drawer-open signal; stale releases cannot clear a newer owner |
 | `LiftFocus`, `LiftStack` | `shared/lifts/` | Shared opener restoration and one-open-lift registration, used by the projects Task List section |

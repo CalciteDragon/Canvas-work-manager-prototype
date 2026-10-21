@@ -90,6 +90,7 @@ claim cannot clear the new owner.
 - [What undo means for an archived row](../../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the row's Delete control (a reversible archive) and restore
 - [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — strict task envelopes and commit boundaries
 - [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — its slice-73 amendment gives the task sheet the same viewport breakpoint
+- [Pending, saved and failed feedback stays on the object](../../../decisions/2026-10-feedback-stays-on-the-object.md) — the pending row, no toast for a create, row and field failures, the drawer's saved cue
 
 ## Spec sections
 

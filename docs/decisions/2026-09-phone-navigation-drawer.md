@@ -108,3 +108,8 @@ and project-column hand-offs retain their existing behavior. Root creation from 
 still lands on main; the new route-focus fallback preserves that hand-off. Spec §§23 and 34
 reflect these distinctions ([lifts](2026-10-lifts-use-the-top-layer.md),
 [route focus](2026-10-route-focus-lands-lost-focus.md)). The one-tree redesign remains pending.
+
+**Amended, 2026-10-20 (Slice 75).** After a quick create on a long list, the new row is now
+scrolled into view under a sticky add form, with focus kept in the field. The stacked drawer is
+still not scrolled into view: quick-add no longer selects. The sidebar's New project refuses a
+blank name beside the field with "Enter a name.". See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).

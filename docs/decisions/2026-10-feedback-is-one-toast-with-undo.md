@@ -72,3 +72,10 @@ holds the document to the viewport height on a long phone page.
 sheet after keeping the page-settings label Archive. The dock, including its reported phone
 content overlap, timer, focus policy and receipt-specific Undo are accepted. Pending/saved
 feedback and placement remain with Slice 75; its implementation may surface further findings.
+
+**Amended, 2026-10-20 (Slice 75, user choice).** A task create is not one of the toasted writes.
+The real row and a polite "Added “X”." confirm it, and Undo for it stays in the header. A toast
+per quick-add would close the previous write's toast and cover a phone list. Same-history
+completion on Todos keeps no toast, and its failure is said on its row; the checked row is
+completion's confirmation on both surfaces. Cross-owner completion keeps its toast, because that
+write lands in another project's history. The asymmetry is accepted. See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).

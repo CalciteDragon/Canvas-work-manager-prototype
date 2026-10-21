@@ -51,6 +51,10 @@ action per surface.
    from that region, through local Tab order and guarded focus entry after a control vanishes.
    Showing it never scrolls. Its reserve keeps the end of the canvas reachable; overlap with
    the acted region is reported for Gate 2 judgement. Placement and saved feedback stay in Slice 75.
+   **Amended, 2026-10-20 (Slice 75, user choice):** a task create needs no toast. Its real row
+   and a polite announcement confirm it. Pending, saved and failed feedback sit on the object
+   they concern, and the working placement holds still while content above it grows
+   ([decision](../../decisions/2026-10-feedback-stays-on-the-object.md)).
 7. **Motion explains change, then gets out of the way.** Durations are 120–240 ms. Only
    `transform` and `opacity` animate. Entering eases out, leaving eases in. Long lists never
    animate their layout, and reduced motion becomes a crossfade of 80 ms or less. Today nothing

@@ -140,4 +140,4 @@ so feature-owned hand-offs retain priority.
 [More's menu and details dialog](../../decisions/2026-10-more-is-a-menu-with-a-details-dialog.md)
 separate immediate choices from a single-commit draft.
 
-[One toast with receipt Undo](../../decisions/2026-10-feedback-is-one-toast-with-undo.md) replaces the separate confirmation surfaces; [Archive routing](../../decisions/2026-10-archive-is-always-visitable.md) no longer depends on a navigation toggle.
+[One toast with receipt Undo](../../decisions/2026-10-feedback-is-one-toast-with-undo.md) replaces the separate confirmation surfaces, and [feedback stays on the object](../../decisions/2026-10-feedback-stays-on-the-object.md) keeps pending, saved and failed states on the row, field or card they concern; [Archive routing](../../decisions/2026-10-archive-is-always-visitable.md) no longer depends on a navigation toggle.

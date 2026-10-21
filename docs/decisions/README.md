@@ -17,6 +17,12 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 ## Whole prototype
 
+[Pending, saved and failed feedback stays on the object](2026-10-feedback-stays-on-the-object.md)
+— Slice 75: pending vocabulary, the saved cue, failures on their row, field or card, new items
+in view with focus, and the canvas scroll hold. It amends the one-toast entry (no toast for a
+task create), creation defaults, checkbox reopen, task Delete feedback and the phone drawer on
+2026-10-20.
+
 [Feedback is one toast with receipt-specific Undo](2026-10-feedback-is-one-toast-with-undo.md)
 and [Archive is always visitable](2026-10-archive-is-always-visitable.md) — current Slice 74
 product rules (Archive amended 2026-10-18 to keep its short page-settings label); the twelve earlier recovery, optional-page and history decisions carry dated

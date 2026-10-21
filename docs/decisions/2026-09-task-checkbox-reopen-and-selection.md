@@ -83,3 +83,9 @@ the current selection and never opens details. This replaces the opening-focus a
 choices above; checkbox, pointer guards and commit rules stay as recorded. Spec §34 is corrected
 with this implementation ([lifts](2026-10-lifts-use-the-top-layer.md),
 [creation defaults](2026-10-creation-defaults-follow-the-open-work.md)).
+
+**Amended, 2026-10-20 (Slice 75).** A refused complete or reopen is said on its row, beside the
+checkbox that moved back, as "Couldn’t complete “X”. Try again." (or reopen) with the reason, and
+not as a section banner. The drawer's field edits are optimistic, show Saving… and Saved beside
+the field, and revert to the last server-confirmed value on failure. A blank title says "Enter
+a task title.". See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).

@@ -1226,6 +1226,11 @@ Dismiss, and may hand focus to a restored section heading with a bounded wait. R
 the actual title, breadcrumb and page and offer Go to it when that origin page is enabled.
 Settings project recovery instead names the resulting status and offers Open it without Undo.
 
+*Slice 75 placement.* A section or shortcut created from the canvas dialog is scrolled to its top
+and its heading (`tabindex="-1"`) takes focus, for every type, instead of focus returning to the
+insertion point. A cancel, or a create that landed after the page changed, returns focus as
+before ([why](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
+
 *Since Slice 55,* a newly recorded section update's header label names a lone rename (including
 the resulting default after a title clear), Markdown edit (`Edited Markdown in …`), collapse or expand, or resize to
 its saved column count. Mixed updates and other configuration changes use one general "Updated"
@@ -1454,6 +1459,12 @@ Example:
 ```
 
 This gives substantial flexibility without prematurely creating an infinite-canvas system.
+
+*Slice 75.* The canvas holds the working placement (the one holding focus, or the last one
+pressed) still while placements above it change height. A scroll since the last layout change,
+the person's or a reveal's, stands as the new baseline. Nothing is held at offset 0, off screen
+or during a drag, and native scroll anchoring is off for the canvas so the two never correct the
+same growth twice ([why](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
 
 ---
 
@@ -1723,6 +1734,9 @@ Recent Activity
 
 *Slice 66 retires Sub-Projects from the historical Prototype list above; the current registered
 types are the six listed below.*
+
+*Slice 75.* A Recent Activity row that arrives after the feed's first render fades in with
+opacity only. Its growth no longer moves a section below it that is being worked in (§27).
 
 Adding a new section type should require minimal changes outside its own feature folder.
 
@@ -2170,6 +2184,19 @@ Title editing lives in the drawer, where a blank draft is refused and Escape dis
 before it closes the drawer. Close and closing Escape return focus to the selected row title,
 or quick-add if the row vanished, while preserving focus moved outside. Quick-add preserves any
 existing selection and keeps keyboard focus in the add field; it never opens details.
+
+*Amended 2026-10-20, Slice 75:* Quick-add paints an "Adding…" row (`aria-busy`) synchronously,
+clears the field and keeps focus there, and refuses a second submit while one is pending, keeping
+its draft. The add button reads "Adding…" with `aria-disabled`. No toast confirms a create: the
+real row replaces the pending one, a polite region says "Added “X”.", and on a long list the
+row scrolls into view under the add form, which is sticky while its list is on screen. A failed
+add owes one read (§63). If the task is absent, its title returns to an empty field with "Couldn’t
+add “X”. Try again." and the reason beside the form; if the read fails too, it says the add could
+not be confirmed. An empty title is refused beside the field with "Enter a task title.". Complete,
+reopen and Delete failures are said on their row, linked from the control; the section banner
+is for load and drag-receive failures. On Todos, complete and reopen failures sit on the row and
+Delete failures stay page-level. The drawer says "Changes save automatically." and shows Saving…,
+Saved or "Not saved. Try again." beside each field ([why](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
 
 ## The Todos page
 
@@ -3565,6 +3592,11 @@ creation transition response lands without its live frame, without reloading the
 which transition completed. A cold recovery URL does not retry itself, and ordinary not-found
 routes remain unavailable ([decision](docs/decisions/2026-09-project-creation-history.md)).
 
+*Slice 75.* Task drawer field edits are optimistic. The field and its row paint at call time, and
+a failure restores the last value the server confirmed, never an older optimistic one, so the
+row and the drawer never disagree while a write is pending. A failed quick-add's owed read counts
+the write as committed only for a same-title task whose id was absent at submit.
+
 ---
 
 # 64. Repository Structure
@@ -3727,7 +3759,9 @@ This supplements Storybook with a full-app design environment.
 specimens (side drawer, dialog, menu and page-settings popover) over a busy backing, in contained
 mode. Its live Drawer panel renders the real TaskDetailDrawer without fixed positioning or
 the top layer. Four Storybook lift stories exercise native opening, Escape and opener return.
-*Slice 74* adds the real toast specimen over the busy backing in both themes. The Lab has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
+*Slice 74* adds the real toast specimen over the busy backing in both themes. *Slice 75* adds the
+failed and Adding task-row specimens to the live task-row panel, and a `.field-status` specimen
+(saving, saved, failed) to the primitive panels. The Lab has live knobs for tints, blur and motion, and a Solid planes toggle covering both reduced transparency and the identical no-filter fallback, plus a Reduced motion toggle ([decision](docs/decisions/2026-10-frosted-glass-depth-direction.md)).
 
 *Corrected at slice 72 (2026-10-15).* Buttons and inputs are the shared primitives, rendered as they are, and a Controls panel shows every primitive in every variant, size and state over a pane and a sheet. Its forced hover, focus and pressed specimens include the same state mixins the real states use. Cards, project cards, the primitive-panel menu examples and states remain representative markup
 labelled not yet a shared component; the plane panel uses the real lift/menu classes.

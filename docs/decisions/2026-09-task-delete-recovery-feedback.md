@@ -29,3 +29,7 @@ People cannot find root Archive from a Task List, or read the header guidance as
 **Amended, 2026-10-14 (Slice 70 Gate 1).** Principle 6 of the [Depth direction](2026-10-frosted-glass-depth-direction.md) moves recovery feedback to the point of action. The notice offers Undo itself instead of pointing to the header icon ('Undo is in the header', W1-036, L3-009). The routes this entry names still exist, but the wording and placement change in the pattern-layer slice.
 
 **Amended, 2026-10-17 (Slice 74).** Task Delete now confirms with a local toast, Undo of its exact receipt and Open archive. It no longer instructs the person to find another control. Opening Archive records nothing, so that visit does not replace the Delete step. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).
+
+**Amended, 2026-10-20 (Slice 75).** A refused task Delete is said on its row, not as a section
+banner. Delete uses `aria-disabled` while in flight, so focus stays on it. On Todos a refused
+Delete stays a page-level alert. See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).
