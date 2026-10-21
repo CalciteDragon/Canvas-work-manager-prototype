@@ -154,12 +154,12 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   const beforeOrder = await orderOf(projectId, homePageId);
   await page.goto(`/projects/${projectId}`);
 
-  const endInsertion = page.locator('app-insertion-point[data-insertion-point="end"] [data-insertion-point-button]');
+  const endInsertion = page.getByRole('button', { name: 'Add a section', exact: true });
   await endInsertion.click();
   await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Contextual add');
   await page.locator('[data-create-section-submit]').click();
-  await expect(page.locator('[data-section-item] [data-section-title-edit]').filter({ hasText: 'Contextual add' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Rename Contextual add', exact: true })).toBeVisible();
   const added = (await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ title }) => title === 'Contextual add');
   if (added === undefined) throw new Error('The contextual section was not created');
   // Slice 41: a forward write shows no notice; the header's label is its confirmation.
@@ -168,11 +168,11 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   await expect(page.locator(`[data-section-item][data-section-id="${added.id}"]`)).toHaveCount(0);
 
   const notesFrame = page.locator(`[data-section-item][data-section-id="${notes.id}"]`);
-  await notesFrame.locator('[data-section-title-edit]').click();
+  await notesFrame.getByRole('button', { name: 'Rename Undo notes', exact: true }).click();
   await notesFrame.locator('[data-section-name]').fill('Renamed notes');
   await notesFrame.locator('[data-section-name]').press('Enter');
   await undoFromHeader(page, 'Renamed the Undo notes section to Renamed notes');
-  await expect(notesFrame.locator('[data-section-title-edit]')).toContainText('Undo notes');
+  await expect(notesFrame.getByRole('button', { name: 'Rename Undo notes', exact: true })).toBeVisible();
   await page.reload();
   await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Renamed the Undo notes section to Renamed notes');
 
@@ -388,7 +388,7 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   const brief = 'section-project-kitchen-brief';
   await page.goto(`/projects/${KITCHEN}`);
   const frame = page.locator(`[data-section-item][data-section-id="${brief}"]`);
-  await frame.locator('[data-section-title-edit]').click();
+  await frame.getByRole('button', { name: 'Rename Markdown', exact: true }).click();
   await frame.locator('[data-section-name]').fill('User heading');
   await frame.locator('[data-section-name]').press('Enter');
   const label = /^Undo: Renamed the Markdown section to User heading$/;
@@ -401,7 +401,7 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   } finally {
     await client.close();
   }
-  await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
+  await expect(frame.getByRole('button', { name: 'Rename Agent heading', exact: true })).toBeVisible();
 
   await undoFromHeader(page, label);
   await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toHaveCount(1);
@@ -412,6 +412,6 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', label);
   await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-disabled', 'true');
   await page.reload();
-  await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
+  await expect(frame.getByRole('button', { name: 'Rename Agent heading', exact: true })).toBeVisible();
   expect((await api.get<ProjectSection[]>(`/api/projects/${KITCHEN}/sections?pageId=${KITCHEN_PAGE}`)).find(({ id }) => id === brief)?.title).toBe('Agent heading');
 });

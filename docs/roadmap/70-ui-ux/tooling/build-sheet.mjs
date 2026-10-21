@@ -8,12 +8,12 @@ import { resolve, join } from 'node:path';
 const args = process.argv.slice(2);
 const flag = name => { const at = args.indexOf(name); return at === -1 ? null : args[at + 1]; };
 const profile = flag('--profile') ?? '71';
-if (!['71', '72', '73', '74', '75'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+if (!['71', '72', '73', '74', '75', '76'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
 // Profile 75's slice-73 pair has its own "before": the pre-73 build's placement run.
 const pre73Dir = flag('--pre73') === null ? null : resolve(flag('--pre73'));
 const positional = args.filter((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
 const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
-if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75] [--pre73 <dir>]');
+if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75|76] [--pre73 <dir>]');
 const liftCell = cell => ['more', 'project-details', 'archive-confirm', 'page-settings', 'task-drawer', 'task-drawer-scrolled', 'section-create', 'work-create'].includes(cell.state) || cell.route === '/prototype/design';
 /** Slice 74's one listed closed-state change: the project header exactly 12 px shorter at the same top. */
 const FEEDBACK_ROW = 12;
@@ -57,7 +57,9 @@ const CENSUS_EXCEPTIONS = [
   { owner: 'slice 7: project navigation breadcrumbs (listed after the after census; see the plan)', classes: ['project-nav__breadcrumb'], test: c => /\bproject-nav__breadcrumb\b/.test(c.class ?? '') },
   { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
 ];
-const exceptionFor = c => CENSUS_EXCEPTIONS.find(e => e.test(c));
+const activeExceptions = profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
+const exceptionFor = c => activeExceptions.find(e => e.test(c));
+const chromeCell = cell => cell.route?.startsWith('/projects/') && !/\/(todos|archive|reflections)(?:$|\?)/.test(cell.route);
 const censusFailures = [], censusExceptions = [], intendedChanges = [], geometryReport = [];
 const read = async p => JSON.parse(await readFile(p, 'utf8'));
 const before = await read(join(beforeDir, 'index.json'));
@@ -104,12 +106,20 @@ for (const a of after.cells) {
         next = next.map((box, i) => i >= headerEnd && i < insertion ? { ...box, y: box.y - shifts[0] } : box);
       }
     }
+    if (profile==='76' && a.route==='/prototype/design' && family==='controls') {
+      const isFrame=c=>/^(Move |Collapse |Expand |Rename |Remove section )/.test(c.text??'') || c.panel==='section-frame';
+      const knob=next.find(c=>c.id==='design-lab-canvasChromeRestOpacity');
+      old=old.filter(c=>!isFrame(c));next=next.filter(c=>!isFrame(c) && c!==knob);
+      // Only the rail rows below the inserted knob shift; catalogue controls retain their boxes.
+      if(knob)next=next.map((c,i)=>c.x<knob.x+knob.width && c.y>knob.y && old[i]?.tag===c.tag && old[i]?.text===c.text ? {...c,y:old[i].y}:c);
+    }
     const changes = [];
     if (old.length !== next.length) changes.push({ reason: 'count', before: old.length, after: next.length });
     old.forEach((box, index) => {
       const other = next[index];
       if (!other) return;
       if (family === 'planes' && (box.selector !== other.selector || box.index !== other.index)) changes.push({ index, reason: 'plane identity' });
+      if (profile==='76' && a.route==='/prototype/design' && family==='controls' && ['color','background','border'].some(field=>box[field]!==other[field])) changes.push({index,reason:'Lab control paint changed',text:box.text});
       if (family === 'controls' && box.text !== other.text) changes.push({ index, reason: 'control identity', before: box.text, after: other.text });
       for (const field of ['x', 'y', 'width', 'height', 'scrollWidth', 'scrollHeight']) {
         if (typeof box[field] !== 'number') continue;
@@ -129,7 +139,7 @@ for (const a of after.cells) {
       if (intended.length) intendedChanges.push({ cell: a.id, changes: intended });
       const moved = changes.filter(change => !intended.includes(change) && !integrity.includes(change));
       if (moved.length) geometryReport.push({ cell: a.id, family, changes: moved });
-    } else if ((profile === '73' && liftCell(a)) || (profile === '74' && feedbackCell(a)) || (profile === '75' && placementCell(a))) {
+    } else if ((profile === '76' && (chromeCell(a) || (a.route === '/prototype/design' && family !== 'controls'))) || (profile === '73' && liftCell(a)) || (profile === '74' && feedbackCell(a)) || (profile === '75' && placementCell(a))) {
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
       if (changes.length) geometryReport.push({ cell: a.id, family, changes });
@@ -157,7 +167,7 @@ for (const a of after.cells) {
       }
     }
   }
-  if (profile === '72') {
+  if (['72', '76'].includes(profile)) {
     const touch = (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
     const product = al.controls.filter(c => c.scope === 'product');
     for (const c of product) {
@@ -186,9 +196,22 @@ for (const a of after.cells) {
     for (const v of axe.violations ?? []) {
       if (['select-name', 'aria-progressbar-name', 'button-name'].includes(v.id)) censusFailures.push({ cell: a.id, reason: `axe ${v.id}`, nodes: v.nodes.map(n => n.target) });
       if (v.id === 'target-size') {
-        const unlisted = v.nodes.filter(n => !CENSUS_EXCEPTIONS.some(e => e.classes.some(name => n.target.join(' ').includes(name))));
+        const unlisted = v.nodes.filter(n => !activeExceptions.some(e => e.classes.some(name => n.target.join(' ').includes(name))));
         if (unlisted.length) censusFailures.push({ cell: a.id, reason: 'axe target-size', nodes: unlisted.map(n => n.target) });
       }
+    }
+  }
+  if (profile === '76' && chromeCell(a)) {
+    for (const content of bl.sectionContents ?? []) {
+      const next = al.sectionContents?.find(c => c.id === content.id);
+      if (!next || ['x', 'width'].some(field => Math.abs(next[field] - content[field]) > 1)) failures.push({ cell: a.id, reason: 'section content geometry', before: content, after: next });
+    }
+    if (!Array.isArray(bl.sectionContents) || !Array.isArray(al.sectionContents)) failures.push({ cell: a.id, reason: 'section content collector missing' });
+    const [was, now] = await Promise.all([read(join(beforeDir, b.artifacts.axe)), read(join(afterDir, a.artifacts.axe))]);
+    const key = (v, n) => v.id + ':' + (n.stableAnchor ?? n.target?.join(' '));
+    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => n.stableAnchor ? [key(v,n)] : [key(v,n), v.id + ':' + n.target?.join(' ')])));
+    for (const violation of now.violations ?? []) if (violation.id !== 'color-contrast') for (const node of violation.nodes) {
+      if (!known.has(key(violation,node)) && !known.has(violation.id + ':' + node.target?.join(' '))) failures.push({ cell: a.id, reason: 'new axe node ' + violation.id, target: node.target });
     }
   }
   for (const [phase, dir, cell] of [['before', beforeDir, b], ['after', afterDir, a]]) {
@@ -208,7 +231,7 @@ const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-ver
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
 const captureProvenance = profile === '73' ? await optional(join(afterDir, 'production-build.json')) : null;
 const finalBuild = profile === '73' ? await optional(join(afterDir, 'final-production-build.json')) : null;
-const tasks = ['73', '74', '75'].includes(profile) ? await optional(join(afterDir, 'tasks/tasks.json')) : null;
+const tasks = ['73', '74', '75', '76'].includes(profile) ? await optional(join(afterDir, 'tasks/tasks.json')) : null;
 const feedback = profile === '74' ? await optional(join(verificationDir, 'feedback-verification.json')) : null;
 const baselineFeedback = profile === '74' ? await optional(join(beforeDir, 'feedback-verification.json')) : null;
 const feedbackGroups = [
@@ -342,6 +365,55 @@ if (profile === '73' && lifts) {
     }
   }
 }
+const chrome = profile === '76' ? await optional(join(verificationDir, 'chrome-verification.json')) : null;
+const chromeBefore = profile === '76' ? await optional(join(beforeDir, 'chrome-verification.json')) : null;
+if(profile==='76') {
+  if(!chromeBefore?.complete || chromeBefore.entries?.length!==12)failures.push({reason:'chrome baseline runtime missing or incomplete'});
+  for(const entry of chromeBefore?.entries??[]) {
+    const fields=['screenshot','hitScreenshot','restHitScreenshot'];if(entry.project==='project-kitchen'&&entry.layout!=='grid')fields.push('pendingScreenshot');
+    if(entry.error || fields.some(field=>typeof entry[field]!=='string') || !entry.tabWalk?.length || !entry.rest?.frames?.length || ['restHitMap','activeHitMap'].some(field=>!entry[field]?.length || entry[field].some(mark=>mark.points?.length!==9)))failures.push({reason:'chrome baseline measurement or visual incomplete',project:entry.project,theme:entry.theme,width:entry.width});
+  }
+}
+if (profile === '76' && (!chrome?.complete || !chrome.entries?.length || chrome.entries.some(e => e.error || !e.rest || !e.tabWalk))) failures.push({ reason: 'chrome-verification.json missing or incomplete' });
+if (profile === '76' && chrome?.complete) {
+  for (const project of ['project-kitchen','project-client-migration','project-renovation/pages/home']) for(const [theme,width] of [['dark',1440],['light',1440],['light',375]]) {
+    const entry=chrome.entries?.find(e=>e.project===project && e.theme===theme && e.width===width && e.layout!=='grid');
+    if(!entry)failures.push({reason:'chrome runtime context missing',project,theme,width});
+  }
+  for(const [theme,width] of [['dark',1440],['light',1440],['light',375]]) {
+    if(!chrome.entries?.some(e=>e.project==='project-kitchen' && e.layout==='grid' && e.theme===theme && e.width===width))failures.push({reason:'chrome grid runtime context missing',theme,width});
+  }
+  for(const entry of chrome.entries??[]) {
+    const fail=reason=>failures.push({reason,project:entry.project,theme:entry.theme,width:entry.width,layout:entry.layout});
+    for(const field of ['screenshot','hitScreenshot','restHitScreenshot'])if(typeof entry[field]!=='string')fail('chrome visual evidence missing '+field);
+    if(typeof entry.aria!=='string' || !entry.aria.trim())fail('chrome ARIA snapshot missing');
+    const rest=entry.rest, token=Number(rest?.restToken);
+    if(!Number.isFinite(token)||token<=0||token>=1||!rest?.frames?.length||!rest?.marks?.length||!rest?.add?.length)fail('chrome rest measurement incomplete');
+    if((rest?.marks??[]).some(mark=>!Number.isFinite(mark.opacity)||Math.abs(mark.opacity-token)>.001))fail('chrome rest mark opacity');
+    for(const frame of rest?.frames??[]) {
+      if(!frame.heading || frame.headingButton!==null)fail('chrome heading name');
+      if(frame.titleOffset!==null && (!Number.isFinite(frame.titleOffset)||Math.abs(frame.titleOffset)>1))fail('chrome title alignment');
+      if(!frame.tools?.length || frame.tools.some(t=>!Number.isFinite(t.opacity)||Math.abs(t.opacity-token)>.001))fail('chrome rest tool opacity');
+    }
+    for(const state of ['restHitMap','activeHitMap']) {
+      if(!entry[state]?.length || entry[state].some(mark=>mark.points?.length!==9 || mark.points.some(p=>p.hit!==true)))fail('chrome insertion hit map '+state);
+    }
+    if(!entry.tabWalk?.length)fail('chrome Tab walk missing');
+    for(const id of new Set((entry.tabWalk??[]).map(stop=>stop.section).filter(Boolean))) {
+      const stops=entry.tabWalk.filter(stop=>stop.section===id && stop.kind!=='gap'),first=stops.findIndex(stop=>stop.content);
+      if(stops.filter(stop=>!stop.content).length>3 || (first>=0 && stops.slice(0,first).filter(stop=>!stop.content).length>2))fail('chrome Tab stop budget');
+    }
+    if(entry.project==='project-kitchen' && entry.layout!=='grid') {
+      if(typeof entry.pendingScreenshot!=='string')fail('chrome collapse100ms visual missing');
+      if(entry.collapse?.runs?.length!==5 || !Number.isFinite(entry.collapse.worstMs) || entry.collapse.worstMs>=100 || entry.collapse.runs.some(n=>!Number.isFinite(n)||n>=100))fail('chrome collapse latency missing or over100ms');
+    }
+    if(entry.layout==='grid' && entry.width===1440 && (!entry.resize || entry.resize.width<24 || entry.resize.inside?.length!==4 || !entry.resize.inside.every(Boolean) || !entry.resize.gap?.length || !entry.resize.gap.every(Boolean)))fail('chrome resize midline measurement');
+  }
+}
+if (profile === '76') for (const [id,clicks,keystrokes] of [['T03',10,38],['T05',2,0],['T06',2,16]]) {
+  const task=tasks?.find(t=>t.id===id);
+  if (!task || task.status!=='completed' || !Number.isFinite(task.clicks) || !Number.isFinite(task.keystrokes) || task.deadEnds!==0 || task.clicks>clicks || task.keystrokes>keystrokes) failures.push({reason:'chrome core task cost or completion',id,task});
+}
 const primitives = profile === '72' ? await optional(join(verificationDir, 'primitives-verification.json')) : null;
 const primitivesLab = profile === '72' ? await optional(join(verificationDir, 'primitives-lab.json')) : null;
 const baselinePrimitives = profile === '72' ? await optional(join(beforeDir, 'primitives-verification.json')) : null;
@@ -377,7 +449,7 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
 failures.push(...censusFailures);
-const report = { placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs };
+const report = { chrome, chromeBefore, placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
 // Profile 73's "Visual acceptance pairs" table: which findings each core cell demonstrates.
@@ -486,9 +558,35 @@ if (profile === '75') {
   const audit = `<table><thead><tr><th>Pair</th><th>Status</th></tr></thead><tbody>${placementPairs.map(pair => `<tr><th><a href="#${anchor(pair)}">${esc(`${pair.row} · ${pair.theme} · ${pair.width}`)}</a></th><td>${esc(pair.status)}</td></tr>`).join('')}</tbody></table>`;
   await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 75 · Pending and placement · Gate 2</title><style>:root{color-scheme:dark}body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}a{color:#ffad7f}section{margin-block:28px}.overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}figure{margin:0;min-width:0}img{width:100%;max-height:80vh;object-fit:contain;object-position:top}code,pre{white-space:pre-wrap;overflow-wrap:anywhere}th,td{text-align:left;padding:8px;border-bottom:1px solid #455}@media(max-width:700px){body{margin:12px}.overview,.pair{grid-template-columns:1fr}}</style><h1>Pending and placement / Slice 75</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ${esc(before.commit)} → after ${esc(after.commit)}. Placement runtime evidence: after ${esc(placement?.commit ?? 'unavailable')}, before ${esc(baselinePlacement?.commit ?? 'unavailable')}, pre-73 ${esc(pre73Placement?.commit ?? 'unavailable')}.</p><p>${pairs.length} paired matrix cells · ${failures.length} gate failures. Closed-state boxes stay within 1 px; the task drawer, the creation dialog and the Lab are reported. Gated runtime facts: pending row under 100 ms, drawer cue and row under 100 ms, reveal with heading focus, the long-list row and field in view, the list held within 1 px, failures on their objects, blank names refused on the field, and T03 at most 10 clicks and 38 keystrokes. Behaviour assertions also run in apps/e2e/placement.spec.ts. <a href="report.json">Full gate report</a> · <a href="placement-verification.json">Runtime measurements</a>.</p><section><h2>Visual evidence gaps</h2><p>${gaps.length} of ${placementPairs.length} visual acceptance pairs are incomplete. Zero gate failures does not mean user acceptance.</p>${audit}</section><section><h2>Visual acceptance</h2>${gallery}</section><section><h2>Matrix before / after</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} matrix pairs</summary>${[...core, ...extras].map(card).join('')}</details><section><h2>Gate failures</h2><pre>${esc(JSON.stringify(failures, null, 2))}</pre><details><summary>Reported geometry movement</summary><pre>${esc(JSON.stringify(geometryReport, null, 2))}</pre></details></section><section><h2>Contrast</h2><p>Reported only.</p>${contrastTable}${compositeTable}${serious}</section>${verificationSection}</html>`);
 }
-if (!['73', '74', '75'].includes(profile))
+if (!['73', '74', '75', '76'].includes(profile))
 await writeFile(join(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${profile === '72' ? 'Slice 72 · Primitives' : 'Slice 71 · Depth'} · Gate 2</title><style>:root{color-scheme:dark}
 body{font:16px/1.5 system-ui;background:#11151f;color:#f2f4fa;margin:24px}h1{margin-bottom:0}h2{font-size:21px}h3{font-size:15px;overflow-wrap:anywhere}p{max-width:110ch}a{color:#ffad7f}section,details{margin-block:24px}.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}img{width:100%;max-height:75vh;object-fit:contain;object-position:top;background:#20253a}.overview img{height:190px}.verification{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.verification img{height:220px}figcaption{font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:8px 14px;border-bottom:1px solid #394156}summary{cursor:pointer}article{margin-bottom:24px}@media(max-width:900px){.overview,.verification{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){body{margin:12px}.overview,.verification,.pair{grid-template-columns:1fr}table{font-size:12px}th,td{padding:5px}}
 </style><h1>${profile === '72' ? 'Primitives / Slice 72' : 'Depth / Slice 71'}</h1><p>Gate 2 · awaiting visual acceptance. Before ${esc(before.commit.slice(0,8))} → after ${esc(after.commit.slice(0,8))}. ${profile === '72' ? 'Shared control primitives adopted on every product surface.' : 'V2: blurred panes, translucent sheets without blur.'}</p><p>${pairs.length} paired cells · ${failures.length} ${profile === '72' ? 'gate failures (census, axe names, overflow) · ' + censusExceptions.length + ' listed census exceptions · ' + intendedChanges.length + ' cells with intended control renames · ' + geometryReport.length + ' cell families with reported geometry movement. Geometry is reported, not gated, in this slice.' : 'geometry failures · ' + exceptions.length + ' intentional Lab additions. All other recorded boxes must stay within 1px.'} Click any image for full resolution. <a href="report.json">Full geometry and axe report</a></p><section><h2>Visual acceptance</h2><div class="overview">${core.map(card).join('')}</div></section><details><summary>All ${pairs.length} before / after pairs</summary>${[...core,...extras].map(card).join('')}</details>${profile === '72' ? `<section><h2>Control census</h2><p>Gated: product-scope controls are at least 24 px with a pointer and 44 px tall on touch, buttons use at most two heights and fields one, no 375 cell scrolls sideways, and axe reports no select-name, aria-progressbar-name or button-name violation.</p><h3>Failures (${censusFailures.length})</h3><pre>${esc(JSON.stringify(censusFailures,null,2))}</pre><details><summary>Listed exceptions and their owners (${censusExceptions.length})</summary><pre>${esc(JSON.stringify(censusExceptions,null,2))}</pre></details><details><summary>Intended control renames and count changes (${intendedChanges.length} cells)</summary><pre>${esc(JSON.stringify(intendedChanges,null,2))}</pre></details><details><summary>Reported geometry movement (${geometryReport.length})</summary><pre>${esc(JSON.stringify(geometryReport,null,2))}</pre></details></section>` : ''}<section><h2>Contrast report</h2><p>Axe counts are affected-node assessments summed across captured cells in each theme. Incomplete translucent-background assessments are included; the same node may be assessed on several surfaces.</p>${contrastTable}<h3>Worst-case composite contrast</h3><p>Backings are what really sits behind each plane. Panes and sheets sit on the ground: its solid colour and each art glow at full strength. Lifts float over page content, so they are also measured over the solid sheet and text-coloured busy content. Values below use the after tokens.</p>${compositeTable}${serious}<details><summary>Per-cell before / after axe counts and all accepted exceptions</summary><pre>${esc(JSON.stringify(contrast,null,2))}</pre></details></section>${verificationSection}</html>`);
+if (profile === '76') {
+  const baselineChrome = chromeBefore;
+  const gallery = [];
+  for(const entry of chrome?.entries??[]) {
+    const baseline=baselineChrome?.entries?.find(old=>old.project===entry.project && (old.layout??'flow')===(entry.layout??'flow') && old.theme===entry.theme && old.width===entry.width);
+    for(const field of ['screenshot','restHitScreenshot','hitScreenshot','pendingScreenshot']) {
+      if(!entry[field] && !baseline?.[field])continue;
+      const pictures=[];
+      for(const [phase,item,dir] of [['before',baseline,beforeDir],['after',entry,verificationDir]])if(item?.[field]) {
+        const file=phase+'-'+item[field];await copyFile(join(dir,item[field]),join(output,file));pictures.push(figure(file,phase));
+      }
+      gallery.push('<article><h3>'+esc(entry.project+' '+(entry.layout??'flow')+' '+entry.theme+' '+entry.width+' '+({screenshot:'at rest',restHitScreenshot:'rest hit map',hitScreenshot:'active hit map',pendingScreenshot:'100ms after Collapse'})[field])+'</h3><div class="pair">'+pictures.join('')+'</div></article>');
+    }
+  }
+  const measured='<table><tr><th>Context</th><th>Rest hits before → after</th><th>Move opacity</th><th>Title offset px</th><th>Worst collapse ms</th></tr>'+(chrome?.entries??[]).map(entry=>{
+    const was=baselineChrome?.entries?.find(old=>old.project===entry.project && (old.layout??'flow')===(entry.layout??'flow') && old.theme===entry.theme && old.width===entry.width);
+    const hits=e=>{const points=(e?.restHitMap??[]).flatMap(mark=>mark.points);return points.filter(point=>point.hit).length+'/'+points.length;};
+    const move=e=>e?.rest?.frames?.[0]?.tools?.find(tool=>/^Move /.test(tool.name??''))?.opacity??'—';
+    return '<tr><td>'+esc(entry.project+' '+(entry.layout??'flow')+' '+entry.theme+' '+entry.width)+'</td><td>'+hits(was)+' → '+hits(entry)+'</td><td>'+move(was)+' → '+move(entry)+'</td><td>'+esc(was?.rest?.frames?.[0]?.titleOffset??'—')+' → '+esc(entry.rest?.frames?.[0]?.titleOffset??'—')+'</td><td>'+esc(was?.collapse?.worstMs?.toFixed(1)??'—')+' → '+esc(entry.collapse?.worstMs?.toFixed(1)??'—')+'</td></tr>';
+  }).join('')+'</table>';
+  const findings='<table><tr><th>Finding</th><th>Evidence</th></tr>'+[
+    ['W1-017, L3-001','Persistent Add and faint insertion marks: rest pairs'],['W1-018','Rest and active hit-map pairs and all nine probes per mark'],['L3-002','Quiet tools and end resize handle: rest pairs and resize measurement'],['W1-029, L1-006 (part)','Title icon aligns with content; project header edge deferred to slice7'],['L1-015','375 touch pairs: no rest line or danger ink'],['W3-011','Flow and grid Tab walks, gap stops separate'],['L6-009, W1-021, W2-006, L5-002, W4-025','ARIA names and browser heading assertions'],['L3-003','Visible Rename tool, prefilled selection and no-op saves in unit/browser checks'],['L3-018 (part)','Shortcut read-only cue and unlink mark; inert rows deferred to slice6'],['L3-016','100ms-after-click pair, five delayed PATCH timings, refusal and owed-read browser paths']
+  ].map(([id,proof])=>'<tr><th>'+esc(id)+'</th><td>'+esc(proof)+'</td></tr>').join('')+'</table><p>L6-010 and W1-028 are handed to slice9 and are not claimed here.</p>';
+  await writeFile(join(output, 'chrome-verification.json'), JSON.stringify(chrome, null, 2));
+  await writeFile(join(output, 'index.html'), '<!doctype html><html><meta charset="utf-8"><title>Slice 76 · Section chrome · Gate 2</title><style>body{font:16px system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain}.pair{display:grid;grid-template-columns:1fr 1fr}pre{white-space:pre-wrap}a{color:#ffad7f}</style><h1>Section chrome / Slice 76</h1><p>Gate 2 · awaiting visual acceptance. '+pairs.length+' paired cells · '+failures.length+' gate failures.</p><nav><a href="#measurements">Measurements</a> · <a href="#runtime">Runtime pairs</a> · <a href="#checks">Checks</a> · <a href="report.json">Full gate report</a></nav><h2 id="measurements">Measured chrome</h2>'+measured+'<h2>Findings</h2>'+findings+'<h2 id="runtime">Runtime before / after</h2>'+gallery.join('')+'<details><summary>All '+pairs.length+' matrix before / after pairs</summary>'+pairs.map(card).join('')+'</details><details><summary>Full runtime observations</summary><pre>'+esc(JSON.stringify(chrome,null,2))+'</pre></details><h2 id="checks">Checks and gate failures</h2><p><a href="checks.md">Complete check list and every e2e journey</a></p><pre>'+esc(JSON.stringify(failures,null,2))+'</pre><h2>Contrast (reported only)</h2>'+contrastTable+'</html>');
+}
 console.log(JSON.stringify({ pairs: pairs.length, geometryFailures: failures.length, intentionalLabChanges: exceptions.length, composites, output }));
 if (failures.length) process.exitCode = 1;

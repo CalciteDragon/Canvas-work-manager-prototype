@@ -211,7 +211,7 @@ test.describe('Feedback beside other lifts at 1440', () => {
     await page.goto(kitchen);
     await listed(page).click();
     await expect(toast(page)).toBeVisible();
-    await page.getByRole('button', { name: 'Insert at the end', exact: true }).click();
+    await page.getByRole('button', { name: 'Add a section', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(toast(page)).toHaveCount(0);
     await page.keyboard.press('Escape');

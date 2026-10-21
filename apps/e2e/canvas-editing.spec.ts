@@ -95,7 +95,7 @@ test('section picker offers exactly the six current types', async ({ page }) => 
   await seed('nested-projects');
   await setClock(PINNED_NOW);
   await page.goto(`/projects/${HOME_RENOVATION}`);
-  await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
+  await page.getByRole('button', { name: 'Add a section', exact: true }).click();
   await expect(page.locator('[data-create-section-type]')).toBeVisible();
   expect(await page.locator('[data-create-section-type] option').evaluateAll((options) =>
     options.map((option) => (option as HTMLOptionElement).value),
@@ -488,7 +488,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   const firstPlacement = (await orderOf(root.id, home))[0]!;
   expect(firstPlacement.position).toBe(0);
 
-  await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
+  await page.getByRole('button', { name: 'Add a section', exact: true }).click();
   await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Last placement');
   await page.locator('[data-create-section-submit]').click();
@@ -534,7 +534,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
 
   // A failed create keeps the form state for correction. The host failure panel is client-side,
   // so it is enabled only after the page and popup have loaded and always reset in finally.
-  await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
+  await page.getByRole('button', { name: 'Add a section', exact: true }).click();
   await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Retry after failure');
   try {
@@ -558,7 +558,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
     await route.continue();
   });
   try {
-    await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
+    await page.getByRole('button', { name: 'Add a section', exact: true }).click();
     await page.locator('[data-create-section-type]').selectOption('markdown');
     await page.locator('[data-create-section-name]').fill('One click only');
     const submit = page.locator('[data-create-section-submit]');
@@ -893,31 +893,31 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   await page.goto(`/projects/${root.id}`);
 
   const renameFrame = page.locator(`[data-section-item][data-section-id="${view.id}"]`);
-  await renameFrame.locator('[data-section-title-edit]').click();
+  await renameFrame.getByRole('button', { name: 'Rename Rename me', exact: true }).click();
   const renameInput = renameFrame.locator('[data-section-name]');
   await expect(renameInput).toBeFocused();
   await renameInput.fill('Named on the canvas');
   await renameInput.press('Enter');
-  await expect(renameFrame.locator('[data-section-title-edit]')).toContainText('Named on the canvas');
+  await expect(renameFrame.getByRole('button', { name: 'Rename Named on the canvas', exact: true })).toBeVisible();
   expect((await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?pageId=${home}`)).find(({ id }) => id === view.id)?.title).toBe('Named on the canvas');
   await page.reload();
-  await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-title-edit]`)).toContainText('Named on the canvas');
+  await expect(page.getByRole('button', { name: 'Rename Named on the canvas', exact: true })).toBeVisible();
 
   const namedFrame = page.locator(`[data-section-item][data-section-id="${view.id}"]`);
-  await namedFrame.locator('[data-section-title-edit]').click();
+  await namedFrame.getByRole('button', { name: 'Rename Named on the canvas', exact: true }).click();
   const clearName = namedFrame.locator('[data-section-name]');
   await clearName.fill('Temporary title');
   await clearName.press('Escape');
-  await expect(namedFrame.locator('[data-section-title-edit]')).toContainText('Named on the canvas');
-  await namedFrame.locator('[data-section-title-edit]').click();
+  await expect(namedFrame.getByRole('button', { name: 'Rename Named on the canvas', exact: true })).toBeVisible();
+  await namedFrame.getByRole('button', { name: 'Rename Named on the canvas', exact: true }).click();
   await namedFrame.locator('[data-section-name]').fill('');
   await namedFrame.locator('[data-section-name]').press('Enter');
-  await expect(namedFrame.locator('[data-section-title-edit]')).toContainText('Markdown');
+  await expect(namedFrame.getByRole('button', { name: 'Rename Markdown', exact: true })).toBeVisible();
   expect((await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?pageId=${home}`)).find(({ id }) => id === view.id)?.title).toBeUndefined();
 
   try {
     await openFailurePanel(page, '1');
-    await namedFrame.locator('[data-section-title-edit]').click();
+    await namedFrame.getByRole('button', { name: 'Rename Markdown', exact: true }).click();
     const refused = namedFrame.locator('[data-section-name]');
     await refused.fill('Keep draft after failure');
     await refused.press('Enter');
@@ -927,14 +927,14 @@ test('inline rename, section removal, shortcut removal and type settings remain 
     await openFailurePanel(page, '0');
   }
   await expect(namedFrame.locator('[data-section-name]')).toHaveCount(0);
-  await expect(namedFrame.locator('[data-section-title-edit]')).toContainText('Keep draft after failure');
+  await expect(namedFrame.getByRole('button', { name: 'Rename Keep draft after failure', exact: true })).toBeVisible();
   await expect.poll(async () => (await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?pageId=${home}`)).find(({ id }) => id === view.id)?.title).toBe('Keep draft after failure');
 
   // A title click enters rename directly and must not start a drag or toggle collapse.
   const frameAfterRename = page.locator(`[data-section-item][data-section-id="${view.id}"]`);
   const placementBefore = await frameAfterRename.boundingBox();
   if (placementBefore === null) throw new Error('Renamed frame has no bounding box');
-  await frameAfterRename.locator('[data-section-title-edit]').click();
+  await frameAfterRename.getByRole('heading', { name: 'Keep draft after failure', exact: true }).click();
   await frameAfterRename.locator('[data-section-name]').press('Escape');
   await expect(frameAfterRename.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'true');
   await expect(frameAfterRename).not.toHaveClass(/cdk-drag-dragging/);
@@ -1047,10 +1047,10 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await resizeHandle.press('Enter');
   await expect.poll(async () => (await orderOf(root.id, home)).find(({ id }) => id === insertedSection.id)?.columnSpan).toBe(8);
 
-  await insertedWrapper.locator('[data-section-title-edit]').click();
+  await insertedWrapper.getByRole('button', { name: 'Rename Keyboard inserted section', exact: true }).click();
   await insertedWrapper.locator('[data-section-name]').fill('Keyboard renamed section');
   await insertedWrapper.locator('[data-section-name]').press('Enter');
-  await expect(insertedWrapper.locator('[data-section-title-edit]')).toContainText('Keyboard renamed section');
+  await expect(insertedWrapper.getByRole('button', { name: 'Rename Keyboard renamed section', exact: true })).toBeVisible();
   await insertedWrapper.locator('[data-section-remove]').press('Enter');
   await expect(insertedWrapper).toHaveCount(0);
   const archived = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?includeArchived=true&pageId=${home}`);
@@ -1155,11 +1155,11 @@ test.describe('coarse pointer', () => {
     await expect(page.locator(`[data-shortcut-item][data-shortcut-id="${shortcut.id}"]`)).toBeVisible();
     expect((await orderOf(root.id, home)).map(({ id }) => id)).toEqual([inserted.id, first.id, shortcut.id, neighbor.id]);
 
-    const touchRename = page.locator(`[data-section-item][data-section-id="${first.id}"] [data-section-title-edit]`);
+    const touchRename = page.locator(`[data-section-item][data-section-id="${first.id}"]`).getByRole('button', { name: /^Rename / });
     await touchRename.tap();
     await page.locator(`[data-section-item][data-section-id="${first.id}"] [data-section-name]`).fill('Renamed by touch');
     await page.locator(`[data-section-item][data-section-id="${first.id}"] [data-section-name]`).press('Enter');
-    await expect(touchRename).toContainText('Renamed by touch');
+    await expect(touchRename).toHaveAttribute('aria-label', 'Rename Renamed by touch');
 
     const resizeBox = await resize.boundingBox();
     const canvasBox = await page.locator('[data-section-canvas]').boundingBox();
@@ -1378,15 +1378,16 @@ test('hover and focus actually reveal chrome, neighbouring handles resize their 
   const grip = leftItem.locator('[data-section-drag-handle]');
   const before = rightItem.locator(':scope > app-insertion-point[data-insertion-point="before"]');
   await page.mouse.move(5, 5);
-  expect(await opacityOf(grip)).toBe('0');
+  const rest = await grip.evaluate(element => getComputedStyle(element).getPropertyValue('--canvas-chrome-rest-opacity').trim());
+  expect(Number(await opacityOf(grip))).toBe(Number(rest));
   await leftItem.hover({ position: { x: 200, y: 60 } });
   expect(await opacityOf(grip)).toBe('1');
   expect(await opacityOf(leftItem.locator('app-section-resize-handle').first())).toBe('1');
   // Hovering a section does not paint its insertion line; hovering or focusing the line does.
-  expect(await opacityOf(leftItem.locator(':scope > app-insertion-point'))).toBe('0');
+  expect(Number(await opacityOf(leftItem.locator(':scope > app-insertion-point')))).toBe(Number(rest));
   await page.mouse.move(5, 5);
   await rightItem.locator('[data-section-remove]').focus();
-  expect(await opacityOf(rightItem.locator('.section-frame__controls'))).toBe('1');
+  expect(await opacityOf(rightItem.locator('[data-section-remove]'))).toBe('1');
   await before.locator('button').focus();
   expect(await opacityOf(before)).toBe('1');
 

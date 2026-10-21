@@ -214,7 +214,7 @@ for (const touch of [false, true]) {
 
     test('a created section is scrolled to and its heading focused (D13)', async ({ page }) => {
       await page.goto(`/projects/${KITCHEN}`);
-      const insert = page.getByRole('button', { name: 'Insert at the end', exact: true });
+      const insert = page.getByRole('button', { name: 'Add a section', exact: true });
       if (touch) await insert.tap(); else await insert.click();
       await page.getByRole('combobox', { name: 'Section type' }).selectOption('task-list');
       await page.getByRole('dialog').getByRole('textbox').fill('Shopping');

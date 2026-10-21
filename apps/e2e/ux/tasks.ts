@@ -47,11 +47,11 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await expect(page.getByRole('combobox',{name:'Parent',exact:true})).toHaveValue('project-kitchen');
       await click(page.getByRole('dialog').getByRole('button',{name:'Create',exact:true}),'Create','Workstream dialog'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
     case 'T03': {
-      await click(button('Insert at the end'),'Insert at end','Work canvas');
+      await click(button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section'),'Insert at end','Work canvas');
       await c.step('Choose Task List','Section dialog',{clicks:1},()=>page.getByRole('combobox',{name:'Section type'}).selectOption('task-list'));
       await type(page.getByRole('dialog').getByRole('textbox'),'Baseline tasks','Section dialog');
       await click(page.getByRole('dialog').getByRole('button',{name:'Create',exact:true}),'Create','Section dialog');
-      const section=page.getByRole('region',{name:'Rename Baseline tasks',exact:true});
+      const section=page.getByRole('region',{name:process.env['UX_BEFORE'] ? 'Rename Baseline tasks' : 'Baseline tasks',exact:true});
       for(const title of ['Baseline one','Baseline two']){
         await type(section.getByRole('textbox',{name:'Task title'}),title,'Task List'); await click(section.getByRole('button',{name:'Add task',exact:true}),'Add task','Task List');
         if (!process.env['UX_BEFORE']) await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
@@ -81,7 +81,7 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await type(page.getByRole('textbox',{name:/Markdown source/}),'# Baseline edit','Markdown editor');
       await click(button('Save'),'Save Markdown','Markdown editor'); await expect(page.getByRole('heading',{name:'Baseline edit'})).toBeVisible(); break;
     case 'T07':
-      await click(button('Insert at the end'),'Insert at end','Work canvas'); await click(button('Add shortcut'),'Add shortcut','Section dialog');
+      await click(button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section'),'Insert at end','Work canvas'); await click(button('Add shortcut'),'Add shortcut','Section dialog');
       await click(page.getByRole('dialog').getByRole('button',{name:/^Add /}).first(),'Add source shortcut','Shortcut picker'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
     case 'T08':
       await nav(); await click(button('Project page settings for Home renovation'),'Page settings','Project navigation');

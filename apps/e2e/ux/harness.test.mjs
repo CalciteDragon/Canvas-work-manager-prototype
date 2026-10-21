@@ -66,3 +66,9 @@ test('control census records kind, border, scope and the larger checkbox target'
 test('control census marks every control on a /prototype/ route as prototype scope', () => {
   assert.deepEqual(census('<button>Reset</button>', 'http://localhost/prototype/design').map(c => c.scope), ['prototype']);
 });
+
+test('control census includes the resize slider and its box', () => {
+  const [slider] = census('<div role="slider" aria-label="Resize Notes"></div>', 'http://localhost/projects/p', {});
+  assert.equal(slider?.role, 'slider');
+  assert.deepEqual([slider.width, slider.height], [80, 32]);
+});

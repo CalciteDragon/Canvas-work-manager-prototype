@@ -66,7 +66,7 @@ for (const theme of ['dark', 'light'] as const) {
         };
         await page.goto('/app');
         await openProject();
-        await page.getByRole('button', { name: 'Insert at the end', exact: true }).click();
+        await page.getByRole('button', { name: 'Add a section', exact: true }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await page.goBack();
         await expect(page.locator('[data-project-name]')).toHaveCount(0);

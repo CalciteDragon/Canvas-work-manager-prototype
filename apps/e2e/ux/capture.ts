@@ -33,7 +33,7 @@ async function state(page: Page, cell: CaptureCell) {
     case 'page-settings': await button('Project page settings for Home renovation').click(); break;
     case 'work-create': await button('Add workstream').click(); break;
     case 'section-create': case 'shortcut-picker':
-      await button('Insert at the end').click();
+      await button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section').click();
       if (cell.state === 'shortcut-picker') await button('Add shortcut').click();
       break;
     case 'markdown-edit': await button(/^Edit Markdown for/).first().click(); break;
@@ -49,7 +49,7 @@ async function state(page: Page, cell: CaptureCell) {
     case 'refused':
       await page.route('**/api/projects/*/sections', route => route.request().method() === 'POST'
         ? route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'conflict', message: 'The insertion location is no longer available. Reload and retry.' }) }) : route.fallback());
-      await button('Insert at the end').click(); await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
+      await button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section').click(); await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
       // Scoped: the toasts' persistent live regions are alerts too (Slice 74).
       await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible(); break;
     case 'dev-panel': await page.keyboard.press('Control+Shift+D'); await expect(page.getByRole('heading', { name: 'Prototype controls' })).toBeVisible(); break;
@@ -99,7 +99,15 @@ test('capture matrix', async ({ browser }) => {
       } else { await state(page, cell); await page.waitForLoadState('networkidle'); }
       Object.assign(record, await collectEvidence({
         screenshot: async () => { const file = `${cell.id}.png`; await page.screenshot({ path: resolve(out,file), fullPage: true, animations: 'disabled' }); return file; },
-        axe: async () => { const file = `${cell.id}.axe.json`; const scan = await new AxeBuilder({ page }).options({ rules: { 'target-size': { enabled: true } } }).analyze(); await writeFile(resolve(out,file), JSON.stringify(scan,null,2)); return file; },
+        axe: async () => { const file = `${cell.id}.axe.json`; const scan = await new AxeBuilder({ page }).options({ rules: { 'target-size': { enabled: true } } }).analyze(); for (const violation of scan.violations) for (const node of violation.nodes) {
+          const selector=node.target.at(-1);
+          if(typeof selector==='string') (node as typeof node & {stableAnchor?:string}).stableAnchor=await page.evaluate(selector=>{
+            const element=document.querySelector(selector);if(!element)return selector;
+            let anchor:Element|null=element;while(anchor&&!anchor.getAttributeNames().some(name=>name.startsWith('data-')))anchor=anchor.parentElement;
+            const attributes=anchor?.getAttributeNames().filter(name=>name.startsWith('data-')).map(name=>name+'='+anchor!.getAttribute(name)).join('|')??selector;
+            return attributes+'|'+(element.getAttribute('aria-label')??element.textContent?.trim().slice(0,80));
+          },selector).catch(()=>selector);
+        } await writeFile(resolve(out,file), JSON.stringify(scan,null,2)); return file; },
         tree: async () => { const file = `${cell.id}.aria.yml`; await writeFile(resolve(out,file), await page.locator('body').ariaSnapshot()); return file; },
         console: async () => { const file = `${cell.id}.console.json`; await writeFile(resolve(out,file), JSON.stringify(consoleErrors,null,2)); return file; },
         scrolls: async () => {
@@ -118,6 +126,7 @@ test('capture matrix', async ({ browser }) => {
         },
         layout: async () => { const file = `${cell.id}.layout.json`; const planes = await page.evaluate(collectPlaneBoxes); const metrics = await page.evaluate(() => ({
           viewport: innerWidth, document: document.documentElement.scrollWidth,
+          sectionContents: [...document.querySelectorAll('[data-section-content]')].map(e => { const r = e.getBoundingClientRect(); return { id: e.closest('[data-section-id]')?.getAttribute('data-section-id'), x: r.x, y: r.y, width: r.width, height: r.height }; }),
           scrollRegions: [...document.querySelectorAll('main.workspace,.project-workspace__main,[data-task-drawer]')].map(e => ({ tag: e.tagName, class: e.className, width: e.clientWidth, scrollWidth: e.scrollWidth, height: e.clientHeight, scrollHeight: e.scrollHeight })),
         })); const controls = await page.evaluate(collectControls); await writeFile(resolve(out,file), JSON.stringify({ ...metrics, controls, planes },null,2)); return file; },
       }));

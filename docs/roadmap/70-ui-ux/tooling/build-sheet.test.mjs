@@ -521,3 +521,84 @@ test('profile 75 lists the canvas live region leaving the grid as an exact 24 px
   const other = await rise(-30);
   assert.equal(other.result.status, 1);
 });
+
+const chromeFlow=()=>['project-kitchen','project-client-migration','project-renovation/pages/home'].flatMap(project=>[['dark',1440],['light',1440],['light',375]].map(([theme,width])=>({project,theme,width,layout:'flow',aria:'- region Notes',screenshot:'shot.png',hitScreenshot:'shot.png',restHitScreenshot:'shot.png',pendingScreenshot:'shot.png',rest:{restToken:'.5',frames:[{heading:'Notes',headingButton:null,titleOffset:0,tools:[{opacity:.5}]}],marks:[{opacity:.5}],add:[{opacity:1}]},tabWalk:[{section:'a',kind:'before',content:false},{section:'a',kind:'toolbar',content:false},{section:'a',kind:'content',content:true},{section:'a',kind:'resize',content:false}],restHitMap:[{points:Array(9).fill({hit:true})}],activeHitMap:[{points:Array(9).fill({hit:true})}],collapse:{runs:[5,5,5,5,5],worstMs:5}})));
+const chromeEntries=()=>{const flow=chromeFlow();return [...flow,...flow.filter(e=>e.project==='project-kitchen').map(e=>({...e,layout:'grid',resize:{width:24,inside:[true,true,true,true],gap:[true,true]}}))];};
+
+async function chromeSheet(t, change = {}) {
+  const f = await fixture(t);
+  await f.json(1,'tasks/tasks.json',[{id:'T03',status:'completed',clicks:10,keystrokes:38,deadEnds:0},{id:'T05',status:'completed',clicks:2,keystrokes:0,deadEnds:0},{id:'T06',status:'completed',clicks:2,keystrokes:16,deadEnds:0}]);
+  await f.json(1, 'chrome-verification.json', { complete: true, entries: chromeEntries() });
+  await f.json(0, 'chrome-verification.json', { complete: true, entries: chromeEntries() });
+  await f.json(1, 'layout.json', { ...f.layout, sectionContents: [{ id: 'a', x: 10, width: change.content ? 102 : 100 }], controls: change.controls ?? [] });
+  await f.json(0, 'layout.json', { ...f.layout, sectionContents: [{ id: 'a', x: 10, width: 100 }] });
+  if (change.axe) await f.json(1, 'axe.json', { violations: change.axe, incomplete: [] });
+  if (change.missing) await rm(join(f.dirs[1], 'chrome-verification.json'));
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '76'], { encoding: 'utf8' });
+  return { result, dirs:f.dirs, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
+}
+test('profile 76 accepts listed canvas changes and reports contrast', async t => {
+  const { result, report } = await chromeSheet(t);
+  assert.equal(result.status, 0, report);
+});
+test('profile 76 gates insertion targets, title controls, content widths, new axe nodes and missing evidence', async t => {
+  for (const change of [
+    { controls: [{ scope: 'product', text: 'Insert before Notes', class: 'insertion-point', width: 16, height: 16 }] },
+    { controls: [{ scope: 'product', text: 'Rename Notes', class: 'section-frame__title-button', width: 16, height: 16 }] },
+    { controls: [24,32,44].map(height => ({ scope: 'product', class: 'button', width: 80, height })) },
+    { content: true }, { missing: true },
+    { axe: [{ id: 'button-name', impact: 'serious', nodes: [{ target: ['.new'], failureSummary: 'missing name' }] }] },
+  ]) { const { result, report } = await chromeSheet(t, change); assert.equal(result.status, 1, report); }
+});
+
+test('profile 76 gates touch insertion and a new node under an existing axe rule, retaining later-slice exceptions', async t => {
+  const f = await fixture(t);
+  f.cell.viewport = { width: 375, height: 812 };
+  f.layout.sectionContents = []; await f.json(0,'layout.json',f.layout);
+  for (const phase of [0,1]) await f.json(phase,'index.json',{commit:phase?'after':'before',cells:[f.cell]});
+  const complete={complete:true,entries:chromeEntries()};
+  await f.json(1,'chrome-verification.json',complete); await f.json(0,'chrome-verification.json',complete);
+  await f.json(1,'tasks/tasks.json',[{id:'T03',status:'completed',clicks:10,keystrokes:38,deadEnds:0},{id:'T05',status:'completed',clicks:2,keystrokes:0,deadEnds:0},{id:'T06',status:'completed',clicks:2,keystrokes:16,deadEnds:0}]);
+  const run=()=>spawnSync(process.execPath,[builder,...f.dirs,'--profile','76'],{encoding:'utf8'});
+  await f.json(1,'layout.json',{...f.layout,controls:[{scope:'product',text:'Insert before Notes',width:44,height:40}],viewport:375,document:375});
+  assert.equal(run().status,1);
+  await f.json(1,'layout.json',{...f.layout,controls:[{scope:'product',class:'task-row__title',text:'A task',width:80,height:16}],viewport:375,document:375});
+  assert.equal(run().status,0);
+  const node={target:['.one'],stableAnchor:'data-section-id=first|Missing name',failureSummary:'Missing name'};
+  await f.json(0,'axe.json',{violations:[{id:'button-name',nodes:[node]}],incomplete:[]});
+  await f.json(1,'axe.json',{violations:[{id:'button-name',nodes:[node,{...node,target:['.two'],stableAnchor:'data-section-id=second|Missing name'}]}],incomplete:[]});
+  assert.equal(run().status,1);
+  await f.json(1,'axe.json',{violations:[{id:'color-contrast',impact:'serious',nodes:[{target:['.brand-new'],failureSummary:'Low contrast'}]}],incomplete:[]});
+  assert.equal(run().status,0);
+});
+
+test('profile 76 rejects incomplete runtime contexts and each broken measurement',async t=>{
+  for(const mutate of [
+    entries=>entries.slice(0,1),
+    entries=>{entries[0].rest.frames[0].tools[0].opacity=0;return entries;},
+    entries=>{entries[0].restHitMap[0].points[0].hit=false;return entries;},
+    entries=>{entries[0].tabWalk.push({section:'a',kind:'toolbar',content:false});return entries;},
+    entries=>{entries[0].collapse.worstMs=101;return entries;},
+    entries=>{entries[0].rest.frames[0].titleOffset=2;return entries;},
+    entries=>entries.filter(e=>e.layout!=='grid'),
+  ]){
+    const f=await chromeSheet(t);const data={complete:true,entries:mutate(chromeEntries())};
+    await writeFile(join(f.dirs[1],'chrome-verification.json'),JSON.stringify(data));
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','76'],{encoding:'utf8'});
+    assert.equal(result.status,1);
+  }
+});
+
+test('profile 76 keeps Lab Controls geometry and paint while allowing frame tools and the knob',async t=>{
+  for(const change of ['none','geometry','paint']) {
+    const f=await chromeSheet(t);const index={commit:'fixture',cells:[{...JSON.parse(await readFile(join(f.dirs[0],'index.json'),'utf8')).cells[0],route:'/prototype/design'}]};
+    for(const phase of [0,1])await writeFile(join(f.dirs[phase],'index.json'),JSON.stringify(index));
+    const danger={text:'Danger icon button',class:'tool tool--danger',scope:'prototype',tag:'button',x:100,y:200,width:32,height:32,color:'rgb(255, 156, 156)',background:'transparent',border:'none'};
+    const frame={...danger,text:'Move Notes',x:100,y:40};
+    const base=JSON.parse(await readFile(join(f.dirs[0],'layout.json'),'utf8'));
+    await writeFile(join(f.dirs[0],'layout.json'),JSON.stringify({...base,controls:[frame,danger,{...danger,text:'Primary · Rest'}]}));
+    await writeFile(join(f.dirs[1],'layout.json'),JSON.stringify({...base,controls:[{...frame,x:50,panel:'section-frame'}, {...danger,x:change==='geometry'?102:100,color:change==='paint'?'rgb(76, 84, 100)':danger.color}, {...danger,text:'Primary · Rest'}, {id:'design-lab-canvasChromeRestOpacity',x:10,y:20,width:20,height:32,tag:'input',scope:'prototype'}]}));
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','76'],{encoding:'utf8'});
+    assert.equal(result.status,change==='none'?0:1,result.stderr);
+  }
+});

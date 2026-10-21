@@ -20,12 +20,12 @@ export function collectControls(document = globalThis.document) {
   const box = element => { const { x, y, width, height } = element.getBoundingClientRect(); return { x, y, width, height }; };
   const labelOf = element => element.closest('label')
     ?? (element.id ? document.querySelector('label[for="' + element.id + '"]') : null);
-  return [...document.querySelectorAll('button,input,select,textarea,a,[role=button]')].map(element => {
+  return [...document.querySelectorAll('button,input,select,textarea,a,[role=button],[role=slider]')].map(element => {
     const style = view.getComputedStyle(element);
     const own = box(element);
     const record = {
       text: element.getAttribute('aria-label') || element.textContent?.trim().slice(0, 80),
-      tag: element.tagName.toLowerCase(), type: element.getAttribute('type'), role: element.getAttribute('role'),
+      id: element.id, panel: element.closest('[data-panel]')?.getAttribute('data-panel') ?? null, tag: element.tagName.toLowerCase(), type: element.getAttribute('type'), role: element.getAttribute('role'),
       class: element.getAttribute('class') ?? '', ...own,
       color: style.color, background: style.backgroundColor, border: style.border, fontSize: style.fontSize,
       scope: onPrototypeRoute || element.closest('app-dev-panel') ? 'prototype' : element.closest('.markdown-renderer') ? 'prose' : 'product',
