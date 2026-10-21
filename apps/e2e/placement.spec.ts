@@ -199,6 +199,8 @@ for (const touch of [false, true]) {
       const priority = drawer.locator('[data-task-priority]');
       await priority.selectOption('high');
       await expect(drawer.locator('[data-field-status="priority"]')).toHaveText('Saving…');
+      // The status sits beside the label but never joins the field's accessible name.
+      await expect(drawer.getByRole('combobox', { name: 'Priority', exact: true })).toBeVisible();
       await expect(row).toHaveClass(/task-row--high-priority/);
       held.open();
       await expect(drawer.locator('[data-field-status="priority"]')).toHaveText('Saved');

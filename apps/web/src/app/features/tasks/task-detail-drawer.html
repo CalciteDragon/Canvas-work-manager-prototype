@@ -30,7 +30,7 @@
     <span class="control-label__row">
       <span>Title</span>
       @if (fieldStatus()('title'); as status) {
-        <span data-field-status="title" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        <span data-field-status="title" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
       }
     </span>
     <input
@@ -54,7 +54,7 @@
     <span class="control-label__row">
       <span>Priority</span>
       @if (fieldStatus()('priority'); as status) {
-        <span data-field-status="priority" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        <span data-field-status="priority" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
       }
     </span>
     <select
@@ -75,7 +75,7 @@
     <span class="control-label__row">
       <span>Due date</span>
       @if (fieldStatus()('dueAt'); as status) {
-        <span data-field-status="dueAt" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        <span data-field-status="dueAt" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
       }
     </span>
     <input
@@ -93,7 +93,7 @@
     <span class="control-label__row">
       <span>Estimate</span>
       @if (fieldStatus()('estimate'); as status) {
-        <span data-field-status="estimate" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        <span data-field-status="estimate" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
       }
     </span>
     <input class="field" data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''"

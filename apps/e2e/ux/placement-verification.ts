@@ -207,8 +207,8 @@ test('Placement runtime evidence', async ({ browser }) => {
     await overdue.getByRole('button', { name: /, open details$/ }).click();
     const status = page.locator('[data-task-drawer] dd').filter({ hasText: /todo|in_progress|blocked/ }).first();
     entry['statusBefore'] = await status.textContent().catch(() => null);
-    await page.getByLabel('Due date', { exact: true }).fill('2026-12-01');
-    await page.getByLabel('Due date', { exact: true }).dispatchEvent('change');
+    await page.getByRole('textbox', { name: 'Due date', exact: true }).fill('2026-12-01');
+    await page.getByRole('textbox', { name: 'Due date', exact: true }).dispatchEvent('change');
     await delay(1200);
     entry['statusAfter'] = await status.textContent().catch(() => null);
     entry['fieldStatus'] = await page.locator('[data-field-status="dueAt"]').textContent().catch(() => null);

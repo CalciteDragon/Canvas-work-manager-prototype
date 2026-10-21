@@ -232,6 +232,8 @@ it('says its edits save automatically (Slice 75, L3-008)', async () => {
     await fixture.whenStable();
     const priority = element.querySelector<HTMLElement>('[data-field-status="priority"]')!;
     expect(priority.textContent?.trim()).toBe('Saving…');
+    // Out of the field's accessible name, which must stay "Priority"; the live region says it.
+    expect(priority.getAttribute('aria-hidden')).toBe('true');
     expect(priority.closest('label')?.querySelector('[data-task-priority]')).not.toBeNull();
 
     fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, dueAt: { state: 'failed', message: 'Not saved. Try again. offline' } });
