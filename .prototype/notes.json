@@ -1277,6 +1277,30 @@
       "projectId": "project-renovation",
       "slice": 74,
       "note": "Slice 74 live use (nested-projects, 375 touch light): removed a section and used toast Undo; focus returned to its heading. Deleted three tasks consecutively and restored two archived items; each confirmation stayed in the same dock and Restore focused its first action. Created Lighting under Kitchen and undid it; completed Kitchen in Todos and undid it from the toast. The dock makes recovery predictable; at phone size it occupies a sizeable bottom band, so the reserved scroll space matters. No new blocking friction observed in this pass."
+    },
+    {
+      "id": "note-2026-10-21-001",
+      "createdAt": "2026-10-21T04:19:32.500Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 75,
+      "note": "Slice 75 live use (busy-week and nested-projects, 1440 keyboard dark and 375 touch light): three quick-adds typed back to back each landed in place, with focus kept in the field and \"Added �Order grout�.\" announced; no submit was refused because each add settled first. Drawer Priority edits showed Saved beside the field and the row agreed at once. A dialog-created Task List took focus on its heading; at the end of the page it lands lower on screen because the page cannot scroll further. No blocking friction."
+    },
+    {
+      "id": "note-2026-10-21-002",
+      "createdAt": "2026-10-21T04:19:32.586Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 75,
+      "note": "Slice 75 live use (busy-week, 1440 dark): a refused completion on the last visible row grows that row downward, and the hold keeps the row top still, so the message \"Couldn�t complete �Order grout�. Try again.\" falls partly below the fold. The failure is announced (role=alert), but sighted users near the bottom edge may not see it without scrolling. Candidate: bring a row error into view when it would land off screen."
+    },
+    {
+      "id": "note-2026-10-21-003",
+      "createdAt": "2026-10-21T04:19:32.667Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 75,
+      "note": "Slice 75 live use: the task drawer still prints Status as the raw value (todo) and Project as an id (project-kitchen). Not this slice; raised again for the drawer redesign slice."
     }
   ]
 }

@@ -584,3 +584,17 @@ Recorded, not changed:
 - **The field's accessible name.** The drawer's field status sat inside its `<label>`, so the
   field's name became "Due date Saved". The status is now `aria-hidden`; the live region says
   it, and failures still describe the field.
+
+**Verification and real use (2026-10-20).**
+
+- **Sheet.** `build-sheet.mjs --profile 75` on before `e15f3b7`, after `2f11362`, pre-73
+  `pre73-baseline`: 194 paired cells, **0 gate failures**, all 19 visual pairs paired. The only
+  listed closed-state change is the 24 px rise.
+- **T03.** 10 clicks and 38 keystrokes.
+- **Checks.** `pnpm test`, `pnpm lint` (with `docs:check`) and `pnpm storybook:build` pass. The
+  production build's initial bundle is 1,089.7 kB raw, under the 1,100 kB ceiling. Every e2e
+  journey passed: 203 in the full run, and the drawer copy fix's spec re-run alone. The 20
+  placement journeys pass on the isolated rig. All e2e is Chromium only; WebKit is unverified.
+- **Real use.** busy-week and nested-projects at 1440 keyboard dark and 375 touch light, three
+  notes in `.prototype/notes.json`. A row failure on the last visible row can fall partly below
+  the fold. The drawer's raw Status and Project facts predate this slice.
