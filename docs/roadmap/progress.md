@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 77 | Slice 77 — Objects: one row shape, openable rows | Redesign slice 6a (TH09): one task-row shape across surfaces; rows that look openable open their canonical owner, the rest stop looking openable | [77-objects-one-row-shape.md](active/77-objects-one-row-shape.md) |
 
 ### Planned
 

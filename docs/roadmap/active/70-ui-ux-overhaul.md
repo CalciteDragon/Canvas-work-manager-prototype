@@ -346,6 +346,12 @@ persistent; collapse answers within 7.2 ms in the delayed-write evidence. T03/T0
 their budgets. Inert shortcut rows remain with slice 6, the project-header edge with slice 7
 and default names with slice 9. Initial bundle headroom is 1.13 kB; redesign slice 6 is next.
 
+**Redesign slice 6 is split (2026-10-21, the user's choice).** [Slice 77](77-objects-one-row-shape.md)
+(6a Objects, TH09 plus the row items deferred to slice 6) is planned and reviewed; L1-027 moves to
+the agent connections slice. 6b States (TH10, the Markdown editor's Cancel and Preview, L4-023's
+count half) follows it. The user also raised the initial-bundle ceiling to 1150 kB, recorded by
+slice 77.
+
 ### Slice 72 (Primitives) — planning brief
 
 - **Scope.** Item 2 of the sequence below: TH04 and TH05 in
