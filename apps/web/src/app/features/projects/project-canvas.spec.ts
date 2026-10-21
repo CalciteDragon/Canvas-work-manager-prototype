@@ -206,6 +206,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     const { fixture } = await render();
     const host = query(fixture, 'app-insertion-point[data-insertion-point="end"]');
     expect(host).not.toBeNull();
+    expect(host?.querySelector('[data-insertion-point-button]')).not.toBeNull();
     expect(host?.querySelector('[data-canvas-add]')?.textContent).toContain('Add a section');
     expect(host?.previousElementSibling).toBe(query(fixture, '[data-section-canvas]'));
   });

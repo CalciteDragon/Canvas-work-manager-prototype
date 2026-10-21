@@ -594,6 +594,20 @@ nothing (8). The questions are kept below as they were asked.
   instead of an overlay. This preserves the new interaction and the existing journey;
   the canvas regression is written before that compatibility repair. The earlier spec's
   rest-opacity assertion also compares numbers because CSS serializes `.55` as `0.55`.
+  `project-history.spec.ts` additionally requires the end button's stable
+  `data-insertion-point-button` attribute; its absence was proved red before restoring it
+  on the labelled button. Runtime gap measurements exclude this separately measured Add control.
+- The corrected, scrolled baseline hit map records **21/63** successful probes (three of nine
+  per plus) in Kitchen at 1440 dark/light and 375 light, at rest and active. Five delayed-collapse
+  runs per context have worst times **2,055.5 / 2,076.3 / 2,059.1 ms** respectively. The icon's
+  painted box is **85 px** from content on desktop and 109 px on phone; the earlier 80 px reading
+  was the heading box, not the icon. Desktop rest grip contrast is 1:1 because invisible;
+  phone light is 7.61:1 over the solid-sheet token. Contrast is reported, not gated.
+- The persistent-host repair passed 63 canvas/insertion tests and a fresh review without
+  substantive findings. Its production initial total is **1,098.83 kB** (1.17 kB headroom).
+  Four realistic-seed walkthroughs passed on nested-projects and busy-week: 1440 keyboard dark
+  and 375 touch light. The observations and screenshots are recorded in `.prototype/notes.json`
+  and `apps/e2e/ux-output/slice76-real-use/`.
 
 **Round 1 (2026-10-20).** An independent reviewer read the plan against the code, spec, findings,
 decisions and slices 72 and 75, and returned thirteen substantive and nine minor findings. Each was
