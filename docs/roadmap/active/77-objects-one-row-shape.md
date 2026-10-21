@@ -1,7 +1,8 @@
 <!-- plan id="77" status="active" summary="Redesign slice 6a (TH09): one task-row shape across surfaces; rows that look openable open their canonical owner, the rest stop looking openable" -->
 # Slice 77 — Objects: one row shape, openable rows
 
-**State (2026-10-21):** planned and reviewed (three rounds, no substantive findings remain); implementation not started.
+**State (2026-10-21):** planned, reviewed (three rounds, no substantive findings remain) and accepted by
+the user on 2026-10-21; implementation not started.
 
 Redesign slice 6a under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Redesign slice 6
 ("Objects and states", TH09 + TH10) is **split** by the user's choice on 2026-10-21, as slice 4
