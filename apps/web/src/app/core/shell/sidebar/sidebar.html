@@ -35,7 +35,7 @@
     </div>
 
     @if (createOpen()) {
-      <form class="create-project" data-create-project-form (submit)="submitCreate($event, newName)">
+      <form class="create-project" data-create-project-form novalidate (submit)="submitCreate($event, newName)">
         <label class="control-label" for="new-project-name">Project name</label>
         <input
           id="new-project-name"
@@ -45,8 +45,14 @@
           type="text"
           autocomplete="off"
           [value]="draftName()"
+          [attr.aria-invalid]="nameRefused() ? 'true' : null"
+          [attr.aria-describedby]="nameRefused() ? 'new-project-name-error' : null"
+          (input)="nameRefused.set(false)"
         />
         <button type="submit" data-create-project-submit class="button button--primary">Create</button>
+        @if (nameRefused()) {
+          <p id="new-project-name-error" data-create-project-name-error class="field-status field-status--failed create-project__error" role="alert">Enter a name.</p>
+        }
       </form>
     }
 

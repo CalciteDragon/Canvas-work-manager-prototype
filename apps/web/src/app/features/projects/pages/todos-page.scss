@@ -74,6 +74,14 @@
   background: var(--color-surface);
 }
 
+// A failed complete or reopen, on its own row across the full width (Slice 75).
+.todos__row-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
 // Finished work stays on the list (§34) and simply stops competing for attention.
 .todos__row--finished {
   color: var(--color-text-muted);

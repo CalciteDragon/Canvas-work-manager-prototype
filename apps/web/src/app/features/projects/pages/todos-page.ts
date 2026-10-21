@@ -17,7 +17,7 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { Toast } from '../../../shared/feedback/toast';
 import { ReceiptToast } from '../../../core/history/receipt-toast';
 import { taskArchivedFeedback, workstreamCompletedFeedback } from '../history/history-feedback';
-import { TodosPageStore, isTodoFinished, todoIdOf } from './todos-page-store';
+import { TodosPageStore, isTodoFinished, todoIdOf, todoTitleOf } from './todos-page-store';
 
 /** §33's and §26's statuses, in the words the page says them. */
 const TASK_STATUS_LABELS: Record<string, string> = {
@@ -117,7 +117,7 @@ export class TodosPage {
   }
 
   titleOf(item: ProjectTodoItem): string {
-    return item.kind === 'task' ? item.task.title : item.project.name;
+    return todoTitleOf(item);
   }
 
   kindLabel(item: ProjectTodoItem): string {

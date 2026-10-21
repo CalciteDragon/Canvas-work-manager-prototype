@@ -46,7 +46,10 @@ guards discard late responses, and a queued live read runs after the shared writ
 Pending toggles use `aria-disabled` and the handler resets native checked state from the store
 before its first await, then reconciles again from the current row after settlement so an immediate
 refusal cannot leave the browser's own state changed. Cancelled tasks have no toggle, and
-workstreams retain one-way Complete.
+workstreams retain one-way Complete. A failed complete or reopen is said on its row
+(`rowErrors`, `[data-todo-row-error]`, linked from the control by `aria-describedby`) as
+"Couldn’t complete “X”. Try again." with the reason; that row's next attempt or a load clears it.
+Only a failed Delete uses the page alert `[data-todo-write-error]` (Slice 75).
 
 Todos captures the task title and owner before optimistic Delete removes the row. A committed
 answer opens its own “Archived …” toast with receipt Undo and Open archive, even after the final

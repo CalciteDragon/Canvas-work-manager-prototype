@@ -3,11 +3,16 @@
     aria-labelledby="work-create-title" [attr.aria-busy]="pending()" tabindex="-1"
     (click)="$event.stopPropagation()" (keydown)="keydown($event)">
     <h2 id="work-create-title">Add workstream</h2>
-    <form class="work-create-dialog__form" (submit)="$event.preventDefault(); submit()">
+    <form class="work-create-dialog__form" novalidate (submit)="$event.preventDefault(); submit()">
       <label class="control-label">
         <span>Name</span>
         <input class="field" data-create-work-name type="text" required autocomplete="off" [value]="name()"
-          [disabled]="pending()" (input)="setName($event)" />
+          [disabled]="pending()" (input)="setName($event)"
+          [attr.aria-invalid]="nameRefused() ? 'true' : null"
+          [attr.aria-describedby]="nameRefused() ? 'work-create-name-error' : null" />
+        @if (nameRefused()) {
+          <span id="work-create-name-error" data-create-work-name-error class="field-status field-status--failed" role="alert">Enter a name.</span>
+        }
       </label>
       <label class="control-label">
         <span>Parent</span>

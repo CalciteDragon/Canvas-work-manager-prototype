@@ -237,8 +237,29 @@ describe('TodosPageStore — completing (§34, §63)', () => {
     expect(await write).toBe(false);
     // The *precise* prior status, not a guess at `todo`.
     expect(statusOf(store, 'task-1')).toBe('in_progress');
-    expect(store.writeError()).toContain('archived');
+    // Slice 75: a completion failure belongs to its row, not the page.
+    expect(store.writeError()).toBeNull();
+    expect(store.rowErrors().get('task-1')).toMatch(/^Couldn’t complete “.+”. Try again. the task is archived$/);
     expect(store.completing()).toBeNull();
+  });
+
+  it('keeps one row error per row, cleared by that row’s next attempt and by a load (Slice 75)', async () => {
+    const complete = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'offline'))
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'offline'))
+      .mockImplementation(() => new Promise<TaskWriteResult>(() => undefined));
+    const { store } = setup({ items: [taskItem('task-1'), taskItem('task-2')], completeTask: complete });
+    await store.load(ROOT);
+
+    await store.complete(store.items()[0]!);
+    await store.complete(store.items()[1]!);
+    expect([...store.rowErrors().keys()]).toEqual(['task-1', 'task-2']);
+
+    void store.complete(store.items()[0]!);
+    expect([...store.rowErrors().keys()]).toEqual(['task-2']);
+
+    await store.load(ROOT);
+    expect(store.rowErrors().size).toBe(0);
   });
 
   it('gates a second click on the same row and a click on another while one is in flight', async () => {
@@ -362,7 +383,8 @@ describe('TodosPageStore — reopening tasks (§34, §62, §63)', () => {
     gate.reject(new GatewayError('conflict', 409, 'the task is archived'));
     expect(await reopening).toBe(false);
     expect(store.items()).toEqual([before]);
-    expect(store.writeError()).toContain('the task is archived');
+    expect(store.writeError()).toBeNull();
+    expect(store.rowErrors().get('task-done')).toMatch(/^Couldn’t reopen “.+”. Try again. the task is archived$/);
     expect(store.completing()).toBeNull();
   });
 
@@ -383,6 +405,7 @@ describe('TodosPageStore — reopening tasks (§34, §62, §63)', () => {
     expect(await reopening).toBe(false);
     expect(store.items()).toEqual([current]);
     expect(store.writeError()).toBeNull();
+    expect(store.rowErrors().size).toBe(0);
     expect(store.completing()).toBeNull();
   });
 

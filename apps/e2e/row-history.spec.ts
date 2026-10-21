@@ -196,7 +196,9 @@ test('Task List Delete refuses permission and transport failures without archive
     await page.locator('[data-task-delete]').click();
     await expect(page.locator('[data-toast]:popover-open')).toHaveCount(0);
     release();
-    await expect(page.locator('[data-tasks-error]')).toBeVisible();
+    // Slice 75: a refused Delete is said on its row, not as a section banner.
+    await expect(page.locator('[data-task-row] [data-task-error]')).toBeVisible();
+    await expect(page.locator('[data-tasks-error]')).toHaveCount(0);
     await expect(page.locator('[data-task-title]')).toHaveText('Keep this task');
     await expect(page.locator('[data-toast]:popover-open')).toHaveCount(0);
     await page.unroute(path);

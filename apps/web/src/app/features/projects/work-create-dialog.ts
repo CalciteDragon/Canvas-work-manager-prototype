@@ -28,6 +28,8 @@ export class WorkCreateDialog {
   readonly name = signal('');
   readonly pending = signal(false);
   readonly error = signal<string | null>(null);
+  /** A blank name is refused beside the field before anything is sent (Slice 75, L4-024). */
+  readonly nameRefused = signal(false);
   readonly parentNote = signal<string | null>(null);
   readonly selectedParentName = signal('');
   readonly parentOptions = computed(() => {
@@ -86,13 +88,20 @@ export class WorkCreateDialog {
   }
 
   setName(event: Event): void {
-    if (!this.pending()) this.name.set((event.target as HTMLInputElement).value);
+    if (this.pending()) return;
+    this.name.set((event.target as HTMLInputElement).value);
+    this.nameRefused.set(false);
   }
 
   async submit(): Promise<void> {
     if (this.pending() || this.closedAlready || this.destroyed) return;
     const parentId = this.selectedParentId();
     if (parentId === null) return;
+    if (this.name().trim() === '') {
+      this.nameRefused.set(true);
+      this.host.nativeElement.querySelector<HTMLInputElement>('[data-create-work-name]')?.focus();
+      return;
+    }
     this.pending.set(true);
     this.error.set(null);
     afterNextRender(() => {

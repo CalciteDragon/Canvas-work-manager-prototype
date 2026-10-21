@@ -47,6 +47,8 @@ export class Sidebar {
   protected readonly createOpen = signal(false);
   /** Survives the form closing, so a failed creation can hand the name back. */
   protected readonly draftName = signal('');
+  /** A blank name was refused here, beside the field, before anything was sent (Slice 75). */
+  protected readonly nameRefused = signal(false);
 
   private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('newName');
   private readonly injector = inject(Injector);
@@ -94,7 +96,12 @@ export class Sidebar {
   protected submitCreate(event: Event, input: HTMLInputElement): void {
     event.preventDefault();
     const name = input.value.trim();
-    if (name === '') return;
+    if (name === '') {
+      this.nameRefused.set(true);
+      input.focus();
+      return;
+    }
+    this.nameRefused.set(false);
     this.draftName.set(name);
     this.createOpen.set(false);
     this.createRequested.emit(name);

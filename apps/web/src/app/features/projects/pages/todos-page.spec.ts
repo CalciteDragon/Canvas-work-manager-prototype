@@ -248,7 +248,9 @@ describe('TodosPage (§34)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(toggle.checked).toBe(true);
-    expect(query(fixture, '[data-todo-write-error]')?.textContent).toContain('Reopen refused');
+    // Slice 75: on the row, beside the box that moved back; the page alert is for Delete.
+    expect(rowFor(fixture, 'task-done').querySelector('[data-todo-row-error]')?.textContent).toContain('Reopen refused');
+    expect(query(fixture, '[data-todo-write-error]')).toBeNull();
     expect(dataChanged).not.toHaveBeenCalled();
   });
 
@@ -599,7 +601,11 @@ describe('TodosPage (§34)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-todo-write-error]')?.textContent).toContain('archived');
+    const message = rowFor(fixture, 'task-early').querySelector<HTMLElement>('[data-todo-row-error]')!;
+    expect(message.textContent?.trim()).toMatch(/^Couldn’t complete “.+”. Try again. the task is archived$/);
+    expect(message.getAttribute('role')).toBe('alert');
+    expect(rowFor(fixture, 'task-early').querySelector('[data-todo-toggle]')?.getAttribute('aria-describedby')).toBe(message.id);
+    expect(query(fixture, '[data-todo-write-error]')).toBeNull();
     expect(rowFor(fixture, 'task-early').querySelector('[data-todo-status]')?.textContent?.trim()).toBe('To do');
     expect(dataChanged).not.toHaveBeenCalled();
     // Retryable: the control is back rather than stuck pending.

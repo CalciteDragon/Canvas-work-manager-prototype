@@ -337,7 +337,9 @@ test('injected gateway failures roll back a task but preserve confirmed optional
     const task = page.locator('[data-todo-id="task-renovation-budget"]');
     await task.locator('[data-todo-toggle]').click();
     await expect(task).not.toHaveClass(/todos__row--finished/);
-    await expect(page.locator('[data-todo-write-error]')).toContainText('prototype failure injection');
+    // Slice 75: a completion failure is said on its row; the page alert is Delete's.
+    await expect(task.locator('[data-todo-row-error]')).toContainText('prototype failure injection');
+    await expect(page.locator('[data-todo-write-error]')).toHaveCount(0);
     await expect(task.locator('[data-todo-toggle]')).not.toBeChecked();
 
     await page.locator('[data-project-settings-toggle]').click();

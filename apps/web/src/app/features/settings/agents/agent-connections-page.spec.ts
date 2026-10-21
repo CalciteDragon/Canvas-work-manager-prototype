@@ -134,26 +134,43 @@ describe('AgentConnectionsPage (§53)', () => {
     expect(labels).toEqual(['Last used: 1 minute ago', 'Last used: 1 day ago']);
   });
 
-  it('shows the host’s error rather than an empty grid when a write is refused', async () => {
-    const { fixture } = await render(
+  // Slice 75 (L4-005): a refused change is said in that connection's card, naming the permission
+  // and the connection, beside the box that moved back. The page alert is for a failed load only.
+  it('says a refused change in that connection’s card, linked from the box, and puts the box back', async () => {
+    const { fixture, gateway } = await render(
       new FakeWorkManagerGateway({
-        agentConnections: [connection()],
+        agentConnections: [connection(), connection({ id: 'agent-cursor', name: 'Cursor' })],
         failOn: {
           'agents.setPermissions': new GatewayError('permission_denied', 403, 'agent connections can only be managed by the person who owns them'),
         },
       }),
     );
+    const cursor = fixture.nativeElement.querySelector('[data-connection-id="agent-cursor"]') as HTMLElement;
+    const claude = fixture.nativeElement.querySelector('[data-connection-id="agent-claude"]') as HTMLElement;
+    const cursorBox = cursor.querySelector('[data-permission="tasks.write"]') as HTMLInputElement;
 
-    box(fixture, 'tasks.write').click();
+    cursorBox.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(text(fixture, '[data-agents-error]')).toBe(
-      'agent connections can only be managed by the person who owns them',
+    const message = cursor.querySelector<HTMLElement>('[data-agent-permission-error]')!;
+    expect(message.textContent?.trim()).toBe(
+      'Couldn’t change Modify tasks for Cursor. Try again. agent connections can only be managed by the person who owns them',
     );
+    expect(message.getAttribute('role')).toBe('alert');
+    expect(cursorBox.getAttribute('aria-describedby')).toBe(message.id);
+    expect(claude.querySelector('[data-agent-permission-error]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-agents-error]')).toBeNull();
     // The grant on screen is still the one in force — the refused change was not applied
     // optimistically.
-    expect(box(fixture, 'tasks.write').checked).toBe(true);
+    expect(cursorBox.checked).toBe(true);
+
+    gateway.options.failOn = {};
+    cursorBox.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(cursor.querySelector('[data-agent-permission-error]')).toBeNull();
+    expect(cursorBox.hasAttribute('aria-describedby')).toBe(false);
   });
 
   it('says so when the workspace has no connections, and names the seed that has some', async () => {

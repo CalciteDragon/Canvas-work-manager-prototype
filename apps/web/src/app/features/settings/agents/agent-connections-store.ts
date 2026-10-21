@@ -7,6 +7,9 @@ const messageOf = (e: unknown) => e instanceof Error ? e.message : String(e);
 export class AgentConnectionsStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY); private readonly pendingTasks = inject(PendingTasks);
   private readonly itemsState = signal<AgentConnection[]>([]); private readonly loadingState = signal(false); private readonly errorState = signal<string | null>(null); private readonly busyState = signal<AgentConnectionId | null>(null);
+  /** A refused permission change, per connection, said in that connection's card (Slice 75, L4-005). */
+  private readonly permissionFailuresState = signal<ReadonlyMap<AgentConnectionId, { permission: AgentPermission; reason: string }>>(new Map());
+  readonly permissionFailures = this.permissionFailuresState.asReadonly();
   readonly connections = this.itemsState.asReadonly(); readonly loading = this.loadingState.asReadonly(); readonly error = this.errorState.asReadonly(); readonly busy = this.busyState.asReadonly();
 
   async load() { this.loadingState.set(true); this.errorState.set(null); const settled = this.pendingTasks.add(); try { this.itemsState.set(await this.gateway.agents.list()); } catch (e) { this.errorState.set(messageOf(e)); } finally { settled(); this.loadingState.set(false); } }
@@ -22,14 +25,17 @@ export class AgentConnectionsStore {
     const permissions = granted
       ? [...current.permissions, permission]
       : current.permissions.filter((held) => held !== permission);
-    return this.write(id, () => this.gateway.agents.setPermissions(id, permissions));
+    return this.write(id, () => this.gateway.agents.setPermissions(id, permissions), (reason) =>
+      this.permissionFailuresState.update((failures) => new Map(failures).set(id, { permission, reason })));
   }
 
   revoke(id: AgentConnectionId): Promise<boolean> { return this.write(id, () => this.gateway.agents.revoke(id)); }
 
-  private async write(id: AgentConnectionId, operation: () => Promise<AgentConnection>): Promise<boolean> {
+  /** A write's failure goes to `failed` when it has an object of its own to be said on, else to the page. */
+  private async write(id: AgentConnectionId, operation: () => Promise<AgentConnection>, failed?: (reason: string) => void): Promise<boolean> {
     if (this.busyState() !== null) return false;
     this.busyState.set(id); this.errorState.set(null);
+    if (this.permissionFailuresState().has(id)) this.permissionFailuresState.update((failures) => { const next = new Map(failures); next.delete(id); return next; });
     const settled = this.pendingTasks.add();
     try {
       const updated = await operation();
@@ -37,6 +43,6 @@ export class AgentConnectionsStore {
       // have refused part of it, and §53 promises the grid shows the grant that is in force.
       this.itemsState.update((connections) => connections.map((connection) => connection.id === id ? updated : connection));
       return true;
-    } catch (e) { this.errorState.set(messageOf(e)); return false; } finally { settled(); this.busyState.set(null); }
+    } catch (e) { if (failed === undefined) this.errorState.set(messageOf(e)); else failed(messageOf(e)); return false; } finally { settled(); this.busyState.set(null); }
   }
 }

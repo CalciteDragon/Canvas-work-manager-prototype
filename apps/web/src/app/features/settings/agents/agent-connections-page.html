@@ -40,6 +40,7 @@
                   type="checkbox"
                   [attr.data-permission]="row.key"
                   [checked]="holds(connection, row.key)"
+                  [attr.aria-describedby]="permissionFailure(connection)?.permission === row.key ? permissionFailure(connection)!.id : null"
                   [disabled]="connection.revoked || store.busy() !== null"
                   (change)="toggle(connection.id, row.key, $event)"
                 />
@@ -52,6 +53,9 @@
           }
         </ul>
         </fieldset>
+        @if (permissionFailure(connection); as failure) {
+          <p data-agent-permission-error class="agents__card-error" role="alert" [id]="failure.id">{{ failure.message }}</p>
+        }
 
         <footer class="agents__card-footer">
           <span data-agent-last-used class="agents__last-used">{{ lastUsed(connection) }}</span>

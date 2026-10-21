@@ -94,7 +94,9 @@ test('refused reopen restores native checkboxes in Task List and Todos', async (
     ? route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'conflict', message: 'Reopen refused for this journey' }) })
     : route.continue());
   await row(page, a.id).locator('[data-task-complete]').click();
-  await expect(page.locator('[data-tasks-error]')).toContainText('Reopen refused');
+  // Slice 75: on the row, beside the reverted checkbox.
+  await expect(row(page, a.id).locator('[data-task-error]')).toContainText('Reopen refused');
+  await expect(page.locator('[data-tasks-error]')).toHaveCount(0);
   await expect(row(page, a.id).locator('[data-task-complete]')).toBeChecked();
   expect((await read(a.id)).status).toBe('done');
   await page.unroute(`**/api/tasks/${a.id}`);
@@ -104,7 +106,7 @@ test('refused reopen restores native checkboxes in Task List and Todos', async (
   await page.locator('[data-dev-panel-close]').click();
   try {
     await todo(page, a.id).locator('[data-todo-toggle]').click();
-    await expect(page.locator('[data-todo-write-error]')).toBeVisible();
+    await expect(todo(page, a.id).locator('[data-todo-row-error]')).toBeVisible();
     await expect(todo(page, a.id).locator('[data-todo-toggle]')).toBeChecked();
   } finally {
     await page.keyboard.press('Control+Shift+D');

@@ -47,6 +47,18 @@ export class AgentConnectionsPage {
   protected readonly store = inject(AgentConnectionsStore);
   protected readonly permissions = PERMISSIONS;
 
+  /** Slice 75's per-object failure: the permission and the connection by name, then the reason. */
+  protected permissionFailure(connection: AgentConnection): { id: string; permission: AgentPermission; message: string } | null {
+    const failure = this.store.permissionFailures().get(connection.id);
+    if (failure === undefined) return null;
+    const label = PERMISSIONS.find((row) => row.key === failure.permission)?.label ?? failure.permission;
+    return {
+      id: `agent-permission-error-${connection.id}`,
+      permission: failure.permission,
+      message: `Couldn’t change ${label} for ${connection.name}. Try again. ${failure.reason}`,
+    };
+  }
+
   constructor() {
     void this.store.load();
   }

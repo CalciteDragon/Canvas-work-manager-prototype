@@ -10,6 +10,10 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 export const todoIdOf = (item: ProjectTodoItem): string =>
   item.kind === 'task' ? item.task.id : item.project.id;
 
+/** What a row is called, whichever kind it is. */
+export const todoTitleOf = (item: ProjectTodoItem): string =>
+  item.kind === 'task' ? item.task.title : item.project.name;
+
 /** §34's finished rows: still on the list, and with nothing left to complete. */
 export const isTodoFinished = (item: ProjectTodoItem): boolean =>
   item.kind === 'task'
@@ -67,6 +71,7 @@ export class TodosPageStore {
   private readonly errorState = signal<string | null>(null);
   private readonly refreshErrorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
+  private readonly rowErrorsState = signal<ReadonlyMap<string, string>>(new Map());
   private readonly completingState = signal<string | null>(null);
   private readonly deletingState = signal<string | null>(null);
 
@@ -90,7 +95,10 @@ export class TodosPageStore {
   readonly error = this.errorState.asReadonly();
   /** A **re-read** that failed: what is on screen is still the better answer than a blank page. */
   readonly refreshError = this.refreshErrorState.asReadonly();
+  /** A failed Delete. Completion failures are said on their row instead (Slice 75). */
   readonly writeError = this.writeErrorState.asReadonly();
+  /** A failed complete or reopen, by row id, beside the control that moved back (Slice 75, L4-005). */
+  readonly rowErrors = this.rowErrorsState.asReadonly();
   /** The row whose completion toggle is in flight. Non-null freezes every row's control. */
   readonly completing = this.completingState.asReadonly();
   /** The task whose reversible Delete is in flight. */
@@ -119,6 +127,7 @@ export class TodosPageStore {
     this.errorState.set(null);
     this.refreshErrorState.set(null);
     this.writeErrorState.set(null);
+    this.rowErrorsState.set(new Map());
     this.completingState.set(null);
     this.deletingState.set(null);
     this.readQueued = false;
@@ -156,6 +165,7 @@ export class TodosPageStore {
     const current = () => this.current(generation, projectId);
 
     this.writeErrorState.set(null);
+    this.setRowError(id, null);
     this.completingState.set(id);
     this.writing = true;
     this.writeEpoch += 1;
@@ -195,7 +205,7 @@ export class TodosPageStore {
       // The **exact** prior record, not a guessed `todo`: the row may have been in progress or
       // blocked, and the canvas it lives on still says so.
       this.replace(id, item);
-      this.writeErrorState.set(messageOf(error));
+      this.setRowError(id, `Couldn’t complete “${todoTitleOf(item)}”. Try again. ${messageOf(error)}`);
       return false;
     } finally {
       if (current()) {
@@ -209,6 +219,16 @@ export class TodosPageStore {
         }
       }
     }
+  }
+
+  private setRowError(id: string, message: string | null): void {
+    if (message === null && !this.rowErrorsState().has(id)) return;
+    this.rowErrorsState.update((errors) => {
+      const next = new Map(errors);
+      if (message === null) next.delete(id);
+      else next.set(id, message);
+      return next;
+    });
   }
 
   /**
@@ -226,6 +246,7 @@ export class TodosPageStore {
     const current = () => this.current(generation, projectId);
 
     this.writeErrorState.set(null);
+    this.setRowError(id, null);
     this.completingState.set(id);
     this.writing = true;
     this.writeEpoch += 1;
@@ -245,7 +266,7 @@ export class TodosPageStore {
     } catch (error) {
       if (!current()) return false;
       this.replace(id, item);
-      this.writeErrorState.set(messageOf(error));
+      this.setRowError(id, `Couldn’t reopen “${item.task.title}”. Try again. ${messageOf(error)}`);
       return false;
     } finally {
       if (current()) {

@@ -63,6 +63,7 @@
               type="checkbox"
               class="checkbox todos__toggle"
               [checked]="item.task.status === 'done'"
+              [attr.aria-describedby]="store.rowErrors().has(idOf(item)) ? 'todo-error-' + idOf(item) : null"
               [attr.aria-disabled]="writesBlocked() ? 'true' : null"
               [attr.aria-label]="(item.task.status === 'done' ? 'Reopen task ' : 'Complete ') + item.task.title"
               (change)="toggle(item, $event)"
@@ -73,6 +74,7 @@
               type="button"
               class="button button--sm todos__complete"
               [disabled]="writesBlocked()"
+              [attr.aria-describedby]="store.rowErrors().has(idOf(item)) ? 'todo-error-' + idOf(item) : null"
               [attr.aria-label]="'Complete ' + titleOf(item)"
               (click)="complete(item)"
             >
@@ -92,6 +94,10 @@
             >
               <app-icon name="remove" />
             </button>
+          }
+
+          @if (store.rowErrors().get(idOf(item)); as rowError) {
+            <p data-todo-row-error class="todos__row-error" role="alert" [id]="'todo-error-' + idOf(item)">{{ rowError }}</p>
           }
         </li>
       }

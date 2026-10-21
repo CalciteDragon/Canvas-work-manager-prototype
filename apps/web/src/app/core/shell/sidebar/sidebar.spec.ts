@@ -154,6 +154,30 @@ describe('Sidebar', () => {
     expect(element.querySelector('[data-create-project-form]')).not.toBeNull();
   });
 
+  it('says Enter a name. beside a refused blank name, keeps focus there, and clears on typing (Slice 75, L4-024)', async () => {
+    const { fixture, element } = await render();
+    const name = await openCreateForm(fixture, element);
+    expect(element.querySelector('[data-create-project-form]')?.hasAttribute('novalidate')).toBe(true);
+
+    name.value = '';
+    element.querySelector<HTMLElement>('[data-create-project-submit]')!.click();
+    await fixture.whenStable();
+
+    const message = element.querySelector<HTMLElement>('[data-create-project-name-error]')!;
+    expect(message.textContent?.trim()).toBe('Enter a name.');
+    expect(message.getAttribute('role')).toBe('alert');
+    const field = element.querySelector<HTMLInputElement>('[data-create-project-name]')!;
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(field.getAttribute('aria-describedby')).toBe(message.id);
+    expect(document.activeElement).toBe(field);
+
+    field.value = 'R';
+    field.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(element.querySelector('[data-create-project-name-error]')).toBeNull();
+    expect(field.getAttribute('aria-invalid')).toBeNull();
+  });
+
   // The regression: `error` replaces the tree, so routing a failed creation onto it would
   // wipe navigation because one write failed.
   it('renders the project tree and the create error at the same time', async () => {

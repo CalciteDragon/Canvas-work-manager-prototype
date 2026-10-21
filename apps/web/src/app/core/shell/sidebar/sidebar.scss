@@ -91,8 +91,13 @@
   padding: var(--space-1) var(--space-2);
 }
 
-.create-project > .control-label {
+.create-project > .control-label,
+.create-project__error {
   grid-column: 1 / -1;
+}
+
+.create-project__error {
+  margin: 0;
 }
 
 

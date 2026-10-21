@@ -51,7 +51,8 @@ schema-version-6 converter was removed in Slice 66.
   placed beside the sidebar by one `:has()` rule. Its gear opens a native page-settings popover
   whose pending toggles retain focus.
 - `WorkCreateDialog`: Name and an explicit live Parent for a new workstream, with draft retention
-  on refusal. The shell supplies the callback; the workspace store uses the existing project create.
+  on refusal. The form is `novalidate`: a blank name is refused beside the field with "Enter a
+  name." and focus kept there, before anything is sent. The shell supplies the callback; the workspace store uses the existing project create.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
   flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
   one-gesture removal (live rows cascade with their owner), removal feedback with Undo, plus canonical navigation to

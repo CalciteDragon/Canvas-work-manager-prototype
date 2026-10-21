@@ -59,6 +59,30 @@ describe('WorkCreateDialog (§23, §26)', () => {
     expect(query(fixture, '[data-create-work-inside]').textContent).toContain('Inside Kitchen');
   });
 
+  it('refuses an empty name with Enter a name. beside the field, focus kept, nothing sent (Slice 75, L4-024)', async () => {
+    const create = vi.fn(async () => null);
+    const fixture = await render(create);
+    expect(query(fixture, 'form')?.hasAttribute('novalidate')).toBe(true);
+    nameWork(fixture, '   ');
+    query(fixture, '[data-create-work-submit]').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(create).not.toHaveBeenCalled();
+    const message = query(fixture, '[data-create-work-name-error]');
+    expect(message.textContent?.trim()).toBe('Enter a name.');
+    expect(message.getAttribute('role')).toBe('alert');
+    const name = query<HTMLInputElement>(fixture, '[data-create-work-name]');
+    expect(name.getAttribute('aria-invalid')).toBe('true');
+    expect(name.getAttribute('aria-describedby')).toBe(message.id);
+    expect(document.activeElement).toBe(name);
+
+    nameWork(fixture, 'P');
+    fixture.detectChanges();
+    expect(query(fixture, '[data-create-work-name-error]')).toBeNull();
+    expect(name.getAttribute('aria-invalid')).toBeNull();
+  });
+
   it.each(['Cancel', 'Escape', 'backdrop'])('%s closes without calling create', async (action) => {
     const create = vi.fn(async () => null);
     const fixture = await render(create);
