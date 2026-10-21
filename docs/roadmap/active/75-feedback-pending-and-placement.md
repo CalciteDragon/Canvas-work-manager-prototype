@@ -1,8 +1,8 @@
 <!-- plan id="75" status="active" summary="Redesign slice 4b (TH07, TH15 task-add): pending within 100 ms, a saved cue, failures on the row, new items scrolled into view and focused, a canvas that holds still" -->
 # Slice 75 — Feedback: pending, saved and new items in view
 
-**State (2026-10-18):** plan revised through review rounds 1–3; awaiting
-the user's answers to the Open questions. No product code has changed.
+**State (2026-10-20):** plan reviewed in three rounds; the user accepted every Open question's
+recommendation on 2026-10-20. Implementation begins at Stage 0.
 
 Redesign slice 4b under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Theme
 **TH07**, "Feedback is detached from the action", in [themes.json](../70-ui-ux/themes.json): this
@@ -431,7 +431,13 @@ Write each test, watch it fail for the right reason, then implement.
 
 ## Open questions
 
-These need the user before implementation, because each changes the shape of the work.
+**All six answered by the user on 2026-10-20: every recommendation accepted.** So: a sticky
+add field (1), a refused second submit (2), no toast for task create, with dated amendments to
+principle 6 and the one-toast decision (3), the title returned to the field after the owed read
+(4), the checked row as completion's confirmation with failures on the row, Todos included (5),
+and focus on the new section's heading for every type (6). Acceptance 6, the Todos rows of the
+change list and Behaviour vs. appearance now apply unconditionally. The questions are kept below
+as they were asked.
 
 1. **Keeping the add field and the new row both in view (L4-023).** The list appends at the
    bottom, the field is at the top, and focus must stay in the field, so in a long list both
