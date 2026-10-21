@@ -304,3 +304,17 @@ test('a refused agent permission change is said in that agent’s card (F21)', a
   await expect(box).not.toBeChecked();
   await expect(page.locator('[data-agents-error]')).toHaveCount(0);
 });
+
+test.describe('live regions at 375 touch', () => {
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+
+  test('hidden live regions never stretch the phone document, with a dialog open', async ({ page }) => {
+    await page.goto(`/projects/${KITCHEN}`);
+    await page.locator('[data-section-canvas]').waitFor();
+    const expand = page.getByRole('button', { name: 'Show project navigation', exact: true });
+    if (await expand.isVisible()) await expand.click();
+    await page.getByRole('button', { name: 'Add workstream', exact: true }).click();
+    await expect(page.locator('[data-create-work-name]')).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(0);
+  });
+});

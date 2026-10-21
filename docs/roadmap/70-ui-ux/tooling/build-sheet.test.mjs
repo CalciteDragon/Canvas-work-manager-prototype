@@ -501,3 +501,23 @@ test('profile 75 reports drawer and dialog movement and gates every other cell',
   assert.equal(rest.result.status, 1);
   assert.match(rest.report, /"field": "y"/);
 });
+
+test('profile 75 lists the canvas live region leaving the grid as an exact 24 px rise, and still gates other movement', async t => {
+  const rise = async (shift) => {
+    const f = await fixture(t);
+    for (const phase of [0, 1]) await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+    const layout = (by) => ({ ...f.layout, planes: [f.layout.planes[0], { selector: 'app-project-section-frame', index: 0, x: 300, y: 400 + by, width: 900, height: 200 }],
+      scrollRegions: [{ tag: 'MAIN', class: 'workspace', x: 300, y: 64, width: 900, height: 900, scrollWidth: 900, scrollHeight: 1500 + by }] });
+    await f.json(0, 'layout.json', layout(0));
+    await f.json(1, 'layout.json', layout(shift));
+    await f.json(1, 'tasks/tasks.json', [{ id: 'T03', status: 'completed', clicks: 10, keystrokes: 38, deadEnds: 0 }]);
+    await f.json(1, 'placement-verification.json', { complete: true, entries: placementEntries() });
+    const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '75'], { encoding: 'utf8' });
+    return { result, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) };
+  };
+  const listed = await rise(-24);
+  assert.equal(listed.result.status, 0, listed.report);
+  assert.match(listed.report, /canvas live region left the grid/);
+  const other = await rise(-30);
+  assert.equal(other.result.status, 1);
+});

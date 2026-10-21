@@ -38,7 +38,12 @@ a {
 
 // Read by assistive technology, never painted: live regions whose words the screen already shows.
 .visually-hidden {
-  position: absolute;
+  // Fixed to the viewport corner, never absolute: an absolute region with no positioned ancestor
+  // keeps its static position deep in the scrolled track and stretches the document (Slice 75,
+  // as the toast's regions taught in Slice 74).
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   inline-size: var(--border-hairline);
   block-size: var(--border-hairline);
   overflow: hidden;

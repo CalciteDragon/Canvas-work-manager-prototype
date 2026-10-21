@@ -569,3 +569,18 @@ Recorded, not changed:
 - Sam cannot open Kitchen, so the slice-73 pair uses a root of Sam's own with one Task List.
 - The pre-73 run's drawer selector found no open drawer. The pair's screenshots, not that
   measurement, are the evidence for it.
+
+**Evidence round (2026-10-20).** The after capture found three things:
+
+- **The 24 px rise.** The canvas live region (`project-canvas.html:10`) used `.visually-hidden`
+  before the class existed. As an empty grid item it took one 24 px canvas gap, so every project
+  page's content now rises exactly 24 px. This is a fix, but it breaks "must not change", so
+  profile 75 lists it as its one closed-state exception (only an exact −24 px shift; anything
+  else fails) for the user's judgement at Gate 2.
+- **The phone document.** The first `.visually-hidden` was `position: absolute`. With Add
+  workstream or page settings open at 375, that region stretched the document to 937 px, and the
+  full-page capture dropped touch emulation (slice 74's trap). The class is now fixed to the
+  viewport corner. A browser test holds the phone document to the viewport with a dialog open.
+- **The field's accessible name.** The drawer's field status sat inside its `<label>`, so the
+  field's name became "Due date Saved". The status is now `aria-hidden`; the live region says
+  it, and failures still describe the field.

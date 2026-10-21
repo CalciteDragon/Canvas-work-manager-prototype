@@ -435,7 +435,8 @@ observed instead of asserting. `ux/slice75.config.ts` owns ports 4252/4352 and
 serves `ux-output/slice73-baseline-web` for the slice-73 pair. Labels come from `UX_BEFORE` or HEAD.
 `build-sheet.mjs --profile 75 [--pre73 <dir>]` gates those facts and T03 (≤10 clicks, ≤38
 keystrokes). It reports, without gating, the task drawer, creation dialog and Lab cells, gates every
-other cell at 1 px, and lists each visual pair's status. `ux/slice75-behavior.config.ts` runs
+other cell at 1 px, and lists each visual pair's status. Its one listed closed-state change is an
+exact 24 px rise below the canvas live region, which now leaves the grid. `ux/slice75-behavior.config.ts` runs
 `placement.spec.ts` on the same rig.
 
 `UX_FEEDBACK=1` enables `ux/feedback-verification.ts`, which writes

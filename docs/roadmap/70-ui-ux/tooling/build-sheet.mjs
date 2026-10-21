@@ -39,6 +39,12 @@ const restoreFeedbackRow = (box, was, { top, bottom, left, right, shift }, famil
 };
 const feedbackCell = cell => ['remove-feedback', 'page-settings'].includes(cell.state) || cell.route === '/prototype/design';
 /** Slice 75's "must change" cells: the drawer's autosave line, the dialog that now reveals, and the Lab. */
+/**
+ * Slice 75's listed closed-state change: the canvas live region, styled by the new `.visually-hidden`,
+ * no longer takes a grid row, so what follows rises by exactly the canvas gap. Any other movement fails.
+ */
+const LIVE_REGION_GAP = 24;
+const liveRegionRise = changes => changes.length > 0 && changes.every(change => ['y', 'height', 'scrollHeight'].includes(change.field) && Math.abs(change.after - change.before + LIVE_REGION_GAP) <= 0.5);
 const placementCell = cell => ['task-drawer', 'task-drawer-scrolled', 'section-create'].includes(cell.state) || cell.route === '/prototype/design';
 /**
  * Slice 72's pre-listed census exceptions, each owned by a later slice. A matching control is
@@ -127,6 +133,8 @@ for (const a of after.cells) {
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
       if (changes.length) geometryReport.push({ cell: a.id, family, changes });
+    } else if (profile === '75' && liveRegionRise(changes)) {
+      exceptions.push({ cell: a.id, family, reason: 'canvas live region left the grid; content below rises 24 px', changes: changes.length });
     } else if (changes.length) failures.push({ cell: a.id, family, changes });
   }
   if (['73', '74', '75'].includes(profile)) {

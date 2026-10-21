@@ -75,7 +75,8 @@ Smaller features that do not earn a folder of their own:
   (`.button` in four ranks, `.icon-button`, `.tool`, `.field`, `.select`, `.checkbox`, `.radio`,
   `.pill`, `.link`, `.control-label`, `.danger-zone`, and slice 75's `.field-status` — saving,
   saved or failed beside a label, the saved one fading after 2 s). `_base.scss` has the
-  `.visually-hidden` utility for live regions. Ghost buttons keep a faint edge at rest;
+  `.visually-hidden` utility for live regions, fixed to the viewport corner so a hidden region never
+  stretches the document. Ghost buttons keep a faint edge at rest;
   icon buttons and tools stay borderless. Components position a primitive and never paint one.
 
 ## Read next
