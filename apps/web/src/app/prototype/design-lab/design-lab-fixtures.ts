@@ -193,6 +193,7 @@ export class StubSectionContent {
   readonly projectDataRevision = input(0);
   readonly projectHierarchyRevision = input(0);
   readonly readOnly = input(false);
+  readonly sourceLink = input(null);
 
   protected state(): StubSectionState {
     const config = this.section().config as { state?: StubSectionState };

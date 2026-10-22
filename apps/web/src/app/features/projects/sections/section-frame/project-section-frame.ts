@@ -84,6 +84,7 @@ export class ProjectSectionFrame {
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
     readOnly: false,
+    sourceLink: null,
     ...(this.section().type === 'task-list' ? { onOpenArchive: this.onOpenArchive() } : {}),
   }));
 

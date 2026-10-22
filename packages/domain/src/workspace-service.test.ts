@@ -39,6 +39,16 @@ const reflection = (id: string, projectId: string, body: string, extra: Partial<
 const reader = agentActorFor(0, ['workspace.read']);
 const stranger = agentActorFor(0, ['projects.read', 'tasks.read', 'reflections.read']);
 
+it('slice 77 upcoming work carries canonical origins with workspace.read alone', async () => {
+  const h = buildHarness();
+  const child = await h.projectService.create(h.actor, { kind: 'subproject', workspaceId: h.actor.workspaceId, parentProjectId: MINE, name: 'Child' });
+  const rootTask = await h.taskService.create(h.actor, { projectId: MINE, title: 'Root', dueAt: at(1) });
+  const nested = await h.taskService.create(h.actor, { projectId: child.id, title: 'Child task', dueAt: at(2) });
+  const result = await h.workspaceService.upcomingWork(reader, { days: 7, limit: 20 });
+  expect(result.upcoming.find(({ id }) => id === rootTask.id)?.origin).toMatchObject({ projectId: MINE, pageKind: 'home', sectionId: rootTask.sectionId });
+  expect(result.upcoming.find(({ id }) => id === nested.id)?.origin).toMatchObject({ projectId: child.id, pageKind: 'work', sectionId: nested.sectionId });
+});
+
 describe('WorkspaceService', () => {
   let harness: ReturnType<typeof buildHarness>;
   let service: WorkspaceService;

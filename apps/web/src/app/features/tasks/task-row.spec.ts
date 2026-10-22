@@ -1,3 +1,4 @@
+import { Router, provideRouter } from '@angular/router';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { TaskSchema, type Task } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -23,7 +24,7 @@ const render = async (
   value: Task = task(),
   inputs: { selected?: boolean; compact?: boolean; pending?: boolean; archiving?: boolean; readOnly?: boolean } = {},
 ) => {
-  TestBed.configureTestingModule({ imports: [TaskRow] });
+  TestBed.configureTestingModule({ imports: [TaskRow], providers: [provideRouter([])] });
   const fixture: ComponentFixture<TaskRow> = TestBed.createComponent(TaskRow);
   fixture.componentRef.setInput('task', value);
   fixture.componentRef.setInput('now', NOW);
@@ -281,4 +282,22 @@ describe('TaskRow', () => {
     expect(row.classList.contains('task-row--selected')).toBe(true);
     expect(row.classList.contains('task-row--compact')).toBe(true);
   });
+});
+
+
+it('links a read-only projection to its owner without selecting (§34, slice 77)', async () => {
+ const {fixture,component,element}=await render(task(),{readOnly:true});
+ fixture.componentRef.setInput('link',{route:['/projects','project-a'],fragment:'section-section-tasks'});
+ await fixture.whenStable();
+ vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+ const selected=vi.fn(); component.selectedRequested.subscribe(selected);
+ const title=element.querySelector<HTMLAnchorElement>('a[data-task-title]')!;
+ expect(title).not.toBeNull();
+ expect(title.getAttribute('href')).toBe('/projects/project-a#section-section-tasks');
+ title.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+ title.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+ element.querySelector<HTMLElement>('[data-task-row]')!.click();
+ expect(selected).not.toHaveBeenCalled();
+ expect(element.querySelector('[data-task-complete]')).toBeNull();
+ expect(element.querySelector('[data-task-delete]')).toBeNull();
 });

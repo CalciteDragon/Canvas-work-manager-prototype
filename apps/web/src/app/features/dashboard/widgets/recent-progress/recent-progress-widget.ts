@@ -1,3 +1,5 @@
+import { RouterLink } from '@angular/router';
+import { taskMeta } from '../../../tasks/task-meta';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DashboardQuerySchema, type DashboardResult, type DashboardWidget } from '@cwm/contracts';
 import { z } from 'zod';
@@ -13,11 +15,13 @@ export const recentProgressWidgetQuery = (config: unknown) => {
 /** §24's "recently completed work". */
 @Component({
   selector: 'app-recent-progress-widget',
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './recent-progress-widget.html',
   styleUrl: '../widget-content.scss',
 })
 export class RecentProgressWidget {
+  readonly taskMeta = taskMeta;
   readonly widget = input.required<DashboardWidget>();
   readonly dashboard = input.required<DashboardResult>();
 }

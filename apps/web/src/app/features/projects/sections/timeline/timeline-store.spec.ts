@@ -71,20 +71,6 @@ describe('TimelineStore (§38)', () => {
     expect(store.error()).toBeNull();
   });
 
-  it('toggles one transient detail selection and clears it when the row disappears', async () => {
-    const store = setup();
-    await store.load('project-a' as ProjectId);
-
-    store.toggleDetails('task-later');
-    expect(store.selectedItem()?.title).toBe('Later task');
-    store.toggleDetails('task-later');
-    expect(store.selectedItem()).toBeNull();
-
-    store.toggleDetails('task-later');
-    await store.load('project-b' as ProjectId);
-    expect(store.selectedItem()).toBeNull();
-  });
-
   it('does not let an older project answer replace a newer one', async () => {
     const older = deferred<TimelineResult>();
     const newer = deferred<TimelineResult>();

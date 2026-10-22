@@ -1,3 +1,5 @@
+import { applicationConfig } from '@storybook/angular-vite';
+import { provideRouter } from '@angular/router';
 import { TaskSchema, type Task } from '@cwm/contracts';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Meta, StoryObj } from '@storybook/angular-vite';
@@ -32,6 +34,7 @@ const task = (overrides: Record<string, unknown> = {}): Task =>
 const meta: Meta<TaskRow> = {
   title: 'Tasks/TaskRow',
   component: TaskRow,
+  decorators: [applicationConfig({ providers: [provideRouter([])] })],
   args: {
     task: task(),
     selected: false,
@@ -106,4 +109,10 @@ export const Failed: Story = {
     task: task({ title: 'Verify analytics events' }),
     error: 'Couldn’t complete “Verify analytics events”. Try again. The server did not answer.',
   },
+};
+
+
+/** A read-only shortcut projection opens the owning section. */
+export const SourceLink: Story = {
+ args: { readOnly: true, link: { route: ['/projects', 'project-story'], fragment: 'section-section-story-tasks' } },
 };

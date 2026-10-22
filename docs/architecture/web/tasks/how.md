@@ -137,3 +137,6 @@ tick another, watch it revert with the error and no `completedAt` in `data.json`
   optimistic prefix and before awaiting, then reads the current row again after settlement to
   handle an immediate refusal that skips an optimistic render. A late reset from a captured item
   can paint stale status onto a settled box.
+
+
+Slice 77 adds [taskMeta](../../../api/miscellaneous/variables.html#taskMeta), the pure status/priority/date/overdue formatter shared by TaskRow, Todos and dashboard widgets. TaskRow's optional link input renders its title as a RouterLink and refuses selection. Its two-level editable title ancestry, toggle reset and Delete behavior remain intact. The row body uses display: contents to retain the DOM hooks on the global object-row grid.

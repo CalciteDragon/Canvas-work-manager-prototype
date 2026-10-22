@@ -45,6 +45,7 @@ class TestContent {
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
+  readonly sourceLink = input(null);
 
   constructor() {
     effect(() => {
@@ -69,6 +70,7 @@ class TestInspector {
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
+  readonly sourceLink = input(null);
 }
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
@@ -174,6 +176,7 @@ describe('ProjectSectionFrame (§31)', () => {
     // `NgComponentOutlet` calls `setInput` for every key on every pass, and only
     // `Object.is` equality stops that from being a change.
     const first = fixture.componentInstance.contentInputs();
+    expect(first['sourceLink']).toBeNull();
     expect(first).not.toHaveProperty('onProjectHierarchyChange');
     expect(first.projectHierarchyRevision).toBe(0);
     fixture.detectChanges();

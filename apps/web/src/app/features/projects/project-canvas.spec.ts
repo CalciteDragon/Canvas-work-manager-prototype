@@ -99,6 +99,7 @@ const shortcut = (id: string, position: number, sourceSectionId = 'section-sourc
   });
 
 const shortcutSource: ShortcutSource = {
+  section: section('section-source', 'task-list', 0, { pageId: 'page-source' }),
   sourceSectionId: 'section-source' as SectionId,
   type: 'task-list',
   name: 'Source list',

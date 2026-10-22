@@ -131,3 +131,13 @@ describe('ProgressSection live invalidation', () => {
     expect(bar(first).getAttribute('aria-describedby')).not.toBe(bar(second).getAttribute('aria-describedby'));
   });
 });
+
+
+it('emphasises only the active formula without a lone primary (slice 77)', async () => {
+ TestBed.configureTestingModule({providers:[{provide:WORK_MANAGER_GATEWAY,useValue:new FakeWorkManagerGateway({progress:{projectId:section.projectId,formula:'count',percentage:50,completed:1,total:2,explanation:'half'}})}]});
+ const fixture=TestBed.createComponent(ProgressSection);
+ fixture.componentRef.setInput('section',section);fixture.componentRef.setInput('onConfigChange',vi.fn());fixture.componentRef.setInput('onProjectDataChange',vi.fn());fixture.componentRef.setInput('projectDataRevision',0);fixture.componentRef.setInput('projectHierarchyRevision',0);
+ await fixture.whenStable();fixture.detectChanges();
+ expect(fixture.nativeElement.querySelector('.button--primary')).toBeNull();
+ expect(fixture.nativeElement.querySelector('[aria-pressed="true"]')?.classList.contains('progress-section__choice--active')).toBe(true);
+});

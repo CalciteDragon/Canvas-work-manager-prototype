@@ -19,6 +19,14 @@ each option binds `[selected]`, because a `[value]` on the select runs before it
 
 ## Runtime flow
 
+Section content receives `sourceLink` alongside `readOnly`: canonical frames pass `null`,
+shortcut frames pass the source route and `#section-<id>` fragment, and Task List shortcut rows
+use it for title navigation. Shortcut headings explain that editing happens at the source.
+The picker groups identities by owner and page. Opening Preview mounts that source's registry
+component with read-only inputs, stable no-op callbacks and `sourceLink: null`; content reads use
+the viewer's gateway grants and failures remain inside the disclosure while Add stays available.
+Only the open Preview mounts content, so source discovery never reads owned rows.
+
 `ShortcutFrame.name` and the shortcut branch of `ProjectCanvas.placementName` call contracts'
 `shortcutNameOf(source, sourceProjectName)`. Untitled sources gain their owning project in
 parentheses, while a title override stays alone. The same name reaches frame controls, resize
@@ -206,10 +214,11 @@ can store an unreadable config
 ([decision](../../../decisions/2026-10-section-config-validated-on-write.md)).
 Successful Save and Cancel restore focus to Edit. Preview renders only the local draft.
 
-**Accessible names and state (slice 72).** A Timeline row's button owns its expanded state:
-it carries `aria-expanded` and, while open, `aria-controls` pointing at its details, whose id
-takes a per-instance prefix so a section and its shortcut on one page never share an id. The
-`li` carries no state. A Progress bar is named from what its frame displays: each frame provides
+**Accessible names and state.** Timeline uses `.object-row` over shared subgrid columns.
+Task titles link to their owning section and workstream titles to their project; project and
+milestone rows are static. Reversed source dates are explained inline. There is no selection
+or expanded detail. A read-only picker Preview has `sourceLink: null` and suppresses navigation;
+a shortcut retains the item links. A Progress bar is named from what its frame displays: each frame provides
 `SECTION_FRAME_NAME` (`nameOf` or `shortcutNameOf`) in its own `providers`, and outlet content
 inherits it. The bar appends "progress" unless the name already says it, never uses the frame's
 heading's interactive state, and is described by its own summary through a per-instance id. The Reflections composer's prompt select and the
@@ -418,3 +427,6 @@ body still owns it; dismissal falls back to a surviving Restore or the heading.
 | ProjectDetailsDialog | component | Single-commit project draft | [API](../../../api/components/ProjectDetailsDialog.html) |
 | ProjectArchiveConfirm | component | Modal archive confirmation | [API](../../../api/components/ProjectArchiveConfirm.html) |
 | ProjectColumnFocusRequest | injectable | Cross-shell column and Archive focus requests | [API](../../../api/injectables/ProjectColumnFocusRequest.html) |
+
+
+Task Lists disable CDK sorting within a list. The dragged list announces cross-list movement and clears that hint on drag end; dropTask still calls receive only for a different container. Read-only Task Lists pass sourceLink into TaskRow and distinguish an empty source. Todos uses the same object-row anatomy and taskMeta while retaining its own write store and exact status hooks. ArchivedRegion renders static object rows with separate Restore controls. Progress emphasises the pressed formula, without a lone primary. Settings archived-project cards show ancestor names only or Top-level project.

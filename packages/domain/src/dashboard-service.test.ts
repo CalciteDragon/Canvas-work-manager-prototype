@@ -11,6 +11,30 @@ const NEWLINE = '\n';
 
 const titles = (tasks: ReadonlyArray<{ title: string }>): string[] => tasks.map(({ title }) => title);
 
+it('slice 77 carries root and deep task origins and ancestor paths under workspace.read alone', async () => {
+  const h = buildHarness();
+  const child = await h.projectService.create(h.actor, { kind: 'subproject', workspaceId: h.actor.workspaceId, parentProjectId: MINE, name: 'Child' });
+  const deep = await h.projectService.create(h.actor, { kind: 'subproject', workspaceId: h.actor.workspaceId, parentProjectId: child.id, name: 'Deep' });
+  await h.projectService.update(h.actor, deep.id, { status: 'active' });
+  const rootTask = await h.taskService.create(h.actor, { projectId: MINE, title: 'Root', dueAt: '2026-08-24T21:00:00.000Z' });
+  const nested = await h.taskService.create(h.actor, { projectId: deep.id, title: 'Nested', dueAt: '2026-08-24T22:00:00.000Z' });
+  const result = await h.dashboardService.load(agentActorFor(0, ['workspace.read']), {});
+  expect(result.today.dueToday.find(({ id }) => id === rootTask.id)?.origin).toMatchObject({ projectId: MINE, pageKind: 'home', sectionId: rootTask.sectionId });
+  expect(result.today.dueToday.find(({ id }) => id === nested.id)?.origin).toMatchObject({ projectId: deep.id, pageKind: 'work', sectionId: nested.sectionId, breadcrumb: [{ projectId: MINE, name: 'Project project-mine' }, { projectId: child.id, name: 'Child' }, { projectId: deep.id, name: 'Deep' }] });
+  expect(result.activeProjects.find(({ id }) => id === MINE)?.breadcrumb).toEqual([]);
+  expect(result.activeProjects.find(({ id }) => id === deep.id)?.breadcrumb).toEqual(['Project project-mine', 'Child']);
+});
+
+it('slice 77 excludes an unresolvable task before deriving digest counts', async () => {
+  const h = buildHarness();
+  const valid = await h.taskService.create(h.actor, { projectId: MINE, title: 'Valid', dueAt: '2026-08-20T21:00:00.000Z' });
+  const list = h.tasks.list.bind(h.tasks);
+  h.tasks.list = async (...args) => [...await list(...args), { ...valid, id: 'unresolvable' as typeof valid.id, sectionId: 'missing' as typeof valid.sectionId }];
+  const result = await h.dashboardService.load(agentActorFor(0, ['workspace.read']), {});
+  expect(result.today.overdue.map(({ id }) => id)).toEqual([valid.id]);
+  expect(result.dailyDigest.lines.join('\n')).toContain('1 task is overdue');
+});
+
 describe('DashboardService.load', () => {
   it('answers the contract for an empty workspace without inventing content', async () => {
     const harness = buildHarness();

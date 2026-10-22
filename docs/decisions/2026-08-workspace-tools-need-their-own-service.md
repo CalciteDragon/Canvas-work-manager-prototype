@@ -96,3 +96,10 @@ Slice 15 puts a real MCP client in front of these tools. Watch whether an agent 
 answer is probably either to split the grant or to have `search_workspace` return only the
 kinds the connection can actually fetch. Also Slice 21, which owns search and inherits the
 reflection-matching inconsistency.
+
+
+**Amended, 2026-10-21 — Slice 77 aggregate origin identity.** workspace.read now includes
+each dashboard and upcoming-work task's canonical page and section identity and root-first
+breadcrumb, in addition to the task/project aggregate content already returned. No additional
+projects.read or tasks.read grant is asserted. This deliberately widens the aggregate result so
+both people and agents can locate the work; domain reads still use repository abstractions.

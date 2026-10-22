@@ -31,13 +31,16 @@
     <p data-tasks-error class="task-list-section__error" role="alert">{{ error }}</p>
   }
 
+  @if (dragging()) {
+    <p data-task-drag-hint class="task-list-section__muted" role="status">Drop on another Task List to move it. Order within a list can't be changed yet.</p>
+  }
   <div class="task-workspace">
     @if (readOnly()) {
       <div class="task-list" [attr.aria-busy]="store.loading()">
         @if (store.loading()) {
           <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
         } @else if (store.tasks().length === 0) {
-          <p data-tasks-empty class="task-list-section__muted">No tasks yet.</p>
+          <p data-tasks-empty class="task-list-section__muted">The source has no tasks yet.</p>
         } @else {
           @for (task of store.tasks(); track task.id) {
             <app-task-row
@@ -46,6 +49,7 @@
               [pending]="false"
               [archiving]="false"
               [readOnly]="true"
+              [link]="sourceLink()"
             />
           }
         }
@@ -54,6 +58,7 @@
       <div
         class="task-list"
         cdkDropList
+        [cdkDropListSortingDisabled]="true"
         [id]="dropId()"
         [cdkDropListData]="section().id"
         [cdkDropListConnectedTo]="connectedDropIds()"
@@ -68,6 +73,8 @@
           @for (task of store.tasks(); track task.id) {
             <app-task-row
               cdkDrag
+              (cdkDragStarted)="dragging.set(true)"
+              (cdkDragEnded)="dragging.set(false)"
               [cdkDragData]="task.id"
               [task]="task"
               [selected]="store.selectedTaskId() === task.id"

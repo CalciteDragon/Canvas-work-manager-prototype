@@ -1,3 +1,4 @@
+import { ProjectSectionSchema } from '@cwm/contracts';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
@@ -128,6 +129,7 @@ describe('SectionCreateDialog (§27)', () => {
   it('keeps shortcut mode open and blocks back, cancel and Escape while a create is pending', async () => {
     let finish!: (message: string | null) => void;
     const source: ShortcutSource = {
+      section: ProjectSectionSchema.parse({ id: 'section-source', projectId: PROJECT, pageId: 'page-work', type: 'markdown', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-24T16:00:00.000Z', updatedAt: '2026-08-24T16:00:00.000Z' }),
       sourceSectionId: 'section-source' as SectionId,
       type: 'markdown',
       name: 'Source notes',

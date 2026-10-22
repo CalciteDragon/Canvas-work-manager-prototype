@@ -71,6 +71,8 @@ export type ResolvedSectionShortcut = z.infer<typeof ResolvedSectionShortcutSche
 
 /** One selectable source in the Add shortcut picker; row collections never cross this seam. */
 export const ShortcutSourceSchema = z.object({
+  /** Canonical section for an on-demand Preview; no row collections (§27). */
+  section: ProjectSectionSchema,
   sourceSectionId: SectionIdSchema,
   type: z.string().min(1),
   name: z.string().min(1),

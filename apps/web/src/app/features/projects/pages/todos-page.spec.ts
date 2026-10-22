@@ -644,3 +644,13 @@ describe('TodosPage (§34)', () => {
     }
   });
 });
+
+
+it('puts the checkbox before the owner title, with a plain origin and exact To do status (slice 77)', async () => {
+ const {fixture}=await render({items:[taskItem('task-open')]});
+ const row=rowFor(fixture,'task-open');
+ const toggle=row.querySelector('[data-todo-toggle]')!, title=row.querySelector('[data-todo-link]')!;
+ expect(toggle.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+ expect(row.querySelector('[data-todo-status]')?.textContent?.trim()).toBe('To do');
+ expect(row.querySelector('[data-todo-origin] a')).toBeNull();
+});

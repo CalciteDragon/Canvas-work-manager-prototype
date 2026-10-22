@@ -1,7 +1,21 @@
 import { MilestoneSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { EntityNotFoundError } from './errors';
-import { buildHarness, MINE, THEIRS } from '../test/test-support';
+import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+
+it('slice 77 links tasks to their container and workstreams to themselves under projects.read alone', async () => {
+  const h = buildHarness();
+  await h.projectService.update(h.actor, MINE, { targetDate: '2026-09-30' });
+  const child = await h.projectService.create(h.actor, { kind: 'subproject', workspaceId: h.actor.workspaceId, parentProjectId: MINE, name: 'Child', targetDate: '2026-09-20' });
+  const rootTask = await h.taskService.create(h.actor, { projectId: MINE, title: 'Root', dueAt: '2026-09-10T21:00:00.000Z' });
+  const nested = await h.taskService.create(h.actor, { projectId: child.id, title: 'Child task', dueAt: '2026-09-12T21:00:00.000Z' });
+  await h.milestones.insert(MilestoneSchema.parse({ id: 'milestone-links', projectId: MINE, title: 'Decision', targetDate: '2026-09-06', status: 'upcoming', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' }));
+  const { items } = await h.timelineService.derive(agentActorFor(0, ['projects.read']), MINE);
+  expect(items.find(({ id }) => id === rootTask.id)?.link).toEqual({ projectId: MINE, pageKind: 'home', sectionId: rootTask.sectionId });
+  expect(items.find(({ id }) => id === nested.id)?.link).toEqual({ projectId: child.id, pageKind: 'work', sectionId: nested.sectionId });
+  expect(items.find(({ id }) => id === child.id)?.link).toEqual({ projectId: child.id, pageKind: 'work' });
+  expect(items.filter(({ kind }) => kind === 'project' || kind === 'milestone').every(({ link }) => link === undefined)).toBe(true);
+});
 
 describe('TimelineService', () => {
   it('uses a deadline marker until an earlier dated descendant establishes a range', async () => {

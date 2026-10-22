@@ -14,10 +14,10 @@
           data-archived-item
           [attr.data-archived-kind]="item.kind"
           [attr.data-archived-id]="idOf(item)"
-          class="archived-region__entry"
+          class="archived-region__entry object-row object-row--static"
         >
-          <div class="archived-region__identity">
-            <strong data-archived-name class="archived-region__name">{{ label(item) }}</strong>
+          <strong data-archived-name class="archived-region__name object-row__title">{{ label(item) }}</strong>
+          <div class="archived-region__identity object-row__context">
             <span data-archived-type class="archived-region__meta">{{ typeLabel(item) }}</span>
             <span data-archived-origin class="archived-region__meta">
               Origin:
@@ -60,7 +60,7 @@
             }
           </div>
           @if (item.kind === 'subproject') {
-            <label class="control-label archived-region__status">
+            <label class="control-label archived-region__status object-row__meta">
               Restore as
               <!-- Options come from @for, which renders after the select's own bindings: a
                    [value] on the select would find no option and show the first one. -->
@@ -79,7 +79,7 @@
           <button
             data-archived-restore
             type="button"
-            class="button button--sm"
+            class="button button--sm object-row__tools"
             [disabled]="!canRestore(item)"
             [attr.aria-label]="restoreActionAriaLabel(item)"
             (click)="restore(item)"

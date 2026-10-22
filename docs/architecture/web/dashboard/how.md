@@ -68,3 +68,6 @@ pnpm prototype:seed overdue-chaos && pnpm dev:host   # then move the date in the
   compute.
 
 DashboardWidgetFrame uses --plane-sheet-background/filter, with solid fallbacks resolved centrally in the token stylesheet; its size and padding remain unchanged.
+
+
+Today, Upcoming and Recent Progress build owner URLs from DashboardTask.origin, using /projects/:id for work and /projects/:id/pages/:kind otherwise, plus section-:id. They render taskMeta from the tasks feature, passing the server's overdue flag, Today time-of-day and Recent Progress completed-date options. No browser clock derives the accent. Active Projects renders breadcrumb ancestors only; project emoji use aria-hidden.

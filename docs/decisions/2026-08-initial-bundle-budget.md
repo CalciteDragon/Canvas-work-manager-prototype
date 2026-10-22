@@ -145,3 +145,8 @@ moves from **1050 kB to 1100 kB**, about 50 kB of headroom, the same size of ste
 levers remain open: more `@defer` boundaries for UI that is not initially visible, and the
 eager modal shell of the development panel. This amendment records a choice, not a measurement
 that the bundle is fine.
+
+
+**Amended, 2026-10-21 — Slice 77, user-approved ceiling.** The user raised the initial
+maximumError from 1100 kB to **1150 kB** for the object-row slice. The 850 kB warning stays.
+This records the accepted ceiling; the final production build supplies its measurement.

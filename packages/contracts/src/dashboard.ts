@@ -4,6 +4,7 @@ import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, TaskIdSchema } from './ids';
 import { ProjectStatusSchema } from './project';
 import { TaskPrioritySchema, TaskStatusSchema } from './task';
+import { TodoTaskOriginSchema } from './project-todos';
 
 /** §25's preset sizes. No pixel resizing until the prototype shows resizing is useful. */
 export const WidgetSizeSchema = z.enum(['small', 'medium', 'wide', 'full']);
@@ -51,6 +52,7 @@ export type DashboardQuery = z.infer<typeof DashboardQuerySchema>;
  * not an answer to "what should I do today?".
  */
 export const DashboardTaskSchema = z.object({
+  origin: TodoTaskOriginSchema,
   id: TaskIdSchema,
   projectId: ProjectIdSchema,
   projectName: z.string().min(1),
@@ -66,6 +68,8 @@ export const DashboardTaskSchema = z.object({
 export type DashboardTask = z.infer<typeof DashboardTaskSchema>;
 
 export const DashboardProjectSchema = z.object({
+  /** Ancestors only, root first; empty for a root project (§24). */
+  breadcrumb: z.array(z.string().min(1)),
   id: ProjectIdSchema,
   name: z.string().min(1),
   icon: z.string().optional(),

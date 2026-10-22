@@ -99,7 +99,13 @@ const meta: Meta<ShortcutFrame> = {
 export default meta;
 type Story = StoryObj<ShortcutFrame>;
 
-export const ReadOnly: Story = {};
+export const ReadOnly: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Read-only here. Open the source to change it.')).toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', '/projects/project-story#section-section-source');
+  },
+};
 export const DirectChrome: Story = {};
 export const Collapsed: Story = { args: { shortcut: shortcut({ collapsed: true }) } };
 export const SourceArchived: Story = {

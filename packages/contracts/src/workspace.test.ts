@@ -27,6 +27,7 @@ describe('SearchWorkspaceResultSchema', () => {
           title: 'Add retry budget',
           projectId: 'project-work-manager',
           projectName: 'Work Manager',
+      origin: { projectId: 'project-work-manager', pageId: 'page-work-manager', pageKind: 'home', sectionId: 'section-tasks', sectionName: 'Tasks', breadcrumb: [{ projectId: 'project-work-manager', name: 'Work Manager' }] },
           status: 'in_progress',
           dueAt: '2026-08-25T23:00:00.000Z',
         },
@@ -67,6 +68,7 @@ describe('UpcomingWorkResultSchema', () => {
       id: 'task-agent-triage',
       projectId: 'project-work-manager',
       projectName: 'Work Manager',
+      origin: { projectId: 'project-work-manager', pageId: 'page-work-manager', pageKind: 'home', sectionId: 'section-tasks', sectionName: 'Tasks', breadcrumb: [{ projectId: 'project-work-manager', name: 'Work Manager' }] },
       title: 'Triage the overnight agent errors',
       status: 'blocked',
       priority: 'medium',
@@ -82,3 +84,4 @@ describe('UpcomingWorkResultSchema', () => {
     expect(result.overdue[0]?.overdue).toBe(true);
   });
 });
+

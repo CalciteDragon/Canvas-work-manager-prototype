@@ -81,3 +81,6 @@ sequenceDiagram
 | `contract.test.ts` | `src/contract.test.ts` | One case per tool: success under minimal grants, denial per declared grant, store assertion |
 | `registry.test.ts`, `activity.test.ts`, `errors.test.ts` | `src/` | Order and metadata; activity attribution; error mapping |
 | Harness | `test/harness.ts` | Builds services over an `InMemoryDataStore` seeded from `agent-heavy`, counts persists, injects a foreign-workspace project |
+
+
+Slice 77: get_dashboard_context and get_upcoming_work return each task’s canonical origin under workspace.read. Discovery exposes canonical section records for picker Preview, never task/reflection rows. Handlers continue to call domain services.

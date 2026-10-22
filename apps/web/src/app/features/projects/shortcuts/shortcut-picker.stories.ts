@@ -1,3 +1,4 @@
+import { ProjectSectionSchema } from '@cwm/contracts';
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
 import { provideRouter } from '@angular/router';
@@ -27,6 +28,7 @@ const meta: Meta<ShortcutPicker> = {
           useValue: new FakeWorkManagerGateway({
             shortcutSources: [
               {
+                section: ProjectSectionSchema.parse({ id: 'section-kitchen', projectId: PROJECT, pageId: 'page-work', type: 'task-list', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-24T16:00:00.000Z', updatedAt: '2026-08-24T16:00:00.000Z' }),
                 sourceSectionId: 'section-kitchen' as SectionId,
                 type: 'task-list',
                 name: 'Kitchen tasks',
@@ -38,6 +40,7 @@ const meta: Meta<ShortcutPicker> = {
                 alreadyPlaced: false,
               },
               {
+                section: ProjectSectionSchema.parse({ id: 'section-notes', projectId: PROJECT, pageId: 'page-work', type: 'markdown', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-24T16:00:00.000Z', updatedAt: '2026-08-24T16:00:00.000Z' }),
                 sourceSectionId: 'section-notes' as SectionId,
                 type: 'markdown',
                 name: 'Launch notes',
@@ -54,13 +57,22 @@ const meta: Meta<ShortcutPicker> = {
       ],
     }),
   ],
-  args: { projectId: PROJECT, pageId: PAGE },
+  args: { projectId: PROJECT, pageId: PAGE, create: fn(async () => null) },
 };
 
 export default meta;
 type Story = StoryObj<ShortcutPicker>;
 
 export const AvailableSources: Story = {};
+
+/** Content is loaded only when the source's Preview disclosure opens. */
+export const PreviewOpen: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getAllByText('Preview')[0]!);
+    await expect(canvas.getByText('The source has no tasks yet.')).toBeVisible();
+  },
+};
 
 export const Empty: Story = {
   decorators: [
@@ -84,6 +96,7 @@ export const AlreadyPlaced: Story = {
           useValue: new FakeWorkManagerGateway({
             shortcutSources: [
               {
+                section: ProjectSectionSchema.parse({ id: 'section-notes', projectId: PROJECT, pageId: 'page-work', type: 'markdown', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-24T16:00:00.000Z', updatedAt: '2026-08-24T16:00:00.000Z' }),
                 sourceSectionId: 'section-notes' as SectionId,
                 type: 'markdown',
                 name: 'Launch notes',

@@ -1,3 +1,4 @@
+import { taskMeta } from '../../tasks/task-meta';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -57,6 +58,7 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
   styleUrl: './todos-page.scss',
 })
 export class TodosPage {
+  readonly taskMeta = taskMeta;
   readonly projectId = input.required<ProjectId>();
   /** The Todos page record. Nothing here reads it: the chronology is scoped by the root (§34). */
   readonly pageId = input.required<ProjectPageId>();

@@ -1,5 +1,11 @@
 # What the projects feature is made of
 
+The shared section inputs include nullable source navigation. Canonical frames and picker
+Previews pass no source link; shortcut frames pass the owner's route and section fragment.
+`ShortcutPicker` groups source identities by project/page location and mounts a single registry
+content component on demand in its read-only Preview disclosure. Its content reads and errors
+stay with that component; Preview does not create a second gateway or copy source rows.
+
 ## Structure
 
 ```mermaid

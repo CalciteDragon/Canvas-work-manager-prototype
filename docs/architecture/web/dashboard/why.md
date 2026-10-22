@@ -64,3 +64,6 @@ is never required.
 real AI · §45 time · §57 agent activity.
 
 [Depth V2](../../../decisions/2026-10-depth-blur-budget.md) gives every widget the same translucent sheet without adding a blur layer per widget.
+
+
+Slice 77 follows [rows open their canonical owner](../../../decisions/2026-10-rows-open-their-canonical-owner.md): shared anatomy, title-only navigation and independent write controls.

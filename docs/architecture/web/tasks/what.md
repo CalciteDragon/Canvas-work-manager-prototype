@@ -62,3 +62,6 @@ sequenceDiagram
 | `TaskListStore` | `task-list-store.ts` | One container's rows; optimistic writes; quiet live re-reads; create preserves selection and refresh clears vanished selections |
 | `TaskDrawerCoordinator` | `task-drawer-coordinator.ts` | Shell-scoped optional selection ownership and drawer-open signal; stale releases cannot clear a newer owner |
 | `LiftFocus`, `LiftStack` | `shared/lifts/` | Shared opener restoration and one-open-lift registration, used by the projects Task List section |
+
+
+TaskRow renders the global object-row primitive; task-meta.ts formats ordered fragments independently of stores. object-row.stories.ts and the Lab expose primitive variants before page adoption.

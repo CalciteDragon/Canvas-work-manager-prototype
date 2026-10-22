@@ -4,7 +4,11 @@
   [attr.data-task-id]="task().id"
   [class.task-row--read-only]="readOnly()"
   (click)="selectBackground($event)"
-  class="task-row"
+  class="task-row object-row"
+  [class.object-row--finished]="completed()"
+  [class.object-row--overdue]="overdue()"
+  [class.object-row--high-priority]="task().priority === 'high'"
+  [class.object-row--static]="readOnly() && !link()"
   [class.task-row--normal]="normal()"
   [class.task-row--overdue]="overdue()"
   [class.task-row--completed]="completed()"
@@ -18,7 +22,7 @@
   @if (!readOnly()) {
     <input
       data-task-complete
-      class="checkbox task-row__checkbox"
+      class="checkbox task-row__checkbox object-row__control"
       type="checkbox"
       [checked]="completed()"
       [attr.aria-disabled]="pending()"
@@ -29,12 +33,14 @@
   }
 
   <div class="task-row__body">
-    @if (readOnly()) {
-      <span data-task-title class="task-row__title">{{ task().title }}</span>
+    @if (link(); as owner) {
+      <a data-task-title class="link task-row__title object-row__title" [routerLink]="owner.route" [fragment]="owner.fragment">{{ task().title }}</a>
+    } @else if (readOnly()) {
+      <span data-task-title class="task-row__title object-row__title">{{ task().title }}</span>
     } @else {
       <button
         data-task-title
-        class="task-row__title"
+        class="task-row__title object-row__title"
         type="button"
         [attr.aria-label]="task().title + ', open details'"
         [attr.aria-current]="selected() ? true : null"
@@ -44,24 +50,21 @@
       </button>
     }
 
-    <div class="task-row__metadata">
-      <span class="task-row__priority">{{ task().priority }} priority</span>
-      @if (task().dueAt; as dueAt) {
-        <time [attr.datetime]="dueAt">Due {{ dueAt.slice(0, 10) }}</time>
-      }
-      @if (overdue()) {
-        <span class="task-row__overdue-label">Overdue</span>
+    <div class="task-row__metadata object-row__meta">
+      @for (item of meta(); track item.kind) {
+        @if (item.datetime) { <time [attr.datetime]="item.datetime">{{ item.text }}</time> }
+        @else { <span [class.task-row__overdue-label]="item.kind === 'overdue'">{{ item.text }}</span> }
       }
     </div>
     @if (shownError(); as message) {
-      <p data-task-error class="task-row__error" role="alert" [id]="errorId()">{{ message }}</p>
+      <p data-task-error class="task-row__error object-row__context" role="alert" [id]="errorId()">{{ message }}</p>
     }
   </div>
 
   @if (!readOnly()) {
     <button
       data-task-delete
-      class="tool task-row__delete"
+      class="tool task-row__delete object-row__tools"
       type="button"
       [attr.aria-disabled]="archiving() ? 'true' : null"
       [attr.aria-label]="'Delete task ' + task().title"

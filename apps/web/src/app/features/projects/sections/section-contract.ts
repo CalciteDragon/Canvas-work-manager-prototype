@@ -26,6 +26,8 @@ export interface SectionContentInputs extends Record<string, unknown> {
   projectHierarchyRevision: number;
   /** A shortcut is a read-only projection of this same content component (§27). */
   readOnly: boolean;
+  /** Canonical source navigation for shortcut rows; null in owners and picker previews. */
+  sourceLink: { route: string[]; fragment: string } | null;
 }
 
 /**
@@ -40,4 +42,5 @@ export interface SectionContentComponent {
   readonly projectDataRevision: unknown;
   readonly projectHierarchyRevision: unknown;
   readonly readOnly: unknown;
+  readonly sourceLink: unknown;
 }

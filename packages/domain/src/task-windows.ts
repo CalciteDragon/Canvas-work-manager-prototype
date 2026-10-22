@@ -1,4 +1,4 @@
-import type { DashboardTask, Project, Task, TaskStatus } from '@cwm/contracts';
+import type { DashboardTask, Project, Task, TaskStatus, TodoTaskOrigin } from '@cwm/contracts';
 
 /**
  * The three questions every "what should I be doing?" read asks of a task, in one place.
@@ -33,7 +33,8 @@ export const byDueDate = (left: Task, right: Task): number => (left.dueAt ?? '')
  * `get_upcoming_work`, which want the same projection for the same reason: a row that
  * cannot say which project it belongs to is not an answer.
  */
-export const dashboardTaskFor = (task: Task, project: Project | undefined, nowMs: number): DashboardTask => ({
+export const dashboardTaskFor = (task: Task, project: Project | undefined, nowMs: number, origin: TodoTaskOrigin): DashboardTask => ({
+  origin,
   id: task.id,
   projectId: task.projectId,
   projectName: project?.name ?? 'Unknown project',

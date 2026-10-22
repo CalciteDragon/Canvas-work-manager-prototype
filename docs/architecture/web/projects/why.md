@@ -239,3 +239,6 @@ navigation can destroy its initiating shell. [Creation defaults](../../../decisi
 now keep task quick-add in the list; workstream default/navigation changes remain pending.
 
 [One toast with receipt Undo](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md) keeps confirmations reachable from each acted region. [Always-visitable Archive](../../../decisions/2026-10-archive-is-always-visitable.md) makes visiting recovery navigation only, preserving the removal as the latest Undo.
+
+
+Slice 77 follows [rows open their canonical owner](../../../decisions/2026-10-rows-open-their-canonical-owner.md): shared anatomy, title-only navigation and independent write controls.

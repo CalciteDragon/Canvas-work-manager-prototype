@@ -110,6 +110,7 @@ sequenceDiagram
 | `archivedAncestry` | `src/project-visibility.ts` | Archiving reaches down without cascading |
 | `Instant` | `src/instants.ts` | Lossless ordering of ISO instants as text |
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
+| `taskOrigin` | `src/task-origin.ts` | Pure canonical owner, page, section and root-first breadcrumb resolution shared by Todos, dashboard, upcoming work and Timeline |
 | `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard, no reparent to another root that would split a shortcut's canvas and source; `create` records `project.add` in the created project's history and, like `update`/`archive`, answers `{ project, operation }` |
 | `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three, recording one action per changed toggle |
 | `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
@@ -124,13 +125,13 @@ sequenceDiagram
 | Task capture, revert and reapply | `src/task-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including subtree and implicit-container effects |
 | Reflection capture, revert and reapply | `src/reflection-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including historical subjects and implicit containers |
 | `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |
-| `SectionShortcutService` | `src/section-shortcut-service.ts` | Placements on a canonical page (Home or Work); identity and availability, never content; records each placement write in the destination project |
+| `SectionShortcutService` | `src/section-shortcut-service.ts` | Placements on a canonical page (Home or Work); identity, canonical section config and availability, never owned rows; records each placement write in the destination project |
 | `TaskService` | `src/task-service.ts` | Create, update, complete, archive (cascading to subtasks), restore, move within a project |
 | `ReflectionService` | `src/reflection-service.ts` | Write, edit, archive, restore; optional subject |
 | `AgentConnectionService` | `src/agent-connection-service.ts` | Permissions and revocation — user actors only; throttled `lastUsedAt` |
 | `ActivityService` | `src/activity-service.ts` | Captures durable target identity, records events and publishes one post-commit frame |
-| `DashboardService` | `src/dashboard-service.ts` | §24's one derived read, including the digest and Fun Fact |
-| `ProgressService`, `TimelineService` | `src/progress-service.ts`, `src/timeline-service.ts` | §39 formulas; §38 derived ranges |
+| `DashboardService` | `src/dashboard-service.ts` | §24's one derived read, including task origins, project ancestor paths, the digest and Fun Fact; unresolved task containers are excluded before counting |
+| `ProgressService`, `TimelineService` | `src/progress-service.ts`, `src/timeline-service.ts` | §39 formulas; §38 derived ranges with canonical task-section and workstream links |
 | `WorkspaceService` | `src/workspace-service.ts` | `search_workspace`, `get_upcoming_work` under `workspace.read` |
 | `ProjectTodosService`, `ProjectArchiveService`, `ProjectJournalService` | `src/project-*-service.ts` | The three root-wide projections (§34, §31, §36) |
 | `sectionRecoveryOf` | `src/section-recovery-policy.ts` | Package-internal pure policy: which section entries Archive lists, with recovery metadata |

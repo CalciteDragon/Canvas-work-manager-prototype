@@ -123,6 +123,7 @@ export class SectionShortcutService {
       sources.push(
         ShortcutSourceSchema.parse({
           sourceSectionId: section.id,
+          section,
           type: section.type,
           name: nameOf(section),
           projectId: sourceProject.id,

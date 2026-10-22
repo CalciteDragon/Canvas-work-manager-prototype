@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DashboardTaskSchema,
+  DashboardProjectSchema,
   DashboardQuerySchema,
   DashboardResultSchema,
   DashboardWidgetSchema,
@@ -71,6 +73,7 @@ const dashboardTask = {
   id: 'task-1',
   projectId: 'project-1',
   projectName: 'Website launch',
+  origin: { projectId: 'project-1', pageId: 'page-1', pageKind: 'home', sectionId: 'section-1', sectionName: 'Tasks', breadcrumb: [{ projectId: 'project-1', name: 'Website launch' }] },
   title: 'Run launch QA',
   status: 'in_progress',
   priority: 'high',
@@ -93,6 +96,7 @@ describe('DashboardResultSchema', () => {
       {
         id: 'project-1',
         name: 'Website launch',
+        breadcrumb: [],
         icon: '🚀',
         status: 'active',
         targetDate: '2026-08-28',
@@ -130,3 +134,15 @@ describe('DashboardResultSchema', () => {
     expect(GeneratedContentSchema.safeParse({ ...generated, source: 'openai' }).success).toBe(false);
   });
 });
+
+it('requires a canonical task origin and project ancestors (slice 77, §24)', () => {
+  const { origin: _origin, ...withoutOrigin } = dashboardTask;
+  expect(DashboardTaskSchema.safeParse(withoutOrigin).success).toBe(false);
+  const origin = { projectId: 'project-1', pageId: 'page-1', pageKind: 'home', sectionId: 'section-1', sectionName: 'Tasks', breadcrumb: [{ projectId: 'project-1', name: 'Website launch' }] };
+  expect(DashboardTaskSchema.parse({ ...dashboardTask, origin })).toHaveProperty('origin', origin);
+  const project = { id: 'project-1', name: 'Kitchen', status: 'active', openTasks: 0, completedTasks: 0, percentage: null, daysToTarget: null };
+  expect(DashboardProjectSchema.safeParse(project).success).toBe(false);
+  expect(DashboardProjectSchema.parse({ ...project, breadcrumb: ['Renovation', 'Downstairs'] }).breadcrumb).toEqual(['Renovation', 'Downstairs']);
+  expect(DashboardProjectSchema.parse({ ...project, breadcrumb: [] }).breadcrumb).toEqual([]);
+});
+

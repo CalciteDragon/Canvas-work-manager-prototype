@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { getDefaultEnvironment, StdioClientTransport } from '@modelcontextprotocol/client/stdio';
-import { ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema } from '@cwm/contracts';
+import { DashboardResultSchema, UpcomingWorkResultSchema, TodoTaskOriginSchema, ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema } from '@cwm/contracts';
 import { SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
 import { writeSeedFile } from '@cwm/prototype-data';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -57,6 +57,18 @@ describe('MCP stdio entry (§59)', () => {
 
   const receipt = (result: { structuredContent?: unknown }) =>
     (result.structuredContent as { operation: { historyId: string; actionId: string; revision: number } }).operation;
+
+  it('returns canonical origins over stdio for both workspace task projections (§24, slice 77)', async () => {
+    const path = await fixture();
+    const client = await connect(path);
+    try {
+      const dashboard = DashboardResultSchema.parse((await client.callTool({ name: 'get_dashboard_context', arguments: {} })).structuredContent);
+      const upcoming = UpcomingWorkResultSchema.parse((await client.callTool({ name: 'get_upcoming_work', arguments: {} })).structuredContent);
+      const rows = [...dashboard.today.overdue, ...dashboard.today.dueToday, ...dashboard.today.inProgress, ...dashboard.upcoming.tasks, ...dashboard.recentProgress.tasks, ...upcoming.overdue, ...upcoming.upcoming];
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) expect(TodoTaskOriginSchema.parse(row.origin).projectId).toBe(row.projectId);
+    } finally { await client.close(); }
+  }, budget(1));
 
   it.each(['create_task', 'undo_operation'] as const)('rolls back a failed %s commit and retries once', async (tool) => {
     const path = await fixture();

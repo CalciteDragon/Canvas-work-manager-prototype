@@ -10,17 +10,21 @@ import {
   type Task,
   type UpcomingWorkQuery,
   type UpcomingWorkResult,
+  type TodoTaskOrigin,
 } from '@cwm/contracts';
-import type { ProjectRepository, ReflectionRepository, TaskRepository } from '@cwm/repositories';
+import type { ProjectPageRepository, ProjectRepository, ReflectionRepository, SectionRepository, TaskRepository } from '@cwm/repositories';
 import { assertPermitted, type ActorContext } from './actor';
 import { DAY_MS, isoDayOf, startOfUtcDay } from './calendar';
 import type { Clock } from './clock';
 import { archivedAncestry } from './project-visibility';
 import { byDueDate, dashboardTaskFor, isOpen, isOverdue } from './task-windows';
+import { taskOrigin } from './task-origin';
 
 export interface WorkspaceServiceDependencies {
   projects: ProjectRepository;
   tasks: TaskRepository;
+  sections: SectionRepository;
+  pages: ProjectPageRepository;
   reflections: ReflectionRepository;
   clock: Clock;
 }
@@ -115,15 +119,24 @@ export class WorkspaceService {
 
     const visible = await this.visibleProjects(actor);
     const byId = new Map(visible.map((project) => [project.id, project]));
-    const open = (await this.dependencies.tasks.list()).filter(
+    const [tasks, sections, pages] = await Promise.all([
+      this.dependencies.tasks.list(), this.dependencies.sections.list(), this.dependencies.pages.list(),
+    ]);
+    const origins = new Map<string, TodoTaskOrigin>();
+    const open = tasks.filter(
       (task) => task.archivedAt === undefined && byId.has(task.projectId) && isOpen(task),
-    );
+    ).filter((task) => {
+      const origin = taskOrigin(task, visible, sections, pages);
+      if (origin === undefined) return false;
+      origins.set(task.id, origin);
+      return true;
+    });
 
     const bucket = (tasks: Task[]): DashboardTask[] =>
       tasks
         .sort(byDueDate)
         .slice(0, query.limit)
-        .map((task) => dashboardTaskFor(task, byId.get(task.projectId), nowMs));
+        .map((task) => dashboardTaskFor(task, byId.get(task.projectId), nowMs, origins.get(task.id)!));
 
     return UpcomingWorkResultSchema.parse({
       days: query.days,

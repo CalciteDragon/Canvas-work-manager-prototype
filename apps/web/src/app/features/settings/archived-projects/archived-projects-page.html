@@ -21,7 +21,8 @@
         <div class="archived-projects__identity">
           <h2>{{ item.project.name }}</h2>
           <p class="archived-projects__breadcrumb">
-            @for (step of item.breadcrumb; track step.projectId; let last = $last) {
+            @if (item.breadcrumb.length <= 1) { Top-level project }
+            @for (step of item.breadcrumb.slice(0, -1); track step.projectId; let last = $last) {
               {{ step.name }}@if (!last) { <span aria-hidden="true"> / </span> }
             }
           </p>

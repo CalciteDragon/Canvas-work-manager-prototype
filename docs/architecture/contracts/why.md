@@ -210,3 +210,6 @@ on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
 **New removal requests do not choose a row policy.** A strict empty input prevents callers from silently sending retired fields; the stored version-1 union keeps its policy field only to execute already-recorded reassign actions ([decision](../../decisions/2026-09-one-step-section-removal-and-task-delete.md)).
 
 **A conflict only ever describes a change outside the caller's history.** Under a cursor the caller's own later change is reached by undoing it first (`history_not_next`), so Slice 35 removed the `superseded` problem, `supersededBy` and the "use the later receipt" steps; a changed value someone else wrote gets `change-by-hand` or `change-by-hand-or-archive`, and a permanently unsatisfiable action retires ([decision](../../decisions/2026-09-operation-history-retired-actions.md)).
+
+
+Slice 77 keeps navigation identity in contracts and routes in the web, following [rows open their canonical owner](../../decisions/2026-10-rows-open-their-canonical-owner.md).

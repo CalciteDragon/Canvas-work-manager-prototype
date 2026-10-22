@@ -215,8 +215,8 @@ export const buildHarness = () => {
     journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
-    dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
-    workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
+    dashboard: new DashboardService({ projects, tasks, sections, pages, activity, clock, ai: new PrototypeAIProvider() }),
+    workspace: new WorkspaceService({ projects, tasks, sections, pages, reflections, clock }),
     history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, milestones, reflections, activity, clock, unitOfWork }),
   };
 

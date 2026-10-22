@@ -1,3 +1,4 @@
+import type { SectionContentInputs } from '../section-contract';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
 import { nameOf, type ProgressFormula, type ProjectSection, type SectionConfig } from '@cwm/contracts';
 import { SECTION_FRAME_NAME } from '../section-frame-name';
@@ -14,6 +15,7 @@ export class ProgressSection {
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
+  readonly sourceLink = input<SectionContentInputs['sourceLink']>(null);
   readonly store = inject(ProgressStore);
   private readonly frameName = inject(SECTION_FRAME_NAME, { optional: true });
   /**

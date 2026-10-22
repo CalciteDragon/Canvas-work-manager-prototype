@@ -109,3 +109,6 @@ header's history (Slice 41).
 
 
 The styling layer consists of `_tokens.scss` (theme bases, derived planes, focus, motion and shared constants), `_breakpoints.scss` (CSS-free reflow thresholds), `_base.scss` (ground and shared focus-visible ring), `_controls.scss` (the control primitives, imported after base) and `_lifts.scss` (native lift/menu classes imported after controls), plus `_control-states.scss` (no-output state mixins shared by the primitives, the base focus ring and the Lab).
+
+
+Slice 77 adds object-row to the global control primitives, applied by task rows, Todos, dashboard lists, Timeline, ActivityFeed and ArchivedRegion. The title is the interactive target; checkbox, metadata, context and tools remain separate slots. Reflections stays prose without an accent rule.

@@ -1,3 +1,6 @@
+import { CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
+import { By } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { RECEIPT_UNDO } from '../../../../core/history/receipt-undo';
@@ -68,7 +71,7 @@ const render = async (
   readOnly = false,
 ) => {
   TestBed.configureTestingModule({
-    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
+    providers: [provideRouter([]), { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
   });
   const onProjectDataChange = vi.fn();
   const fixture = TestBed.createComponent(TaskListSection);
@@ -836,4 +839,24 @@ describe('TaskListSection quick-add feedback (Slice 75, §34, §63)', () => {
     expect(store.pendingCreate()).toBeNull();
     expect(query(fixture, '[data-task-error]')).toBeNull();
   });
+});
+
+
+it('keeps order fixed during drag and explains cross-list movement (slice 77, §34)', async () => {
+ const {fixture}=await render();
+ const list=fixture.debugElement.query(By.directive(CdkDropList)).injector.get(CdkDropList);
+ expect(list.sortingDisabled).toBe(true);
+ const drag=fixture.debugElement.query(By.directive(CdkDrag)).injector.get(CdkDrag);
+ drag.started.emit({source:drag,event:new MouseEvent('mousedown')}); fixture.detectChanges();
+ expect(query(fixture,'[data-task-drag-hint]')?.textContent).toContain("Order within a list can't be changed yet.");
+ drag.ended.emit({source:drag,distance:{x:0,y:0},dropPoint:{x:0,y:0},event:new MouseEvent('mouseup')}); fixture.detectChanges();
+ expect(query(fixture,'[data-task-drag-hint]')).toBeNull();
+});
+it('links a shortcut task to its source and distinguishes the empty source (slice 77)', async () => {
+ const {fixture}=await render(undefined,true);
+ fixture.componentRef.setInput('sourceLink',{route:['/projects','project-a'],fragment:'section-section-tasks'}); await fixture.whenStable();
+ expect(query(fixture,'a[data-task-title]')?.getAttribute('href')).toBe('/projects/project-a#section-section-tasks');
+ TestBed.resetTestingModule();
+ const empty=await render(new FakeWorkManagerGateway(),true);
+ expect(query(empty.fixture,'[data-tasks-empty]')?.textContent).toBe('The source has no tasks yet.');
 });

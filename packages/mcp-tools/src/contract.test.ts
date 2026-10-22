@@ -1,4 +1,4 @@
-import { AgentPermissionSchema, OperationHistorySummarySchema, SectionAddResultSchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
+import { TodoTaskOriginSchema, AgentPermissionSchema, OperationHistorySummarySchema, SectionAddResultSchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
 import { requiredPermissions, toolPermission } from './tool';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -453,6 +453,7 @@ const CASES: Record<string, ToolCase> = {
     input: {},
     verify: (result) => {
       expect(result.days).toBe(7);
+      for (const task of [...result.overdue, ...result.upcoming]) expect(TodoTaskOriginSchema.safeParse(task.origin).success).toBe(true);
       // `task-agent-triage` is due 2026-08-23, the day before the seed's simulated Monday.
       expect(result.overdue.map((task: { id: string }) => task.id)).toContain('task-agent-triage');
     },
@@ -474,6 +475,7 @@ const CASES: Record<string, ToolCase> = {
     input: {},
     verify: (result) => {
       expect(result.today.date).toBe('2026-08-24');
+      for (const task of [...result.today.overdue, ...result.today.dueToday, ...result.today.inProgress, ...result.upcoming.tasks, ...result.recentProgress.tasks]) expect(TodoTaskOriginSchema.safeParse(task.origin).success).toBe(true);
       expect(result.dailyDigest.source).toBe('prototype');
       expect(result.dailyDigest.lines.length).toBeGreaterThan(0);
     },

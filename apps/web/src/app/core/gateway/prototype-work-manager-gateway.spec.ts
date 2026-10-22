@@ -166,6 +166,7 @@ const shortcut = ResolvedSectionShortcutSchema.parse({
   availability: 'available',
 });
 const shortcutSource = ShortcutSourceSchema.parse({
+  section: shortcut.source,
   sourceSectionId: 'section-source',
   type: 'markdown',
   name: 'Markdown',

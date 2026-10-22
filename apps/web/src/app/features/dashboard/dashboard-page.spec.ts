@@ -27,6 +27,7 @@ const task = (id: string, title: string, overrides: Record<string, unknown> = {}
   id,
   projectId: 'project-1',
   projectName: 'Website launch',
+  origin: { projectId: 'project-1', pageId: 'page-home', pageKind: 'home', sectionId: 'section-tasks', sectionName: 'Tasks', breadcrumb: [{ projectId: 'project-1', name: 'Website launch' }] },
   projectIcon: '🚀',
   title,
   status: 'todo',
@@ -47,7 +48,7 @@ const populated = (): DashboardResult =>
   },
   upcoming: { days: 7, throughDate: '2026-08-31', tasks: [task('task-soon', 'Replace air filter', { dueAt: '2026-08-27T02:00:00.000Z' })] },
   activeProjects: [
-    { id: 'project-1', name: 'Website launch', icon: '🚀', status: 'active', targetDate: '2026-08-28', openTasks: 2, completedTasks: 1, percentage: 33, daysToTarget: 4 },
+    { id: 'project-1', name: 'Website launch', breadcrumb: [], icon: '🚀', status: 'active', targetDate: '2026-08-28', openTasks: 2, completedTasks: 1, percentage: 33, daysToTarget: 4 },
   ],
   recentProgress: { days: 7, sinceDate: '2026-08-17', tasks: [task('task-done', 'Approve homepage copy', { status: 'done', completedAt: '2026-08-21T18:30:00.000Z' })] },
   dailyDigest: { lines: ['You have 1 task scheduled today.', '1 task is overdue.'], source: 'prototype', generatedAt: at },
@@ -221,4 +222,15 @@ describe('DashboardPage — Recent Agent Activity (§24, §57)', () => {
       'No agent has done anything yet.',
     );
   });
+});
+
+
+it('opens dashboard tasks at their canonical owner section and hides decorative emoji (§24)', async () => {
+ const element=await render([widget('today','today'),widget('upcoming','upcoming'),widget('recent','recent_progress')]);
+ const rows=element.querySelectorAll('[data-widget-task]'); expect(rows.length).toBe(4);
+ for(const row of rows) {
+  expect(row.querySelector('a.object-row__title')?.getAttribute('href')).toBe('/projects/project-1/pages/home#section-section-tasks');
+  expect(row.querySelector('[data-project-icon]')?.getAttribute('aria-hidden')).toBe('true');
+ }
+ expect(rows[0]?.classList.contains('object-row--overdue')).toBe(true);
 });

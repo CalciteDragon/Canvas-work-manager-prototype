@@ -3,19 +3,19 @@
 } @else {
   <ol class="activity__list">
     @for (row of rows(); track row.entry.id) {
-      <li data-activity-entry class="activity__row" [class.activity__row--arriving]="row.arriving" [attr.data-actor]="row.entry.actor">
-        <span class="pill activity__badge" [class.pill--accent]="row.entry.actor === 'user'" [class.pill--success]="row.entry.actor === 'agent'" [class.pill--warning]="row.entry.actor === 'system'" [attr.data-actor-badge]="row.entry.actor">
+      <li data-activity-entry class="activity__row object-row object-row--static" [class.activity__row--arriving]="row.arriving" [attr.data-actor]="row.entry.actor">
+        <span class="pill activity__badge object-row__meta" [class.pill--accent]="row.entry.actor === 'user'" [class.pill--success]="row.entry.actor === 'agent'" [class.pill--warning]="row.entry.actor === 'system'" [attr.data-actor-badge]="row.entry.actor">
           <app-icon [name]="row.actor.icon" />
           <span class="activity__badge-label">{{ row.actor.label }}</span>
         </span>
-        <span class="activity__body">
+        <span class="activity__body object-row__title">
           <strong data-activity-actor class="activity__actor">{{ row.entry.actorName }}</strong>
           <span data-activity-line class="activity__line">{{ row.verb }} “{{ row.target }}”</span>
           @if (row.entry.projectName; as project) {
             <span data-activity-project class="activity__project">{{ project }}</span>
           }
         </span>
-        <time data-activity-time class="activity__time" [attr.datetime]="row.entry.createdAt">
+        <time data-activity-time class="activity__time object-row__tools" [attr.datetime]="row.entry.createdAt">
           {{ row.when }}
         </time>
       </li>

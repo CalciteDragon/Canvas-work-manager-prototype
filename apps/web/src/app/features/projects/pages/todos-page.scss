@@ -61,19 +61,6 @@
   list-style: none;
 }
 
-// A row is a grid rather than a table: at narrow widths the columns stack, and the origin
-// breadcrumb wraps under the title instead of squeezing it (§23's narrow behaviour).
-.todos__row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-  gap: var(--space-2) var(--space-3);
-  align-items: center;
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
 // A failed complete or reopen, on its own row across the full width (Slice 75).
 .todos__row-error {
   grid-column: 1 / -1;
@@ -100,7 +87,6 @@
 }
 
 .todos__origin {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
@@ -117,12 +103,6 @@
 }
 
 [data-todo-history-link] {
-  grid-column: 1 / -1;
   font-size: var(--font-size-sm);
 }
 
-@media (max-width: breakpoints.$compact) {
-  .todos__row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-}

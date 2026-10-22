@@ -6,26 +6,44 @@
   } @else if (store.sources().length === 0) {
     <p data-shortcut-picker-empty class="shortcut-picker__muted">No other sections are available in this project tree.</p>
   } @else {
-    <ul class="shortcut-picker__list">
-      @for (source of store.sources(); track source.sourceSectionId) {
-        <li data-shortcut-source-option>
-          <div class="shortcut-picker__source">
-            <strong>{{ source.name }}</strong>
-            <span>{{ breadcrumb(source) }} · {{ pageLabel(source) }}</span>
-          </div>
-          <button
-            data-shortcut-add
-            type="button"
-            class="button button--sm"
-            [attr.aria-label]="addLabel(source)"
-            [disabled]="source.alreadyPlaced || pending()"
-            (click)="add(source)"
-          >
-            {{ source.alreadyPlaced ? 'Added' : pending() ? 'Adding…' : 'Add' }}
-          </button>
-        </li>
-      }
-    </ul>
+    @for (group of groups(); track group.id) {
+      <section data-shortcut-source-group class="shortcut-picker__group">
+        <h3 data-shortcut-location>{{ group.location }}</h3>
+        <ul class="shortcut-picker__list">
+          @for (source of group.sources; track source.sourceSectionId) {
+            <li data-shortcut-source-option>
+              <div class="shortcut-picker__option-header">
+                <div class="shortcut-picker__source">
+                  <strong>{{ source.name }}</strong>
+                </div>
+                <button
+                  data-shortcut-add
+                  type="button"
+                  class="button button--sm"
+                  [attr.aria-label]="addLabel(source)"
+                  [disabled]="source.alreadyPlaced || pending()"
+                  (click)="add(source)"
+                >
+                  {{ source.alreadyPlaced ? 'Added' : pending() ? 'Adding…' : 'Add' }}
+                </button>
+              </div>
+              <details data-shortcut-preview [open]="preview() === source.sourceSectionId" (toggle)="previewToggled(source, $event)">
+                <summary [attr.aria-label]="'Preview ' + source.name + ', ' + group.location">Preview</summary>
+                @if (preview() === source.sourceSectionId) {
+                  <div class="shortcut-picker__preview-content">
+                    @if (definitionFor(source.type); as definition) {
+                      <ng-container [ngComponentOutlet]="definition.component" [ngComponentOutletInputs]="previewInputs().get(source.sourceSectionId)!" />
+                    } @else {
+                      <p data-shortcut-preview-unavailable>This source section type is not available in this build.</p>
+                    }
+                  </div>
+                }
+              </details>
+            </li>
+          }
+        </ul>
+      </section>
+    }
   }
   @if (createError(); as error) {
     <p data-shortcut-picker-create-error class="shortcut-picker__error" role="alert">{{ error }}</p>

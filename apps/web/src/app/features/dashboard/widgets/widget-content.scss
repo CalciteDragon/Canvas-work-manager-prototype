@@ -18,33 +18,6 @@
   list-style: none;
 }
 
-.widget-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-sunken);
-}
-
-.widget-row--overdue {
-  border-color: var(--color-danger);
-  background: var(--color-danger-surface);
-}
-
-.widget-row__title {
-  font-size: var(--font-size-md);
-}
-
-.widget-row__meta {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  text-align: right;
-  white-space: nowrap;
-}
-
 .widget-group {
   display: flex;
   flex-direction: column;

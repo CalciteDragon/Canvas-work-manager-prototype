@@ -1,3 +1,4 @@
+import { ProjectSectionSchema } from '@cwm/contracts';
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { moduleMetadata } from '@storybook/angular-vite';
 import type { ProjectId, ProjectPageId, ShortcutSource } from '@cwm/contracts';
@@ -12,6 +13,7 @@ const PROJECT = 'project-story' as ProjectId;
 const PAGE = 'page-story' as ProjectPageId;
 
 const source: ShortcutSource = {
+  section: ProjectSectionSchema.parse({ id: 'section-kitchen', projectId: PROJECT, pageId: 'page-work', type: 'task-list', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-24T16:00:00.000Z', updatedAt: '2026-08-24T16:00:00.000Z' }),
   sourceSectionId: 'section-kitchen' as ShortcutSource['sourceSectionId'],
   type: 'task-list',
   name: 'Kitchen tasks',

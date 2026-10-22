@@ -1,3 +1,4 @@
+import type { SectionContentInputs } from '../section-contract';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { ProjectSection, SectionConfig } from '@cwm/contracts';
 import { MarkdownSectionBody } from './markdown-section-body';
@@ -35,6 +36,7 @@ export class MarkdownSection {
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
+  readonly sourceLink = input<SectionContentInputs['sourceLink']>(null);
   readonly placeholderText = computed(() => {
     const content = readMarkdownConfig(this.section().config);
     return content.state === 'ok' ? placeholderTextOf(content.markdown) : '';

@@ -36,3 +36,6 @@ one line in `DASHBOARD_WIDGET_REGISTRY`, rendered in preset sizes inside a commo
 - [How it works and how to change it](how.md)
 
 The common widget frame paints the shared Depth sheet plane without per-widget blur.
+
+
+Task widgets expose title links to the owning section using the returned origin. Active Projects shows ancestor names; decorative project emoji are hidden from accessibility names. All listed rows use the shared object-row anatomy.

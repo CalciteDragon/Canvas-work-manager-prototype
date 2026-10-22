@@ -113,3 +113,6 @@ reference a section elsewhere in the same tree.
 
 Shared placement shapes live in `src/history-placement.ts`; `src/activity.ts` includes durable
 historical identity on events and feed entries.
+
+
+Slice 77 read models: dashboard.ts imports TodoTaskOriginSchema from project-todos.ts; timeline.ts adds optional link identity; section-shortcut.ts adds ProjectSectionSchema to ShortcutSourceSchema. workspace.ts continues to reuse DashboardTaskSchema.

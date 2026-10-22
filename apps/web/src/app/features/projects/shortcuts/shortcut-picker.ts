@@ -1,19 +1,24 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
   input,
   output,
   signal,
 } from '@angular/core';
-import type { ProjectId, ProjectPageId, ShortcutSource } from '@cwm/contracts';
+import { NgComponentOutlet } from '@angular/common';
+import type { ProjectId, ProjectPageId, SectionConfig, SectionId, ShortcutSource } from '@cwm/contracts';
 import { ShortcutStore } from './shortcut-store';
+import { definitionFor } from '../sections/registry';
+import type { SectionContentInputs } from '../sections/section-contract';
 
-/** §27's source picker. It chooses an identity; it never loads source rows into the picker. */
+/** §27's source picker: identity discovery, with read-only content loaded on Preview. */
 @Component({
   selector: 'app-shortcut-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgComponentOutlet],
   templateUrl: './shortcut-picker.html',
   styleUrl: './shortcut-picker.scss',
 })
@@ -29,6 +34,37 @@ export class ShortcutPicker {
   readonly createError = signal<string | null>(null);
 
   readonly store = inject(ShortcutStore);
+  readonly preview = signal<SectionId | null>(null);
+  readonly definitionFor = definitionFor;
+  private readonly noopConfig = async (_config: SectionConfig): Promise<boolean> => false;
+  private readonly noopProjectData = (): void => {};
+  readonly previewInputs = computed(() => new Map(this.store.sources().map((source) => [source.sourceSectionId, {
+    section: source.section,
+    onConfigChange: this.noopConfig,
+    onProjectDataChange: this.noopProjectData,
+    projectDataRevision: 0,
+    projectHierarchyRevision: 0,
+    readOnly: true,
+    sourceLink: null,
+  } satisfies SectionContentInputs])));
+  readonly groups = computed(() => {
+    const groups = new Map<string, { location: string; sources: ShortcutSource[] }>();
+    for (const source of this.store.sources()) {
+      const key = `${source.projectId}/${source.pageId}`;
+      let group = groups.get(key);
+      if (group === undefined) {
+        group = { location: `${this.breadcrumb(source)} · ${this.pageLabel(source)}`, sources: [] };
+        groups.set(key, group);
+      }
+      group.sources.push(source);
+    }
+    return [...groups.entries()].map(([id, group]) => ({ id, ...group }));
+  });
+
+  previewToggled(source: ShortcutSource, event: Event): void {
+    if ((event.target as HTMLDetailsElement).open) this.preview.set(source.sourceSectionId);
+    else if (this.preview() === source.sourceSectionId) this.preview.set(null);
+  }
 
   constructor() {
     effect(() => {

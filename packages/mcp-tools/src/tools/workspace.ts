@@ -20,7 +20,7 @@ export const workspaceTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_upcoming_work',
     description:
-      'What is due soon: overdue tasks, and tasks due within the next few calendar days including today. Use this to answer “what should be worked on next?”.',
+      'What is due soon: overdue tasks, and tasks due within the next few calendar days including today. Each task includes canonical page and section origin identity. Use this to answer “what should be worked on next?”.',
     permission: 'workspace.read',
     inputSchema: UpcomingWorkQuerySchema,
     execute: (input, { actor, services }) => services.workspace.upcomingWork(actor, input),
@@ -28,7 +28,7 @@ export const workspaceTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_dashboard_context',
     description:
-      'The whole daily picture: today’s and overdue work, what is in progress, upcoming tasks, active projects, recent progress, and the daily digest.',
+      'The whole daily picture: today’s and overdue work, what is in progress, upcoming tasks, active projects, recent progress, and the daily digest. Task rows include canonical page and section origins under workspace.read.',
     permission: 'workspace.read',
     inputSchema: DashboardQuerySchema,
     execute: (input, { actor, services }) => services.dashboard.load(actor, input),

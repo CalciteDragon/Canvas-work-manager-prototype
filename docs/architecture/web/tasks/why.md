@@ -96,3 +96,6 @@ claim cannot clear the new owner.
 
 §4 component variants · §19 feature state · §33 task model · §34 task interactions · §63
 optimistic UI · §69 component tests.
+
+
+Slice 77 follows [rows open their canonical owner](../../../decisions/2026-10-rows-open-their-canonical-owner.md): shared anatomy, title-only navigation and independent write controls.

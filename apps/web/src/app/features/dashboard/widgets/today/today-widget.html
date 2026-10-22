@@ -6,17 +6,16 @@
       <p class="widget-group__label">{{ group.label }}</p>
       <ul class="widget-list">
         @for (task of group.tasks; track task.id) {
-          <li data-widget-task class="widget-row" [class.widget-row--overdue]="task.overdue">
-            <span class="widget-row__title">{{ task.title }}</span>
-            <span class="widget-row__meta">
-              {{ task.projectIcon ?? '📁' }} {{ task.projectName }}
-            @if (task.dueAt; as dueAt) {
-              <!-- An overdue row needs the day, not the hour: "23:00" on a task that was
-                   due last Sunday reads as tonight, which is the opposite of the truth. -->
-              · <time [attr.datetime]="dueAt">{{ task.overdue ? dueAt.slice(0, 10) : dueAt.slice(11, 16) }}</time>
-            }
-            </span>
-          </li>
+          <li data-widget-task class="widget-row object-row" [class.widget-row--overdue]="task.overdue" [class.object-row--overdue]="task.overdue" [class.object-row--high-priority]="task.priority === 'high'" [class.object-row--finished]="task.status === 'done'">
+        <a class="link object-row__title" [routerLink]="task.origin.pageKind === 'work' ? ['/projects', task.origin.projectId] : ['/projects', task.origin.projectId, 'pages', task.origin.pageKind]" [fragment]="'section-' + task.origin.sectionId">{{ task.title }}</a>
+        <span class="object-row__meta">
+          @for (item of taskMeta(task, { overdue: task.overdue, dueToday: group.label === 'Due today' }); track item.kind) {
+            @if (item.datetime) { <time [attr.datetime]="item.datetime">{{ item.text }}</time> }
+            @else { <span>{{ item.text }}</span> }
+          }
+        </span>
+        <span class="object-row__context"><span data-project-icon aria-hidden="true">{{ task.projectIcon ?? '📁' }}</span> {{ task.projectName }}</span>
+      </li>
         }
       </ul>
     </div>

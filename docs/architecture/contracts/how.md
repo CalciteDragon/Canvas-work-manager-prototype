@@ -233,3 +233,6 @@ writes and transitions emit exactly this list.
 
 `ActivityHistoricalContextSchema` captures target kind, id and label plus owning project/root.
 Event identity must agree with that context. Activity contains no executable inverse payload.
+
+
+DashboardTaskSchema requires origin and DashboardProjectSchema requires breadcrumb. TimelineItemSchema permits sectionId only on a task link. ShortcutSourceSchema requires section; unknown row collections are stripped. These are read-model additions, with no persistence schema change.

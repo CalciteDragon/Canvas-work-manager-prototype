@@ -44,31 +44,11 @@
   list-style: none;
 }
 
-// Wraps so the status choice and Restore drop below the identity on a phone (slice 72: the
-// shared button does not wrap its label).
-.archived-region__entry {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-// Claims a column before the controls do, so on a phone they wrap below it instead of
-// squeezing it to a sliver.
 .archived-region__identity {
   display: grid;
-  flex: 1 1 var(--layout-project-column-width);
-  min-width: 0;
   gap: var(--space-1);
 }
-
-.archived-region__name {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.archived-region__name { overflow-wrap: anywhere; }
 
 .archived-region__status {
   display: inline-flex;

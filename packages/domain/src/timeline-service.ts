@@ -1,12 +1,15 @@
 import { TimelineResultSchema, type Project, type ProjectId, type TimelineItem, type TimelineResult } from '@cwm/contracts';
-import type { MilestoneRepository, ProjectRepository, TaskRepository } from '@cwm/repositories';
+import type { MilestoneRepository, ProjectPageRepository, ProjectRepository, SectionRepository, TaskRepository } from '@cwm/repositories';
 import { assertPermitted, type ActorContext } from './actor';
 import { EntityNotFoundError } from './errors';
+import { taskOrigin } from './task-origin';
 
 export interface TimelineServiceDependencies {
   projects: ProjectRepository;
   tasks: TaskRepository;
   milestones: MilestoneRepository;
+  sections: SectionRepository;
+  pages: ProjectPageRepository;
 }
 
 const dateOf = (value: string): string => value.slice(0, 10);
@@ -25,10 +28,14 @@ export class TimelineService {
     const tasks = (await this.dependencies.tasks.list()).filter(({ projectId: id }) => included.has(id));
     const milestones = (await this.dependencies.milestones.list()).filter(({ projectId: id }) => included.has(id));
     const items: TimelineItem[] = [];
+    const [sections, pages] = await Promise.all([this.dependencies.sections.list(), this.dependencies.pages.list()]);
 
     for (const project of descendants) {
       if (project.targetDate !== undefined) {
-        items.push({ id: project.id, kind: 'sub-project', title: project.name, startDate: project.targetDate, endDate: project.targetDate, status: project.status });
+        const page = pages.find(({ projectId: ownerId, kind }) => ownerId === project.id && kind === 'work');
+        items.push({ id: project.id, kind: 'sub-project', title: project.name, startDate: project.targetDate, endDate: project.targetDate, status: project.status,
+          ...(page === undefined ? {} : { link: { projectId: project.id, pageKind: page.kind } }),
+        });
       }
     }
     for (const task of tasks) {
@@ -39,7 +46,10 @@ export class TimelineService {
       const invalidRange = rawStart !== undefined && rawEnd !== undefined && rawStart > rawEnd;
       const startDate = rawStart === undefined || rawEnd === undefined ? only : rawStart < rawEnd ? rawStart : rawEnd;
       const endDate = rawStart === undefined || rawEnd === undefined ? only : rawStart < rawEnd ? rawEnd : rawStart;
-      items.push({ id: task.id, kind: 'task', title: task.title, startDate, endDate, status: task.status, invalidRange: invalidRange || undefined });
+      const origin = taskOrigin(task, projects, sections, pages);
+      items.push({ id: task.id, kind: 'task', title: task.title, startDate, endDate, status: task.status, invalidRange: invalidRange || undefined,
+        ...(origin === undefined ? {} : { link: { projectId: origin.projectId, pageKind: origin.pageKind, sectionId: origin.sectionId } }),
+      });
     }
     for (const milestone of milestones) {
       if (milestone.targetDate !== undefined) {

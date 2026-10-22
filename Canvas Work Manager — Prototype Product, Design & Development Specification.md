@@ -1116,6 +1116,11 @@ Changes made by connected AI agents.
 
 ---
 
+*Slice 77 (§24).* Today, Upcoming and Recent Progress task titles open the canonical owner
+section, with the same transient expansion and heading focus as Todos. Rows carry page/section
+origin identity under workspace.read and omit tasks whose container cannot resolve. Active Projects
+shows ancestor names. Task metadata shares status, high priority, date and Overdue ordering.
+
 # 25. Dashboard Widget Model
 
 ```ts
@@ -1476,6 +1481,12 @@ same growth twice ([why](docs/decisions/2026-10-feedback-stays-on-the-object.md)
 
 ---
 
+*Slice 77 (§27).* Read-only shortcut task rows open their source section through the title.
+The frame says “Read-only here. Open the source to change it.” The picker groups sections by
+owner/page and offers an on-demand read-only Preview through the viewer’s content grants.
+Discovery carries the canonical section record including config, but never task/reflection rows.
+Preview stays inside the dialog and passes no navigation source link.
+
 ## Who owns what
 
 One chain, and it does not branch:
@@ -1648,6 +1659,8 @@ that embedded shortcuts are yet an MVP requirement.*
 section kinds with the same four shortcut placements.*
 
 ---
+
+
 
 # 28. Layout Experiment Flag
 
@@ -2275,6 +2288,11 @@ the source rows remained singly owned.*
 
 ---
 
+*Slice 77 (§34).* Task List, Todos and dashboard rows share one object-row anatomy, with
+independent checkbox, title, metadata, context and tools. Todos retains its own write behavior;
+its title opens the owner while a Task List title selects. Sorting within a Task List is disabled
+and the drag hint explains cross-list movement; reordering remains Slice 20.
+
 # 35. Milestones
 
 Milestones remain distinct from tasks initially.
@@ -2430,6 +2448,10 @@ Prototype focus:
 Not advanced scheduling.
 
 ---
+
+*Slice 77 (§38).* Timeline uses shared columns. Task titles link to their owner section and
+workstream titles to their project. Project and milestone rows are static. Selection and expanded
+detail are removed; a reversed-range warning appears inline.
 
 # 39. Progress
 
@@ -2895,6 +2917,10 @@ Changes should immediately affect subsequent MCP tool calls.
 *Corrected at Slice 70 Gate 1 (2026-10-14).* AI & Agents also lets a person connect a new agent: name it, choose its permissions, and see how to point an MCP client at the prototype. It stays inside the prototype fake auth, with no production OAuth (§80) ([decision](docs/decisions/2026-10-agent-connections-are-a-product-surface.md)).
 
 ---
+
+*Slice 77 (§53).* workspace.read includes aggregate task/project content and each returned
+task’s canonical page/section identity and root-first breadcrumb for dashboard and upcoming work.
+It does not newly require projects.read or tasks.read.
 
 # 54. Initial MCP Tools
 

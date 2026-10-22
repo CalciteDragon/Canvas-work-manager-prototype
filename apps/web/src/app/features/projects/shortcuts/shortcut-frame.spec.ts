@@ -125,6 +125,7 @@ describe('ShortcutFrame (§27)', () => {
 
     expect(fixture.componentInstance.contentInputs()).toBe(first);
     expect(first.readOnly).toBe(true);
+    expect(first['sourceLink']).toEqual({ route: ['/projects', 'project-a'], fragment: 'section-section-source' });
     expect(first.onConfigChange).toBe(fixture.componentInstance.contentInputs().onConfigChange);
   });
 });
@@ -183,7 +184,7 @@ it('slice 76 provides one named toolbar, a read-only cue and unlink remove', () 
   expect(toolbar.getAttribute('aria-label')).toBe('Markdown (Website launch) tools');
   expect([...toolbar.querySelectorAll('button')].map((button) => button.tabIndex)).toEqual([0, -1, -1]);
   expect([...toolbar.querySelectorAll('button')].map((button) => button.getAttribute('aria-label'))).toEqual(['Collapse Markdown (Website launch)', 'Move shortcut to Markdown (Website launch)', 'Remove shortcut to Markdown (Website launch)']);
-  expect(query(fixture, '[data-shortcut-source]')!.textContent).toContain('Read-only');
+    expect(query(fixture, '[data-shortcut-read-only]')!.textContent).toBe('Read-only here. Open the source to change it.');
   expect(query(fixture, '[data-shortcut-remove]')!.classList.contains('tool--danger')).toBe(false);
   expect(query(fixture, '[data-shortcut-remove] app-icon')!.getAttribute('name')).toBe('unlink');
   expect(query(fixture, '[data-section-title-edit]')).toBeNull();

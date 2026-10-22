@@ -64,6 +64,7 @@ describe('§27 shortcut contracts', () => {
   it('describes a picker source without exposing any rows', () => {
     expect(
       ShortcutSourceSchema.parse({
+        section: source,
         sourceSectionId: 'section-source',
         type: 'task-list',
         name: 'Tasks',
@@ -77,3 +78,12 @@ describe('§27 shortcut contracts', () => {
     ).not.toHaveProperty('tasks');
   });
 });
+
+it('requires the canonical section for a picker Preview, never rows (§27)', () => {
+  const entry = { sourceSectionId: source.id, type: source.type, name: 'Tasks', projectId: source.projectId, projectName: 'Kitchen', pageId: source.pageId, pageKind: 'work', breadcrumb: ['Renovation', 'Kitchen'], alreadyPlaced: false };
+  expect(ShortcutSourceSchema.safeParse(entry).success).toBe(false);
+  expect(ShortcutSourceSchema.parse({ ...entry, section: source, tasks: [] })).toHaveProperty('section', { ...source, archiveGeneration: 0 });
+  expect(ShortcutSourceSchema.parse({ ...entry, section: source, tasks: [] })).not.toHaveProperty('tasks');
+});
+
+

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { ProjectSectionSchema, type ProjectSection, type TimelineResult } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
@@ -26,9 +27,9 @@ const section = (): ProjectSection =>
 const timeline: TimelineResult = {
   projectId: section().projectId,
   items: [
-    { id: 'project-a', kind: 'project', title: 'Launch', startDate: '2026-09-01', endDate: '2026-09-30', status: 'active' },
-    { id: 'sub-a', kind: 'sub-project', title: 'Research', startDate: '2026-09-08', endDate: '2026-09-08', status: 'active' },
-    { id: 'task-a', kind: 'task', title: 'Prototype', startDate: '2026-09-10', endDate: '2026-09-14', status: 'doing', invalidRange: true },
+    { id: 'project-a', kind: 'project', title: 'Launch', startDate: '2026-09-01', endDate: '2026-09-30', status: 'active', link: { projectId: section().projectId, pageKind: 'home' } },
+    { id: 'sub-a', kind: 'sub-project', title: 'Research', startDate: '2026-09-08', endDate: '2026-09-08', status: 'active', link: { projectId: section().projectId, pageKind: 'work' } },
+    { id: 'task-a', kind: 'task', title: 'Prototype', startDate: '2026-09-10', endDate: '2026-09-14', status: 'doing', invalidRange: true, link: { projectId: section().projectId, pageKind: 'home', sectionId: section().id } },
     { id: 'milestone-a', kind: 'milestone', title: 'Review', startDate: '2026-09-20', endDate: '2026-09-20' },
   ],
 };
@@ -37,7 +38,7 @@ const settle = async () => { for (let index = 0; index < 5; index += 1) await Pr
 const render = async (options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = { timeline }) => {
   const gateway = new FakeWorkManagerGateway(options);
   TestBed.configureTestingModule({
-    providers: [TimelineStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
+    providers: [provideRouter([]), TimelineStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
   });
   const fixture = TestBed.createComponent(TimelineSection);
   const onConfigChange = vi.fn();
@@ -73,52 +74,30 @@ describe('TimelineSection (§38)', () => {
     expect(onProjectDataChange).not.toHaveBeenCalled();
   });
 
-  // §77, slice 72 (L5-005): the expanded state belongs to the button that toggles it, and the
-  // button names the details it controls. The row itself carries no state.
-  it('toggles readable details from the row button and visibly warns about an invalid source range', async () => {
+  it('links task and workstream titles to their owner, keeps other rows static and shows reversed ranges inline', async () => {
     const { fixture } = await render();
     const taskRow = query(fixture, '[data-timeline-id="task-a"]')!;
-    const button = taskRow.querySelector<HTMLButtonElement>('button')!;
-    expect(button.getAttribute('aria-expanded')).toBe('false');
-
-    button.click();
-    fixture.detectChanges();
-
-    const details = query(fixture, '[data-timeline-details="task-a"]');
-    expect(details).not.toBeNull();
+    expect(taskRow.querySelector('a')?.getAttribute('href')).toBe('/projects/project-a/pages/home#section-section-timeline');
+    expect(query(fixture, '[data-timeline-id="sub-a"] a')?.getAttribute('href')).toBe('/projects/project-a');
+    for (const id of ['project-a', 'milestone-a']) {
+      const row = query(fixture, `[data-timeline-id="${id}"]`)!;
+      expect(row.classList.contains('object-row--static')).toBe(true);
+      expect(row.querySelector('button, a')).toBeNull();
+    }
     expect(query(fixture, '[data-timeline-invalid-range]')?.textContent).toContain('dates were reversed');
-    expect(button.getAttribute('aria-expanded')).toBe('true');
-    expect(button.getAttribute('aria-controls')).toBe(details!.id);
-    expect(details!.id).not.toBe('');
-    expect(taskRow.hasAttribute('aria-expanded')).toBe(false);
-
-    button.click();
-    fixture.detectChanges();
-    expect(query(fixture, '[data-timeline-details="task-a"]')).toBeNull();
-    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(query(fixture, '[data-timeline-details], [aria-expanded], [aria-controls]')).toBeNull();
+    expect(taskRow.querySelector('.object-row__title')).not.toBeNull();
   });
 
-  // A section and its shortcut can show the same source on one page, so ids are per instance.
-  it('gives two instances of the same source distinct details ids', async () => {
-    const first = await render();
-    const second = TestBed.createComponent(TimelineSection);
-    second.componentRef.setInput('section', section());
-    second.componentRef.setInput('onConfigChange', vi.fn());
-    second.componentRef.setInput('onProjectDataChange', vi.fn());
-    second.componentRef.setInput('projectDataRevision', 0);
-    second.componentRef.setInput('projectHierarchyRevision', 0);
-    second.detectChanges();
-    await second.whenStable();
-    second.detectChanges();
-
-    const controls = [first.fixture, second].map((fixture) => {
-      const button = fixture.nativeElement.querySelector('[data-timeline-id="task-a"] button') as HTMLButtonElement;
-      button.click();
-      fixture.detectChanges();
-      return button.getAttribute('aria-controls');
-    });
-    expect(controls[0]).toBeTruthy();
-    expect(controls[0]).not.toBe(controls[1]);
+  it('keeps Preview inside its disclosure, while a read-only shortcut retains owner links', async () => {
+    const { fixture } = await render();
+    fixture.componentRef.setInput('readOnly', true);
+    fixture.detectChanges();
+    expect(query(fixture, '[data-timeline-row] a')).toBeNull();
+    expect(query(fixture, '[data-timeline-invalid-range]')).not.toBeNull();
+    fixture.componentRef.setInput('sourceLink', { route: ['/projects', 'project-a'], fragment: 'section-source' });
+    fixture.detectChanges();
+    expect(query(fixture, '[data-timeline-id="task-a"] a')?.getAttribute('href')).toBe('/projects/project-a/pages/home#section-section-timeline');
   });
 
   it('re-reads for both project-data and hierarchy revisions', async () => {

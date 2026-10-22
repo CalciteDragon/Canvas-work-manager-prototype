@@ -1,3 +1,4 @@
+import type { SectionContentInputs } from '../section-contract';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
@@ -59,6 +60,8 @@ export class TaskListSection {
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   readonly readOnly = input(false);
+  readonly dragging = signal(false);
+  readonly sourceLink = input<SectionContentInputs['sourceLink']>(null);
   readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
 
   readonly store = inject(TaskListStore);

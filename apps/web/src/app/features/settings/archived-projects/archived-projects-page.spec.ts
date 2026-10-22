@@ -236,3 +236,14 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
     });
   });
 });
+
+
+it('shows ancestors once and describes a root as top-level (slice 77)', async () => {
+ const {fixture}=await render();
+ expect(fixture.nativeElement.querySelector('.archived-projects__breadcrumb')?.textContent.trim()).toBe('Top-level project');
+ TestBed.resetTestingModule();
+ const child=ProjectSchema.parse({...project,id:'archived-child',kind:'subproject',parentProjectId:project.id,name:'Kitchen'});
+ const nested=await render(new FakeWorkManagerGateway({projects:[project,child],archivedProjects:{items:[{project:child,breadcrumb:[{projectId:project.id,name:project.name},{projectId:child.id,name:child.name}]}]}}));
+ const text=nested.fixture.nativeElement.querySelector('.archived-projects__breadcrumb')?.textContent;
+ expect(text).toContain('Past launch'); expect(text).not.toContain('Kitchen');
+});

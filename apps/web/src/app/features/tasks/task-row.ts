@@ -9,12 +9,14 @@ import {
   viewChild,
 } from '@angular/core';
 import type { Task, TaskId } from '@cwm/contracts';
+import { RouterLink } from '@angular/router';
+import { taskMeta } from './task-meta';
 import { Icon } from '../../shared/components/icon/icon';
 import { isOverdue } from './task-overdue';
 
 @Component({
   selector: 'app-task-row',
-  imports: [Icon],
+  imports: [Icon, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './task-row.html',
   styleUrl: './task-row.scss',
@@ -35,6 +37,8 @@ export class TaskRow {
   readonly error = input<string | null>(null);
   readonly now = input(Date.now());
   readonly readOnly = input(false);
+  /** A projection opens its canonical section instead of selecting a local task (§34). */
+  readonly link = input<{ route: string[]; fragment: string } | null>(null);
 
   readonly completionRequested = output<TaskId>();
   readonly reopenRequested = output<TaskId>();
@@ -57,6 +61,7 @@ export class TaskRow {
   readonly errorId = computed(() => `task-error-${this.task().id}`);
   readonly shownError = computed(() => (this.readOnly() ? null : this.error()));
   readonly overdue = computed(() => isOverdue(this.task(), this.now()));
+  readonly meta = computed(() => taskMeta(this.task(), { overdue: this.overdue(), completed: this.completed() }));
   readonly normal = computed(
     () =>
       !this.overdue() &&
@@ -103,12 +108,12 @@ export class TaskRow {
 
   /** Native title-button activation is the keyboard path into this non-modal drawer. */
   selectTitle(event: MouseEvent): void {
-    if (!this.readOnly() && !this.pointerMoved(event)) this.selectedRequested.emit(this.task().id);
+    if (!this.readOnly() && !this.link() && !this.pointerMoved(event)) this.selectedRequested.emit(this.task().id);
   }
 
   /** A row background selects once, unless this pointer gesture dragged or selected text. */
   selectBackground(event: MouseEvent): void {
-    if (this.readOnly()) return;
+    if (this.readOnly() || this.link()) return;
     const row = this.row().nativeElement;
     if (event.target instanceof Element && event.target.closest('button, input, a, select, textarea, label')) {
       return;

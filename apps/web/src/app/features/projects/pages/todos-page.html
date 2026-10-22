@@ -31,37 +31,18 @@
       @for (item of store.items(); track idOf(item)) {
         <li
           data-todo-row
-          class="todos__row"
+          class="todos__row object-row"
+          [class.object-row--finished]="finished(item)"
+          [class.object-row--high-priority]="item.kind === 'task' && item.task.priority === 'high'"
           [attr.data-todo-id]="idOf(item)"
           [attr.data-todo-kind]="item.kind"
           [class.todos__row--finished]="finished(item)"
         >
-          <span class="todos__kind">{{ kindLabel(item) }}</span>
-
-          <a data-todo-link class="link todos__title" [routerLink]="linkOf(item)" [fragment]="fragmentOf(item)">
-            {{ titleOf(item) }}
-          </a>
-
-          <span data-todo-due class="todos__due">{{ dueOf(item) ?? 'No due date' }}</span>
-          <span data-todo-status class="todos__status">{{ statusOf(item) }}</span>
-
-          <ol data-todo-origin class="todos__origin">
-            @for (step of breadcrumbOf(item); track $index) {
-              <li>{{ step }}</li>
-            }
-          </ol>
-
-          @if (historyOwner(item); as owner) {
-            <a class="link" data-todo-history-link [routerLink]="owner.route" fragment="history-controls">
-              Open {{ owner.name }} history
-            </a>
-          }
-
           @if (item.kind === 'task' && item.task.status !== 'cancelled') {
             <input
               data-todo-toggle
               type="checkbox"
-              class="checkbox todos__toggle"
+              class="checkbox todos__toggle object-row__control"
               [checked]="item.task.status === 'done'"
               [attr.aria-describedby]="store.rowErrors().has(idOf(item)) ? 'todo-error-' + idOf(item) : null"
               [attr.aria-disabled]="writesBlocked() ? 'true' : null"
@@ -72,7 +53,7 @@
             <button
               data-todo-complete
               type="button"
-              class="button button--sm todos__complete"
+              class="button button--sm todos__complete object-row__tools"
               [disabled]="writesBlocked()"
               [attr.aria-describedby]="store.rowErrors().has(idOf(item)) ? 'todo-error-' + idOf(item) : null"
               [attr.aria-label]="'Complete ' + titleOf(item)"
@@ -82,11 +63,44 @@
             </button>
           }
 
+
+
+          <a data-todo-link class="link todos__title object-row__title" [routerLink]="linkOf(item)" [fragment]="fragmentOf(item)">
+            {{ titleOf(item) }}
+          </a>
+
+          <div class="object-row__meta">
+            <span class="todos__kind">{{ kindLabel(item) }}</span>
+            @if (item.kind === 'task') {
+              @for (meta of taskMeta(item.task, { alwaysStatus: true }); track meta.kind) {
+                @if (meta.kind === 'status') { <span data-todo-status>{{ meta.text }}</span> }
+                @else if (meta.kind === 'due') { <span data-todo-due>{{ dueOf(item) }}</span> }
+                @else { <span>{{ meta.text }}</span> }
+              }
+              @if (!item.task.dueAt) { <span data-todo-due>No due date</span> }
+            } @else {
+              <span data-todo-status>{{ statusOf(item) }}</span>
+              <span data-todo-due>{{ dueOf(item) ?? 'No due date' }}</span>
+            }
+          </div>
+
+          <ol data-todo-origin class="todos__origin object-row__context">
+            @for (step of breadcrumbOf(item); track $index) {
+              <li>{{ step }}</li>
+            }
+          </ol>
+
+          @if (historyOwner(item); as owner) {
+            <a class="link object-row__context" data-todo-history-link [routerLink]="owner.route" fragment="history-controls">
+              Open {{ owner.name }} history
+            </a>
+          }
+
           @if (item.kind === 'task') {
             <button
               data-todo-delete
               type="button"
-              class="tool todos__delete"
+              class="tool todos__delete object-row__tools"
               [disabled]="writesBlocked()"
               [attr.aria-label]="'Delete task ' + item.task.title"
               [attr.title]="'Delete task ' + item.task.title"

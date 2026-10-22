@@ -21,6 +21,12 @@ const setupNestedSource = async () => {
   return { harness, child, childPage, source, home };
 };
 
+it('slice 77 sources carry their canonical section including config under projects.read alone', async () => {
+  const { harness, source, home } = await setupNestedSource();
+  const sources = await harness.sectionShortcutService.listSources(agentActorFor(0, ['projects.read']), MINE, { pageId: home.id });
+  expect(sources.find(({ sourceSectionId }) => sourceSectionId === source.id)?.section).toEqual(source);
+});
+
 const homeOrder = async (harness: ReturnType<typeof buildHarness>, pageId: ProjectPageId) => {
   const sections = await harness.sections.list({ pageId });
   const shortcuts = await harness.shortcuts.list({ pageId });

@@ -166,13 +166,13 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
     sections: sectionService,
     shortcuts: sectionShortcutService,
     progress: new ProgressService({ projects, tasks }),
-    timeline: new TimelineService({ projects, tasks, milestones }),
+    timeline: new TimelineService({ projects, tasks, sections, pages, milestones }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
     archivedProjects: new ArchivedProjectsService({ projects }),
     journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
-    dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
+    dashboard: new DashboardService({ projects, tasks, sections, pages, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
     history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, milestones, reflections, activity, clock, unitOfWork }),
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
@@ -326,6 +326,8 @@ describe('Slice 10 derived and reflection routes', () => {
 
     expect(ProgressResultSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}/progress`)).body)).toMatchObject({ formula: 'weighted', percentage: 100 });
     expect(TimelineResultSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}/timeline`)).body).items.map(({ kind }) => kind)).toEqual(expect.arrayContaining(['project', 'task']));
+    const timeline = TimelineResultSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}/timeline`)).body);
+    expect(timeline.items.find(({ kind }) => kind === 'task')?.link).toMatchObject({ projectId: MINE, pageKind: 'home' });
     expect((await call(routes, 'GET', `/api/projects/${THEIRS}/progress`)).status).toBe(404);
   });
 

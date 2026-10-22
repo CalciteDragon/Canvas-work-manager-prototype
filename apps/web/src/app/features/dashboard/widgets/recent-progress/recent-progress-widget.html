@@ -8,14 +8,15 @@
 } @else {
   <ul class="widget-list">
     @for (task of dashboard().recentProgress.tasks; track task.id) {
-      <li data-widget-task class="widget-row">
-        <span class="widget-row__title">{{ task.title }}</span>
-        <span class="widget-row__meta">
-          {{ task.projectIcon ?? '📁' }} {{ task.projectName }}
-          @if (task.completedAt; as completedAt) {
-            · <time [attr.datetime]="completedAt">{{ completedAt.slice(0, 10) }}</time>
+      <li data-widget-task class="widget-row object-row" [class.widget-row--overdue]="task.overdue" [class.object-row--overdue]="task.overdue" [class.object-row--high-priority]="task.priority === 'high'" [class.object-row--finished]="task.status === 'done'">
+        <a class="link object-row__title" [routerLink]="task.origin.pageKind === 'work' ? ['/projects', task.origin.projectId] : ['/projects', task.origin.projectId, 'pages', task.origin.pageKind]" [fragment]="'section-' + task.origin.sectionId">{{ task.title }}</a>
+        <span class="object-row__meta">
+          @for (item of taskMeta(task, { completed: true, overdue: task.overdue }); track item.kind) {
+            @if (item.datetime) { <time [attr.datetime]="item.datetime">{{ item.text }}</time> }
+            @else { <span>{{ item.text }}</span> }
           }
         </span>
+        <span class="object-row__context"><span data-project-icon aria-hidden="true">{{ task.projectIcon ?? '📁' }}</span> {{ task.projectName }}</span>
       </li>
     }
   </ul>

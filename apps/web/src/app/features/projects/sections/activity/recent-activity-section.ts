@@ -1,3 +1,4 @@
+import type { SectionContentInputs } from '../section-contract';
 import { ChangeDetectionStrategy, Component, effect, inject, input } from '@angular/core';
 import type { ProjectSection, SectionConfig } from '@cwm/contracts';
 import { ActivityFeed } from '../../../activity/activity-feed';
@@ -12,6 +13,7 @@ import { ActivityStore } from '../../../activity/activity-store';
  */
 @Component({ selector: 'app-recent-activity-section', changeDetection: ChangeDetectionStrategy.OnPush, imports: [ActivityFeed], providers: [ActivityStore], templateUrl: './recent-activity-section.html', styleUrl: './recent-activity-section.scss' })
 export class RecentActivitySection {
-  readonly section = input.required<ProjectSection>(); readonly onConfigChange = input.required<(config: SectionConfig) => void>(); readonly onProjectDataChange = input.required<() => void>(); readonly projectDataRevision = input.required<number>(); readonly projectHierarchyRevision = input.required<number>(); readonly readOnly = input(false); readonly store = inject(ActivityStore);
+  readonly section = input.required<ProjectSection>(); readonly onConfigChange = input.required<(config: SectionConfig) => void>(); readonly onProjectDataChange = input.required<() => void>(); readonly projectDataRevision = input.required<number>(); readonly projectHierarchyRevision = input.required<number>(); readonly readOnly = input(false);
+  readonly sourceLink = input<SectionContentInputs['sourceLink']>(null); readonly store = inject(ActivityStore);
   constructor() { effect(() => { this.projectDataRevision(); void this.store.sync(this.section().projectId); }); }
 }

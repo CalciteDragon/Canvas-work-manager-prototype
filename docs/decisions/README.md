@@ -90,10 +90,10 @@ Archive-label revision; both entries record acceptance.
 | [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33; new reassign requests retired in Slice 43 |
 | [Section removal is one cascade gesture, and task Delete is reversible](2026-09-one-step-section-removal-and-task-delete.md) | ID-only cascade for live owned rows; keep legacy reassign history; expose soft archive as task Delete | amended; Undo beside the change (Slice 70 Gate 1) |
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | amended; Slice 66 |
-| [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | amended; Slice 37 extends the rule to placement inverses; Slice 65 to Work canvases |
+| [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | amended; Slice 37 placement inverses; Slice 65 Work canvases; Slice 77 section identity for Preview |
 | [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | amended (Undo restores by neighbours, Slice 30; Work canvases, Slice 65) |
 | [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets; renumbering leaves shifted siblings' `updatedAt` amended | amended |
-| [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; task checkbox completion reversible | amended; Slice 61 adds task reopen, workstreams stay one-way |
+| [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; task checkbox completion reversible | amended; Slice 61 adds task reopen; Slice 77 extends canonical navigation |
 | [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | amended; Slice 36 restores historical links by identity |
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | Root Archive and its More-menu entry | amended; Slice 44 makes rows ready-only and adds Settings recovery |
 | [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Removal footprint, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 deletion disposition and repeat-receipt recovery; Slice 32 operation union; Slice 35 records become history actions; Slice 43 captures only new cascades |
@@ -152,6 +152,10 @@ Archive-label revision; both entries record acceptance.
 | [Latency and failure injection live in the client, not the host](2026-08-latency-and-failure-live-in-the-client.md) | The gateway injects; the host has no delay endpoint | current |
 
 ## Web app
+
+| Decision | What it decides | Status |
+|---|---|---|
+| [Rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md) | Shared row anatomy; title navigation outside the owner, selection inside; Preview stays contained | Slice 77 |
 
 - [Lifts use the browser's top layer](2026-10-lifts-use-the-top-layer.md) — current; Slice 73 native modes and one transient lift.
 - [Route focus lands lost focus after user navigation](2026-10-route-focus-lands-lost-focus.md) — current; Slice 73 bounded heading/main landing.

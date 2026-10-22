@@ -1,11 +1,9 @@
 import {
   ProjectTodosResultSchema,
   isRootProject,
-  nameOf,
   type Project,
   type ProjectId,
   type ProjectPage,
-  type ProjectSection,
   type ProjectTodoItem,
   type ProjectTodosResult,
   type Subproject,
@@ -17,6 +15,7 @@ import { assertPermitted, type ActorContext } from './actor';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import { compareInstants, compareText, instantOf, type Instant } from './instants';
 import { archivedAncestry } from './project-visibility';
+import { taskOrigin } from './task-origin';
 
 export interface ProjectTodosServiceDependencies {
   projects: ProjectRepository;
@@ -83,8 +82,6 @@ export class ProjectTodosService {
       this.dependencies.sections.list(),
       this.dependencies.pages.list(),
     ]);
-    const sectionById = new Map<string, ProjectSection>(sections.map((section) => [section.id, section]));
-    const pageById = new Map<string, ProjectPage>(pages.map((page) => [page.id, page]));
     const canvasOf = new Map<ProjectId, ProjectPage>();
     for (const page of pages) if (page.kind === 'work' || page.kind === 'home') canvasOf.set(page.projectId, page);
 
@@ -117,22 +114,13 @@ export class ProjectTodosService {
       if (!owners.has(task.projectId)) continue;
       // A task whose container is archived came down with it (§31) and is not live work, even
       // where a hand-edited document (§14) left the row itself unmarked.
-      const section = sectionById.get(task.sectionId);
-      if (section === undefined) continue;
-      const page = pageById.get(section.pageId);
-      if (page === undefined) continue;
+      const origin = taskOrigin(task, projects, sections, pages);
+      if (origin === undefined) continue;
       sortable.push({
         item: {
           kind: 'task',
           task: task as Task,
-          origin: {
-            projectId: task.projectId,
-            pageId: page.id,
-            pageKind: page.kind,
-            breadcrumb: this.breadcrumb(root.id, task.projectId, byId),
-            sectionId: section.id,
-            sectionName: nameOf(section),
-          },
+          origin,
         },
         due: task.dueAt === undefined ? undefined : instantOf(task.dueAt),
         id: task.id,

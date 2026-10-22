@@ -59,3 +59,10 @@ never unarchives the source ([decision](2026-09-section-restore-and-shortcut-his
 **Amended, 2026-10-03 — Slice 65.** The rule holds unchanged for placements on a workstream's Work
 canvas. The resolver reads identity and layout only, whichever canonical page the placement is on.
 See [Work canvas shortcut destinations](2026-10-work-canvas-shortcut-destinations.md).
+
+
+**Amended, 2026-10-21 — Slice 77 Preview.** Discovery now includes the canonical section
+record, including config, under projects.read, as resolved placements already do. It still reads
+no task or reflection rows. An on-demand picker Preview renders the registry's read-only
+component, which reads through the viewer's own content grants; failures remain in its disclosure.
+Preview passes sourceLink: null and no-op write callbacks. Adding a placement remains independent.

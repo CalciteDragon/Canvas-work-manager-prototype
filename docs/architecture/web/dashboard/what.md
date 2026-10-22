@@ -42,3 +42,6 @@ flowchart LR
 | Seven widgets | `widgets/{today,upcoming,active-projects,recent-progress,daily-digest,fun-fact,recent-agent-activity}/` | One folder each; shared `widget-content.scss` |
 
 The common widget frame also owns the sheet-plane paint; every widget inherits the same token treatment.
+
+
+Task widgets compose RouterLink, the global object-row slots and tasks/task-meta.ts. Their gateway/store read path is unchanged. Active Projects adds an ancestor context line to the same row anatomy.

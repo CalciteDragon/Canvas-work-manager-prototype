@@ -93,6 +93,7 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
 | `DashboardService` | class | §24's derived read | [API](../../api/classes/DashboardService.html) |
 | `ProgressService` | class | §39's three formulas | [API](../../api/classes/ProgressService.html) |
 | `TimelineService` | class | §38's derived ranges | [API](../../api/classes/TimelineService.html) |
+| `taskOrigin` | function | Pure canonical task container and root-first owner path for derived reads | [API](../../api/miscellaneous/variables.html#taskOrigin) |
 | `WorkspaceService` | class | Search and upcoming work under one grant | [API](../../api/classes/WorkspaceService.html) |
 | `ProjectTodosService` | class | Root-wide chronology | [API](../../api/classes/ProjectTodosService.html) |
 | `ProjectArchiveService` | class | Root-wide archive projection; section entries filtered and annotated by the internal pure `sectionRecoveryOf` | [API](../../api/classes/ProjectArchiveService.html) |
@@ -104,6 +105,17 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
 | `LiveEventPublisher` | interface | The port the host's hub implements | [API](../../api/interfaces/LiveEventPublisher.html) |
 
 ## Dependencies
+
+`taskOrigin` resolves a task against canonical projects, sections and pages without reading a
+repository or a clock. Todos, dashboard, upcoming work and Timeline use the same resolution.
+Dashboard and upcoming work omit unresolved tasks before selecting buckets or counting their
+digest; every returned task therefore has a usable origin. Dashboard project breadcrumbs contain
+ancestors only, root first. Timeline task links name the section, workstream links name the Work
+canvas, and project and milestone rows have no link. These services depend directly on section
+and page repository interfaces; their asserted grants remain `workspace.read` for dashboard and
+upcoming work, and `projects.read` for Timeline. The workspace aggregate now includes page and
+section identity. Shortcut discovery likewise returns the canonical section, including config,
+under `projects.read`, while owned rows are read separately by the viewer's content component.
 
 **Depends on**
 

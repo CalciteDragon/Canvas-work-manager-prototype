@@ -14,7 +14,6 @@
       </h2>
       <p data-shortcut-source class="shortcut-frame__source">
         <span class="shortcut-frame__origin">{{ shortcut().breadcrumb.join(' / ') }} · {{ pageLabel() }}</span>
-        <span data-shortcut-read-only>· Read-only</span>
       </p>
     </div>
 
@@ -64,6 +63,8 @@
     </div>
   </header>
 
+  <p data-shortcut-read-only class="shortcut-frame__read-only">Read-only here. Open the source to change it.</p>
+
   @if (collapseError(); as error) {
     <p class="shortcut-frame__error" role="alert" [id]="'shortcut-collapse-error-' + shortcut().id">{{ error }}</p>
   }
@@ -92,6 +93,6 @@
   }
 
   <footer class="shortcut-frame__footer">
-    <a class="link" data-shortcut-open-source [routerLink]="sourceRoute()">Open source</a>
+    <a class="link" data-shortcut-open-source [routerLink]="sourceRoute()" [fragment]="sourceLink().fragment">Open source</a>
   </footer>
 </section>

@@ -1,3 +1,5 @@
+import { RouterLink } from '@angular/router';
+import { taskMeta } from '../../../tasks/task-meta';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DashboardQuerySchema, type DashboardResult, type DashboardWidget } from '@cwm/contracts';
 import { z } from 'zod';
@@ -20,11 +22,13 @@ export const upcomingWidgetQuery = (config: unknown) => {
 /** §24's "work approaching within configurable range". */
 @Component({
   selector: 'app-upcoming-widget',
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './upcoming-widget.html',
   styleUrl: '../widget-content.scss',
 })
 export class UpcomingWidget {
+  readonly taskMeta = taskMeta;
   readonly widget = input.required<DashboardWidget>();
   readonly dashboard = input.required<DashboardResult>();
 }

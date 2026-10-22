@@ -94,3 +94,10 @@ no toggle, while workstreams keep their one-way Complete and reopen from the hea
 links, chronology, grants and ownership stay as recorded above. The earlier claim that reopening
 requires guessing a previous status is replaced by the explicit `todo` target
 ([decision](2026-09-task-checkbox-reopen-and-selection.md)).
+
+
+**Amended, 2026-10-21 — Slice 77.** Dashboard task titles and Timeline task/workstream titles
+adopt the same canonical navigation rule. Task links target the owning section, with existing
+transient expansion and heading focus. Todos keeps its own template and writes on the shared
+row anatomy; its title still navigates while a Task List title selects. See
+[rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md).

@@ -57,3 +57,6 @@ and nothing may create or store either.
 - [Why it exists and is shaped this way](why.md)
 - [What it is made of](what.md)
 - [How it works and how to change it](how.md)
+
+
+Dashboard tasks reuse TodoTaskOriginSchema; active projects carry ancestor names. Timeline items optionally carry owner identity. Shortcut sources carry the canonical section for on-demand Preview, with no row collections.

@@ -50,6 +50,7 @@ export class ShortcutFrame {
       : ['/projects', shortcut.sourceProjectId, 'pages', shortcut.sourcePageKind];
   });
   readonly pageLabel = computed(() => pageLabel(this.shortcut().sourcePageKind));
+  readonly sourceLink = computed(() => ({ route: this.sourceRoute(), fragment: `section-${this.shortcut().source.id}` }));
 
   private readonly noopConfig = async (_config: SectionConfig): Promise<boolean> => false;
   private readonly noopProjectData = (): void => {};
@@ -61,6 +62,7 @@ export class ShortcutFrame {
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
     readOnly: true,
+    sourceLink: this.sourceLink(),
   }));
 
   toggleCollapsed(): void {

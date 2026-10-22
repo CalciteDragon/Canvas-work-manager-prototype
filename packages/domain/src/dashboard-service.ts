@@ -6,8 +6,9 @@ import {
   type DashboardTask,
   type Project,
   type Task,
+  type TodoTaskOrigin,
 } from '@cwm/contracts';
-import type { ProjectRepository, TaskRepository } from '@cwm/repositories';
+import type { ProjectPageRepository, ProjectRepository, SectionRepository, TaskRepository } from '@cwm/repositories';
 import type { ActivityService } from './activity-service';
 import { assertPermitted, type ActorContext } from './actor';
 import { archivedAncestry } from './project-visibility';
@@ -15,10 +16,13 @@ import { DAY_MS, isoDayOf, isoDayOfInstant, startOfUtcDay } from './calendar';
 import type { AIProvider, DailyDigestContext } from './ai-provider';
 import type { Clock } from './clock';
 import { byDueDate, dashboardTaskFor, isOverdue, OPEN_STATUSES } from './task-windows';
+import { taskOrigin } from './task-origin';
 
 export interface DashboardServiceDependencies {
   projects: ProjectRepository;
   tasks: TaskRepository;
+  sections: SectionRepository;
+  pages: ProjectPageRepository;
   activity: ActivityService;
   clock: Clock;
   ai: AIProvider;
@@ -81,11 +85,20 @@ export class DashboardService {
     const ancestry = archivedAncestry(all);
     const projects = all.filter(({ id, status }) => status !== 'archived' && !ancestry.isHidden(id));
     const byId = new Map(projects.map((project) => [project.id, project]));
-    const tasks = (await this.dependencies.tasks.list()).filter(
+    const [allTasks, sections, pages] = await Promise.all([
+      this.dependencies.tasks.list(), this.dependencies.sections.list(), this.dependencies.pages.list(),
+    ]);
+    const origins = new Map<string, TodoTaskOrigin>();
+    const tasks = allTasks.filter(
       (task) => task.archivedAt === undefined && byId.has(task.projectId),
-    );
+    ).filter((task) => {
+      const origin = taskOrigin(task, projects, sections, pages);
+      if (origin === undefined) return false;
+      origins.set(task.id, origin);
+      return true;
+    });
 
-    const row = (task: Task): DashboardTask => dashboardTaskFor(task, byId.get(task.projectId), nowMs);
+    const row = (task: Task): DashboardTask => dashboardTaskFor(task, byId.get(task.projectId), nowMs, origins.get(task.id)!);
 
     const open = tasks.filter((task) => OPEN_STATUSES.has(task.status));
 
@@ -118,7 +131,7 @@ export class DashboardService {
 
     const activeProjects = projects
       .filter((project) => project.status === 'active')
-      .map((project) => this.summarize(project, tasks, todayStart))
+      .map((project) => this.summarize(project, tasks, todayStart, projects))
       .sort(
         (a, b) =>
           (a.targetDate ?? '9999-12-31').localeCompare(b.targetDate ?? '9999-12-31') || a.name.localeCompare(b.name),
@@ -183,11 +196,22 @@ export class DashboardService {
    * experiment, and a dashboard that mixed three scales in one column would compare
    * nothing. The project page remains where a formula is chosen and read.
    */
-  private summarize(project: Project, tasks: Task[], todayStart: number): DashboardProject {
+  private summarize(project: Project, tasks: Task[], todayStart: number, projects: Project[]): DashboardProject {
     const mine = tasks.filter((task) => task.projectId === project.id);
     const completedTasks = mine.filter(({ status }) => status === 'done').length;
     const openTasks = mine.filter(({ status }) => OPEN_STATUSES.has(status)).length;
+    const breadcrumb: string[] = [];
+    const seen = new Set([project.id]);
+    let parentId = project.parentProjectId;
+    while (parentId !== undefined && !seen.has(parentId)) {
+      seen.add(parentId);
+      const parent = projects.find(({ id }) => id === parentId);
+      if (parent === undefined) break;
+      breadcrumb.unshift(parent.name);
+      parentId = parent.parentProjectId;
+    }
     return {
+      breadcrumb,
       id: project.id,
       name: project.name,
       ...(project.icon === undefined ? {} : { icon: project.icon }),
