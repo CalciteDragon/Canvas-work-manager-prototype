@@ -47,6 +47,7 @@ describe('DesignLabPage (§22, §67)', () => {
       'buttons',
       'inputs',
       'field-status',
+      'object-rows',
       'cards',
       'project-cards',
       'menus',
@@ -73,12 +74,12 @@ describe('DesignLabPage (§22, §67)', () => {
       'liftTint', 'liftAlpha', 'liftBlur', 'groundArtStrength', 'motionScale']);
   });
 
-  // §77, slice 72: buttons and inputs are now the shared primitives; the rest are still markup.
-  it('labels buttons, inputs and controls as shared and the other primitives as not yet', async () => {
+  // §77: the catalogue distinguishes adopted primitives from representative feature markup.
+  it('labels controls and object rows as shared and the other primitives as not yet', async () => {
     const { element } = await render();
 
     const badge = (name: string) => element.querySelector(`[data-panel="${name}"] .panel__badge`)?.textContent ?? '';
-    for (const name of ['buttons', 'inputs', 'controls']) {
+    for (const name of ['buttons', 'inputs', 'controls', 'object-rows']) {
       expect(badge(name), name).toContain('shared');
       expect(badge(name), name).not.toContain('not yet');
     }

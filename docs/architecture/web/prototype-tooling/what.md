@@ -18,7 +18,7 @@ flowchart TB
   route2["/prototype/design"] --> lab["DesignLabPage"]
   lab --> lstore["DesignLabStore (root)<br/>inline design properties and two fallback toggles"]
   lab --> live["LivePanels<br/>real components over design-lab-fixtures; contained task drawer; failed and Adding task rows"]
-  lab --> prim["PrimitivePanels<br/>shared buttons and inputs; the field-status specimen; cards, menus, states not yet"]
+  lab --> prim["PrimitivePanels<br/>shared buttons, inputs, object rows and field-status; cards, menus, states not yet"]
   lab --> controls["ControlPanels<br/>every control primitive and state"]
   lab --> planes["PlanePanels<br/>busy ground, pane, sheets, real contained lift classes, motion"]
   lab --> export["design-lab-export<br/>Copy CSS"]

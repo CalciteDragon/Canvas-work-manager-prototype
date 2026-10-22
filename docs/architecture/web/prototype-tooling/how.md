@@ -25,7 +25,8 @@
    `design-lab-tokens.ts` controls to `DesignLabStore`, which sets inline custom
    properties on `documentElement`; Reset removes them; Copy CSS exports the current
    values. The catalogue renders live components over `design-lab-fixtures.ts`, the
-   shared Buttons and Inputs primitives, the Controls panel (every primitive and state over a pane
+   shared Buttons and Inputs primitives, the Object rows panel (six specimens of the global
+   `.object-row` with independent controls and title links), the Controls panel (every primitive and state over a pane
    and a sheet, with forced hover, focus and pressed through the shared state mixins), the other
    primitive panels' markup, plus a busy-ground plane/lift panel and a transform-only motion demo.
    The plane panel uses the shared `.lift` classes for the side drawer, dialog, menu and page
@@ -37,7 +38,7 @@
    an intermediate property, so real fallback media retain control of the final filter.
    The section-chrome rest-opacity knob exports with Copy CSS; the live section-frame panel
    shows rest and focus specimens. Its wrapper follows the canvas's quiet defaults on pointer
-   and touch. `CURRENT_SLICE` is 76 for captured friction notes.
+   and touch. `CURRENT_SLICE` is 77 for captured friction notes.
 
 ## Key symbols
 

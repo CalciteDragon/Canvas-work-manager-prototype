@@ -20,4 +20,14 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   templateUrl: './primitive-panels.html',
   styleUrls: ['./panels.scss', './primitive-panels.scss'],
 })
-export class PrimitivePanels {}
+export class PrimitivePanels {
+  /** §21's single row shape, including rows that have no interactive owner. */
+  readonly rows = [
+    { title: 'Draft the launch announcement', meta: 'In progress · Due 2026-10-24', variant: 'link' },
+    { title: 'Project target', meta: '2026-10-30', variant: 'static' },
+    { title: 'Fix the sign-up form', meta: 'High priority · Due 2026-10-24', variant: 'high-priority' },
+    { title: 'Send the pre-launch email', meta: 'Due 2026-10-20 · Overdue', variant: 'overdue' },
+    { title: 'Book the venue', meta: 'Done · Completed 2026-10-21', variant: 'finished' },
+    { title: 'Read-only source task', meta: 'Blocked · Due 2026-10-24', variant: 'read-only' },
+  ];
+}

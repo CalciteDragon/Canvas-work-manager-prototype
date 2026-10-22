@@ -53,6 +53,36 @@
   </div>
 </section>
 
+<section class="panel" data-panel="object-rows" data-panel-kind="shared" id="object-row-specimens">
+  <h3 class="panel__title">Object rows <span class="panel__badge">shared</span></h3>
+  <p class="panel__note">A title opens its owner. A static row keeps the same title column without an open action.</p>
+  <div class="panel__body panel__body--stack">
+    @for (row of rows; track row.title) {
+      <article class="object-row"
+        [class.object-row--static]="row.variant === 'static' || row.variant === 'read-only'"
+        [class.object-row--high-priority]="row.variant === 'high-priority'"
+        [class.object-row--overdue]="row.variant === 'overdue'"
+        [class.object-row--finished]="row.variant === 'finished'">
+        <span class="object-row__control">
+          @if (row.variant !== 'static' && row.variant !== 'read-only') {
+            <input class="checkbox" type="checkbox" [checked]="row.variant === 'finished'" [attr.aria-label]="'Complete ' + row.title" />
+          }
+        </span>
+        @if (row.variant === 'static' || row.variant === 'read-only') {
+          <span class="object-row__title">{{ row.title }}</span>
+        } @else {
+          <a class="object-row__title" href="#object-row-specimens">{{ row.title }}</a>
+        }
+        <span class="object-row__meta">{{ row.meta }}</span>
+        @if (row.variant !== 'static' && row.variant !== 'read-only') {
+          <span class="object-row__tools"><button class="button button--ghost button--sm" type="button">Delete</button></span>
+        }
+        <span class="object-row__context">Website launch / Work / Tasks</span>
+      </article>
+    }
+  </div>
+</section>
+
 <section class="panel" data-panel="cards" data-panel-kind="primitive">
   <h3 class="panel__title">Cards <span class="panel__badge">not yet a shared component</span></h3>
   <div class="panel__body panel__body--row">

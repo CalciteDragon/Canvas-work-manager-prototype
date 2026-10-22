@@ -10,6 +10,118 @@
 // Selection shows in shape (an inset ring or a mark), never in fill alone (principle 4).
 
 @use './control-states' as states;
+@use './breakpoints' as bp;
+
+// ── Object rows (§21, Slice 77). Only the title opens; controls remain siblings. ──
+
+.object-row {
+  --object-row-control-width: var(--size-target-min);
+
+  display: grid;
+  grid-template-columns: var(--object-row-control-width) minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+  min-inline-size: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-inline-start-width: var(--border-focus);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.object-row__control {
+  grid-column: 1;
+  grid-row: 1;
+  inline-size: var(--object-row-control-width);
+}
+
+.object-row__title {
+  grid-column: 2;
+  grid-row: 1;
+  min-inline-size: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  text-align: start;
+  white-space: normal;
+}
+
+// Button titles and linked titles share the same target without a full-row overlay.
+:is(button, a).object-row__title {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--size-target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.object-row__meta {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.object-row__context {
+  grid-column: 2 / -1;
+  min-inline-size: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.object-row__tools {
+  grid-column: 4;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.object-row--high-priority { border-inline-start-color: var(--color-warning); }
+.object-row--overdue { border-inline-start-color: var(--color-danger); }
+.object-row--finished .object-row__title {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.object-row--static {
+  border-color: transparent;
+  background: none;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .object-row:not(.object-row--static):hover {
+    background: var(--control-secondary-fill-hover);
+  }
+  :is(button, a).object-row__title:hover { text-decoration: underline; }
+}
+
+@media (max-width: bp.$compact) {
+  .object-row { grid-template-columns: var(--object-row-control-width) minmax(0, 1fr) auto; }
+  .object-row__tools { grid-column: 3; }
+  .object-row__meta { grid-column: 2 / -1; grid-row: 2; }
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  .object-row { --object-row-control-width: var(--size-hit-target); }
+  :is(button, a).object-row__title { min-block-size: var(--size-hit-target); }
+}
 
 // ── Buttons, icon buttons and tools share one box and one set of state variables. ──
 

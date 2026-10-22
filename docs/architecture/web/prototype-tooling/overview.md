@@ -27,7 +27,9 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
   sidebar width, section-chrome rest emphasis, plane tints/alphas/blurs, ground art strength and motion scale — session-only;
   solid-planes and reduced-motion simulations; a **Copy CSS** export; live panels of real components
   and primitive panels — Buttons and Inputs render the shared primitives and a Controls panel shows
-  every primitive and state; cards, menus and states stay marked *not yet a shared component* — plus
+  every primitive and state; Object rows renders link-title, static, high-priority, overdue,
+  finished and read-only specimens on the shared `.object-row` anatomy; cards, menus and states
+  stay marked *not yet a shared component* — plus
   real lift-class specimens over a busy backing and a motion specimen. The live Drawer panel
   renders `TaskDetailDrawer` in contained mode, with neither fixed positioning nor the top layer.
 
