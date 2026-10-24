@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, PendingTasks, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, PendingTasks, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectRestoreStatus } from '@cwm/contracts';
 import { ArchivedProjectsStore } from './archived-projects-store';
@@ -23,13 +23,16 @@ export class ArchivedProjectsPage {
   private readonly pendingTasks = inject(PendingTasks);
   readonly toast = new ReceiptToast();
   readonly restoredProjectId = signal<ProjectId | null>(null);
+  private cancelFocusHandoff: (() => void) | null = null;
 
   constructor() {
     void this.store.load();
     // Settings has no project-scoped history provider to advance the toast's generation.
     effect(() => {
       if (this.store.restoreReport() === null) untracked(() => this.toast.close('write'));
+      if (this.toast.state() === null) untracked(() => this.cancelFocusHandoff?.());
     });
+    inject(DestroyRef).onDestroy(() => this.cancelFocusHandoff?.());
   }
 
   protected choose(id: ProjectId, event: Event): void {
@@ -38,6 +41,7 @@ export class ArchivedProjectsPage {
 
   /** Stability waits for the focus move too, not only for the store's write and re-read. */
   protected restore(id: ProjectId): Promise<void> {
+    this.cancelFocusHandoff?.();
     const index = this.store.items().findIndex(({ project }) => project.id === id);
     const project = this.store.items()[index]?.project;
     const status = this.store.statusFor(id);
@@ -52,12 +56,33 @@ export class ArchivedProjectsPage {
           return rows[index]?.querySelector<HTMLElement>('[data-archived-restore]:not(:disabled)') ?? this.heading()?.nativeElement ?? null;
         });
         this.changeDetector.detectChanges();
-        if (owned && (document.activeElement === document.body || document.activeElement === owner)) this.toast.focusFirst();
+        if (owned) await this.focusRenderedToast(owner);
       } else if (owned) {
         this.changeDetector.detectChanges();
         if (document.activeElement === document.body || document.activeElement === owner) this.focusNext(index);
       }
     })().finally(this.pendingTasks.add());
+  }
+
+  /** Native popovers can be open while their actions still have no layout boxes on reopening. */
+  private focusRenderedToast(owner: Element | null): Promise<void> {
+    const action = this.host.nativeElement.querySelector<HTMLElement>('[data-restore-open]');
+    if (action === null) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const finish = (): void => {
+        observer.disconnect();
+        if (this.cancelFocusHandoff === finish) this.cancelFocusHandoff = null;
+        resolve();
+      };
+      const observer = new ResizeObserver((entries) => {
+        if (this.cancelFocusHandoff !== finish || !entries.some(({ target, contentRect }) =>
+          target === action && contentRect.width > 0 && contentRect.height > 0)) return;
+        finish();
+        if (this.toast.state() !== null && (document.activeElement === document.body || document.activeElement === owner)) this.toast.focusFirst();
+      });
+      this.cancelFocusHandoff = finish;
+      observer.observe(action);
+    });
   }
 
   /** A successful Retry removes itself with the error, so it hands focus on the same way. */

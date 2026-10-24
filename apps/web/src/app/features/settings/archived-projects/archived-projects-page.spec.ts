@@ -12,9 +12,20 @@ import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 const popoverMethods = ['showPopover', 'hidePopover'].map(key => ({ key, descriptor: Object.getOwnPropertyDescriptor(HTMLElement.prototype, key) }));
 beforeEach(() => {
   for (const { key } of popoverMethods) Object.defineProperty(HTMLElement.prototype, key, { configurable: true, value: vi.fn() });
+  vi.stubGlobal('ResizeObserver', class {
+    private connected = true;
+    constructor(private readonly callback: ResizeObserverCallback) {}
+    observe(target: Element): void {
+      queueMicrotask(() => {
+        if (this.connected) this.callback([{ target, contentRect: { width: 100, height: 30 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      });
+    }
+    disconnect(): void { this.connected = false; }
+  });
 });
 afterEach(() => {
   TestBed.resetTestingModule();
+  vi.unstubAllGlobals();
   for (const { key, descriptor } of popoverMethods) {
     if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
     else Reflect.deleteProperty(HTMLElement.prototype, key);
@@ -195,6 +206,73 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
       await settle(fixture);
       expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('[data-restore-open]'));
     });
+
+    for (const moveFocus of [false, true]) {
+      it(`waits for a rendered toast action and ${moveFocus ? 'preserves focus moved after settlement' : 'then focuses Open it'}`, async () => {
+        const { fixture, gateway } = await render(gatewayOf([first]));
+        gateway.options.archivedProjects = { items: [child] };
+        let notify: ((width: number) => void) | undefined;
+        const disconnect = vi.fn();
+        vi.stubGlobal('ResizeObserver', class {
+          constructor(private readonly callback: ResizeObserverCallback) {}
+          observe(target: Element): void { notify = (width) => this.callback([{ target, contentRect: { width, height: width } } as ResizeObserverEntry], this as unknown as ResizeObserver); }
+          disconnect = disconnect;
+        });
+        const focus = vi.spyOn(fixture.componentInstance.toast, 'focusFirst');
+        const elsewhere = document.createElement('button');
+        document.body.append(elsewhere);
+        try {
+          await restoreRow(fixture, first.project.id);
+          await vi.waitFor(() => expect(notify).toBeTypeOf('function'));
+          // An open native popover can still have no rendered action box during reopening.
+          notify!(0);
+          expect(focus).not.toHaveBeenCalled();
+          if (moveFocus) elsewhere.focus();
+          notify!(100);
+          await settle(fixture);
+          expect(document.activeElement).toBe(moveFocus ? elsewhere : (fixture.nativeElement as HTMLElement).querySelector('[data-restore-open]'));
+          expect(focus).toHaveBeenCalledTimes(moveFocus ? 0 : 1);
+          expect(disconnect).toHaveBeenCalled();
+        } finally {
+          notify?.(100);
+          elsewhere.remove();
+        }
+      });
+    }
+
+    for (const cancellation of ['dismissal', 'destruction', 'newer Restore']) {
+      it(`settles a layout handoff on ${cancellation} and ignores its late notification`, async () => {
+        const { fixture, gateway } = await render(gatewayOf([first]));
+        gateway.options.archivedProjects = { items: [child] };
+        let notify: (() => void) | undefined;
+        const disconnect = vi.fn();
+        vi.stubGlobal('ResizeObserver', class {
+          constructor(private readonly callback: ResizeObserverCallback) {}
+          observe(target: Element): void { notify = () => this.callback([{ target, contentRect: { width: 100, height: 30 } } as ResizeObserverEntry], this as unknown as ResizeObserver); }
+          disconnect = disconnect;
+        });
+        const focus = vi.spyOn(fixture.componentInstance.toast, 'focusFirst');
+        await restoreRow(fixture, first.project.id);
+        await vi.waitFor(() => expect(notify).toBeTypeOf('function'));
+        const previousNotification = notify!;
+        if (cancellation === 'dismissal') {
+          fixture.componentInstance.toast.close();
+          fixture.detectChanges();
+        } else if (cancellation === 'destruction') {
+          fixture.destroy();
+        } else {
+          gateway.options.archivedProjects = { items: [] };
+          await restoreRow(fixture, child.project.id);
+          await vi.waitFor(() => expect(notify).not.toBe(previousNotification));
+        }
+        expect(disconnect).toHaveBeenCalled();
+        previousNotification();
+        expect(focus).not.toHaveBeenCalled();
+        if (cancellation === 'newer Restore') notify!();
+        await fixture.whenStable();
+        expect(focus).toHaveBeenCalledTimes(cancellation === 'newer Restore' ? 1 : 0);
+      });
+    }
 
     it('confirms a committed Restore even when its refresh fails, then preserves Retry focus', async () => {
       const { fixture, gateway } = await render(gatewayOf([first, second]));
