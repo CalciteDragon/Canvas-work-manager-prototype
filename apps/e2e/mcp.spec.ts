@@ -1,5 +1,6 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
+import { DashboardResultSchema, UpcomingWorkResultSchema, type TaskWriteResult } from '@cwm/contracts';
 import { PROTOTYPE_HOST, api as requestApi, connectMcp, seed, setClock } from './seed';
 
 /**
@@ -20,6 +21,47 @@ import { PROTOTYPE_HOST, api as requestApi, connectMcp, seed, setClock } from '.
 const TOKEN = 'prototype-user-a-readwrite';
 const PROJECT = 'project-work-manager';
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
+
+test('workspace.read alone returns canonical task origins over HTTP MCP', async () => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const create = async (title: string, dueAt: string) =>
+    (await requestApi.post<TaskWriteResult>('/api/tasks', { projectId: 'project-kitchen', title, dueAt })).task;
+  await create('Origin overdue', '2026-09-14T12:00:00.000Z');
+  const today = await create('Origin today', '2026-09-15T14:00:00.000Z');
+  await requestApi.patch(`/api/tasks/${today.id}`, { status: 'in_progress' });
+  await requestApi.post('/api/tasks', { projectId: 'project-kitchen', title: 'Origin in progress', status: 'in_progress' });
+  await create('Origin upcoming', '2026-09-18T12:00:00.000Z');
+  const done = await create('Origin completed', '2026-09-15T14:00:00.000Z');
+  await requestApi.post(`/api/tasks/${done.id}/complete`, {});
+  const connections = await requestApi.get<Array<{ id: string; permissions: string[] }>>('/api/agent-connections');
+  const original = connections.find(connection => connection.id === 'agent-cursor')!.permissions;
+  await requestApi.patch('/api/agent-connections/agent-cursor', { permissions: ['workspace.read'] });
+  const client = await connectMcp('prototype-user-a-readonly', 'cwm-objects-origins-e2e');
+  try {
+    const dashboardAnswer = await client.callTool({ name: 'get_dashboard_context', arguments: {} });
+    const upcomingAnswer = await client.callTool({ name: 'get_upcoming_work', arguments: {} });
+    expect(dashboardAnswer.isError).not.toBe(true);
+    expect(upcomingAnswer.isError).not.toBe(true);
+    const dashboard = DashboardResultSchema.parse(dashboardAnswer.structuredContent);
+    const upcoming = UpcomingWorkResultSchema.parse(upcomingAnswer.structuredContent);
+    const buckets = [dashboard.today.overdue, dashboard.today.dueToday, dashboard.today.inProgress,
+      dashboard.upcoming.tasks, dashboard.recentProgress.tasks, upcoming.overdue, upcoming.upcoming];
+    for (const bucket of buckets) {
+      expect(bucket.length).toBeGreaterThan(0);
+      for (const task of bucket) {
+        expect(task.origin.projectId).toBe(task.projectId);
+        expect(task.origin.sectionId).toBeTruthy();
+        expect(task.origin.pageId).toBeTruthy();
+        expect(['home', 'work']).toContain(task.origin.pageKind);
+        expect(task.origin.breadcrumb.length).toBeGreaterThan(0);
+      }
+    }
+  } finally {
+    await client.close();
+    await requestApi.patch('/api/agent-connections/agent-cursor', { permissions: original });
+  }
+});
 
 test('an agent’s task appears in the open page without a reload, attributed to Claude', async ({ page }) => {
   await seed('agent-heavy');

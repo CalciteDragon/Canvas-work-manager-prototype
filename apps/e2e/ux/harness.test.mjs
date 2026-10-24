@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { collectEvidence } from './evidence.mjs';
 import { JSDOM } from 'jsdom';
 import { collectControls, collectPlaneBoxes } from './layout.mjs';
+import * as layout from './layout.mjs';
 
 test('layout evidence records plane containers keyed by selector and index', () => {
   const { document } = new JSDOM('<app-top-bar></app-top-bar><app-project-section-frame></app-project-section-frame><app-project-section-frame></app-project-section-frame>').window;
@@ -12,6 +13,35 @@ test('layout evidence records plane containers keyed by selector and index', () 
     { selector: 'app-project-section-frame', index: 0, x: 12, y: 24, width: 320, height: 80 },
     { selector: 'app-project-section-frame', index: 1, x: 12, y: 24, width: 320, height: 80 },
   ]);
+});
+
+test('content-coordinate evidence cancels ancestor scrolling only for immutable shell planes', () => {
+  const { document } = new JSDOM('<main><div><app-project-header></app-project-header><app-project-section-frame></app-project-section-frame></div></main>').window;
+  document.querySelector('main').scrollTop=400;
+  document.querySelector('div').scrollTop=100;
+  document.querySelector('div').scrollLeft=20;
+  for(const element of document.querySelectorAll('app-project-header,app-project-section-frame'))element.getBoundingClientRect=()=>({x:40,y:-450,width:320,height:80});
+  const boxes=collectPlaneBoxes(document,true);
+  assert.deepEqual(boxes.find(e=>e.selector==='app-project-header'),{selector:'app-project-header',index:0,x:60,y:50,width:320,height:80});
+  assert.equal(boxes.find(e=>e.selector==='app-project-section-frame').y,-450);
+});
+
+test('content-coordinate evidence keeps a sticky project column in viewport coordinates',()=>{
+  const {document}=new JSDOM('<main><app-project-page-navigation style="position:sticky"></app-project-page-navigation></main>').window;
+  document.querySelector('main').scrollTop=500;
+  document.querySelector('app-project-page-navigation').getBoundingClientRect=()=>({x:240,y:48,width:224,height:852});
+  assert.equal(collectPlaneBoxes(document,true)[0].y,48);
+});
+
+test('axe topology identity survives changed child text, styling classes and Angular scope hashes',()=>{
+  assert.equal(typeof layout.axeNodeIdentity,'function','the collector exposes structural node identity');
+  const {document}=new JSDOM('<main data-widget-type="today"><div class="task-row__metadata" _ngcontent-old>Old text</div></main>').window;
+  const before=layout.axeNodeIdentity('main',document),metadata=layout.axeNodeIdentity('.task-row__metadata',document);
+  const element=document.querySelector('div');element.textContent='New text';element.classList.add('object-row__meta');element.removeAttribute('_ngcontent-old');element.setAttribute('_ngcontent-new','');
+  assert.equal(layout.axeNodeIdentity('main',document),before);
+  assert.equal(layout.axeNodeIdentity('.task-row__metadata',document),metadata);
+  element.insertAdjacentHTML('afterend','<div class="new-region">New node</div>');
+  assert.notEqual(layout.axeNodeIdentity('.new-region',document),metadata);
 });
 
 test('partial evidence failures stay incomplete with artifact-specific reasons', async () => {

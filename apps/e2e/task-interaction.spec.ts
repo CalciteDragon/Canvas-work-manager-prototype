@@ -175,7 +175,8 @@ test('title and background selection, drawer drafts, focus return and read-only 
   await bTitle.press('Space');
   const drawer = page.locator('[data-task-drawer]');
   await expect(drawer.locator('h2')).toHaveText('B');
-  await row(page, b.id).locator('.task-row__metadata').click();
+  // A plain To do task has no metadata; exercise the row's own background padding.
+  await row(page, b.id).click({ position: { x: 4, y: 4 } });
   await expect(drawer.locator('h2')).toHaveText('B');
   await row(page, a.id).locator('[data-task-complete]').click();
   await row(page, c.id).locator('[data-task-delete]').click();

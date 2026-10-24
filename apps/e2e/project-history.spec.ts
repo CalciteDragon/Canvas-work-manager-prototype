@@ -132,7 +132,8 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await page.locator('app-insertion-point[data-insertion-point="end"] [data-insertion-point-button]').click();
   await page.locator('[data-create-shortcut-mode]').click();
   // The seed already places Kitchen's Task List on Home; Kitchen's Progress view is still free.
-  const option = page.locator('[data-shortcut-source-option]').filter({ hasText: 'Kitchen' }).filter({ hasText: 'Progress' }).first();
+  const group = page.locator('[data-shortcut-source-group]').filter({ has: page.locator('[data-shortcut-location]', { hasText: 'Kitchen' }) });
+  const option = group.locator('[data-shortcut-source-option]').filter({ hasText: 'Progress' }).first();
   const created = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/api/projects/${ROOT}/shortcuts`));
   await option.locator('[data-shortcut-add]').click();
   const shortcutId = ((await (await created).json()) as { shortcut: { id: string } }).shortcut.id;

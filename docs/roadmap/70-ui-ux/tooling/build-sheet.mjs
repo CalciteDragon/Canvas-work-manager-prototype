@@ -8,12 +8,12 @@ import { resolve, join } from 'node:path';
 const args = process.argv.slice(2);
 const flag = name => { const at = args.indexOf(name); return at === -1 ? null : args[at + 1]; };
 const profile = flag('--profile') ?? '71';
-if (!['71', '72', '73', '74', '75', '76'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+if (!['71', '72', '73', '74', '75', '76', '77'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
 // Profile 75's slice-73 pair has its own "before": the pre-73 build's placement run.
 const pre73Dir = flag('--pre73') === null ? null : resolve(flag('--pre73'));
 const positional = args.filter((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
 const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
-if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75|76] [--pre73 <dir>]');
+if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75|76|77] [--pre73 <dir>]');
 const liftCell = cell => ['more', 'project-details', 'archive-confirm', 'page-settings', 'task-drawer', 'task-drawer-scrolled', 'section-create', 'work-create'].includes(cell.state) || cell.route === '/prototype/design';
 /** Slice 74's one listed closed-state change: the project header exactly 12 px shorter at the same top. */
 const FEEDBACK_ROW = 12;
@@ -57,13 +57,19 @@ const CENSUS_EXCEPTIONS = [
   { owner: 'slice 7: project navigation breadcrumbs (listed after the after census; see the plan)', classes: ['project-nav__breadcrumb'], test: c => /\bproject-nav__breadcrumb\b/.test(c.class ?? '') },
   { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
 ];
-const activeExceptions = profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
+const activeExceptions = profile === '77' ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
 const exceptionFor = c => activeExceptions.find(e => e.test(c));
+const objectCell = cell => cell.route === '/app' || cell.route?.startsWith('/projects/') || cell.route === '/settings/archived-projects';
+// A selector may stand in for an axe node only when its baseline predates the structural identity (`axeNodeIdentity`).
+const structuralAnchor = node => /^(drag-preview|dragging)?\|/.test(node.stableAnchor ?? '');
+const objectPanels = new Set(['cards', 'object-rows', 'primitives', 'task-row', 'widget-frame', 'activity']);
 const chromeCell = cell => cell.route?.startsWith('/projects/') && !/\/(todos|archive|reflections)(?:$|\?)/.test(cell.route);
 const censusFailures = [], censusExceptions = [], intendedChanges = [], geometryReport = [];
 const read = async p => JSON.parse(await readFile(p, 'utf8'));
 const before = await read(join(beforeDir, 'index.json'));
 const after = await read(join(afterDir, 'index.json'));
+const objectEvidence=profile==='77'?await read(join(verificationDir,'objects-verification.json')).catch(e=>{if(e.code==='ENOENT')return null;throw e;}):null;
+const objectBaseline=profile==='77'?await read(join(beforeDir,'objects-verification.json')).catch(e=>{if(e.code==='ENOENT')return null;throw e;}):null;
 await mkdir(output, { recursive: true });
 const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const failures = [], exceptions = [], pairs = [], contrast = [];
@@ -76,6 +82,19 @@ for (const a of after.cells) {
   const b = before.cells.find(b => b.id === a.id);
   if (!b || a.status !== 'captured' || b.status !== 'captured') { failures.push({ cell: a.id, reason: 'missing or incomplete evidence' }); continue; }
   const [bl, al] = await Promise.all([read(join(beforeDir, b.artifacts.layout)), read(join(afterDir, a.artifacts.layout))]);
+  if(profile==='77' && objectCell(a)) {
+    for(const box of bl.planes??[])if(['app-top-bar','app-sidebar','app-project-page-navigation','app-project-header'].includes(box.selector)) {
+      const now=al.planes?.find(e=>e.selector===box.selector && e.index===box.index);
+      if(!now || ['x','y','width','height'].some(field=>!Number.isFinite(box[field]) || !Number.isFinite(now[field]) || Math.abs(box[field]-now[field])>1))failures.push({cell:a.id,reason:'objects fixed shell plane missing or moved more than 1 px',before:box,after:now});
+    }
+    if(!Array.isArray(bl.immutable) || !Array.isArray(al.immutable))failures.push({cell:a.id,reason:'objects matrix unchanged-region collector missing'});
+    const required=a.state?.startsWith('task-drawer')?'drawer:':a.state==='new-project'?'project-form:':['work-create','section-create','shortcut-picker','page-settings','project-details','archive-confirm','refused'].includes(a.state)?'dialog:':a.state==='remove-feedback'?'toast:':null;
+    for(const [phase,layout] of [['before',bl],['after',al]])if(required && !layout.immutable?.some(box=>box.id.startsWith(required)))failures.push({cell:a.id,phase,reason:'objects matrix expected unchanged region missing: '+required});
+    for(const box of bl.immutable??[]) {
+      const now=al.immutable?.find(e=>e.id===box.id);
+      if(!now || ['x','y','width','height'].some(field=>!Number.isFinite(box[field]) || !Number.isFinite(now[field]) || Math.abs(box[field]-now[field])>1))failures.push({cell:a.id,reason:'objects matrix unchanged region moved more than 1 px',before:box,after:now});
+    }
+  }
   const removedRow = profile === '74' ? removedFeedbackRow(bl, al) : null;
   for (const family of ['planes', 'controls', 'scrollRegions']) {
     let old = bl[family], next = al[family];
@@ -105,6 +124,34 @@ for (const a of after.cells) {
         exceptions.push({ cell:a.id, family, reason:'rail hint shortened by one line; original seven knobs shift uniformly', shift:shifts[0] });
         next = next.map((box, i) => i >= headerEnd && i < insertion ? { ...box, y: box.y - shifts[0] } : box);
       }
+    }
+    if (profile==='77' && a.route==='/prototype/design' && family==='controls') {
+      old=old.filter(c=>!objectPanels.has(c.panel));next=next.filter(c=>!objectPanels.has(c.panel));
+      const width=a.viewport?.width??Number(a.id.split('-').at(-1));
+      const lab=e=>e?.entries?.find(e=>e.row==='lab'&&e.theme===a.theme&&e.width===width);
+      const was=lab(objectBaseline),now=lab(objectEvidence);
+      next=next.map(c=>{
+        const b=was?.panels?.find(p=>p.id===c.panel),n=now?.panels?.find(p=>p.id===c.panel);
+        return b&&n?{...c,y:c.y-(n.y-b.y)}:c;
+      });
+    }
+    if(profile==='77' && a.route==='/prototype/design' && family==='planes') {
+      const width=a.viewport?.width??Number(a.id.split('-').at(-1));
+      const lab=e=>e?.entries?.find(e=>e.row==='lab'&&e.theme===a.theme&&e.width===width);
+      const was=lab(objectBaseline),now=lab(objectEvidence);
+      const containing=(box,panels)=>panels?.find(p=>['x','y','width','height'].every(field=>Number.isFinite(p[field])) && box.x>=p.x-1 && box.y>=p.y-1 && box.x<p.x+p.width && box.y<p.y+p.height);
+      const local=(boxes,evidence)=>boxes.flatMap(box=>{
+        const panel=containing(box,evidence?.panels);
+        if(!panel)return [box];
+        if(objectPanels.has(panel.id))return [];
+        return [{...box,x:box.x-panel.x,y:box.y-panel.y}];
+      });
+      for(const box of old) {
+        const panel=containing(box,was?.panels);if(!panel || objectPanels.has(panel.id))continue;
+        const current=now?.panels?.find(p=>p.id===panel.id);
+        if(!current || ['x','y','width','height'].some(field=>!Number.isFinite(current[field])) || ['width','height'].some(field=>Math.abs(current[field]-panel[field])>1))failures.push({cell:a.id,reason:'Lab unchanged specimen panel missing or resized',panel:panel.id});
+      }
+      old=local(old,was);next=local(next,now);
     }
     if (profile==='76' && a.route==='/prototype/design' && family==='controls') {
       const isFrame=c=>/^(Move |Collapse |Expand |Rename |Remove section )/.test(c.text??'') || c.panel==='section-frame';
@@ -150,7 +197,12 @@ for (const a of after.cells) {
       if (intended.length) intendedChanges.push({ cell: a.id, changes: intended });
       const moved = changes.filter(change => !intended.includes(change) && !integrity.includes(change));
       if (moved.length) geometryReport.push({ cell: a.id, family, changes: moved });
-    } else if ((profile === '76' && (chromeCell(a) || (a.route === '/prototype/design' && family !== 'controls'))) || (profile === '73' && liftCell(a)) || (profile === '74' && feedbackCell(a)) || (profile === '75' && placementCell(a))) {
+    } else if (profile === '77' && objectCell(a)) {
+      const fixedPlanes=new Set(['app-top-bar','app-sidebar','app-project-page-navigation','app-project-header']);
+      const fixed=family==='planes' ? changes.filter(change=>fixedPlanes.has(old[change.index]?.selector) || change.reason==='missing numeric geometry') : [];
+      if(fixed.length)failures.push({cell:a.id,family,changes:fixed});
+      if(changes.length>fixed.length)geometryReport.push({cell:a.id,family,changes:changes.filter(c=>!fixed.includes(c))});
+    } else if ( (profile === '76' && (chromeCell(a) || (a.route === '/prototype/design' && family !== 'controls'))) || (profile === '73' && liftCell(a)) || (profile === '74' && feedbackCell(a)) || (profile === '75' && placementCell(a))) {
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
       if (changes.length) geometryReport.push({ cell: a.id, family, changes });
@@ -178,7 +230,7 @@ for (const a of after.cells) {
       }
     }
   }
-  if (['72', '76'].includes(profile)) {
+  if (['72', '76', '77'].includes(profile)) {
     const touch = (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
     const product = al.controls.filter(c => c.scope === 'product');
     for (const c of product) {
@@ -218,9 +270,11 @@ for (const a of after.cells) {
       if (!next || ['x', 'width'].some(field => Math.abs(next[field] - content[field]) > 1)) failures.push({ cell: a.id, reason: 'section content geometry', before: content, after: next });
     }
     if (!Array.isArray(bl.sectionContents) || !Array.isArray(al.sectionContents)) failures.push({ cell: a.id, reason: 'section content collector missing' });
+  }
+  if ((profile === '76' && chromeCell(a)) || profile === '77') {
     const [was, now] = await Promise.all([read(join(beforeDir, b.artifacts.axe)), read(join(afterDir, a.artifacts.axe))]);
     const key = (v, n) => v.id + ':' + (n.stableAnchor ?? n.target?.join(' '));
-    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => n.stableAnchor ? [key(v,n)] : [key(v,n), v.id + ':' + n.target?.join(' ')])));
+    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(profile !== '77' || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
     for (const violation of now.violations ?? []) if (violation.id !== 'color-contrast') for (const node of violation.nodes) {
       if (!known.has(key(violation,node)) && !known.has(violation.id + ':' + node.target?.join(' '))) failures.push({ cell: a.id, reason: 'new axe node ' + violation.id, target: node.target });
     }
@@ -237,7 +291,7 @@ for (const a of after.cells) {
   pairs.push({ id: a.id, theme: a.theme });
 }
 // Section chrome owns its runtime evidence; the frozen Depth journey uses retired labels.
-const verification = profile === '76' ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
+const verification = ['76', '77'].includes(profile) ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
 const optional = path => read(path).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
 const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-verification.json')) : null;
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
@@ -426,6 +480,97 @@ if (profile === '76') for (const [id,clicks,keystrokes] of [['T03',10,38],['T05'
   const task=tasks?.find(t=>t.id===id);
   if (!task || task.status!=='completed' || !Number.isFinite(task.clicks) || !Number.isFinite(task.keystrokes) || task.deadEnds!==0 || task.clicks>clicks || task.keystrokes>keystrokes) failures.push({reason:'chrome core task cost or completion',id,task});
 }
+
+// Slice 77 measures each list independently; missing groups are missing evidence, not zero spread.
+const objects = objectEvidence;
+const objectsBefore = objectBaseline;
+const objectVisualRows=['timeline','timeline-busy','todos','task-list','shortcut','shortcut-empty','picker-preview','drag','archived-projects','archived-projects-root','progress','reflections','lab','dashboard-owner',...['overdue-chaos','busy-week','nested-projects','agent-heavy'].flatMap(seed=>['user-demo','user-alex','user-sam'].map(persona=>'dashboard-'+seed+'-'+persona))];
+const objectVisualPairs=profile==='77'?objectVisualRows.flatMap(row=>['dark','light'].flatMap(theme=>(row.startsWith('dashboard-')&&row!=='dashboard-owner'?[1440,1024,375]:[1440,375]).map(width=>{
+  const before=objectsBefore?.entries?.find(e=>e.row===row&&e.theme===theme&&e.width===width), after=objects?.entries?.find(e=>e.row===row&&e.theme===theme&&e.width===width);
+  const present=e=>e && !e.error && e.screenshot && e.aria;
+  return {row,theme,width,status:present(before)&&present(after)?'paired':present(before)?'before only':present(after)?'after only':'missing before and after'};
+}))):[];
+if (profile === '77') {
+  for(const pair of objectVisualPairs)if(pair.status!=='paired')failures.push({reason:'objects visual evidence missing',...pair});
+  for(const entry of objects?.entries??[]) {
+    const was=objectsBefore?.entries?.find(e=>e.row===entry.row && e.theme===entry.theme && e.width===entry.width);
+    const fail=reason=>failures.push({reason,row:entry.row,theme:entry.theme,width:entry.width});
+    if(!Array.isArray(was?.controls) || !Array.isArray(entry.controls))fail('objects runtime control collector missing');
+    if(!Array.isArray(was?.axe?.violations) || !Array.isArray(entry.axe?.violations))fail('objects runtime axe collector missing');
+    const touch=entry.width===375,product=(entry.controls??[]).filter(c=>c.scope==='product');
+    for(const c of product) {
+      const box=c.target??c;
+      if(!(touch ? box.height<44 || box.width<24 : box.height<24 || box.width<24))continue;
+      const detail={cell:'objects:'+entry.row,theme:entry.theme,width:entry.width,reason:touch?'touch target under 44 px':'target under 24 px',text:c.text,class:c.class,targetWidth:box.width,targetHeight:box.height};
+      const exception=exceptionFor(c);
+      if(exception)censusExceptions.push({...detail,owner:exception.owner});else censusFailures.push(detail);
+    }
+    if(!touch) {
+      const distinct=heights=>heights.sort((a,b)=>a-b).filter((h,i,all)=>i===0 || h-all[i-1]>0.5);
+      const buttons=distinct(product.filter(c=>/(^|\s)button(\s|$)/.test(c.class??'') && !/\bbutton--row\b/.test(c.class??'')).map(c=>c.height));
+      if(buttons.length>2)fail('objects runtime more than two button heights');
+      const fields=distinct(product.filter(c=>(c.tag==='select' || (c.tag==='input' && !['checkbox','radio','hidden','range','color','file'].includes(c.type))) && /\b(field|select)\b/.test(c.class??'')).map(c=>c.height));
+      if(fields.length>1)fail('objects runtime more than one field height');
+    }
+    const nodeKey=(v,n)=>v.id+':'+(n.stableAnchor??n.target?.join(' '));
+    const known=new Set((was?.axe?.violations??[]).flatMap(v=>v.nodes.flatMap(n=>[nodeKey(v,n),...(structuralAnchor(n)?[]:[v.id+':'+n.target?.join(' ')])])));
+    for(const violation of entry.axe?.violations??[]) {
+      if(['select-name','aria-progressbar-name','button-name'].includes(violation.id))fail('objects runtime axe '+violation.id);
+      if(violation.id==='target-size' && violation.nodes.some(n=>!activeExceptions.some(e=>e.classes.some(name=>n.target.join(' ').includes(name)))))fail('objects runtime axe target-size');
+      if(violation.id!=='color-contrast')for(const node of violation.nodes)if(!known.has(nodeKey(violation,node)) && !known.has(violation.id+':'+node.target?.join(' ')))fail('objects runtime new axe node '+violation.id);
+    }
+    if(!was?.immutable?.length || !entry.immutable?.length)fail('objects unchanged-region evidence missing');
+    // Dashboard-owner deliberately navigates to another route only after implementation.
+    if(entry.row!=='dashboard-owner')for(const box of was?.immutable??[]) {
+      let previous=box,now=entry.immutable?.find(n=>n.id===box.id);
+      // The Lab embeds live sidebars and a contained drawer below changing row panels.
+      // Their observed containing panel may translate; their local geometry still gates.
+      if(entry.row==='lab' && (/^app-sidebar:[1-9]\d*$/.test(box.id) || box.id.startsWith('[data-task-drawer]:'))) {
+        const panel=was.panels?.find(p=>['x','y','width','height'].every(field=>Number.isFinite(p[field])) && box.x>=p.x-1 && box.y>=p.y-1 && box.x<p.x+p.width && box.y<p.y+p.height);
+        if(panel) {
+          const current=entry.panels?.find(p=>p.id===panel.id);
+          if(!current || ['x','y','width','height'].some(field=>!Number.isFinite(current[field])) || ['width','height'].some(field=>Math.abs(current[field]-panel[field])>1))fail('objects Lab specimen panel missing or resized: '+panel.id);
+          else {
+            previous={...box,x:box.x-panel.x,y:box.y-panel.y};
+            if(now)now={...now,x:now.x-current.x,y:now.y-current.y};
+          }
+        }
+      }
+      if(!now || ['x','y','width','height'].some(field=>!Number.isFinite(previous[field]) || !Number.isFinite(now[field]) || Math.abs(previous[field]-now[field])>1))fail('objects unchanged region moved more than 1 px: '+box.id);
+    }
+    if(entry.row==='dashboard-owner' && (entry.ownerAvailable!==true || entry.ownerFocused!==true))fail('objects dashboard owner target missing');
+    if(entry.row==='drag' && entry.width===1440 && entry.dragging!==true)fail('objects drag visual is not mid-drag');
+  }
+  for (const [phase, evidence] of [['before', objectsBefore], ['after', objects]]) {
+    if (!evidence?.complete || !evidence.entries?.length) failures.push({reason:'objects-verification.json missing or incomplete',phase});
+    for(const entry of evidence?.entries??[])if(['timeline','timeline-busy','task-list','shortcut','progress','reflections'].includes(entry.row)) {
+      const target=entry.screenshotTarget;
+      if(target?.visible!==true || !target.selector || !target.box || ['x','y','width','height'].some(field=>!Number.isFinite(target.box[field])) || target.box.width<=0 || target.box.height<=0)failures.push({reason:'objects screenshot target visibility evidence missing',phase,row:entry.row,theme:entry.theme,width:entry.width});
+      else {
+        // The collector asserts 95% in view; the gate rechecks the recorded box against the capture viewport.
+        const {x,y,width,height}=target.box, viewportHeight=entry.width===375?812:900;
+        const inside=Math.max(0,Math.min(x+width,entry.width)-Math.max(x,0))*Math.max(0,Math.min(y+height,viewportHeight)-Math.max(y,0));
+        if(inside<width*height*0.95)failures.push({reason:'objects screenshot target outside the viewport',phase,row:entry.row,theme:entry.theme,width:entry.width,box:target.box});
+      }
+    }
+    for(const entry of evidence?.entries??[])if(entry.row==='dashboard-owner' && (!entry.hoverScreenshot || !entry.focusScreenshot))failures.push({reason:'objects dashboard hover/focus visual missing',phase,theme:entry.theme,width:entry.width});
+    for (const row of ['timeline','timeline-busy','todos']) for (const theme of ['dark','light']) for (const width of [1440,375]) {
+      const entry=evidence?.entries?.find(e=>e.row===row && e.theme===theme && e.width===width);
+      if (!entry || entry.error || !entry.groups?.length || !entry.screenshot || !entry.aria) { failures.push({reason:'objects title evidence missing',phase,row,theme,width});continue; }
+      for (const group of entry.groups) {
+        if (!group.titles?.length || group.titles.some(x=>!Number.isFinite(x))) failures.push({reason:'objects title measurement missing',phase,row,theme,width});
+        else if (phase==='after' && Math.max(...group.titles)-Math.min(...group.titles)>1) failures.push({reason:'objects title alignment exceeds 1 px',row,theme,width,group});
+      }
+    }
+  }
+  for (const id of [...Array.from({length:9},(_,i)=>'T'+String(i+1).padStart(2,'0')),'T11']) {
+    const was=objectsBefore?.tasks?.find(t=>t.id===id), now=objects?.tasks?.find(t=>t.id===id);
+    const complete=t=>t && t.status==='completed' && t.deadEnds===0 && Number.isFinite(t.clicks) && Number.isFinite(t.keystrokes);
+    const deadBefore=was?.status==='blocked' && Number.isFinite(was.deadEnds) && was.deadEnds>0 && Number.isFinite(was.clicks) && Number.isFinite(was.keystrokes);
+    if (!was || !complete(now) || (id==='T11' && !complete(was) && !deadBefore) || (id!=='T11' && !complete(was)) || (complete(was) && (now.clicks>was.clicks || now.keystrokes>was.keystrokes)) || (id==='T11' && complete(was) && now.clicks>=was.clicks)) failures.push({reason:'objects core task regression or missing evidence',id,before:was,after:now});
+  }
+}
+
 const primitives = profile === '72' ? await optional(join(verificationDir, 'primitives-verification.json')) : null;
 const primitivesLab = profile === '72' ? await optional(join(verificationDir, 'primitives-lab.json')) : null;
 const baselinePrimitives = profile === '72' ? await optional(join(beforeDir, 'primitives-verification.json')) : null;
@@ -461,7 +606,7 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
 failures.push(...censusFailures);
-const report = { chrome, chromeBefore, placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs };
+const report = { objects, objectsBefore, objectVisualPairs, chrome, chromeBefore, placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
 // Profile 73's "Visual acceptance pairs" table: which findings each core cell demonstrates.
@@ -599,6 +744,42 @@ if (profile === '76') {
   ].map(([id,proof])=>'<tr><th>'+esc(id)+'</th><td>'+esc(proof)+'</td></tr>').join('')+'</table><p>L6-010 and W1-028 are handed to slice9 and are not claimed here.</p>';
   await writeFile(join(output, 'chrome-verification.json'), JSON.stringify(chrome, null, 2));
   await writeFile(join(output, 'index.html'), '<!doctype html><html><meta charset="utf-8"><title>Slice 76 · Section chrome · Gate 2</title><style>body{font:16px system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain}.pair{display:grid;grid-template-columns:1fr 1fr}pre{white-space:pre-wrap}a{color:#ffad7f}</style><h1>Section chrome / Slice 76</h1><p>Gate 2 · awaiting visual acceptance. '+pairs.length+' paired cells · '+failures.length+' gate failures.</p><nav><a href="#measurements">Measurements</a> · <a href="#runtime">Runtime pairs</a> · <a href="#checks">Checks</a> · <a href="report.json">Full gate report</a></nav><h2 id="measurements">Measured chrome</h2>'+measured+'<h2>Findings</h2>'+findings+'<h2 id="runtime">Runtime before / after</h2>'+gallery.join('')+'<details><summary>All '+pairs.length+' matrix before / after pairs</summary>'+pairs.map(card).join('')+'</details><details><summary>Full runtime observations</summary><pre>'+esc(JSON.stringify(chrome,null,2))+'</pre></details><h2 id="checks">Checks and gate failures</h2><p><a href="checks.md">Complete check list and every e2e journey</a></p><pre>'+esc(JSON.stringify(failures,null,2))+'</pre><h2>Contrast (reported only)</h2>'+contrastTable+'</html>');
+}
+if (profile === '77') {
+  const gallery=[],featured=[];
+  const specimenShot=after.cells.find(cell=>cell.id==='prototype-design-dark-1440')?.artifacts?.scrolls?.find(file=>file.endsWith('.scroll-0-6.png'));
+  if(specimenShot) {
+    const file='after-'+specimenShot;await copyFile(join(afterDir,specimenShot),join(output,file));
+    featured.push('<article><h3>After only: six Object rows states</h3><p>The new primitive specimens appear together in this existing Lab scroll capture. The baseline has no corresponding six-state panel.</p>'+figure(file,'After · link, static, high priority, overdue, finished and read-only')+'</article>');
+  }
+  const selected=new Set(['timeline-busy|dark|1440','task-list|light|1440','task-list|dark|375','todos|light|1440','todos|dark|375','dashboard-overdue-chaos-user-demo|dark|1440','dashboard-overdue-chaos-user-demo|light|375','dashboard-owner|dark|1440','dashboard-nested-projects-user-demo|light|1440','dashboard-agent-heavy-user-demo|dark|1440','timeline|dark|1440','timeline|light|375','shortcut|dark|1440','shortcut|light|375','shortcut-empty|dark|1440','shortcut-empty|light|375','picker-preview|dark|1440','picker-preview|light|375','drag|dark|1440','archived-projects|light|1440','archived-projects-root|light|1440','progress|dark|1440','progress|light|1440','reflections|dark|1440','lab|dark|1440']);
+  for (const entry of objects?.entries??[]) {
+    const was=objectsBefore?.entries?.find(e=>e.row===entry.row && e.theme===entry.theme && e.width===entry.width);
+    const pictures=[];
+    for(const [phase,item,dir] of [['before',was,beforeDir],['after',entry,verificationDir]]) if(item?.screenshot) {
+      const file=phase+'-'+item.screenshot;await copyFile(join(dir,item.screenshot),join(output,file));pictures.push(figure(file,phase));
+    }
+    const visual='<article><h3>'+esc(entry.row+' '+entry.theme+' '+entry.width)+'</h3><div class="pair">'+pictures.join('')+'</div></article>';
+    gallery.push(visual);if(selected.has([entry.row,entry.theme,entry.width].join('|')))featured.push(visual);
+    if(entry.row==='dashboard-owner')for(const field of ['hoverScreenshot','focusScreenshot']) {
+      const pictures=[];
+      for(const [phase,item,dir] of [['before',was,beforeDir],['after',entry,verificationDir]])if(item?.[field]) {
+        const file=phase+'-'+item[field];await copyFile(join(dir,item[field]),join(output,file));pictures.push(figure(file,phase+(phase==='before'&&field==='focusScreenshot'?' · inert title cannot receive focus':'')));
+      }
+      const visual='<article><h3>'+esc(field==='hoverScreenshot'?'Overdue dashboard title · hover':'Overdue dashboard title · keyboard focus')+' '+esc(entry.theme+' '+entry.width)+'</h3><div class="pair">'+pictures.join('')+'</div></article>';
+      gallery.push(visual);if((entry.theme==='dark'&&entry.width===1440)||(entry.theme==='light'&&entry.width===375))featured.push(visual);
+    }
+  }
+  const costs='<table><tr><th>Task</th><th>Before clicks / keys</th><th>After clicks / keys</th><th>Before → after</th></tr>'+(objects?.tasks??[]).map(task=>{
+    const was=objectsBefore?.tasks?.find(t=>t.id===task.id);
+    return '<tr><th>'+esc(task.id)+'</th><td>'+esc(was?.clicks)+' / '+esc(was?.keystrokes)+'</td><td>'+esc(task.clicks)+' / '+esc(task.keystrokes)+'</td><td>'+esc(was?.status)+' → '+esc(task.status)+'</td></tr>';
+  }).join('')+'</table>';
+  const aria=(objects?.entries??[]).filter(e=>e.row==='dashboard-agent-heavy-user-demo'&&e.width===1440).map(entry=>{
+    const was=objectsBefore?.entries?.find(e=>e.row===entry.row&&e.theme===entry.theme&&e.width===entry.width);
+    return '<details><summary>ARIA snapshots: agent-heavy '+esc(entry.theme)+' 1440 (L5-023)</summary><div class="pair"><pre>'+esc(was?.aria??'Missing before')+'</pre><pre>'+esc(entry.aria??'Missing after')+'</pre></div></details>';
+  }).join('');
+  await writeFile(join(output,'objects-verification.json'),JSON.stringify(objects,null,2));
+  await writeFile(join(output,'index.html'),'<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 77 · Objects · Gate 2</title><style>body{font:16px system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain}.pair{display:grid;grid-template-columns:1fr 1fr}pre{white-space:pre-wrap}a{color:#ffad7f}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Objects / Slice 77</h1><p>Gate 2 · awaiting visual acceptance. '+pairs.length+' paired matrix cells · '+failures.length+' gate failures.</p><p><a href="report.json">Full gate report</a> · <a href="objects-verification.json">Title alignment and core tasks</a></p><h2>Core task costs</h2>'+costs+aria+'<h2>Visual acceptance before / after</h2>'+featured.join('')+'<details><summary>All runtime pairs</summary>'+gallery.join('')+'</details>'+'<h2>Visual acceptance inventory</h2><pre>'+esc(JSON.stringify(objectVisualPairs,null,2))+'</pre><h2>Findings</h2><p>L2-014: shared row treatments and Reflections accent. L2-015, L1-016, L3-019, W2-023: Task List and Todos anatomy and wrapping. W1-031, W2-014, W3-013, W4-012, L3-024: overdue dashboard owner. L5-023: agent-heavy ARIA snapshot. L7-017: Active Projects ancestor path. L1-010, L3-015, note-002: Timeline columns. L3-018, L4-016, W1-042, W2-025: shortcut source rows. W1-040, W2-024: grouped picker Preview. L3-017: mid-drag cue. W4-035: Archived projects ancestors. note-003: active Progress formula.</p><h2>Matrix before / after</h2>'+pairs.map(card).join('')+'<h2>Checks and gate failures</h2><pre>'+esc(JSON.stringify(failures,null,2))+'</pre><h2>Contrast (reported only)</h2>'+contrastTable+'</html>');
 }
 console.log(JSON.stringify({ pairs: pairs.length, geometryFailures: failures.length, intentionalLabChanges: exceptions.length, composites, output }));
 if (failures.length) process.exitCode = 1;

@@ -419,8 +419,10 @@ request survives shell replacement. Generic core route focus remains a fallback.
 Archive restore toasts name the returned item's breadcrumb and page, with canonical Go to it and
 receipt Undo. A switched-off origin page gets explanatory copy and no Go to it. Project restore
 links to its own route. Settings recovery has Open it without Undo because it has no workspace
-history store. Restore focus moves to the first toast action only while the removed control or
-body still owns it; dismissal falls back to a surviving Restore or the heading.
+history store. Restore focus observes the native toast action until it has a nonzero layout box,
+inside the existing pending task. It moves focus only while the removed control or body still
+owns it at that point. Closing the toast, a newer Restore or component destruction cancels and
+settles the observation; dismissal falls back to a surviving Restore or the heading.
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|

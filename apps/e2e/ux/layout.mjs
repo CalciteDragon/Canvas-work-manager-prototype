@@ -1,11 +1,36 @@
-/** Serializable browser collector; stable keys allow paint-only geometry comparisons. */
-export function collectPlaneBoxes(document = globalThis.document) {
+/**
+ * Serializable browser collector; stable keys allow paint-only geometry comparisons.
+ * Slice 77 opts into content coordinates for shell planes, so scrolling to a canvas action
+ * does not masquerade as moving the shell. Row planes retain their viewport coordinates.
+ */
+export function collectPlaneBoxes(source = globalThis.document, contentCoordinates = false) {
+  const document = source?.contentCoordinates ? (source.document ?? globalThis.document) : source;
+  contentCoordinates ||= source?.contentCoordinates === true;
   return ['app-top-bar', 'app-sidebar', 'app-project-page-navigation', 'app-project-header',
     'app-project-section-frame', 'app-shortcut-frame', 'app-dashboard-widget-frame'].flatMap(selector =>
     [...document.querySelectorAll(selector)].map((element, index) => {
-      const { x, y, width, height } = element.getBoundingClientRect();
+      let { x, y, width, height } = element.getBoundingClientRect();
+      let anchored=false;
+      for(let current=element;current;current=current.parentElement)if(['sticky','fixed'].includes(document.defaultView.getComputedStyle(current).position)){anchored=true;break;}
+      if(contentCoordinates && !anchored && ['app-top-bar','app-sidebar','app-project-page-navigation','app-project-header'].includes(selector)) {
+        for(let ancestor=element.parentElement;ancestor;ancestor=ancestor.parentElement) {
+          x+=ancestor.scrollLeft;y+=ancestor.scrollTop;
+        }
+      }
       return { selector, index, x, y, width, height };
     }));
+}
+
+/** Structural axe identity: content and generated styling are not a node's identity. */
+export function axeNodeIdentity(selector, document = globalThis.document) {
+  const element=document.querySelector(selector);if(!element)return selector;
+  let anchor=element;
+  while(anchor.parentElement && !anchor.getAttributeNames().some(name=>name.startsWith('data-')))anchor=anchor.parentElement;
+  const attributes=anchor.getAttributeNames().filter(name=>name.startsWith('data-')).sort().map(name=>name+'='+anchor.getAttribute(name)).join('|');
+  const path=[];
+  for(let current=element;current!==anchor;current=current.parentElement)path.unshift(current.tagName+':'+[...current.parentElement.children].indexOf(current));
+  const context=element.closest('.cdk-drag-preview')?'drag-preview':element.closest('.cdk-drag-dragging')?'dragging':'';
+  return [context,attributes,anchor.tagName,...path,element.tagName,element.getAttribute('role')??'',element.getAttribute('aria-label')??''].join('|');
 }
 
 /**

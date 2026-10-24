@@ -211,8 +211,9 @@ test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and r
   // Add at a chosen insertion point: before Kitchen's Task List, the second placement.
   await page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="section-${KITCHEN}-tasks"] [data-insertion-point-button]`).click();
   await page.locator('[data-create-shortcut-mode]').click();
-  const option = page.locator('[data-shortcut-source-option]').filter({ hasText: 'Home renovation / Garden' }).filter({ hasText: 'Markdown' }).first();
-  await expect(option).toContainText('Home renovation / Garden');
+  const group = page.locator('[data-shortcut-source-group]').filter({ has: page.locator('[data-shortcut-location]', { hasText: 'Home renovation / Garden' }) });
+  const option = group.locator('[data-shortcut-source-option]').filter({ hasText: 'Markdown' }).first();
+  await expect(group.locator('[data-shortcut-location]')).toContainText('Home renovation / Garden');
   const created = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/api/projects/${KITCHEN}/shortcuts`));
   await option.locator('[data-shortcut-add]').click();
   const shortcutId = ((await (await created).json()) as { shortcut: { id: string } }).shortcut.id;
@@ -962,7 +963,7 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   await expect(shortcutFrame.locator('[data-shortcut-open-source]')).toBeVisible();
   await expect(shortcutFrame.locator('[data-shortcut-remove]')).toHaveAttribute('aria-label', 'Remove shortcut to Canonical source');
   await shortcutFrame.locator('[data-shortcut-open-source]').click();
-  await expect(page).toHaveURL(new RegExp(`/projects/${child!.id}$`));
+  await expect(page).toHaveURL(new RegExp(`/projects/${child!.id}#section-${source.id}$`));
   await expect(page.locator(`[data-section-item][data-section-id="${source.id}"]`)).toBeVisible();
   await page.goto(`/projects/${root.id}`);
   const currentShortcutFrame = page.locator('[data-shortcut-frame]', { hasText: 'Canonical source' });

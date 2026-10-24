@@ -610,3 +610,251 @@ test('profile 76 keeps Lab Controls geometry and paint while allowing frame tool
     assert.equal(result.status,change==='none'||change==='frame-flow'?0:1,result.stderr);
   }
 });
+
+const objectTasks = () => [...Array.from({length:9},(_,i)=>'T'+String(i+1).padStart(2,'0')),'T11'].map(id=>({id,status:'completed',clicks:1,keystrokes:0,deadEnds:0}));
+const objectVisualRows = ['timeline','timeline-busy','todos','task-list','shortcut','shortcut-empty','picker-preview','drag','archived-projects','archived-projects-root','progress','reflections','lab','dashboard-owner',...['overdue-chaos','busy-week','nested-projects','agent-heavy'].flatMap(seed=>['user-demo','user-alex','user-sam'].map(persona=>'dashboard-'+seed+'-'+persona))];
+const objectEntries = () => objectVisualRows.flatMap(row=>['dark','light'].flatMap(theme=>(row.startsWith('dashboard-')&&row!=='dashboard-owner'?[1440,1024,375]:[1440,375]).map(width=>({row,theme,width,groups:[{id:'one',titles:[40,40]}],screenshot:'shot.png',screenshotTarget:{visible:true,selector:'[data-target]',box:{x:20,y:100,width:100,height:40}},aria:'- link Task',controls:[],axe:{violations:[],incomplete:[]},immutable:[{id:'shell',x:0,y:0,width:1440,height:64}],ownerAvailable:true,ownerFocused:true,dragging:true,hoverScreenshot:'shot.png',focusScreenshot:'shot.png'}))));
+async function objectsSheet(t, change={}) {
+  const f=await fixture(t);
+  f.layout.immutable=[];
+  if(change.route)f.cell.route=change.route;
+  if(change.width)f.cell.viewport={width:change.width,height:812};
+  for(const phase of [0,1]) {
+    await mkdir(join(f.dirs[phase],'tasks'),{recursive:true});
+    await f.json(phase,'index.json',{commit:phase?'after':'before',cells:[f.cell]});
+    await f.json(phase,'layout.json',f.layout);
+    await f.json(phase,'objects-verification.json',{complete:true,entries:objectEntries(),tasks:objectTasks().map(e=>phase===0 && e.id==='T11'?{...e,status:'blocked',deadEnds:1}:e)});
+    await f.json(phase,'tasks/tasks.json',objectTasks());
+  }
+  if(change.entries)await f.json(1,'objects-verification.json',{complete:true,entries:change.entries(objectEntries()),tasks:change.tasks??objectTasks()});
+  if(change.tasks)await f.json(1,'objects-verification.json',{complete:true,entries:objectEntries(),tasks:change.tasks});
+  if(change.missing)await rm(join(f.dirs[1],'objects-verification.json'));
+  await f.json(1,'layout.json',{...f.layout,planes:[{...f.layout.planes[0],selector:change.rowPlane?'app-dashboard-widget-frame':f.layout.planes[0].selector,y:change.move??0}],controls:change.controls??[],viewport:change.width??1440,document:change.width??1440});
+  if(change.rowPlane)await f.json(0,'layout.json',{...f.layout,planes:[{...f.layout.planes[0],selector:'app-dashboard-widget-frame'}]});
+  if(change.axe)await f.json(1,'axe.json',{violations:change.axe,incomplete:[]});
+  const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+  return {result,dirs:f.dirs,report:await readFile(join(f.dirs[2],'report.json'),'utf8').catch(()=>result.stderr)};
+}
+test('profile 77 accepts complete object evidence and emits the Gate 2 sheet',async t=>{
+  const f=await objectsSheet(t);assert.equal(f.result.status,0,f.report);
+  const html=await readFile(join(f.dirs[2],'index.html'),'utf8');
+  assert.match(html,/Slice 77 · Objects/);
+  assert.match(html,/ARIA snapshots/);
+  assert.match(html,/Core task costs/);
+});
+test('profile 77 removes task and widget census exceptions and keeps the breadcrumb exception',async t=>{
+  for(const width of [1440,375])for(const cls of ['task-row__title','widget-row__title']) {
+    const f=await objectsSheet(t,{width,controls:[{scope:'product',class:cls,text:'Task',width:80,height:width===375?40:20}]});
+    assert.equal(f.result.status,1);assert.match(f.report,/target under/);
+  }
+  const f=await objectsSheet(t,{controls:[{scope:'product',class:'project-nav__breadcrumb',text:'Home',width:80,height:16}]});
+  assert.equal(f.result.status,0,f.report);assert.match(f.report,/project navigation breadcrumbs/);
+});
+test('profile 77 gates new nested interactive nodes, missing runtime and title alignment',async t=>{
+  for(const change of [
+    {axe:[{id:'nested-interactive',nodes:[{target:['.new']}]}]},
+    {missing:true},
+    {entries:entries=>entries.map(e=>e.row==='dashboard-owner'?{...e,focusScreenshot:null}:e)},
+    {entries:entries=>entries.slice(1)},
+    {entries:entries=>entries.filter(e=>e.row!=='picker-preview')},
+    {entries:entries=>entries.map((e,i)=>i?e:{...e,immutable:[{...e.immutable[0],height:66}]})},
+    {entries:entries=>entries.map((e,i)=>i?e:{...e,groups:[{id:'one',titles:[40,42]}]})},
+    {entries:entries=>entries.map((e,i)=>i?e:{...e,groups:[]})},
+    {entries:entries=>entries.map(e=>e.row==='timeline-busy'?{...e,groups:[]}:e)},
+    {tasks:objectTasks().map(e=>e.id==='T04'?{...e,clicks:2}:e)},
+    {tasks:objectTasks().filter(e=>e.id!=='T11')},
+  ]) { const f=await objectsSheet(t,change);assert.equal(f.result.status,1,f.report); }
+});
+test('profile 77 gates unchanged cells at 1px and reports changed row cells',async t=>{
+  const stable=await objectsSheet(t,{route:'/settings/agents',move:1});assert.equal(stable.result.status,0,stable.report);
+  const moved=await objectsSheet(t,{route:'/settings/agents',move:2});assert.equal(moved.result.status,1,moved.report);
+  const dashboard=await objectsSheet(t,{route:'/app',move:20,rowPlane:true});assert.equal(dashboard.result.status,0,dashboard.report);
+});
+
+test('profile 77 keeps dashboard shell and nonchanging Lab controls fixed while row panels change',async t=>{
+  const shell=await objectsSheet(t,{route:'/app',move:2});assert.equal(shell.result.status,1,shell.report);
+  for(const [panel,expected] of [['task-row',0],['widget-frame',0],['activity',0],['cards',0],['controls',1]]) {
+    const f=await objectsSheet(t,{route:'/prototype/design'});
+    const base=JSON.parse(await readFile(join(f.dirs[0],'layout.json'),'utf8'));
+    const control={tag:'button',text:'Primary · Rest',panel,scope:'prototype',class:'button',x:20,y:100,width:80,height:32};
+    await writeFile(join(f.dirs[0],'layout.json'),JSON.stringify({...base,controls:[control]}));
+    await writeFile(join(f.dirs[1],'layout.json'),JSON.stringify({...base,controls:[{...control,width:82}]}));
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,expected,panel+' '+result.stderr);
+  }
+});
+
+test('profile 77 translates unchanged Lab controls only by their measured panel movement',async t=>{
+  for(const observed of [true,false]) {
+    const f=await objectsSheet(t,{route:'/prototype/design'});
+    const base=JSON.parse(await readFile(join(f.dirs[0],'layout.json'),'utf8'));
+    const control={tag:'button',text:'Primary · Rest',panel:'controls',scope:'prototype',x:20,y:100,width:80,height:32};
+    for(const phase of [0,1]) {
+      await writeFile(join(f.dirs[phase],'layout.json'),JSON.stringify({...base,controls:[{...control,y:100+phase*40}]}));
+      const evidence=JSON.parse(await readFile(join(f.dirs[phase],'objects-verification.json'),'utf8'));
+      evidence.entries=evidence.entries.map(e=>e.row==='lab'?{...e,panels:[{id:'controls',x:20,y:observed?phase*40:0,width:100,height:200}]}:e);
+      await writeFile(join(f.dirs[phase],'objects-verification.json'),JSON.stringify(evidence));
+    }
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,observed?0:1,result.stderr);
+  }
+});
+
+test('profile 77 refuses a disappearing shell plane on a changed row surface',async t=>{
+  const f=await objectsSheet(t,{route:'/app'});
+  const layout=JSON.parse(await readFile(join(f.dirs[1],'layout.json'),'utf8'));layout.planes=[];
+  await writeFile(join(f.dirs[1],'layout.json'),JSON.stringify(layout));
+  const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+  assert.equal(result.status,1,result.stderr);
+});
+
+test('profile 77 gates immutable drawer, dialog and tool boxes within changing project cells',async t=>{
+  for(const region of ['drawer','dialog-header','insertion','toast-tool'])for(const change of ['move','missing','collector']) {
+    const f=await objectsSheet(t,{route:'/projects/project-kitchen'});
+    for(const phase of [0,1]) {
+      const layout=JSON.parse(await readFile(join(f.dirs[phase],'layout.json'),'utf8'));
+      layout.immutable=[{id:region,x:20,y:100,width:120,height:44}];
+      if(phase===1) {
+        if(change==='move')layout.immutable[0].y+=2;
+        if(change==='missing')layout.immutable=[];
+        if(change==='collector')delete layout.immutable;
+      }
+      await writeFile(join(f.dirs[phase],'layout.json'),JSON.stringify(layout));
+    }
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,1,region+' '+change+' '+result.stderr);
+  }
+});
+
+test('profile 77 gates runtime-only controls and new axe nodes in each persona and Preview cell',async t=>{
+  for(const row of ['dashboard-agent-heavy-user-sam','picker-preview','shortcut'])for(const change of ['small','axe','missing-controls','missing-axe']) {
+    const f=await objectsSheet(t,{entries:entries=>entries.map(e=>{
+      if(e.row!==row)return e;
+      if(change==='small')return {...e,controls:[{scope:'product',class:'object-row__title',text:'Task',width:80,height:20}]};
+      if(change==='axe')return {...e,axe:{violations:[{id:'nested-interactive',nodes:[{target:['.new']}]}],incomplete:[]}};
+      if(change==='missing-controls')return {...e,controls:undefined};
+      return {...e,axe:undefined};
+    })});
+    assert.equal(f.result.status,1,row+' '+change+' '+f.report);
+  }
+});
+
+test('profile 77 requires the named immutable lift in each open-state cell',async t=>{
+  const f=await objectsSheet(t,{route:'/projects/project-kitchen'});
+  for(const phase of [0,1]) {
+    const index=JSON.parse(await readFile(join(f.dirs[phase],'index.json'),'utf8'));
+    index.cells[0].state='task-drawer';
+    await writeFile(join(f.dirs[phase],'index.json'),JSON.stringify(index));
+  }
+  const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+  assert.equal(result.status,1,result.stderr);
+});
+
+test('profile 77 requires root archive and empty shortcut visual pairs',async t=>{
+  for(const row of ['archived-projects-root','shortcut-empty']) {
+    const f=await objectsSheet(t,{entries:entries=>entries.filter(e=>e.row!==row)});
+    assert.equal(f.result.status,1,row+' missing pair must fail');
+  }
+});
+
+test('profile 77 measures contained Lab shell specimens relative to their observed panel',async t=>{
+  for(const change of ['panel-flow','overflow-flow','panel-size','internal-move','internal-size','shell-move']) {
+    const f=await objectsSheet(t);
+    for(const phase of [0,1]) {
+      const evidence=JSON.parse(await readFile(join(f.dirs[phase],'objects-verification.json'),'utf8'));
+      evidence.entries=evidence.entries.map(e=>e.row==='lab'?{...e,
+        panels:[{id:'navigation',x:600,y:100+phase*128,width:800+(phase && change==='panel-size'?2:0),height:500},{id:'drawer',x:600,y:700+phase*128,width:800,height:700}],
+        immutable:[{id:'app-sidebar:0',x:0,y:48+(phase && change==='shell-move'?2:0),width:240,height:850},
+          {id:'app-sidebar:1',x:620+(phase && change==='internal-move'?2:0),y:(change==='overflow-flow'?599:150)+phase*128,width:240+(phase && change==='internal-size'?2:0),height:350},
+          {id:'[data-task-drawer]:0',x:620,y:750+phase*128,width:750,height:600}]}:e);
+      await writeFile(join(f.dirs[phase],'objects-verification.json'),JSON.stringify(evidence));
+    }
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,['panel-flow','overflow-flow'].includes(change)?0:1,change+' '+result.stderr);
+  }
+});
+
+test('profile 77 matrix keeps Lab specimen geometry local while the actual shell stays absolute',async t=>{
+  for(const change of ['panel-flow','internal-move','internal-size','shell-move']) {
+    const f=await objectsSheet(t,{route:'/prototype/design'});
+    for(const phase of [0,1]) {
+      const layout=JSON.parse(await readFile(join(f.dirs[phase],'layout.json'),'utf8'));
+      layout.planes=[{selector:'app-sidebar',index:0,x:0,y:48+(phase && change==='shell-move'?2:0),width:240,height:850},
+        {selector:'app-sidebar',index:1,x:620+(phase && change==='internal-move'?2:0),y:150+phase*128,width:240+(phase && change==='internal-size'?2:0),height:350}];
+      layout.controls=[{scope:'prototype',panel:'controls',text:'Primary · Rest',x:20,y:100,width:80,height:32}];
+      await writeFile(join(f.dirs[phase],'layout.json'),JSON.stringify(layout));
+      const evidence=JSON.parse(await readFile(join(f.dirs[phase],'objects-verification.json'),'utf8'));
+      evidence.entries=evidence.entries.map(e=>e.row==='lab'?{...e,panels:[{id:'navigation',x:600,y:100+phase*128,width:800,height:500}]}:e);
+      await writeFile(join(f.dirs[phase],'objects-verification.json'),JSON.stringify(evidence));
+    }
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,change==='panel-flow'?0:1,change+' '+result.stderr);
+  }
+});
+
+test('profile 77 axe comparison retains equal selectors when a legacy anchor contains changed text',async t=>{
+  for(const newNode of [false,true]) {
+    const f=await objectsSheet(t,{axe:[{id:'landmark-unique',nodes:[{target:[newNode?'.new-landmark':'.dashboard-main'],stableAnchor:'main|Changed child text'}]}]});
+    await writeFile(join(f.dirs[0],'axe.json'),JSON.stringify({violations:[{id:'landmark-unique',nodes:[{target:['.dashboard-main'],stableAnchor:'main|Old child text'}]}],incomplete:[]}));
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,newNode?1:0,result.stderr);
+  }
+});
+
+test('profile 77 does not let a reused selector stand in for a different structural anchor',async t=>{
+  for(const moved of [false,true]) {
+    const anchor=moved?'|data-section-id=s|SECTION|DIV:2|BUTTON|BUTTON||':'|data-section-id=s|SECTION|DIV:1|BUTTON|BUTTON||';
+    const f=await objectsSheet(t,{axe:[{id:'landmark-unique',nodes:[{target:['.tool'],stableAnchor:anchor}]}]});
+    await writeFile(join(f.dirs[0],'axe.json'),JSON.stringify({violations:[{id:'landmark-unique',nodes:[{target:['.tool'],stableAnchor:'|data-section-id=s|SECTION|DIV:1|BUTTON|BUTTON||'}]}],incomplete:[]}));
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,moved?1:0,result.stderr);
+  }
+});
+
+test('profile 77 requires proof that each named screenshot target was visible',async t=>{
+  for(const row of ['timeline','timeline-busy','task-list','shortcut','progress','reflections']) {
+    const f=await objectsSheet(t,{entries:entries=>entries.map(e=>e.row===row?{...e,screenshotTarget:undefined}:e)});
+    assert.equal(f.result.status,1,row+' must have visible-target evidence');
+  }
+});
+
+test('profile 77 rejects a screenshot target box outside its viewport',async t=>{
+  for(const box of [{x:20,y:1200,width:100,height:40},{x:-90,y:100,width:100,height:40}]) {
+    const f=await objectsSheet(t,{entries:entries=>entries.map(e=>e.row==='shortcut'?{...e,screenshotTarget:{...e.screenshotTarget,box}}:e)});
+    assert.equal(f.result.status,1,JSON.stringify(box)+' is not inside the viewport');
+  }
+});
+
+test('profile 77 features the observed six-state Lab scrollshot as after-only evidence',async t=>{
+  const f=await objectsSheet(t);
+  const image='prototype-design-dark-1440.scroll-0-6.png';
+  for(const phase of [0,1]) {
+    const index=JSON.parse(await readFile(join(f.dirs[phase],'index.json'),'utf8'));
+    index.cells[0].id='prototype-design-dark-1440';
+    if(phase===1)index.cells[0].artifacts.scrolls=[image];
+    await writeFile(join(f.dirs[phase],'index.json'),JSON.stringify(index));
+  }
+  await writeFile(join(f.dirs[1],image),'observed six-state image');
+  const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+  const html=await readFile(join(f.dirs[2],'index.html'),'utf8');
+  assert.match(html,/After only: six Object rows states/);
+  assert.equal(await readFile(join(f.dirs[2],'after-'+image),'utf8'),'observed six-state image');
+});
+
+test('profile 77 measures the real inline New project form rather than requiring a nonexistent dialog',async t=>{
+  for(const width of [1440,375])for(const change of ['none','missing','moved']) {
+    const f=await objectsSheet(t,{route:'/app',width});
+    for(const phase of [0,1]) {
+      const index=JSON.parse(await readFile(join(f.dirs[phase],'index.json'),'utf8'));index.cells[0].state='new-project';
+      await writeFile(join(f.dirs[phase],'index.json'),JSON.stringify(index));
+      const layout=JSON.parse(await readFile(join(f.dirs[phase],'layout.json'),'utf8'));
+      layout.immutable=[{id:'project-form:0',x:20,y:170,width:200,height:80},{id:'project-form:0:control:0',x:0,y:20,width:120,height:40}];
+      if(phase===1 && change==='missing')layout.immutable=[];
+      if(phase===1 && change==='moved')layout.immutable[1].x+=2;
+      await writeFile(join(f.dirs[phase],'layout.json'),JSON.stringify(layout));
+    }
+    const result=spawnSync(process.execPath,[builder,...f.dirs,'--profile','77'],{encoding:'utf8'});
+    assert.equal(result.status,change==='none'?0:1,width+' '+change+' '+result.stderr);
+  }
+});

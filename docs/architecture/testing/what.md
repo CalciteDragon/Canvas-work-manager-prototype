@@ -1,5 +1,16 @@
 # What the testing system is made of
 
+Slice 77 adds `ux/slice77.config.ts` and `ux/objects-verification.ts` for isolated genuine
+before/after captures, title alignment, unchanged regions, the named visual inventory and
+T01–T09/T11. Sheet profile 77 requires both runtime files and all pairs, removes the row
+census exceptions, and gates new axe nodes and geometry outside the row changes. Its
+fixture cases in `build-sheet.test.mjs` exercise missing evidence, target sizes, title
+alignment, task regression, shell/Lab scope and 1 px tolerance.
+
+The Slice 77 collector uses the opt-in content-coordinate mode of `ux/layout.mjs`; its
+`harness.test.mjs` tests keep frozen profiles on viewport coordinates. Open-surface boxes
+and runtime-only persona/Preview census and axe scans have independent gate fault tests.
+
 Slice 76 adds `section-chrome.spec.ts` for named headings, roving tools, pointer/touch rename,
 insertion hit areas, resize separation and optimistic collapse. Its isolated capture/runtime
 rig uses `ux/slice76*.config.ts`, `ux/chrome-verification.ts` and sheet profile 76; the census

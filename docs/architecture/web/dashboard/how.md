@@ -34,6 +34,7 @@
 - `features/activity` — `ActivityFeed` inside the agent-activity widget; the page mounts tiles
   only once loaded, so a first load never fades and only later rows do (Slice 75).
 - [contracts](../../contracts/overview.md) — `dashboard.ts` and `DashboardWidgetType`.
+- [tasks](../tasks/overview.md) — the pure `taskMeta` formatter shared by Today, Upcoming and Recent Progress.
 
 **Depended on by**
 

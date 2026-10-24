@@ -16,6 +16,7 @@ export class TaskCounter {
   }
   summary() { const passed = this.steps.filter(s => s.status === 'passed'); return { clicks: passed.reduce((n,s)=>n+s.clicks,0), keystrokes: passed.reduce((n,s)=>n+s.keystrokes,0), surfaces: [...new Set(passed.map(s=>s.surface))], deadEnds: this.steps.filter(s=>s.status==='blocked').length }; }
 }
+const legacyBefore = Boolean(process.env['UX_BEFORE']) && !process.env['UX_OBJECTS'];
 export const TASKS = [
   { id:'T01', title:'Create a root project', seed:'empty', route:'/app', spec:'§23, §26' },
   { id:'T02', title:'Create a workstream under Kitchen', seed:'nested-projects', route:'/projects/project-kitchen', spec:'§26' },
@@ -26,6 +27,7 @@ export const TASKS = [
   { id:'T07', title:'Place a shortcut on Work', seed:'nested-projects', route:'/projects/project-kitchen', spec:'§26' },
   { id:'T08', title:'Hide and re-enable Reflections', seed:'nested-projects', route:'/projects/project-renovation', spec:'§26' },
   { id:'T09', title:'Restore an archived item', seed:'nested-projects', route:'/projects/project-renovation/pages/archive', spec:'§26' },
+  { id:'T11', title:'Open an overdue task from the dashboard', seed:'overdue-chaos', route:'/app', spec:'§24, §34' },
   { id:'T10', title:'Inspect permissions and connect an agent', seed:'agent-heavy', route:'/settings/agents', spec:'§53' },
 ] as const;
 async function execute(page: Page, id: string, c: TaskCounter) {
@@ -47,14 +49,14 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await expect(page.getByRole('combobox',{name:'Parent',exact:true})).toHaveValue('project-kitchen');
       await click(page.getByRole('dialog').getByRole('button',{name:'Create',exact:true}),'Create','Workstream dialog'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
     case 'T03': {
-      await click(button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section'),'Insert at end','Work canvas');
+      await click(button(legacyBefore ? 'Insert at the end' : 'Add a section'),'Insert at end','Work canvas');
       await c.step('Choose Task List','Section dialog',{clicks:1},()=>page.getByRole('combobox',{name:'Section type'}).selectOption('task-list'));
       await type(page.getByRole('dialog').getByRole('textbox'),'Baseline tasks','Section dialog');
       await click(page.getByRole('dialog').getByRole('button',{name:'Create',exact:true}),'Create','Section dialog');
-      const section=page.getByRole('region',{name:process.env['UX_BEFORE'] ? 'Rename Baseline tasks' : 'Baseline tasks',exact:true});
+      const section=page.getByRole('region',{name:legacyBefore ? 'Rename Baseline tasks' : 'Baseline tasks',exact:true});
       for(const title of ['Baseline one','Baseline two']){
         await type(section.getByRole('textbox',{name:'Task title'}),title,'Task List'); await click(section.getByRole('button',{name:'Add task',exact:true}),'Add task','Task List');
-        if (!process.env['UX_BEFORE']) await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
+        if (!legacyBefore) await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
         await click(section.getByRole('checkbox',{name:`Complete ${title}`,exact:true}),'Complete task','Task List'); await expect(section.getByRole('checkbox',{name:`Reopen task ${title}`})).toBeChecked();
       } break;
     }
@@ -72,7 +74,7 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await click(button(/^Remove section /).first(),'Remove first section','Work canvas');
       await page.waitForLoadState('networkidle');
       await c.step('Verify exact section left the canvas','Work canvas',{},()=>expect(button(removedName!)).toHaveCount(0));
-      if (process.env['UX_BEFORE']) await click(button(/^Undo:/),'Undo removal through header','Project history');
+      if (legacyBefore) await click(button(/^Undo:/),'Undo removal through header','Project history');
       else await click(page.locator('[data-toast]:popover-open').getByRole('button', { name: 'Undo', exact: true }), 'Undo removal through toast', 'Toast');
       await c.step('Verify removed section returns','Work canvas',{},()=>expect(button(removedName!)).toBeVisible()); break; }
     case 'T06':
@@ -81,8 +83,8 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await type(page.getByRole('textbox',{name:/Markdown source/}),'# Baseline edit','Markdown editor');
       await click(button('Save'),'Save Markdown','Markdown editor'); await expect(page.getByRole('heading',{name:'Baseline edit'})).toBeVisible(); break;
     case 'T07':
-      await click(button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section'),'Insert at end','Work canvas'); await click(button('Add shortcut'),'Add shortcut','Section dialog');
-      await click(page.getByRole('dialog').getByRole('button',{name:/^Add /}).first(),'Add source shortcut','Shortcut picker'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
+      await click(button(legacyBefore ? 'Insert at the end' : 'Add a section'),'Insert at end','Work canvas'); await click(button('Add shortcut'),'Add shortcut','Section dialog');
+      await click(page.locator('[data-shortcut-add]:not([disabled])').first(),'Add source shortcut','Shortcut picker'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
     case 'T08':
       await nav(); await click(button('Project page settings for Home renovation'),'Page settings','Project navigation');
       await click(page.getByRole('checkbox',{name:'Show Reflections page'}),'Hide Reflections','Page settings');
@@ -94,6 +96,21 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       const restore = button(/^Restore /).first(); const label = await restore.getAttribute('aria-label');
       await click(restore,'Restore first ready item','Archive');
       await c.step('Verify exact restored entry leaves Archive','Archive',{},()=>expect(button(label!)).toHaveCount(0)); break; }
+    case 'T11': {
+      const overdue=page.locator('app-dashboard-widget-frame').filter({hasText:'Overdue'}).first();
+      await expect(overdue).toBeVisible();
+      await c.step('Open first overdue task','Dashboard',{clicks:1},async()=>{
+        const title=overdue.locator('a.object-row__title, a.widget-row__title').first();
+        if (!await title.count()) throw new Error('Dead end: dashboard overdue tasks have no owner link.');
+        await title.click();
+        await expect(page).toHaveURL(/#section-/);
+        const fragment=new URL(page.url()).hash;
+        const section=page.locator(fragment);
+        await expect(section).toBeVisible();
+        await expect(section.locator('h2')).toBeFocused();
+        await expect(section.locator('[data-section-content]')).toBeVisible();
+      });break;
+    }
     case 'T10':
       await expect(page.getByRole('heading',{name:'AI & Agents'})).toBeVisible();
       await c.step('Inspect permission labels','Agent settings',{},()=>expect(page.getByRole('checkbox').first()).toBeVisible());
@@ -101,9 +118,9 @@ async function execute(page: Page, id: string, c: TaskCounter) {
   }
 }
 /** Runs reproducible expert paths, not a novice discoverability study. */
-export async function runCoreTasks(browser: Browser, outputDir: string): Promise<void> {
+export async function runCoreTasks(browser: Browser, outputDir: string, ids?: readonly string[]): Promise<void> {
   await mkdir(outputDir,{recursive:true}); const results: unknown[]=[];
-  for(const task of TASKS){
+  for(const task of TASKS.filter(task=>!ids || ids.includes(task.id))){
     await seed(task.seed); await setClock(SEED_NOW);
     const context=await browser.newContext({viewport:{width:1440,height:900},timezoneId:'UTC'}); await configureContext(context);
     const page=await context.newPage(); await page.clock.install({time:new Date(SEED_NOW)}); await page.clock.setFixedTime(new Date(SEED_NOW)); page.setDefaultTimeout(8000); const counter=new TaskCounter(); let status='completed'; let error: string|undefined;

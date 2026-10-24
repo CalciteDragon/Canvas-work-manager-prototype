@@ -8,6 +8,33 @@ a current read, so a race is verified against the canonical write refusal too.
 
 ## Runtime flow
 
+Slice 77 uses `ux/slice77.config.ts` on web 4254, host 4354 and
+`.prototype/ux-slice77.json`. Its genuine `e0e1467` baseline source is exported outside
+`apps/e2e/`; the output is `apps/e2e/ux-output/slice77-baseline-web/browser`. Set
+`UX_BEFORE=e0e1467` for before and unset it for after. The config enables `UX_OBJECTS`,
+which keeps Slice 76's current Add a section labels on the baseline and leaves frozen
+earlier runtime journeys alone. `objects-verification.ts` records Timeline/Todos title
+columns, unchanged chrome relative to each frame, all named visual pairs, the dashboard
+seeds/personas/widths, and T01–T09/T11. `UX_OBJECTS_MATCH` optionally selects
+`row|theme|width` contexts while preserving earlier entries; a partial run is incomplete.
+
+For Slice 77 only, shell-plane coordinates include ancestor scroll offsets, so opening a
+picker after scrolling does not confuse a scroll change with a geometry change. Frame
+headers/tools remain relative to their frame; drawers, dialog chrome and toasts retain
+viewport/local coordinates. Matrix layouts carry `immutable` boxes for those open surfaces
+and for every section/shortcut frame header and its tools, and every runtime context carries the same control census and axe violations/incomplete
+results as the matrix. Passing axe-node trees are not duplicated in runtime records.
+
+`build-sheet.mjs <before> <after> <sheet> <after> --profile 77` requires complete
+`objects-verification.json` from both builds and every visual pair. It gates task costs,
+Timeline/Todos alignment within 1 px, unchanged regions within 1 px, every new axe node
+except reported-only contrast, and the full control census. Axe nodes match by the
+structural `axeNodeIdentity`; a bare selector stands in only for a baseline node recorded
+without one. Each named screenshot target's recorded box must lie 95% inside the viewport. Only the breadcrumb census
+exception remains; Task List and widget title exceptions end here. Lab cards/object rows
+and the live task-row, widget-frame and activity panels change; other controls retain
+their geometry. The sheet is evidence for Gate 2, not an automatic visual acceptance.
+
 Slice 76 uses `apps/e2e/ux/slice76.config.ts` for before/after capture and
 `slice76-behavior.config.ts` for browser journeys, on web 4253, host 4353 and
 `.prototype/ux-slice76.json`. Its `e4ec0cb` baseline is exported to
@@ -40,6 +67,7 @@ complete `chrome-verification.json`. Earlier slices' runtime scripts remain froz
    to 1.01 MB, so the watched hard ceiling became 1050 kB while the 850 kB warning remains reported.
    Slice 41's eager header controls measured 1024.97 kB.
    After Slice 73 closed at 1,049,943 bytes, the user raised the hard ceiling to 1100 kB.
+   Slice 77 raises it to 1150 kB; its production initial bundle measures 1101.98 kB.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through

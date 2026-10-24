@@ -347,10 +347,15 @@ their budgets. Inert shortcut rows remain with slice 6, the project-header edge 
 and default names with slice 9. Initial bundle headroom is 1.13 kB; redesign slice 6 is next.
 
 **Redesign slice 6 is split (2026-10-21, the user's choice).** [Slice 77](77-objects-one-row-shape.md)
-(6a Objects, TH09 plus the row items deferred to slice 6) is planned and reviewed; L1-027 moves to
+(6a Objects, TH09 plus the row items deferred to slice 6) is implemented and verified; Gate 2 awaits the user. L1-027 moves to
 the agent connections slice. 6b States (TH10, the Markdown editor's Cancel and Preview, L4-023's
 count half) follows it. The user also raised the initial-bundle ceiling to 1150 kB, recorded by
 slice 77.
+
+**Slice 77 at Gate 2 (2026-10-23).** Verification is complete on the final tree: root tests, lint,
+Storybook and 233 browser tests pass, and the final sheet has zero gate failures across 194 pairs.
+Its [verification journal](77-objects-one-row-shape.md#gate-2-verification--awaiting-the-user)
+records the evidence. The user's visual acceptance is pending; do not close the slice before it.
 
 ### Slice 72 (Primitives) — planning brief
 
@@ -460,9 +465,8 @@ decision.
 - In rig page routes, use `route.fallback()`, never `route.continue()`.
 - This machine has 8 GB. Run at most about four rig browsers at once, and serve a production
   build statically instead of running one `ng serve` per auditor.
-- The production build is 1,028.94 kB initial after slice 71, above the 850 kB warning and under the 1050 kB hard
-  ceiling ([budget](../../decisions/2026-08-initial-bundle-budget.md)). Glass work must not
-  push it over.
+- The production build is 1101.98 kB initial after slice 77, above the 850 kB warning and under
+  the user-approved 1150 kB hard ceiling ([budget](../../decisions/2026-08-initial-bundle-budget.md)).
 - **Gate 0 baseline.** The private Gate 0 baseline is a ChatGPT Site (project
   `appgprj_6acdf2662edc8191881a5b7ef190e42a`). It can only be updated from the Codex environment
   with its Sites skill, and its audience must not be broadened.

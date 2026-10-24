@@ -11,10 +11,11 @@ import { MATRIX, SEED_NOW, COVERAGE_GAPS, type CaptureCell } from './matrix';
 // @ts-expect-error Small JS helper is also exercised directly by node:test.
 import { collectEvidence } from './evidence.mjs';
 // @ts-expect-error Browser-serializable helper is also exercised by node:test.
-import { collectControls, collectPlaneBoxes } from './layout.mjs';
+import { axeNodeIdentity, collectControls, collectPlaneBoxes } from './layout.mjs';
 
 const commit = process.env['UX_BEFORE'] || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 /** Only Slice 73's baseline predates the native details and confirmation lifts; it opened the inline More panel instead. */
+const legacyBefore = Boolean(process.env['UX_BEFORE']) && !process.env['UX_OBJECTS'];
 const inlineMoreBaseline = process.env['UX_BEFORE'] === 'e56c7d7ca9f442b3d3dd6fd954e25ccee6d3ad78';
 const out = resolve('ux-output', commit);
 const escape = (s: string) => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
@@ -33,7 +34,7 @@ async function state(page: Page, cell: CaptureCell) {
     case 'page-settings': await button('Project page settings for Home renovation').click(); break;
     case 'work-create': await button('Add workstream').click(); break;
     case 'section-create': case 'shortcut-picker':
-      await button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section').click();
+      await button(legacyBefore ? 'Insert at the end' : 'Add a section').click();
       if (cell.state === 'shortcut-picker') await button('Add shortcut').click();
       break;
     case 'markdown-edit': await button(/^Edit Markdown for/).first().click(); break;
@@ -49,7 +50,7 @@ async function state(page: Page, cell: CaptureCell) {
     case 'refused':
       await page.route('**/api/projects/*/sections', route => route.request().method() === 'POST'
         ? route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'conflict', message: 'The insertion location is no longer available. Reload and retry.' }) }) : route.fallback());
-      await button(process.env['UX_BEFORE'] ? 'Insert at the end' : 'Add a section').click(); await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
+      await button(legacyBefore ? 'Insert at the end' : 'Add a section').click(); await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
       // Scoped: the toasts' persistent live regions are alerts too (Slice 74).
       await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible(); break;
     case 'dev-panel': await page.keyboard.press('Control+Shift+D'); await expect(page.getByRole('heading', { name: 'Prototype controls' })).toBeVisible(); break;
@@ -101,12 +102,7 @@ test('capture matrix', async ({ browser }) => {
         screenshot: async () => { const file = `${cell.id}.png`; await page.screenshot({ path: resolve(out,file), fullPage: true, animations: 'disabled' }); return file; },
         axe: async () => { const file = `${cell.id}.axe.json`; const scan = await new AxeBuilder({ page }).options({ rules: { 'target-size': { enabled: true } } }).analyze(); for (const violation of scan.violations) for (const node of violation.nodes) {
           const selector=node.target.at(-1);
-          if(typeof selector==='string') (node as typeof node & {stableAnchor?:string}).stableAnchor=await page.evaluate(selector=>{
-            const element=document.querySelector(selector);if(!element)return selector;
-            let anchor:Element|null=element;while(anchor&&!anchor.getAttributeNames().some(name=>name.startsWith('data-')))anchor=anchor.parentElement;
-            const attributes=anchor?.getAttributeNames().filter(name=>name.startsWith('data-')).map(name=>name+'='+anchor!.getAttribute(name)).join('|')??selector;
-            return attributes+'|'+(element.getAttribute('aria-label')??element.textContent?.trim().slice(0,80));
-          },selector).catch(()=>selector);
+          if(typeof selector==='string') (node as typeof node & {stableAnchor?:string}).stableAnchor=String(await page.evaluate(axeNodeIdentity,selector).catch(()=>selector));
         } await writeFile(resolve(out,file), JSON.stringify(scan,null,2)); return file; },
         tree: async () => { const file = `${cell.id}.aria.yml`; await writeFile(resolve(out,file), await page.locator('body').ariaSnapshot()); return file; },
         console: async () => { const file = `${cell.id}.console.json`; await writeFile(resolve(out,file), JSON.stringify(consoleErrors,null,2)); return file; },
@@ -124,11 +120,35 @@ test('capture matrix', async ({ browser }) => {
             await region.evaluate(e=>{e.scrollTop=0;});
           } return files;
         },
-        layout: async () => { const file = `${cell.id}.layout.json`; const planes = await page.evaluate(collectPlaneBoxes); const metrics = await page.evaluate(() => ({
+        layout: async () => { const file = `${cell.id}.layout.json`; const planes = process.env['UX_OBJECTS'] ? await page.evaluate(collectPlaneBoxes,{contentCoordinates:true}) : await page.evaluate(collectPlaneBoxes); const metrics = await page.evaluate(() => ({
           viewport: innerWidth, document: document.documentElement.scrollWidth,
           sectionContents: [...document.querySelectorAll('[data-section-content]')].map(e => { const r = e.getBoundingClientRect(); return { id: e.closest('[data-section-id]')?.getAttribute('data-section-id'), x: r.x, y: r.y, width: r.width, height: r.height }; }),
           scrollRegions: [...document.querySelectorAll('main.workspace,.project-workspace__main,[data-task-drawer]')].map(e => ({ tag: e.tagName, class: e.className, width: e.clientWidth, scrollWidth: e.scrollWidth, height: e.clientHeight, scrollHeight: e.scrollHeight })),
-        })); const controls = await page.evaluate(collectControls); await writeFile(resolve(out,file), JSON.stringify({ ...metrics, controls, planes },null,2)); return file; },
+        })); const controls = await page.evaluate(collectControls);
+          const immutable = await page.evaluate(picker => {
+            const boxes: {id:string;x:number;y:number;width:number;height:number}[]=[];
+            const add=(id:string,e:Element,origin?:Element)=>{const r=e.getBoundingClientRect(),p=origin?.getBoundingClientRect();if(r.width>0&&r.height>0)boxes.push({id,x:r.x-(p?.x??0),y:r.y-(p?.y??0),width:r.width,height:r.height});};
+            document.querySelectorAll('dialog[open],[role=dialog],[data-task-drawer],[data-toast-open],[data-create-project-form],[data-project-page-manager]:popover-open').forEach((surface,index)=>{
+              const id=surface.hasAttribute('data-task-drawer')?'drawer:'+index:surface.hasAttribute('data-toast')?'toast:'+index:surface.hasAttribute('data-create-project-form')?'project-form:'+index:'dialog:'+index;
+              // Only the picker's content changes; its header/footer chrome stays measured locally.
+              if(!picker || id!=='dialog:'+index)add(id,surface);
+              surface.querySelectorAll('header,footer,.toast__actions').forEach((part,i)=>{
+                add(id+':chrome:'+i,part,picker?part:surface);
+                part.querySelectorAll('button,input,select,textarea,a').forEach((e,j)=>add(id+':chrome:'+i+':control:'+j,e,part));
+              });
+              if(!picker)surface.querySelectorAll('button,input,select,textarea,a').forEach((e,i)=>add(id+':control:'+i,e,surface));
+            });
+            // Section frame headers and their tools stay fixed; measured within their frame, as the runtime collector does.
+            document.querySelectorAll('app-project-section-frame,app-shortcut-frame').forEach((frame,index)=>{
+              const id=frame.querySelector('[data-section-id],[data-shortcut-id]')?.getAttribute('data-section-id')??String(index);
+              const header=frame.querySelector('header');if(!header)return;
+              add('frame:'+id+':header',header,frame);
+              header.querySelectorAll('button,[role=slider]').forEach((e,i)=>add('frame:'+id+':tool:'+i,e,header));
+            });
+            document.querySelectorAll('[data-insertion-point-button]').forEach((e,i)=>add('insertion:'+i,e,e.parentElement??undefined));
+            return boxes;
+          }, cell.state==='shortcut-picker');
+          await writeFile(resolve(out,file), JSON.stringify({ ...metrics, controls, planes, immutable },null,2)); return file; },
       }));
     } catch (error) { record['error'] = String(error); }
     finally {
@@ -145,6 +165,6 @@ test('capture matrix', async ({ browser }) => {
 
 
 
- test('core task baseline', async ({ browser }) => { test.skip(Boolean(process.env['UX_SMOKE'])); await runCoreTasks(browser, resolve(out, 'tasks')); });
+ test('core task baseline', async ({ browser }) => { test.skip(Boolean(process.env['UX_SMOKE']) || Boolean(process.env['UX_OBJECTS'])); await runCoreTasks(browser, resolve(out, 'tasks')); });
 
 

@@ -1309,6 +1309,22 @@
       "projectId": "project-kitchen",
       "slice": 76,
       "note": "Slice 76 live use (nested-projects and busy-week, 1440 keyboard dark and 375 touch light): Rename opened with the current name selected; Escape returned to Rename, and Right reached Collapse. Collapse hid content immediately and Expand restored it. A touch title tap left editing closed. Persistent Add a section created Snag list and focused its heading; the next Tab reached Rename. The phone toolbar uses its own row, keeping the title readable. Quiet insertion marks remain faint against the glass; the labelled Add at the bottom is much easier to identify. No blocking friction in these four walkthroughs."
+    },
+    {
+      "id": "note-2026-10-22-001",
+      "createdAt": "2026-10-22T00:17:52.110Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 77,
+      "note": "Slice 77 live use (nested-projects and overdue-chaos, 1440 keyboard dark and 375 touch light): overdue dashboard, Todos, Timeline and shortcut titles reached the canonical owner section; its heading took focus and no task drawer opened. Preview showed the source content in place and Add closed the picker. This makes the owning location clear; opening task details still takes a second activation in that section, as intended. No blocking friction observed in these navigation and Preview journeys. Evidence: apps/e2e/ux-output/slice77-real-use/results.json and matching screenshots/ARIA snapshots."
+    },
+    {
+      "id": "note-2026-10-22-002",
+      "createdAt": "2026-10-22T00:17:52.110Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 77,
+      "note": "Slice 77 live use (nested-projects Kitchen, 1440 mouse dark): added adjacent Friday errands and Weekend errands lists, dragged within Friday and then moved Collect paint samples to Weekend. The explanation appeared during drag, the in-list order stayed fixed, and the cross-list move persisted. Minor friction: inserting the two-line explanation above the list pushes the rows downward as dragging starts, so the source row moves beneath the lifted preview. No task was lost or unexpectedly reordered. Evidence: apps/e2e/ux-output/slice77-real-use/mouse-mid-drag.png, mouse-cross-list-moved.png and drag-results.json."
     }
   ]
 }

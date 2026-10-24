@@ -91,6 +91,8 @@
 
 **Depended on by**
 
+- [dashboard](../dashboard/overview.md) — task widgets share the pure `taskMeta` formatter.
+
 - [projects](../projects/overview.md) — the shell provides the coordinator and reserves desktop
   drawer width, the Task List section provides the store; the
   Todos page owns its own row and store.
