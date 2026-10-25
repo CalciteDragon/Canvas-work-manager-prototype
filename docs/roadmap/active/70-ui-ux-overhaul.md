@@ -394,12 +394,13 @@ behaviour versus appearance.
 - **Not 6b:** task reordering (Slice 20); navigation, breadcrumbs, document titles and the
   project-header edge (slice 7); agent card, Revoke failures, L1-027 and L3-023 (slice 8); product
   words, default section names and the drawer's raw facts (slice 9). TH12 scaffolding stays.
-- **Questions to put to the user while planning:**
-  1. *Comb after 6b?* 6b finishes the patterns layer (TH07–TH10). Protocol §8 asks for a full
-     re-capture, the core-task scripts and a fresh comb with new auditors after each layer group,
-     with Gate 3 if the direction needs amending. No comb has run since Gate 1, not after tokens
-     (71) or primitives (72–73) either. Ask whether to run it after 6b, before agent connections.
-  2. *Split?* Nineteen findings plus the editor may not fit one review screen (protocol §6).
+- **Comb after 6b (answered by the user, 2026-10-25): yes.** 6b finishes the patterns layer
+  (TH07–TH10). Once 6b closes, and before agent connections, run protocol §8: the full re-capture,
+  the core-task scripts and a fresh comb on changed surfaces with new auditors, then Gate 3 if the
+  direction needs amending. No comb has run since Gate 1. 6b's plan does not include the comb;
+  it is its own step under this umbrella.
+- **Question to put to the user while planning:**
+  1. *Split?* Nineteen findings plus the editor may not fit one review screen (protocol §6).
      Slices 74/75 and 77 were split by the user's choice; propose a split at the scope check if
      the sheet would not fit.
 - **Constraints carried:** initial bundle 1,101.98 kB under the 1150 kB ceiling (48 kB headroom);
@@ -472,6 +473,7 @@ decision.
 
 - **Creation defaults.** The interpretation is confirmed: Parent defaults to the open workstream. A newly created workstream also opens itself.
 - **Agent connections** move ahead of the navigation-tree slice, so the order becomes 1–6, then 8, then 7, then 9.
+- **Comb after the patterns layer (answered 2026-10-25).** The protocol §8 re-capture and fresh comb run after 6b closes and before agent connections.
 - **Contrast.** The user accepted Depth's demo tints. Worst-case AA is reported on every sheet but no longer gates the work. The fallbacks and principles 4–5 still hold ([decision](../../decisions/2026-10-frosted-glass-depth-direction.md)).
 
 ### Previously waiting on the user (now answered)
