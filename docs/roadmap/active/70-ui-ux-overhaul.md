@@ -1,9 +1,11 @@
-<!-- plan id="70" status="active" summary="User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1" -->
+<!-- plan id="70" status="active" summary="User-requested frosted-glass redesign: evidence and direction through Gate 1 (done), then the redesign slices in layer order until the protocol's stop rule" -->
 # Slice 70 — UI/UX overhaul — evidence and direction
 
 ## Goal
 
-Establish reproducible evidence and a user-approved direction for a coherent frosted-glass web-app redesign, stopping before redesign slice planning at Gate 1.
+Establish reproducible evidence and a user-approved direction for a coherent frosted-glass web-app redesign (Phases 0–2, through Gate 1), then carry it out as redesign slices under this umbrella until the [overhaul protocol's](../../guides/ui-ux-overhaul-protocol.md) §8 stop rule holds.
+
+Phases 0–2 are complete and Gate 1 is answered (see the Outcome). The Build, Done when, Do not and Acceptance check sections below are the frozen Phase 0–2 contract. Each redesign slice carries its own plan; current status and the next slice are in the handoff at the end of this file.
 
 ## Spec sections
 
@@ -15,7 +17,9 @@ Phase 0 inventories code, captures surfaces and core-task metrics on disposable 
 
 ## Done when
 
-The user can inspect the baseline and its coverage, reproduced findings and measured task costs, ordered themes, proposed direction, and side-by-side alternatives; the next action is the user's Gate 1 choice, not an implementation slice.
+Phases 0–2 (met at Gate 1): the user can inspect the baseline and its coverage, reproduced findings and measured task costs, ordered themes, proposed direction, and side-by-side alternatives.
+
+The umbrella as a whole: every redesign slice in the sequence is complete with Gate 2 accepted, and the protocol §8 stop rule holds after a fresh comb. The closing Outcome links the baseline and final contact sheets.
 
 ## Do not
 
@@ -359,41 +363,59 @@ gate failures; T11 now completes in one click. The initial bundle is 1,101.98 kB
 ceiling. The drag explanation's layout shift (`note-2026-10-22-002`) is open; redesign slice 6b
 is next.
 
-### Slice 72 (Primitives) — planning brief
+### Redesign slice 6b (States) — planning brief
 
-- **Scope.** Item 2 of the sequence below: TH04 and TH05 in
-  [themes.json](../70-ui-ux/themes.json). Read their finding ids there and in
-  [reproduction.json](../70-ui-ux/reproduction.json). Confirm scope at planning: the "primitives:
-  TH04–06" grouping above also lists TH06, but the sequence gives TH06 (lifts) to slice 3.
-- **Already in place from 71, for adoption.**
-  - `--field-line`: L5-006 was advanced, not closed; adoption on inputs is this slice.
-  - Focus-ring tokens and the base `:focus-visible` rule. Primitives keep the one ring.
-  - Disabled opacity and cursor, scrim, weight, z-index, motion and breakpoint tokens. The token
-    lint already rejects literals for all of them.
-  - The Lab's plane panel. Primitives should get Lab specimens and Storybook stories (protocol §7.1).
-- **Carried from 71's Outcome and notes** (`.prototype/notes.json`, slice 71).
-  - The More panel's browser-default fields and buttons look unfinished inside the frosted header.
-  - Settings' Appearance radios are native until this slice.
-  - **Muted text is answered (2026-10-14).** For note `note-2026-10-14-005` the user chose option
-    A: keep the colour and fix the report. The sheet now measures panes and sheets over the ground
-    and its art glows. Muted text there is at least 5.6:1 in both themes, so it is not an open
-    question for this slice. Lifts are still measured over busy content: muted on lift is 3.52:1
-    dark and 4.29:1 light, which belongs to slice 3.
-- **Evidence path, reusable as is.**
-  - `pnpm --filter @cwm/e2e ux:capture` against a commit, with its own `.prototype/ux-data.json`.
-  - Keyed plane and control boxes in `ux/layout.mjs`.
-  - [`build-sheet.mjs`](../70-ui-ux/tooling/build-sheet.mjs) for the before/after sheet. Its Lab
-    exceptions are slice-71 specific: re-scope them for slice 72's Lab additions, with a test.
-  - For a "before" capture of an older commit: export its source, link `node_modules`, build with
-    `ng` directly, then serve that build in place of `apps/web/dist/web` for the run.
-  - Keep exported copies **outside** `apps/e2e/`. Playwright collects specs from anything under
-    it.
-- **Lessons from 71.**
-  - CDP media emulation resets the device-followed theme. Any capture labelled by theme must
-    lock it through the real toggle and assert `data-theme`, as
-    [`depth-verification.ts`](../../../apps/e2e/ux/depth-verification.ts) does.
-  - When a test run is stopped, kill its web and host children before the next run. They keep
-    4200 and the e2e data file.
+Next slice. Nothing is in `active/` except this umbrella, and 6b has no candidate file: create it with
+`node scripts/roadmap.mjs new <id> states --title "Slice <id> — States: …" --summary "…"`, using the
+next free roadmap id (78 unless something else lands first), then run the five AGENTS.md steps.
+The plan carries the protocol §6 extras: findings closed, capture scope, visual acceptance, and
+behaviour versus appearance.
+
+- **Scope: TH10**, "Empty, loading, error and archived states are accidental" (patterns layer), in
+  [themes.json](../70-ui-ux/themes.json); the root cause and each finding are in
+  [reproduction.json](../70-ui-ux/reproduction.json). Of its 22 findings, slice 77 closed three
+  (L4-016, W1-042, W2-025: the shortcut rows). Nineteen remain: W1-001, W4-001, L4-020, L4-001,
+  L4-002, L4-003, L4-018, L4-022, L4-027, L4-014, W4-024, L4-007, L4-008, L4-012, L4-017, L1-028,
+  W4-034, L6-003 and W4-028 (the digest's overdue line). Re-count S2/S3 at the scope check.
+- **Assigned to 6b by earlier records:** L3-012 and W4-031, the Markdown editor's Cancel and
+  Preview (slice 74's split, then slice 77's scope check); L4-023's count half (slice 77).
+- **Candidates to decide at planning:**
+  - The drag explanation pushes the list down as a drag starts (`note-2026-10-22-002`, slice 77's
+    open item): reserve its space here, or leave it for a small follow-up.
+  - A row failure on the last visible row can land below the fold (slice 75's open question:
+    should an off-screen row error be brought into view?).
+  - Todos' workstream Complete keeps a pre-existing `[disabled]` (slice 75 deferral).
+- **Decisions TH10 reopens:** [reactivating under an archived ancestor](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
+  and [project nesting and archive rules](../../decisions/2026-08-project-nesting-and-archive-rules.md).
+  Archived work keeping live controls is a behaviour question; amend those entries, never rewrite.
+  Also read [Archive is always visitable](../../decisions/2026-10-archive-is-always-visitable.md)
+  and [feedback stays on the object](../../decisions/2026-10-feedback-stays-on-the-object.md),
+  whose failure placement any new error state must respect.
+- **Not 6b:** task reordering (Slice 20); navigation, breadcrumbs, document titles and the
+  project-header edge (slice 7); agent card, Revoke failures, L1-027 and L3-023 (slice 8); product
+  words, default section names and the drawer's raw facts (slice 9). TH12 scaffolding stays.
+- **Questions to put to the user while planning:**
+  1. *Comb after 6b?* 6b finishes the patterns layer (TH07–TH10). Protocol §8 asks for a full
+     re-capture, the core-task scripts and a fresh comb with new auditors after each layer group,
+     with Gate 3 if the direction needs amending. No comb has run since Gate 1, not after tokens
+     (71) or primitives (72–73) either. Ask whether to run it after 6b, before agent connections.
+  2. *Split?* Nineteen findings plus the editor may not fit one review screen (protocol §6).
+     Slices 74/75 and 77 were split by the user's choice; propose a split at the scope check if
+     the sheet would not fit.
+- **Constraints carried:** initial bundle 1,101.98 kB under the 1150 kB ceiling (48 kB headroom);
+  contrast is reported, not gated; motion is transform/opacity only (direction principle 7); local
+  prototype data is disposable, so seeds change and nothing migrates.
+- **Evidence path, reusable as is** (slice 77's `ux/slice77.config.ts`, `objects-verification.ts`
+  and sheet profile 77 are the newest model):
+  - Before: export the last closing commit outside `apps/e2e/`, link `node_modules`, build it with
+    `ng`, and serve that build in place of `apps/web/dist/web`. Playwright collects specs from
+    anything under `apps/e2e/`.
+  - [`build-sheet.mjs`](../70-ui-ux/tooling/build-sheet.mjs) takes a new `--profile`; each profile's
+    gate exceptions are slice-specific, so re-scope them with a failing test first.
+  - Capture labelled by theme must lock it through the real toggle and assert `data-theme`; CDP
+    media emulation resets the device-followed theme.
+  - Run capture jobs on their own ports (never 4200/4310), at most two browser jobs at once on this
+    machine, and kill a stopped run's web and host children before the next.
 
 ### Read first
 
