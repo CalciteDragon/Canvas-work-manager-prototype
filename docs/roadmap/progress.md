@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign; baseline, independent audits and alternatives through Gate 1 | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 77 | Slice 77 — Objects: one row shape, openable rows | Redesign slice 6a (TH09): one task-row shape across surfaces; rows that look openable open their canonical owner, the rest stop looking openable | [77-objects-one-row-shape.md](active/77-objects-one-row-shape.md) |
 
 ### Planned
 
@@ -116,4 +115,5 @@ verification follow-ups rather than feature slices.
 | 74 | Slice 74 — Feedback: toast and Undo where the user acted | 2026-10-18 | One receipt-specific Undo toast across project surfaces; Archive always visitable, short Archive label; reviewed evidence and Gate 2 accepted | [74-feedback-toast-and-undo.md](completed/74-feedback-toast-and-undo.md) |
 | 75 | Slice 75 — Feedback: pending, saved and new items in view | 2026-10-21 | Redesign slice 4b: pending within 100 ms, a saved cue, failures on their row, field or card, new items revealed with focus, and a canvas that holds the working list still; Gate 2 accepted | [75-feedback-pending-and-placement.md](completed/75-feedback-pending-and-placement.md) |
 | 76 | Slice 76 — Section chrome | 2026-10-21 | Redesign slice 5: quiet visible tools, plain section headings, fewer Tab stops, full insertion targets, persistent Add and immediate collapse; Gate 2 accepted | [76-section-chrome.md](completed/76-section-chrome.md) |
+| 77 | Slice 77 — Objects: one row shape, openable rows | 2026-10-25 | Redesign slice 6a (TH09): one task-row anatomy across surfaces; rows outside their owner open its section, Timeline and shortcut rows link or stay static, grouped picker with Preview; Gate 2 accepted | [77-objects-one-row-shape.md](completed/77-objects-one-row-shape.md) |
 <!-- roadmap:end -->

@@ -123,6 +123,11 @@ a persistent Add and immediate collapse. The accepted sheet has 194 pairs and ze
 failures. Initial bundle headroom is 1.13 kB. Redesign slice 6, Objects and states, is next;
 inert shortcut rows, the project-header edge and default names retain their later owners.
 
+**Slice 77 completed — Gate 2 accepted (2026-10-25).** [Objects: one row shape, openable rows](completed/77-objects-one-row-shape.md)
+completes TH09. A task takes one row anatomy wherever it is listed, and rows that look openable
+open their canonical owner; MCP dashboard and upcoming-work tasks carry their origin. The
+accepted sheet has 194 pairs and zero gate failures. Redesign slice 6b, States, is next.
+
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:
 - [Slice 68 — cross-root move refusal names each placement](completed/68-cross-root-refusal-names-placements.md),

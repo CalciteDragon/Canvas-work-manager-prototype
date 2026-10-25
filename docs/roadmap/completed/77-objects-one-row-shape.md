@@ -1,11 +1,10 @@
-<!-- plan id="77" status="active" summary="Redesign slice 6a (TH09): one task-row shape across surfaces; rows that look openable open their canonical owner, the rest stop looking openable" -->
+<!-- completed-record id="77" closed="2026-10-25" summary="Redesign slice 6a (TH09): one task-row anatomy across surfaces; rows outside their owner open its section, Timeline and shortcut rows link or stay static, grouped picker with Preview; Gate 2 accepted" -->
 # Slice 77 — Objects: one row shape, openable rows
 
-**State (2026-10-21):** planned, reviewed (three rounds, no substantive findings remain) and accepted by
-the user on 2026-10-21; implementation is in final verification, paused by the user on
-2026-10-23. Gate 2 is pending.
+**State (2026-10-25):** complete. The user accepted the before/after sheet at Gate 2 on
+2026-10-25; see the Outcome.
 
-Redesign slice 6a under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Redesign slice 6
+Redesign slice 6a under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Redesign slice 6
 ("Objects and states", TH09 + TH10) is **split** by the user's choice on 2026-10-21, as slice 4
 was: this slice, **6a Objects**, takes theme **TH09** "The same object takes many shapes" in
 [themes.json](../70-ui-ux/themes.json) and the row-shaped items earlier slices deferred to slice 6.
@@ -15,6 +14,64 @@ the Markdown editor's Cancel and Preview) is planned after this one closes.
 The user also answered the bundle question on 2026-10-21: the initial-bundle hard ceiling rises
 from 1100 kB to **1150 kB** in this slice, recorded as an amendment to the
 [budget decision](../../decisions/2026-08-initial-bundle-budget.md). The 850 kB warning stays.
+
+## Outcome
+
+The user accepted Gate 2 on 2026-10-25. A task now has one row anatomy wherever it is listed:
+control, title, metadata and tools in the shared `.object-row` primitive
+([_controls.scss](../../../apps/web/src/styles/_controls.scss)), with metadata ordered by the pure
+[taskMeta](../../../apps/web/src/app/features/tasks/task-meta.ts) formatter and an accent edge only
+for high priority and overdue. [TaskRow](../../../apps/web/src/app/features/tasks/task-row.ts), the
+[Todos page](../../../apps/web/src/app/features/projects/pages/todos-page.html), the dashboard
+widgets, [Timeline](../../../apps/web/src/app/features/projects/sections/timeline/timeline-section.html),
+[shortcut frames](../../../apps/web/src/app/features/projects/shortcuts/shortcut-frame.html), the
+activity feed, Archive and Settings › Archived projects adopt it. Rows outside their owner open the
+owner's section through the title link; inside a Task List the title still selects and opens the
+drawer. Timeline loses its selection detail; workstream titles open their project, and project and
+milestone rows are static. Shortcut rows open their source and say once that they are read-only.
+The [shortcut picker](../../../apps/web/src/app/features/projects/shortcuts/shortcut-picker.html)
+groups sources by location and offers one Preview at a time. Progress reads its active formula
+first, Active Projects show their path, and Reflections entries lose the decorative rule. Task
+Lists no longer animate an in-list reorder and explain cross-list movement during a drag.
+Underneath, [task-origin](../../../packages/domain/src/task-origin.ts) resolves each task's
+canonical section and page, and the dashboard, upcoming-work, Timeline and shortcut-discovery
+contracts carry it, so MCP's `get_dashboard_context` and `get_upcoming_work` return `origin`
+on every task. A dashboard task whose owner cannot be resolved is dropped rather than linked
+nowhere.
+
+The [rows-open-their-canonical-owner decision](../../decisions/2026-10-rows-open-their-canonical-owner.md)
+records the choices: a shared anatomy rather than one shared component, because Todos' serialized
+writes and dashboard date options differ; section landing rather than a task fragment; no
+whole-row overlays, so checkboxes, Delete and history links stay siblings; Preview stays contained.
+It amends the [Todos navigation](../../decisions/2026-09-todos-chronology-and-canonical-navigation.md),
+[shortcut identity](../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md),
+[workspace tools](../../decisions/2026-08-workspace-tools-need-their-own-service.md) and
+[bundle budget](../../decisions/2026-08-initial-bundle-budget.md) decisions; the user raised the
+initial ceiling to 1150 kB. Execution departed from the plan in recorded ways (Revisions): three
+existing e2e specs needed narrow selector or target edits, because grouping moved location text
+and the default metadata is now empty; the row's background transition was removed under
+direction principle 7; Settings restore waits for the toast action's real layout box before
+moving focus; and the evidence tooling gained content coordinates, viewport proof, frame-header
+gating and structural axe identity after review showed each hole.
+
+The accepted local evidence is `apps/e2e/ux-output/slice77-gate2/`: 194 before/after matrix
+pairs and 130 runtime contexts per build, zero gate failures, zero census failures beyond the
+breadcrumb exception, and 128 object visual pairs. T01–T09 keep their costs; T11 moves from
+blocked to completed in one click. Verification passed the root suite (3,250 offline tests),
+59 builder and 9 harness tests, lint including docs:check, the production build, Storybook and
+all 233 Chromium journeys; WebKit is unverified. The initial bundle is 1,101.98 kB under the
+1150 kB ceiling. Real use on nested-projects and overdue-chaos, at 1440 keyboard/mouse and 375
+touch, is recorded in `note-2026-10-22-001/002`.
+
+Twenty-two findings and two notes close. Deferred: task reordering stays with Slice 20; L1-027
+moves to the agent connections slice; empty, loading, error and archived states, the Markdown
+editor's Cancel and Preview, and L4-023's count half belong to redesign slice 6b (States).
+Open: real use found that the two-line drag explanation pushes the list down as a drag starts
+(`note-2026-10-22-002`); slice 6b or a small follow-up should reserve its space. Whether section
+landing is enough, or a task fragment earns a slice, waits for more use. Documentation updated
+the spec, the web dashboard, projects, tasks and prototype-tooling folders, the testing
+architecture, the decision index and amendments, and the roadmap. The overhaul direction is
+unchanged; redesign slice 6b is next.
 
 ## Goal
 
@@ -449,7 +506,7 @@ Paths are under `apps/web/src/app/` unless stated.
 
 - **Motion conformance (2026-10-23):** diff review found the new `.object-row` background-color transition conflicted with accepted direction principle 7, which permits only transform and opacity animation. The transition was removed; hover paint changes immediately. This corrects the implementation without changing the plan. The production and Storybook builds pass after the correction.
 
-## Gate 2 verification — awaiting the user
+## Gate 2 verification
 
 - **Final evidence corrections (2026-10-23):** full-page screenshots do not expand the application's nested scrollport. The runtime collector now scrolls Timeline, Task List, shortcut, Progress and Reflections findings into view and records a viewport assertion immediately before each screenshot; the sheet rejects missing target proof. Both genuine builds are recaptured for those views. The Lab's existing matrix scrollshot supplies a clearly labeled after-only view of all six row specimens.
   Fault-injection tests also corrected native dialogs omitted by a role-only selector, sticky navigation incorrectly compensated for scrolling, and contained Lab specimens measured against their outer page instead of their panel. New project is an inline sidebar form, so its actual form and controls are measured at both widths rather than requiring a nonexistent dialog. Accessibility comparisons retain structural and selector identity so changed child text or generated Angular styling cannot make an unchanged violation look new; genuinely new nodes still fail. The final evidence tooling passes 57 sheet tests and nine harness tests.
@@ -462,4 +519,4 @@ Paths are under `apps/web/src/app/` unless stated.
 - Evidence: before `apps/e2e/ux-output/e0e1467`; after `apps/e2e/ux-output/ebc03d32fc18416e5e81f2d19c862e46473c82a1` (a working-tree build labelled by HEAD). Each has 194 matrix cells recaptured on the final collectors and 130 complete runtime contexts. T01–T09 keep their costs; T11 changes from blocked to completed in one click.
 - Final sheet `apps/e2e/ux-output/slice77-gate2/index.html`: 194 pairs, **zero gate failures**, zero census failures (only the 42 breadcrumb exceptions), 128 object visual pairs, four intended Lab changes; contrast is reported, not gated. Corrected Shortcut, Progress and Reflections images passed visual review against before, joining the Timeline, Task List, Todos, dashboard, picker, drag and Archived project images reviewed earlier.
 - Live use on nested-projects and overdue-chaos is recorded in `apps/e2e/ux-output/slice77-real-use` and `note-2026-10-22-001/002`.
-- **Gate 2 is not accepted.** The sheet is presented for the user's visual review. Do not write Outcome or run `roadmap.mjs complete` until the user accepts it.
+- **Gate 2 accepted by the user on 2026-10-25.**

@@ -20,7 +20,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 [Section chrome is quiet at rest on every device](2026-10-section-chrome-is-quiet-at-rest.md)
 — Slice 76: plain section headings, one toolbar stop, persistent insertion, full plus hit
 areas and optimistic collapse with frame-level failure. The canvas-chrome and section-name
-decisions carry 2026-10-20 amendments. Gate 2 remains pending.
+decisions carry 2026-10-20 amendments. The user accepted Slice 76 Gate 2 on 2026-10-21.
 
 [Pending, saved and failed feedback stays on the object](2026-10-feedback-stays-on-the-object.md)
 — Slice 75: pending vocabulary, the saved cue, failures on their row, field or card, new items

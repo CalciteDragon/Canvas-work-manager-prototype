@@ -346,16 +346,18 @@ persistent; collapse answers within 7.2 ms in the delayed-write evidence. T03/T0
 their budgets. Inert shortcut rows remain with slice 6, the project-header edge with slice 7
 and default names with slice 9. Initial bundle headroom is 1.13 kB; redesign slice 6 is next.
 
-**Redesign slice 6 is split (2026-10-21, the user's choice).** [Slice 77](77-objects-one-row-shape.md)
-(6a Objects, TH09 plus the row items deferred to slice 6) is implemented and verified; Gate 2 awaits the user. L1-027 moves to
-the agent connections slice. 6b States (TH10, the Markdown editor's Cancel and Preview, L4-023's
-count half) follows it. The user also raised the initial-bundle ceiling to 1150 kB, recorded by
-slice 77.
+**Redesign slice 6 is split (2026-10-21, the user's choice).** 6a Objects is
+[Slice 77](../completed/77-objects-one-row-shape.md) (TH09 plus the row items deferred to slice 6).
+L1-027 moves to the agent connections slice. 6b States (TH10, the Markdown editor's Cancel and
+Preview, L4-023's count half) follows it. The user also raised the initial-bundle ceiling to
+1150 kB, recorded by slice 77.
 
-**Slice 77 at Gate 2 (2026-10-23).** Verification is complete on the final tree: root tests, lint,
-Storybook and 233 browser tests pass, and the final sheet has zero gate failures across 194 pairs.
-Its [verification journal](77-objects-one-row-shape.md#gate-2-verification--awaiting-the-user)
-records the evidence. The user's visual acceptance is pending; do not close the slice before it.
+**Slice 77 completed — Gate 2 accepted (2026-10-25).** A task has one row anatomy on every
+surface; rows outside their owner open its section, Timeline and shortcut rows link or stay
+static, and the picker groups sources with one Preview. The accepted sheet has 194 pairs and zero
+gate failures; T11 now completes in one click. The initial bundle is 1,101.98 kB under the 1150 kB
+ceiling. The drag explanation's layout shift (`note-2026-10-22-002`) is open; redesign slice 6b
+is next.
 
 ### Slice 72 (Primitives) — planning brief
 
