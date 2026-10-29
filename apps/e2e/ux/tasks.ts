@@ -29,7 +29,28 @@ export const TASKS = [
   { id:'T09', title:'Restore an archived item', seed:'nested-projects', route:'/projects/project-renovation/pages/archive', spec:'§26' },
   { id:'T11', title:'Open an overdue task from the dashboard', seed:'overdue-chaos', route:'/app', spec:'§24, §34' },
   { id:'T10', title:'Inspect permissions and connect an agent', seed:'agent-heavy', route:'/settings/agents', spec:'§53' },
+  { id:'T12', title:'Recover a section after a failed read', seed:'busy-week', route:'/projects/project-launch', spec:'§19, §77' },
 ] as const;
+
+/**
+ * Browser-side probe for "a failure has rendered", generic across builds: a visible non-empty
+ * `[role=alert]`, a visible element carrying a `data-*error*` attribute, or the injected reason in
+ * the rendered text of `root` (the whole body when null).
+ */
+export function failureProbe({ root, reason }: { root: string | null; reason: string | null }): boolean {
+  const roots = root ? [...document.querySelectorAll(root)] : [document.body];
+  const shown = (e: Element) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && e.checkVisibility({ visibilityProperty: true }); };
+  for (const scope of roots) {
+    for (const e of scope.querySelectorAll('[role=alert]')) if (e.textContent?.trim() && shown(e)) return true;
+    for (const e of [scope, ...scope.querySelectorAll('*')]) if ([...e.attributes].some(a => /^data-.*error/.test(a.name)) && shown(e)) return true;
+    if (reason && (scope as HTMLElement).innerText?.includes(reason)) return true;
+  }
+  return false;
+}
+/** Waits for `failureProbe`; never asserts any build's copy. */
+export async function waitForFailure(page: Page, root: string | null, reason?: string, timeout = 8000): Promise<void> {
+  await page.waitForFunction(failureProbe, { root, reason: reason ?? null }, { timeout });
+}
 async function execute(page: Page, id: string, c: TaskCounter) {
   const button=(name: string|RegExp)=>page.getByRole('button',{name,exact:typeof name==='string'});
   const click=(l: Locator, name: string, surface: string)=>c.step(name,surface,{clicks:1},()=>l.click());
@@ -110,6 +131,29 @@ async function execute(page: Page, id: string, c: TaskCounter) {
         await expect(section.locator('h2')).toBeFocused();
         await expect(section.locator('[data-section-content]')).toBeVisible();
       });break;
+    }
+    case 'T12': {
+      // Every Task List read fails until the failure renders; then the route is lifted (L4-027).
+      let failing = true;
+      await page.route(url => url.pathname === '/api/tasks', route => failing && route.request().method() === 'GET'
+        ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message: 'Audit: tasks read failed' }) })
+        : route.fallback());
+      await page.reload();
+      const frameSelector = '[data-section-frame][data-section-type="task-list"]';
+      const frame = page.locator(frameSelector).first();
+      await waitForFailure(page, frameSelector, 'Audit: tasks read failed');
+      failing = false;
+      let navigations = 0;
+      page.on('framenavigated', f => { if (f === page.mainFrame()) navigations += 1; });
+      await c.step('Press Try again','Task List',{clicks:1},async()=>{
+        const retry = frame.getByRole('button',{name:/^(Try again|Retry)$/});
+        if (!await retry.count()) throw new Error('Dead end: the failed section offers no Try again.');
+        await retry.first().click();
+      });
+      await c.step('Verify tasks render without a page reload (verification excluded from task cost)','Task List',{},async()=>{
+        await expect(frame.locator('[data-task-row]').first()).toBeVisible();
+        expect(navigations, 'no page reload').toBe(0);
+      }); break;
     }
     case 'T10':
       await expect(page.getByRole('heading',{name:'AI & Agents'})).toBeVisible();

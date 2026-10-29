@@ -94,7 +94,8 @@ test('capture matrix', async ({ browser }) => {
           else await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message: 'Audit: project read failed' }) });
         });
         await page.reload({ waitUntil: 'domcontentloaded' });
-        await expect(page.getByText(cell.state === 'loading' ? 'Loading project…' : 'Audit: project read failed', { exact: true })).toBeVisible();
+        // The failure is asserted by its hook: Slice 78 moves the injected reason under Details.
+        await expect(cell.state === 'loading' ? page.getByText('Loading project…', { exact: true }) : page.locator('[data-project-error]')).toBeVisible();
         if (await page.locator('html').getAttribute('data-theme') !== cell.theme) await page.getByRole('button', { name: `Switch to the ${cell.theme} theme` }).click();
         record['networkIdleException'] = cell.state === 'loading' ? 'Deliberately held read, asserted loading text; cannot wait for idle.' : undefined;
       } else { await state(page, cell); await page.waitForLoadState('networkidle'); }
