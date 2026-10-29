@@ -612,6 +612,105 @@ branches.
   every spec the Stage 0 grep does not list. Frozen evidence scripts of completed slices are not
   re-run.
 
+### Stage 0 inventory (2026-10-29)
+
+Grepped at `937eb16` (the app code equals `0c19170`) and checked by hand. Each hit is edited,
+or confirmed still green, by the stage that changes its store or template. **D** marks
+display-text assertions that change, **N** marks assertions that a hook is absent and stay as
+they are unless the hook is renamed, and **E** marks empty-hook assertions, which need
+re-checking where the gate suppresses the empty sentence under a failure.
+
+**`data-*-error` selectors, e2e.** `archived-projects.spec.ts:196` D ('Restore succeeded');
+`archive.spec.ts:592-593` D; `lifts.spec.ts:144,149` N, `:161` visible; `placement.spec.ts:112-113` D,
+`:122` D (couldn't confirm), `:138` validation 'Enter a task title.' stays, `:143` N, `:175` D, `:178`
+count, `:179` N, `:278`, `:288` validation 'Enter a name.' stays, `:301-302` D, `:305` N;
+`task-interaction.spec.ts:98` D ('Reopen refused'), `:99` N, `:109` visible; `web.spec.ts:341` D,
+`:342` N, `:349` D (page toggle), `:361` D (unavailable layout); `phone-layout.spec.ts:310` stays
+unedited ('could not reach', on the wrapper that holds Details); `row-history.spec.ts:200` visible,
+`:201` N; `project-creation-history.spec.ts:124,140` D ('not found'); `project-history.spec.ts:526`
+D ('not found'); `todos.spec.ts:502` visible; `section-chrome.spec.ts:38,140` N plus an alert D,
+`:160` D ('Move refused'); `canvas-editing.spec.ts:544,804,926` D; `work-navigation.spec.ts:48` D.
+In `apps/e2e/ux/placement-verification.ts:227-257`, frozen slice-75 evidence that records rather
+than asserts, nothing is edited.
+
+**`data-*-error` selectors, unit** (all under `apps/web/src/app/`). `core/shell/app-shell.spec.ts:297,323,336,355` D, `:366`
+present; `core/shell/sidebar/sidebar.spec.ts:118` D, `:166,177,187,192` validation stays,
+`:203,225` D, `:205` N; `prototype/dev-panel/state-inspector-page.spec.ts:124` and
+`dev-panel.spec.ts:178` are dev-panel failures, outside this slice, and stay;
+`features/projects/sections/tasks/task-list-section.spec.ts:378,521,650,766,798,812,814,840` N,
+`:506,580,649,763-764,780,813` D, `:792` validation stays; `section-create-dialog.spec.ts:113,183` D;
+`work-create-dialog.spec.ts:72,82` validation stays; `reflection-composer.spec.ts:84` D;
+`project-workspace-shell.spec.ts:322-324,502,542,556,570,1132` D, `:1011` present;
+`agent-connections-page.spec.ts:156-158,187` D, `:162,163,172` N; `shortcut-picker.spec.ts:80,184` D;
+`project-page-navigation.spec.ts:344` D; `reflections-section.spec.ts:197` D;
+`recent-activity-section.spec.ts:115` D; `task-row.spec.ts:262-264` D, `:257,274` N;
+`archived-projects-page.spec.ts:98,117` D; `project-header.spec.ts:205` N;
+`project-canvas.spec.ts:524,671,933,1103,1268` D, `:366` N; `dashboard-page.spec.ts:177` D;
+`timeline-section.spec.ts:120` D; `todos-page.spec.ts:252,414,542,593,604-605,617` D,
+`:253,608,629` N; `archive-page.spec.ts:245,253` D, `:261` N. Nothing in `packages/` or
+`apps/prototype-host/` uses these selectors.
+
+**Reason text without a `data-*-error` hook.** In e2e: `lifts.spec.ts:143` ('Details refused'),
+`placement.spec.ts:210` (field status), `section-chrome.spec.ts:38,140` (alerts),
+`work-navigation.spec.ts:137,154` (dialog alerts) and `todos.spec.ts:108` (the 'Project unavailable' heading,
+which the retryable project failure replaces). `task-interaction.spec.ts:196` is validation and
+stays. In components: `shortcut-frame.spec.ts:194`, `project-section-frame.spec.ts:490`,
+`project-canvas.spec.ts:365`, `project-header.spec.ts:206`, `work-create-dialog.spec.ts:120`,
+`project-workspace-shell.spec.ts:535` ('keeps Project unavailable…'), `:574` (the 'Retry' label,
+which becomes Try again) and `:678` (page notice), `task-list-section.spec.ts:377`,
+`task-detail-drawer.spec.ts:244,271` and `shortcut-picker.spec.ts:91`. `project-header.spec.ts:146` and
+`task-detail-drawer.spec.ts:67` are validation and stay. Store `error()`-as-string assertions:
+`shell-store.spec.ts:115,341,357`; `dashboard-store.spec.ts:113,124`;
+`project-page-store.spec.ts:512,526,531,620,636,703,809,838,926,972,975,1066,1120,1171,1196,1215,1333,1516,1612,1893,1925,1983,2011,2294`;
+`project-workspace-store.spec.ts:114,257,271,665,691,791,852`;
+`reflections-page-store.spec.ts:152,168,222,271`; `reflections-store.spec.ts:138,140,177`;
+`progress-store.spec.ts:73`; `timeline-store.spec.ts:105`;
+`archived-projects-store.spec.ts:39,49,56,66,80`;
+`archive-page-store.spec.ts:156,168,183,186,193,198,216,230,243,273,322`;
+`todos-page-store.spec.ts:182,242,347,387,658`;
+`task-list-store.spec.ts:230,239,304,358,383,418,661,710,795,821,833,892,893,913,915,924,951`. Of these,
+`dev-panel-store.spec.ts:52,113` and `state-inspector-store.spec.ts:96` are the dev panel's and stay.
+Domain, MCP and host refusal-message tests stay, because those messages are unchanged:
+`packages/domain` (`operation-history-service`, `operation-execution`, `project-service`,
+`project-history` tests), `packages/mcp-tools/src/registry.test.ts:108`,
+`apps/prototype-host/router.test.ts`, and `api/errors.test.ts:58`. History-control labels ('Loading
+history…', 'History unavailable', 'Nothing to undo') are control names and stay.
+
+**`dailyDigest` readers.** `apps/prototype-host/api/routes.test.ts:982`;
+`apps/prototype-host/prototype/routes.test.ts:147,166`; `packages/mcp-tools/src/contract.test.ts:479-480`;
+`packages/domain/src/dashboard-service.test.ts:35,48,199,216,233`;
+`packages/contracts/src/dashboard.test.ts:110,129`; `core/gateway/prototype-work-manager-gateway.spec.ts:853,876`;
+`features/dashboard/dashboard-page.spec.ts:54` (fixture).
+
+**Empty-state hooks asserted.** In e2e: `web.spec.ts:30` and `project-creation-history.spec.ts:69` E
+('No projects yet', on a successful empty read, so they stay), `project-creation-history.spec.ts:78`,
+`placement.spec.ts:51,73`, `archived-projects.spec.ts:125,226`, `canvas-editing.spec.ts:110,288`,
+`row-history.spec.ts:141`, `web.spec.ts:57` and `ux/objects-verification.ts:81` (frozen). In
+units: `sidebar.spec.ts:112`, `dev-panel-controls.spec.ts:167`,
+`agent-connections-page.spec.ts:179,188`, `archived-projects-page.spec.ts:103`,
+`archive-page.spec.ts:218`, `project-workspace-shell.spec.ts:782,1289`, `shortcut-picker.spec.ts:156`,
+`reflections-section.spec.ts:189`, `reflections-page.spec.ts:188`, `project-canvas.spec.ts:229,374,375`,
+`project-page-navigation.spec.ts:379`, `recent-activity-section.spec.ts:107`,
+`activity-feed.spec.ts:125`, `task-list-section.spec.ts:447,743,746,861`,
+`timeline-section.spec.ts:113`, `todos-page.spec.ts:438,618,626,627` and
+`dashboard-page.spec.ts:156,168,221`. All of them are E. Only `agent-connections-page.spec.ts:188`
+and `todos-page.spec.ts:618` already assert suppression under a failure; the stage-3 store specs
+add that assertion for the rest.
+
+**Dead `__error` classes.** One is dead today: `.archived-region__error`
+(`features/projects/archived-region/archived-region.scss:33`), which no template uses. It is
+deleted with the first stylesheet edit. Each of the 27 live `__error` classes below is styled and
+used. Each one dies when its template moves to `FailureMessage`, and it is deleted in that same
+stage (change-list row "Component stylesheets holding dead `__error` classes"). A class that
+still styles a validation message keeps only that rule: `create-project`, `work-create-dialog`,
+`drawer` and `quick-create`. The dev panel's `dev-panel` and `state-inspector` stay. The 27 are
+`create-project`, `dashboard`, `archive-page`, `reflections-page`, `todos`, `project-canvas`,
+`project-details`, `project-header`, `project-workspace`, `section-create-dialog`,
+`recent-activity`, `progress-section`, `reflection-composer`, `reflections`, `section-frame`,
+`quick-create`, `task-list-section`, `timeline`, `shortcut-frame`, `shortcut-picker`,
+`work-create-dialog`, `agents`, `archived-projects`, `drawer`, `task-row`, `dev-panel` and
+`state-inspector`.
+
 ## File-level change list
 
 Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocated spec, and
