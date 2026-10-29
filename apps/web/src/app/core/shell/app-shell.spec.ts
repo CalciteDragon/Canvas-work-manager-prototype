@@ -37,6 +37,19 @@ describe('AppShell', () => {
     expect(element.querySelector('router-outlet')).not.toBeNull();
   });
 
+  // Slice 78 (L4-001): the store's first read reaches the sidebar as its loading line.
+  it('says Loading projects… while the first read is in flight', async () => {
+    TestBed.configureTestingModule({ imports: [AppShell], providers: shellTestProviders() });
+    const gateway = TestBed.inject(WORK_MANAGER_GATEWAY);
+    vi.spyOn(gateway.projects, 'list').mockReturnValueOnce(new Promise(() => {}));
+    const fixture = TestBed.createComponent(AppShell);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('[data-projects-loading]')?.textContent?.trim()).toBe('Loading projects…');
+    expect(element.querySelector('[data-projects-empty]')).toBeNull();
+  });
+
   // Slice 78 (L6-003): the shell's failed read reaches the sidebar as the product's sentence,
   // and its Try again re-reads through the store.
   it('renders a failed projects read as the sentence, and Try again re-reads it', async () => {

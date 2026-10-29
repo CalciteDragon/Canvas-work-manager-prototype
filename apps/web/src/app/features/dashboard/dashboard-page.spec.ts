@@ -249,11 +249,12 @@ describe('DashboardPage — a failed digest (§24, §43)', () => {
   });
 
   it('ends visibly when the digest’s retry fails again', async () => {
-    const { fixture, element } = await renderPage(everyWidget(), { dashboard: dashboardWithoutDigest() });
+    const { fixture, element, gateway } = await renderPage(everyWidget(), { dashboard: dashboardWithoutDigest() });
 
     element.querySelector<HTMLElement>('[data-widget-failure] [data-recovery="try-again"]')!.click();
     await fixture.whenStable();
 
+    expect(gateway.calls.filter(({ method }) => method === 'dashboard.get')).toHaveLength(2);
     const failure = element.querySelector('[data-widget-failure]')!;
     expect(failure.getAttribute('aria-busy')).toBeNull();
     expect(failure.querySelector('[data-recovery="try-again"]')?.getAttribute('aria-disabled')).toBeNull();

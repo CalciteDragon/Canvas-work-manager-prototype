@@ -163,6 +163,8 @@ export class ShellStore {
     } else if (!quiet) {
       this.queuedRead.quiet = false;
     }
+    // A loud read queued behind a quiet one is busy from now, so Try again visibly took.
+    if (!quiet) this.loadingState.set(true);
     return this.queuedRead.promise;
   }
 

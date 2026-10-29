@@ -8,7 +8,7 @@
    `queryFrom(config)` into one query (for example `upcomingDays`).
 3. One call to `dashboard.load(query)` returns §24's content; each widget renders its
    slice of it inside `DashboardWidgetFrame` at the size the layout names.
-4. A failed read is a `Failure` ("Couldn’t load Home.") rendered as the page's one alert with
+4. A failed read is a `Failure` by `readFailure`'s code rule ("Couldn’t load Home.", or the unreachable sentence) rendered as the page's one alert with
    Try again, which calls `load()` and keeps the failure, busy, until it answers. A definition's
    `failureOf(dashboard)` lets the frame render a widget's own failure in its place without
    mounting the widget; only the digest has one. Its Try again emits `retry`, and the page calls

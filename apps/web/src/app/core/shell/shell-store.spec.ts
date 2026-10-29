@@ -138,6 +138,24 @@ describe('ShellStore', () => {
     expect(store.projects()).toHaveLength(1);
   });
 
+  // Found in review: Try again pressed while a quiet re-read runs is queued behind it, and
+  // must say it is busy at once rather than look like it did nothing.
+  it('is loading as soon as Try again queues behind a quiet re-read', async () => {
+    const { store, gateway, live } = storeWith({ failOn: { 'projects.list': new GatewayError('internal_error', 500, 'boom') } });
+    await store.load();
+    gateway.options.failOn = undefined;
+    const held = deferred<Project[]>();
+    vi.spyOn(gateway.projects, 'list').mockReturnValueOnce(held.promise);
+    live.emit({ type: 'project.created', entityType: 'project', entityId: 'project-2' });
+
+    const retried = store.load();
+    expect(store.loading()).toBe(true);
+    held.resolve([]);
+    await retried;
+
+    expect(store.loading()).toBe(false);
+  });
+
   it('settles into an error state when the identity call fails', async () => {
     const { store } = storeWith({ identity: new GatewayError('unreachable', 0, 'host is down') });
 
