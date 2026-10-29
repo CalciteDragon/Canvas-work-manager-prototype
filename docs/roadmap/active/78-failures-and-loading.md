@@ -1,10 +1,36 @@
 <!-- plan id="78" status="active" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back" -->
 # Slice 78 — States: failures and loading
 
-**State (2026-10-29):** planned and reviewed (AGENTS.md steps 1–2; twelve rounds, including
-review of the user's three answers). Mechanism review closed in round 11 and behavior review
-closed in round 12, with no substantive findings remaining. The user accepted the plan on
-2026-10-29. Not implemented.
+**State (2026-10-29):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
+rounds and accepted by the user on 2026-10-29. **Stage 0 is done.**
+
+- The spec inventory is under Behaviour vs. appearance › Stage 0 inventory.
+- The capture harness is committed: `apps/e2e/ux/slice78.config.ts`, `ux/states-verification.ts`
+  (the `ROWS` context table and 42 `CONTEXTS`), T12 in `ux/tasks.ts`, and the `capture.ts`
+  hook assertion.
+- The **before** is complete and gitignored:
+  - the baseline build: `apps/e2e/ux-output/slice78-baseline-web/` (from `0c19170`, 1,101.98 kB
+    initial);
+  - the captures: `apps/e2e/ux-output/0c1917081b73a2892a30e0c6c548bff8b4e2fdc6/`, holding
+    `index.json` (all 194 slice-77 matrix cells), `states-verification.json` (168 entries,
+    `complete: true`) and `tasks/` (T01–T09 and T11 completed; T12 blocked as a dead end, as
+    expected).
+  - To redo it: `cd apps/e2e && UX_BEFORE=0c1917081b73a2892a30e0c6c548bff8b4e2fdc6 pnpm exec
+    playwright test --config ux/slice78.config.ts <capture.ts|states-verification.ts>`. Split
+    runs with `UX_MATCH` (matrix ids) or `UX_STATES_MATCH` (`context|theme|width`); a
+    `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
+    in the foreground.
+
+**Next:** Stage 1, contract and domain, tests first.
+
+**Traps found in Stage 0:**
+- The before build's workspace waits on the progress read, so `header-progress-pending` shows
+  the whole page's "Loading project…".
+- `pin-tall-tasklist-banner` produces its drag-receive banner only at 1440. Touch emulation does
+  not drive the CDK drag, so its 375 entries carry a `notes` field and no banner.
+- Pinned-context presses look for the after build's `[data-failure-pin]` hook. Stage 4 must use
+  that name, or update `pinPress` in `states-verification.ts`.
+- Profile 78 in `build-sheet.mjs` is not written yet; it is Stage 5's.
 
 Redesign slice 6b-1 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Redesign slice 6b
 ("States", theme **TH10** "Empty, loading, error and archived states are accidental" in
@@ -1100,3 +1126,9 @@ None open. Three were answered by the user on 2026-10-29:
   implementation remains stopped for the user's acceptance. No implementation or commit.
 - **Plan accepted (2026-10-29):** the user accepted the revised plan and requested a planning
   commit and push. Implementation has not started.
+- **Stage 0 (2026-10-29):** the inventory is added under Behaviour vs. appearance. The sweep
+  found no spec edits beyond the plan's list other than `todos.spec.ts:108` (the "Project
+  unavailable" heading) and `project-workspace-shell.spec.ts:535,574`. The `__error` row of the
+  change list is made concrete: one class is dead today, and validation-only and dev-panel rules
+  stay. The harness's context table names a region selector that exists in both builds for every
+  Capture scope context.
