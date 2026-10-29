@@ -1,6 +1,7 @@
 import { DashboardResultSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, seedContainer, MINE, THEIRS } from '../test/test-support';
+import type { AIProvider } from './ai-provider';
 import { RECENT_AGENT_ACTIVITY_LIMIT } from './dashboard-service';
 import { PermissionDeniedError } from './errors';
 
@@ -32,7 +33,34 @@ it('slice 77 excludes an unresolvable task before deriving digest counts', async
   h.tasks.list = async (...args) => [...await list(...args), { ...valid, id: 'unresolvable' as typeof valid.id, sectionId: 'missing' as typeof valid.sectionId }];
   const result = await h.dashboardService.load(agentActorFor(0, ['workspace.read']), {});
   expect(result.today.overdue.map(({ id }) => id)).toEqual([valid.id]);
-  expect(result.dailyDigest.lines.join('\n')).toContain('1 task is overdue');
+  expect(result.dailyDigest?.lines.join('\n')).toContain('1 task is overdue');
+});
+
+describe('DashboardService: a failing digest fails alone (§24, §44)', () => {
+  const failing: AIProvider = {
+    generateDailyDigest: () => Promise.reject(new Error('provider key sk-secret refused')),
+    generateProjectSummary: () => Promise.reject(new Error('unused')),
+  };
+
+  it('answers a null digest and every list and count when the provider rejects', async () => {
+    const harness = buildHarness(undefined, { ai: failing });
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Late', dueAt: '2026-08-21T17:00:00.000Z' });
+
+    const result = await harness.dashboardService.load(harness.actor, {});
+
+    expect(result.dailyDigest).toBeNull();
+    expect(titles(result.today.overdue)).toEqual(['Late']);
+    expect(result.activeProjects.length).toBeGreaterThan(0);
+    expect(result.funFact.length).toBeGreaterThan(0);
+    expect(JSON.stringify(result)).not.toContain('sk-secret');
+  });
+
+  it('still rejects when a repository fails — only the digest is allowed to fail alone', async () => {
+    const harness = buildHarness();
+    harness.tasks.list = () => Promise.reject(new Error('disk gone'));
+
+    await expect(harness.dashboardService.load(harness.actor, {})).rejects.toThrow('disk gone');
+  });
 });
 
 describe('DashboardService.load', () => {
@@ -45,7 +73,7 @@ describe('DashboardService.load', () => {
     expect(result.upcoming).toMatchObject({ days: 7, throughDate: '2026-08-31', tasks: [] });
     expect(result.recentProgress).toMatchObject({ days: 7, sinceDate: '2026-08-18', tasks: [] });
     expect(result.generatedAt).toBe(NOW);
-    expect(result.dailyDigest.source).toBe('prototype');
+    expect(result.dailyDigest?.source).toBe('prototype');
     expect(result.funFact.length).toBeGreaterThan(0);
   });
 
@@ -196,7 +224,7 @@ describe('DashboardService.load', () => {
     await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Late', dueAt: '2026-08-20T21:00:00.000Z' });
 
     const result = await harness.dashboardService.load(harness.actor, {});
-    const text = result.dailyDigest.lines.join('\n');
+    const text = result.dailyDigest?.lines.join('\n');
 
     expect(text).toContain('1 task scheduled today');
     expect(text).toContain('1 task is overdue');
@@ -213,7 +241,7 @@ describe('DashboardService.load', () => {
     expect(titles(result.today.inProgress)).toEqual(['Running soon']);
     expect(result.upcoming.tasks).toEqual([]);
     // The digest states both counts, so an overlap here would describe one task twice.
-    const text = result.dailyDigest.lines.join(NEWLINE);
+    const text = result.dailyDigest?.lines.join(NEWLINE);
     expect(text).toContain('1 task already in progress');
     expect(text).not.toContain('arrives in the next');
   });
@@ -230,7 +258,7 @@ describe('DashboardService.load', () => {
     expect(result.today.overdue).toEqual([]);
     expect(result.recentProgress.tasks).toEqual([]);
     expect(result.activeProjects).toEqual([]);
-    expect(result.dailyDigest.lines.join(NEWLINE)).toContain('Nothing is overdue');
+    expect(result.dailyDigest?.lines.join(NEWLINE)).toContain('Nothing is overdue');
   });
 
   it('still shows the work of a paused project — an overdue task is overdue either way', async () => {

@@ -175,7 +175,11 @@ export class DashboardService {
       upcoming: { days: upcomingDays, throughDate: isoDayOf(throughMs), tasks: upcoming.map(row) },
       activeProjects,
       recentProgress: { days: recentDays, sinceDate: isoDayOf(sinceMs), tasks: recent.map(row) },
-      dailyDigest: await ai.generateDailyDigest(digestContext),
+      // The digest is the one part of this read allowed to fail alone (§24, §44): a provider
+      // rejection becomes `null` and the lists still answer. Only the provider call is caught —
+      // a repository failure above still rejects the whole read. The reason is the provider's
+      // to log; it never crosses the contract.
+      dailyDigest: await ai.generateDailyDigest(digestContext).catch(() => null),
       // The same read as everything else on this screen. `ActivityService.list` asserts
       // `workspace.read` too, which the actor has already passed above — a harmless repeat,
       // and the alternative (an unchecked internal variant) would be a hole waiting for a

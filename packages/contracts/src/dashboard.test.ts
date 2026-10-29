@@ -124,6 +124,10 @@ describe('DashboardResultSchema', () => {
     expect(parsed.activeProjects[0]).toMatchObject({ percentage: null, daysToTarget: -3 });
   });
 
+  it('accepts a null digest — the provider failed, and only that widget says so (§24, §44)', () => {
+    expect(DashboardResultSchema.parse({ ...result, dailyDigest: null }).dailyDigest).toBeNull();
+  });
+
   it('rejects generated content with no lines — a widget would render an empty tile', () => {
     expect(
       DashboardResultSchema.safeParse({ ...result, dailyDigest: { ...generated, lines: [] } }).success,

@@ -8,6 +8,7 @@ import { ActivityService } from '../src/activity-service';
 import type { LiveEventPublisher } from '../src/live-events';
 import { AgentConnectionService } from '../src/agent-connection-service';
 import { DashboardService } from '../src/dashboard-service';
+import type { AIProvider } from '../src/ai-provider';
 import { PrototypeAIProvider } from '../src/prototype-ai-provider';
 import { ProjectPageService } from '../src/project-page-service';
 import { ProjectService } from '../src/project-service';
@@ -169,6 +170,8 @@ export interface HarnessOptions {
    * `ProjectPageService` and since Slice 39 `ProjectService`. The recorder-failure seam.
    */
   recorder?: (real: OperationRecorder) => OperationRecorder;
+  /** The dashboard's provider, when a test wants one that fails (§44). Defaults to the prototype's. */
+  ai?: AIProvider;
   /** Replaces the counting id generator, for tests where id order must not match insertion order. */
   ids?: IdGenerator;
 }
@@ -323,7 +326,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     taskService: legacyTaskService,
     taskWriteService,
     progressService: new ProgressService({ projects, tasks }),
-    dashboardService: new DashboardService({ projects, tasks, sections, pages, activity, clock, ai: new PrototypeAIProvider() }),
+    dashboardService: new DashboardService({ projects, tasks, sections, pages, activity, clock, ai: options.ai ?? new PrototypeAIProvider() }),
     agentService: new AgentConnectionService({ agents, activity, clock, unitOfWork }),
     timelineService: new TimelineService({ projects, tasks, milestones, sections, pages }),
     reflectionService: legacyReflectionService,

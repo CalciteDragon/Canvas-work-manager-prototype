@@ -128,7 +128,12 @@ export const DashboardResultSchema = z.object({
     sinceDate: IsoDateSchema,
     tasks: z.array(DashboardTaskSchema),
   }),
-  dailyDigest: GeneratedContentSchema,
+  /**
+   * §24's digest, or `null` when the AI provider failed (§44): only the digest's widget says
+   * so, and the rest of the dashboard still answers. No reason travels with it — a real
+   * provider's error could carry endpoint or key details, so it stays on the host's console.
+   */
+  dailyDigest: GeneratedContentSchema.nullable(),
   /** §24's "low-priority optional daily content" — a fixture, not AI (see the decision log). */
   funFact: z.string().min(1),
   /**
