@@ -1,4 +1,4 @@
-import { TodoTaskOriginSchema, AgentPermissionSchema, OperationHistorySummarySchema, SectionAddResultSchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
+import { DashboardResultSchema, TodoTaskOriginSchema, AgentPermissionSchema, OperationHistorySummarySchema, SectionAddResultSchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
 import { requiredPermissions, toolPermission } from './tool';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -476,11 +476,35 @@ const CASES: Record<string, ToolCase> = {
     verify: (result) => {
       expect(result.today.date).toBe('2026-08-24');
       for (const task of [...result.today.overdue, ...result.today.dueToday, ...result.today.inProgress, ...result.upcoming.tasks, ...result.recentProgress.tasks]) expect(TodoTaskOriginSchema.safeParse(task.origin).success).toBe(true);
-      expect(result.dailyDigest.source).toBe('prototype');
-      expect(result.dailyDigest.lines.length).toBeGreaterThan(0);
+      expect(result.dailyDigest?.source).toBe('prototype');
+      expect(result.dailyDigest?.lines.length).toBeGreaterThan(0);
     },
   },
 };
+
+describe('get_dashboard_context under a failing AI provider (§24, §44)', () => {
+  it('answers a null digest with every other field present and no provider text', async () => {
+    const { registry } = buildHarness({
+      ai: {
+        generateDailyDigest: () => Promise.reject(new Error('provider endpoint https://ai.example refused key sk-secret')),
+        generateProjectSummary: () => Promise.reject(new Error('unused')),
+      },
+    });
+
+    const result = DashboardResultSchema.parse(await registry.call('get_dashboard_context', {}, agent(['workspace.read'])));
+
+    expect(result.dailyDigest).toBeNull();
+    expect(result.today.date).toBe('2026-08-24');
+    expect(result.activeProjects.length).toBeGreaterThan(0);
+    expect(result.funFact.length).toBeGreaterThan(0);
+    expect(JSON.stringify(result)).not.toMatch(/sk-secret|ai\.example|provider endpoint/);
+  });
+
+  it('tells the agent the digest is null when the provider failed', () => {
+    const { registry } = buildHarness();
+    expect(registry.list().find(({ name }) => name === 'get_dashboard_context')?.description).toContain('dailyDigest is null when the AI provider failed');
+  });
+});
 
 describe('agent-facing workstream vocabulary (§26, §54)', () => {
   it('defines workstream with the unchanged subproject kind and avoids retired prose', () => {

@@ -28,7 +28,7 @@ export const workspaceTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_dashboard_context',
     description:
-      'The whole daily picture: today’s and overdue work, what is in progress, upcoming tasks, active projects, recent progress, and the daily digest. Task rows include canonical page and section origins under workspace.read.',
+      'The whole daily picture: today’s and overdue work, what is in progress, upcoming tasks, active projects, recent progress, and the daily digest. Task rows include canonical page and section origins under workspace.read. dailyDigest is null when the AI provider failed; every other field still answers.',
     permission: 'workspace.read',
     inputSchema: DashboardQuerySchema,
     execute: (input, { actor, services }) => services.dashboard.load(actor, input),
