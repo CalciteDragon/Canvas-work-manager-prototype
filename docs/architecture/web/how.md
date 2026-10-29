@@ -43,7 +43,16 @@ closes feedback, and modal suppression hides it without dropping it. Status toas
 eight unattended seconds; hover, focus and suppression pause and restart that timer. Alerts and
 pending Undo never time out. `ReceiptToast` in core composes this presentational layer with the
 workspace's inert-default receipt port. The toast docks in the content track with a matching
-reserve and becomes solid whenever another lift is open.
+reserve and becomes solid whenever another lift is open. A toast given a `detail` (a failure's raw
+reason) shows it under a collapsed Details and never announces it.
+
+Failures are a `Failure { sentence, reason }` from `readFailure(error, subject)` or
+`writeFailure(error, sentence)` in `shared/feedback/failure.ts`, which reads `code` and `message`
+structurally and imports nothing from `core/`. `FailureMessage` renders one: a region weight in
+place of a body, page or widget, or an inline weight on a row or field; the host carries the
+caller's `data-*-error` hook, `sentenceId` names the only element a control should describe itself
+by, and the reason sits beside it in a native `<details>`. Slice 78 is moving every store to it;
+until a store has moved, its own message still ends with the host's reason.
 
 ## Key symbols
 
@@ -61,6 +70,8 @@ reserve and becomes solid whenever another lift is open.
 | `Icon` | component | Shared decorative SVG marks (`shared/components/icon`) | [API](../../api/components/Icon.html) |
 
 | `Toast` | component | Presentational feedback, live regions and timer | [API](../../api/components/Toast.html) |
+| `FailureMessage` | component | One failure form: sentence, optional recovery, reason under Details | [API](../../api/components/FailureMessage.html) |
+| `Failure`, `readFailure`, `writeFailure` | interface / functions | The one error-to-sentence translation | [API](../../api/interfaces/Failure.html) |
 | `ToastSlot` | injectable | One visible toast, navigation dismissal and modal suppression | [API](../../api/injectables/ToastSlot.html) |
 
 Each subsystem's `how.md` lists its own.

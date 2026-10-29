@@ -69,12 +69,16 @@ Smaller features that do not earn a folder of their own:
 - `shared/components/icon` — `Icon`, the one monochrome SVG set for app-owned marks (chrome glyphs,
   page kinds, section types, widgets, activity actors), listed in `ICON_NAMES`. User-chosen
   project emoji are content and never pass through it.
+- `shared/feedback` — `Toast` and `ToastSlot`; slice 78's `Failure` (`failure.ts`, the one
+  translation from an error to a product sentence, its raw reason kept apart) and `FailureMessage`,
+  which renders it with an optional Try again and the reason under a collapsed Details.
 - `shared/lifts` — `LiftFocus`, `LiftStack` and `menuKeys`; top-layer behavior stays in the
   owning component. `_lifts.scss` paints side lifts, sheets, popovers, dialogs and menus.
 - `styles/_controls.scss` — slice 72's control primitives as global classes over native elements
   (`.button` in four ranks, `.icon-button`, `.tool`, `.field`, `.select`, `.checkbox`, `.radio`,
   `.pill`, `.link`, `.control-label`, `.danger-zone`, and slice 75's `.field-status` — saving,
-  saved or failed beside a label, the saved one fading after 2 s). `_base.scss` has the
+  saved or failed beside a label, the saved one fading after 2 s — and slice 78's `.state-message`,
+  the loading line and the failed region or inline form `FailureMessage` renders). `_base.scss` has the
   `.visually-hidden` utility for live regions, fixed to the viewport corner so a hidden region never
   stretches the document. Ghost buttons keep a faint edge at rest;
   icon buttons and tools stay borderless. Components position a primitive and never paint one.
