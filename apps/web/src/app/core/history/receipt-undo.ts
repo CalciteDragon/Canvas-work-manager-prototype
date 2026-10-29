@@ -10,6 +10,8 @@ export interface ReceiptUndoResult {
   tone: 'status' | 'alert';
   message: string;
   lines?: readonly string[];
+  /** A failure's raw reason, which the toast keeps under a collapsed Details (Slice 78). */
+  detail?: string;
   link?: { projectId: ProjectId; label: string };
 }
 

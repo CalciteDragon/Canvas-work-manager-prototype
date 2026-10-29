@@ -101,6 +101,8 @@
 .lift--toast.lift--contained { display: flex; max-inline-size: 100%; translate: none; }
 .toast__message { flex: 0 1 auto; min-block-size: 0; margin: 0; overflow-wrap: anywhere; overflow-y: auto; }
 .toast__lines { min-block-size: 0; margin: 0; padding-inline-start: var(--space-5); overflow-y: auto; }
+// The shared Details sits in the toast's column, so it takes no row-sized basis there.
+.toast__details { flex: 0 1 auto; min-block-size: 0; overflow-y: auto; }
 .toast__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 // Fixed, not absolute: with no positioned ancestor an absolute region sits at its static place at
 // the bottom of the scrolled track, and the document itself would scroll behind the app's track.

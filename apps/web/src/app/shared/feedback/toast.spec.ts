@@ -53,6 +53,20 @@ describe('Toast', () => {
     expect(status.isConnected).toBe(true);
   });
 
+  it('renders a failure detail as a closed Details in the toast, never in its announcement', () => {
+    const { fixture, element, popover } = setup();
+    expect(popover.querySelector('details')).toBeNull();
+    fixture.componentRef.setInput('tone', 'alert');
+    fixture.componentRef.setInput('message', 'Couldn’t remove the section. Try again.');
+    fixture.componentRef.setInput('detail', 'Section "section-notes" is locked.');
+    fixture.detectChanges();
+    const details = popover.querySelector('details')!;
+    expect(details.open).toBe(false);
+    expect(details.querySelector('summary')?.textContent?.trim()).toBe('Details');
+    expect(details.textContent).toContain('Section "section-notes" is locked.');
+    expect(element.querySelector('[role=alert]')!.textContent).not.toContain('locked');
+  });
+
   it('dismisses Escape inside and stops it reaching document handlers', () => {
     const { popover, dismissed } = setup();
     const outside = vi.fn();

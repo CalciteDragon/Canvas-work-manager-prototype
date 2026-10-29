@@ -8,5 +8,8 @@
   @if (lines().length) {
     <ul class="toast__lines">@for (line of lines(); track $index) { <li>{{ line }}</li> }</ul>
   }
+  @if (detail(); as detail) {
+    <details class="state-message__details toast__details"><summary>Details</summary><p>{{ detail }}</p></details>
+  }
   <div class="toast__actions"><ng-content /><button type="button" class="button button--ghost" data-toast-dismiss (click)="dismissed.emit()">Dismiss</button></div>
 </section>

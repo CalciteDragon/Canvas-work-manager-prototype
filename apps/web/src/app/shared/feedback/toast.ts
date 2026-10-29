@@ -17,6 +17,8 @@ export class Toast {
   readonly tone = input<'status' | 'alert'>('status');
   readonly message = input('');
   readonly lines = input<readonly string[]>([]);
+  /** A failure's raw reason: shown under a collapsed Details, never announced (Slice 78). */
+  readonly detail = input<string | null>(null);
   readonly suppressed = input(false);
   readonly pendingUndo = input(false);
   readonly dismissed = output<void>();

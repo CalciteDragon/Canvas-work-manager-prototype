@@ -27,6 +27,12 @@ describe('ReceiptToast (Slice 74)', () => {
     expect(toast.state()).toBeNull();
   });
 
+  it('carries a failure’s detail to the toast it shows (Slice 78)', () => {
+    const { toast } = setup();
+    toast.show({ tone: 'alert', message: 'Couldn’t remove the section. Try again.', detail: 'Section is locked.' });
+    expect(toast.state()?.detail).toBe('Section is locked.');
+  });
+
   it('morphs the acting toast after Undo, preserves result lines and removes Undo', async () => {
     const { toast, undo, ready } = setup();
     ready.set('ready');

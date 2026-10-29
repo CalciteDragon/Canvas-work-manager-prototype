@@ -14,7 +14,7 @@ import { Toast } from './toast';
     <button class="button" data-toast-menu-opener popovertarget="toast-story-menu">Open menu</button>
     <button class="button" (click)="modal.showModal()">Open modal</button>
     <div id="toast-story-menu" class="lift lift--popover menu" popover="auto"><button class="menu__item">Menu action</button></div>
-    <app-toast [open]="open()" [tone]="tone()" [message]="tone() === 'alert' ? 'Could not remove the section. Try again.' : 'Removed the Notes section.'" (dismissed)="dismiss()">
+    <app-toast [open]="open()" [tone]="tone()" [message]="tone() === 'alert' ? 'Could not remove the section. Try again.' : 'Removed the Notes section.'" [detail]="detail()" (dismissed)="dismiss()">
       @if (withUndo()) { <button class="button" type="button">Undo</button> }
     </app-toast>
     <dialog #modal class="lift lift--dialog"><h2>Confirm change</h2><button class="button" (click)="modal.close()">Close modal</button></dialog>
@@ -24,6 +24,7 @@ import { Toast } from './toast';
 class ToastStory {
   readonly tone = input<'status' | 'alert'>('status');
   readonly withUndo = input(false);
+  readonly detail = input<string | null>(null);
   protected readonly open = signal(false);
   protected readonly dismissals = signal(0);
   private readonly opener = viewChild<ElementRef<HTMLButtonElement>>('opener');
@@ -74,3 +75,17 @@ export const Alert: Story = { args: { tone: 'alert' }, play: ({ canvasElement })
 export const WithUndo: Story = { args: { withUndo: true }, play: ({ canvasElement }) => openAndEscape(canvasElement) };
 export const OverOpenMenu: Story = { args: { withUndo: true }, play: ({ canvasElement }) => openAndEscape(canvasElement, 'menu') };
 export const UnderModal: Story = { args: { withUndo: true }, play: ({ canvasElement }) => openAndEscape(canvasElement, 'modal') };
+// Slice 78: a failure's raw reason waits under a collapsed Details inside the toast.
+export const AlertWithDetails: Story = {
+  args: { tone: 'alert', detail: 'Section "section-notes" is locked by another change.' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Show feedback' }));
+    const details = canvasElement.querySelector<HTMLDetailsElement>('[data-toast] details')!;
+    await waitFor(() => expect(details).toBeVisible());
+    await expect(details.open).toBe(false);
+    await userEvent.click(canvas.getByText('Details'));
+    await expect(details).toHaveTextContent('locked by another change');
+    await openAndEscape(canvasElement);
+  },
+};
