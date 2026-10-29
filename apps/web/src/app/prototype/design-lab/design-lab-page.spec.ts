@@ -104,8 +104,13 @@ describe('DesignLabPage (§22, §67)', () => {
     const loading = panel.querySelector<HTMLElement>('.state-message--loading')!;
     expect(loading.getAttribute('aria-busy')).toBe('true');
     expect(loading.textContent).toContain('Loading projects…');
-    const failures = [...panel.querySelectorAll<HTMLElement>('app-failure-message')];
+    const failures = [...panel.querySelectorAll<HTMLElement>('app-failure-message:not([data-lab-digest-failure])')];
     expect(failures.map(failure => failure.classList.contains('state-message--inline') ? 'inline' : 'region')).toEqual(['region', 'region', 'inline']);
+    // The digest's failure has no reason to show: none crosses the wire.
+    const digest = panel.querySelector<HTMLElement>('[data-lab-digest-failure]')!;
+    expect(digest.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t write today’s digest.');
+    expect(digest.querySelector('[data-recovery="try-again"]')).not.toBeNull();
+    expect(digest.querySelector('details')).toBeNull();
     for (const failure of failures) {
       const sentence = failure.querySelector<HTMLElement>('[data-failure-sentence]')!;
       const details = failure.querySelector<HTMLDetailsElement>('details')!;

@@ -1,7 +1,8 @@
 import { NgComponentOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import type { DashboardResult, DashboardWidget } from '@cwm/contracts';
 import { Icon } from '../../../../shared/components/icon/icon';
+import { FailureMessage } from '../../../../shared/feedback/failure-message';
 import type { DashboardWidgetDefinition } from '../registry';
 import type { DashboardWidgetInputs } from '../widget-contract';
 
@@ -17,7 +18,7 @@ import type { DashboardWidgetInputs } from '../widget-contract';
 @Component({
   selector: 'app-dashboard-widget-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, Icon],
+  imports: [NgComponentOutlet, Icon, FailureMessage],
   templateUrl: './dashboard-widget-frame.html',
   styleUrl: './dashboard-widget-frame.scss',
 })
@@ -25,6 +26,13 @@ export class DashboardWidgetFrame {
   readonly widget = input.required<DashboardWidget>();
   readonly definition = input.required<DashboardWidgetDefinition>();
   readonly dashboard = input.required<DashboardResult>();
+  /** The caller's retry is running: the failure is busy and its Try again inert (Slice 78). */
+  readonly pending = input(false);
+  /** Try again on the definition's failure; the frame repeats nothing itself. */
+  readonly retry = output<void>();
+
+  /** The definition's own failure, rendered in the widget's place: the widget is never mounted with it. */
+  readonly failure = computed(() => this.definition().failureOf?.(this.dashboard()) ?? null);
 
   readonly contentInputs = computed<DashboardWidgetInputs>(() => ({
     widget: this.widget(),

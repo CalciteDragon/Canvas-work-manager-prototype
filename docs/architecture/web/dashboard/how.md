@@ -8,10 +8,15 @@
    `queryFrom(config)` into one query (for example `upcomingDays`).
 3. One call to `dashboard.load(query)` returns §24's content; each widget renders its
    slice of it inside `DashboardWidgetFrame` at the size the layout names.
-4. On a live frame the store re-reads quietly; on `prototype.reloaded` the tab reloads. The Recent
+4. A failed read is a `Failure` ("Couldn’t load Home.") rendered as the page's one alert with
+   Try again, which calls `load()` and keeps the failure, busy, until it answers. A definition's
+   `failureOf(dashboard)` lets the frame render a widget's own failure in its place without
+   mounting the widget; only the digest has one. Its Try again emits `retry`, and the page calls
+   `retryDigest()`, a quiet re-read with `digestPending` for the frame's `pending`.
+5. On a live frame the store re-reads quietly; on `prototype.reloaded` the tab reloads. The Recent
    Agent Activity widget reuses `ActivityFeed`, so a removed row displays its captured historical
    label supplied by the host rather than disappearing.
-5. Switching persona reloads the page; the new persona's list and query produce a
+6. Switching persona reloads the page; the new persona's list and query produce a
    different dashboard with nothing in this feature knowing why.
 
 ## Key symbols
@@ -20,7 +25,7 @@
 |---|---|---|---|
 | `DashboardPage` | component | The page | [API](../../../api/components/DashboardPage.html) |
 | `DashboardStore` | injectable | Layout ⋈ content | [API](../../../api/injectables/DashboardStore.html) |
-| `DASHBOARD_WIDGET_REGISTRY` | const | Type → component and `queryFrom` | [API](../../../api/miscellaneous/variables.html#DASHBOARD_WIDGET_REGISTRY) |
+| `DASHBOARD_WIDGET_REGISTRY` | const | Type → component, `queryFrom` and `failureOf` | [API](../../../api/miscellaneous/variables.html#DASHBOARD_WIDGET_REGISTRY) |
 | `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | interfaces | The widget contract | [API](../../../api/interfaces/DashboardWidgetDefinition.html) |
 | `DashboardWidgetFrame` | component | Chrome and sizes | [API](../../../api/components/DashboardWidgetFrame.html) |
 | `TodayWidget`, `UpcomingWidget`, `ActiveProjectsWidget`, `RecentProgressWidget`, `DailyDigestWidget`, `FunFactWidget`, `RecentAgentActivityWidget` | components | The seven widgets | [API](../../../api/components/TodayWidget.html) |
@@ -45,6 +50,8 @@
 - **One read per load** — `dashboard-store.spec.ts`.
 - **The registry list is pinned** — `widgets/registry.spec.ts`.
 - **Config is read only inside the widget that owns it** — through `queryFrom`.
+- **Widgets take data only**: a failed part of the dashboard is rendered by the frame from the
+  definition's `failureOf` — `dashboard-widget-frame.spec.ts`, `daily-digest-widget.spec.ts`.
 - **Every widget has an empty state**, verified in the browser against `empty`.
 - **Overdue rows print the date, not the time** — a defect only the browser showed,
   now a test.

@@ -4,5 +4,9 @@
 </header>
 
 <div data-widget-content class="widget-frame__content">
-  <ng-container [ngComponentOutlet]="definition().component" [ngComponentOutletInputs]="contentInputs()" />
+  @if (failure(); as failure) {
+    <app-failure-message data-widget-failure [failure]="failure" recovery="try-again" [pending]="pending()" (retry)="retry.emit()" />
+  } @else {
+    <ng-container [ngComponentOutlet]="definition().component" [ngComponentOutletInputs]="contentInputs()" />
+  }
 </div>

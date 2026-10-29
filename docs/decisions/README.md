@@ -38,6 +38,7 @@ Archive-label revision; both entries record acceptance.
 
 | Entry | Settled | Status |
 |---|---|---|
+| [A failure speaks product words, keeps its reason under Details, and offers Try again for a read](2026-10-failures-speak-product-words.md) | One `Failure` shape and sentence by code; reason under Details; Try again repeats only the read, kept busy while it runs; read and write failures apart; no false empty; the polite sidebar; the digest fails alone | current (Slice 78) |
 | [Connecting an agent becomes a product surface in Settings › AI & Agents](2026-10-agent-connections-are-a-product-surface.md) | The five S1 findings; its own cross-system slice within §80 | current (Slice 70 Gate 1) |
 | [Prototype scaffolding stays visible during the redesign](2026-10-prototype-scaffolding-stays-for-now.md) | TH12 is restyled, not removed; its findings stay open | current (Slice 70 Gate 1) |
 | [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | amended; Slice 66 |

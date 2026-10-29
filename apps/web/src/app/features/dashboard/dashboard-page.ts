@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { FailureMessage } from '../../shared/feedback/failure-message';
 import { DashboardStore } from './dashboard-store';
 import { DashboardWidgetFrame } from './widgets/widget-frame/dashboard-widget-frame';
 
@@ -13,7 +14,7 @@ import { DashboardWidgetFrame } from './widgets/widget-frame/dashboard-widget-fr
   selector: 'app-dashboard-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [DashboardStore],
-  imports: [DashboardWidgetFrame],
+  imports: [DashboardWidgetFrame, FailureMessage],
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.scss',
 })

@@ -1,8 +1,9 @@
 import type { Type } from '@angular/core';
 import type { IconName } from '../../../shared/components/icon/icon';
-import type { DashboardQuery, DashboardWidgetType } from '@cwm/contracts';
+import type { DashboardQuery, DashboardResult, DashboardWidgetType } from '@cwm/contracts';
+import type { Failure } from '../../../shared/feedback/failure';
 import { ActiveProjectsWidget } from './active-projects/active-projects-widget';
-import { DailyDigestWidget } from './daily-digest/daily-digest-widget';
+import { DailyDigestWidget, dailyDigestFailure } from './daily-digest/daily-digest-widget';
 import { FunFactWidget } from './fun-fact/fun-fact-widget';
 import { RecentAgentActivityWidget } from './recent-agent-activity/recent-agent-activity-widget';
 import { RecentProgressWidget, recentProgressWidgetQuery } from './recent-progress/recent-progress-widget';
@@ -28,6 +29,12 @@ export interface DashboardWidgetDefinition {
   icon: IconName;
   component: Type<DashboardWidgetComponent>;
   queryFrom?: (config: unknown) => Partial<DashboardQuery>;
+  /**
+   * Slice 78: when this widget's part of the dashboard failed, the failure the frame renders
+   * in its place, with Try again. Pure, so widgets still take data only and are never mounted
+   * with data they cannot show.
+   */
+  failureOf?: (dashboard: DashboardResult) => Failure | null;
 }
 
 /**
@@ -41,7 +48,7 @@ export const DASHBOARD_WIDGET_REGISTRY: readonly DashboardWidgetDefinition[] = [
   { type: 'upcoming', displayName: 'Upcoming', icon: 'upcoming', component: UpcomingWidget, queryFrom: upcomingWidgetQuery },
   { type: 'active_projects', displayName: 'Active Projects', icon: 'projects', component: ActiveProjectsWidget },
   { type: 'recent_progress', displayName: 'Recent Progress', icon: 'trend', component: RecentProgressWidget, queryFrom: recentProgressWidgetQuery },
-  { type: 'daily_digest', displayName: 'Daily Digest', icon: 'digest', component: DailyDigestWidget },
+  { type: 'daily_digest', displayName: 'Daily Digest', icon: 'digest', component: DailyDigestWidget, failureOf: dailyDigestFailure },
   { type: 'fun_fact', displayName: 'Fun Fact', icon: 'idea', component: FunFactWidget },
   { type: 'recent_agent_activity', displayName: 'Recent Agent Activity', icon: 'agent', component: RecentAgentActivityWidget },
 ];

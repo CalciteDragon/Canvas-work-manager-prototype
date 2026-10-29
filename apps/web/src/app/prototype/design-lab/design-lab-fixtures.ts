@@ -146,6 +146,9 @@ export const labDashboard = (): DashboardResult => ({
   recentAgentActivity: [],
 });
 
+/** What the host answers when the AI provider failed: the lists, and a `null` digest (Slice 78). */
+export const labDashboardWithoutDigest = (): DashboardResult => ({ ...labDashboard(), dailyDigest: null });
+
 /** The three states every live panel is asked to show (§67). */
 export type StubSectionState = 'content' | 'empty' | 'loading' | 'error';
 

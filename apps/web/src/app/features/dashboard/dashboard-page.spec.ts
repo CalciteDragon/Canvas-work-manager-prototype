@@ -1,9 +1,9 @@
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { ActivityFeedEntrySchema, DashboardResultSchema, type DashboardResult, type DashboardWidget, type Identity } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { FakeWorkManagerGateway, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
+import { FakeWorkManagerGateway, dashboardWithoutDigest, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
@@ -55,7 +55,9 @@ const populated = (): DashboardResult =>
   funFact: 'Context switching costs more time than the switch itself takes.',
   });
 
-const render = async (
+const render = async (...args: Parameters<typeof renderPage>) => (await renderPage(...args)).element;
+
+const renderPage = async (
   widgets: DashboardWidget[],
   options: { dashboard?: DashboardResult; failWith?: GatewayError; identity?: Identity | GatewayError } = {},
 ) => {
@@ -81,8 +83,14 @@ const render = async (
   const fixture = TestBed.createComponent(DashboardPage);
   await fixture.whenStable();
   fixture.detectChanges();
-  return fixture.nativeElement as HTMLElement;
+  return { fixture, element: fixture.nativeElement as HTMLElement, gateway: TestBed.inject(WORK_MANAGER_GATEWAY) as FakeWorkManagerGateway };
 };
+
+const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>((yes) => { resolve = yes; }); return { promise, resolve }; };
+
+const everyWidget = (): DashboardWidget[] =>
+  (['today', 'upcoming', 'active_projects', 'recent_progress', 'daily_digest', 'fun_fact', 'recent_agent_activity'] as const)
+    .map((type, position) => widget(`w-${type}`, type, { position }));
 
 describe('DashboardPage (§24, §25)', () => {
   it('renders one tile per visible widget, carrying its preset size', async () => {
@@ -169,13 +177,86 @@ describe('DashboardPage (§24, §25)', () => {
     expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(0);
   });
 
+  // Slice 78 (L4-002): one message, in product words, as the page's one alert; the host's
+  // reason waits under Details.
   it('shows the failure instead of an empty dashboard when the host is unreachable', async () => {
     const element = await render([widget('w-today', 'today')], {
       failWith: new GatewayError('unreachable', 0, 'the prototype host is not running'),
     });
 
-    expect(element.querySelector('[data-dashboard-error]')?.textContent).toContain('not running');
+    const failure = element.querySelector('[data-dashboard-error]')!;
+    expect(failure.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t reach your workspace, so Home didn’t load.');
+    expect(failure.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(failure.querySelector('details')?.textContent).toContain('not running');
+    expect(element.querySelectorAll('[role="alert"]')).toHaveLength(1);
     expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(0);
+    expect(element.querySelector('[data-dashboard-empty]')).toBeNull();
+  });
+
+  it('reads again on Try again, and shows the dashboard when the read answers', async () => {
+    const { fixture, element, gateway } = await renderPage([widget('w-today', 'today')], {
+      failWith: new GatewayError('internal_error', 500, 'boom'),
+    });
+    expect(element.querySelector('[data-dashboard-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load Home.');
+
+    gateway.options.failWith = undefined;
+    element.querySelector<HTMLElement>('[data-dashboard-error] [data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-dashboard-error]')).toBeNull();
+    expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(1);
+  });
+});
+
+// Slice 78 (L4-022): the provider failing costs the digest, not Home.
+describe('DashboardPage — a failed digest (§24, §43)', () => {
+  it('renders the other six widgets and the digest’s failure, with Try again and no Details', async () => {
+    const element = await render(everyWidget(), { dashboard: dashboardWithoutDigest() });
+
+    expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(7);
+    const digest = element.querySelector('[data-widget-type="daily_digest"]')!;
+    expect(digest.querySelector('[data-widget-failure] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t write today’s digest.');
+    expect(digest.querySelector('[data-widget-failure] [data-recovery="try-again"]')).not.toBeNull();
+    expect(digest.querySelector('details')).toBeNull();
+    expect(digest.querySelector('app-daily-digest-widget')).toBeNull();
+    expect(element.querySelectorAll('[data-widget-failure]')).toHaveLength(1);
+    expect(element.querySelector('[data-dashboard-error]')).toBeNull();
+    expect(element.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('re-reads quietly on the digest’s Try again, busy while it runs, keeping the other widgets', async () => {
+    const { fixture, element, gateway } = await renderPage(everyWidget(), { dashboard: dashboardWithoutDigest() });
+    const answer = deferred<DashboardResult>();
+    vi.spyOn(gateway.dashboard, 'get').mockReturnValueOnce(answer.promise);
+
+    element.querySelector<HTMLElement>('[data-widget-failure] [data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+
+    const failure = element.querySelector('[data-widget-failure]')!;
+    expect(failure.getAttribute('aria-busy')).toBe('true');
+    expect(failure.querySelector('[data-recovery="try-again"]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(7);
+    expect(element.querySelector('[data-dashboard-loading]')).toBeNull();
+
+    answer.resolve(populated());
+    // The quiet re-read is not a pending task, so let its promise chain settle first.
+    await new Promise((settled) => setTimeout(settled));
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-widget-failure]')).toBeNull();
+    expect(element.querySelectorAll('[data-widget-digest-line]')).toHaveLength(2);
+    expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(7);
+  });
+
+  it('ends visibly when the digest’s retry fails again', async () => {
+    const { fixture, element } = await renderPage(everyWidget(), { dashboard: dashboardWithoutDigest() });
+
+    element.querySelector<HTMLElement>('[data-widget-failure] [data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+
+    const failure = element.querySelector('[data-widget-failure]')!;
+    expect(failure.getAttribute('aria-busy')).toBeNull();
+    expect(failure.querySelector('[data-recovery="try-again"]')?.getAttribute('aria-disabled')).toBeNull();
   });
 });
 

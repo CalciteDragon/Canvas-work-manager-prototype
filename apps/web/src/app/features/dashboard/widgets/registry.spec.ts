@@ -2,6 +2,7 @@ import { DashboardWidgetTypeSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { DASHBOARD_WIDGET_REGISTRY, widgetDefinitionFor } from './registry';
 import { ICON_NAMES } from '../../../shared/components/icon/icon';
+import { dailyDigestFailure } from './daily-digest/daily-digest-widget';
 
 describe('DASHBOARD_WIDGET_REGISTRY (§24, §25)', () => {
   // Slice 72 (L2-013): widget marks come from the shared SVG set, not platform emoji.
@@ -41,6 +42,13 @@ describe('DASHBOARD_WIDGET_REGISTRY (§24, §25)', () => {
     expect(widgetDefinitionFor('recent_progress')?.queryFrom?.({ days: 30 })).toEqual({ recentDays: 30 });
     expect(widgetDefinitionFor('upcoming')?.queryFrom?.({ days: 900 })).toEqual({});
     expect(widgetDefinitionFor('today')?.queryFrom).toBeUndefined();
+  });
+
+  // Slice 78: widgets still take data only; a failure comes from the definition, and only
+  // the digest can have one.
+  it('gives only the digest a failureOf hook, and it is the digest’s own', () => {
+    expect(widgetDefinitionFor('daily_digest')?.failureOf).toBe(dailyDigestFailure);
+    for (const { type, failureOf } of DASHBOARD_WIDGET_REGISTRY) if (type !== 'daily_digest') expect(failureOf, type).toBeUndefined();
   });
 
   it('answers undefined for the §24 widgets later slices own', () => {

@@ -92,6 +92,7 @@ get one.
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the gateway validates the create receipt before the shell navigates
 - [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — the phone drawer, its focus rules and why its state is `AppShell`'s, not `ShellStore`'s
 - [Pending, saved and failed feedback stays on the object](../../../decisions/2026-10-feedback-stays-on-the-object.md) — the sidebar's New project refuses a blank name beside its field
+- [A failure speaks product words](../../../decisions/2026-10-failures-speak-product-words.md) — the sidebar's loading line, and its polite failure with Try again
 
 ## Spec sections
 

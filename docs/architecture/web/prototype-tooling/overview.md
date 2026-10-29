@@ -30,7 +30,9 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
   every primitive and state; Object rows renders link-title, static, high-priority, overdue,
   finished and read-only specimens on the shared `.object-row` anatomy; the Empty, loading and
   failed panel renders the shared `.state-message` loading line and `FailureMessage` (read, stale
-  and inline write forms, reasons under Details), and the stub section's error case uses it too;
+  and inline write forms, reasons under Details, and the digest's own failure from the `null`-digest
+  fixture through `dailyDigestFailure`), and the stub section's error case uses it too; the live
+  Navigation panel shows the sidebar loaded, loading ("Loading projects…") and failed;
   cards and menus stay marked *not yet a shared component* — plus
   real lift-class specimens over a busy backing and a motion specimen. The live Drawer panel
   renders `TaskDetailDrawer` in contained mode, with neither fixed positioning nor the top layer.

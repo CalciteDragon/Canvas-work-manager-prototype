@@ -30,14 +30,6 @@
   color: var(--color-text-muted);
 }
 
-.dashboard__error {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border: var(--border-hairline) solid var(--color-danger);
-  border-radius: var(--radius-md);
-  background: var(--color-danger-surface);
-  color: var(--color-danger);
-}
 
 // §25's four presets over a 12-column grid — the same vocabulary the section canvas uses,
 // so there is one mental model for "how wide is this thing", and no pixel resizing.

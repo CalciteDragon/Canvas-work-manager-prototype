@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import type { Failure } from '../../../shared/feedback/failure';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
+import { dailyDigestFailure } from '../../../features/dashboard/widgets/daily-digest/daily-digest-widget';
+import { labDashboardWithoutDigest } from '../design-lab-fixtures';
 
 /**
  * §67's catalogue, primitive half.
@@ -28,6 +30,8 @@ export class PrimitivePanels {
   /** Slice 78's failure forms: a read in place of a body, stale content said politely, a write on its row. */
   readonly readFailure: Failure = { sentence: 'Couldn’t load this task list.', reason: 'the prototype host is not running' };
   readonly staleFailure: Failure = { sentence: 'This list may be out of date.', reason: 'the prototype host is not running' };
+  /** The digest's own failure, from the `null`-digest fixture: the sentence, Try again, no Details. */
+  readonly digestFailure: Failure = dailyDigestFailure(labDashboardWithoutDigest())!;
   readonly writeFailure: Failure = { sentence: 'Couldn’t complete “Order tiles”. Try again.', reason: 'Task “Order tiles” changed since it was read.' };
   /** §21's single row shape, including rows that have no interactive owner. */
   readonly rows = [

@@ -10,10 +10,18 @@
     }
   </header>
 
-  @if (store.loading()) {
+  <!-- The failure first: Try again keeps it on screen, busy, until the read answers. -->
+  @if (store.error(); as failure) {
+    <app-failure-message
+      data-dashboard-error
+      [failure]="failure"
+      live="alert"
+      recovery="try-again"
+      [pending]="store.loading()"
+      (retry)="store.load()"
+    />
+  } @else if (store.loading()) {
     <p data-dashboard-loading class="dashboard__muted">Loading your dashboard…</p>
-  } @else if (store.error(); as error) {
-    <p data-dashboard-error class="dashboard__error" role="alert">{{ error }}</p>
   } @else if (store.dashboard(); as dashboard) {
     @if (store.tiles().length === 0) {
       <p data-dashboard-empty class="dashboard__muted">
@@ -33,6 +41,8 @@
                 [widget]="tile.widget"
                 [definition]="definition"
                 [dashboard]="dashboard"
+                [pending]="store.digestPending()"
+                (retry)="store.retryDigest()"
               />
             } @else {
               <!-- §24 names nine widgets; this slice builds six. A persona carrying one of

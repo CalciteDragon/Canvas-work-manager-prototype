@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import type { DashboardResult, DashboardWidget, Identity } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { FakeWorkManagerGateway, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
+import { FakeWorkManagerGateway, dashboardWithoutDigest, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../core/gateway/work-manager-gateway';
@@ -110,10 +110,62 @@ describe('DashboardStore', () => {
 
     await store.load();
 
-    expect(store.error()).toContain('not running');
+    expect(store.error()).toEqual({ sentence: 'Couldn’t reach your workspace, so Home didn’t load.', reason: 'the prototype host is not running' });
     expect(store.dashboard()).toBeNull();
     expect(store.widgets()).toEqual([]);
     expect(store.loading()).toBe(false);
+  });
+
+  // Slice 78: Try again keeps the failure on screen, busy, until the read answers.
+  it('keeps the failure while a retry reads, and clears it when the read answers', async () => {
+    const { store, gateway } = setup([widget({ id: 'w-today', type: 'today' })], {
+      failWith: new GatewayError('internal_error', 500, 'boom'),
+    });
+    await store.load();
+
+    gateway.options.failWith = undefined;
+    const retried = store.load();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('Couldn’t load Home.');
+    await retried;
+
+    expect(store.error()).toBeNull();
+    expect(store.widgets()).toHaveLength(1);
+  });
+
+  // Slice 78 (L4-022): the digest's Try again is a quiet re-read with a pending flag.
+  it('re-reads quietly on retryDigest, pending while it runs, keeping the dashboard', async () => {
+    const { store, gateway } = setup([widget({ id: 'w-digest', type: 'daily_digest' })]);
+    gateway.options.dashboard = dashboardWithoutDigest();
+    await store.load();
+    const shown = store.dashboard();
+
+    gateway.options.dashboard = emptyDashboard();
+    const answer = deferred<DashboardResult>();
+    vi.spyOn(gateway.dashboard, 'get').mockReturnValueOnce(answer.promise);
+    const retried = store.retryDigest();
+
+    expect(store.digestPending()).toBe(true);
+    expect(store.loading()).toBe(false);
+    expect(store.dashboard()).toBe(shown);
+    answer.resolve(emptyDashboard());
+    await retried;
+
+    expect(store.digestPending()).toBe(false);
+    expect(store.dashboard()?.dailyDigest).not.toBeNull();
+  });
+
+  it('keeps the dashboard and ends pending when retryDigest fails', async () => {
+    const { store, gateway } = setup([widget({ id: 'w-digest', type: 'daily_digest' })]);
+    gateway.options.dashboard = dashboardWithoutDigest();
+    await store.load();
+
+    gateway.options.failWith = new GatewayError('internal_error', 500, 'boom');
+    await store.retryDigest();
+
+    expect(store.digestPending()).toBe(false);
+    expect(store.dashboard()?.dailyDigest).toBeNull();
+    expect(store.error()).toBeNull();
   });
 
   it('surfaces an identity failure the same way — the layout is half the dashboard', async () => {
@@ -121,7 +173,7 @@ describe('DashboardStore', () => {
 
     await store.load();
 
-    expect(store.error()).toContain('no identity');
+    expect(store.error()).toEqual({ sentence: 'Couldn’t reach your workspace, so Home didn’t load.', reason: 'no identity' });
     expect(store.dashboard()).toBeNull();
   });
 

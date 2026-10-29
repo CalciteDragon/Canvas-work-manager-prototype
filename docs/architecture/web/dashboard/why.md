@@ -38,9 +38,13 @@ AI-generated ([decision](../../../decisions/2026-08-prototype-ai-scope-and-fun-f
 
 **The digest fails alone.** With `PROTOTYPE_AI_PROVIDER=real` the stub rejects, and the
 one read still answers, with `dailyDigest: null` (§24, §44). Every other widget renders;
-the digest widget renders nothing for a `null` digest. Its own failure message is
-[Slice 78](../../../roadmap/active/78-failures-and-loading.md)'s, still to land. Any other
-failure of the one read still fails Home as a whole — the price of the single-read design.
+the digest's registry definition supplies `failureOf` (`dailyDigestFailure`), so the frame
+renders "Couldn’t write today’s digest." in the widget's place, with Try again and no Details:
+no reason crosses the wire, it stays on the host's console. Try again is the store's quiet
+re-read (`retryDigest`), so the other widgets stay on screen
+([decision](../../../decisions/2026-10-failures-speak-product-words.md)). Any other failure of
+the one read still fails Home as a whole — the price of the single-read design — and says so
+once, as "Couldn’t load Home." with Try again and the reason under Details.
 
 ## Consequences
 
@@ -57,6 +61,7 @@ failure of the one read still fails Home as a whole — the price of the single-
 - [The dashboard splits layout from content](../../../decisions/2026-08-dashboard-layout-and-content-split.md)
 - [Where dashboard widgets live](../../../decisions/2026-08-dashboard-widget-ownership.md)
 - [What counts as AI in the prototype](../../../decisions/2026-08-prototype-ai-scope-and-fun-fact.md)
+- [A failure speaks product words](../../../decisions/2026-10-failures-speak-product-words.md) — Home's one failure, and the digest failing alone
 - [The activity feed composes its line](../../../decisions/2026-08-activity-feed-composes-from-parts.md) — the agent-activity widget
 
 ## Spec sections

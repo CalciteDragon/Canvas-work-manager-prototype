@@ -892,6 +892,9 @@ export const emptyDashboard = (): DashboardResult => ({
   recentAgentActivity: [],
 });
 
+/** What the host answers when the AI provider failed: a `null` digest beside full lists (Slice 78). */
+export const dashboardWithoutDigest = (): DashboardResult => ({ ...emptyDashboard(), dailyDigest: null });
+
 /** An `IdentityProvider` that answers whatever the spec hands it. */
 export const fakeIdentityProvider = (identity: Identity | GatewayError) => ({
   getCurrentIdentity: () =>

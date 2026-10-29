@@ -3,9 +3,9 @@ import type { DashboardQuery, DashboardResult, DashboardWidget, LiveEvent } from
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { readFailure, type Failure } from '../../shared/feedback/failure';
 import { widgetDefinitionFor } from './widgets/registry';
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 interface QueuedRead { quiet: boolean; promise: Promise<void>; resolve: () => void; reject: (error: unknown) => void; }
 
 /**
@@ -27,12 +27,19 @@ export class DashboardStore {
   private readonly widgetsState = signal<DashboardWidget[]>([]);
   private readonly dashboardState = signal<DashboardResult | null>(null);
   private readonly loadingState = signal(true);
-  private readonly errorState = signal<string | null>(null);
+  /**
+   * Home's read failure, in the product's words (Slice 78). A retry keeps it until the read
+   * answers, so the Try again that was pressed stays on screen, busy.
+   */
+  private readonly errorState = signal<Failure | null>(null);
+  private readonly digestPendingState = signal(false);
 
   readonly widgets = this.widgetsState.asReadonly();
   readonly dashboard = this.dashboardState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
+  /** True while `retryDigest` runs: the digest's failure is busy and its Try again inert. */
+  readonly digestPending = this.digestPendingState.asReadonly();
 
   constructor() {
     const unsubscribe = inject(LIVE_UPDATES).subscribe(
@@ -49,6 +56,20 @@ export class DashboardStore {
 
   async load(): Promise<void> {
     return this.read({ quiet: false });
+  }
+
+  /**
+   * The failed digest's Try again (Slice 78, L4-022): the quiet re-read, so the other widgets
+   * stay on screen. A re-read that fails again keeps the dashboard and only ends `digestPending`,
+   * which is how the retry visibly ended.
+   */
+  async retryDigest(): Promise<void> {
+    this.digestPendingState.set(true);
+    try {
+      await this.refresh();
+    } finally {
+      this.digestPendingState.set(false);
+    }
   }
 
   /**
@@ -89,10 +110,7 @@ export class DashboardStore {
   }
 
   private startRead(quiet: boolean): Promise<void> {
-    if (!quiet) {
-      this.loadingState.set(true);
-      this.errorState.set(null);
-    }
+    if (!quiet) this.loadingState.set(true);
 
     const operation = (async () => { try {
       const { user } = await this.identity.getCurrentIdentity();
@@ -110,7 +128,7 @@ export class DashboardStore {
       if (quiet) return;
       this.widgetsState.set([]);
       this.dashboardState.set(null);
-      this.errorState.set(messageOf(error));
+      this.errorState.set(readFailure(error, 'Home'));
     } finally {
       if (!quiet) this.loadingState.set(false);
     } })().finally(() => {

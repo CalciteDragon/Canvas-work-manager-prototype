@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
   id["IdentityProvider<br/>UserPreferences.dashboardWidgets"] -->|layout| store["DashboardStore"]
-  reg["DASHBOARD_WIDGET_REGISTRY<br/>type → component, queryFrom"] --> store
+  reg["DASHBOARD_WIDGET_REGISTRY<br/>type → component, queryFrom, failureOf"] --> store
   live["LIVE_UPDATES"] -->|frame| store
   store --> page["DashboardPage"]
   page --> frame["DashboardWidgetFrame<br/>small · medium · wide · full"]
@@ -36,9 +36,9 @@ flowchart LR
 | Part | Path | Role |
 |---|---|---|
 | `DashboardPage` | `dashboard-page.ts` | Renders each visible widget in its size; honest note for an unregistered type |
-| `DashboardStore` | `dashboard-store.ts` | Joins layout and content; re-reads on frames |
-| `DASHBOARD_WIDGET_REGISTRY`, `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | `widgets/registry.ts`, `widgets/widget-contract.ts` | The list and the contract every widget implements; each definition's `icon` is an `IconName` from the shared SVG set, rendered by the widget frame |
-| `DashboardWidgetFrame` | `widgets/widget-frame/` | The common chrome and size classes |
+| `DashboardStore` | `dashboard-store.ts` | Joins layout and content; re-reads on frames; its read failure is a `Failure`; `retryDigest` re-reads quietly with `digestPending` |
+| `DASHBOARD_WIDGET_REGISTRY`, `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | `widgets/registry.ts`, `widgets/widget-contract.ts` | The list and the contract every widget implements; each definition's `icon` is an `IconName` from the shared SVG set, rendered by the widget frame; an optional `failureOf` (the digest's `dailyDigestFailure`) makes the frame render a `FailureMessage` with Try again instead of the widget |
+| `DashboardWidgetFrame` | `widgets/widget-frame/` | The common chrome and size classes; renders a definition's failure in the widget's place, with `pending` and a `retry` output |
 | Seven widgets | `widgets/{today,upcoming,active-projects,recent-progress,daily-digest,fun-fact,recent-agent-activity}/` | One folder each; shared `widget-content.scss` |
 
 The common widget frame also owns the sheet-plane paint; every widget inherits the same token treatment.

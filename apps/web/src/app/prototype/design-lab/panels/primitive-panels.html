@@ -137,5 +137,6 @@
     <app-failure-message [failure]="readFailure" live="alert" recovery="try-again" />
     <app-failure-message [failure]="staleFailure" live="status" recovery="try-again" />
     <app-failure-message [failure]="writeFailure" weight="inline" />
+    <app-failure-message data-lab-digest-failure [failure]="digestFailure" recovery="try-again" />
   </div>
 </section>
