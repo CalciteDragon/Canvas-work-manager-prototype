@@ -12,10 +12,16 @@ import type { GeneratedContent } from '@cwm/contracts';
  *
  * §44's rule is that real AI must never be *required*. `mock` is the default, so an
  * unconfigured checkout never reaches this class at all.
+ *
+ * The dashboard answers a digest rejection with a `null` digest and no reason (§24), so
+ * the digest's reason is written to `console.error` here — never stdout, which the stdio
+ * MCP transport owns — and reaches the host's console under HTTP and stdio alike.
  */
 export class RealAIProvider implements AIProvider {
   generateDailyDigest(_context: DailyDigestContext): Promise<GeneratedContent> {
-    return Promise.reject(this.unavailable('generateDailyDigest'));
+    const error = this.unavailable('generateDailyDigest');
+    console.error(`prototype-host AI provider failed — ${error.message}`);
+    return Promise.reject(error);
   }
 
   generateProjectSummary(_context: ProjectSummaryContext): Promise<GeneratedContent> {

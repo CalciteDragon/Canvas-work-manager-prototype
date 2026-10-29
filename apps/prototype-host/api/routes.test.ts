@@ -979,7 +979,7 @@ describe('dashboard route', () => {
 
     expect(result.status).toBe(200);
     expect(dashboard.today.overdue.map(({ title }) => title)).toEqual(['Late']);
-    expect(dashboard.dailyDigest.source).toBe('prototype');
+    expect(dashboard.dailyDigest?.source).toBe('prototype');
     expect(DashboardResultSchema.parse((await call(routes, 'GET', '/api/dashboard', { user: ALEX })).body).today.overdue).toEqual([]);
   });
 

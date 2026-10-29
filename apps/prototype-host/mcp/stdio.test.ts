@@ -29,7 +29,7 @@ afterEach(async () => {
 });
 
 describe('MCP stdio entry (§59)', () => {
-  const connect = async (path: string, mode?: string) => {
+  const connect = async (path: string, mode?: string, env: Record<string, string> = {}) => {
     const client = new Client(
       { name: 'slice-52-stdio', version: '0.0.0' },
       { versionNegotiation: { mode: { pin: '2026-07-28' } } },
@@ -38,7 +38,7 @@ describe('MCP stdio entry (§59)', () => {
       command: process.execPath,
       args: ['--import', 'tsx', join(here, mode ? 'test/fault-stdio.ts' : 'stdio.ts'), ...(mode ? [mode] : [])],
       cwd: join(here, '..'),
-      env: { ...getDefaultEnvironment(), CWM_DATA_FILE: path, CWM_MCP_TOKEN: 'prototype-user-a-readwrite' },
+      env: { ...getDefaultEnvironment(), CWM_DATA_FILE: path, CWM_MCP_TOKEN: 'prototype-user-a-readwrite', ...env },
       stderr: 'pipe',
     }));
     return client;
@@ -67,6 +67,19 @@ describe('MCP stdio entry (§59)', () => {
       const rows = [...dashboard.today.overdue, ...dashboard.today.dueToday, ...dashboard.today.inProgress, ...dashboard.upcoming.tasks, ...dashboard.recentProgress.tasks, ...upcoming.overdue, ...upcoming.upcoming];
       expect(rows.length).toBeGreaterThan(0);
       for (const row of rows) expect(TodoTaskOriginSchema.parse(row.origin).projectId).toBe(row.projectId);
+    } finally { await client.close(); }
+  }, budget(1));
+
+  it('answers a null digest and no provider text under the real AI provider (§24, §44)', async () => {
+    const path = await fixture();
+    const client = await connect(path, undefined, { PROTOTYPE_AI_PROVIDER: 'real' });
+    try {
+      const result = await client.callTool({ name: 'get_dashboard_context', arguments: {} });
+      expect(result.isError).not.toBe(true);
+      const dashboard = DashboardResultSchema.parse(result.structuredContent);
+      expect(dashboard.dailyDigest).toBeNull();
+      expect(dashboard.today.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(JSON.stringify(result)).not.toContain('RealAIProvider');
     } finally { await client.close(); }
   }, budget(1));
 

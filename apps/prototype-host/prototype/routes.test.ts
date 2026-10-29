@@ -1,11 +1,11 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrototypeStateSchema, PrototypeNotesFileSchema, ProjectSchema } from '@cwm/contracts';
+import { DashboardResultSchema, PrototypeStateSchema, PrototypeNotesFileSchema, ProjectSchema } from '@cwm/contracts';
 import { SimulatedClock, PrototypeAIProvider } from '@cwm/domain';
 import { JsonDataStore } from '@cwm/repositories';
 import { buildSeed } from '@cwm/prototype-data';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApi } from '../api/services.ts';
 import { LiveEventHub } from '../events/hub.ts';
 import { createApiRoutes } from '../api/routes.ts';
@@ -143,8 +143,15 @@ describe('POST /prototype/ai-provider', () => {
     const result = await persona(routes, 'POST', '/prototype/ai-provider', { provider: 'real' });
 
     expect(PrototypeStateSchema.parse(result.body).aiProvider).toBe('real');
-    // §44's adapter is a stub that rejects, so the dashboard read fails as a whole.
-    expect((await persona(routes, 'GET', '/api/dashboard')).status).toBe(500);
+    // §44's adapter is a stub that rejects. Only the digest fails: the read answers with a
+    // `null` digest and the rest of Home, and the provider's reason stays on the console.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const failed = await persona(routes, 'GET', '/api/dashboard');
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('RealAIProvider.generateDailyDigest'));
+    error.mockRestore();
+    expect(failed.status).toBe(200);
+    expect(DashboardResultSchema.parse(failed.body).dailyDigest).toBeNull();
+    expect(JSON.stringify(failed.body)).not.toContain('RealAIProvider');
 
     await persona(routes, 'POST', '/prototype/ai-provider', { provider: 'mock' });
     expect((await persona(routes, 'GET', '/api/dashboard')).status).toBe(200);
@@ -162,10 +169,13 @@ describe('POST /prototype/reset', () => {
     const state = PrototypeStateSchema.parse(result.body);
     expect(state.seed).toBe('personal-workspace');
     expect(state.clockOffsetMs).toBe(0);
-    // "A known state" has to include the provider: leaving it on `real` keeps the
-    // dashboard 500ing and makes reset look broken rather than restorative.
+    // "A known state" has to include the provider: leaving it on `real` keeps the digest
+    // failing and makes reset look broken rather than restorative. A 200 alone would pass
+    // under either provider, so the digest itself must be back.
     expect(state.aiProvider).toBe('mock');
-    expect((await persona(routes, 'GET', '/api/dashboard')).status).toBe(200);
+    const restored = await persona(routes, 'GET', '/api/dashboard');
+    expect(restored.status).toBe(200);
+    expect(DashboardResultSchema.parse(restored.body).dailyDigest?.source).toBe('prototype');
   });
 });
 
