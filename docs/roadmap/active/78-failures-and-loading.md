@@ -1,0 +1,1003 @@
+<!-- plan id="78" status="active" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back" -->
+# Slice 78 — States: failures and loading
+
+**State (2026-10-29):** planned and reviewed (AGENTS.md steps 1–2; twelve rounds, including
+review of the user's three answers). Mechanism review closed in round 11 and behavior review
+closed in round 12, with no substantive findings remaining. The user accepted the plan on
+2026-10-29. Not implemented.
+
+Redesign slice 6b-1 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Redesign slice 6b
+("States", theme **TH10** "Empty, loading, error and archived states are accidental" in
+[themes.json](../70-ui-ux/themes.json)) is **split** by the user's choice on 2026-10-29, as slices
+4 and 6 were. This slice, **6b-1**, takes the failure and loading half. **6b-2** is
+[Slice 79](../planned/79-empty-archived-and-editing.md): first-run and empty states, archived
+pages, the archive refusal, restore, the digest's overdue line, the Markdown editor's Cancel and
+Preview, and L4-023's count. The protocol §8 comb runs after 79 closes, not after this slice.
+
+The user also answered on 2026-10-29: a failure's raw host reason moves **behind a collapsed
+Details toggle**. The visible text is a product sentence only. This amends slice 75's
+[feedback decision](../../decisions/2026-10-feedback-stays-on-the-object.md), whose sentences end
+with the reason today.
+
+## Goal
+
+A read that fails says, in product words and in one recognisable form, what could not be loaded,
+offers Try again, and never claims the content is empty. Loading never reads as empty. A failed
+digest leaves the rest of Home standing, and a missing project or page leads back to work
+(direction principles 4, 6 and 8).
+
+## Spec sections
+
+- **§21** visual design system: one `.state-message` pattern, tokens only, for loading and failed
+  regions.
+- **§19** stores own their state: each store holds a `Failure`, not a string, and keeps a read
+  failure apart from a write failure.
+- **§23** application shell: the sidebar says it is loading, and says when it failed.
+- **§24** Home Dashboard: a failure is one message, and a failed digest fails only its own widget.
+- **§34** task interactions: quick-add's "the reason beside the form" becomes a sentence beside the
+  form, with the reason under Details; the section banner carries load and drag-receive failures.
+- **§42 and §44** AI features: "Real AI must never be required to run the prototype". A provider
+  failure must not take the dashboard with it.
+- **§61** Prototype API: the error envelope is unchanged. The UI stops printing its `message`.
+- **§63** Optimistic UI: "revert + show error". The error is a product sentence; the reason sits
+  under Details.
+- **§67** Design Lab: failure, loading and Details specimens.
+- **§68** route map: the `**` page and an unavailable project lead back to Home.
+- **§69** verification, **§77** design-first loop, **§78** decisions.
+- [Overhaul protocol](../../guides/ui-ux-overhaul-protocol.md) §6–§7.
+
+## Build
+
+- **One failure shape.** A pure `failure.ts` in `shared/feedback/` defines
+  `Failure { sentence, reason }` and two builders:
+  - `readFailure(error, subject)` gives the product sentence for a failed read, by the error's
+    `code`, with no record id, enum, path or status:
+
+    | Code | Sentence |
+    |---|---|
+    | `not_found` | "{Subject} isn't available." (every subject that can answer `not_found` is a singular noun phrase: "this task list", "this journal"; the sidebar's "your projects" is a list read that cannot) |
+    | `unreachable` | "Couldn't reach your workspace, so {subject} didn't load." |
+    | anything else | "Couldn't load {subject}." |
+
+  - `writeFailure(error, sentence)` keeps slice 75's "Couldn't <verb> “X”. Try again." frame and
+    takes the reason out of it.
+
+  `reason` is the error's `message`, or `String(error)` for anything without one. `failure.ts` reads
+  `code` and `message` **structurally** (duck typing), so `shared/` gains no import from `core/`.
+  There is no `retryable` field: each caller chooses its recovery (Try again, Go to Home, Reload
+  page). `failure.ts` is the only translation, and every local `messageOf` outside `prototype/`
+  goes (the dev panel's tools keep theirs: they are for developers).
+- **One component, two weights.** `FailureMessage` (`shared/feedback/failure-message.ts`) renders
+  one `.state-message.state-message--failed`:
+  - an outer wrapper, which carries the caller's existing `data-*-error` hook, so an e2e
+    `toContainText` on the reason still matches once Details is in the DOM;
+  - inside it, the **sentence** element. It has `role="alert"` when the caller asks for an alert, and
+    it is the only element a control's `aria-describedby` names;
+  - an optional **Try again** button emitting `retry`. Every recovery control in this slice
+    (Try again, Go to Home, Retry refresh, Reload page) carries
+    `data-recovery="try-again|go-home|retry-refresh|reload"`, which the gate reads;
+  - when there is a reason, a collapsed native `<details>` with the summary "Details", a sibling of
+    the sentence, so a screen reader never reads the reason as the control's description.
+
+  The *region* weight replaces a section body, page or widget. The *inline* weight keeps slice 75's
+  row, field and card placement and its `field-status--failed` tone. A `.state-message--loading`
+  variant carries the muted loading line, with `aria-busy` on its region. Styles live in
+  `_controls.scss` and use tokens only. The `__error` classes it replaces are deleted (listed under
+  the change list).
+- **Read and write failures are separate state.** A store that both reads and writes holds its read
+  failure apart from its write failures, so a write failure never replaces the read's state and a
+  failed read never clears a write failure. This applies to:
+  - the task-list store: its read and drag-receive failures. Both render in the section's banner, as
+    §34 says, and a drag-receive failure has no Try again;
+  - the reflections section store (`reflections-store.ts`): its read apart from its create and edit
+    failures (lines 19 and 21), which today share `errorState` and show raw in the
+    `data-reflections-error` banner. The section passes `[error]="null"` to its composer today;
+    after the split, a create failure renders on the composer through its `error` input and an edit
+    failure beside the edit form, each as a sentence with Details;
+  - the progress store: its read apart from the `setFormula` write (`progress-store.ts:64, 73`).
+    Today both, and the re-read after a write (line 78), share one `errorState` that
+    `progress-section.html:3` renders *in place of* the result and the Count/Weighted/Manual
+    controls. After the split, a formula write failure renders inline beside the controls, "Couldn't
+    change how progress is measured. Try again." with Details, and the result and controls stay on
+    screen. A failed re-read after a successful write is the polite stale form ("This progress may
+    be out of date.") with Try again;
+  - the page store: the canvas's shortcuts read (`project-page-store.ts:342, 406, 459, 1226`) moves
+    out of `sectionErrorState` into its own read failure, and the reads that clear
+    `sectionErrorState` today (lines 352, 402, 1233) and the full `load()` (line 443) clear both the
+    shortcuts read failure and the write failure, as they clear `sectionErrorState` today: a fresh
+    canvas supersedes a move or add alert. Only a *failed* read never clears a write failure. It is
+    rendered on the canvas with Try again: "Couldn't load all of this page's sections, so adding
+    and moving are paused." An unrelated section write can no longer clear it. The existing
+    `data-placement-order-incomplete` line is **deleted**: today it also shows during every load
+    (`load()` sets `orderComplete` false at line 433, and the line renders outside the loading
+    branch), a false failure beside "Loading canvas…". Writes and drag stay gated by
+    `orderComplete()`;
+  - the Archive and Settings › Archived projects stores, which hold four states: a load failure
+    (Try again), a committed restore whose refresh failed (Retry refresh, replacing the
+    `COMMITTED_UNREFRESHED` string sentinel), and a restore write failure. That last one says
+    "Couldn't restore “X”. The archive may have changed." (it does not end in slice 75's "Try
+    again", because its button does not restore), with Details and a **Try again** button that
+    re-reads. Slice 47's rule stands: any of the four pauses
+    Restore until a successful read, because the item on screen may be stale, so the write-failure
+    state must offer that read. The fourth, **stale** state applies when a read fails while a list
+    is already on screen and no write state is held: a live frame's quiet re-read, or the user's
+    Try again on a refusal. That Try again hands the refusal over to the read it starts (Restore
+    stays paused while it is pending, `archive-page-store.ts:64-66`); if that read fails the state
+    is stale. A live frame's failed read leaves a held refusal as it is: "This archive may be out of date." on
+    Archive and "This list may be out of date." on Settings, polite, with Try again and Details,
+    Restore still paused. It never says "Couldn't load" over content that is there. The sentences
+    are this slice's: the refused restore says "The archive may have changed." on Archive and "The
+    list may have changed." on Settings, and an `unreachable` refusal says "Couldn't reach your
+    workspace, so “X” may not have been restored." (under slice 76's rules it may have committed).
+    **Precedence**, highest first: committed-unrefreshed, refused restore, stale, load failure. A
+    failed read never displaces a held write state; Settings' quiet re-read before it shows a
+    refusal (`archived-projects-store.ts:115-118`) therefore ends in the refusal, not in stale. Committed-unrefreshed says "Restored “X”, but Archive couldn't refresh." and
+    "Restored “X”, but this list couldn't refresh." beside Retry refresh, without today's "Try
+    again." / "Retry the list." Slice 79 owns only the archive refusal said *before* commit;
+  - the agent connections store: the list read apart from Revoke's page-level failure. Revoke's
+    failure keeps its text and placement, and never shows Try again or clears the list. That text
+    is the raw reason today; it is the one raw-reason exception this slice leaves, carried to slice
+    8 with the brief's Revoke work (`70-ui-ux-overhaul.md:395`) and named in the decision.
+
+  **A successful write after a failed read starts a full read** (today quick-add only appends, at
+  `task-list-store.ts:288`, which is why L4-027 still reproduces after the host recovers).
+- **Try again everywhere a read can fail.** Read retries say **Try again**, which repeats only that
+  read:
+  - the sidebar, dashboard and project page;
+  - the canvas's sections and shortcuts reads, and every section body: Task List, Progress,
+    Reflections, Timeline and Recent Activity, including a section that answers `not_found`. A
+    shortcut frame has no read of its own (its body is the source section's component); its only
+    failure is a collapse write;
+  - Todos, the Reflections page, Archive, Settings › Archived projects, Settings › AI & Agents and the
+    Add a shortcut picker's discovery read (`shortcut-store.ts:33`).
+
+  The **retry label rule** is:
+  - a read that failed to load, or a stale refresh, says **Try again**. "Retry archive read" and
+    "Retry list" (their load branches) and the Reflections page's stale-refresh "Retry journal read"
+    become Try again. The Reflections and Todos pages' load branches already say Try again;
+  - a refused restore says **Try again** too, because what it offers is the re-read Slice 47
+    requires before another write;
+  - a committed write whose follow-up read failed says **Retry refresh**, on Archive and on
+    Settings › Archived projects alike (today both show their read-retry label for it), and on the
+    Reflections page, whose "Reflection saved, but the journal could not refresh. Try again."
+    (`reflections-page-store.ts:226`) becomes "Saved, but this journal couldn't refresh." with
+    Retry refresh, rather than the stale notice. The page keeps the saved-unrefreshed state apart
+    from the stale notice (today both share `refreshErrorState`, lines 46, 226, 259), and as on
+    the archive pages the committed write outranks stale: a later failed quiet read does not
+    replace it;
+  - **Retry remove** is unchanged;
+  - the header's history **Retry** keeps its label here (the user's choice on 2026-10-29). It is
+    a note for the §8 comb, which settles one reload vocabulary across the app, including inside
+    the Undo/Redo controls. Slice 79's restore work touches the two archive pages and takes this
+    rule as given.
+- **No false empty, and failures clear.** A section, page or list whose read failed shows the
+  failure *instead of* its empty sentence ("No tasks yet. Add the first one above." never appears
+  under a failure). The read failure clears on the next successful read of the same thing: Try
+  again, a quiet live re-read, or the full read a successful write starts. Quick-add and the
+  reflection composer stay enabled under a read failure (recorded in the decision): a write does
+  not depend on the failed read, and its success re-reads (L4-003, L4-027).
+- **Stale content says so politely.** Where a refresh fails over content still on screen (Todos'
+  and the Reflections page's "…may be out of date — {reason}" notices), the notice becomes a polite
+  `FailureMessage` (`role="status"`): "This list may be out of date." on Todos and "This journal may
+  be out of date." on the Reflections page (their nouns today), with Try again and the reason
+  under Details. It never says "Couldn't load", because the content is there. **A stale Try again
+  runs a quiet read**: it keeps the content on screen, and a failure leaves the notice stale. Todos
+  gains a `retryRefresh()` like the Reflections page's (its `retry()` at `todos-page-store.ts:139`
+  is the non-quiet load, which empties the list on failure); Progress gains a quiet retry like its
+  `sync` (its `load()` shows "Calculating progress…" and nulls the result).
+- **Loading is not empty.** The canvas's "Loading canvas…" adopts `.state-message--loading` with
+  `aria-busy`; section bodies' own loading lines are left as they are and have no loading row. The
+  sidebar shows "Loading projects…" (`state-message--loading`,
+  `aria-busy` on the tree) while its first read is in flight, and never "No projects yet" until a
+  read has answered with none (L4-001).
+- **The digest fails alone.**
+  - The contract: `DashboardResultSchema`'s `dailyDigest` becomes
+    `GeneratedContentSchema.nullable()`, documented as "the provider failed". **No reason travels
+    over the wire.** The host deliberately answers unhandled errors without their message
+    (`api/errors.ts:69-71`), because a real provider's exception could carry endpoint or key
+    details; the digest keeps that rule.
+  - The domain: `DashboardService` catches only the `generateDailyDigest` rejection and returns
+    `null`. Every other failure still rejects.
+  - The host: `RealAIProvider` logs its rejection with `console.error` (never stdout, which stdio
+    owns) before rejecting, so the reason reaches the console under HTTP and under stdio alike, and
+    README's "printed on the host's console" stays true.
+  - The widget: the registry definition gains an optional `failureOf(dashboard)` hook. Widgets still
+    take data only. The widget frame renders a region `FailureMessage` "Couldn't write today's
+    digest." with Try again and no Details (there is no reason to show), and emits `retry`. The
+    dashboard page calls a new public `retryDigest()` on the store, which runs the private quiet
+    re-read (`dashboard-store.ts:60`) and keeps the other six widgets on screen. While it runs the
+    digest region is `aria-busy` and Try again is disabled, so a retry that fails again visibly
+    ended rather than doing nothing.
+  - MCP: `get_dashboard_context`'s description says the digest is `null` when the provider failed.
+- **One message per failure on Home.** The dashboard says "Couldn't load Home." as the single
+  alert. The sidebar says "Couldn't load your projects." politely, not as an alert. Each has Try
+  again. They are different sentences about different regions, never the same host string twice
+  (L4-002).
+- **Unavailable and unknown lead back.**
+  - A project read that answers `not_found` shows the heading "This project isn't available" and
+    the sentence "It may have been removed, or it isn't shared with you.", with a **Go to Home**
+    link. There is no Try again, no Details and no id. This holds for another persona's project too,
+    and reveals nothing about whose it is (W4-024, L4-014). The header's existing history Retry
+    stays available on this page, as it is today.
+  - Any other project read failure shows a region `FailureMessage` "Couldn't load this project."
+    with Try again and Details, replacing the "Project unavailable" notice section
+    (`project-workspace-shell.html:17`) rather than sitting under that heading.
+  - The `**` page says "This page doesn't exist", then "Check the address, or go to Home.", with
+    the same link, in the same layout. It no longer cites §68.
+  - The shared layout is a new `UnavailablePage` component
+    (`shared/components/unavailable-page/unavailable-page.ts`): heading with `tabindex="-1"` and
+    `data-route-focus`, one sentence, Go to Home. `not-found-page.ts` and the workspace shell both
+    render it; `PlaceholderPage` is no longer used for `**`.
+  - Both headings **gain** `data-route-focus`.
+- **Writes keep their place, lose the raw text.** Every write failure that today appends
+  `messageOf(error)` keeps its slice 75 placement, sentence and `aria-describedby` link, and moves
+  the reason into the inline Details. That covers:
+  - task complete, reopen and Delete;
+  - quick-add (including its uncertain-commit sentence);
+  - drawer field saves;
+  - Todos rows and `data-todo-write-error`;
+  - section collapse and the canvas's other `sectionError` writes. `FAILED_REMOVAL_GUARD_MESSAGE`
+    stays a sentence, with no Details;
+  - the Reflections page's composer (`reflection-composer.html:22`) and the Reflections section's
+    create and edit failures (above);
+  - canvas creates that answer through `CanvasWriteResult` (`project-page-store.ts:87`, filled at
+    :1199 and returned by `project-canvas.ts:169, 183`): it carries a `Failure`, not a string, and
+    the section-create dialog and shortcut picker's `create` callbacks return `Failure | null`. Its
+    two synthetic refusals get product sentences: "The page is still loading. Try again in a
+    moment." (line 1182) and the shortcuts-read sentence above (line 1187);
+  - the agent permission card;
+  - create dialogs (section, work, project details, the shortcut picker's create) and the sidebar's
+    New project;
+  - the project header's own writes and the page navigation's writes. The header's archive refusal
+    goes through the same `writeError`: this slice only moves its reason into Details, and slice 79
+    owns its wording and timing;
+  - `createWorkstream`'s failure (`project-workspace-store.ts:300`, shown by the work-create
+    dialog);
+  - the section-removal toast: `sectionRemoveFailedFeedback` gives a sentence only, and an optional
+    `detail` is added where the toast's state is typed (`ReceiptUndoResult` in
+    `core/history/receipt-undo.ts`, which `HistoryFeedback` extends), so the toast renders it as
+    Details.
+
+  Read failures and write failures now look like one family (L4-018, L6-003).
+- **An off-screen failure is pinned to the viewport's edge** (the user's choice on 2026-10-29,
+  closing slice 75's open question). When an inline write failure's sentence anchor is wholly
+  outside the workspace's scroll port, a compact copy of the failure is clamped
+  to the nearer edge, top or bottom, with an indicator pointing toward the reference
+  (↑ or ↓). The row or frame remains its reveal/focus reference; observing the compact sentence
+  prevents a tall visible frame from hiding an off-screen banner. It applies to:
+  - task rows (canvas Task List and the Todos page);
+  - section and shortcut frames (collapse, and the Task List's drag-receive write banner).
+
+  Archive and Settings › Archived projects keep their existing page-level failure placement;
+  they have no row-local restore failure to pin. Read failures and page-level banners do not
+  register with this mechanism.
+
+  How it behaves:
+  - **Nothing scrolls on its own**, so principle 6's "feedback never scrolls" stands. The pinned
+    copy is a button, "↓ Couldn't complete “X”." with the arrow matching the direction; pressing it
+    scrolls the failure sentence anchor into unobscured view (even when its tall owner is already
+    partly visible), then focuses the control the failure describes, with
+    `preventScroll` so focus does not cause a second jump. If that control is disabled or gone,
+    focus the surviving failure sentence or reference (`tabindex="-1"`). Only the user's press
+    scrolls. Resolve the target before scrolling; a removed reference is unregistered instead.
+  - It unpins as soon as any part of the sentence anchor enters the unobscured scroll port
+    (below a stuck quick-add and above an open toast), and goes when the
+    failure clears. A close button dismisses that failure occurrence; the failure stays on its
+    row, and scrolling out again does not re-pin it. Clearing or replacing the failure re-arms
+    the registration. If dismissal removes the focused button, focus another surviving pinned
+    control or the scroll port with `preventScroll`; never reveal the off-screen row on close.
+    The same guarded fallback applies if a focused pin disappears on a quiet clear or scrolling;
+    preserve focus already moved elsewhere. Activation captures its destination before unpinning,
+    so an intersection callback cannot interrupt the requested reveal/focus handoff.
+  - **One pinned copy per edge**: the most recent failure, with "and N more" when several are off
+    the same edge. Pressing it goes to the most recent.
+  - **Edges are the workspace's scroll port** (`.workspace` in `app-shell.scss`, which scrolls,
+    not the window). The top edge sits below any stuck control in the list (the sticky quick-add);
+    the bottom edge sits above an open toast. The slot explicitly measures the visible stuck
+    quick-add and toast bounds and applies their clearance to its edge insets; workspace padding
+    alone does not position an overlay. Recompute on scroll, resize, and toast/sticky geometry
+    changes, with no change to the existing toast's position or reserve. Pins occupy the content
+    track, outside the project navigation column and any reserved desktop drawer width, without
+    changing content geometry when no failure is pinned.
+  - **Accessibility.** The row's sentence keeps `role="alert"` and stays the only element the
+    control's `aria-describedby` names, so the failure is announced once. The pinned copy is not
+    an alert: it is a button whose accessible name is "Show “X”: " plus the sentence, reachable by
+    keyboard. It carries no Details; its reason is on the row.
+  - **Motion** is opacity and transform only, and none under `prefers-reduced-motion`.
+  - **Mechanism.** A root-provided `PinnedFailures` service in `shared/feedback/` (the
+    `ToastSlot` pattern) holds registrations; an `appPinnedFailure` directive on each reference
+    registers its failure and watches the sentence anchor with an `IntersectionObserver` whose
+    root is the nearest scrolling ancestor, accounting for the measured edge clearance; a
+    `PinnedFailureSlot` component that the app shell renders in
+    `.workspace` draws the pinned copies with tokens only. Registrations are tied to the current
+    failure occurrence and reference; clearing, reference removal, directive destruction, or a
+    route/context replacement unregisters them and disconnects observers/listeners. Late observer
+    callbacks cannot re-pin a detached or superseded reference. A slot filters registrations by
+    its scroll root; the product surfaces here use `.workspace`. Registry/observer callbacks
+    update Angular signals so intersection and geometry changes render in the zoneless app.
+
+  This amends the [feedback decision](../../decisions/2026-10-feedback-stays-on-the-object.md):
+  feedback still never moves the page, but a failure on an object off screen is shown at the edge
+  and leads back to it.
+- **Task rows ignore Details.** The row's selection guard adds `summary, details`, so opening Details
+  never selects the row.
+- **The Markdown save failure is one message, on the editor.** The section contract's
+  `onConfigChange` (`section-contract.ts:23`) and the frame's `saveConfig` return a result that
+  carries the `Failure` instead of `Promise<boolean>`. Today `updateConfig` → `updateSection` →
+  `mutate()` always writes `sectionErrorState` (`project-page-store.ts:1159`); only
+  `writePlacementField` has an `onFailure` option. `mutate()` and `updateSection` gain the same
+  option, and the config save uses it, so the canvas-level `sectionErrorState` is neither set on
+  failure nor cleared before the write (as `writePlacementField` skips the clear at line 1077), and
+  a Markdown save never touches an unrelated canvas alert. "Not saved — your
+  draft is kept." becomes an inline `FailureMessage` alert with Details. Cancelling the edit leaves no
+  stray alert (L4-018). Cancel and Preview semantics are slice 79's.
+- **Progress names its state.** The workspace store gains a progress-failure state, and the header
+  takes a progress input with four values, not `number | null`: *pending*, *empty*, *failed* and a
+  percentage. While pending (a load sets it, `project-workspace-store.ts:253`) the fact renders
+  a muted "Measuring…" in the fact's own text style, never "No tasks to measure" or "Couldn't
+  load". It is not a loading row (the header's 1 px rule holds), and the gate table declares it a
+  `pending` row: a muted line with a declared expected text ("Measuring…"), which the gate
+  requires and which no empty or failed sentence may replace, and no loading assertion. Otherwise it reads "No tasks to measure" when there is
+  nothing to count, on live and archived projects alike. That is the domain's own explanation, and
+  it stays true on a root whose tasks all sit in workstreams, because `ProgressService` counts only
+  the project's own tasks (`progress-service.ts:35-44`); "No tasks yet" would be false there. Archiving does not
+  exclude a project's tasks from the count (`project-service.ts:262-271` only sets `status`), so
+  an archived project with tasks already shows its percentage, and "Not available" only ever meant
+  zero tasks. "Couldn't load" appears only when no percentage has been read for this project yet;
+  a later re-read that fails keeps the last value, as today (lines 520-522). "Not available" is
+  retired (L4-017).
+- **Project navigation's chunk failure** keeps **Reload page**, because reloading is the real cure
+  for a failed lazy chunk. It adopts the `.state-message` layout.
+
+## Done when
+
+- Every finding under Findings closed is closed on the before/after sheet, each by its named pair,
+  ARIA snapshot or e2e assertion.
+- Profile 78's states gate passes. It is driven by a **context table** in
+  `ux/states-verification.ts`, written out to `states-verification.json`. Each row declares
+  `{ context, region, kind: read | write | stale | loading | pending, recovery: try-again | go-home |
+  retry-refresh | reload | none, details: boolean, emptyHook: string | null, pinned: top | bottom |
+  null }`. Every exemption
+  comes from the table, not from prose, and `build-sheet.test.mjs` pins the table: it fails when a
+  Capture scope context has no row, or when a row's `emptyHook` no longer exists in the web
+  source, so a renamed hook fails instead of passing silently. Against each row the gate checks:
+  - no `[data-*-empty]` element is visible inside the row's region, for every `read` row (the hooks
+    in the source today are `data-activity-empty`, `data-agents-empty`, `data-archive-empty`,
+    `data-archived-empty`, `data-dashboard-empty`, `data-projects-empty`,
+    `data-reflections-empty`, `data-reflections-picker-empty`, `data-shortcut-picker-empty`,
+    `data-tasks-empty`, `data-timeline-empty`, `data-todos-empty`, `data-widget-empty` and
+    `data-work-empty`, plus `data-empty-canvas`, which the gate matches by name);
+  - the declared recovery control is present in the region and passes the target census, and no
+    recovery control is present for `none` (the header progress fact, which re-reads on the next
+    live frame);
+  - `details: true` rows open to show the exact injected reason; `details: false` rows (the
+    unavailable and `**` pages, the digest, the progress fact, loading rows)
+    show no Details;
+  - every `loading` row shows `.state-message--loading` with `aria-busy="true"` on its region;
+  - every row with `pinned` shows one pinned copy at that edge, inside the scroll port, with the
+    matching indicator, and no pinned copy shows when its sentence anchor is in view;
+  - the exact injected reason is not visible outside a closed `<details>`;
+  - no visible text outside a closed `<details>` matches the raw-reason patterns: a quoted record id
+    (`"[a-zA-Z]+-[0-9a-z-]+"`), `answered \d{3}`, `GET|PATCH|POST|DELETE /api`, `prototype host`,
+    `§\d+`.
+- Core tasks T01–T09 and T11 cost no more than their slice-77 counts. A new task, **T12 "Recover a
+  section after a failed read"**, is recorded before and after. It uses busy-week at
+  `/projects/project-launch`. Every tasks read fails until the failure renders; then the route is
+  lifted. T12 completes when the Task List shows its tasks without a page reload. Before is a dead
+  end; after costs one click.
+- `pnpm test`, `pnpm lint`, `pnpm e2e` and `pnpm --filter web storybook:build` pass, and the
+  production build is under 1150 kB initial.
+- The user accepts the sheet at Gate 2.
+
+## Do not
+
+- Touch first-run or empty-workspace content, the sidebar's archived-only wording, archived pages,
+  the archive refusal, restore controls, the digest's text, the Markdown editor's Cancel or Preview,
+  or a Task List count. All of those belong to [Slice 79](../planned/79-empty-archived-and-editing.md).
+- Reword domain or host messages. Agents read them over MCP, and they stay as they are. The UI stops
+  *printing* them as the sentence.
+- Add a structured rule code to `DomainRuleError`. 67 of its 68 call sites carry no details, and the
+  refusals that matter most to people (writes under an archived project) are prevented by slice 79
+  rather than reworded here.
+- Change the toast's placement, Undo, pending or saved behaviour (slices 74 and 75), navigation or
+  document titles (slice 7), the agent card's layout or Revoke (slice 8), or vocabulary beyond
+  failure sentences (slice 9). The page ids that `history-feedback.ts` prints in two receipts
+  (lines 116 and 119) are slice 9's.
+- Rename Retry refresh, Retry remove or the header's history Retry.
+
+<!-- ───────────── Written when the slice starts ───────────── -->
+
+## Scope check
+
+TH10 has twenty-two findings. Slice 77 closed three (L4-016, W1-042, W2-025). Of the nineteen left,
+this slice takes ten (9 S2, 1 S3), each re-read from
+[reproduction.json](../70-ui-ux/reproduction.json). Nine go to slice 79, with the three items
+earlier records assigned to 6b (L3-012, W4-031, L4-023's count half):
+
+- **78:** L4-001, L4-002, L4-003, L4-018, L4-022, L4-027, L4-014, W4-024, L6-003, L4-017.
+- **79:** W1-001, W4-001, L4-020, W4-034, L4-007, L1-028, L4-008, L4-012, W4-028, plus L3-012,
+  W4-031 and L4-023's count.
+
+L4-018's Markdown evidence is split along the same line. Its failure *form* and the lingering
+canvas alert are here; Cancel's discard is L3-012, in 79. L4-017's archived evidence (Legacy
+attic) is an archived project with no tasks: "No tasks to measure" is true there too, so L4-017 closes
+whole here. Round 4 had split it on the false premise that archived tasks leave the count.
+
+**Candidates from the brief, decided:**
+
+- *Row failure below the fold* (slice 75's open question). **Here**, by the user's choice on
+  2026-10-29: an off-screen failure is pinned to the viewport's edge with an indicator, and nothing
+  scrolls unless the user presses it (Build). It closes no TH10 finding of its own; it is
+  slice 75's open question, and it lands here because it is part of the failure form.
+- *Drag explanation reserve* (`note-2026-10-22-002`) and *Todos' workstream Complete
+  `[disabled]`* go to slice 79. They are layout and disabled-state items, not failures.
+
+## Findings closed
+
+| Finding | Sev | Closed by |
+|---|---|---|
+| L4-001 | S2 | Sidebar "Loading projects…" until the first read answers |
+| L4-002 | S2 | `readFailure` sentences and Try again on the dashboard, sidebar, project page, canvas sections and shortcuts reads, every section body, the agents page and the picker; one label rule; no duplicated string; one alert on Home |
+| L4-003 | S2 | Failure replaces the empty sentence in Task List, Reflections and Timeline |
+| L4-027 | S2 | Try again; separate read and write slots; a successful write after a failed read re-reads in full |
+| L4-018 | S2 | One `FailureMessage` family for read and write failures; Markdown failure on the editor only |
+| L4-022 | S2 | Nullable digest; the digest widget fails alone, with Try again; the reason stays on the host console |
+| L4-014 | S2 | Project unavailable and `**` share one layout, plain words and Go to Home |
+| W4-024 | S2 | Another persona's project reads "isn't available" with no id |
+| L6-003 | S2 | No raw host text outside a closed Details, enforced by profile 78's gate. One named exception: Revoke's failure text, carried to slice 8 |
+| L4-017 | S3 | "No tasks to measure", "Measuring…" and "Couldn't load" in place of "Not available", live and archived |
+
+Ten findings (9 S2, 1 S3).
+
+## Acceptance check
+
+1. `pnpm test`, then `pnpm lint` (with `docs:check`), run one after the other.
+2. `pnpm e2e` passes in full, including the new `states.spec.ts`. `phone-layout.spec.ts` stays
+   unedited. Every other spec edit is listed under Behaviour vs. appearance.
+3. `pnpm --filter web build` reports an initial bundle under 1150 kB.
+4. **Before:** export the slice-77 closing commit (`0c19170`) outside `apps/e2e/`, link
+   `node_modules`, and `ng build` it to `apps/e2e/ux-output/slice78-baseline-web/`, served from its
+   `browser/` folder as `slice77.config.ts` serves its baseline. Then run
+   `UX_BEFORE=1 pnpm --filter @cwm/e2e exec playwright test --config ux/slice78.config.ts`.
+   **After:** run the same config without `UX_BEFORE` on the slice's final build. Then run
+   `node docs/roadmap/70-ui-ux/tooling/build-sheet.mjs <before> <after> <output> <after> --profile 78`.
+   Profile 78:
+   - keeps profile 77's rules: the full control census with only slice 72's breadcrumb exception;
+     a gate on any axe node absent from the same cell before (`color-contrast` reported only);
+     Must-not-change cells moving more than 1 px fail; and every Visual acceptance pair is present;
+   - reads `states-verification.json`'s context table and fails on any rule under Done when,
+     including a Details that does not reveal the injected reason where the row declares one;
+   - treats the Lab's new state specimens as changing, and four slice-77 matrix cells this slice
+     changes on purpose (`apps/e2e/ux/matrix.ts:13-14`): `kitchen-error` (the project read
+     failure's sentence and Details), `kitchen-refused` (the section-create refusal's reason moves
+     under Details), `kitchen-archived` (Legacy attic's "Not available" becomes "No tasks to
+     measure") and `not-a-route` (the unavailable layout). The `prototype-design-*` cells are gated
+     panel-relative, as profile 77's Lab rule does, with these panels named as changing by id: the
+     new state specimens panel (which replaces `states`, and holds the digest-failure specimen),
+     `task-row`, `navigation` and `section-states` (whose stub error case changes). No other cell
+     or panel is exempt.
+
+   Zero gate failures. Capture ports are never 4200 or 4310; at most two browser jobs run at once.
+5. `ux/states-verification.ts` (in the same config) records T01–T09, T11 and T12 before and after,
+   and the failure contexts listed under Capture scope, plus a Lab row with every panel's box in
+   both builds, which the panel-relative gate reads.
+6. **MCP:** the `packages/mcp-tools` in-process contract test and the host stdio test pass the
+   real provider's failure through `get_dashboard_context` as `dailyDigest: null` with every other
+   field present and no provider text in the output. `apps/e2e/mcp.spec.ts` checks the same over
+   HTTP.
+7. **Real use** on busy-week and nested-projects, at 1440 with mouse, at 1440 keyboard only, and
+   at 375 touch. Set the dev panel's failure rate to 100 %, then 0 %, and recover each surface with
+   Try again. Switch the AI provider to real and use Home; confirm the host console logs the
+   provider failure. As Alex, open Demo's project URL and an unknown address. Record friction in
+   `.prototype/notes.json` (`CURRENT_SLICE` = 78).
+8. The user accepts the sheet at Gate 2.
+
+## Capture scope
+
+**Must change.** Each failure context is injected by route (`route.fulfill` with a 500, a 404 or
+an aborted request), as L4-states did. Delays use `route.fallback()` after a wait, never
+`route.continue()`. Both themes; 1440 and 375:
+
+- the dashboard with `/api/me` failing, and with the real AI provider (digest only);
+- the sidebar while loading (8 s delay) and failed;
+- `/projects/project-launch` with the project read failing (500), on busy-week; and Alex on Demo's
+  project (404), on nested-projects;
+- the nested-projects Kitchen canvas (the one seeded canvas with all five read sections) with the
+  sections read failing, the shortcuts read failing, and the tasks, reflections, timeline, progress
+  and activity reads failing;
+- a Reflections section create failure and edit failure;
+- a section-create dialog add that fails through `CanvasWriteResult`;
+- the Kitchen canvas after a failed tasks read is lifted, then Try again;
+- Todos, the Reflections page, Archive and Settings › Archived projects with their reads failing;
+- Settings › AI & Agents with its read failing;
+- the Add a shortcut picker with discovery failing, and a canvas with its shortcuts read failing;
+- Todos with a stale-refresh notice;
+- Archive with a restore write failure, with a committed restore whose refresh failed, and with a
+  stale list after a failed quiet re-read; Settings › Archived projects with a stale list;
+- the Kitchen Progress section with a formula write failure;
+- write failures with their Details closed and open: a task row complete, a drawer field and
+  quick-add, using the existing injected-failure routes from `placement.spec.ts`; and the
+  section-removal toast;
+- the Markdown save failure, before and after Cancel;
+- a pinned failure at each edge, at 1440 and 375: a task row complete failure on nested-projects
+  Renovation Todos below the scroll port with the toast open; a Task List row failure above the
+  scroll port with its quick-add actually stuck; and the same after pressing each pinned copy;
+- a section and a shortcut collapse failure off screen; a tall Task List frame still partly in
+  view while its write-banner sentence is off screen, proving the sentence anchor controls pinning;
+- the header progress fact on a new empty project and with progress failing;
+- `/nope`;
+- the Kitchen canvas while the first load is pending (a loading row), and its header's progress
+  fact while pending (a muted-line row);
+- the Lab's state specimens, and the `FailureMessage` stories.
+
+**Gated within the change:** every pinned copy sits wholly inside the workspace's scroll port,
+clear of the stuck quick-add and an open toast, and its indicator points toward its reference.
+Every pinned copy's button and close button, Try again button, Details summary and Go to Home link passes the
+target census (24 px, 44 px on touch). Every failure region in a section body sits inside that
+section's frame, not above the canvas.
+
+**Must not change** beyond 1 px, in their non-failure states: every populated page and section, the
+section frame headers and tools, insertion marks, the project header's layout apart from the
+progress fact's text, the sidebar tree, the task drawer, the toast, the creation dialogs' chrome,
+and Lab panels other than those acceptance item 4 names. Populated captures are the slice-77 matrix cells,
+except the four named under acceptance item 4.
+Their pixels must hold, because this slice changes only failure, loading and empty-vs-failed
+branches.
+
+## Visual acceptance
+
+| Pair (before → after) | Seed, size, theme | Findings |
+|---|---|---|
+| Sidebar during an 8 s load: "No projects yet" → "Loading projects…" | busy-week, 1440 dark, 375 light | L4-001 |
+| Home with `/api/me` failing: two raw strings → one alert, one polite sidebar sentence, each with Try again | busy-week, 1440 dark | L4-002 |
+| Kitchen canvas, section reads failing: raw text + false empty → failure in each frame with Try again | nested-projects Kitchen, 1440 dark, 375 light | L4-002, L4-003 |
+| Kitchen canvas, shortcuts read failing: raw text + order-incomplete line → one message with Try again | nested-projects Kitchen, 1440 light | L4-002 |
+| Kitchen after the failure is lifted: stale error → Try again → tasks | nested-projects, 1440 light | L4-027 |
+| Real AI provider: whole dashboard one red box → six widgets + digest failure | agent-heavy, 1440 dark, 375 light | L4-022 |
+| Alex on Demo's project: raw id → "This project isn't available" + Go to Home | nested-projects, 1440 light | W4-024, L4-014 |
+| `/nope`: dashed card citing §68 → same layout as above | nested-projects, 1440 light, 375 dark | L4-014 |
+| Five failure forms side by side → one family (region, inline, Details open) | busy-week, 1440 dark | L4-018, L6-003 |
+| Markdown save failure, then Cancel: second canvas alert stays → none | nested-projects Kitchen, 1440 dark | L4-018 |
+| Task row complete failure: reason inline → sentence + Details | nested-projects Kitchen, 1440 light | L6-003 |
+| Section-removal failure toast: reason in the toast → sentence + Details | nested-projects Kitchen, 1440 light | L6-003 |
+| Row failure below the fold: nothing visible → pinned copy at the bottom edge with ↓ | nested-projects Renovation Todos, 1440 dark, 375 light | slice 75's open question |
+| Header progress: "Not available" ×2 → "No tasks to measure" / "Couldn't load" | busy-week new project; Launch with progress failing, 1440 dark; nested-projects Legacy attic, 1440 light | L4-017 |
+| Settings and Archive retry labels → Try again | nested-projects, 1440 light | L4-002 |
+
+## Behaviour vs. appearance
+
+**Behaviour changes**, so §77 applies: the tests, the implementation and the docs change together.
+
+- **Behaviour.**
+  - The contract's `dailyDigest` becomes nullable, the domain catches provider failure, and the
+    real provider logs it.
+  - Read failures gain Try again where they had none: the dashboard, sidebar, project page, canvas
+    sections and shortcuts reads, section bodies, the agents page and the picker.
+  - Todos' stale-refresh notice gains Try again (the Reflections page's had one).
+  - A refused restore offers Try again; canvas create results carry a `Failure`; the digest gains a
+    public retry with a pending state.
+  - Stores keep read and write failures apart. A read failure clears on the next successful read,
+    and a successful write after a failed read starts a full read.
+  - The empty sentence is suppressed under a failure.
+  - Read-retry labels follow the label rule; Settings' committed restore says Retry refresh.
+  - The Markdown failure no longer reaches the canvas-level alert.
+  - The sidebar failure is polite, not an alert.
+  - Opening Details does not select a task row.
+  - An off-screen inline failure is pinned to the scroll port's edge; pressing it scrolls to and
+    focuses its control.
+  - Every displayed failure's text changes. The reason moves into Details.
+- **Not behaviour.** No write path's commit changes: no rollback, revert, pending, Undo or history
+  change. The host envelope, MCP tool handlers and domain messages are unchanged.
+- **Appearance.** The pinned copy and its indicator, the `.state-message` pattern, loading lines, the not-found layout, the progress
+  fact and the toast's Details.
+- **Specs that change with it.** Stage 0 greps every `data-*-error` selector and every reason
+  string across unit and e2e specs, and lists each hit here before editing it. Known now:
+  - unit specs for every store and component in the change list that asserts error text or
+    `error()` as a string, including `app-shell.spec.ts`, `history-feedback.spec.ts`,
+    `toast.spec.ts`, `task-row.spec.ts`, the dialogs' and shortcut specs;
+  - e2e: `placement.spec.ts` (four exact-text assertions at lines 113, 175, 210 and 302 change to
+    the sentence plus the opened Details), `todos.spec.ts:108`, `section-chrome.spec.ts`,
+    `canvas-editing.spec.ts`, `project-creation-history.spec.ts`, `project-history.spec.ts`,
+    `archive.spec.ts` (including the committed-unrefreshed text at line 593), `archived-projects.spec.ts`
+    (line 196) and `web.spec.ts:361` (its `[data-project-error]`
+    "not found" assertion follows the new unavailable layout);
+  - host: `apps/prototype-host/prototype/routes.test.ts:147` and `:166` (the real provider now
+    answers 200 with a `null` digest; the comments change with them), and
+    `core/gateway/prototype-work-manager-gateway.spec.ts:876` (spreads `dailyDigest`),
+    `apps/prototype-host/api/routes.test.ts:982` and `packages/mcp-tools/src/contract.test.ts:479-480`,
+    which dereference `dailyDigest.source` and must narrow it once it is nullable.
+- **Stay green unedited:** `phone-layout.spec.ts` (its `[data-create-error]` `toContainText`
+  'could not reach' still matches, because the hook is on the wrapper that holds Details),
+  `removal-undo.spec.ts`, `feedback.spec.ts`, `objects.spec.ts`, `task-interaction.spec.ts`, and
+  every spec the Stage 0 grep does not list. Frozen evidence scripts of completed slices are not
+  re-run.
+
+## File-level change list
+
+Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocated spec, and
+"(+ stories)" the colocated stories, change with the file.
+
+**Contract, domain, MCP and host**
+
+| File | Change | Responsibility |
+|---|---|---|
+| `packages/contracts/src/dashboard.ts` (+ test) | modify | `DashboardResultSchema.dailyDigest` nullable, documented |
+| `packages/domain/src/dashboard-service.ts` (+ test) | modify | Catch only the digest provider's rejection → `null` |
+| `packages/mcp-tools/src/tools/workspace.ts`, `packages/mcp-tools/src/contract.test.ts`, `apps/prototype-host/mcp/stdio.test.ts` | modify | Describe and assert a `null` digest under the failing provider; narrow `dailyDigest.source` (lines 479-480); the stdio test's `connect` helper (lines 32-44) accepts an environment so it can pass `PROTOTYPE_AI_PROVIDER=real` |
+| `apps/prototype-host/api/real-ai-provider.ts` | modify | `console.error` the reason before rejecting; doc comment: the dashboard now answers with a `null` digest |
+| `apps/prototype-host/api/real-ai-provider.test.ts` | create | The rejection is logged to `console.error`, not stdout (console spy) |
+| `apps/prototype-host/prototype/routes.test.ts` | modify | Line 147: 200 with `dailyDigest: null` under the real provider; line 166: after reset, a non-null digest with `source: 'prototype'`, so the reset check cannot pass vacuously |
+| `apps/prototype-host/api/routes.test.ts` | modify | Line 982: narrow the nullable digest |
+
+**Shared foundations**
+
+| File | Change | Responsibility |
+|---|---|---|
+| `shared/feedback/failure.ts` (+ spec) | create | `Failure`, `readFailure`, `writeFailure`; structural read of `code`/`message`; the only translation |
+| `shared/feedback/failure-message.{ts,html}` (+ spec, stories) | create | Region and inline weights, sentence element, Try again, Details |
+| `shared/feedback/toast.{ts,html}` (+ spec, stories) | modify | Render an optional `detail` as Details |
+| `shared/feedback/pinned-failures.ts` (+ spec) | create | Root-provided registry, most recent per edge, counts, occurrence dismissal and lifecycle cleanup |
+| `shared/feedback/pinned-failure.directive.ts` (+ spec) | create | Registers the failure sentence anchor and reveal/focus reference; observes the nearest scrolling ancestor and cleans up on replacement/destruction |
+| `shared/feedback/pinned-failure-slot.{ts,html}` (+ spec, stories) | create | Draws pins in the content track at measured clear edges; press reveals/focuses the owner; close dismisses with guarded focus recovery |
+| `core/history/receipt-undo.ts`, `core/history/receipt-toast.ts` (+ spec) | modify | `ReceiptUndoResult` gains the optional `detail`; the receipt toast passes it on |
+| `apps/web/src/styles/_controls.scss` | modify | `.state-message` with `--failed`, `--loading`, `__details` |
+| Component stylesheets holding dead `__error` classes (Stage 0 lists each) | modify | Delete the classes `FailureMessage` replaces |
+| `core/gateway/testing/fake-gateway.ts` | modify | A dashboard with a `null` digest; per-read failure switches the specs need |
+
+**Shell and dashboard**
+
+| File | Change | Responsibility |
+|---|---|---|
+| `core/shell/shell-store.ts` (+ spec) | modify | `Failure`; loading state; Try again |
+| `core/shell/sidebar/sidebar.{html,ts}` (+ spec) | modify | Loading line; polite failure with Try again; New project failure Details |
+| `core/shell/app-shell.{html,ts,scss}` (+ spec) | modify | Shell-level failures through `FailureMessage`; render `PinnedFailureSlot` in `.workspace` |
+| `features/dashboard/dashboard-store.ts`, `dashboard-page.{html,ts}` (+ specs) | modify | `Failure`; Try again; public `retryDigest()` with a pending flag; widget `retry` calls it |
+| `features/dashboard/widgets/registry.ts` (+ spec) | modify | `DashboardWidgetDefinition` (lines 24-31) gains optional `failureOf(dashboard)`; the digest's entry (line 44) supplies it |
+| `features/dashboard/widgets/widget-frame/dashboard-widget-frame.{ts,html}` | modify | When `failureOf` returns a failure, render it instead of mounting the widget; emit `retry`; a `pending` input sets `aria-busy` and disables Try again |
+| `features/dashboard/widgets/widget-frame/dashboard-widget-frame.spec.ts` | create | `failureOf` renders and emits `retry`; no hook renders as before |
+| `features/dashboard/widgets/daily-digest/daily-digest-widget.{ts,html}` | modify | Export `dailyDigestFailure` (the `failureOf` the registry imports, as it imports `upcomingWidgetQuery`); narrow the nullable digest (template lines 2, 7); the widget is never mounted with `null` |
+| `features/dashboard/widgets/daily-digest/daily-digest-widget.spec.ts` | create | `failureOf` on a `null` digest; nothing on a present one |
+
+**Project page and sections**
+
+| File | Change | Responsibility |
+|---|---|---|
+| `features/projects/project-workspace-store.ts` (+ spec) | modify | Unavailable vs failed project; progress-failure state; page navigation write failure (line 474); `createWorkstream` failure (line 300) as a `Failure` |
+| `features/projects/project-workspace-shell.{html,ts}` (+ spec) | modify | Unavailable layout, `data-route-focus`, Go to Home, history Retry kept; progress binding; chunk failure layout (line 56); page-resolution message (line 100) |
+| `features/projects/project-header.{html,ts}` (+ spec) | modify | Progress input with empty and failed; wording |
+| `features/projects/project-page-navigation.{html,ts}` (+ spec, stories) | modify | Navigation write failure (line 102) with Details |
+| `features/projects/project-page-store.ts`, `project-canvas.{html,ts}` (+ specs) | modify | `Failure`; sections read and a separate shortcuts read failure (store lines 342, 352, 402, 406, 459, 1226, 1233), each with Try again, `data-placement-order-incomplete` deleted; `data-canvas-loading` (canvas html lines 30-31) becomes `.state-message--loading` with `aria-busy`; the full load (line 443) clears both; `sectionError` writes with Details; guard sentence kept; `CanvasWriteResult` (line 87) and `mutateWithResult` carry a `Failure`, with product sentences at lines 1182 and 1187 (canvas lines 169, 183); the canvas callbacks' own refusals (`project-canvas.ts:158-161, 173-175`) become reason-less `Failure`s; `mutate()`'s not-loaded return (line 1148) gives the Markdown save a sentence; `onFailure` on `mutate`/`updateSection`/`updateConfig`, skipping the clear at line 1154, used by the Markdown save (canvas line 509) |
+| `features/projects/sections/section-contract.ts` | modify | `onConfigChange` returns a result carrying the `Failure` |
+| `prototype/design-lab/panels/live-panels.{ts,html}` | modify | `saveSectionConfig` (line 67) returns the new result; the failed task row (html line 10), the error sidebar (html line 95, ts line 83) and a new loading sidebar take `Failure`s and product sentences |
+| `features/projects/sections/section-frame/project-section-frame.{html,ts}` (+ spec, stories) | modify | Frame-level failure (line 106) through `FailureMessage`; `saveConfig` input's result (lines 62, 77) |
+| `features/projects/sections/{tasks,progress,reflections,timeline,activity}/*-section.{html,ts}` (+ specs) | modify | Failure instead of empty; Try again |
+| `features/projects/sections/{progress,reflections,timeline}/*-store.ts`, `features/activity/activity-store.ts` (+ specs) | modify | `Failure`; separate read and write slots (reflections create and edit, lines 19 and 21); retry; clear on success; re-read after a write |
+| `features/projects/sections/reflections/reflections-section.{html,ts}` | modify | Composer `[error]` bound to the create failure; edit failure beside the edit form; banner for the read only |
+| `features/projects/sections/reflections/reflection-composer.{html,ts}` (+ spec, stories) | modify | Composer failure (line 22) with Details |
+| `features/projects/sections/markdown/markdown-section.ts`, `markdown-section-body.{html,ts}`, `markdown-source-editor.{html,ts}` (+ specs, stories) | modify | `saveConfig` result with the `Failure`; inline alert with Details |
+| `features/projects/shortcuts/shortcut-store.ts` (+ spec) | modify | Picker discovery read failure (line 33) as a `Failure` |
+| `features/projects/shortcuts/shortcut-frame.{html,ts}` (+ spec, stories) | modify | Collapse write failure (line 69) with Details; `noopConfig` (line 60) result type |
+| `features/projects/shortcuts/shortcut-picker.{html,ts}` (+ spec, stories) | modify | Discovery failure with Try again; `create` returns `Failure \| null` (result path lines 84-86, catch line 88); `noopConfig` (line 43) |
+| `features/projects/{section-create,work-create,project-details}-dialog.{html,ts}` (+ specs; section-create and work-create stories) | modify | Create failures through `FailureMessage`; section-create's `create` returns `Failure \| null` (result path lines 89-91, catch line 93; work-create line 120; project-details line 91) |
+| `features/projects/history/history-feedback.ts` (+ spec) | modify | `sectionRemoveFailedFeedback` gives a sentence and a `detail`; `FailedSectionRemoval` (`project-page-store.ts:79, 802`) carries a `Failure`, and the canvas toast (`project-canvas.html:212`, `project-canvas.ts:213`) binds `detail` |
+
+**Tasks, pages and settings**
+
+| File | Change | Responsibility |
+|---|---|---|
+| `features/tasks/task-list-store.ts` (+ spec) | modify | `writeFailure`; separate read and drag-receive slots, both in the section banner; full read after a write that follows a failed read (line 288) |
+| `features/tasks/task-row.{html,ts}` (+ spec) | modify | Details beside the described sentence; `summary, details` in the selection guard (line 118) |
+| `features/projects/pages/todos-page.ts`, `features/projects/sections/tasks/task-list-section.{html,ts}` (+ specs) | modify | Import/bind the pin directive for Todos row failures and Task List drag-receive write banners; TaskRow and canonical/shortcut frame files above register their own row/collapse failures |
+| `features/tasks/task-detail-drawer.{html,ts}` (+ spec) | modify | Field failure Details (line 22) |
+| `features/projects/pages/{todos,reflections}-page{-store.ts,.html}` (+ specs) | modify | `Failure`; label rule; row failures' Details; `data-todo-write-error`; polite stale-refresh notice |
+| `features/projects/pages/archive-page{-store.ts,.html}` (+ specs) | modify | Load failure, committed-unrefreshed and restore write failure and stale, as four states with their precedence (store lines 15, 91, 150; page lines 25-27) |
+| `features/settings/archived-projects/archived-projects-page.{html,ts}`, `archived-projects-store.ts` (+ specs, stories) | modify | The same four states (store lines 10, 80, 118) |
+| `features/settings/agents/agent-connections-page.{html,ts}` (+ spec), `agent-connections-store.ts` | modify | List read failure with Try again, apart from Revoke's page-level failure (lines 15, 32, 46); permission failure Details |
+| `features/settings/agents/agent-connections-store.spec.ts` | create | Read failure, Try again, clear on success; a Revoke failure shows no Try again and keeps the list |
+| `shared/components/unavailable-page/unavailable-page.ts` (+ spec, stories) | create | Shared heading (`tabindex="-1"`, `data-route-focus`), sentence and Go to Home |
+| `shared/components/placeholder-page/not-found-page.ts` | modify | Renders `UnavailablePage` with plain words |
+| `shared/components/placeholder-page/not-found-page.spec.ts` | create | Heading, no §, link to `/app` |
+
+**Prototype tooling, e2e and evidence**
+
+| File | Change | Responsibility |
+|---|---|---|
+| `prototype/design-lab/panels/primitive-panels.{ts,html}`, `prototype/design-lab/design-lab-fixtures.ts` | modify | State specimens **replace** the `states` primitive panel (html lines 132-139, "not yet a shared component"), keeping its "No projects yet" empty specimen as it is (empty content is slice 79's), and the stub section's error case (fixtures lines 179-180); a `null` digest fixture, shown in the state specimens panel; config save result (fixtures line 191). The project-card specimen's "Not available · planning" (html line 116) is not the header fact and is left for the §8 comb |
+| `prototype/dev-panel/dev-panel-store.ts` | modify | `CURRENT_SLICE = 78` |
+| `apps/e2e/states.spec.ts` | create | Behaviour pins (Test plan) |
+| `apps/e2e/{placement,todos,section-chrome,canvas-editing,project-creation-history,project-history,archive,archived-projects,mcp,web}.spec.ts` | modify | Sentence + Details; label rule; nullable digest over HTTP; unavailable layout |
+| `apps/e2e/ux/capture.ts` | modify | Line 97 asserts the raw reason as visible text; assert the `[data-project-error]` hook in both builds instead, so the after capture does not fail before the gate |
+| `apps/e2e/ux/slice78.config.ts`, `ux/states-verification.ts`, `ux/tasks.ts` | create / modify | Failure contexts, gate data, T12 |
+| `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs`, `build-sheet.test.mjs` | modify | Profile 78 |
+
+**Documentation**
+
+| File | Change | Responsibility |
+|---|---|---|
+| Spec §21, §23, §24, §34, §42, §63, §68 | modify | Amendments in place (§34: quick-add's reason and the drawer's "Not saved. Try again." wording at spec line 2230) |
+| `docs/decisions/2026-10-failures-speak-product-words.md` | create | One failure shape; sentence by code; reason under Details; Try again repeats only the read; the label rule; read and write kept apart; no false empty; stale content said politely; writes stay enabled under a read failure; the digest fails alone and its reason stays on the console. *Revisit when* the MVP is specified: **Details should be hidden in production** (the user's note, 2026-10-29); the prototype keeps it for diagnosis, and nothing changes now. Links [dashboard layout and content split](../../decisions/2026-08-dashboard-layout-and-content-split.md) |
+| `docs/decisions/2026-10-feedback-stays-on-the-object.md` | amend | Sentences keep their place; the reason moves under Details; an off-screen failure is pinned to the scroll port's edge and only the user's press scrolls |
+| `docs/decisions/README.md` | modify | Index |
+| `README.md` (line 147) | modify | The real provider leaves a `null` digest and six widgets; the reason is still on the console |
+| `docs/architecture/prototype-host/why.md` (line 52), `docs/architecture/prototype-host/prototype-runtime/why.md` (line 63), `docs/architecture/prototype-host/api/how.md` (line 57), `docs/architecture/web/dashboard/why.md` (line 39) | modify | Same |
+| `docs/architecture/web/{how,what}.md`, `web/core/*`, `web/dashboard/*`, `web/projects/*`, `web/tasks/*`, `web/prototype-tooling/*`, `docs/architecture/contracts/what.md`, `docs/architecture/domain/{how,what}.md`, `docs/architecture/mcp-tools/what.md`, `docs/architecture/testing/{how,what}.md` | modify | What is now true |
+| `docs/roadmap/active/70-ui-ux-overhaul.md` | modify | Handoff: 6b split into 78 and 79 |
+
+## Implementation sequence
+
+0. Grep every `data-*-error` selector, every reason string and every empty-state hook across unit
+   and e2e specs; list each hit under Behaviour vs. appearance, and list the dead `__error` classes.
+   Build the "before" from `0c19170`.
+1. Contract and domain (tests first), then MCP, the host's provider log and its tests.
+2. `failure.ts`, `FailureMessage`, `.state-message`, the toast's Details, Lab specimens and stories
+   (foundations first, protocol §7.1).
+3. Stores to `Failure`, one store with its template and spec at a time: shell, dashboard and widget
+   frame, workspace, page and canvas, sections and shortcuts, pages, settings, picker.
+4. Write failures' Details; dialogs; Markdown; progress fact; not-found.
+   Build the pin registry/directive/slot tests first, then wire the directive to TaskRow, Todos
+   rows, canonical and shortcut collapse failures, and Task List drag-receive write banners.
+   The row, section/frame and page files already listed above gain the directive imports and
+   bindings; read banners, page-level failures and restore rows do not register.
+5. Re-capture, sheet, reviews, Gate 2, real use.
+
+## Test plan — tests first
+
+| Test | Proves |
+|---|---|
+| `contracts/dashboard.test.ts`: `dailyDigest: null` accepted; a malformed digest still refused | Shape |
+| `domain/dashboard-service.test.ts`: a rejecting provider gives `dailyDigest: null` and the full lists and counts; a rejecting *repository* still rejects | Only the digest fails alone |
+| `mcp-tools` contract test and host stdio test: `get_dashboard_context` under a failing provider returns `dailyDigest: null` and no provider text | Agents see it; nothing leaks |
+| `prototype/routes.test.ts`: under the real provider `/api/dashboard` is 200 with `dailyDigest: null` and no provider text; reset still restores the mock provider | Host |
+| `real-ai-provider.test.ts`: the digest rejection is written to `console.error`, not `console.log` | The reason stays on the console under HTTP and stdio |
+| `failure.spec.ts`: each code's sentence; no sentence contains the reason, a quoted id or a status; an object with only `code` and `message` works; a non-error gives the generic sentence and `String(error)` as reason | Translation; no `core/` import |
+| `failure-message.spec.ts`: region has the sentence with `role="alert"` when asked, Try again emitting `retry`, and a closed Details holding the reason; no Details when there is no reason; the wrapper's text contains the reason; the described element contains only the sentence | Component |
+| `toast.spec.ts`, `history-feedback.spec.ts`, `receipt-toast.spec.ts`: a removal failure's sentence has no reason; its `detail` reaches the toast and renders as closed Details | Toast |
+| `shell-store.spec.ts` / `sidebar.spec.ts`: while the first read is pending the tree shows "Loading projects…" and never "No projects yet"; a failed read shows "Couldn't load your projects." with Try again and no `role="alert"`; Try again re-reads and clears | L4-001, L4-002 |
+| `dashboard-page.spec.ts`: `/me` failure shows one alert and Try again; a `null` digest renders six widgets and the digest failure; the digest's Try again re-reads quietly, keeping the widgets | L4-002, L4-022 |
+| `dashboard-widget-frame.spec.ts`, `registry.spec.ts`: a definition's `failureOf` renders the failure without mounting the widget and emits `retry`; `pending` sets `aria-busy`; a widget without the hook renders as before | Widget contract stays data-only |
+| `project-workspace-shell.spec.ts`: `not_found` gives "This project isn't available", Go to Home, no Try again, no Details, no id, focus on the heading, and the history Retry still offered when history failed; `internal_error` gives "Couldn't load this project." with Try again that re-reads | W4-024, L4-014 |
+| `project-canvas.spec.ts`, `project-page-store.spec.ts`: a failed sections read and a failed shortcuts read each show Try again that re-reads; a later section write does not clear the shortcuts read failure; a `sectionError` write shows the sentence with Details; the removal guard shows its sentence alone | L4-002, L6-003 |
+| `task-list-section.spec.ts`, `reflections-section.spec.ts`, `timeline-section.spec.ts`: under a failed read the empty sentence is absent; Try again re-reads; a later successful quiet read clears the failure; quick-add and the composer stay enabled | L4-003, L4-027 |
+| `task-list-store.spec.ts`, `reflections-store.spec.ts`: a write failure does not replace or clear the read failure; a successful write after a failed read starts a full read that clears it | L4-027 |
+| `progress-store.spec.ts`, `progress-section.spec.ts`: a formula write failure keeps the result and controls and shows its sentence with Details; a failed re-read after a write is the stale form with Try again; a stale Try again that fails again stays stale and keeps the result and controls | L6-003; no lost controls |
+| `todos-page-store.spec.ts`, `todos-page.spec.ts`: a stale Try again runs a quiet read; failing again it stays stale, keeps the list and never shows "Couldn't load" | Stale Try again is quiet |
+| `archive-page-store.spec.ts`, `archived-projects-store.spec.ts`: a failed quiet read while committed-unrefreshed or a refusal is held keeps that state; Settings' refusal after its failing quiet re-read still shows the refusal | Precedence |
+| `reflections-page-store.spec.ts`: a save whose refresh fails says "Saved, but this journal couldn't refresh." with Retry refresh; a later failed quiet read keeps it rather than turning it stale | Label rule |
+| `project-page-store.spec.ts`: a successful quiet read clears a move failure, as today; a failed one does not | Canvas clearing kept |
+| `task-list-section.spec.ts`: a drag-receive failure renders in the section banner with Details and no Try again, beside an intact list | §34 placement |
+| `progress-section.spec.ts`, `recent-activity-section.spec.ts`, `shortcut-store.spec.ts`: Try again re-reads, including after `not_found` | L4-002 |
+| `shortcut-frame.spec.ts`: a collapse failure shows its sentence with Details | L6-003 |
+| `todos-page.spec.ts`, `reflections-page.spec.ts`: a failed refresh over a list on screen shows "This list may be out of date." on Todos and "This journal may be out of date." on the Reflections page, politely, with Try again and Details, never "Couldn't load" | Stale content |
+| `archive-page-store.spec.ts`, `archived-projects-store.spec.ts` and their page specs: a load failure with nothing on screen says Try again; a failed read with a list on screen is the polite stale notice, keeps the list and keeps Restore paused; a refused restore whose Try again fails becomes stale; a committed restore whose refresh failed says Retry refresh and re-reads; a restore write failure shows "Couldn't restore “X”. The archive may have changed." with Details and a Try again that re-reads; Restore stays paused in all four until a successful read, and Try again unpauses it | Label rule; Slice 47's pause kept and escapable |
+| `reflections-section.spec.ts`, `reflections-store.spec.ts`: a create failure renders on the composer and an edit failure beside the edit form, each with Details; neither replaces nor clears the read state | Section writes |
+| `project-page-store.spec.ts`, `section-create-dialog.spec.ts`, `shortcut-picker.spec.ts`: an add that fails through `CanvasWriteResult` shows its sentence with Details; the not-loaded and order-incomplete refusals show product sentences; a shortcuts read failure shows one message; while the first load is pending the canvas shows no failure text | Result path; no false failure while loading |
+| `dashboard-page.spec.ts`: the digest's Try again sets `aria-busy` and disables itself while `retryDigest()` runs | Visible retry |
+| `unavailable-page.spec.ts`: heading focusable with `data-route-focus`, Go to Home to `/app`, no Details | Shared layout |
+| `project-workspace-store.spec.ts`, `project-header.spec.ts`: pending → "Measuring…", never "No tasks to measure" or "Couldn't load"; no tasks → "No tasks to measure"; a root with tasks only in workstreams → "No tasks to measure"; progress failure → "Couldn't load"; a failed re-read after a percentage keeps the percentage; an archived project with no tasks reads "No tasks to measure"; never "Not available" | L4-017 |
+| `task-list-store.spec.ts`, `todos-page-store.spec.ts`: complete, reopen and add failures keep the sentence and expose the reason as `Failure.reason`, not in the sentence | L6-003 |
+| `task-row.spec.ts`, `task-detail-drawer.spec.ts`, `reflection-composer.spec.ts`, the three dialog specs, `shortcut-picker.spec.ts`, `project-page-navigation.spec.ts`: the control's `aria-describedby` target text equals the sentence; Details is outside it | No reason in the accessible description |
+| `task-row.spec.ts`: clicking a row's Details summary does not select the row | Selection guard |
+| `pinned-failures.spec.ts`, `pinned-failure.directive.spec.ts`, `pinned-failure-slot.spec.ts`: a sentence anchor wholly below (above) the unobscured root pins bottom (top) with ↓ (↑), including a visible row whose error is below the fold and a tall visible frame whose banner is off screen; any part of the anchor entering unpins it; clearing removes it; two off one edge show latest and "and 1 more"; activation reveals its sentence anchor within the unobscured port and focuses its owner despite synchronous unpin, with sentence/reference fallback for disabled or missing controls; dismissal suppresses only that occurrence, preserves its row failure and never scrolls; a replacement failure re-arms; destroy/context replacement disconnects observation and late callbacks cannot re-pin; focused pin disappearance/dismissal recovers locally with preventScroll, preserving focus moved elsewhere; the copy is a button, not an alert, and has no Details; observer callbacks update signals | Pinned failure and lifecycle |
+| `markdown-section-body.spec.ts` (line 71's "no alert" assertion changes), `markdown-source-editor.spec.ts`, `project-canvas.spec.ts`, `project-page-store.spec.ts`: a config save failure returns its `Failure`, leaves an existing `sectionError` untouched, and renders one inline alert in the editor; Cancel leaves no alert | L4-018 |
+| Todos, Reflections page, AI & Agents (`agent-connections-store.spec.ts` new) and the picker specs: the load failure button reads "Try again" and re-reads | L4-002, label rule |
+| `project-workspace-store.spec.ts`, `work-create-dialog.spec.ts`: a `createWorkstream` failure is a `Failure`; the dialog shows the sentence with Details | L6-003 |
+| `app-shell.spec.ts`: shell failures render the sentence, not the reason | L6-003 |
+| `not-found-page.spec.ts`: plain heading with `data-route-focus`, no §, Go to Home link to `/app` | L4-014 |
+| `apps/e2e/states.spec.ts`: tasks reads fail until the failure renders → Try again and no empty sentence → lift → Try again shows the tasks (T12); real provider → six widgets and the digest failure; Alex on Demo's project → Go to Home lands on `/app`; sidebar during a delayed read reads Loading; keyboard reaches Try again and Details; a Todos row failure below the fold pins above an open toast, and a Task List row failure above the fold pins below its actually stuck quick-add; section/shortcut collapse and Task List drag-receive failures pin to their own reference; a visible owner with an off-screen sentence still pins; nothing scrolls until activation, which reveals the sentence anchor, removes the pin and focuses its surviving control, including for the tall visible owner; keyboard dismissal does not scroll or lose focus; navigation leaves no pin from the old context (1440 and 375) | End to end |
+| `build-sheet.test.mjs` pin fixtures: reject a missing pin, wrong edge/indicator, pin for a visible sentence anchor, pin outside the scroll port/content track, overlap with stuck quick-add or open toast, and missing anchor/clearance geometry; accept corresponding valid evidence. `states-verification.ts` records scroll-port/content-track, sentence-anchor, pin, sticky-control and visible-toast bounds for those checks, plus the post-activation focus target | Pin gates cannot pass falsely |
+| `build-sheet.test.mjs` profile 78: fails on a Capture scope context with no table row, any `[data-*-empty]` inside a `read` row's region, a row whose `emptyHook` no longer exists in the source, a missing declared recovery or an undeclared one, a loading row without the loading line or `aria-busy`, the injected reason visible outside a closed Details, a raw-reason pattern outside it, a `details: true` row whose Details does not reveal the reason, a `details: false` row that shows Details, a Must-not-change cell moved 2 px (and only the four named matrix cells and four named Lab panels exempt), missing Lab panel evidence, a `pending` row without its declared text, or a missing `states-verification.json`; still applies the breadcrumb exception | The gate cannot pass falsely |
+
+## Boundaries touched
+
+- **Contracts once.** `Failure` is view state, not a contract. It lives in the web and carries no
+  wire shape. The digest's nullability is declared once, in `packages/contracts`.
+- **The host's error rule.** Unhandled errors answer without their message (`api/errors.ts`). The
+  digest keeps that rule: no provider text crosses HTTP or MCP, and tests assert it.
+- **Domain over abstractions.** `DashboardService` gains a `try`/`catch` around its existing
+  `AIProvider` call: no new dependency, no `Clock` change, no `new Date()`. It does not learn the
+  transport; it treats any provider rejection the same.
+- **MCP calls domain services.** Tool handlers are unchanged; only a description and tests change.
+- **Components depend on gateway interfaces.** `failure.ts` reads `code` and `message`
+  structurally and imports nothing from `core/`, so `shared/` gains no new edge. No lint governs
+  imports between web folders; the Step 4 boundaries review pass checks that no `shared/` file
+  imports `core/` or a concrete gateway.
+- **`core/` and `shared/`.** The app shell renders `PinnedFailureSlot` from `shared/feedback/`, as
+  it renders the toast slot; the pinned-failure files import nothing from `core/` and find the
+  scroll port as the nearest scrolling ancestor, not by naming the shell.
+- **Widgets take data only.** `failureOf` is a pure function on the definition; the frame, not the
+  widget, renders the failure and emits `retry`.
+- **Tokens only** in `_controls.scss` and every touched stylesheet; the token lint covers them.
+- **`core/` never depends on `prototype/`.** Unaffected. The Lab imports the shared component, not
+  the reverse.
+
+## Explicit non-goals
+
+- Everything under Do not.
+- A global error boundary or an offline banner.
+- Retrying writes automatically, or adding Try again to write failures, with one named exception:
+  a refused restore offers Try again as the re-read Slice 47 requires before another write, and
+  its sentence does not say "Try again" (recorded in the decision). Their slice 75 sentence
+  already says Try again, meaning *do it again*.
+- Changing what `unreachable` or `invalid_response` *do*. Slice 76's "owe one quiet read" rule
+  stands.
+- A lint rule for imports between web folders.
+
+## Open questions
+
+None open. Three were answered by the user on 2026-10-29:
+
+1. **Row failure below the fold.** Pinned to the viewport's edge with an indicator (Build).
+2. **Details in production.** It should be hidden in production. This is a note in the decision
+   entry's *Revisit when*; the prototype keeps Details, and nothing changes in this slice.
+3. **The header's history Retry.** Keeps its label; a note for the §8 comb.
+
+## Revisions
+
+- **Round 1 (2026-10-29):** fifteen substantive and ten minor findings, each checked against the
+  code before acting. Changes:
+  - **E2e hooks.** `data-*-error` stays on a wrapper holding the sentence and Details, so
+    `phone-layout.spec.ts` stays unedited; `aria-describedby` names the sentence only. The specs
+    that do change are listed, and Stage 0 greps every selector and reason string.
+  - **Read and write kept apart** in the task-list, reflections and progress stores, and a
+    successful write after a failed read now re-reads in full: the quick-add append (task-list
+    store line 290) was why L4-027 survives recovery.
+  - **Digest.** The contract carries the reason (`dailyDigestFailure`), the host's switchable
+    provider logs it, and the host tests (`prototype/routes.test.ts`, not `api/`), README and two
+    host docs were added. Retry comes from a `failureOf` hook rendered by the widget frame, so
+    widgets stay data-only.
+  - **Markdown.** `saveConfig` returns its failure and uses the page store's existing `onFailure`,
+    so the canvas alert is skipped; the Markdown files and stories were added.
+  - **Missing renderers** added: shortcut store and frame, section frame, reflection composer, page
+    navigation, the workspace shell's chunk failure, the canvas `sectionError` writes and sections
+    read, the three dialogs' `.ts`, the drawer, app shell, Todos' write error and the toast.
+  - **Label rule** written out; Settings' committed restore says Retry refresh; the header's history
+    Retry is out of scope and kept on the unavailable page.
+  - **Task row** selection guard gains `summary, details`.
+  - **Progress** gains a failure state and a header input that can say empty and failed.
+  - **No `core/` import from `shared/`:** `failure.ts` reads errors structurally, and the
+    `retryable` field is dropped; callers choose the recovery, so `not_found` sections still offer
+    Try again.
+  - **Gate:** the exact injected reason must not be visible outside Details; the id pattern is
+    widened; the empty-state selectors are named; T12 fails reads until the failure renders.
+  - **Minor:** the activity capture moves to agent-heavy and the 404 pairs to nested-projects; both
+    unavailable headings *gain* `data-route-focus`; the sidebar failure is polite so Home has one
+    alert; the not-found page has no Details; a §30 amendment; quick-add and the composer stay
+    enabled (recorded in the decision); L4-017 split; two new spec files marked create; dead
+    `__error` classes listed; the dashboard layout decision linked.
+- **Round 2 (2026-10-29):** seven substantive and seven minor findings, each checked against the
+  code. Changes:
+  - **Markdown routing.** There was no `onFailure` on the config path: `mutate()` always writes
+    `sectionErrorState`. `mutate`/`updateSection`/`updateConfig` gain the option, and
+    `section-contract.ts`'s `onConfigChange` changes with the frame's `saveConfig`.
+  - **More read/write splits.** The canvas's shortcuts read lived in the write slot
+    `sectionErrorState`; it gets its own read failure with Try again. Archive and Settings ›
+    Archived projects get three states (load, committed-unrefreshed, restore write failure); the
+    plan had wrongly said Archive already showed Retry refresh. The agents list read is kept apart
+    from Revoke's failure, whose wording stays slice 8's.
+  - **Shortcut rows corrected:** `shortcut-store.ts:33` is the picker's discovery read and
+    `shortcut-frame.html:69` is a collapse write; the frame has no read of its own.
+  - **Gate.** The empty-state check now matches any `[data-*-empty]` in the failed region, with the
+    real hook names, and the test fails if an expected hook disappears from the source. Loading
+    contexts get a positive rule.
+  - **Digest.** `dailyDigestFailure` is dropped: no provider text crosses the wire, keeping the
+    host's `errors.ts` rule. `RealAIProvider` logs with `console.error`, which covers stdio too.
+    The digest failure has Try again and no Details.
+  - **Spec section.** Quick-add's "reason beside the form" is §34, not §30.
+  - **Minor:** cited lines corrected (chunk failure line 56, quick-add append line 288,
+    `DashboardResultSchema`); three spec files marked create; `receipt-undo.ts`/`receipt-toast.ts`,
+    the two `dailyDigest.source` dereferences, `prototype-host/why.md`, `web/dashboard/why.md` and
+    `web.spec.ts:361` added; a polite stale-refresh notice designed and tested; `createWorkstream`'s
+    failure named; drag-receive placed in the section banner; the header's archive refusal noted
+    as wording owned by slice 79.
+- **Round 3 (2026-10-29):** six substantive and ten minor findings, each checked against the code.
+  Changes:
+  - **Seed.** agent-heavy has no Progress or Timeline section; the section-read captures move to
+    nested-projects Kitchen, which has all five.
+  - **Archive escape.** Slice 47 pauses Restore until a successful read; a restore write failure
+    with no read retry would have left the page stuck. It now offers Try again (a re-read), and the
+    label rule says so.
+  - **Canvas create results.** Section-create and the shortcut picker get failures as
+    `CanvasWriteResult` strings, not throws; it now carries a `Failure`, and its two synthetic
+    refusals get product sentences.
+  - **Gate as a table.** Recovery, Details and empty-hook expectations are declared per context in
+    `states-verification.json` and pinned by the test, replacing prose exemptions that contradicted
+    the plan's own states (Retry refresh, the progress fact, the unavailable project).
+  - **Reflections section writes** (create and edit) split from its read and placed on the composer
+    and the edit form.
+  - **Revoke** named as the one raw-reason exception, carried to slice 8.
+  - **Minor:** all shortcuts-read and clearing sites listed; the shortcuts failure replaces the
+    order-incomplete line; the Reflections page's stale retry and its "journal" noun corrected;
+    `live-panels.ts`, the fixtures and the `noopConfig`s added; `markdown-section-body.spec.ts:71`
+    named; a public `retryDigest()` with a pending state; the double-log sentence dropped; the
+    project-launch capture put on busy-week; a shared `UnavailablePage` named; `messageOf` removal
+    limited to outside `prototype/`; the config save skips the pre-write clear too.
+- **Round 4 (2026-10-29):** three substantive and seven minor findings, each checked against the
+  code. Changes:
+  - **Order-incomplete line deleted.** It showed during every canvas load, a false failure beside
+    "Loading canvas…"; the shortcuts read failure is now its only honest case and says it. A canvas
+    loading row joins the gate.
+  - **Progress has four values:** pending shows the loading line; archived projects keep "Not
+    available" for slice 79, because their tasks are excluded from the count.
+  - **Restore refusal sentence.** "Couldn't restore “X”. The archive may have changed." so the
+    re-read button labelled Try again is honest; named as the one exception in the non-goals.
+  - **Minor:** Revoke and the removal guard removed from the gate's examples (no capture context);
+    "shortcut frames" leftover removed from L4-002; reflections-store lines corrected to 19 and 21;
+    the reset test at `routes.test.ts:166` asserts the mock digest, not just 200; the canvas's own
+    refusal strings and `mutate()`'s not-loaded return named; `load()` (line 443) added as a
+    clearing site; the gate test's prose carve-out replaced by the table's declared recovery.
+- **Round 5 (2026-10-29):** two substantive and eight minor findings, each checked against the
+  code. Changes:
+  - **L4-017 closes whole.** Archiving only sets `status`; tasks stay in the count, so "Not
+    available" only ever meant zero tasks and "No tasks yet" is true on archived projects too.
+    Round 4's archived carve-out rested on a false premise and is removed here and from slice 79.
+    A failed re-read keeps a shown percentage.
+  - **Archive stale state.** Both archive stores keep their list on screen when a read fails; a
+    fourth, polite stale state replaces "Couldn't load" over that list, keeping Restore paused.
+  - **Minor:** this slice owns the refused-restore and committed-unrefreshed sentences, with a noun
+    per page and the reach sentence for `unreachable`; the widget definition is in `registry.ts`,
+    and the frame does not mount a failed widget and takes a pending input; the canvas loading line
+    adopts the pattern; a `data-recovery` attribute lets the gate find recovery controls; subjects
+    are singular; `mutate()`'s line corrected.
+- **Round 6 (2026-10-29):** two substantive and seven minor findings, each checked against the
+  code. Changes:
+  - **Archive precedence.** Committed-unrefreshed, then refused restore, then stale, then load
+    failure; a failed read never displaces a held write state, so Settings' re-read before its
+    refusal no longer hides a failed restore.
+  - **Progress formula write.** Split from the read and placed inline beside the controls, which
+    stay on screen; its re-read failure is the stale form. The impossible "write after failed read"
+    progress test is replaced.
+  - **Minor:** the Reflections page's saved-but-unrefreshed case takes Retry refresh; canvas reads
+    keep clearing write alerts on success, as today; the frame's `.html` and the digest's exported
+    `failureOf` listed; `data-empty-canvas` added to the gate; the singular-subject rule scoped to
+    subjects that can answer `not_found`; an `unreachable` refused restore says it may not have
+    been restored; the stdio `connect` helper and the gateway spec's `dailyDigest` spread added.
+- **Round 7 (2026-10-29):** two substantive and five minor findings, each checked against the
+  code. Changes:
+  - **Matrix cells.** Four slice-77 matrix cells change on purpose (`kitchen-error`,
+    `kitchen-refused`, `kitchen-archived`, `not-a-route`); profile 78 names them as changing and
+    the test pins that no other cell is exempt. `capture.ts:97` asserted the raw reason as visible
+    text and would have failed the after capture; it is added to the change list.
+  - **Stale Try again is quiet.** Todos' only retry and Progress's `load()` empty their content on
+    failure; stale notices now run a quiet read, with tests that a second failure stays stale.
+  - **Minor:** a refusal's Try again hands over to its read (stale only if that read fails); the
+    Reflections page keeps saved-unrefreshed apart from stale; the progress fact says "No tasks to
+    measure" (true on a root whose tasks sit in workstreams) and "Measuring…" while pending, not a
+    loading row; `FailedSectionRemoval` carries the `Failure` the toast's `detail` comes from.
+- **Round 8 (2026-10-29):** one substantive and five minor findings, each checked against the
+  code. Changes:
+  - **The Lab.** The type changes force existing Lab panels to change (the failed task row and
+    error sidebar pass raw strings; the `states` primitive panel and the stub's error case show raw
+    text). `live-panels.html` is added; the new specimens replace those panels; acceptance item 4
+    names the Lab panels that change and gates the rest panel-relative.
+  - **Minor:** a `pending` kind for the header's "Measuring…" row; "four states" in the archive
+    rows; each stale noun in the test row; the project-card specimen's "Not available" left for the
+    comb; the retryable project failure replaces the "Project unavailable" section.
+- **Round 9 (2026-10-29):** no substantive findings; five minor ones, folded in. The changing Lab
+  panels are named by id (`task-row`, `navigation`, `section-states` and the new specimens panel,
+  which holds the digest-failure specimen); acceptance item 5 records Lab panel boxes in both
+  builds; `pending` rows declare their expected text and the gate checks it; the replaced
+  `states` panel keeps its empty specimen unchanged for slice 79.
+- **User answers (2026-10-29), after round 9:** the row failure below the fold is now in scope. An
+  off-screen inline failure is pinned to the workspace scroll port's edge with an indicator, and
+  only the user's press scrolls (Build; amends the feedback decision). Details should be hidden in
+  production, recorded as a note in the decision's *Revisit when*, with no change now. The header's
+  history Retry keeps its label, as a note for the §8 comb. Open questions are now empty.
+- **Round 10 (2026-10-29):** two reviewers checked the pinned-failure addition against the
+  actual shell, toast, Task List, Todos and archive code. Substantive findings corrected:
+  - Visibility observes the compact failure sentence, retaining the row/frame as the reveal
+    destination; a visible fragment of a tall owner cannot hide its off-screen failure.
+  - Restore errors stay page-level and outside pin scope; no disabled Restore focus target or
+    new row-local placement. Todos supplies bottom/toast evidence; a real Task List supplies
+    top/sticky-quick-add evidence. Canonical and shortcut frame registration sites are explicit.
+  - Edge clearance is measured explicitly; toast padding does not position an overlay. Pins
+    remain within the content track, clear of navigation/drawer space.
+  - Occurrence dismissal, replacement/destruction cleanup, late callbacks, zoneless updates and
+    guarded focus on activation, dismissal and passive disappearance are specified and tested.
+  - Pin geometry evidence and failing gate fixtures cover absent pins, wrong edges/indicators,
+    visible anchors, out-of-track pins and sticky/toast overlap.
+- **Round 11 (2026-10-29):** mechanism reviewer found no substantive issues. Behavior reviewer found one follow-through: revealing a tall owner alone could leave its sentence off screen. Activation now explicitly reveals the sentence anchor inside the unobscured port before focusing the owner control with preventScroll; unit and browser assertions require the anchor visible and the pin gone, including the tall-owner fixture. Pin scope is named precisely: task rows, collapse failures and the Task List drag-receive banner.
+- **Round 12 (2026-10-29):** behavior reviewer verified the activation correction and returned
+  no substantive findings. Together with the round 11 mechanism review, Step 2 is complete;
+  implementation remains stopped for the user's acceptance. No implementation or commit.
+- **Plan accepted (2026-10-29):** the user accepted the revised plan and requested a planning
+  commit and push. Implementation has not started.

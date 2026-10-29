@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign: evidence and direction through Gate 1 (done), then the redesign slices in layer order until the protocol's stop rule | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 78 | Slice 78 — States: failures and loading | Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back | [78-failures-and-loading.md](active/78-failures-and-loading.md) |
 
 ### Planned
 
@@ -28,6 +29,7 @@ verification follow-ups rather than feature slices.
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
+| 79 | Slice 79 — States: empty, archived and editing | Redesign slice 6b-2 (TH10): first-run dashboard, archived pages read-only with restore in place, archive refusal said before, Markdown drafts kept, digest overdue line, Task List count | [79-empty-archived-and-editing.md](planned/79-empty-archived-and-editing.md) |
 
 ### Completed
 
