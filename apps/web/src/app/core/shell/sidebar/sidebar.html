@@ -62,17 +62,33 @@
     }
 
     @if (projectsExpanded()) {
-      @if (error()) {
-        <p class="notice" data-projects-error>{{ error() }}</p>
-      } @else if (projectTree().length === 0) {
-        <p class="notice" data-projects-empty>No projects yet</p>
-      } @else {
-        <ul class="projects">
-          @for (node of projectTree(); track node.project.id) {
-            <app-project-tree-item [node]="node" />
+      <div data-projects-region [attr.aria-busy]="loading() ? 'true' : null">
+        <!-- One polite region, mounted with the group, so a failure that replaces the loading
+             line is announced: a status inserted already holding its text often is not.
+             Polite, not an alert, so Home's own failure stays the page's one alert (Slice 78). -->
+        <div role="status" data-projects-status>
+          @if (failure(); as failure) {
+            <app-failure-message
+              data-projects-error
+              [failure]="failure"
+              recovery="try-again"
+              [pending]="loading()"
+              (retry)="retryRequested.emit()"
+            />
+          } @else if (loading() && projectTree().length === 0) {
+            <p class="notice state-message state-message--loading" data-projects-loading>Loading projects…</p>
           }
-        </ul>
-      }
+        </div>
+        @if (failure() === null && !loading() && projectTree().length === 0) {
+          <p class="notice" data-projects-empty>No projects yet</p>
+        } @else if (failure() === null && projectTree().length > 0) {
+          <ul class="projects">
+            @for (node of projectTree(); track node.project.id) {
+              <app-project-tree-item [node]="node" />
+            }
+          </ul>
+        }
+      </div>
     }
   </div>
 

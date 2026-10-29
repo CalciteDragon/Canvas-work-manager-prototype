@@ -36,7 +36,10 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    no body-less send path. `SectionGateway.remove` sends only the section id, with no policy or
    destination query parameters.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
-   (`ProjectTreeNode`), and re-reads on `project.*` frames.
+   (`ProjectTreeNode`), and re-reads on `project.*` frames. While a read runs with no tree yet the
+   sidebar says "Loading projects…" (`aria-busy`), never "No projects yet". A failed read is a
+   `Failure` ("Couldn’t load your projects.") in one polite `role="status"` region, with Try
+   again, which calls `load()` again and keeps the failure, busy, until the read answers.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
    (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.

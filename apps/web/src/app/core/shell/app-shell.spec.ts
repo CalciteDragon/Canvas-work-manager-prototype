@@ -37,6 +37,27 @@ describe('AppShell', () => {
     expect(element.querySelector('router-outlet')).not.toBeNull();
   });
 
+  // Slice 78 (L6-003): the shell's failed read reaches the sidebar as the product's sentence,
+  // and its Try again re-reads through the store.
+  it('renders a failed projects read as the sentence, and Try again re-reads it', async () => {
+    const { fixture, element } = await renderShell({
+      failOn: { 'projects.list': new GatewayError('unreachable', 0, 'the prototype host is not running') },
+    });
+    const failure = element.querySelector<HTMLElement>('[data-projects-error]')!;
+    expect(failure.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe(
+      'Couldn’t reach your workspace, so your projects didn’t load.',
+    );
+    expect(failure.querySelector('[data-failure-sentence]')?.textContent).not.toContain('not running');
+
+    const gateway = TestBed.inject(WORK_MANAGER_GATEWAY) as unknown as { options: { failOn?: unknown } };
+    gateway.options.failOn = undefined;
+    failure.querySelector<HTMLElement>('[data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-projects-error]')).toBeNull();
+    expect(element.querySelector('[data-projects-empty]')).not.toBeNull();
+  });
+
   it('keeps the explicit theme when a different persona loads (§22)', async () => {
     localStorage.setItem('cwm.theme', 'dark');
 

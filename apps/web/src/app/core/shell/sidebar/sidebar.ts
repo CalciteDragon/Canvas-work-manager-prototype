@@ -15,6 +15,8 @@ import {
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { ProjectTreeNode } from '../shell-store';
 import { Icon } from '../../../shared/components/icon/icon';
+import type { Failure } from '../../../shared/feedback/failure';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { ProjectTreeItem } from './project-tree-item';
 
 /**
@@ -26,21 +28,29 @@ import { ProjectTreeItem } from './project-tree-item';
 @Component({
   selector: 'app-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectTreeItem, RouterLink, RouterLinkActive, Icon],
+  imports: [ProjectTreeItem, RouterLink, RouterLinkActive, Icon, FailureMessage],
   styleUrl: './sidebar.scss',
   templateUrl: './sidebar.html',
 })
 export class Sidebar {
   readonly projectTree = input.required<ProjectTreeNode[]>();
-  readonly error = input.required<string | null>();
+  /** The tree's failed read (Slice 78): it replaces the tree, politely, with Try again. */
+  readonly failure = input.required<Failure | null>();
   /**
-   * A failed creation, kept apart from `error` on purpose: that one *replaces* the tree,
+   * A read is running. With no tree yet it says "Loading projects…", never "No projects yet"
+   * (L4-001); over a failure it keeps the failure and makes its Try again busy.
+   */
+  readonly loading = input(false);
+  /**
+   * A failed creation, kept apart from `failure` on purpose: that one *replaces* the tree,
    * and losing every project from navigation because one write failed is a worse answer
    * than the write's own message beside the form that produced it.
    */
   readonly createError = input<string | null>(null);
 
   readonly createRequested = output<string>();
+  /** Try again on a failed read; `AppShell` asks `ShellStore` to read again. */
+  readonly retryRequested = output<void>();
 
   /** §23: "Project hierarchy should optionally expand inline." */
   protected readonly projectsExpanded = signal(true);

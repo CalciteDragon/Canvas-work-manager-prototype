@@ -112,9 +112,30 @@ describe('ShellStore', () => {
 
     await store.load();
 
-    expect(store.error()).toContain('host is down');
+    // Slice 78: the product's sentence, the host's reason kept apart for Details.
+    expect(store.error()).toEqual({ sentence: 'Couldn’t reach your workspace, so your projects didn’t load.', reason: 'host is down' });
     expect(store.projects()).toEqual([]);
     expect(store.loading()).toBe(false);
+  });
+
+  // Slice 78 (L4-002): Try again re-reads. The failure stays on screen while it runs, so the
+  // control the person pressed is still there, and a read that answers clears it.
+  it('keeps the failure while Try again re-reads, and clears it when the read answers', async () => {
+    const { store, gateway } = storeWith({
+      projects: [project('project-1', 'Personal workspace')],
+      failOn: { 'projects.list': new GatewayError('internal_error', 500, 'boom') },
+    });
+    await store.load();
+    expect(store.error()?.sentence).toBe('Couldn’t load your projects.');
+
+    gateway.options.failOn = undefined;
+    const retried = store.load();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('Couldn’t load your projects.');
+    await retried;
+
+    expect(store.error()).toBeNull();
+    expect(store.projects()).toHaveLength(1);
   });
 
   it('settles into an error state when the identity call fails', async () => {

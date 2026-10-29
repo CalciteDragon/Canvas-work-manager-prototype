@@ -91,8 +91,9 @@
 <section class="panel" data-panel="navigation" data-panel-kind="live">
   <h3 class="panel__title">Navigation <span class="panel__badge">live component</span></h3>
   <div class="panel__body panel__body--row">
-    <app-sidebar [projectTree]="projectTree" [error]="null" />
-    <app-sidebar [projectTree]="emptyTree" [error]="sidebarError" />
+    <app-sidebar [projectTree]="projectTree" [failure]="null" />
+    <app-sidebar [projectTree]="emptyTree" [failure]="null" [loading]="true" />
+    <app-sidebar [projectTree]="emptyTree" [failure]="sidebarFailure" />
   </div>
 </section>
 

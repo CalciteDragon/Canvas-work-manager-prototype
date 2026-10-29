@@ -3,6 +3,7 @@ import type { Project } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { provideRouter } from '@angular/router';
 import { shellTestProviders } from '../../gateway/testing/shell-test-providers';
+import type { Failure } from '../../../shared/feedback/failure';
 import type { ProjectTreeNode } from '../shell-store';
 import { Sidebar } from './sidebar';
 
@@ -22,17 +23,20 @@ const node = (id: string, name: string, children: ProjectTreeNode[] = []): Proje
 });
 
 const render = async (
-  inputs: { projectTree?: ProjectTreeNode[]; error?: string | null; createError?: string | null } = {},
+  inputs: { projectTree?: ProjectTreeNode[]; failure?: Failure | null; loading?: boolean; createError?: string | null } = {},
 ) => {
   TestBed.configureTestingModule({ imports: [Sidebar], providers: shellTestProviders() });
   const fixture: ComponentFixture<Sidebar> = TestBed.createComponent(Sidebar);
   fixture.componentRef.setInput('projectTree', inputs.projectTree ?? []);
-  fixture.componentRef.setInput('error', inputs.error ?? null);
+  fixture.componentRef.setInput('failure', inputs.failure ?? null);
+  fixture.componentRef.setInput('loading', inputs.loading ?? false);
   fixture.componentRef.setInput('createError', inputs.createError ?? null);
   const created: string[] = [];
   fixture.componentInstance.createRequested.subscribe((name) => created.push(name));
+  let retries = 0;
+  fixture.componentInstance.retryRequested.subscribe(() => retries++);
   await fixture.whenStable();
-  return { fixture, element: fixture.nativeElement as HTMLElement, created };
+  return { fixture, element: fixture.nativeElement as HTMLElement, created, retries: () => retries };
 };
 
 const openCreateForm = async (
@@ -112,10 +116,54 @@ describe('Sidebar', () => {
     expect(element.querySelector('[data-projects-empty]')?.textContent).toContain('No projects');
   });
 
-  it('shows a failed load instead of spinning forever', async () => {
-    const { element } = await render({ error: 'could not reach the prototype host' });
+  // Slice 78 (L4-001): loading is not empty.
+  it('says Loading projects… while the first read is in flight, and never No projects yet', async () => {
+    const { element } = await render({ projectTree: [], loading: true });
 
-    expect(element.querySelector('[data-projects-error]')?.textContent).toContain('could not reach');
+    expect(element.querySelector('[data-projects-loading]')?.textContent?.trim()).toBe('Loading projects…');
+    expect(element.querySelector('[data-projects-empty]')).toBeNull();
+    expect(element.querySelector('[data-projects-region]')?.getAttribute('aria-busy')).toBe('true');
+  });
+
+  it('keeps the tree, not a loading line, when a read runs over projects already shown', async () => {
+    const { element } = await render({ projectTree: [node('project-1', 'Personal workspace')], loading: true });
+
+    expect(textOf(element, '[data-project]')).toEqual(['Personal workspace']);
+    expect(element.querySelector('[data-projects-loading]')).toBeNull();
+  });
+
+  // Slice 78 (L4-002): a sentence in product words, the reason under Details, Try again — and
+  // polite, not an alert, so Home's own failure is the one alert on the page.
+  it('shows a failed load as a polite sentence with Try again and the reason under Details', async () => {
+    const { fixture, element, retries } = await render({
+      failure: { sentence: 'Couldn’t load your projects.', reason: 'could not reach the prototype host' },
+    });
+
+    const failure = element.querySelector<HTMLElement>('[data-projects-error]')!;
+    expect(failure.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load your projects.');
+    expect(failure.querySelector('details')?.hasAttribute('open')).toBe(false);
+    expect(failure.querySelector('details')?.textContent).toContain('could not reach');
+    expect(element.querySelector('[role="alert"]')).toBeNull();
+    expect(failure.closest('[role="status"]')).not.toBeNull();
+    expect(element.querySelector('[data-projects-empty]')).toBeNull();
+
+    failure.querySelector<HTMLElement>('[data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+    expect(retries()).toBe(1);
+  });
+
+  it('keeps the failure and its Try again, busy, while the retry runs', async () => {
+    const { fixture, element, retries } = await render({
+      failure: { sentence: 'Couldn’t load your projects.', reason: 'boom' },
+      loading: true,
+    });
+
+    const button = element.querySelector<HTMLElement>('[data-projects-error] [data-recovery="try-again"]')!;
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(element.querySelector('[data-projects-loading]')).toBeNull();
+    button.click();
+    await fixture.whenStable();
+    expect(retries()).toBe(0);
   });
 
   // §81's create, and the boundary that keeps §19 honest. The gateway is deliberately
@@ -125,7 +173,7 @@ describe('Sidebar', () => {
     TestBed.configureTestingModule({ imports: [Sidebar], providers: [provideRouter([])] });
     const fixture: ComponentFixture<Sidebar> = TestBed.createComponent(Sidebar);
     fixture.componentRef.setInput('projectTree', []);
-    fixture.componentRef.setInput('error', null);
+    fixture.componentRef.setInput('failure', null);
     const created: string[] = [];
     fixture.componentInstance.createRequested.subscribe((name) => created.push(name));
     await fixture.whenStable();

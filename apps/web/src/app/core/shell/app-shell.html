@@ -46,9 +46,11 @@
       <app-sidebar
         class="drawer__nav"
         [projectTree]="store.projectTree()"
-        [error]="store.error()"
+        [failure]="store.error()"
+        [loading]="store.loading()"
         [createError]="store.createError()"
         (createRequested)="createProject($event)"
+        (retryRequested)="store.load()"
       />
     </div>
   </div>

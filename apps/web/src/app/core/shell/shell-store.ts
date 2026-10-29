@@ -1,11 +1,11 @@
 import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import { ProjectStatusSchema, type Identity, type LiveEvent, type Project, type ProjectId } from '@cwm/contracts';
 import { PrototypeSettings } from '../config/prototype-settings';
-import { GatewayError } from '../gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../history/operation-history-reporter';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { LIVE_UPDATES } from '../live/live-updates';
+import { readFailure, type Failure } from '../../shared/feedback/failure';
 
 /**
  * A project and the projects under it. **Derived view state, not an entity** — it has no
@@ -43,8 +43,13 @@ export class ShellStore {
 
   private readonly identityState = signal<Identity | null>(null);
   private readonly projectsState = signal<Project[]>([]);
+  /** True while a non-quiet read runs: the sidebar says "Loading projects…" until one answers. */
   private readonly loadingState = signal(false);
-  private readonly errorState = signal<string | null>(null);
+  /**
+   * The tree's read failure, in the product's words (Slice 78). A retry keeps it until the read
+   * answers, so the Try again that was pressed stays on screen, busy, rather than vanishing.
+   */
+  private readonly errorState = signal<Failure | null>(null);
   /**
    * Deliberately **not** `errorState`. `sidebar.html` renders that notice *instead of* the
    * project tree, so routing a failed creation onto it would empty navigation because one
@@ -163,7 +168,7 @@ export class ShellStore {
 
   private startRead(quiet: boolean): Promise<void> {
     const settled = this.pendingTasks.add();
-    if (!quiet) { this.loadingState.set(true); this.errorState.set(null); }
+    if (!quiet) this.loadingState.set(true);
     const operation = (async () => {
       const [identity, projects] = await Promise.allSettled([
         this.identityProvider.getCurrentIdentity(),
@@ -178,7 +183,7 @@ export class ShellStore {
       } else if (!quiet) {
         this.projectsState.set([]);
         const error = identity.status === 'rejected' ? identity.reason : projects.status === 'rejected' ? projects.reason : undefined;
-        this.errorState.set(error instanceof GatewayError || error instanceof Error ? error.message : String(error));
+        this.errorState.set(readFailure(error, 'your projects'));
       }
     })().finally(() => {
       settled();

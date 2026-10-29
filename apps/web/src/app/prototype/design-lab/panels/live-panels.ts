@@ -17,6 +17,7 @@ import {
   stubSectionDefinition,
 } from '../design-lab-fixtures';
 import { SectionCanvasFrame } from '../section-canvas-frame';
+import { readFailure, type Failure } from '../../../shared/feedback/failure';
 
 /**
  * §67's catalogue, live half: the **real** components, driven by fixtures, with their real
@@ -80,7 +81,7 @@ export class LivePanels {
 
   protected readonly projectTree = labProjectTree();
   protected readonly emptyTree = [];
-  protected readonly sidebarError = 'the prototype host is not running';
+  protected readonly sidebarFailure: Failure = readFailure({ code: 'unreachable', message: 'the prototype host is not running' }, 'your projects');
   protected readonly activity = labActivity();
   protected readonly drawerTask = labTask({ dueAt: '2026-09-03T23:59:59.999Z', estimate: 3 });
 }
