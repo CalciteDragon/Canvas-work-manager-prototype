@@ -2,7 +2,38 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-29):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0 and 1 are done.**
+rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done.**
+
+- Stage 2 (`23f1d02`, `e19d5c1`, `e8f1442`, `e75d4d1`, `9654581`, `331eac1`), reviewed once by a
+  subagent against the diff:
+  - `shared/feedback/failure.ts`: `Failure { sentence, reason: string | null }`, `readFailure` and
+    `writeFailure`. Sentences use curly apostrophes, as the app's copy does.
+  - `shared/feedback/failure-message.{ts,html}` (+ spec, stories). Its inputs are `failure`,
+    `weight` (`region`|`inline`), `live` (`alert`|`status`|`null`), `recovery`
+    (`try-again`|`retry-refresh`|`null`, with `data-recovery`), `pending` and `sentenceId`, and it
+    emits `retry`. The host is the wrapper: put the caller's `data-*-error` hook on
+    `<app-failure-message>`. The sentence is `[data-failure-sentence]`, and Details is a closed
+    native `<details>` beside it. While `pending`, Try again is **`aria-disabled`**, not `disabled`,
+    so it keeps focus (see Revisions).
+  - `.state-message` (`--failed`, `--region`, `--inline`, `--loading`, `__sentence`, `__details`)
+    in `_controls.scss`.
+  - `Toast.detail` renders as Details and is never announced. `ReceiptUndoResult.detail` exists.
+  - The Lab's `states` panel is now **`state-messages`**, badge "shared". The stub section's error
+    case uses `FailureMessage`.
+  - The dead `.archived-region__error` is deleted. The web, core and prototype-tooling docs say
+    what is true.
+- **Moved from Stage 2 to Stage 3** (each needs its consumer's migration first):
+  - the fake gateway's `null`-digest dashboard (specs can spread `emptyDashboard()`; `failOn` is
+    already per-method);
+  - the Lab's `null`-digest fixture and digest-failure specimen (it should use
+    `dailyDigestFailure`);
+  - `history-feedback`'s `sectionRemoveFailedFeedback` sentence and `detail`;
+  - binding `[detail]="toast.state()?.detail ?? null"` in the canvas toast template. Until then,
+    test-plan row "its `detail` reaches the toast" is only half met: the toast renders it, but no
+    feature passes one yet.
+- **Trap for Stage 3:** a `live="status"` `FailureMessage` inserted by `@if` with its text already
+  in it is often not read by screen readers. Where a polite announcement matters (the sidebar,
+  stale notices), keep the component mounted and change `failure`, or accept it as silent.
 
 - Stage 1 (`8b9fe7b`, `80634fb`, `8ca09c7`): `dailyDigest` is nullable in the contract;
   `DashboardService` catches only the provider's rejection; `get_dashboard_context`'s description
@@ -38,8 +69,10 @@ rounds and accepted by the user on 2026-10-29. **Stages 0 and 1 are done.**
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 2, `failure.ts`, `FailureMessage`, `.state-message`, the toast's Details, Lab
-specimens and stories (foundations first, protocol §7.1).
+**Next:** Stage 3: stores to `Failure`, one store with its template and spec at a time (shell,
+dashboard and widget frame, workspace, page and canvas, sections and shortcuts, pages, settings,
+picker), plus the items moved from Stage 2 above. Write the decision entry
+`2026-10-failures-speak-product-words.md` with the first migrated surface.
 
 **Traps found in Stage 0:**
 - The before build's workspace waits on the progress read, so `header-progress-pending` shows
@@ -1150,3 +1183,12 @@ None open. Three were answered by the user on 2026-10-29:
   change list is made concrete: one class is dead today, and validation-only and dev-panel rules
   stay. The harness's context table names a region selector that exists in both builds for every
   Capture scope context.
+- **Stage 2 (2026-10-29):** one review pass over the diff. Two plan changes came from it.
+  - The digest's Try again, and every `FailureMessage` recovery while `pending`, is
+    `aria-disabled` with a click guard, not the `disabled` that Build and the test plan say. A
+    disabled button drops focus to `<body>` at the moment of activation, and the repo's pending
+    buttons already use `aria-disabled`.
+  - Four items move to Stage 3 because each needs its consumer: the fake gateway's and the Lab's
+    `null` digest, the removal feedback's `detail`, and the canvas toast binding.
+  - The new Lab panel id is `state-messages`. Profile 78 names it as the changing panel in place
+    of `states`.
