@@ -497,6 +497,68 @@ textarea.field {
   to { opacity: 0; }
 }
 
+// Slice 78: one pattern for loading and failed states. `FailureMessage` renders the failed form:
+// the region weight replaces a section body, page or widget; the inline weight keeps slice 75's
+// row, field and card placement and takes `field-status--failed` on its sentence. The raw reason
+// waits in a collapsed Details beside the sentence.
+.state-message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.state-message__sentence {
+  flex: 1 1 auto;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.state-message__details {
+  flex: 1 0 100%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+
+  summary {
+    inline-size: fit-content;
+    min-block-size: var(--control-height-sm);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  p {
+    margin: var(--space-1) 0 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+  }
+}
+
+.state-message--region.state-message--failed {
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.state-message--inline {
+  gap: var(--space-1) var(--space-2);
+  margin-block-start: var(--space-1);
+}
+
+.state-message--loading {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  .state-message__details summary {
+    min-block-size: var(--size-hit-target);
+  }
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
