@@ -29,10 +29,14 @@ const RECOVERY_LABELS: Record<FailureRecovery, string> = { 'try-again': 'Try aga
 export class FailureMessage {
   readonly failure = input.required<Failure>();
   readonly weight = input<'region' | 'inline'>('region');
-  /** `alert` interrupts; `status` is polite (stale content, the sidebar); `null` is not announced. */
+  /**
+   * `alert` interrupts; `status` is polite (stale content, the sidebar); `null` is not announced.
+   * A polite region inserted already holding its text is often not read: a caller that needs
+   * `status` announced keeps this component mounted and changes `failure`.
+   */
   readonly live = input<'alert' | 'status' | null>(null);
   readonly recovery = input<FailureRecovery | null>(null);
-  /** While the caller's retry runs: the region is busy and its button disabled. */
+  /** While the caller's retry runs: the region is busy and its button `aria-disabled`, keeping focus. */
   readonly pending = input(false);
   readonly sentenceId = input<string | null>(null);
   readonly retry = output<void>();

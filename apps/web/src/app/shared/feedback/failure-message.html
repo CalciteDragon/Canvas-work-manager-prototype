@@ -1,7 +1,7 @@
 <p class="state-message__sentence" data-failure-sentence [class.field-status]="weight() === 'inline'" [class.field-status--failed]="weight() === 'inline'"
   [attr.id]="sentenceId()" [attr.role]="live()">{{ failure().sentence }}</p>
 @if (recovery(); as recovery) {
-  <button type="button" class="button button--sm" [attr.data-recovery]="recovery" [disabled]="pending()" (click)="retry.emit()">{{ labels[recovery] }}</button>
+  <button type="button" class="button button--sm" [attr.data-recovery]="recovery" [attr.aria-disabled]="pending() ? 'true' : null" (click)="pending() || retry.emit()">{{ labels[recovery] }}</button>
 }
 @if (failure().reason; as reason) {
   <details class="state-message__details"><summary>Details</summary><p>{{ reason }}</p></details>

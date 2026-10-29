@@ -65,6 +65,10 @@ describe('Toast', () => {
     expect(details.querySelector('summary')?.textContent?.trim()).toBe('Details');
     expect(details.textContent).toContain('Section "section-notes" is locked.');
     expect(element.querySelector('[role=alert]')!.textContent).not.toContain('locked');
+    fixture.componentRef.setInput('tone', 'status');
+    fixture.detectChanges();
+    expect(element.querySelector('[role=status]')!.textContent).toContain('Couldn’t remove');
+    expect(element.querySelector('[role=status]')!.textContent).not.toContain('locked');
   });
 
   it('dismisses Escape inside and stops it reaching document handlers', () => {

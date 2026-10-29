@@ -520,11 +520,12 @@ textarea.field {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 
+  // A list item keeps the native disclosure marker, which says open or closed.
   summary {
     inline-size: fit-content;
     min-block-size: var(--control-height-sm);
-    display: flex;
-    align-items: center;
+    display: list-item;
+    align-content: center;
     cursor: pointer;
   }
 

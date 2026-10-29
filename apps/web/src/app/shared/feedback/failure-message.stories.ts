@@ -52,11 +52,11 @@ export const RetryRefresh: Story = {
   args: { failure: { sentence: 'Saved, but this journal couldn’t refresh.', reason: REASON }, live: 'status', recovery: 'retry-refresh' },
 };
 
-/** A retry in flight: busy, with its button disabled. */
+/** A retry in flight: busy, with its button aria-disabled. */
 export const Pending: Story = {
   args: { failure: { sentence: 'Couldn’t write today’s digest.', reason: null }, pending: true },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('button', { name: 'Try again' })).toBeDisabled();
+    await expect(within(canvasElement).getByRole('button', { name: 'Try again' })).toHaveAttribute('aria-disabled', 'true');
   },
 };
 

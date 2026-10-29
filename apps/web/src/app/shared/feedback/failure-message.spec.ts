@@ -92,13 +92,17 @@ describe('FailureMessage (Slice 78, §21, §24)', () => {
     expect(sentence().classList).toContain('field-status--failed');
   });
 
-  it('is busy while its retry runs, with Try again disabled', () => {
+  it('is busy while its retry runs, with Try again aria-disabled so it keeps focus', () => {
     const { fixture, host, wrapper, button } = setup();
     expect(wrapper().hasAttribute('aria-busy')).toBe(false);
+    expect(button()?.hasAttribute('aria-disabled')).toBe(false);
+    button()!.focus();
     host.pending.set(true);
     fixture.detectChanges();
     expect(wrapper().getAttribute('aria-busy')).toBe('true');
-    expect(button()?.disabled).toBe(true);
+    expect(button()?.getAttribute('aria-disabled')).toBe('true');
+    expect(button()?.disabled).toBe(false);
+    expect(document.activeElement).toBe(button());
     button()!.click();
     expect(host.retried).not.toHaveBeenCalled();
   });
