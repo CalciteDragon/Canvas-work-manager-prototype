@@ -2,7 +2,35 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-29):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done.**
+rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done; Stage 3 is under
+way: shell and dashboard are done.**
+
+- Stage 3, part a (`b84072d`, `50e502c`, plus the review-fix commit after them), reviewed once by
+  a subagent against the diff (no substantive findings; the minor ones were fixed):
+  - **Shell.** `ShellStore.error()` is a `Failure` (`readFailure(error, 'your projects')`). A
+    loud read no longer clears it at start: the failure stays, its Try again busy
+    (`[pending]="store.loading()"`), until a read answers; a loud read queued behind a quiet one
+    sets `loading` at once. `Sidebar` inputs are now `failure`, `loading` and output
+    `retryRequested` (`AppShell` calls `store.load()`). The failure sits in one persistent
+    `role="status"` div (`data-projects-status`) inside `data-projects-region` (`aria-busy`
+    while loading), and `FailureMessage` has `live=null` there. "Loading projects…" is
+    `data-projects-loading`, shown while loading with no tree. `createError` is still a raw
+    string: it is a write failure, Stage 4's.
+  - **Dashboard.** `DashboardStore.error()` is a `Failure` (subject `Home`), the page's one
+    alert, with Try again kept busy the same way. `retryDigest()` and `digestPending()` exist;
+    `DashboardWidgetDefinition.failureOf` exists, the digest's is `dailyDigestFailure`
+    (exported from `daily-digest-widget.ts`), and `DashboardWidgetFrame` takes `pending` and
+    emits `retry`, rendering `[data-widget-failure]` in the widget's place. `.dashboard__error`
+    is deleted.
+  - The fake gateway exports `dashboardWithoutDigest()`; the Lab has `labDashboardWithoutDigest()`
+    and the `state-messages` panel's `[data-lab-digest-failure]` specimen; the live Navigation
+    panel shows loaded, loading and failed sidebars.
+  - The decision entry `docs/decisions/2026-10-failures-speak-product-words.md` is written and
+    indexed (Whole prototype), linked from `web/core/why.md` and `web/dashboard/why.md`. Stage 4
+    still amends `2026-10-feedback-stays-on-the-object.md`.
+  - e2e not yet touched: `apps/e2e/web.spec.ts:23-30`'s comment says the sidebar renders "No
+    projects yet" before the persona loads, which is no longer true (it says "Loading
+    projects…"); fix the comment with the e2e edits. The assertions should still pass.
 
 - Stage 2 (`23f1d02`, `e19d5c1`, `e8f1442`, `e75d4d1`, `9654581`, `331eac1`), reviewed once by a
   subagent against the diff:
@@ -22,11 +50,8 @@ rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done.**
     case uses `FailureMessage`.
   - The dead `.archived-region__error` is deleted. The web, core and prototype-tooling docs say
     what is true.
-- **Moved from Stage 2 to Stage 3** (each needs its consumer's migration first):
-  - the fake gateway's `null`-digest dashboard (specs can spread `emptyDashboard()`; `failOn` is
-    already per-method);
-  - the Lab's `null`-digest fixture and digest-failure specimen (it should use
-    `dailyDigestFailure`);
+- **Moved from Stage 2 to Stage 3** (each needs its consumer's migration first; the `null`-digest
+  dashboard, fixture and specimen are done in part a):
   - `history-feedback`'s `sectionRemoveFailedFeedback` sentence and `detail`;
   - binding `[detail]="toast.state()?.detail ?? null"` in the canvas toast template. Until then,
     test-plan row "its `detail` reaches the toast" is only half met: the toast renders it, but no
@@ -69,10 +94,11 @@ rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done.**
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 3: stores to `Failure`, one store with its template and spec at a time (shell,
-dashboard and widget frame, workspace, page and canvas, sections and shortcuts, pages, settings,
-picker), plus the items moved from Stage 2 above. Write the decision entry
-`2026-10-failures-speak-product-words.md` with the first migrated surface.
+**Next:** Stage 3, the rest: stores to `Failure`, one store with its template and spec at a time
+(workspace, page and canvas, sections and shortcuts, pages, settings, picker), plus the items
+moved from Stage 2 above. Follow part a's pattern: keep the failure on screen, busy, while Try
+again re-reads; where a polite announcement matters, mount the live region before the failure
+arrives.
 
 **Traps found in Stage 0:**
 - The before build's workspace waits on the progress read, so `header-progress-pending` shows
@@ -1192,3 +1218,13 @@ None open. Three were answered by the user on 2026-10-29:
     `null` digest, the removal feedback's `detail`, and the canvas toast binding.
   - The new Lab panel id is `state-messages`. Profile 78 names it as the changing panel in place
     of `states`.
+- **Stage 3, part a (2026-10-29):** shell and dashboard; one review pass over the diff, no
+  substantive findings. Two choices the plan did not spell out:
+  - A read's Try again keeps the failure on screen, busy, until the read answers, rather than
+    clearing it for the loading line. The control the person pressed stays, with focus, and a
+    retry that fails again visibly ends. A loud read queued behind a quiet one is `loading` at
+    once (review finding).
+  - The sidebar's polite failure sits in a persistent `role="status"` region mounted with the
+    Projects group, per the Stage 2 trap, rather than `FailureMessage`'s own `live="status"`.
+    The announcement may include "Try again" and "Details"; a retry that fails again with the
+    same sentence is not re-announced. Both are for real use to judge.
