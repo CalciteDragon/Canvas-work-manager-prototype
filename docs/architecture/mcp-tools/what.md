@@ -84,3 +84,5 @@ sequenceDiagram
 
 
 Slice 77: get_dashboard_context and get_upcoming_work return each task’s canonical origin under workspace.read. Discovery exposes canonical section records for picker Preview, never task/reflection rows. Handlers continue to call domain services.
+
+Slice 78: get_dashboard_context's description says `dailyDigest` is null when the AI provider failed; `contract.test.ts` asserts the null digest and that no provider text reaches the result, and the harness takes an `ai` provider for it.

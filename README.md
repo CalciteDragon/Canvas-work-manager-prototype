@@ -144,7 +144,7 @@ The host endpoints behind it, should you want them from `curl`:
 |---|---|---|
 | `CWM_HOST_PORT` | `4310` | Which port the host listens on. Deliberately **not** `PORT`: the host ignores `PORT` entirely so that a tool exporting `PORT=4200` for `ng serve` cannot hand the host the web port. An unusable value fails the start with a message rather than silently falling back to 4310. |
 | `CWM_DATA_FILE` | `.prototype/data.json` | Which file the host reads and writes. Resolved against the process's cwd; this is what lets the acceptance scripts run against a temp file. |
-| `PROTOTYPE_AI_PROVIDER` | `mock` | `mock` composes the dashboard's AI text locally, with no API key and no network (§43). `real` selects the developer-only adapter, which is a stub: the host starts and every other route works, but `GET /api/dashboard` returns `500 {"error":"internal_error"}` and `/app` shows an error instead of any widget — the digest is part of the same read. The explanation is printed on the host's console, not in the response. Real AI is never required (§44). |
+| `PROTOTYPE_AI_PROVIDER` | `mock` | `mock` composes the dashboard's AI text locally, with no API key and no network (§43). `real` selects the developer-only adapter, which is a stub: the host starts and every other route works, and `GET /api/dashboard` answers 200 with `dailyDigest: null` beside every other widget's content — only the digest fails. The explanation is printed on the host's console (`console.error`, under HTTP and stdio alike), not in the response. Real AI is never required (§44). |
 | `CWM_MCP_TOKEN` | — | Stdio only: the fixture bearer token the `pnpm mcp:stdio` process acts as. |
 
 One Ctrl+C per terminal. Health check: `curl localhost:4310/prototype/health`.

@@ -54,7 +54,7 @@ Restore path and checks the current ancestry and `projects.write` during its wri
 | `createApiRoutes` | function | The `/api/*` `RouteTable` | [API](../../../api/miscellaneous/variables.html#createApiRoutes) |
 | `ApiDependencies` | interface | What the routes need: services and persistence | [API](../../../api/interfaces/ApiDependencies.html) |
 | `resolveActor` | function | Header → user `ActorContext` | [API](../../../api/miscellaneous/variables.html#resolveActor) |
-| `RealAIProvider` | class | The failing stub | [API](../../../api/classes/RealAIProvider.html) |
+| `RealAIProvider` | class | The failing stub; writes the digest rejection to `console.error` | [API](../../../api/classes/RealAIProvider.html) |
 
 ## Dependencies
 

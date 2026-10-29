@@ -11,7 +11,7 @@ that wires every domain service over the loaded store. Routes validate bodies wi
 contract inputs and answer contract shapes; they hold no rules.
 
 **Code:** `apps/prototype-host/api` · **Tests:** `api/routes.test.ts`,
-`api/services.test.ts`, `api/errors.test.ts` · **Parent:**
+`api/services.test.ts`, `api/errors.test.ts`, `api/real-ai-provider.test.ts` · **Parent:**
 [prototype-host](../overview.md)
 
 ## Responsibilities

@@ -116,3 +116,5 @@ historical identity on events and feed entries.
 
 
 Slice 77 read models: dashboard.ts imports TodoTaskOriginSchema from project-todos.ts; timeline.ts adds optional link identity; section-shortcut.ts adds ProjectSectionSchema to ShortcutSourceSchema. workspace.ts continues to reuse DashboardTaskSchema.
+
+Slice 78: `DashboardResultSchema.dailyDigest` is nullable — `null` means the AI provider failed. No reason travels with it.

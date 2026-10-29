@@ -36,10 +36,11 @@ for and never learns that "days" means two different query keys for two widgets.
 call.** §42 pins the provider to two methods and §24 does not call Fun Fact
 AI-generated ([decision](../../../decisions/2026-08-prototype-ai-scope-and-fun-fact.md)).
 
-**A single read fails as a whole.** With `PROTOTYPE_AI_PROVIDER=real` the stub throws,
-the digest is part of the one read, and `/app` shows an error and no widgets. That is
-the price of the single-read design, accepted because `mock` is the default and real AI
-is never required.
+**The digest fails alone.** With `PROTOTYPE_AI_PROVIDER=real` the stub rejects, and the
+one read still answers, with `dailyDigest: null` (§24, §44). Every other widget renders;
+the digest widget renders nothing for a `null` digest. Its own failure message is
+[Slice 78](../../../roadmap/active/78-failures-and-loading.md)'s, still to land. Any other
+failure of the one read still fails Home as a whole — the price of the single-read design.
 
 ## Consequences
 

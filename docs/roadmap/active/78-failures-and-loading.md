@@ -2,7 +2,24 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-29):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stage 0 is done.**
+rounds and accepted by the user on 2026-10-29. **Stages 0 and 1 are done.**
+
+- Stage 1 (`8b9fe7b`, `80634fb`, `8ca09c7`): `dailyDigest` is nullable in the contract;
+  `DashboardService` catches only the provider's rejection; `get_dashboard_context`'s description
+  says so; `RealAIProvider` writes the digest reason to `console.error`. Tests: contract, domain
+  (provider rejects → `null` and full lists; repository rejects → still rejects), MCP contract
+  (null digest, no provider text; the MCP harness takes `{ ai }`, the domain harness `options.ai`),
+  host stdio (`connect` takes an env; `PROTOTYPE_AI_PROVIDER=real`), `prototype/routes.test.ts`
+  (200 + `null` + console.error; reset restores a `prototype` digest), `api/real-ai-provider.test.ts`.
+  The host/contract/domain/MCP docs and README line 147 say what is now true.
+- To keep the web build green, `daily-digest-widget.html` renders only inside
+  `@if (dashboard().dailyDigest; as digest)`: under the real provider Home shows six widgets and
+  an **empty** digest tile until Stage 3 adds `failureOf`/`dailyDigestFailure` and the frame's
+  failure. `web/dashboard/why.md` says so; Stage 3 rewrites that paragraph.
+- Not yet done from Stage 1's neighbourhood, by design: `apps/e2e/mcp.spec.ts`'s nullable digest
+  over HTTP (with the e2e edits), the decision entry `2026-10-failures-speak-product-words.md`
+  (written with the web failure work), the fake gateway's `null`-digest dashboard and the Lab
+  fixture (Stages 2–3).
 
 - The spec inventory is under Behaviour vs. appearance › Stage 0 inventory.
 - The capture harness is committed: `apps/e2e/ux/slice78.config.ts`, `ux/states-verification.ts`
@@ -21,7 +38,8 @@ rounds and accepted by the user on 2026-10-29. **Stage 0 is done.**
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 1, contract and domain, tests first.
+**Next:** Stage 2, `failure.ts`, `FailureMessage`, `.state-message`, the toast's Details, Lab
+specimens and stories (foundations first, protocol §7.1).
 
 **Traps found in Stage 0:**
 - The before build's workspace waits on the progress read, so `header-progress-pending` shows

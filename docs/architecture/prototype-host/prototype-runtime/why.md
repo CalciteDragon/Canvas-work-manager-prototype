@@ -60,7 +60,7 @@ break "no control exists twice"; the roster shows tokens to copy and points at S
 - Moving the date backwards on `overdue-chaos` turns five overdue tasks into one
   due-today and three upcoming, with the digest and the clock-keyed Fun Fact re-derived —
   the demonstration Slice 12 recorded.
-- The AI provider can go mock → real (500) → mock without a restart, which is how §44's
+- The AI provider can go mock → real (a `null` digest) → mock without a restart, which is how §44's
   "never required" is verified.
 - Reseeding a running host is safe with respect to queued writes, and unsafe only in the
   documented window.

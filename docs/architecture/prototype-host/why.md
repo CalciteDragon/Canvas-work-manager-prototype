@@ -49,8 +49,9 @@ what lets it move the date or swap the provider without a restart, and the servi
 never learn that any of it exists.
 
 **Real AI is a stub that fails loudly.** `PROTOTYPE_AI_PROVIDER=real` selects an adapter
-that throws; the dashboard read fails as a whole and the explanation goes to the host's
-console. Quietly falling back to the mock would make an experiment about real AI
+that rejects; the dashboard read answers with a `null` digest and the rest of Home, and the
+explanation goes to the host's console through `console.error`, never stdout, which stdio
+owns. Quietly falling back to the mock would make an experiment about real AI
 unfalsifiable (§44).
 
 **Started separately from the web app.** `concurrently` handed `tsx watch` a piped stdin

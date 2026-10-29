@@ -130,7 +130,7 @@ sequenceDiagram
 | `ReflectionService` | `src/reflection-service.ts` | Write, edit, archive, restore; optional subject |
 | `AgentConnectionService` | `src/agent-connection-service.ts` | Permissions and revocation — user actors only; throttled `lastUsedAt` |
 | `ActivityService` | `src/activity-service.ts` | Captures durable target identity, records events and publishes one post-commit frame |
-| `DashboardService` | `src/dashboard-service.ts` | §24's one derived read, including task origins, project ancestor paths, the digest and Fun Fact; unresolved task containers are excluded before counting |
+| `DashboardService` | `src/dashboard-service.ts` | §24's one derived read, including task origins, project ancestor paths, the digest and Fun Fact; unresolved task containers are excluded before counting; a provider rejection gives a `null` digest |
 | `ProgressService`, `TimelineService` | `src/progress-service.ts`, `src/timeline-service.ts` | §39 formulas; §38 derived ranges with canonical task-section and workstream links |
 | `WorkspaceService` | `src/workspace-service.ts` | `search_workspace`, `get_upcoming_work` under `workspace.read` |
 | `ProjectTodosService`, `ProjectArchiveService`, `ProjectJournalService` | `src/project-*-service.ts` | The three root-wide projections (§34, §31, §36) |

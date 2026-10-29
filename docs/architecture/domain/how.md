@@ -109,7 +109,9 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
 `taskOrigin` resolves a task against canonical projects, sections and pages without reading a
 repository or a clock. Todos, dashboard, upcoming work and Timeline use the same resolution.
 Dashboard and upcoming work omit unresolved tasks before selecting buckets or counting their
-digest; every returned task therefore has a usable origin. Dashboard project breadcrumbs contain
+digest; every returned task therefore has a usable origin. `DashboardService` catches only the
+`AIProvider` digest rejection, answering `dailyDigest: null` with no reason; a repository failure
+still rejects the read. Dashboard project breadcrumbs contain
 ancestors only, root first. Timeline task links name the section, workstream links name the Work
 canvas, and project and milestone rows have no link. These services depend directly on section
 and page repository interfaces; their asserted grants remain `workspace.read` for dashboard and
