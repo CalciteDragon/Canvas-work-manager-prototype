@@ -1,6 +1,4 @@
-@if (store.loading()) {
-  <p data-project-loading class="project-workspace__muted">Loading project…</p>
-} @else if (creationRecovery(); as creation) {
+@if (creationRecovery(); as creation) {
   <section data-project-creation-recovery class="project-workspace__recovery" aria-labelledby="project-creation-recovery-heading">
     <h1 id="project-creation-recovery-heading" tabindex="-1">Creation undone</h1>
     <p>Undo removed {{ creationSubject(creation.label) }}. Redo brings it back at this address, as it was.</p>
@@ -13,16 +11,31 @@
       (retryRequested)="history.retry()"
     />
   </section>
-} @else if (store.error(); as error) {
-  <section class="project-workspace__notice" aria-labelledby="project-error-heading">
-    <h1 id="project-error-heading" tabindex="-1">Project unavailable</h1>
-    <p data-project-error role="alert">{{ error }}</p>
-    @if (store.missing() && history.retryAvailable()) {
-      <button type="button" data-project-history-retry class="button project-workspace__retry" (click)="history.retry()">
-        Retry
-      </button>
-    }
-  </section>
+} @else if (store.error(); as failure) {
+  <!-- Before loading: Try again keeps the failure on screen, busy, until the read answers. -->
+  @if (store.missing()) {
+    <section class="project-workspace__notice" aria-labelledby="project-error-heading">
+      <h1 id="project-error-heading" tabindex="-1">Project unavailable</h1>
+      <app-failure-message data-project-error [failure]="failure" live="alert" />
+      @if (history.retryAvailable()) {
+        <button type="button" data-project-history-retry class="button project-workspace__retry" (click)="history.retry()">
+          Retry
+        </button>
+      }
+    </section>
+  } @else {
+    <app-failure-message
+      data-project-error
+      class="project-workspace__failure"
+      [failure]="failure"
+      live="alert"
+      recovery="try-again"
+      [pending]="store.loading()"
+      (retry)="store.retry()"
+    />
+  }
+} @else if (store.loading()) {
+  <p data-project-loading class="project-workspace__muted">Loading project…</p>
 } @else if (store.project(); as project) {
   <div class="project-workspace" [class.project-workspace--drawer-open]="drawerCoordinator.open()">
     @if (store.root(); as root) {

@@ -16,6 +16,7 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { GatewayError } from '../../core/gateway/gateway-error';
+import { readFailure, type Failure } from '../../shared/feedback/failure';
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -73,7 +74,11 @@ export class ProjectWorkspaceStore {
   private readonly progressState = signal<ProgressResult | null>(null);
   private readonly loadingState = signal(true);
   private readonly missingState = signal(false);
-  private readonly errorState = signal<string | null>(null);
+  /**
+   * The project read's failure, in the product's words (Slice 78). Kept apart from every write
+   * failure below. Try again keeps it until the read answers, so the button stays on screen, busy.
+   */
+  private readonly errorState = signal<Failure | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly pageWritePendingState = signal(false);
   private readonly pageWriteErrorState = signal<string | null>(null);
@@ -237,13 +242,18 @@ export class ProjectWorkspaceStore {
     const generation = ++this.loadGeneration;
     this.contextWriteEpoch += 1;
     const current = () => generation === this.loadGeneration;
+    const sameProject = this.requestedProjectId === projectId;
     this.requestedProjectId = projectId;
     this.projectRefreshQueued = false;
 
     return this.track(async () => {
       this.loadingState.set(true);
-      this.missingState.set(false);
-      this.errorState.set(null);
+      // A re-read of the same project keeps its failure until it answers; another project's
+      // load must not show this one's.
+      if (!sameProject) {
+        this.missingState.set(false);
+        this.errorState.set(null);
+      }
       // A failed write belongs to the project it was made on; one component instance serves
       // every project, so without this a failed rename follows the user to the next one.
       this.writeErrorState.set(null);
@@ -255,13 +265,14 @@ export class ProjectWorkspaceStore {
         const context = await this.readContext(projectId);
         if (!current()) return;
         this.applyContext(context);
+        this.errorState.set(null);
       } catch (error) {
         if (!current()) return;
         if (error instanceof GatewayError && error.code === 'not_found') this.markMissing(error);
         else {
           this.clearContext();
           this.missingState.set(false);
-          this.errorState.set(messageOf(error));
+          this.errorState.set(readFailure(error, 'this project'));
         }
       } finally {
         if (current()) {
@@ -272,6 +283,12 @@ export class ProjectWorkspaceStore {
         }
       }
     });
+  }
+
+  /** The failed project read's Try again: the same load, which keeps the failure until it answers. */
+  retry(): Promise<void> {
+    const projectId = this.requestedProjectId;
+    return projectId === undefined ? Promise.resolve() : this.load(projectId);
   }
 
   /** Creates named work through the existing project gateway; the new child's history owns it. */
@@ -330,7 +347,7 @@ export class ProjectWorkspaceStore {
   private markMissing(error: unknown): void {
     this.clearContext();
     this.missingState.set(true);
-    this.errorState.set(messageOf(error));
+    this.errorState.set(readFailure(error, 'this project'));
   }
 
   private clearContext(): void {

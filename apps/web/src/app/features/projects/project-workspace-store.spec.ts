@@ -254,9 +254,53 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
 
     await store.load('project-renovation' as ProjectId);
 
-    expect(store.error()).toContain('no such project');
+    expect(store.error()).toEqual({ sentence: 'This project isn’t available.', reason: 'no such project "ghost"' });
     expect(store.project()).toBeNull();
     expect(store.loading()).toBe(false);
+  });
+
+  it('says a failed project read in product words, the reason kept apart (Slice 78, §24)', async () => {
+    const { store } = storeWith({ projects: renovation(), failOn: { 'projects.get': new GatewayError('internal_error', 500, 'disk on fire') } });
+
+    await store.load('project-renovation' as ProjectId);
+
+    expect(store.missing()).toBe(false);
+    expect(store.error()).toEqual({ sentence: 'Couldn’t load this project.', reason: 'disk on fire' });
+  });
+
+  it('keeps the failure on screen while Try again re-reads the same project, then clears it', async () => {
+    const { store, gateway } = storeWith({ projects: renovation(), failOn: { 'projects.get': new GatewayError('internal_error', 500, 'disk on fire') } });
+    await store.load('project-renovation' as ProjectId);
+    gateway.options.failOn = undefined;
+
+    const retry = store.retry();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('Couldn’t load this project.');
+    await retry;
+
+    expect(store.error()).toBeNull();
+    expect(store.project()?.id).toBe('project-renovation');
+  });
+
+  it('a retry that fails again keeps the failure and ends loading', async () => {
+    const { store } = storeWith({ projects: renovation(), failOn: { 'projects.get': new GatewayError('unreachable', 0, 'host stopped') } });
+    await store.load('project-renovation' as ProjectId);
+
+    await store.retry();
+
+    expect(store.loading()).toBe(false);
+    expect(store.error()?.sentence).toBe('Couldn’t reach your workspace, so this project didn’t load.');
+  });
+
+  it('does not carry one project’s failure onto the next project’s load', async () => {
+    const { store, gateway } = storeWith({ projects: renovation(), failOn: { 'projects.get': new GatewayError('internal_error', 500, 'disk on fire') } });
+    await store.load('project-renovation' as ProjectId);
+    gateway.options.failOn = undefined;
+
+    const next = store.load('project-kitchen' as ProjectId);
+    expect(store.error()).toBeNull();
+    await next;
+    expect(store.project()?.id).toBe('project-kitchen');
   });
 
   it('marks not-found loads as missing and clears that state after a successful read', async () => {
@@ -268,7 +312,7 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
 
     expect(store.missing()).toBe(true);
     expect(store.project()).toBeNull();
-    expect(store.error()).toContain('no such project');
+    expect(store.error()).toEqual({ sentence: 'This project isn’t available.', reason: 'no such project' });
     gateway.projects.get = get;
     await store.load('project-renovation' as ProjectId);
     expect(store.missing()).toBe(false);

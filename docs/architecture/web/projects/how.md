@@ -80,7 +80,8 @@ focus, and dismissal falls back to a surviving row control or the heading.
    column's `linkSelected` collapses the column and records the link's URL in the root-scoped
    `ProjectColumnFocusRequest`. An effect honours it once no navigation is in flight, the store
    is not loading and §68 is not redirecting, and only if `Router.url` still equals it: then the
-   toggle — or "Project unavailable" / "Creation undone" — takes focus after the render. A §68
+   toggle — or "Project unavailable" / "Creation undone", or a failed read's Try again — takes
+   focus after the render. A §68
    fallback redirect moves the request to its target; any other winning navigation drops it,
    and the request itself drops on any `NavigationEnd` elsewhere, so leaving for a route with no
    project shell cannot leave it to fire on a later visit
@@ -197,6 +198,13 @@ removed or restored without another history read. An actor without that anchored
 to see *Project unavailable*. If the history summary itself is unavailable, that state offers a
 generic Retry for the summary read; it does not expose an Undo/Redo entry until the read confirms it
 ([decision](../../../decisions/2026-09-project-creation-history.md)).
+
+`ProjectWorkspaceStore.error()` is the project read's `Failure`
+([decision](../../../decisions/2026-10-failures-speak-product-words.md)). Not-found keeps the
+*Project unavailable* heading over "This project isn’t available." Any other failure replaces the
+page with "Couldn’t load this project." and Try again (`retry()`), with the reason under Details.
+A re-read of the same project keeps the failure on screen, its Try again busy, until the read
+answers; loading another project clears it at once.
 
 MarkdownSection is an eager shell with a deferred body and escaped source placeholder.
 `placeholderTextOf` simplifies the placeholder for converted prose: it drops a backslash before

@@ -73,13 +73,16 @@
   color: var(--color-text-muted);
 }
 
+.project-workspace__failure {
+  margin: var(--space-5);
+}
+
 .project-workspace__notice h1 {
   margin: 0 0 var(--space-2);
   font-size: var(--font-size-xl);
 }
 
-.project-workspace__error,
-.project-workspace__notice p {
+.project-workspace__error {
   margin: 0;
   padding: var(--space-3) var(--space-4);
   border: var(--border-hairline) solid var(--color-danger);

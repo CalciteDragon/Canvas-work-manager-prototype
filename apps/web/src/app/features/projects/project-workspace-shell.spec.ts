@@ -500,8 +500,35 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     });
 
     expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-error] [data-failure-sentence]')?.textContent?.trim()).toBe('This project isn’t available.');
     expect(query(harness, '#project-nav-panel')).toBeNull();
     expect(query(harness, '[data-section-canvas]')).toBeNull();
+  });
+
+  it('a project read that fails says so with Try again and Details, not under Project unavailable (Slice 78, §24)', async () => {
+    const { harness, gateway, projectGet } = await open('/projects/project-renovation', {
+      failOn: { 'projects.get': new GatewayError('internal_error', 500, 'disk on fire') },
+    });
+
+    const failure = query(harness, '[data-project-error]');
+    expect(failure?.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load this project.');
+    expect(failure?.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(failure?.querySelector('details')?.open).toBe(false);
+    expect(failure?.querySelector('details')?.textContent).toContain('disk on fire');
+    expect(query(harness, '#project-error-heading')).toBeNull();
+    expect(harness.fixture.nativeElement.textContent).not.toContain('Project unavailable');
+
+    gateway.options.failOn = undefined;
+    const reads = projectGet.mock.calls.length;
+    (failure?.querySelector('[data-recovery="try-again"]') as HTMLButtonElement).click();
+    harness.fixture.detectChanges();
+    expect(query(harness, '[data-project-error] [data-recovery]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(query(harness, '[data-project-loading]')).toBeNull();
+    await settle(harness);
+
+    expect(projectGet.mock.calls.length).toBe(reads + 1);
+    expect(query(harness, '[data-project-error]')).toBeNull();
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Home renovation');
   });
 });
 
@@ -999,7 +1026,7 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
       expectCollapsedWithToggleFocused(harness);
     });
 
-    it('on the heading, when the chosen project turns out to be unavailable', async () => {
+    it('on Try again, when the chosen project turns out to be unreadable', async () => {
       media = stubMatchMedia(true);
       const { harness, gateway, projectGet } = await openNarrow('/projects/project-renovation');
       interceptGet(gateway, projectGet, 'project-garden', () =>
@@ -1009,7 +1036,7 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
       await settle(harness);
 
       expect(query(harness, '[data-project-error]')).not.toBeNull();
-      expect(document.activeElement).toBe(query(harness, '#project-error-heading'));
+      expect(document.activeElement).toBe(query(harness, '[data-project-error] [data-recovery="try-again"]'));
     });
 
     it('on the heading, when the chosen project’s creation was undone', async () => {
