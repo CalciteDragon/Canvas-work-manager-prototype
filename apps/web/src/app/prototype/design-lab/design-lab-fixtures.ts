@@ -14,6 +14,8 @@ import {
   type Task,
 } from '@cwm/contracts';
 import type { ProjectTreeNode } from '../../core/shell/shell-store';
+import type { Failure } from '../../shared/feedback/failure';
+import { FailureMessage } from '../../shared/feedback/failure-message';
 import type { SectionDefinition } from '../../features/projects/sections/registry';
 
 /**
@@ -157,6 +159,7 @@ export type StubSectionState = 'content' | 'empty' | 'loading' | 'error';
 @Component({
   selector: 'app-design-lab-stub-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FailureMessage],
   styles: `
     .stub {
       display: grid;
@@ -177,7 +180,7 @@ export type StubSectionState = 'content' | 'empty' | 'loading' | 'error';
           <p>Loading…</p>
         }
         @case ('error') {
-          <p role="alert">The prototype host is not running.</p>
+          <app-failure-message [failure]="failure" live="alert" recovery="try-again" />
         }
         @default {
           <p class="stub__body">Real content sits here in a real section.</p>
@@ -194,6 +197,7 @@ export class StubSectionContent {
   readonly projectHierarchyRevision = input(0);
   readonly readOnly = input(false);
   readonly sourceLink = input(null);
+  protected readonly failure: Failure = { sentence: 'Couldn’t load this section.', reason: 'the prototype host is not running' };
 
   protected state(): StubSectionState {
     const config = this.section().config as { state?: StubSectionState };

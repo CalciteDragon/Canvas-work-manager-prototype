@@ -51,7 +51,7 @@ describe('DesignLabPage (§22, §67)', () => {
       'cards',
       'project-cards',
       'menus',
-      'states',
+      'state-messages',
       'controls',
       'planes',
     ]);
@@ -79,7 +79,7 @@ describe('DesignLabPage (§22, §67)', () => {
     const { element } = await render();
 
     const badge = (name: string) => element.querySelector(`[data-panel="${name}"] .panel__badge`)?.textContent ?? '';
-    for (const name of ['buttons', 'inputs', 'controls', 'object-rows']) {
+    for (const name of ['buttons', 'inputs', 'controls', 'object-rows', 'state-messages']) {
       expect(badge(name), name).toContain('shared');
       expect(badge(name), name).not.toContain('not yet');
     }
@@ -87,12 +87,37 @@ describe('DesignLabPage (§22, §67)', () => {
     expect(element.querySelector('[data-panel="inputs"] input.field')).not.toBeNull();
     expect(element.querySelector('[data-panel="inputs"] select.select')).not.toBeNull();
     expect(element.querySelector('.lab-button, .lab-input')).toBeNull();
-    for (const name of ['cards', 'project-cards', 'menus', 'states']) {
+    for (const name of ['cards', 'project-cards', 'menus']) {
       expect(badge(name), name).toContain('not yet a shared component');
     }
     for (const panel of element.querySelectorAll('[data-panel-kind="live"]')) {
       expect(panel.querySelector('.panel__badge')?.textContent).toContain('live component');
     }
+  });
+
+  // Slice 78: the state specimens are the shared FailureMessage and `.state-message` pattern.
+  it('shows loading and failure specimens through the shared state message, reasons under Details', async () => {
+    const { element } = await render();
+
+    const panel = element.querySelector<HTMLElement>('[data-panel="state-messages"]')!;
+    expect(panel.textContent).toContain('No projects yet');
+    const loading = panel.querySelector<HTMLElement>('.state-message--loading')!;
+    expect(loading.getAttribute('aria-busy')).toBe('true');
+    expect(loading.textContent).toContain('Loading projects…');
+    const failures = [...panel.querySelectorAll<HTMLElement>('app-failure-message')];
+    expect(failures.map(failure => failure.classList.contains('state-message--inline') ? 'inline' : 'region')).toEqual(['region', 'region', 'inline']);
+    for (const failure of failures) {
+      const sentence = failure.querySelector<HTMLElement>('[data-failure-sentence]')!;
+      const details = failure.querySelector<HTMLDetailsElement>('details')!;
+      expect(details.open).toBe(false);
+      expect(sentence.textContent).not.toContain(details.querySelector('p')!.textContent!);
+    }
+    expect(failures[1]!.querySelector('[data-failure-sentence]')!.getAttribute('role')).toBe('status');
+    expect(panel.querySelector('.lab-state--error')).toBeNull();
+
+    const stub = element.querySelector<HTMLElement>('[data-panel="section-states"] [data-stub-state="error"]')!;
+    expect(stub.querySelector('app-failure-message [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load this section.');
+    expect(stub.querySelector('details')?.textContent).toContain('the prototype host is not running');
   });
 
   it('writes a moved control through to the document element', async () => {

@@ -129,11 +129,13 @@
   </div>
 </section>
 
-<section class="panel" data-panel="states" data-panel-kind="primitive">
-  <h3 class="panel__title">Empty, loading and error <span class="panel__badge">not yet a shared component</span></h3>
-  <div class="panel__body panel__body--row">
+<section class="panel" data-panel="state-messages" data-panel-kind="primitive">
+  <h3 class="panel__title">Empty, loading and failed <span class="panel__badge">shared</span></h3>
+  <div class="panel__body panel__body--stack">
     <p class="lab-state">No projects yet</p>
-    <p class="lab-state">Loading project…</p>
-    <p class="lab-state lab-state--error" role="alert">The prototype host is not running.</p>
+    <p class="state-message state-message--loading" aria-busy="true">Loading projects…</p>
+    <app-failure-message [failure]="readFailure" live="alert" recovery="try-again" />
+    <app-failure-message [failure]="staleFailure" live="status" recovery="try-again" />
+    <app-failure-message [failure]="writeFailure" weight="inline" />
   </div>
 </section>
