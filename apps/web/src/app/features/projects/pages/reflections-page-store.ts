@@ -12,8 +12,13 @@ import { isProjectRecordEvent } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { readFailure, type Failure } from '../../../shared/feedback/failure';
 
+// The writes' raw text stays until Stage 4 gives them Details (Slice 78).
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+/** A failed re-read over a journal still on screen: polite, never "Couldn’t load" (Slice 78). */
+const staleFailure = (error: unknown): Failure => ({ ...readFailure(error, 'this journal'), sentence: 'This journal may be out of date.' });
+const SAVED_UNREFRESHED = 'Saved, but this journal couldn’t refresh.';
 
 interface ActiveRead {
   generation: number;
@@ -40,10 +45,13 @@ export class ReflectionsPageStore {
   private readonly journalLoadingState = signal(true);
   private readonly pickerLoadingState = signal(true);
   private readonly containerLoadingState = signal(true);
-  private readonly journalErrorState = signal<string | null>(null);
-  private readonly pickerErrorState = signal<string | null>(null);
-  private readonly containerErrorState = signal<string | null>(null);
-  private readonly refreshErrorState = signal<string | null>(null);
+  private readonly journalErrorState = signal<Failure | null>(null);
+  private readonly pickerErrorState = signal<Failure | null>(null);
+  private readonly containerErrorState = signal<Failure | null>(null);
+  private readonly refreshErrorState = signal<Failure | null>(null);
+  private readonly savedUnrefreshedState = signal<Failure | null>(null);
+  private readonly refreshPendingState = signal(false);
+  private readonly addContainerErrorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly creatingContainerState = signal(false);
   private readonly writingState = signal(false);
@@ -74,7 +82,14 @@ export class ReflectionsPageStore {
   readonly pickerError = this.pickerErrorState.asReadonly();
   readonly containerError = this.containerErrorState.asReadonly();
   readonly error = this.journalError;
+  /** A quiet re-read failed over content on screen: the polite stale notice (Slice 78). */
   readonly refreshError = this.refreshErrorState.asReadonly();
+  /** A save committed but the journal's re-read failed. Outranks the stale notice; offers Retry refresh. */
+  readonly savedUnrefreshed = this.savedUnrefreshedState.asReadonly();
+  /** True while `retryRefresh` runs: its button is busy. */
+  readonly refreshPending = this.refreshPendingState.asReadonly();
+  /** The explicit container add failed: a write, kept apart from the container read (§19). */
+  readonly addContainerError = this.addContainerErrorState.asReadonly();
   readonly writeError = this.writeErrorState.asReadonly();
   readonly creatingContainer = this.creatingContainerState.asReadonly();
 
@@ -107,10 +122,16 @@ export class ReflectionsPageStore {
     this.journalQueued = false;
     this.candidatesQueued = false;
     this.containerQueued = false;
-    this.journalErrorState.set(null);
-    this.pickerErrorState.set(null);
-    this.containerErrorState.set(null);
+    // A re-read of the same page keeps its read failures on screen until they answer (Slice 78).
+    if (changed) {
+      this.journalErrorState.set(null);
+      this.pickerErrorState.set(null);
+      this.containerErrorState.set(null);
+    }
     this.refreshErrorState.set(null);
+    this.savedUnrefreshedState.set(null);
+    this.refreshPendingState.set(false);
+    this.addContainerErrorState.set(null);
     this.writeErrorState.set(null);
     this.journalLoadingState.set(true);
     this.pickerLoadingState.set(true);
@@ -127,9 +148,17 @@ export class ReflectionsPageStore {
     return projectId === null ? Promise.resolve(false) : this.readJournal(this.generation, projectId, false);
   }
 
-  retryRefresh(): Promise<boolean> {
+  /** The stale notice's Try again and the saved state's Retry refresh: a quiet journal read. */
+  async retryRefresh(): Promise<boolean> {
     const projectId = this.projectIdState();
-    return projectId === null ? Promise.resolve(false) : this.readJournal(this.generation, projectId, true);
+    if (projectId === null || this.refreshPendingState()) return false;
+    const generation = this.generation;
+    this.refreshPendingState.set(true);
+    try {
+      return await this.readJournal(generation, projectId, true);
+    } finally {
+      if (generation === this.generation) this.refreshPendingState.set(false);
+    }
   }
 
   retryCompletedWork(): Promise<boolean> {
@@ -152,7 +181,7 @@ export class ReflectionsPageStore {
     if (this.creatingContainerState() || this.writingGeneration !== null) return false;
     const generation = this.generation;
     this.creatingContainerState.set(true);
-    this.containerErrorState.set(null);
+    this.addContainerErrorState.set(null);
     this.beginWrite(generation);
     try {
       const result = await this.track(() => reportedWrite(
@@ -165,7 +194,7 @@ export class ReflectionsPageStore {
       this.containerCountState.set(1);
       return true;
     } catch (error) {
-      if (this.current(generation, projectId, pageId)) this.containerErrorState.set(messageOf(error));
+      if (this.current(generation, projectId, pageId)) this.addContainerErrorState.set(messageOf(error));
       return false;
     } finally {
       this.endWrite(generation, projectId, pageId);
@@ -223,8 +252,16 @@ export class ReflectionsPageStore {
     if (!committed || !this.current(generation, projectId, this.pageIdState())) return false;
     const refreshed = await this.readJournal(generation, projectId, true);
     if (!this.currentProject(generation, projectId)) return false;
-    if (!refreshed) this.refreshErrorState.set('Reflection saved, but the journal could not refresh. Try again.');
+    if (!refreshed) {
+      this.savedUnrefreshedState.set({ sentence: SAVED_UNREFRESHED, reason: this.refreshErrorState()?.reason ?? null });
+      this.refreshErrorState.set(null);
+    }
     return true;
+  }
+
+  /** A held saved-unrefreshed state outranks stale: a later failed quiet read leaves it as it is. */
+  private setStale(error: unknown): void {
+    if (this.savedUnrefreshedState() === null) this.refreshErrorState.set(staleFailure(error));
   }
 
   private async readJournal(generation: number, projectId: ProjectId, quiet: boolean): Promise<boolean> {
@@ -252,12 +289,13 @@ export class ReflectionsPageStore {
         }
         this.journalState.set(result);
         this.journalErrorState.set(null);
+        this.savedUnrefreshedState.set(null);
         if (quiet) this.refreshErrorState.set(null);
         return true;
       } catch (error) {
         if (!this.currentProject(generation, projectId)) return false;
-        if (quiet) this.refreshErrorState.set(messageOf(error));
-        else this.journalErrorState.set(messageOf(error));
+        if (quiet) this.setStale(error);
+        else this.journalErrorState.set(readFailure(error, 'this journal'));
         return false;
       } finally {
         if (!quiet && this.currentProject(generation, projectId)) this.journalLoadingState.set(false);
@@ -307,8 +345,8 @@ export class ReflectionsPageStore {
         return true;
       } catch (error) {
         if (!this.currentProject(generation, projectId)) return false;
-        if (quiet) this.refreshErrorState.set(messageOf(error));
-        else this.pickerErrorState.set(messageOf(error));
+        if (quiet) this.setStale(error);
+        else this.pickerErrorState.set(readFailure(error, 'completed work'));
         return false;
       } finally {
         if (!quiet && this.currentProject(generation, projectId)) this.pickerLoadingState.set(false);
@@ -367,8 +405,8 @@ export class ReflectionsPageStore {
         return true;
       } catch (error) {
         if (!this.current(generation, projectId, pageId)) return false;
-        if (quiet) this.refreshErrorState.set(messageOf(error));
-        else this.containerErrorState.set(messageOf(error));
+        if (quiet) this.setStale(error);
+        else this.containerErrorState.set(readFailure(error, 'this page’s Reflections container'));
         return false;
       } finally {
         if (!quiet && this.current(generation, projectId, pageId)) this.containerLoadingState.set(false);

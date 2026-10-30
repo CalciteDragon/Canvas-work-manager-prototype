@@ -13,6 +13,7 @@ import {
   type OperationReceipt,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
+import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
@@ -180,6 +181,39 @@ describe('ReflectionsPage (§36)', () => {
     expect(title.value).toBe('');
     expect(body.value).toBe('');
     expect(onData).toHaveBeenCalledOnce();
+  });
+
+  it('says a committed save whose refresh failed with Retry refresh, inside the mounted status region (Slice 78)', async () => {
+    const { fixture, gateway } = await render();
+    gateway.journal.get = vi.fn().mockRejectedValueOnce(new GatewayError('unreachable', 0, 'refresh offline')).mockResolvedValue(journal);
+    (query(fixture, '[data-reflection-body]') as HTMLTextAreaElement).value = 'A note';
+    query(fixture, '[data-reflection-create]')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const status = query(fixture, '[data-reflections-status]')!;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(status.querySelector('[data-reflections-saved-unrefreshed] [data-failure-sentence]')?.textContent?.trim()).toBe('Saved, but this journal couldn’t refresh.');
+    expect(status.querySelector('[data-reflections-refresh-error]')).toBeNull();
+    status.querySelector<HTMLButtonElement>('[data-recovery="retry-refresh"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-reflections-saved-unrefreshed]')).toBeNull();
+  });
+
+  it('shows a failed journal read with Try again in place of the empty sentence (Slice 78)', async () => {
+    const { fixture, gateway } = await render();
+    gateway.journal.get = vi.fn().mockRejectedValueOnce(new GatewayError('internal_error', 500, 'journal broke')).mockResolvedValue(journal);
+    await fixture.componentInstance.store.load(PROJECT, PAGE);
+    fixture.detectChanges();
+    expect(query(fixture, '[data-reflections-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load this journal.');
+    expect(query(fixture, '[data-reflections-empty]')).toBeNull();
+
+    query(fixture, '[data-reflections-error] [data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-reflections-error]')).toBeNull();
+    expect(query(fixture, '[data-reflections-entry]')).not.toBeNull();
   });
 
   it('keeps the ordinary empty feed distinct and can add its missing page container', async () => {

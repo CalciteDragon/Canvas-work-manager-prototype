@@ -149,11 +149,15 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     };
 
     expect(await store.load(PROJECT, PAGE)).toBeUndefined();
-    expect(store.journalError()).toContain('journal offline');
+    expect(store.journalError()).toEqual({ sentence: 'Couldn’t reach your workspace, so this journal didn’t load.', reason: 'journal offline' });
     expect(store.candidates()).toHaveLength(1);
 
     gateway.journal.get = async () => journal;
-    expect(await store.retryJournal()).toBe(true);
+    // Slice 78: Try again keeps the failure on screen, busy, until the read answers.
+    const retrying = store.retryJournal();
+    expect(store.journalLoading()).toBe(true);
+    expect(store.journalError()?.reason).toBe('journal offline');
+    expect(await retrying).toBe(true);
     expect(store.journalError()).toBeNull();
   });
 
@@ -165,7 +169,7 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
 
     await store.load(PROJECT, PAGE);
 
-    expect(store.pickerError()).toContain('picker offline');
+    expect(store.pickerError()).toEqual({ sentence: 'Couldn’t reach your workspace, so completed work didn’t load.', reason: 'picker offline' });
     expect(store.items()).toHaveLength(1);
     const before = gateway.calls.filter(({ method }) => method === 'journal.get').length;
     gateway.journal.completedWork = async () => completedWork;
@@ -219,10 +223,16 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     gateway.journal.get = vi.fn().mockRejectedValueOnce(new GatewayError('unreachable', 0, 'refresh offline')).mockResolvedValueOnce(journal);
 
     expect(await store.create('A saved note')).toBe(true);
-    expect(store.refreshError()).toContain('journal could not refresh');
+    // Slice 78: the committed write is said apart from the stale notice, and outranks it.
+    expect(store.savedUnrefreshed()).toEqual({ sentence: 'Saved, but this journal couldn’t refresh.', reason: 'refresh offline' });
+    expect(store.refreshError()).toBeNull();
     expect(gateway.calls.filter(({ method }) => method === 'reflections.create')).toHaveLength(1);
 
-    expect(await store.retryRefresh()).toBe(true);
+    const retrying = store.retryRefresh();
+    expect(store.refreshPending()).toBe(true);
+    expect(await retrying).toBe(true);
+    expect(store.refreshPending()).toBe(false);
+    expect(store.savedUnrefreshed()).toBeNull();
     expect(store.refreshError()).toBeNull();
     expect(gateway.calls.filter(({ method }) => method === 'reflections.create')).toHaveLength(1);
   });
@@ -268,7 +278,36 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
 
     expect(await store.ensureContainer()).toBe(false);
     expect(store.container()).toBeNull();
-    expect(store.containerError()).toContain('could not add');
+    // Slice 78: the add is a write, kept apart from the container read's failure (§19).
+    expect(store.addContainerError()).toContain('could not add');
+    expect(store.containerError()).toBeNull();
+  });
+
+  it('keeps a saved-but-unrefreshed state through a later failed quiet read, never turning it stale (Slice 78)', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    gateway.journal.get = vi.fn().mockRejectedValue(new GatewayError('unreachable', 0, 'refresh offline'));
+    expect(await store.create('A saved note')).toBe(true);
+
+    live.emit({ type: 'reflection.added', entityType: 'reflection', entityId: 'reflection-other', projectId: PROJECT });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(store.savedUnrefreshed()?.sentence).toBe('Saved, but this journal couldn’t refresh.');
+    expect(store.refreshError()).toBeNull();
+  });
+
+  it('says a failed quiet read over the journal politely, and its Try again stays quiet (Slice 78)', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    gateway.journal.get = vi.fn().mockRejectedValue(new GatewayError('unreachable', 0, 'refresh offline'));
+    live.emit({ type: 'reflection.added', entityType: 'reflection', entityId: 'reflection-other', projectId: PROJECT });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.refreshError()).toEqual({ sentence: 'This journal may be out of date.', reason: 'refresh offline' });
+
+    expect(await store.retryRefresh()).toBe(false);
+    expect(store.refreshError()?.sentence).toBe('This journal may be out of date.');
+    expect(store.journalLoading()).toBe(false);
+    expect(store.items()).toHaveLength(1);
   });
 
   it('refreshes all three projections after a matching live event', async () => {

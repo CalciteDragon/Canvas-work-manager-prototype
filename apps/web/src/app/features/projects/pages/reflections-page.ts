@@ -7,6 +7,7 @@ import type {
   ProjectJournalEntry,
   ReflectionSubjectView,
 } from '@cwm/contracts';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { ReflectionComposer, type ReflectionDraft } from '../sections/reflections/reflection-composer';
 import { ReflectionsPageStore } from './reflections-page-store';
 import type { ProjectPageRenderer } from '../project-page-contract';
@@ -17,7 +18,7 @@ const statusLabel = (status: string): string => status.replace('_', ' ').replace
 @Component({
   selector: 'app-reflections-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReflectionComposer, RouterLink],
+  imports: [ReflectionComposer, RouterLink, FailureMessage],
   providers: [ReflectionsPageStore],
   templateUrl: './reflections-page.html',
   styleUrl: './reflections-page.scss',

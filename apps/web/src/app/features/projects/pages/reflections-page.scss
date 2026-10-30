@@ -47,22 +47,15 @@
 
 .reflections-page__description,
 .reflections-page__muted,
-.reflections-page__notice,
 .reflections-page__error {
   margin: var(--space-2) 0 0;
-  color: var(--color-text-muted);
+  color: var(--color-danger);
   font-size: var(--font-size-sm);
 }
 
-.reflections-page__error {
-  color: var(--color-danger);
-}
-
-.reflections-page__notice {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
+// Kept mounted so a notice is announced, but out of the grid's gaps while empty.
+.reflections-page__status:empty {
+  position: absolute;
 }
 
 .reflections-page__count {

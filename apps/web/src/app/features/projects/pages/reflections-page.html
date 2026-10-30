@@ -12,12 +12,15 @@
     }
   </header>
 
-  @if (store.refreshError(); as error) {
-    <p data-reflections-refresh-error class="reflections-page__notice" role="status">
-      This journal may be out of date — {{ error }}
-    </p>
-    <button data-reflections-refresh-retry type="button" class="button button--sm" (click)="store.retryRefresh()">Retry journal read</button>
-  }
+  <!-- Mounted always, so a notice arriving later is announced politely. A committed save that
+     could not refresh outranks the stale notice (Slice 78's label rule). -->
+  <div data-reflections-status class="reflections-page__status" role="status">
+    @if (store.savedUnrefreshed(); as saved) {
+      <app-failure-message data-reflections-saved-unrefreshed [failure]="saved" recovery="retry-refresh" [pending]="store.refreshPending()" (retry)="store.retryRefresh()" />
+    } @else if (store.refreshError(); as stale) {
+      <app-failure-message data-reflections-refresh-error [failure]="stale" recovery="try-again" [pending]="store.refreshPending()" (retry)="store.retryRefresh()" />
+    }
+  </div>
 
   <section data-reflections-composer-region class="reflections-page__region" aria-labelledby="reflections-compose-title">
     <div class="reflections-page__region-heading">
@@ -32,11 +35,10 @@
       }
     </div>
 
-    @if (store.containerLoading()) {
+    @if (store.containerError(); as failure) {
+      <app-failure-message data-reflections-container-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.containerLoading()" (retry)="store.retryContainer()" />
+    } @else if (store.containerLoading()) {
       <p data-reflections-container-loading class="reflections-page__muted">Loading the Reflections container…</p>
-    } @else if (store.containerError(); as error) {
-      <p data-reflections-container-error class="reflections-page__error" role="alert">{{ error }}</p>
-      <button data-reflections-container-retry type="button" class="button button--sm" (click)="store.retryContainer()">Try again</button>
     } @else if (store.container(); as container) {
       <app-reflection-composer
         [readOnly]="pageWritesBlocked()"
@@ -53,6 +55,9 @@
         <button data-reflections-add-container type="button" class="button button--primary" (click)="addContainer()" [disabled]="store.creatingContainer()">
           {{ store.creatingContainer() ? 'Adding…' : 'Add reflections container' }}
         </button>
+        @if (store.addContainerError(); as message) {
+          <p data-reflections-add-container-error class="reflections-page__error" role="alert">{{ message }}</p>
+        }
       }
     }
   </section>
@@ -62,11 +67,10 @@
       <h3 id="reflections-picker-title">About completed work</h3>
       <span class="reflections-page__muted">Optional</span>
     </div>
-    @if (store.pickerLoading()) {
+    @if (store.pickerError(); as failure) {
+      <app-failure-message data-reflections-picker-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.pickerLoading()" (retry)="store.retryCompletedWork()" />
+    } @else if (store.pickerLoading()) {
       <p data-reflections-picker-loading class="reflections-page__muted">Loading completed work…</p>
-    } @else if (store.pickerError(); as error) {
-      <p data-reflections-picker-error class="reflections-page__error" role="alert">{{ error }}</p>
-      <button data-reflections-picker-retry type="button" class="button button--sm" (click)="store.retryCompletedWork()">Try again</button>
     } @else {
       <label class="control-label" for="reflections-subject-picker">Subject</label>
       <select id="reflections-subject-picker" class="select" data-reflections-subject-picker [value]="selectedSubject() ? subjectValue(selectedSubject()!) : ''" (change)="selectSubject($any($event.target).value)">
@@ -86,11 +90,10 @@
       <h3 id="reflections-feed-title">Journal</h3>
       <span class="reflections-page__muted">Newest first</span>
     </div>
-    @if (store.journalLoading()) {
+    @if (store.journalError(); as failure) {
+      <app-failure-message data-reflections-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.journalLoading()" (retry)="store.retryJournal()" />
+    } @else if (store.journalLoading()) {
       <p data-reflections-loading class="reflections-page__muted">Loading reflections…</p>
-    } @else if (store.journalError(); as error) {
-      <p data-reflections-error class="reflections-page__error" role="alert">{{ error }}</p>
-      <button data-reflections-retry type="button" class="button button--sm" (click)="store.retryJournal()">Try again</button>
     } @else if (store.items().length === 0) {
       <p data-reflections-empty class="reflections-page__muted">No reflections yet.</p>
     } @else {
