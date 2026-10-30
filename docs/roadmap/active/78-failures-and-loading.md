@@ -3,8 +3,65 @@
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
 rounds and accepted by the user on 2026-10-29. **Stages 0–3 are done; Stage 4 parts a (write
-failures' Details), b (dialogs, Markdown) and c (progress fact, not-found) are done. Stage 4's
-next part is the pinned-failure registry/directive/slot, tests first, then its wiring.**
+failures' Details), b (dialogs, Markdown), c (progress fact, not-found) and d (the pinned-failure
+registry, directive and slot, unwired) are done. Stage 4's next part (e) wires the directive.**
+
+- Stage 4, part d (`c5b0deb`, `eda2494`, `6ff8e28`, `5c5daf5`, docs `93cf6f3`, review fixes
+  `e6695b8`), reviewed once by a subagent against the diff. Two substantive findings were fixed:
+  an observer that never fires when a jump crosses nothing, and a toast measured mid-transition.
+  One minor finding (renaming re-armed a pin) was fixed and two tests were added. Three minor
+  findings were left: see "Left" below.
+  - **What exists**, in `shared/feedback/`:
+    - `PinnedFailures` (`pinned-failures.ts`), the root registry. `register(port, { subject,
+      sentence, reveal })` returns `{ place(edge | null), unregister() }`, and `place` does nothing
+      once the registration is unregistered. `pinsFor(port)` gives `{ top, bottom }`: the most
+      recent occurrence on each edge, its `sentence` with a closing " Try again." stripped, and a
+      `more` count. It also has `reveal(id)`, `dismiss(id)` (that occurrence only), and
+      `clearanceOf` / `setClearance` per port. `scrollPortOf(element)` returns the nearest
+      scrolling ancestor.
+    - `PinnedFailureDirective`, selector `[appPinnedFailure]`. **API:** `[appPinnedFailure]="failure"`
+      takes a `Failure | null`, and a new object is a new occurrence that re-arms a dismissed pin.
+      `[pinnedFailureSubject]` is the “X” in "Show “X”: …". `pinnedFailureSentence` is the **id**
+      of the sentence element inside the host, the `FailureMessage`'s `sentenceId`. The directive
+      goes on the reference, the row or frame. It watches the sentence (falling back silently to the
+      host if that id is not found inside it) with an `IntersectionObserver` on the port, shrunk by
+      the clearance. While pinned, it also re-sides the pin on scroll. Subject and id are read
+      untracked: only the failure object re-registers. On a press, it brings the sentence into the
+      clear port (8 px in) and focuses the element **inside the host** whose `aria-describedby`
+      names that id, with `preventScroll`. If that element is disabled, `aria-disabled` or inert,
+      it focuses the sentence instead, or the host if the sentence is gone, adding
+      `tabindex="-1"`. A reference that has left the document is unregistered.
+    - `PinnedFailureSlot` (`app-pinned-failure-slot`), rendered by `app-shell.html` inside
+      `main.workspace`. It draws `[data-failure-pin-region="top|bottom"]`, containing the press button
+      `[data-failure-pin="top|bottom"]` ("↓ sentence", "and N more"; aria-label "Show “X”: sentence[ And N
+      more.]") and the close button `[data-failure-pin-dismiss="top|bottom"]` ("Dismiss “X”").
+      It is fixed to the measured clear port and centred on `--toast-track` (anchor positioning,
+      with a port-rect fallback). The top clearance is any `[data-pin-clearance]` element (exported
+      as `PIN_CLEARANCE_ATTRIBUTE`) whose top is at the port's top. The bottom clearance is any
+      `[data-toast-open]`. It re-measures on scroll, resize, the port's ResizeObserver,
+      `data-toast-open` mutations, a `[data-toast]` `transitionend`, and pins changing. A focused
+      pin that goes hands focus to the other pin or the port, with `preventScroll`, unless focus
+      already moved elsewhere.
+    - Stories: `Shared/Feedback/Pinned failure` (PinnedBelow, PressReveals, Dismissed). Their
+      behaviour was checked in Chromium from a static Storybook build at 1440 and 375: the pin is
+      inside the port at the bottom, a press focuses the checkbox, and Dismiss keeps `scrollTop`.
+  - **S4E must wire:**
+    - (1) `[appPinnedFailure]` + subject + sentence id on the TaskRow (the canvas Task List and
+      Todos); the canonical section frame and the shortcut frame collapse failures; and the Task
+      List's drag-receive write banner (on the frame, with the banner's sentence id).
+    - (2) Each failure's control must carry `aria-describedby` = that sentence id inside the same
+      host, or the press falls back to focusing the sentence. Check the collapse buttons.
+    - (3) Put `data-pin-clearance` on the sticky quick-add (`.quick-create`,
+      `task-list-section.html`).
+    - (4) Read banners, page-level failures and restore rows do **not** register.
+    - (5) Amend `docs/decisions/2026-10-feedback-stays-on-the-object.md` (the pinned edge), as the
+      change list says. This is left until the behaviour is live, per "no aspirational docs".
+    - (6) `pinPress` in `states-verification.ts` clicks `[data-failure-pin]`, which is the press
+      button, as built.
+  - **Left:** a closing toast drops its clearance at once while it fades. The ResizeObserver does
+    not watch `[data-pin-clearance]` elements, which matters if a stuck quick-add changes height
+    without a scroll (S4E may add it). There is no dev warning when the sentence id is not found.
+    `pnpm test` and `pnpm lint` are green. Bundle 1.13 MB initial, under 1,150 kB.
 
 - Stage 4, part c (`cc7f3c1`, `c245227`, review fixes `ee91cf0`), reviewed once by a subagent
   against the diff (no substantive findings; three minor ones fixed, two kept, below).
@@ -302,8 +359,8 @@ next part is the pinned-failure registry/directive/slot, tests first, then its w
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 4 (`## Implementation sequence` step 4): the pinned-failure registry/directive/slot
-tests and wiring (the progress fact and not-found are done, part c above).
+**Next:** Stage 4 (`## Implementation sequence` step 4), part e: wire `appPinnedFailure` as listed
+under part d's "S4E must wire" above. The registry, directive and slot are done.
 The raw write slots left by parts a–d are listed in their entries above.
 
 **Traps found in Stage 0:**
