@@ -3,7 +3,39 @@
 
 **State (2026-10-29):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
 rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done; Stage 3 is under
-way: shell and dashboard are done.**
+way: shell, dashboard, workspace, and page and canvas are done.**
+
+- Stage 3, part b (`73d79c3`, `f4f667b`, `7093c77`), reviewed once by a subagent against the diff
+  (no substantive findings; the minor ones were fixed, or are noted below):
+  - **Workspace.** `ProjectWorkspaceStore.error()` is a `Failure` (subject `this project`), with
+    `retry()`. A `load()` of the *same* project keeps `error` and `missing` until it answers;
+    another project's load clears them at once. The shell's branches are now creation recovery >
+    failure > loading > project. A non-`not_found` failure is a region `FailureMessage`
+    (`data-project-error`, `live="alert"`, Try again busy on `store.loading()`) with no heading;
+    the narrow-column focus falls back to its Try again. **Interim until Stage 4:** `not_found`
+    keeps the "Project unavailable" heading and history Retry, over a `FailureMessage` saying
+    "This project isn’t available." **with** the reason under Details, so the e2e `toContainText('not
+    found')` assertions (`web.spec.ts:361`, `project-creation-history.spec.ts:124,140`,
+    `project-history.spec.ts:526`) and `todos.spec.ts:108`'s heading still pass. Stage 4's
+    `UnavailablePage` drops the Details and changes those assertions. `.project-workspace__notice p`
+    is deleted; `.project-workspace__error` still styles the page-resolution line (Stage 4).
+  - **Page and canvas.** `ProjectPageStore.error()` is the sections read's `Failure` (subject
+    `this page`: "Couldn’t load this page."), with `retry()`, kept the same way per page. The
+    shortcuts read has its own `shortcutsError()` ("Couldn’t load all of this page’s sections, so
+    adding and moving are paused.", reason kept) with `retryShortcuts()`/`shortcutsRetryPending()`,
+    generation-guarded and reset by `load()`. `sectionError` now holds writes only (still raw
+    strings: Stage 4). The canvas renders `data-shortcuts-error` (hidden while `error()` is set,
+    so one message) and `data-canvas-error`; `data-placement-order-incomplete` is deleted;
+    "Loading canvas…" is `state-message state-message--loading` with `aria-busy="true"`.
+    `mutateWithResult`'s order-incomplete refusal returns the shortcuts sentence for now; Stage 4's
+    `CanvasWriteResult` `Failure` replaces it.
+  - **Carried items done.** `FailedSectionRemoval` carries `failure: Failure`, sentence "Couldn’t
+    remove the {name} section. Try again."; `sectionRemoveFailedFeedback(failure)` gives the
+    sentence and `detail`; the canvas toast binds `[detail]`. The test-plan row "its `detail`
+    reaches the toast" is now met (`project-canvas.spec.ts`, the failed-removal toast case).
+  - Known minor gap: `retryShortcuts()` while a section write is pending only queues the read, so
+    its busy state ends before the queued read lands.
+  - `docs/architecture/web/projects/how.md` says what is true.
 
 - Stage 3, part a (`b84072d`, `50e502c`, plus the review-fix commit after them), reviewed once by
   a subagent against the diff (no substantive findings; the minor ones were fixed):
@@ -50,7 +82,7 @@ way: shell and dashboard are done.**
     case uses `FailureMessage`.
   - The dead `.archived-region__error` is deleted. The web, core and prototype-tooling docs say
     what is true.
-- **Moved from Stage 2 to Stage 3** (each needs its consumer's migration first; the `null`-digest
+- **Moved from Stage 2 to Stage 3** (done in part b; each needed its consumer's migration first; the `null`-digest
   dashboard, fixture and specimen are done in part a):
   - `history-feedback`'s `sectionRemoveFailedFeedback` sentence and `detail`;
   - binding `[detail]="toast.state()?.detail ?? null"` in the canvas toast template. Until then,
@@ -95,8 +127,7 @@ way: shell and dashboard are done.**
     in the foreground.
 
 **Next:** Stage 3, the rest: stores to `Failure`, one store with its template and spec at a time
-(workspace, page and canvas, sections and shortcuts, pages, settings, picker), plus the items
-moved from Stage 2 above. Follow part a's pattern: keep the failure on screen, busy, while Try
+(sections and shortcuts, pages, settings, picker). The items moved from Stage 2 are done (part b). Follow part a's pattern: keep the failure on screen, busy, while Try
 again re-reads; where a polite announcement matters, mount the live region before the failure
 arrives.
 
