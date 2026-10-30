@@ -22,6 +22,7 @@
                   type="button"
                   class="button button--sm"
                   [attr.aria-label]="addLabel(source)"
+                  [attr.aria-describedby]="createError()?.sourceSectionId === source.sourceSectionId ? 'shortcut-picker-create-error' : null"
                   [disabled]="source.alreadyPlaced || pending()"
                   (click)="add(source)"
                 >
@@ -47,6 +48,6 @@
     }
   }
   @if (createError(); as error) {
-    <p data-shortcut-picker-create-error class="shortcut-picker__error" role="alert">{{ error }}</p>
+    <app-failure-message data-shortcut-picker-create-error weight="inline" [failure]="error.failure" live="alert" sentenceId="shortcut-picker-create-error" />
   }
 </div>

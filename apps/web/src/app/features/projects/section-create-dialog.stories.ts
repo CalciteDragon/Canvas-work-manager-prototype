@@ -7,6 +7,7 @@ import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway'
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { SECTION_REGISTRY } from './sections/registry';
 import { SectionCreateDialog } from './section-create-dialog';
+import type { Failure } from '../../shared/feedback/failure';
 import { ShortcutStore } from './shortcuts/shortcut-store';
 
 const PROJECT = 'project-story' as ProjectId;
@@ -59,13 +60,13 @@ export const HomeWithShortcuts: Story = {
 };
 
 export const Pending: Story = {
-  args: { create: () => new Promise<string | null>(() => undefined) },
+  args: { create: () => new Promise<Failure | null>(() => undefined) },
 };
 
 export const Failed: Story = {
-  args: { create: async () => 'The prototype host is not answering.' },
+  args: { create: async (): Promise<Failure> => ({ sentence: 'Couldn’t add the Task List section. Try again.', reason: 'The prototype host is not answering.' }) },
 };
 
 export const AnchorGone: Story = {
-  args: { create: async () => 'That insertion point is no longer available. Close this dialog and choose another point.' },
+  args: { create: async (): Promise<Failure> => ({ sentence: 'That insertion point is no longer available. Close this dialog and choose another point.', reason: null }) },
 };

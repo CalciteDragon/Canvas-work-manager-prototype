@@ -541,7 +541,9 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   try {
     await openFailurePanel(page, '1');
     await page.locator('[data-create-section-submit]').click();
-    await expect(page.locator('[data-create-section-error]')).toContainText('prototype failure injection');
+    // Slice 78: the product sentence, the injected reason only under Details.
+    await expect(page.locator('[data-create-section-error] [data-failure-sentence]')).toHaveText('Couldn’t add “Retry after failure”. Try again.');
+    await expect(page.locator('[data-create-section-error] details')).toContainText('prototype failure injection');
     await expect(page.locator('[data-create-section-name]')).toHaveValue('Retry after failure');
     await expect(page.locator('[data-create-section-type]')).toHaveValue('markdown');
   } finally {

@@ -95,7 +95,10 @@ export interface FailedSectionRemoval {
  * success names the created placement so the canvas can reveal and focus it (Slice 75); a write
  * that landed after its page changed has nothing on this canvas to name.
  */
-export type CanvasWriteResult = { ok: true; placementId?: string } | { ok: false; message: string };
+export type CanvasWriteResult = { ok: true; placementId?: string } | { ok: false; failure: Failure };
+
+/** `mutateWithResult`'s refusal before anything is sent: the first read has not answered. */
+const CANVAS_STILL_LOADING: Failure = { sentence: 'The page is still loading. Try again in a moment.', reason: null };
 
 type PlacementFieldValue = boolean | SectionColumnSpan;
 
@@ -601,7 +604,10 @@ export class ProjectPageStore {
     definition: SectionDefinition,
     options: Pick<CreateSectionInput, 'position' | 'columnSpan' | 'title'> = {},
   ): Promise<CanvasWriteResult> {
-    return this.mutateWithResult(async ({ current, projectId, pageId, generation }) => {
+    const sentence = options.title === undefined
+      ? `Couldn’t add the ${definition.displayName} section. Try again.`
+      : `Couldn’t add “${options.title}”. Try again.`;
+    return this.mutateWithResult(sentence, async ({ current, projectId, pageId, generation }) => {
       // Parsed, not cast: §29 types `createDefaultConfig` as `unknown`, and a definition
       // that returns a non-object should fail here rather than at the host.
       const config = SectionConfigSchema.parse(definition.createDefaultConfig());
@@ -618,9 +624,12 @@ export class ProjectPageStore {
     });
   }
 
-  /** Adds a placement to this canonical canvas; the source remains owned by its own page. */
-  addShortcut(input: CreateSectionShortcutInput): Promise<CanvasWriteResult> {
-    return this.mutateWithResult(async ({ current, projectId, pageId, generation }) => {
+  /**
+   * Adds a placement to this canonical canvas; the source remains owned by its own page.
+   * `sourceName` is the picker's name for the source, which only its failure sentence uses.
+   */
+  addShortcut(input: CreateSectionShortcutInput, sourceName: string): Promise<CanvasWriteResult> {
+    return this.mutateWithResult(`Couldn’t add a shortcut to “${sourceName}”. Try again.`, async ({ current, projectId, pageId, generation }) => {
       if (input.pageId !== pageId) throw new Error('The shortcut destination does not match this canvas');
       const { shortcut } = await reportedWrite(this.reporter, () => this.gateway.shortcuts.create(projectId, input),
         ({ operation }) => ({ projectId, receipt: operation }));
@@ -1230,11 +1239,12 @@ export class ProjectPageStore {
   }
 
   /**
-   * A popup-owned create returns its failure text directly and must not clear or replace the
+   * A popup-owned create returns its `Failure` directly and must not clear or replace the
    * canvas error signal. Writes for a page that changed while the request was in flight are
    * considered complete because the popup has already closed.
    */
   private mutateWithResult(
+    failureSentence: string,
     operation: (context: {
       current: () => boolean;
       projectId: ProjectId;
@@ -1245,12 +1255,12 @@ export class ProjectPageStore {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
     if (!this.loaded || projectId === undefined || pageId === undefined) {
-      return Promise.resolve({ ok: false, message: 'The canvas has not finished loading' });
+      return Promise.resolve({ ok: false, failure: CANVAS_STILL_LOADING });
     }
     if (!this.orderCompleteState()) {
       return Promise.resolve({
         ok: false,
-        message: this.shortcutsErrorState()?.sentence ?? 'The canvas order is incomplete',
+        failure: { sentence: this.shortcutsErrorState()?.sentence ?? CANVAS_STILL_LOADING.sentence, reason: null },
       });
     }
     const generation = this.loadGeneration;
@@ -1262,7 +1272,7 @@ export class ProjectPageStore {
           const placementId = await operation({ current, projectId, pageId, generation });
           return placementId === undefined || !current() ? { ok: true } : { ok: true, placementId };
         } catch (error) {
-          return current() ? { ok: false, message: error instanceof Error ? error.message : String(error) } : { ok: true };
+          return current() ? { ok: false, failure: writeFailure(error, failureSentence) } : { ok: true };
         }
       }),
     );

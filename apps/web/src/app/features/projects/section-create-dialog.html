@@ -38,11 +38,12 @@
             type="text"
             autocomplete="off"
             [value]="name()"
+            [attr.aria-describedby]="error() === null ? null : 'section-create-error'"
             (input)="setName($event)"
           />
         </label>
-        @if (error(); as message) {
-          <p data-create-section-error class="section-create-dialog__error" role="alert">{{ message }}</p>
+        @if (error(); as failure) {
+          <app-failure-message data-create-section-error weight="inline" [failure]="failure" live="alert" sentenceId="section-create-error" />
         }
         <footer>
           <button data-create-section-cancel type="button" class="button" [disabled]="busy()" (click)="close()">Cancel</button>

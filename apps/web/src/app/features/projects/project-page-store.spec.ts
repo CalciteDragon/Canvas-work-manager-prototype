@@ -810,7 +810,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     // The popup owns the failure message; this write does not overwrite the canvas error line.
     expect(await store.addSection(definition({ createDefaultConfig: () => 'not an object' }))).toEqual({
       ok: false,
-      message: expect.any(String),
+      failure: { sentence: 'Couldn’t add the Markdown section. Try again.', reason: expect.any(String) },
     });
     expect(gateway.sections.create).not.toHaveBeenCalled();
     expect(store.sectionError()).toBeNull();
@@ -880,9 +880,14 @@ describe('ProjectPageStore (§19, §26)', () => {
     const sectionError = store.sectionError();
     const before = store.placements();
 
+    // Slice 78: a product sentence, the host's reason kept for Details.
     expect(await store.addSection(definition())).toEqual({
       ok: false,
-      message: 'section create refused',
+      failure: { sentence: 'Couldn’t add the Markdown section. Try again.', reason: 'section create refused' },
+    });
+    expect(await store.addSection(definition(), { title: 'Research' })).toEqual({
+      ok: false,
+      failure: { sentence: 'Couldn’t add “Research”. Try again.', reason: 'section create refused' },
     });
 
     expect(store.placements()).toEqual(before);
@@ -899,18 +904,19 @@ describe('ProjectPageStore (§19, §26)', () => {
     const sectionError = store.shortcutsError()?.sentence;
 
     expect(store.orderComplete()).toBe(false);
+    // The shortcuts read's own sentence, with no Details: the refusal is not a host reason.
     expect(await store.addSection(definition(), { position: 1 })).toEqual({
       ok: false,
-      message: sectionError,
+      failure: { sentence: sectionError, reason: null },
     });
     expect(await store.addShortcut({
       pageId: PAGE,
       sourceSectionId: 'section-source' as SectionId,
       position: 1,
       columnSpan: 6,
-    })).toEqual({
+    }, 'Brief')).toEqual({
       ok: false,
-      message: sectionError,
+      failure: { sentence: sectionError, reason: null },
     });
 
     expect(gateway.sections.create).not.toHaveBeenCalled();
@@ -923,7 +929,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const { store } = setup();
     expect(await store.addSection(definition())).toEqual({
       ok: false,
-      message: 'The canvas has not finished loading',
+      failure: { sentence: 'The page is still loading. Try again in a moment.', reason: null },
     });
 
     TestBed.resetTestingModule();
@@ -984,7 +990,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       sourceSectionId: 'section-source' as SectionId,
       position: 1,
       columnSpan: 6,
-    });
+    }, 'Brief');
     await settleLive();
 
     expect(gateway.shortcuts.create).toHaveBeenCalledWith(PROJECT, {
@@ -1004,7 +1010,10 @@ describe('ProjectPageStore (§19, §26)', () => {
       sourceSectionId: 'section-source' as SectionId,
       position: 0,
       columnSpan: 8,
-    })).toEqual({ ok: false, message: 'shortcut refused' });
+    }, 'Brief')).toEqual({
+      ok: false,
+      failure: { sentence: 'Couldn’t add a shortcut to “Brief”. Try again.', reason: 'shortcut refused' },
+    });
     expect(store.sectionError()).toBeNull();
   });
 
@@ -1946,7 +1955,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await store.load(PROJECT, PAGE);
     const sectionReads = calls(gateway.sections.list);
 
-    const add = store.addShortcut({ pageId: PAGE, sourceSectionId: 'section-source' as SectionId });
+    const add = store.addShortcut({ pageId: PAGE, sourceSectionId: 'section-source' as SectionId }, 'Brief');
     live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
     await settleLive();
     expect(calls(gateway.sections.list)).toBe(sectionReads);
@@ -2346,7 +2355,7 @@ describe('ProjectPageStore — every canvas write reports to the header’s hist
     });
     await store.load(PROJECT, PAGE);
 
-    await store.addShortcut({ pageId: PAGE, sourceSectionId: 'source-b' as SectionId });
+    await store.addShortcut({ pageId: PAGE, sourceSectionId: 'source-b' as SectionId }, 'Brief');
     await store.setCollapsedShortcut(placed.id, true);
     await store.setColumnSpanShortcut(placed.id, 6);
     await store.moveShortcut(placed.id, 0);

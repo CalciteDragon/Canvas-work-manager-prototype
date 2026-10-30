@@ -46,6 +46,7 @@ import { ShortcutFrame } from './shortcuts/shortcut-frame';
 import { ShortcutStore } from './shortcuts/shortcut-store';
 import { canvasRefreshFailedFeedback, sectionRemoveFailedFeedback } from './history/history-feedback';
 import { FailureMessage } from '../../shared/feedback/failure-message';
+import type { Failure } from '../../shared/feedback/failure';
 
 interface GridInsertionTarget {
   index: number;
@@ -155,34 +156,34 @@ export class ProjectCanvas {
 
   readonly renameSection = async (id: SectionId, title: string | null): Promise<boolean> =>
     this.store.renameSection(id, title);
-  readonly createSectionFromDialog = async (type: string, title: string | null): Promise<string | null> => {
+  readonly createSectionFromDialog = async (type: string, title: string | null): Promise<Failure | null> => {
     const intent = this.pendingInsertion();
-    if (intent === null) return 'Choose an insertion point before creating a section.';
+    if (intent === null) return refusal('Choose an insertion point before creating a section.');
     const position = this.resolvePosition(intent);
-    if (position === null) return 'That insertion point is no longer available. Close this dialog and choose another point.';
+    if (position === null) return refusal(INSERTION_POINT_GONE);
     const definition = definitionFor(type);
-    if (definition === undefined) return 'This section type is not available.';
+    if (definition === undefined) return refusal('This section type is not available.');
     const result = await this.store.addSection(definition, {
       position,
       columnSpan: intent.columnSpan,
       ...(title === null ? {} : { title }),
     });
     if (result.ok) this.createdPlacementId = result.placementId ?? null;
-    return result.ok ? null : result.message;
+    return result.ok ? null : result.failure;
   };
-  readonly createShortcutFromDialog = async (source: ShortcutSource): Promise<string | null> => {
+  readonly createShortcutFromDialog = async (source: ShortcutSource): Promise<Failure | null> => {
     const intent = this.pendingInsertion();
-    if (intent === null) return 'Choose an insertion point before creating a shortcut.';
+    if (intent === null) return refusal('Choose an insertion point before creating a shortcut.');
     const position = this.resolvePosition(intent);
-    if (position === null) return 'That insertion point is no longer available. Close this dialog and choose another point.';
+    if (position === null) return refusal(INSERTION_POINT_GONE);
     const result = await this.store.addShortcut({
       pageId: this.pageId(),
       sourceSectionId: source.sourceSectionId,
       position,
       columnSpan: intent.columnSpan,
-    });
+    }, source.name);
     if (result.ok) this.createdPlacementId = result.placementId ?? null;
-    return result.ok ? null : result.message;
+    return result.ok ? null : result.failure;
   };
 
   constructor() {
@@ -516,6 +517,10 @@ export class ProjectCanvas {
   }
 
 }
+
+/** The canvas's own create refusals: product sentences with no host reason, so no Details (Slice 78). */
+const refusal = (sentence: string): Failure => ({ sentence, reason: null });
+const INSERTION_POINT_GONE = 'That insertion point is no longer available. Close this dialog and choose another point.';
 
 const placementId = (placement: ProjectCanvasPlacement): string =>
   placement.kind === 'section' ? placement.section.id : placement.shortcut.id;

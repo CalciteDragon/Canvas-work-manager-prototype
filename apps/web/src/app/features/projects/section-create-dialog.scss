@@ -56,11 +56,6 @@
   flex-wrap: wrap;
 }
 
-.section-create-dialog__error {
-  margin: 0;
-  color: var(--color-danger);
-}
-
 // A long source list scrolls inside the dialog so Back and Cancel stay in view.
 .section-create-dialog:has(> app-shortcut-picker) {
   grid-template-rows: auto minmax(0, 1fr) auto;

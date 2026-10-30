@@ -8,6 +8,7 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { SECTION_REGISTRY } from './sections/registry';
 import { SectionCreateDialog } from './section-create-dialog';
+import type { Failure } from '../../shared/feedback/failure';
 import { ShortcutStore } from './shortcuts/shortcut-store';
 
 const PROJECT = 'project-a' as ProjectId;
@@ -15,8 +16,8 @@ const PAGE = 'page-project-a' as ProjectPageId;
 
 const render = (options: {
   shortcutsAllowed?: boolean;
-  create?: (type: string, title: string | null) => Promise<string | null>;
-  createShortcut?: (source: ShortcutSource) => Promise<string | null>;
+  create?: (type: string, title: string | null) => Promise<Failure | null>;
+  createShortcut?: (source: ShortcutSource) => Promise<Failure | null>;
   shortcutSources?: ShortcutSource[];
   sourcesLoading?: boolean;
 } = {}) => {
@@ -90,8 +91,8 @@ describe('SectionCreateDialog (§27)', () => {
   });
 
   it('blocks repeated submit while pending and retains form values on failure', async () => {
-    let finish!: (message: string | null) => void;
-    const create = vi.fn(() => new Promise<string | null>((resolve) => (finish = resolve)));
+    let finish!: (failure: Failure | null) => void;
+    const create = vi.fn(() => new Promise<Failure | null>((resolve) => (finish = resolve)));
     const fixture = render({ create });
     const type = query(fixture, '[data-create-section-type]') as HTMLSelectElement;
     const name = query(fixture, '[data-create-section-name]') as HTMLInputElement;
@@ -105,12 +106,42 @@ describe('SectionCreateDialog (§27)', () => {
     fixture.detectChanges();
     expect(create).toHaveBeenCalledTimes(1);
     expect(submit.disabled).toBe(true);
-    finish('Unable to create section');
+    finish({ sentence: 'Couldn’t add “Kitchen”. Try again.', reason: 'Unable to create section' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect((query(fixture, '[data-create-section-type]') as HTMLSelectElement).value).toBe('task-list');
     expect((query(fixture, '[data-create-section-name]') as HTMLInputElement).value).toBe('Kitchen');
-    expect(query(fixture, '[data-create-section-error]')?.textContent).toContain('Unable to create section');
+    // Slice 78: the product sentence is the alert and the name's description; the reason is
+    // only under a closed Details.
+    const error = query(fixture, '[data-create-section-error]')!;
+    const sentence = error.querySelector<HTMLElement>('[data-failure-sentence]')!;
+    expect(sentence.textContent?.trim()).toBe('Couldn’t add “Kitchen”. Try again.');
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(error.querySelector('details')?.open).toBe(false);
+    expect(error.querySelector('details')?.textContent).toContain('Unable to create section');
+    const described = document.getElementById(name.getAttribute('aria-describedby')!);
+    expect(described).toBe(sentence);
+    expect(described?.textContent?.trim()).toBe('Couldn’t add “Kitchen”. Try again.');
+  });
+
+  it('shows the canvas’s own refusal as a sentence with no Details', async () => {
+    const fixture = render({ create: async () => ({ sentence: 'The page is still loading. Try again in a moment.', reason: null }) });
+    (query(fixture, '[data-create-section-submit]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const error = query(fixture, '[data-create-section-error]')!;
+    expect(error.textContent?.trim()).toBe('The page is still loading. Try again in a moment.');
+    expect(error.querySelector('details')).toBeNull();
+  });
+
+  it('turns a thrown create into a product sentence with the reason under Details', async () => {
+    const fixture = render({ create: async () => { throw new Error('host stopped'); } });
+    (query(fixture, '[data-create-section-submit]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const error = query(fixture, '[data-create-section-error]')!;
+    expect(error.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t add the section. Try again.');
+    expect(error.querySelector('details')?.textContent).toContain('host stopped');
   });
 
   it('offers shortcut mode only when enabled and hosts its source picker', async () => {
@@ -127,7 +158,7 @@ describe('SectionCreateDialog (§27)', () => {
   });
 
   it('keeps shortcut mode open and blocks back, cancel and Escape while a create is pending', async () => {
-    let finish!: (message: string | null) => void;
+    let finish!: (failure: Failure | null) => void;
     const source: ShortcutSource = {
       section: ProjectSectionSchema.parse({ id: 'section-source', projectId: PROJECT, pageId: 'page-work', type: 'markdown', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-24T16:00:00.000Z', updatedAt: '2026-08-24T16:00:00.000Z' }),
       sourceSectionId: 'section-source' as SectionId,
@@ -176,11 +207,13 @@ describe('SectionCreateDialog (§27)', () => {
     expect(fixture.componentInstance.mode()).toBe('shortcut');
     expect(closed).not.toHaveBeenCalled();
 
-    finish('Unable to place shortcut');
+    finish({ sentence: 'Couldn’t add a shortcut to “Source notes”. Try again.', reason: 'Unable to place shortcut' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(fixture.componentInstance.mode()).toBe('shortcut');
-    expect(query(fixture, '[data-shortcut-picker-create-error]')?.textContent).toContain('Unable to place shortcut');
+    const error = query(fixture, '[data-shortcut-picker-create-error]')!;
+    expect(error.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t add a shortcut to “Source notes”. Try again.');
+    expect(error.querySelector('details')?.textContent).toContain('Unable to place shortcut');
     expect(back.disabled).toBe(false);
     expect(cancel.disabled).toBe(false);
   });

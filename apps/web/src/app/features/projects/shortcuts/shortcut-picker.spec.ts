@@ -5,6 +5,7 @@ import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { ShortcutPicker } from './shortcut-picker';
 import { ShortcutStore } from './shortcut-store';
+import type { Failure } from '../../../shared/feedback/failure';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TaskListSection } from '../sections/tasks/task-list-section';
@@ -180,8 +181,8 @@ describe('ShortcutPicker (§27)', () => {
   });
 
   it('disables every Add while pending and preserves the picker on failure', async () => {
-    let finish!: (message: string | null) => void;
-    const create = vi.fn(() => new Promise<string | null>((resolve) => (finish = resolve)));
+    let finish!: (failure: Failure | null) => void;
+    const create = vi.fn(() => new Promise<Failure | null>((resolve) => (finish = resolve)));
     const gateway = new FakeWorkManagerGateway({ shortcutSources: [sources[0]!, { ...sources[0]!, sourceSectionId: 'section-b' as SectionId }] });
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -201,12 +202,18 @@ describe('ShortcutPicker (§27)', () => {
     fixture.detectChanges();
     expect([...adds].every((button) => button.disabled)).toBe(true);
     expect(create).toHaveBeenCalledTimes(1);
-    finish('Could not place shortcut');
+    finish({ sentence: 'Couldn’t add a shortcut to “Kitchen tasks”. Try again.', reason: 'Could not place shortcut' });
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('[data-shortcut-picker-create-error]')?.textContent).toContain(
-      'Could not place shortcut',
-    );
+    // Slice 78: a sentence, the reason under a closed Details, and the failed source's Add
+    // described by the sentence alone.
+    const error = fixture.nativeElement.querySelector('[data-shortcut-picker-create-error]') as HTMLElement;
+    const sentence = error.querySelector<HTMLElement>('[data-failure-sentence]')!;
+    expect(sentence.textContent?.trim()).toBe('Couldn’t add a shortcut to “Kitchen tasks”. Try again.');
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(error.querySelector('details')?.textContent).toContain('Could not place shortcut');
+    expect(document.getElementById(adds[0]!.getAttribute('aria-describedby')!)).toBe(sentence);
+    expect(adds[1]!.getAttribute('aria-describedby')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('[data-shortcut-add]')).toHaveLength(2);
   });
 

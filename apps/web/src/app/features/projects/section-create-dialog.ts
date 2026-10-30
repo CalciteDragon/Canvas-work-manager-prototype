@@ -14,12 +14,14 @@ import type { ProjectId, ProjectPageId, ShortcutSource } from '@cwm/contracts';
 import type { SectionDefinition } from './sections/registry';
 import { ShortcutPicker } from './shortcuts/shortcut-picker';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
+import { FailureMessage } from '../../shared/feedback/failure-message';
+import { writeFailure, type Failure } from '../../shared/feedback/failure';
 
 /** One popup for a positioned section or shortcut create, on a canonical page (§27). */
 @Component({
   selector: 'app-section-create-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ShortcutPicker],
+  imports: [ShortcutPicker, FailureMessage],
   templateUrl: './section-create-dialog.html',
   styleUrl: './section-create-dialog.scss',
 })
@@ -28,8 +30,9 @@ export class SectionCreateDialog {
   readonly projectId = input.required<ProjectId>();
   readonly pageId = input.required<ProjectPageId>();
   readonly shortcutsAllowed = input.required<boolean>();
-  readonly create = input.required<(type: string, title: string | null) => Promise<string | null>>();
-  readonly createShortcut = input.required<(source: ShortcutSource) => Promise<string | null>>();
+  /** Resolves `null` on success, or the failure to show here: the canvas's sentence, the host's reason for Details. */
+  readonly create = input.required<(type: string, title: string | null) => Promise<Failure | null>>();
+  readonly createShortcut = input.required<(source: ShortcutSource) => Promise<Failure | null>>();
   readonly closed = output<void>();
 
   readonly mode = signal<'section' | 'shortcut'>('section');
@@ -38,7 +41,7 @@ export class SectionCreateDialog {
   readonly pending = signal(false);
   readonly shortcutPending = signal(false);
   readonly busy = () => this.pending() || this.shortcutPending();
-  readonly error = signal<string | null>(null);
+  readonly error = signal<Failure | null>(null);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
 
@@ -90,7 +93,7 @@ export class SectionCreateDialog {
       if (error === null) this.closed.emit();
       else this.error.set(error);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : String(error));
+      this.error.set(writeFailure(error, 'Couldn’t add the section. Try again.'));
     } finally {
       this.pending.set(false);
     }

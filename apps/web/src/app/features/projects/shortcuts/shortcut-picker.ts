@@ -12,6 +12,7 @@ import { NgComponentOutlet } from '@angular/common';
 import type { ProjectId, ProjectPageId, SectionConfig, SectionId, ShortcutSource } from '@cwm/contracts';
 import { ShortcutStore } from './shortcut-store';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
+import { writeFailure, type Failure } from '../../../shared/feedback/failure';
 import { definitionFor } from '../sections/registry';
 import type { SectionContentInputs } from '../sections/section-contract';
 
@@ -26,13 +27,15 @@ import type { SectionContentInputs } from '../sections/section-contract';
 export class ShortcutPicker {
   readonly projectId = input.required<ProjectId>();
   readonly pageId = input.required<ProjectPageId>();
-  readonly create = input.required<(source: ShortcutSource) => Promise<string | null>>();
+  /** Resolves `null` on success, or the failure to show here (Slice 78). */
+  readonly create = input.required<(source: ShortcutSource) => Promise<Failure | null>>();
 
   readonly added = output<void>();
   /** Lets the enclosing create dialog keep its focus boundary while a placement is pending. */
   readonly pendingChanged = output<boolean>();
   readonly pending = signal(false);
-  readonly createError = signal<string | null>(null);
+  /** The last Add's failure, and the source whose Add it describes. */
+  readonly createError = signal<{ sourceSectionId: SectionId; failure: Failure } | null>(null);
 
   readonly store = inject(ShortcutStore);
   readonly preview = signal<SectionId | null>(null);
@@ -82,11 +85,14 @@ export class ShortcutPicker {
     this.createError.set(null);
     let created = false;
     try {
-      const error = await this.create()(source);
-      if (error === null) created = true;
-      else this.createError.set(error);
+      const failure = await this.create()(source);
+      if (failure === null) created = true;
+      else this.createError.set({ sourceSectionId: source.sourceSectionId, failure });
     } catch (error) {
-      this.createError.set(error instanceof Error ? error.message : String(error));
+      this.createError.set({
+        sourceSectionId: source.sourceSectionId,
+        failure: writeFailure(error, `Couldn’t add a shortcut to “${source.name}”. Try again.`),
+      });
     } finally {
       this.pending.set(false);
       this.pendingChanged.emit(false);
