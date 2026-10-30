@@ -7,12 +7,19 @@ only before/gap points paint insertion overlays.
 `ArchivePageStore` passes the root's ready-only projection to `ArchivedRegion`. The component
 words the supplied origin, cause and recovery counts without determining eligibility. Restore
 uses the canonical project, section, task or reflection write and then re-reads; independent
-archived children become visible only once their owner has returned. A refused write or a failed
-post-write re-read leaves an error that pauses every Restore (`restorePaused`, distinct from the
-archived-project `restoreBlocked` note). The pause holds until a read of the same root succeeds,
-so a stale row is never written twice. A later failed read keeps a "Restore succeeded" error and
-replaces any other, so a failed Retry visibly ran. A quiet live re-read and Retry (quiet when a
-list is on screen) keep the error and the Retry control visible; a reconnect reads non-quietly and
+archived children become visible only once their owner has returned. `ArchivePageStore.error()` is
+an `ArchiveError` (a `Failure` with a `kind`), one of four states in precedence: a committed
+restore whose re-read failed ("Restored “X”, but Archive couldn’t refresh.", Retry refresh), a
+refused restore ("Couldn’t restore “X”. The archive may have changed.", or for `unreachable`
+"Couldn’t reach your workspace, so “X” may not have been restored.", Try again), `stale` (a failed
+read over a list on screen: "This archive may be out of date.", polite) and `load` (a failed read
+with nothing on screen, `readFailure(…, 'this archive')`). Any of them pauses every Restore
+(`restorePaused`, distinct from the archived-project `restoreBlocked` note) until a read of the
+same root succeeds, so a stale row is never written twice. A failed read never displaces a held
+write state, except that Try again hands a refusal over to its own read, which turns stale if it
+fails. One `FailureMessage` renders all four, so its button keeps focus as the state changes; it is
+busy (`retryPending()`) while Try again reads. A quiet live re-read and Try again (quiet when a
+list is on screen) keep the message visible; a reconnect reads non-quietly and
 shows "Loading archive…" while Restore stays paused; a prototype reload clears the list and error, even
 with a Restore pending, and its read supersedes that Restore's refresh. A subproject's chosen status is keyed by id and survives the replacement projection;
 each option binds `[selected]`, because a `[value]` on the select runs before its `@for` options exist.
@@ -215,6 +222,28 @@ clears it; `sectionError()` holds write failures only, so an unrelated write can
 drag stay gated by `orderComplete()`. "Loading canvas…" is a `.state-message--loading` line with
 `aria-busy`; nothing else says the order is incomplete. A failed removal's `FailedSectionRemoval`
 carries a `Failure`, and the canvas toast binds its reason as `detail`, the toast's Details.
+
+Section bodies say their own read failures the same way, in place of their empty sentence, with
+Try again kept busy while the same section re-reads, and cleared by the next successful read,
+quiet or loud: `TimelineStore` ("this timeline"), `ActivityStore` ("recent activity"),
+`ProgressStore` ("progress") and `ReflectionsStore` ("this journal"); the Task List's is in
+[tasks](../tasks/how.md). Each keeps its read failure apart from its writes (§19).
+`ProgressStore.writeError()` is the formula write's ("Couldn’t change how progress is measured.
+Try again.", beside the controls, the result kept); `stale()` is a failed re-read after a write
+("This progress may be out of date.") whose Try again, `retryStale()`, is quiet.
+`ReflectionsStore.createError()` shows on the composer and `editError()` beside the edit form
+(raw text until Stage 4); a successful write after a failed read re-reads in full. A shortcut
+frame's body is its source section's component, so it inherits these.
+
+The Todos and Reflections pages do the same for their reads (`readFailure(…, 'this list')`;
+the Reflections page's journal, completed work and container reads each with their own Try
+again). A failed quiet re-read over content on screen is the polite stale notice, "This list may be
+out of date." or "This journal may be out of date.", in a `role="status"` region mounted always,
+with a quiet Try again (`retryRefresh()`, busy as `refreshPending()`). On Todos a held load failure
+is never covered by a stale notice. On the Reflections page a save whose re-read failed is
+`savedUnrefreshed()`, "Saved, but this journal couldn’t refresh." with Retry refresh; it outranks
+stale, and a later failed quiet read keeps it. The container add's failure is
+`addContainerError()`, apart from the container read's `containerError()`.
 
 MarkdownSection is an eager shell with a deferred body and escaped source placeholder.
 `placeholderTextOf` simplifies the placeholder for converted prose: it drops a backslash before

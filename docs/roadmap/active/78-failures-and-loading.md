@@ -1,9 +1,49 @@
 <!-- plan id="78" status="active" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back" -->
 # Slice 78 — States: failures and loading
 
-**State (2026-10-29):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
+**State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
 rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done; Stage 3 is under
-way: shell, dashboard, workspace, and page and canvas are done.**
+way: shell, dashboard, workspace, page and canvas, sections and pages are done; settings and the
+picker remain.**
+
+- Stage 3, part c (`525e7de`, `50f118f`, `1ad44e1`, `1d9153d`, `032c209`, `120f5e3`, `eb49edb`,
+  `6f44a9e`, review fixes `837a7c1`), reviewed once by a subagent against the diff (one
+  substantive finding, a CSS regression, fixed; the minor ones fixed or noted below):
+  - **Sections.** Timeline ("this timeline"), Recent Activity ("recent activity"), Progress
+    ("progress"), the Reflections section ("this journal") and the Task List ("this task list")
+    hold their read failure as a `Failure` with `retry()`, rendered by a region `FailureMessage`
+    (`live="alert"`, Try again busy on the loading flag) **in place of** the empty sentence and
+    loading line. A re-read of the same project/section keeps the failure until it answers;
+    another one clears it; a successful quiet read clears it. Writes are kept apart (§19):
+    Progress `writeError()` (a `Failure`, "Couldn’t change how progress is measured. Try again.",
+    inline beside the controls — given its sentence now because the slot is new) and `stale()`
+    ("This progress may be out of date.", quiet `retryStale()`/`stalePending()`); Reflections
+    `createError()` (on the composer) and `editError()` (beside the edit form); Task List
+    `receiveError()` (`data-tasks-error data-tasks-receive-error`, no Try again). Those write
+    slots other than Progress's stay **raw strings until Stage 4**. `TaskListStore.loadFailed`
+    is deleted. A successful add/receive after a failed read runs the quiet `refresh()` (which
+    waits for writes in flight); a successful Reflections write runs `retry()`.
+  - **Shortcuts.** A shortcut frame has no read: it inherits its source body's failure. The
+    shortcut store is the picker's discovery read and moves with **the picker** (next).
+  - **Pages.** Todos: `error()` (`readFailure(…, 'this list')`), Try again busy;
+    `refreshError()` is the stale `Failure` "This list may be out of date." in an always-mounted
+    `[data-todos-status] role="status"`, with quiet `retryRefresh()`/`refreshPending()`; a held
+    load failure is never covered by stale. `data-todos-retry` is gone (the button is
+    `[data-recovery]`). Reflections page: journal/picker ("completed work")/container ("this
+    page’s Reflections container") reads are `Failure`s with Try again; `savedUnrefreshed()`
+    ("Saved, but this journal couldn’t refresh.", Retry refresh) outranks the stale notice in
+    `[data-reflections-status]`; the container add failure is `addContainerError()`, apart from
+    the container read. Archive: `error()` is an `ArchiveError` (`Failure` + `kind`:
+    `committed-unrefreshed` > `refused` > `stale` > `load`), one `FailureMessage` for all four
+    (`live` status for stale, alert otherwise; Retry refresh for committed, Try again otherwise;
+    `retryPending()`), Restore paused under all; `retry()` hands a refusal over to its read.
+    `data-archive-retry` is gone. `apps/e2e/archive.spec.ts:593,606` are updated for it (not run).
+  - Empty always-mounted status regions use `:empty { position: absolute; }` so they take no gap.
+  - Known minor gaps: on the Reflections page a stale notice raised by a picker or container
+    quiet read is cleared by a journal-only Try again (pre-existing); a stale notice inserted
+    already holding its text may not be announced (Archive's first stale state).
+  - `docs/architecture/web/projects/how.md` and `web/tasks/how.md` say what is true.
+  - `pnpm test` and `pnpm lint` green at the end of the part; e2e not run.
 
 - Stage 3, part b (`73d79c3`, `f4f667b`, `7093c77`), reviewed once by a subagent against the diff
   (no substantive findings; the minor ones were fixed, or are noted below):
@@ -127,7 +167,8 @@ way: shell, dashboard, workspace, and page and canvas are done.**
     in the foreground.
 
 **Next:** Stage 3, the rest: stores to `Failure`, one store with its template and spec at a time
-(sections and shortcuts, pages, settings, picker). The items moved from Stage 2 are done (part b). Follow part a's pattern: keep the failure on screen, busy, while Try
+(settings — Archived projects with Archive's four states, AI & Agents; then the picker, including
+`shortcut-store.ts`'s discovery read). The items moved from Stage 2 are done (part b). Follow part a's pattern: keep the failure on screen, busy, while Try
 again re-reads; where a polite announcement matters, mount the live region before the failure
 arrives.
 

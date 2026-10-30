@@ -16,7 +16,13 @@
    and unwraps `result.task` without changing selection or opening a drawer; keyboard quick-add
    keeps focus in the add field. `create()` resolves an outcome (`added`, `refused`, `failed`,
    `unconfirmed` or `stale`). A failure owes one list read, and a same-title task whose id was
-   absent at submit counts as committed. The trap: clear the field only when the pending entry
+   absent at submit counts as committed. `error()` is the list read's `Failure` ("this task
+   list"), shown in the section banner with Try again (`retry()`) instead of the empty sentence;
+   quick-add stays enabled under it. `receiveError()` is a drag-receive's failure, in the same
+   banner with no Try again (raw text until Stage 4); a read never clears it, and loading
+   another section does. A successful add or receive after a failed read starts a quiet full
+   read (`refresh()`, which waits for writes in flight) that clears the failure (Slice 78,
+   L4-027). The trap: clear the field only when the pending entry
    is this submit's, or a refused second submit loses its draft. A completion
    paints first, posts second and reconciles from the same strict envelope, guarded as drawn in
    [what](what.md). Reopen uses `tasks.update(id, { status: 'todo' })`, clears `completedAt`
