@@ -51,7 +51,8 @@ const row = (context: string, region: string, kind: Row['kind'], recovery: Row['
 export const ROWS: Row[] = [
   row('dashboard-me-failing', 'app-dashboard-page', 'read', 'try-again', true, 'data-dashboard-empty'),
   row('dashboard-me-failing', 'app-sidebar', 'read', 'try-again', true, 'data-projects-empty'),
-  row('dashboard-real-ai', 'app-daily-digest-widget', 'read', 'try-again', false),
+  // The digest's tile: a failed digest renders its frame's failure, never the widget component.
+  row('dashboard-real-ai', '[data-dashboard-tile][data-widget-type="daily_digest"]', 'read', 'try-again', false),
   row('sidebar-loading', 'app-sidebar', 'loading', 'none', false, 'data-projects-empty'),
   row('sidebar-failed', 'app-sidebar', 'read', 'try-again', true, 'data-projects-empty'),
   row('project-read-failing', 'main', 'read', 'try-again', true),
@@ -167,7 +168,8 @@ const firstTaskRow = (page: Page) => page.locator(`${TASKS_R} [data-task-row]`).
 export const CONTEXTS: Context[] = [
   { id: 'dashboard-me-failing', seed: 'busy-week', route: '/app', reason: 'Audit: me read failed',
     setup: c => fail(c.page, /^\/api\/me$/, 'GET', 'Audit: me read failed'),
-    act: c => waitForFailure(c.page, null, 'Audit: me read failed') },
+    // At 375 the sidebar's own failure sits behind the phone menu; open it, as sidebar-failed does.
+    act: async c => { await waitForFailure(c.page, null, 'Audit: me read failed'); await openPhoneMenu(c.page); await waitForFailure(c.page, 'app-sidebar', 'Audit: me read failed'); } },
   { id: 'dashboard-real-ai', seed: 'agent-heavy', route: '/app', frames: ['app-dashboard-page'],
     prepare: () => jsonRequest('/prototype/ai-provider', { method: 'POST', body: { provider: 'real' } }).then(() => undefined),
     act: c => waitForFailure(c.page, null),
@@ -462,7 +464,7 @@ function probe({ regions, reason }: { regions: string[]; reason: string | null }
   const shown = (e: Element) => { const r = e.getBoundingClientRect(); return r.width > 1 && r.height > 1 && e.checkVisibility({ visibilityProperty: true }) && !inClosedDetails(e); };
   const text = (e: Element) => ((e as HTMLElement).innerText ?? e.textContent ?? '').trim();
   const name = (e: Element) => (e.getAttribute('aria-label') ?? text(e) ?? e.getAttribute('title') ?? '').trim();
-  const isFailure = (e: Element) => (e.getAttribute('role') === 'alert' && !!e.textContent?.trim()) || [...e.attributes].some(a => /^data-.*error/.test(a.name));
+  const isFailure = (e: Element) => (e.getAttribute('role') === 'alert' && !!e.textContent?.trim()) || [...e.attributes].some(a => /^data-.*error/.test(a.name)) || (e.matches('[data-failure-sentence]') && !!e.textContent?.trim());
   // The pins' port is the slot's nearest scrolling ancestor, as `scrollPortOf` finds it; the
   // before build has no slot, so it falls back to the shell's workspace.
   const scrolls = (e: Element) => /^(auto|scroll|overlay)$/.test(getComputedStyle(e).overflowY);

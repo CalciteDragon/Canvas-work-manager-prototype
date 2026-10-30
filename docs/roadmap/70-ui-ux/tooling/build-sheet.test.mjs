@@ -868,7 +868,7 @@ const stateRow = (context, region, kind, recovery, details, emptyHook = null, pi
 const stateRows = () => [
   stateRow('dashboard-me-failing', 'app-dashboard-page', 'read', 'try-again', true, 'data-dashboard-empty'),
   stateRow('dashboard-me-failing', 'app-sidebar', 'read', 'try-again', true, 'data-projects-empty'),
-  stateRow('dashboard-real-ai', 'app-daily-digest-widget', 'read', 'try-again', false),
+  stateRow('dashboard-real-ai', '[data-dashboard-tile][data-widget-type="daily_digest"]', 'read', 'try-again', false),
   stateRow('sidebar-loading', 'app-sidebar', 'loading', 'none', false, 'data-projects-empty'),
   stateRow('sidebar-failed', 'app-sidebar', 'read', 'try-again', true, 'data-projects-empty'),
   stateRow('project-read-failing', 'main', 'read', 'try-again', true),
@@ -1104,6 +1104,19 @@ test('profile 78 gates the Lab panel-relative, with only the named panels changi
   await statesFails(t, { evidence: e => editState(e, 'lab', x => { x.panels = x.panels.map(p => p.id === 'controls' ? { ...p, height: p.height + 4 } : p); }, 'dark|1440') }, 'resized unchanged panel');
 });
 
+test('profile 78 attributes a Lab plane to the panel that holds it, not the box it starts in', async t => {
+  // A specimen that overflows its panel (or whose box is scroll-adjusted) still belongs to it.
+  for (const [panel, expected] of [['navigation', 0], ['controls', 1]]) {
+    const s = await statesSheet(t, { route: '/prototype/design', cellId: 'prototype-design-dark-1440', layouts: f => {} });
+    const base = { ...JSON.parse(await readFile(join(s.dirs[0], 'layout.json'), 'utf8')), controls: [{ tag: 'button', text: 'Primary · Rest', panel: 'controls', scope: 'prototype', class: 'button', x: 40, y: 150, width: 80, height: 32 }] };
+    const inside = { selector: 'app-sidebar', index: 1, x: 40, y: 1750, width: 240, height: 300, panel: 'navigation' };
+    await writeFile(join(s.dirs[0], 'layout.json'), JSON.stringify({ ...base, planes: [...base.planes, inside] }));
+    await writeFile(join(s.dirs[1], 'layout.json'), JSON.stringify({ ...base, planes: [...base.planes, inside, { ...inside, index: 2, y: 5000, panel }] }));
+    const result = s.run();
+    assert.equal(result.status, expected, panel + ' ' + await readFile(join(s.dirs[2], 'report.json'), 'utf8').then(r => JSON.stringify(JSON.parse(r).geometryFailures)).catch(() => result.stderr));
+  }
+});
+
 test('profile 78 gates core task costs and T12', async t => {
   await statesFails(t, { evidence: e => { e.tasks.find(x => x.id === 'T04').clicks = 3; } }, 'T04 regressed');
   await statesFails(t, { evidence: e => { e.tasks = e.tasks.filter(x => x.id !== 'T11'); } }, 'T11 missing');
@@ -1169,6 +1182,16 @@ test('profile 78 compares a state\'s runtime axe nodes with every before state a
   const elsewhere = view => e => editState(e, 'todos-failing', x => { x.axe = { violations: [{ id: 'listitem', nodes: [node] }], incomplete: [] }; }, view);
   assert.equal((await statesSheet(t, { evidence: after, before: elsewhere('dark|1440') })).result.status, 0, 'known at the same view');
   await statesFails(t, { evidence: after, before: elsewhere('dark|375') }, 'known only at another width');
+});
+
+test('profile 78 knows a state\'s own before nodes when a generated id moves its route', async t => {
+  // A project the rig creates gets a new id each run, so its route and its own row differ by that id.
+  const node = id => ({ target: [`li[data-project-id="${id}"]`], stableAnchor: `|data-project-id=${id}|LI|LI||` });
+  const state = (route, id) => e => editState(e, 'header-progress-empty-project', x => { x.route = route; x.axe = { violations: [{ id: 'listitem', nodes: [node('project-launch'), node(id)] }], incomplete: [] }; }, 'dark|1440');
+  const before = state('/projects/project-d48ac000', 'project-d48ac000');
+  const known = await statesSheet(t, { before, evidence: state('/projects/project-7e4757d5', 'project-7e4757d5') });
+  assert.equal(known.result.status, 0, 'the same nodes under a regenerated id: ' + known.report);
+  await statesFails(t, { before, evidence: state('/projects/project-7e4757d5', 'project-0000beef') }, 'a node for an id the route does not show');
 });
 
 test('the profile 78 fixture table is the rig\'s ROWS, so a changed row fails here first', async () => {

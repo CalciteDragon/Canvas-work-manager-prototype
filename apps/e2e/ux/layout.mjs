@@ -17,7 +17,9 @@ export function collectPlaneBoxes(source = globalThis.document, contentCoordinat
           x+=ancestor.scrollLeft;y+=ancestor.scrollTop;
         }
       }
-      return { selector, index, x, y, width, height };
+      // A Lab specimen names its panel, so the gate need not infer it from a box that may overflow.
+      const panel = element.closest('[data-panel]')?.getAttribute('data-panel');
+      return { selector, index, x, y, width, height, ...(panel ? { panel } : {}) };
     }));
 }
 

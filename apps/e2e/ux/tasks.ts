@@ -34,8 +34,9 @@ export const TASKS = [
 
 /**
  * Browser-side probe for "a failure has rendered", generic across builds: a visible non-empty
- * `[role=alert]`, a visible element carrying a `data-*error*` attribute, or the injected reason in
- * the rendered text of `root` (the whole body when null).
+ * `[role=alert]`, a visible element carrying a `data-*error*` attribute, a visible
+ * `[data-failure-sentence]`, or the injected reason in the rendered text of `root` (the whole body
+ * when null) or under one of its Details, open or closed.
  */
 export function failureProbe({ root, reason }: { root: string | null; reason: string | null }): boolean {
   const roots = root ? [...document.querySelectorAll(root)] : [document.body];
@@ -43,7 +44,9 @@ export function failureProbe({ root, reason }: { root: string | null; reason: st
   for (const scope of roots) {
     for (const e of scope.querySelectorAll('[role=alert]')) if (e.textContent?.trim() && shown(e)) return true;
     for (const e of [scope, ...scope.querySelectorAll('*')]) if ([...e.attributes].some(a => /^data-.*error/.test(a.name)) && shown(e)) return true;
-    if (reason && (scope as HTMLElement).innerText?.includes(reason)) return true;
+    // Slice 78's shared sentence hook; its reason may sit, rendered, under a closed Details.
+    for (const e of scope.querySelectorAll('[data-failure-sentence]')) if (e.textContent?.trim() && shown(e)) return true;
+    if (reason && ((scope as HTMLElement).innerText?.includes(reason) || (scope.querySelector('details') && scope.textContent?.includes(reason)))) return true;
   }
   return false;
 }

@@ -157,7 +157,8 @@ for (const a of after.cells) {
     if(['77','78'].includes(profile) && a.route==='/prototype/design' && family==='planes') {
       const width=a.viewport?.width??Number(a.id.split('-').at(-1));
       const was=labEntry(labBefore,a.theme,width),now=labEntry(labAfter,a.theme,width);
-      const containing=(box,panels)=>panels?.find(p=>['x','y','width','height'].every(field=>Number.isFinite(p[field])) && box.x>=p.x-1 && box.y>=p.y-1 && box.x<p.x+p.width && box.y<p.y+p.height);
+      // A plane that names its panel belongs to it; older evidence is placed by where it starts.
+      const containing=(box,panels)=>box.panel?panels?.find(p=>p.id===box.panel):panels?.find(p=>['x','y','width','height'].every(field=>Number.isFinite(p[field])) && box.x>=p.x-1 && box.y>=p.y-1 && box.x<p.x+p.width && box.y<p.y+p.height);
       const local=(boxes,evidence)=>boxes.flatMap(box=>{
         const panel=containing(box,evidence?.panels);
         if(!panel)return [box];
@@ -670,7 +671,12 @@ if (profile === '78') {
     const was = stateBaseline?.entries?.find(x => x.context === context && x.theme === theme && x.width === width);
     // A state's before often rendered the same route another way (a whole-page loading line, a false
     // empty), so a node is new only when no before state on this route, theme and width had it.
-    const view = (stateBaseline?.entries ?? []).filter(x => x.theme === theme && x.width === width && x.route === e.route);
+    // The state's own before is always known. When the rig created the project it shows, the two
+    // routes differ only by that generated id, which the after's node keys are read back through.
+    const view = (stateBaseline?.entries ?? []).filter(x => x.theme === theme && x.width === width && (x.route === e.route || x === was));
+    const [nowId, wasId] = [e.route, was?.route].map(route => typeof route === 'string' ? route.split('/').at(-1) : null);
+    const regenerated = was && nowId && wasId && nowId !== wasId && /^project-[0-9a-f]{8}$/.test(nowId) && /^project-[0-9a-f]{8}$/.test(wasId);
+    const asBefore = key => regenerated ? key.replaceAll(nowId, wasId) : key;
     // The full census and the new-axe-node rule, as profile 77 runs them on its runtime entries.
     if (!Array.isArray(e.controls) || !Array.isArray(e.axe?.violations) || !Array.isArray(was?.axe?.violations)) fail('runtime control or axe collector missing', at);
     for (const c of (e.controls ?? []).filter(c => c.scope === 'product')) {
@@ -684,7 +690,7 @@ if (profile === '78') {
     const known = new Set(view.flatMap(x => x.axe?.violations ?? []).flatMap(v => v.nodes.flatMap(n => [nodeKey(v, n), ...(structuralAnchor(n) ? [] : [v.id + ':' + n.target?.join(' ')])])));
     for (const violation of e.axe?.violations ?? []) {
       if (['select-name', 'aria-progressbar-name', 'button-name'].includes(violation.id)) fail('runtime axe ' + violation.id, at);
-      if (violation.id !== 'color-contrast') for (const node of violation.nodes) if (!known.has(nodeKey(violation, node)) && !known.has(violation.id + ':' + node.target?.join(' '))) fail('runtime new axe node ' + violation.id, { ...at, target: node.target });
+      if (violation.id !== 'color-contrast') for (const node of violation.nodes) if (!known.has(asBefore(nodeKey(violation, node))) && !known.has(asBefore(violation.id + ':' + node.target?.join(' ')))) fail('runtime new axe node ' + violation.id, { ...at, target: node.target });
     }
     if (context === 'lab') {
       // The panel-relative Lab gate reads these boxes; an unchanged panel may move, never resize.
