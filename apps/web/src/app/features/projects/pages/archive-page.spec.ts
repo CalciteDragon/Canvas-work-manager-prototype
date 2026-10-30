@@ -271,11 +271,11 @@ describe('ArchivePage (§31)', () => {
     await fixture.componentInstance.store.load(PROJECT, { quiet: true });
     fixture.detectChanges();
 
-    const status = host.querySelector('[data-archive-status]')!;
-    expect(status.getAttribute('role')).toBe('status');
-    expect(status.querySelector('[data-archive-error] [data-failure-sentence]')?.textContent?.trim()).toBe('This archive may be out of date.');
-    expect(status.querySelector('[data-archive-error] [data-failure-sentence]')?.getAttribute('role')).toBeNull();
-    expect(status.querySelector('[data-archive-error] [data-recovery]')?.textContent?.trim()).toBe('Try again');
+    const status = host.querySelector('[data-archive-error]')!;
+    expect(status.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('This archive may be out of date.');
+    expect(status.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('status');
+    expect(host.querySelector('[role="status"] [role="alert"], [role="alert"] [role="status"]')).toBeNull();
+    expect(status.querySelector('[data-recovery]')?.textContent?.trim()).toBe('Try again');
     expect(host.textContent).not.toContain('Couldn’t load');
     expect(host.querySelector('[data-archived-item]')).not.toBeNull();
     expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(true);

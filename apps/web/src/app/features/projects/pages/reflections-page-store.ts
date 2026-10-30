@@ -253,7 +253,7 @@ export class ReflectionsPageStore {
     const refreshed = await this.readJournal(generation, projectId, true);
     if (!this.currentProject(generation, projectId)) return false;
     if (!refreshed) {
-      this.savedUnrefreshedState.set({ sentence: SAVED_UNREFRESHED, reason: this.refreshErrorState()?.reason ?? null });
+      this.savedUnrefreshedState.set({ sentence: SAVED_UNREFRESHED, reason: this.refreshErrorState()?.reason ?? this.savedUnrefreshedState()?.reason ?? null });
       this.refreshErrorState.set(null);
     }
     return true;
@@ -261,7 +261,9 @@ export class ReflectionsPageStore {
 
   /** A held saved-unrefreshed state outranks stale: a later failed quiet read leaves it as it is. */
   private setStale(error: unknown): void {
-    if (this.savedUnrefreshedState() === null) this.refreshErrorState.set(staleFailure(error));
+    const saved = this.savedUnrefreshedState();
+    if (saved === null) this.refreshErrorState.set(staleFailure(error));
+    else this.savedUnrefreshedState.set({ ...saved, reason: staleFailure(error).reason });
   }
 
   private async readJournal(generation: number, projectId: ProjectId, quiet: boolean): Promise<boolean> {

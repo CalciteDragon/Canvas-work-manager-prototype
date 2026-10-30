@@ -424,7 +424,8 @@ export class TodosPageStore {
         this.refreshErrorState.set(null);
       } catch (error) {
         if (!this.current(generation, projectId)) return;
-        if (quiet) this.refreshErrorState.set(staleFailure(error));
+        // Stale only over a list: a held load failure already says the page didn't load.
+        if (quiet) { if (this.errorState() === null) this.refreshErrorState.set(staleFailure(error)); }
         else {
           this.itemsState.set([]);
           this.errorState.set(readFailure(error, 'this list'));

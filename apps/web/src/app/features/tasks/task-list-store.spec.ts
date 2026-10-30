@@ -599,6 +599,39 @@ describe('TaskListStore.refresh (§62)', () => {
     expect(store.error()).toBeNull();
   });
 
+  it('a failed Try again never clears a drag-receive failure (§19)', async () => {
+    const update = vi.fn(async () => { throw new GatewayError('internal_error', 500, 'move refused'); });
+    const { store, gateway } = setup({ update });
+    const list = gateway.tasks.list as ReturnType<typeof vi.fn>;
+    list.mockRejectedValueOnce(new GatewayError('unreachable', 0, 'down'));
+    await store.load(section());
+    await store.receive('task-elsewhere' as TaskId, section().id);
+    list.mockRejectedValueOnce(new GatewayError('unreachable', 0, 'still down'));
+
+    await store.retry();
+
+    expect(store.receiveError()).toContain('move refused');
+    expect(store.error()?.reason).toBe('still down');
+  });
+
+  it('the full read after a write never drops another write in flight (Slice 78)', async () => {
+    const add = deferred<TaskAddResult>();
+    const { store, gateway } = setup({ create: vi.fn(() => add.promise) });
+    const list = gateway.tasks.list as ReturnType<typeof vi.fn>;
+    list.mockRejectedValueOnce(new GatewayError('unreachable', 0, 'down'));
+    await store.load(section());
+    const adding = store.create('Pending add');
+    expect(store.pendingCreate()?.title).toBe('Pending add');
+
+    expect(await store.receive('task-elsewhere' as TaskId, section().id)).toBe(true);
+    expect(store.pendingCreate()?.title).toBe('Pending add');
+
+    add.resolve(resultOf(task({ id: 'task-added', title: 'Pending add' })) as TaskAddResult);
+    expect(await adding).toBe('added');
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    expect(store.error()).toBeNull();
+  });
+
   it('a failed read never clears a drag-receive failure', async () => {
     const update = vi.fn(async () => { throw new GatewayError('internal_error', 500, 'move refused'); });
     const { store, gateway } = setup({ update });

@@ -156,13 +156,16 @@ export class TaskListStore {
     // newer `loadGeneration` instead — that number is how `load` recognises its own answer,
     // and bumping it here would make every load discard its own result.
     return this.track(() => this.mutating(async () => {
-      // A re-read of the same section keeps its failure on screen until it answers (Slice 78).
-      if (this.sectionIdState() !== section.id) this.errorState.set(null);
+      // A re-read of the same section keeps its failure on screen until it answers, and a read
+      // never clears a write failure (Slice 78); another section starts clean.
+      if (this.sectionIdState() !== section.id) {
+        this.errorState.set(null);
+        this.receiveErrorState.set(null);
+      }
       this.requested = section;
       this.projectIdState.set(section.projectId);
       this.sectionIdState.set(section.id);
       this.loadingState.set(true);
-      this.receiveErrorState.set(null);
       // A new container starts with none of the old one's writes on screen.
       this.pendingCreateState.set(null);
       this.createErrorState.set(null);
@@ -192,9 +195,12 @@ export class TaskListStore {
     return this.requested === null ? Promise.resolve() : this.load(this.requested);
   }
 
-  /** A successful write after a failed read starts a full read, which clears the failure (L4-027). */
+  /**
+   * A successful write after a failed read starts a full read, which clears the failure (L4-027).
+   * The quiet one: it waits for writes in flight rather than dropping them, as `load` would.
+   */
   private rereadAfterWrite(): void {
-    if (this.errorState() !== null) void this.retry();
+    if (this.errorState() !== null) void this.refresh();
   }
 
   /**
