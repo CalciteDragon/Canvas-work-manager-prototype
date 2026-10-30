@@ -2,9 +2,40 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0, 1 and 2 are done; Stage 3 is under
-way: shell, dashboard, workspace, page and canvas, sections and pages are done; settings and the
-picker remain.**
+rounds and accepted by the user on 2026-10-29. **Stages 0, 1, 2 and 3 are done. Stage 4 is
+next.**
+
+- Stage 3, part d (`bd30373`, `a8755fc`, `fb65a87`, review fixes `0dfc976`), reviewed once by a
+  subagent against the diff (no substantive findings; the minor ones were fixed or are noted
+  below). **Stage 3 is complete.**
+  - **Settings › Archived projects.** `ArchivedProjectsStore.error()` is an `ArchiveError` (the
+    type is imported from `archive-page-store.ts`), with Archive's four states and precedence,
+    said of "this list": load (`readFailure(…, 'this list')`), stale ("This list may be out of
+    date.", polite), refused ("Couldn’t restore “X”. The list may have changed.", or the reach
+    sentence for `unreachable`) and committed-unrefreshed ("Restored “X”, but this list couldn’t
+    refresh.", Retry refresh). `COMMITTED_UNREFRESHED` is gone. `retry()` is a quiet `handover`
+    read with `retryPending()`; a load no longer clears the error at its start (only a successful
+    read or a persona reload does). The page renders one `FailureMessage` (`data-archived-error`);
+    `data-archived-retry` and `.archived-projects__error` are gone; the focus code finds
+    `[data-archived-error] [data-recovery]`. `apps/e2e/archived-projects.spec.ts:196,201` updated
+    (not run).
+  - **AI & Agents.** `AgentConnectionsStore.error()` is the list read's `Failure` ("your agent
+    connections"), rendered by a region `FailureMessage` (`data-agents-error`, Try again busy on
+    `loading()`, kept while it re-reads). Revoke's failure is the new `revokeError()`
+    (`data-agents-revoke-error`, raw reason, same placement, no Try again, list kept).
+    `agent-connections-store.spec.ts` is new.
+  - **Picker.** `ShortcutStore.error()` is the discovery read's `Failure` ("the list of
+    sections"), with `retry()`; a re-read of the same project/page keeps it, another page clears
+    it. The picker renders it as a region `FailureMessage` (`data-shortcut-picker-error`) before
+    the loading branch, so Try again stays busy in place.
+  - **Loose ends for Stage 4:** the picker's `create` callback and `createError`, the agent
+    permission card, Revoke's raw reason (carried to slice 8), and every other write slot named in
+    parts a–c are still raw strings. Known minor gap (shared with Archive): a live frame arriving
+    while Settings' Try again is pending supersedes the handover read, so if it fails the refusal
+    stays rather than turning stale. Untested: the Settings page's refused-restore render, and
+    committed-unrefreshed under a failing live-frame read (the store logic is Archive's).
+  - `docs/architecture/web/how.md`, `web/what.md` and `web/projects/how.md` say what is true.
+  - `pnpm test` and `pnpm lint` green at the end of the part; e2e not run.
 
 - Stage 3, part c (`525e7de`, `50f118f`, `1ad44e1`, `1d9153d`, `032c209`, `120f5e3`, `eb49edb`,
   `6f44a9e`, review fixes `837a7c1`), reviewed once by a subagent against the diff (one
@@ -166,11 +197,10 @@ picker remain.**
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 3, the rest: stores to `Failure`, one store with its template and spec at a time
-(settings — Archived projects with Archive's four states, AI & Agents; then the picker, including
-`shortcut-store.ts`'s discovery read). The items moved from Stage 2 are done (part b). Follow part a's pattern: keep the failure on screen, busy, while Try
-again re-reads; where a polite announcement matters, mount the live region before the failure
-arrives.
+**Next:** Stage 4 (`## Implementation sequence` step 4): write failures' Details, dialogs,
+Markdown, the progress fact, not-found (`UnavailablePage`, which changes the interim `not_found`
+e2e assertions noted in part b), then the pinned-failure registry/directive/slot tests and wiring.
+The raw write slots left by parts a–d are listed in their entries above.
 
 **Traps found in Stage 0:**
 - The before build's workspace waits on the progress read, so `header-progress-pending` shows
