@@ -412,7 +412,7 @@ export class ProjectPageStore {
         const shortcuts = await this.gateway.shortcuts.list(projectId, { pageId });
         if (!this.current(generation, projectId, pageId)) return;
         if (epoch !== this.sectionWriteEpoch) {
-          void this.refreshSections();
+          await this.refreshSections();
           return;
         }
         this.acceptCollapseRead(this.composePlacements([], shortcuts));
@@ -439,11 +439,13 @@ export class ProjectPageStore {
 
   /** The failed shortcuts read's Try again: a re-read of the shortcuts alone, the canvas kept. */
   async retryShortcuts(): Promise<void> {
+    const generation = this.loadGeneration;
     this.shortcutsRetryPendingState.set(true);
     try {
       await this.refreshShortcuts();
     } finally {
-      this.shortcutsRetryPendingState.set(false);
+      // A retry left behind on another page must not end, or hold, the new page's busy state.
+      if (generation === this.loadGeneration) this.shortcutsRetryPendingState.set(false);
     }
   }
 
@@ -482,6 +484,7 @@ export class ProjectPageStore {
       if (!samePage) this.errorState.set(null);
       this.sectionErrorState.set(null);
       this.shortcutsErrorState.set(null);
+      this.shortcutsRetryPendingState.set(false);
       const [sectionsResult, shortcutsResult] = await Promise.allSettled([
         this.gateway.sections.list(projectId, { pageId }),
         this.readShortcuts(projectId, pageId),

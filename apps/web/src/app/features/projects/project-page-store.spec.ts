@@ -649,6 +649,38 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.error()).toEqual({ sentence: 'This page isn’t available.', reason: 'canvas read failed' });
   });
 
+  it('does not carry one page’s sections read failure onto the next page’s load, nor its busy shortcuts retry', async () => {
+    const list = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('internal_error', 500, 'disk on fire'))
+      .mockResolvedValue([section('section-text', 'markdown', 0)]);
+    const { store } = setup({ sectionOverrides: { list } });
+    await store.load(PROJECT, PAGE);
+    expect(store.error()).not.toBeNull();
+
+    const next = store.load(PROJECT, 'page-other' as ProjectPageId);
+    expect(store.error()).toBeNull();
+    await next;
+    expect(store.error()).toBeNull();
+  });
+
+  it('a shortcuts retry left behind on another page does not keep the new page’s Try again busy', async () => {
+    const gate = deferred<ResolvedSectionShortcut[]>();
+    const shortcutList = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'shortcut read failed'))
+      .mockReturnValueOnce(gate.promise)
+      .mockResolvedValue([]);
+    const { store } = setup({ shortcutList });
+    await store.load(PROJECT, PAGE);
+    const left = store.retryShortcuts();
+    expect(store.shortcutsRetryPending()).toBe(true);
+
+    await store.load(PROJECT, 'page-other' as ProjectPageId);
+    expect(store.shortcutsRetryPending()).toBe(false);
+    gate.resolve([]);
+    await left;
+    expect(store.shortcutsRetryPending()).toBe(false);
+  });
+
   it('says a failed sections read in product words, keeps it while Try again re-reads, then clears it (Slice 78)', async () => {
     const list = vi.fn()
       .mockRejectedValueOnce(new GatewayError('internal_error', 500, 'disk on fire'))
