@@ -42,6 +42,7 @@ export class ArchivedProjectsStore {
         this.restoreReportState.set(null);
         this.resultState.set(null);
         this.errorState.set(null);
+        this.retryPendingState.set(false);
         this.statusState.set(new Map());
         void this.load();
       } else if (isProjectRecordEvent(event) && this.busyState() === null) {

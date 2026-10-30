@@ -155,6 +155,18 @@ describe('ArchivedProjectsStore (Slice 44)', () => {
     expect(store.items()).toHaveLength(0);
   });
 
+  it('clears a held failure and a pending Try again on persona reload (Slice 78)', async () => {
+    const { store, gateway, live } = setup();
+    gateway.options.failOn = { 'projects.archived': new GatewayError('unreachable', 0, 'list read failed') };
+    await store.load();
+    vi.spyOn(gateway.projects, 'archived').mockImplementationOnce(() => new Promise(() => {})).mockImplementationOnce(() => new Promise(() => {}));
+    void store.retry();
+    expect(store.retryPending()).toBe(true);
+    live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+    expect(store.error()).toBeNull();
+    expect(store.retryPending()).toBe(false);
+  });
+
   it('drops an old persona read that resolves after a reload', async () => {
     const { store, gateway, live } = setup();
     await store.load();

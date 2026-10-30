@@ -13,8 +13,8 @@ re-read before a refusal ends in the refusal, and Try again hands a refusal over
 Project frames and reconnects refresh the workspace list. Committed Restore opens one toast
 naming the project and resulting status, with Open it and no Undo outside a workspace. Focus
 moves to its first action only when the removed Restore control or body still owns focus;
-dismissal falls back to a surviving Restore or the heading. Failed Restore and Retry retain the
-existing bounded list-focus recovery, and a person who moved focus elsewhere keeps it. A later
+dismissal falls back to a surviving Restore or the heading. Failed Restore, Try again and Retry
+refresh retain the existing bounded list-focus recovery, and a person who moved focus elsewhere keeps it. A later
 failed read keeps the committed-unrefreshed state so the committed write stays acknowledged.
 
 ## Runtime flow

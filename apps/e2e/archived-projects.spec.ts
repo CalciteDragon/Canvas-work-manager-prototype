@@ -127,9 +127,9 @@ test.describe('narrow touch recovery', () => {
   });
 
   // Slice 47: a later row's Restore is disabled until its status is chosen, so focus moves to
-  // the next enabled status selector — or Retry, or the heading — and never away from where
+  // the next enabled status selector — or Retry refresh, or the heading — and never away from where
   // the person deliberately put it.
-  test('focus lands on the remaining row, a revealed child, Retry, or stays where it was moved, in both themes', async ({ page }) => {
+  test('focus lands on the remaining row, a revealed child, Retry refresh, or stays where it was moved, in both themes', async ({ page }) => {
     await seed('personal-workspace');
     await setClock(NOW);
     const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
@@ -177,7 +177,7 @@ test.describe('narrow touch recovery', () => {
       await expect(row(page, parent.id)).toHaveCount(0);
       await expect(page.locator('[data-toast]:popover-open [data-restore-open]')).toBeFocused();
 
-      // A failed refresh keeps the row blocked and focuses Retry; a successful Retry moves on.
+      // A failed refresh keeps the row blocked and focuses Retry refresh; a successful one moves on.
       await status(child.id).selectOption('on_hold');
       // Armed by the child's own write, so a late frame from an earlier step cannot fail a read
       // (and disable the child's Restore) before the Restore is activated.
