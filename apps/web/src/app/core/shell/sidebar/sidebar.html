@@ -46,7 +46,7 @@
           autocomplete="off"
           [value]="draftName()"
           [attr.aria-invalid]="nameRefused() ? 'true' : null"
-          [attr.aria-describedby]="nameRefused() ? 'new-project-name-error' : null"
+          [attr.aria-describedby]="nameRefused() ? 'new-project-name-error' : createError() !== null ? 'new-project-create-error' : null"
           (input)="nameRefused.set(false)"
         />
         <button type="submit" data-create-project-submit class="button button--primary">Create</button>
@@ -58,7 +58,7 @@
 
     <!-- Beside the form, never in place of the tree. -->
     @if (createError(); as createError) {
-      <p class="notice" data-create-error role="alert">{{ createError }}</p>
+      <app-failure-message data-create-error weight="inline" [failure]="createError" live="alert" sentenceId="new-project-create-error" />
     }
 
     @if (projectsExpanded()) {

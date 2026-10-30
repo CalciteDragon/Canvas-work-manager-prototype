@@ -68,8 +68,9 @@
   font-size: var(--font-size-sm);
 }
 
+// Inset as the notices beside it; the failure form colours its own sentence (Slice 78).
 [data-create-error] {
-  color: var(--color-danger);
+  padding: var(--space-2);
 }
 
 .group__header-row {

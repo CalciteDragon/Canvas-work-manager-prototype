@@ -354,7 +354,8 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     await stable();
 
     expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
-    expect(q('[data-create-error]')?.textContent).toContain('not running');
+    expect(q('[data-create-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t create “Phone project”. Try again.');
+    expect(q('[data-create-error] details')?.textContent).toContain('not running');
     expect(document.activeElement).toBe(q('[data-create-project-name]'));
   });
 

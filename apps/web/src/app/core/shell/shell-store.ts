@@ -5,7 +5,7 @@ import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../history/operation-history-reporter';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { LIVE_UPDATES } from '../live/live-updates';
-import { readFailure, type Failure } from '../../shared/feedback/failure';
+import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 
 /**
  * A project and the projects under it. **Derived view state, not an entity** — it has no
@@ -19,8 +19,6 @@ export interface ProjectTreeNode {
 
 /** The sidebar is navigation, so archived projects have no business in it. */
 const SIDEBAR_STATUSES = ProjectStatusSchema.options.filter((status) => status !== 'archived');
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 interface QueuedRead { quiet: boolean; promise: Promise<void>; resolve: () => void; reject: (error: unknown) => void; }
 
@@ -55,7 +53,7 @@ export class ShellStore {
    * project tree, so routing a failed creation onto it would empty navigation because one
    * write failed. This one renders beside the create form and leaves the tree alone.
    */
-  private readonly createErrorState = signal<string | null>(null);
+  private readonly createErrorState = signal<Failure | null>(null);
 
   readonly identity = this.identityState.asReadonly();
   readonly projects = this.projectsState.asReadonly();
@@ -100,7 +98,7 @@ export class ShellStore {
     if (workspaceId === undefined) {
       // Through `null`, as below, so an identical second refusal still reads as a new failure.
       this.createErrorState.set(null);
-      this.createErrorState.set('No workspace is loaded yet, so there is nowhere to put a new project.');
+      this.createErrorState.set({ sentence: 'No workspace is loaded yet, so there is nowhere to put a new project.', reason: null });
       return null;
     }
 
@@ -116,7 +114,7 @@ export class ShellStore {
       await this.refresh();
       return created.project.id;
     } catch (error) {
-      this.createErrorState.set(messageOf(error));
+      this.createErrorState.set(writeFailure(error, `Couldn’t create “${name}”. Try again.`));
       return null;
     } finally {
       settled();

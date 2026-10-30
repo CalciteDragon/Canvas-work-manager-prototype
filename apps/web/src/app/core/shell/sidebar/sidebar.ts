@@ -46,7 +46,7 @@ export class Sidebar {
    * and losing every project from navigation because one write failed is a worse answer
    * than the write's own message beside the form that produced it.
    */
-  readonly createError = input<string | null>(null);
+  readonly createError = input<Failure | null>(null);
 
   readonly createRequested = output<string>();
   /** Try again on a failed read; `AppShell` asks `ShellStore` to read again. */
@@ -90,9 +90,9 @@ export class Sidebar {
   }
 
   /**
-   * Puts the form back, draft and all, with focus in the name. Public because an identical
-   * second failure leaves `createError` unchanged — a template binding compares by value — so
-   * `AppShell`, which sees each failure in the store, calls it too. Idempotent.
+   * Puts the form back, draft and all, with focus in the name. Public because `AppShell`, which
+   * sees each failure in the store, calls it too: a repeated refusal is not left to depend on
+   * this input noticing the change. Idempotent.
    */
   reopenCreate(): void {
     this.createOpen.set(true);

@@ -8,6 +8,7 @@ import { FakeWorkManagerGateway } from '../gateway/testing/fake-gateway';
 import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER } from '../history/operation-history-reporter';
+import type { Failure } from '../../shared/feedback/failure';
 import { RecordingReporter } from '../history/testing/recording-reporter';
 import { IDENTITY_PROVIDER, type IdentityProvider } from '../identity/identity-provider';
 import { LIVE_UPDATES } from '../live/live-updates';
@@ -377,7 +378,8 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     const created = await store.createProject('Prototype review');
 
     expect(created).toBeNull();
-    expect(store.createError()).toContain('not running');
+    // Slice 78: the product sentence, the host's reason kept for Details.
+    expect(store.createError()).toEqual({ sentence: 'Couldn’t create “Prototype review”. Try again.', reason: 'the prototype host is not running' });
     // The regression this signal exists for: the tree must survive a failed write.
     expect(store.projects()).toHaveLength(1);
     expect(store.error()).toBeNull();
@@ -393,7 +395,8 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     const created = await store.createProject('Prototype review');
 
     expect(created).toBeNull();
-    expect(store.createError()).toContain('nowhere to put');
+    expect(store.createError()?.sentence).toContain('nowhere to put');
+    expect(store.createError()?.reason).toBeNull();
     expect(gateway.calls.some(({ method }) => method === 'projects.create')).toBe(false);
   });
 
@@ -402,7 +405,7 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
   it('reports a repeated refusal as a new failure', async () => {
     const { store } = storeWith({ identity: new GatewayError('unauthorized', 401, 'no persona') });
     await store.load();
-    const seen: Array<string | null> = [];
+    const seen: Array<Failure | null> = [];
     TestBed.runInInjectionContext(() => effect(() => void seen.push(store.createError())));
 
     await store.createProject('Prototype review');
@@ -410,6 +413,6 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     await store.createProject('Prototype review');
     TestBed.tick();
 
-    expect(seen.filter((message) => message?.includes('nowhere to put'))).toHaveLength(2);
+    expect(seen.filter((failure) => failure?.sentence.includes('nowhere to put'))).toHaveLength(2);
   });
 });

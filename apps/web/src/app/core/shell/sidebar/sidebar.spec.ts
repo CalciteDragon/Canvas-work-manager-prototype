@@ -7,6 +7,7 @@ import type { Failure } from '../../../shared/feedback/failure';
 import type { ProjectTreeNode } from '../shell-store';
 import { Sidebar } from './sidebar';
 
+const CREATE_FAILED: Failure = { sentence: 'Couldn’t create “Prototype review”. Try again.', reason: 'the prototype host is not running' };
 const AT = '2026-08-01T16:00:00.000Z';
 
 const node = (id: string, name: string, children: ProjectTreeNode[] = []): ProjectTreeNode => ({
@@ -23,7 +24,7 @@ const node = (id: string, name: string, children: ProjectTreeNode[] = []): Proje
 });
 
 const render = async (
-  inputs: { projectTree?: ProjectTreeNode[]; failure?: Failure | null; loading?: boolean; createError?: string | null } = {},
+  inputs: { projectTree?: ProjectTreeNode[]; failure?: Failure | null; loading?: boolean; createError?: Failure | null } = {},
 ) => {
   TestBed.configureTestingModule({ imports: [Sidebar], providers: shellTestProviders() });
   const fixture: ComponentFixture<Sidebar> = TestBed.createComponent(Sidebar);
@@ -245,10 +246,15 @@ describe('Sidebar', () => {
   it('renders the project tree and the create error at the same time', async () => {
     const { element } = await render({
       projectTree: [node('project-1', 'Personal workspace')],
-      createError: 'the prototype host is not running',
+      createError: CREATE_FAILED,
     });
 
-    expect(element.querySelector('[data-create-error]')?.textContent).toContain('not running');
+    // Slice 78: the sentence, polite to nothing else on Home, its reason under a closed Details.
+    const error = element.querySelector<HTMLElement>('[data-create-error]')!;
+    expect(error.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t create “Prototype review”. Try again.');
+    expect(error.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(error.querySelector('details')?.open).toBe(false);
+    expect(error.querySelector('details')?.textContent).toContain('not running');
     expect(textOf(element, '[data-project]')).toEqual(['Personal workspace']);
     expect(element.querySelector('[data-projects-error]')).toBeNull();
   });
@@ -263,14 +269,16 @@ describe('Sidebar', () => {
     await fixture.whenStable();
     expect(element.querySelector('[data-create-project-form]')).toBeNull();
 
-    fixture.componentRef.setInput('createError', 'the prototype host is not running');
+    fixture.componentRef.setInput('createError', CREATE_FAILED);
     await fixture.whenStable();
 
     expect(element.querySelector('[data-create-project-form]')).not.toBeNull();
-    expect(element.querySelector<HTMLInputElement>('[data-create-project-name]')?.value).toBe(
-      'Prototype review',
-    );
-    expect(element.querySelector('[data-create-error]')?.textContent).toContain('not running');
+    const field = element.querySelector<HTMLInputElement>('[data-create-project-name]')!;
+    expect(field.value).toBe('Prototype review');
+    // The reopened name is described by the sentence alone, never the reason.
+    const sentence = element.querySelector('[data-create-error] [data-failure-sentence]');
+    expect(sentence?.textContent?.trim()).toBe('Couldn’t create “Prototype review”. Try again.');
+    expect(element.querySelector(`#${field.getAttribute('aria-describedby')}`)).toBe(sentence);
   });
 
   // Slice 58: the optimistic close removed the focused Create button, so without this focus
@@ -286,7 +294,7 @@ describe('Sidebar', () => {
       submit.click();
       await fixture.whenStable();
 
-      fixture.componentRef.setInput('createError', 'the prototype host is not running');
+      fixture.componentRef.setInput('createError', CREATE_FAILED);
       await fixture.whenStable();
       await fixture.whenStable();
 
