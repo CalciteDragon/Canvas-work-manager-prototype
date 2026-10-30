@@ -64,7 +64,10 @@ Smaller features that do not earn a folder of their own:
 - `features/settings` — `SettingsPage` is a way in; `settings/agents` is §53's
   permission grid and revoke (`AgentConnectionsPage`, `AgentConnectionsStore`).
 - `features/calendar`, `features/search` — placeholders until Slices 18 and 21.
-- `shared/components/placeholder-page` — `PlaceholderPage`, `NotFoundPage`.
+- `shared/components/placeholder-page` — `PlaceholderPage`, `NotFoundPage` (which renders
+  `UnavailablePage`).
+- `shared/components/unavailable-page` — `UnavailablePage`, the way back from an unavailable
+  project or an unknown address: heading, one sentence, Go to Home.
 - `shared/components/markdown-renderer` — safe source presentation, lazy with the Markdown body.
 - `shared/components/icon` — `Icon`, the one monochrome SVG set for app-owned marks (chrome glyphs,
   page kinds, section types, widgets, activity actors), listed in `ICON_NAMES`. User-chosen

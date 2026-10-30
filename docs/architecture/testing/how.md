@@ -151,7 +151,7 @@ complete `chrome-verification.json`. Earlier slices' runtime scripts remain froz
    and containment at 375 px and desktop span-4 Grid in both themes.
    Slice 42's `project-creation-history.spec.ts` creates from the sidebar and Work plus,
    Undoes and Redoes the same ids, reloads the creator's recovery route, and confirms another actor
-   sees *Project unavailable*. A nested-project journey checks the root Work tree, Todos, Archive
+   sees *This project isn’t available*. A nested-project journey checks the root Work tree, Todos, Archive
    and the parent's Work column after create, Undo and Redo, then verifies the expired
    creation route has no stale recovery offer.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`

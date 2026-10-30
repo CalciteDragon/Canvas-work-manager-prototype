@@ -321,8 +321,12 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     await blocks[0]!.render(DeferBlockState.Error);
     const slot = query(harness, '[data-project-nav-error]');
     expect(slot?.classList.contains('project-workspace__nav')).toBe(true);
-    expect(slot?.textContent).toContain('Project navigation could not load.');
-    expect(slot?.querySelector('a')?.getAttribute('href')).toBe('/projects/project-kitchen');
+    // Slice 78: the `.state-message` layout; Reload page stays, as reloading is the cure for a failed chunk.
+    const message = slot?.querySelector('.state-message');
+    expect(message?.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load project navigation.');
+    expect(message?.querySelector('[role="alert"]')).not.toBeNull();
+    expect(message?.querySelector('a')?.textContent?.trim()).toBe('Reload page');
+    expect(message?.querySelector('a')?.getAttribute('href')).toBe('/projects/project-kitchen');
   });
 
   it('same-root project navigation closes the work dialog', async () => {
@@ -494,13 +498,23 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     });
   });
 
-  it('renders a project it cannot read as one visible message, not an empty column and a blank canvas', async () => {
+  it('renders a project it cannot see as the unavailable page: Go to Home, no Try again, no Details, no id (§68, W4-024, L4-014)', async () => {
     const { harness } = await open('/projects/project-renovation', {
-      failOn: { 'projects.get': new GatewayError('not_found', 404, 'no such project') },
+      failOn: { 'projects.get': new GatewayError('not_found', 404, 'project "project-renovation" was not found') },
     });
 
-    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
-    expect(query(harness, '[data-project-error] [data-failure-sentence]')?.textContent?.trim()).toBe('This project isn’t available.');
+    const unavailable = query(harness, '[data-project-unavailable]');
+    const heading = unavailable?.querySelector('h1');
+    expect(heading?.textContent?.trim()).toBe('This project isn’t available');
+    expect(heading?.hasAttribute('data-route-focus')).toBe(true);
+    expect(heading?.getAttribute('tabindex')).toBe('-1');
+    expect(unavailable?.textContent).toContain('It may have been removed, or it isn’t shared with you.');
+    expect(unavailable?.querySelector('a[data-go-home]')?.getAttribute('href')).toBe('/app');
+    expect(harness.fixture.nativeElement.querySelector('details')).toBeNull();
+    expect(harness.fixture.nativeElement.querySelector('[data-recovery="try-again"]')).toBeNull();
+    expect(harness.fixture.nativeElement.textContent).not.toContain('project-renovation');
+    expect(harness.fixture.nativeElement.textContent).not.toContain('was not found');
+    expect(query(harness, '[data-project-error]')).toBeNull();
     expect(query(harness, '#project-nav-panel')).toBeNull();
     expect(query(harness, '[data-section-canvas]')).toBeNull();
   });
@@ -559,14 +573,14 @@ describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
   });
 
-  it('keeps Project unavailable when the missing id has no creation Redo', async () => {
+  it('keeps the unavailable page when the missing id has no creation Redo', async () => {
     const { harness } = await open('/projects/project-missing', {
       projects: [],
       pages: [],
       historySummaries: [projectAddSummary('project-missing', { historyId: null, revision: 0, undo: null, redo: null })],
     });
 
-    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-unavailable]')).not.toBeNull();
     expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
   });
 
@@ -580,7 +594,7 @@ describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
     });
     await settle(harness);
 
-    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-unavailable]')).not.toBeNull();
     expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
     expect(query(harness, '[data-project-history-retry]')).toBeNull();
   });
@@ -594,7 +608,7 @@ describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
     });
     await settle(harness);
 
-    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-unavailable]')).not.toBeNull();
     expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
     const retry = query(harness, '[data-project-history-retry]') as HTMLButtonElement | null;
     expect(retry).not.toBeNull();
@@ -1037,6 +1051,18 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
 
       expect(query(harness, '[data-project-error]')).not.toBeNull();
       expect(document.activeElement).toBe(query(harness, '[data-project-error] [data-recovery="try-again"]'));
+    });
+
+    it('on the heading, when the chosen project isn’t available', async () => {
+      media = stubMatchMedia(true);
+      const { harness, gateway, projectGet } = await openNarrow('/projects/project-renovation');
+      interceptGet(gateway, projectGet, 'project-garden', () =>
+        Promise.reject(new GatewayError('not_found', 404, 'project "project-garden" was not found')));
+
+      query(harness, '[data-work-project-id="project-garden"] > a')!.click();
+      await settle(harness);
+
+      expect(document.activeElement).toBe(query(harness, '[data-project-unavailable] h1'));
     });
 
     it('on the heading, when the chosen project’s creation was undone', async () => {

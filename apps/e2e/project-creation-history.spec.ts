@@ -121,7 +121,7 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   observeBrowser(outsider);
   await outsider.goto(`/projects/${child.id}`);
   await expect(outsider.locator('[data-identity-name]')).toHaveText('Alex');
-  await expect(outsider.locator('[data-project-error]')).toContainText('not found');
+  await expect(outsider.locator('[data-project-unavailable] h1')).toHaveText('This project isn’t available');
   // Their history read is a not-found answer too, so nothing offers a Retry that cannot help.
   await expect(outsider.locator('[data-project-history-retry]')).toHaveCount(0);
 
@@ -137,7 +137,7 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
   await setClock(new Date(Date.parse(NOW) + 25 * 60 * 60 * 1000).toISOString());
   await page.reload();
-  await expect(page.locator('[data-project-error]')).toContainText('not found');
+  await expect(page.locator('[data-project-unavailable] h1')).toHaveText('This project isn’t available');
   await expect(page.locator('[data-project-creation-recovery]')).toHaveCount(0);
 
   expect(browserErrors).toEqual([]);

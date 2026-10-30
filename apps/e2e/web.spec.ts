@@ -358,7 +358,7 @@ test('injected gateway failures roll back a task but preserve confirmed optional
   await openDevPanel();
   await page.locator('[data-panel-persona][data-persona-id="user-alex"]').click();
   await expect(page.locator('[data-identity-name]')).toHaveText('Alex');
-  await expect(page.locator('[data-project-error]')).toContainText('not found');
+  await expect(page.locator('[data-project-unavailable] h1')).toHaveText('This project isn’t available');
   await openDevPanel();
   await page.locator('[data-panel-persona][data-persona-id="user-demo"]').click();
   await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');

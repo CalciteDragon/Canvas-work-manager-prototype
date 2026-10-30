@@ -14,15 +14,18 @@
 } @else if (store.error(); as failure) {
   <!-- Before loading: Try again keeps the failure on screen, busy, until the read answers. -->
   @if (store.missing()) {
-    <section class="project-workspace__notice" aria-labelledby="project-error-heading">
-      <h1 id="project-error-heading" tabindex="-1">Project unavailable</h1>
-      <app-failure-message data-project-error [failure]="failure" live="alert" />
+    <!-- §68: the same answer for a removed project and another person's, so it says neither. -->
+    <app-unavailable-page
+      data-project-unavailable
+      heading="This project isn’t available"
+      sentence="It may have been removed, or it isn’t shared with you."
+    >
       @if (history.retryAvailable()) {
-        <button type="button" data-project-history-retry class="button project-workspace__retry" (click)="history.retry()">
+        <button type="button" data-project-history-retry class="button" (click)="history.retry()">
           Retry
         </button>
       }
-    </section>
+    </app-unavailable-page>
   } @else {
     <app-failure-message
       data-project-error
@@ -65,9 +68,12 @@
         <div data-project-nav-placeholder class="project-workspace__nav" aria-hidden="true"></div>
       } @error {
         <div data-project-nav-error class="project-workspace__nav">
-          <p class="project-workspace__muted" role="alert">
-            Project navigation could not load. <a class="link" [href]="navigationReloadUrl()">Reload page</a> to try again.
-          </p>
+          <!-- The failure form's layout, with Reload page in Try again's place: reloading is the
+               real cure for a lazy chunk that failed to load (Slice 78). -->
+          <div class="state-message state-message--region state-message--failed project-workspace__nav-failure">
+            <p class="state-message__sentence" data-failure-sentence role="alert">Couldn’t load project navigation.</p>
+            <a class="button button--sm" [href]="navigationReloadUrl()">Reload page</a>
+          </div>
         </div>
       }
     }

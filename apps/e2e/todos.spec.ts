@@ -105,7 +105,7 @@ test('root projections lead to descendant history without merging actor or proje
     await outsiderContext.addInitScript(() => localStorage.setItem('cwm.prototype.persona', 'user-alex'));
     const outsider = await outsiderContext.newPage();
     await outsider.goto(`/projects/${child}#history-controls`);
-    await expect(outsider.getByRole('heading', { name: 'Project unavailable' })).toBeVisible();
+    await expect(outsider.getByRole('heading', { name: 'This project isn’t available' })).toBeVisible();
     await expect(outsider.locator('#history-controls')).toHaveCount(0);
   } finally {
     await outsiderContext.close();

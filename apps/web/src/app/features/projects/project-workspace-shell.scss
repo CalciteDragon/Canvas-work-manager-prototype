@@ -52,10 +52,6 @@
   color: var(--color-text-muted);
 }
 
-.project-workspace__notice {
-  padding: var(--space-5);
-}
-
 .project-workspace__recovery {
   display: grid;
   gap: var(--space-4);
@@ -73,13 +69,12 @@
   color: var(--color-text-muted);
 }
 
-.project-workspace__failure {
-  margin: var(--space-5);
+.project-workspace__nav-failure {
+  margin: var(--space-3);
 }
 
-.project-workspace__notice h1 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-xl);
+.project-workspace__failure {
+  margin: var(--space-5);
 }
 
 .project-workspace__error {
@@ -106,10 +101,6 @@
 
 .project-workspace__page-notice .button {
   flex: 0 0 auto;
-}
-
-.project-workspace__retry {
-  justify-self: start;
 }
 
 @media (max-width: breakpoints.$workspace-narrow) {

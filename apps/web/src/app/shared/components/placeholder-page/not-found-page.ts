@@ -1,16 +1,17 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { PlaceholderPage } from './placeholder-page';
+import { UnavailablePage } from '../unavailable-page/unavailable-page';
 
 /**
  * The `**` route. §68 defines no wildcard, but the alternative is a blank screen on a
- * typo — and a prototype gets typed into a lot.
+ * typo — and a prototype gets typed into a lot. It shares the unavailable project's layout and
+ * its way back to Home (Slice 78, L4-014).
  */
 @Component({
   selector: 'app-not-found-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PlaceholderPage],
+  imports: [UnavailablePage],
   template: `
-    <app-placeholder-page heading="No such page" note="That address is not one of §68's routes." />
+    <app-unavailable-page heading="This page doesn’t exist" sentence="Check the address, or go to Home." />
   `,
 })
 export class NotFoundPage {}

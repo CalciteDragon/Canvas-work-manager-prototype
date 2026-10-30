@@ -523,7 +523,7 @@ test('Slice 45 · 1. the controls work with Archive disabled, populated off Home
   const outsider = await outsiderContext.newPage();
   await outsider.goto(`/projects/${ROOT}`);
   await expect(outsider.locator('[data-identity-name]')).toHaveText('Alex');
-  await expect(outsider.locator('[data-project-error]')).toContainText('not found');
+  await expect(outsider.locator('[data-project-unavailable] h1')).toHaveText('This project isn’t available');
   await outsider.goto('/app');
   await outsider.locator('[data-new-project]').click();
   await outsider.locator('[data-create-project-name]').fill('Alex root');

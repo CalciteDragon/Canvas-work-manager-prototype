@@ -26,6 +26,7 @@ import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history
 import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
 import { ReceiptToast } from '../../core/history/receipt-toast';
 import { FailureMessage } from '../../shared/feedback/failure-message';
+import { UnavailablePage } from '../../shared/components/unavailable-page/unavailable-page';
 import type { Failure } from '../../shared/feedback/failure';
 import { Toast } from '../../shared/feedback/toast';
 import { WORKSPACE_NARROW_BREAKPOINT } from '../../core/layout/breakpoints';
@@ -103,7 +104,7 @@ export class ProjectColumnFocusRequest {
 @Component({
   selector: 'app-project-workspace-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, FailureMessage, ProjectHeader, ProjectHistoryControls, Toast, ProjectPageNavigation, WorkCreateDialog, RouterLink],
+  imports: [NgComponentOutlet, FailureMessage, UnavailablePage, ProjectHeader, ProjectHistoryControls, Toast, ProjectPageNavigation, WorkCreateDialog, RouterLink],
   // `providers`, not `viewProviders`: the page renderers are mounted through `NgComponentOutlet`,
   // and every writer store inside them must resolve the header's history as its reporter
   // (Slice 41). The inert root default would otherwise hide a wiring mistake.
@@ -395,7 +396,7 @@ export class ProjectWorkspaceShell {
     const target =
       host.querySelector<HTMLElement>('[data-project-nav-toggle]') ??
       host.querySelector<HTMLElement>('#project-creation-recovery-heading') ??
-      host.querySelector<HTMLElement>('#project-error-heading') ??
+      host.querySelector<HTMLElement>('[data-project-unavailable] h1') ??
       host.querySelector<HTMLElement>('[data-project-error] [data-recovery]');
     target?.focus();
   }

@@ -67,7 +67,7 @@ C4Component
 | `/settings/archived-projects` | `ArchivedProjectsPage` | Workspace recovery, independent of optional Archive pages |
 | `/prototype/design` | `DesignLabPage` (lazy) | §67 |
 | `/prototype/state` | `StateInspectorPage` (lazy) | §46, §68 |
-| `**` | `NotFoundPage` | |
+| `**` | `NotFoundPage` | §68 — "This page doesn’t exist", Go to Home |
 
 ## Page → Store → Gateway (§19)
 
@@ -99,6 +99,7 @@ header's history (Slice 41).
 | Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore`; current-name display with captured-label fallback supplied by the host; each actor is a `.pill` with an `IconName` mark and a word; rows that arrive after the feed's first render fade in with opacity only (`activity__row--arriving`), and both hosts mount it only after their read lands |
 | Settings | `src/app/features/settings/` | `SettingsPage`; `agents/AgentConnectionsPage` (each agent's permissions a fieldset under its name; a refused change said in that card as "Couldn’t change <permission> for <agent>. Try again.", linked from the box, the reason under Details; Revoke named by its agent; a failed list read is a `FailureMessage` with Try again, apart from Revoke's raw page-level `revokeError()`), `AgentConnectionsStore`; `archived-projects/ArchivedProjectsPage`, `ArchivedProjectsStore`; Appearance is a group of shared `.radio`s |
 | Placeholders | `src/app/features/calendar/`, `features/search/`, `shared/components/placeholder-page/` | `CalendarPage`, `SearchPage`, `PlaceholderPage`, `NotFoundPage` |
+| Unavailable page | `src/app/shared/components/unavailable-page/` | `UnavailablePage` — the shared layout of an unavailable project and the `**` page: route-focus heading, one sentence, Go to Home, no Try again or Details; a caller may project one more control |
 | Markdown renderer | `src/app/shared/components/markdown-renderer/` | `renderMarkdown` and `MarkdownRenderer`, loaded with the section body |
 | Icons | `src/app/shared/components/icon/` | `Icon` and `ICON_NAMES`: the one monochrome SVG set for app-owned marks; the owning control or text carries the accessible name |
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |

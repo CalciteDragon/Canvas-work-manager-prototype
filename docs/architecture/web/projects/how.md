@@ -64,7 +64,8 @@ dialog shows as an inline `FailureMessage` (`data-create-work-error`) that descr
 history feedback. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
 The column itself is deferred inside the loaded-root branch, alongside the deferred create dialog;
 the loaded context triggers it immediately. Loading reserves the navigation grid track; a failed
-chunk keeps that track and offers Reload page at the current URL. This keeps the initial graph
+chunk keeps that track and says "Couldn’t load project navigation." in the `.state-message`
+failed layout, with Reload page at the current URL in Try again's place. This keeps the initial graph
 under the unchanged 1050 kB error ceiling (the final measurement is in the Slice 60 record).
 
 Todos task checkboxes complete or reopen to `todo` through the canonical task gateway. Reopen
@@ -100,7 +101,7 @@ focus, and dismissal falls back to a surviving row control or the heading.
    column's `linkSelected` collapses the column and records the link's URL in the root-scoped
    `ProjectColumnFocusRequest`. An effect honours it once no navigation is in flight, the store
    is not loading and §68 is not redirecting, and only if `Router.url` still equals it: then the
-   toggle — or "Project unavailable" / "Creation undone", or a failed read's Try again — takes
+   toggle — or "This project isn’t available" / "Creation undone", or a failed read's Try again — takes
    focus after the render. A §68
    fallback redirect moves the request to its target; any other winning navigation drops it,
    and the request itself drops on any `NavigationEnd` elsewhere, so leaving for a route with no
@@ -215,13 +216,17 @@ Creation recovery uses the same project route. A not-found project read clears t
 `project.add`. The section uses the normal history controls and feedback. Creation Undo/Redo frames
 reload project context once per history revision, so a root tree updates after the project is
 removed or restored without another history read. An actor without that anchored summary continues
-to see *Project unavailable*. If the history summary itself is unavailable, that state offers a
+to see *This project isn’t available*. If the history summary itself is unavailable, that state offers a
 generic Retry for the summary read; it does not expose an Undo/Redo entry until the read confirms it
 ([decision](../../../decisions/2026-09-project-creation-history.md)).
 
 `ProjectWorkspaceStore.error()` is the project read's `Failure`
-([decision](../../../decisions/2026-10-failures-speak-product-words.md)). Not-found keeps the
-*Project unavailable* heading over "This project isn’t available." Any other failure replaces the
+([decision](../../../decisions/2026-10-failures-speak-product-words.md)). Not-found renders the
+shared [`UnavailablePage`](../../../api/components/UnavailablePage.html) (`data-project-unavailable`):
+"This project isn’t available", "It may have been removed, or it isn’t shared with you." and Go to
+Home, with the history Retry projected beside it when the summary read failed. It has no Try again,
+no Details and no id, so another persona's project reads the same as a removed one (W4-024). The
+route-focus heading is also the narrow column's focus target. Any other failure replaces the
 page with "Couldn’t load this project." and Try again (`retry()`), with the reason under Details.
 A re-read of the same project keeps the failure on screen, its Try again busy, until the read
 answers; loading another project clears it at once.
