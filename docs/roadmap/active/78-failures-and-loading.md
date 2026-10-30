@@ -3,7 +3,41 @@
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
 rounds and accepted by the user on 2026-10-29. **Stages 0–3 are done; Stage 4 parts a (write
-failures' Details) and b (dialogs, Markdown) are done. Stage 4's next part is the progress fact.**
+failures' Details), b (dialogs, Markdown) and c (progress fact, not-found) are done. Stage 4's
+next part is the pinned-failure registry/directive/slot, tests first, then its wiring.**
+
+- Stage 4, part c (`cc7f3c1`, `c245227`, review fixes `ee91cf0`), reviewed once by a subagent
+  against the diff (no substantive findings; three minor ones fixed, two kept, below).
+  - **Progress fact.** `ProjectHeader.progress` is a `ProgressFact` (`'pending' | 'empty' |
+    'failed' | number`, exported from `project-header.ts`; the store imports the type — kept, it
+    is type-only). The header says a muted "Measuring…" (`data-project-progress-pending`), "No
+    tasks to measure" (`-empty`), "Couldn’t load" (`-failed`) or "N% complete"; "Not available" is
+    gone. `ProjectWorkspaceStore` adds `progressFailedState` (set only while nothing has been read
+    for this project; a failed re-read keeps the last value) and a read sequence, so only the
+    newest progress read speaks. `progressResult` (unused) is deleted. **Behaviour change:** a
+    load now sets `loading` false once the context answers and reads progress afterwards (still
+    inside `track()`, so `PendingTasks` waits), so the page renders with "Measuring…" instead of
+    "Loading project…" during the progress read (Stage 0's trap). `task-interaction.spec.ts:46`
+    now waits for `% complete` before reading the "before" value. A domain test pins that a root
+    whose tasks sit in a workstream measures nothing, archived or not.
+  - **Not-found.** New `shared/components/unavailable-page/` (`UnavailablePage`, spec, stories):
+    `h1` with `data-route-focus` and `tabindex="-1"`, one sentence (`data-unavailable-sentence`),
+    Go to Home (`a[data-go-home]` → `/app`), and an `<ng-content>` slot. The workspace's
+    `not_found` branch renders it (`data-project-unavailable`, "This project isn’t available" /
+    "It may have been removed, or it isn’t shared with you."), projecting the history Retry; no
+    Details, no Try again, no id (the store still holds the reason; nothing renders it). The narrow
+    column's focus target is `[data-project-unavailable] h1`. `NotFoundPage` renders it ("This page
+    doesn’t exist" / "Check the address, or go to Home."); `PlaceholderPage` stays for Calendar and
+    Search. `.project-workspace__notice`, its `h1` rule and `.project-workspace__retry` are deleted.
+    e2e edited, not run (they use ports 4200/4310): `web.spec.ts:361`,
+    `project-creation-history.spec.ts:124,140`, `project-history.spec.ts:526`, `todos.spec.ts:108`
+    and `task-interaction.spec.ts:46`.
+  - **Chunk failure.** `[data-project-nav-error]` holds a `.state-message--region.state-message--failed`
+    block: "Couldn’t load project navigation." (`role="alert"`) and a Reload page link at the current URL.
+  - **Left alone:** the page-resolution line (`[data-page-unavailable]`, still `.project-workspace__error`,
+    `project-workspace-shell.html:116`) is in the shell's change-list row but no part of step 4 has
+    taken it yet; the Design Lab's dashboard-row sample "Not available · planning" is a dashboard
+    row, not the header fact. Bundle 1,124.28 kB initial. `pnpm test` and `pnpm lint` green.
 
 - Stage 4, part b (`fb1cc70`, `22ef8a7`, `9063191`, `e84511a`, `b9e0104`, docs `3722dc5`, review
   fixes `73eff1f`), reviewed once by a subagent against the diff (no substantive findings; two
@@ -268,8 +302,8 @@ failures' Details) and b (dialogs, Markdown) are done. Stage 4's next part is th
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 4 (`## Implementation sequence` step 4): the progress fact, not-found (`UnavailablePage`, which changes the interim `not_found`
-e2e assertions noted in part b), then the pinned-failure registry/directive/slot tests and wiring.
+**Next:** Stage 4 (`## Implementation sequence` step 4): the pinned-failure registry/directive/slot
+tests and wiring (the progress fact and not-found are done, part c above).
 The raw write slots left by parts a–d are listed in their entries above.
 
 **Traps found in Stage 0:**
