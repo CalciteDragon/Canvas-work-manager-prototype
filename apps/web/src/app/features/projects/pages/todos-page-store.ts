@@ -3,7 +3,11 @@ import { isProjectRecordEvent, type LiveEvent, type ProjectId, type ProjectTodoI
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { readFailure, type Failure } from '../../../shared/feedback/failure';
 
+/** A failed re-read over a list still on screen: polite, never "Couldn’t load" (Slice 78). */
+const staleFailure = (error: unknown): Failure => ({ ...readFailure(error, 'this list'), sentence: 'This list may be out of date.' });
+// The writes' raw text stays until Stage 4 gives them Details (Slice 78).
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /** The id a row is addressed by, whichever kind it is. */
@@ -68,8 +72,9 @@ export class TodosPageStore {
   // Starts true for the reason `ProjectPageStore` states: before the first read resolves the
   // page matches none of the template's branches and paints blank.
   private readonly loadingState = signal(true);
-  private readonly errorState = signal<string | null>(null);
-  private readonly refreshErrorState = signal<string | null>(null);
+  private readonly errorState = signal<Failure | null>(null);
+  private readonly refreshErrorState = signal<Failure | null>(null);
+  private readonly refreshPendingState = signal(false);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly rowErrorsState = signal<ReadonlyMap<string, string>>(new Map());
   private readonly completingState = signal<string | null>(null);
@@ -95,6 +100,8 @@ export class TodosPageStore {
   readonly error = this.errorState.asReadonly();
   /** A **re-read** that failed: what is on screen is still the better answer than a blank page. */
   readonly refreshError = this.refreshErrorState.asReadonly();
+  /** True while `retryRefresh` runs: the stale notice's Try again is busy. */
+  readonly refreshPending = this.refreshPendingState.asReadonly();
   /** A failed Delete. Completion failures are said on their row instead (Slice 75). */
   readonly writeError = this.writeErrorState.asReadonly();
   /** A failed complete or reopen, by row id, beside the control that moved back (Slice 75, L4-005). */
@@ -120,12 +127,14 @@ export class TodosPageStore {
   /** The chronology of one root. Called again when the shell routes to another one. */
   load(projectId: ProjectId): Promise<void> {
     const generation = ++this.generation;
+    // A re-read of the same root keeps its failure on screen until it answers (Slice 78).
+    if (this.requestedProjectId !== projectId) this.errorState.set(null);
     this.requestedProjectId = projectId;
     // Cleared immediately: another root's chronology on screen under this root's heading would
     // be worse than an empty page for the length of a read.
     this.itemsState.set([]);
-    this.errorState.set(null);
     this.refreshErrorState.set(null);
+    this.refreshPendingState.set(false);
     this.writeErrorState.set(null);
     this.rowErrorsState.set(new Map());
     this.completingState.set(null);
@@ -140,6 +149,18 @@ export class TodosPageStore {
     const projectId = this.requestedProjectId;
     if (projectId === undefined) return Promise.resolve();
     return this.load(projectId);
+  }
+
+  /** The stale notice's Try again: a quiet read, so the list stays and a failure leaves it stale. */
+  async retryRefresh(): Promise<void> {
+    if (this.requestedProjectId === undefined || this.refreshPendingState()) return;
+    const generation = this.generation;
+    this.refreshPendingState.set(true);
+    try {
+      await this.refresh();
+    } finally {
+      if (generation === this.generation) this.refreshPendingState.set(false);
+    }
   }
 
   /**
@@ -403,10 +424,10 @@ export class TodosPageStore {
         this.refreshErrorState.set(null);
       } catch (error) {
         if (!this.current(generation, projectId)) return;
-        if (quiet) this.refreshErrorState.set(messageOf(error));
+        if (quiet) this.refreshErrorState.set(staleFailure(error));
         else {
           this.itemsState.set([]);
-          this.errorState.set(messageOf(error));
+          this.errorState.set(readFailure(error, 'this list'));
         }
       } finally {
         if (!quiet && this.current(generation, projectId)) this.loadingState.set(false);

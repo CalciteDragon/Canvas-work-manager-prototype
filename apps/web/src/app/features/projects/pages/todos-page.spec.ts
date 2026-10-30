@@ -429,7 +429,7 @@ describe('TodosPage (§34)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const status = query(fixture, '[data-toast-open]')!;
-    expect(query(fixture, '[role=status]')?.textContent).toContain('Archived');
+    expect(query(fixture, 'app-toast [role=status]')?.textContent).toContain('Archived');
     expect(status.getAttribute('popover')).toBe('manual');
     expect(status.textContent).toContain('Archived “Task task-only”.');
     expect(status.textContent).toContain('Open archive');
@@ -612,13 +612,37 @@ describe('TodosPage (§34)', () => {
     expect((rowFor(fixture, 'task-early').querySelector('[data-todo-toggle]') as HTMLInputElement).disabled).toBe(false);
   });
 
+  it('says a failed refresh over the list politely, with Try again and Details, never “Couldn’t load” (Slice 78)', async () => {
+    const { fixture, todosGet } = await render();
+    todosGet.mockRejectedValue(new GatewayError('unreachable', 0, 'the host is not answering'));
+    (TestBed.inject(LIVE_UPDATES) as FakeLiveUpdates).emit({ type: 'task.updated', projectId: ROOT, rootProjectId: ROOT, entityId: 'task-early' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const status = query(fixture, '[data-todos-status]')!;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(status.querySelector('[data-todos-refresh-error] [data-failure-sentence]')?.textContent?.trim()).toBe('This list may be out of date.');
+    expect(status.querySelector('[data-todos-refresh-error] details')?.textContent).toContain('not answering');
+    expect(fixture.nativeElement.textContent).not.toContain('Couldn’t load');
+    expect(query(fixture, '[data-todos-list]')).not.toBeNull();
+
+    const reads = todosGet.mock.calls.length;
+    status.querySelector<HTMLButtonElement>('[data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(todosGet.mock.calls.length).toBe(reads + 1);
+    expect(query(fixture, '[data-todos-refresh-error]')).not.toBeNull();
+    expect(query(fixture, '[data-todos-list]')).not.toBeNull();
+  });
+
   it('keeps an unreadable page, an empty one and a full one distinct', async () => {
     const failed = await render({ failWith: new GatewayError('unreachable', 0, 'the host is not answering') });
     expect(query(failed.fixture, '[data-todos-error]')?.textContent).toContain('not answering');
+    expect(query(failed.fixture, '[data-todos-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t reach your workspace, so this list didn’t load.');
     expect(query(failed.fixture, '[data-todos-empty]')).toBeNull();
     expect(query(failed.fixture, '[data-todos-list]')).toBeNull();
 
-    (query(failed.fixture, '[data-todos-retry]') as HTMLButtonElement).click();
+    (query(failed.fixture, '[data-todos-error] [data-recovery="try-again"]') as HTMLButtonElement).click();
     await failed.fixture.whenStable();
     expect(failed.todosGet).toHaveBeenCalledTimes(2);
 

@@ -179,10 +179,14 @@ describe('TodosPageStore — reading (§34, §62)', () => {
     });
 
     await store.load(ROOT);
-    expect(store.error()).toContain('not answering');
+    expect(store.error()).toEqual({ sentence: 'Couldn’t reach your workspace, so this list didn’t load.', reason: 'the host is not answering' });
     expect(store.items()).toEqual([]);
 
-    await store.retry();
+    // Slice 78: Try again keeps the failure on screen, busy, until the read answers.
+    const retrying = store.retry();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.reason).toBe('the host is not answering');
+    await retrying;
 
     expect(store.error()).toBeNull();
     expect(store.items()).toHaveLength(1);
@@ -655,7 +659,36 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
 
     expect(statusOf(store, 'task-1')).toBe('done');
     expect(store.error()).toBeNull();
-    expect(store.refreshError()).toContain('not answering');
+    expect(store.refreshError()).toEqual({ sentence: 'This list may be out of date.', reason: 'the host is not answering' });
+  });
+
+  it('runs a quiet read for the stale notice’s Try again: failing again it stays stale and keeps the list (Slice 78)', async () => {
+    let reads = 0;
+    let failing = true;
+    const { store, live } = setup({
+      todosGet: async (projectId) => {
+        reads += 1;
+        if (reads > 1 && failing) throw new GatewayError('unreachable', 0, 'the host is not answering');
+        return { projectId, items: [taskItem('task-1'), taskItem('task-2')] };
+      },
+    });
+    await store.load(ROOT);
+    live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT });
+    await settleLive();
+    expect(store.refreshError()?.sentence).toBe('This list may be out of date.');
+
+    const retrying = store.retryRefresh();
+    expect(store.refreshPending()).toBe(true);
+    expect(store.loading()).toBe(false);
+    await retrying;
+    expect(store.refreshPending()).toBe(false);
+    expect(store.refreshError()?.sentence).toBe('This list may be out of date.');
+    expect(store.error()).toBeNull();
+    expect(store.items()).toHaveLength(2);
+
+    failing = false;
+    await store.retryRefresh();
+    expect(store.refreshError()).toBeNull();
   });
 
   it('refreshes on a descendant’s event and ignores an unrelated root', async () => {

@@ -9,19 +9,19 @@
   @if (store.writeError(); as writeError) {
     <p data-todo-write-error class="todos__error" role="alert">{{ writeError }}</p>
   }
-  @if (store.refreshError(); as refreshError) {
-    <!-- The list on screen is still the better answer than a blank page, so this says the
-       chronology may be behind rather than replacing it. -->
-    <p data-todos-refresh-error class="todos__notice" role="status">
-      This list may be out of date — {{ refreshError }}
-    </p>
-  }
+  <!-- The list on screen is still the better answer than a blank page, so this says the
+     chronology may be behind rather than replacing it. Mounted always, so it is announced. -->
+  <div data-todos-status class="todos__status" role="status">
+    @if (store.refreshError(); as refreshError) {
+      <app-failure-message data-todos-refresh-error [failure]="refreshError" recovery="try-again" [pending]="store.refreshPending()" (retry)="store.retryRefresh()" />
+    }
+  </div>
 
-  @if (store.loading()) {
+  <!-- The failure first: Try again keeps it on screen, busy, until the read answers (Slice 78). -->
+  @if (store.error(); as failure) {
+    <app-failure-message data-todos-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.loading()" (retry)="store.retry()" />
+  } @else if (store.loading()) {
     <p data-todos-loading class="todos__muted">Loading todos…</p>
-  } @else if (store.error(); as error) {
-    <p data-todos-error class="todos__error" role="alert">{{ error }}</p>
-    <button data-todos-retry type="button" class="button todos__retry" (click)="store.retry()">Try again</button>
   } @else if (store.items().length === 0) {
     <p data-todos-empty class="todos__muted">
       There is no work under this project yet — no tasks, and no workstreams.

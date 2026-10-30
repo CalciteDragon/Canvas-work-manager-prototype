@@ -8,9 +8,9 @@
     <div class="progress-section__summary" [id]="summaryId"><strong>{{ result.percentage === null ? '—' : result.percentage + '%' }}</strong><span>{{ result.explanation }}</span></div>
     <div class="progress-section__bar" role="progressbar" [attr.aria-label]="barName()" [attr.aria-describedby]="summaryId" [attr.aria-valuenow]="result.percentage" aria-valuemin="0" aria-valuemax="100"><span [style.width.%]="result.percentage ?? 0"></span></div>
     <!-- Mounted with the result, so a stale notice arriving later is announced politely. -->
-    <div data-progress-status role="status">
+    <div data-progress-status class="progress-section__status" role="status">
       @if (store.stale(); as stale) {
-        <app-failure-message data-progress-stale weight="inline" [failure]="stale" recovery="try-again" [pending]="store.stalePending()" (retry)="store.retryStale()" />
+        <app-failure-message data-progress-stale [failure]="stale" recovery="try-again" [pending]="store.stalePending()" (retry)="store.retryStale()" />
       }
     </div>
     @if (!readOnly()) {

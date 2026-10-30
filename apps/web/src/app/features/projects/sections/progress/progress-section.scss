@@ -6,3 +6,6 @@
 .progress-section__controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; }
 .progress-section__manual { inline-size: var(--layout-project-column-width); max-inline-size: 100%; }
 .progress-section__choice--active { font-weight: var(--font-weight-bold); border-color: var(--color-accent); background: var(--color-accent-surface); }
+
+// Kept mounted so a stale notice is announced, but out of the grid's gaps while empty.
+.progress-section__status:empty { position: absolute; }

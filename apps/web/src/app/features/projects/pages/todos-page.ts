@@ -16,6 +16,7 @@ import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectLayoutMode, ProjectPageId, ProjectTodoItem } from '@cwm/contracts';
 import { Icon } from '../../../shared/components/icon/icon';
 import { Toast } from '../../../shared/feedback/toast';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { ReceiptToast } from '../../../core/history/receipt-toast';
 import { taskArchivedFeedback, workstreamCompletedFeedback } from '../history/history-feedback';
 import { TodosPageStore, isTodoFinished, todoIdOf, todoTitleOf } from './todos-page-store';
@@ -52,7 +53,7 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-todos-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icon, Toast],
+  imports: [RouterLink, Icon, Toast, FailureMessage],
   providers: [TodosPageStore],
   templateUrl: './todos-page.html',
   styleUrl: './todos-page.scss',
