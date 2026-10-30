@@ -603,8 +603,15 @@ test('States runtime evidence and core tasks', async ({ browser }) => {
         // Handles, not `nth()` locators: the `:not([open])` set shrinks as each one opens.
         const summaries = await closed.elementHandles();
         const detailsErrors: string[] = [];
-        for (const summary of summaries) await summary.click().catch(error => { detailsErrors.push(String(error).split('\n')[0]!); });
+        // A summary the pointer cannot reach (dashboard-me-failing's, under the phone menu at 375)
+        // is opened from the DOM instead, and recorded as such.
+        const detailsForced: string[] = [];
+        for (const summary of summaries) await summary.click({ timeout: 2000 }).catch(async error => {
+          if (await summary.evaluate(s => { (s as HTMLElement).click(); return (s.parentElement as HTMLDetailsElement).open; }).catch(() => false)) detailsForced.push(String(error).split('\n')[0]!);
+          else detailsErrors.push(String(error).split('\n')[0]!);
+        });
         if (detailsErrors.length) entry['detailsErrors'] = detailsErrors;
+        if (detailsForced.length) entry['detailsForced'] = detailsForced;
         entry['detailsOpen'] = (await page.evaluate(probe, { regions: rows.map(r => r.region), reason: fixture.reason ?? null })).regions;
         entry['detailsOpenScreenshot'] = await c.shot('details');
         await page.evaluate(sel => document.querySelectorAll(sel).forEach(s => { (s.parentElement as HTMLDetailsElement).open = false; }), rows.map(r => `${r.region} details > summary`).join(', '));

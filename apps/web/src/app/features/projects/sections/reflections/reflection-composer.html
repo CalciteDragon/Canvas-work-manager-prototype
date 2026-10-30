@@ -8,7 +8,7 @@
         <option [value]="item">{{ item }}</option>
       }
     </select>
-    <textarea class="field" data-reflection-body #body rows="3" placeholder="Write a reflection" aria-label="Write a reflection" [attr.aria-describedby]="error() === null ? null : errorId"></textarea>
+    <textarea class="field" data-reflection-body #body rows="3" placeholder="Write a reflection" [attr.aria-describedby]="error() === null ? null : errorId"></textarea>
     @if (subject(); as selected) {
       <div data-reflection-subject class="reflection-composer__subject">
         <span>About {{ selected.name }}</span>
