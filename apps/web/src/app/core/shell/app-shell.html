@@ -58,5 +58,7 @@
   <!-- Focusable so a drawer that closed behind a chosen link can hand focus to what it opened. -->
   <main #main class="workspace" tabindex="-1" [attr.inert]="drawerOpen() ? '' : null">
     <router-outlet />
+    <!-- Off-screen write failures pinned to this scroll port's edges; out of flow, so no geometry. -->
+    <app-pinned-failure-slot />
   </main>
 </div>

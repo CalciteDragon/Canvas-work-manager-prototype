@@ -37,6 +37,16 @@ describe('AppShell', () => {
     expect(element.querySelector('router-outlet')).not.toBeNull();
   });
 
+  // Slice 78: off-screen write failures are pinned to the workspace's edges, drawn by one slot
+  // inside the scroll port; it draws nothing while nothing is pinned.
+  it('renders the pinned-failure slot inside the workspace, empty', async () => {
+    const element = await render();
+    const slot = element.querySelector('main.workspace > app-pinned-failure-slot');
+
+    expect(slot).not.toBeNull();
+    expect(slot!.children).toHaveLength(0);
+  });
+
   // Slice 78 (L4-001): the store's first read reaches the sidebar as its loading line.
   it('says Loading projects… while the first read is in flight', async () => {
     TestBed.configureTestingModule({ imports: [AppShell], providers: shellTestProviders() });

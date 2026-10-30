@@ -18,6 +18,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { SHELL_NARROW_BREAKPOINT } from '../layout/breakpoints';
 import { ShellStore } from './shell-store';
 import { Icon } from '../../shared/components/icon/icon';
+import { PinnedFailureSlot } from '../../shared/feedback/pinned-failure-slot';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
 import { Sidebar } from './sidebar/sidebar';
 import { TopBar } from './top-bar/top-bar';
@@ -59,7 +60,7 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkTrapFocus, RouterOutlet, Sidebar, TopBar, Icon],
+  imports: [CdkTrapFocus, RouterOutlet, Sidebar, TopBar, Icon, PinnedFailureSlot],
   providers: [ShellStore],
   styleUrl: './app-shell.scss',
   templateUrl: './app-shell.html',
