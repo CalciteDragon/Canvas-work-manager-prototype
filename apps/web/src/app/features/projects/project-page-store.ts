@@ -32,7 +32,7 @@ const FAILED_REMOVAL_GUARD: Failure = {
 };
 
 /** A canvas write's sentence, in slice 75's frame: "Couldn’t <verb> “X”. Try again." */
-const placementWrite = (verb: string, name: string): string => `Couldn’t ${verb} “${name}”. Try again.`;
+const placementWrite = (verb: string, placement: string): string => `Couldn’t ${verb} ${placement}. Try again.`;
 
 /** The shortcuts read's failure (Slice 78): the canonical sections are on screen, so it names what is paused. */
 const shortcutsReadFailure = (error: unknown): Failure => ({
@@ -1088,12 +1088,16 @@ export class ProjectPageStore {
     this.collapsePendingState.set(pending);
   }
 
-  /** What a write failure calls a placement: the section's name, or the shortcut's (Slice 78). */
+  /**
+   * What a write failure calls a placement (Slice 78): its name in quotes, or "this shortcut" for
+   * one whose source is gone, and "this section" when it is no longer on the canvas.
+   */
   private placementName(kind: 'section' | 'shortcut', id: string): string {
     const placement = this.placementsState().find(candidate => candidate.kind === kind && placementId(candidate) === id);
-    if (placement === undefined) return 'section';
-    return placement.kind === 'section' ? nameOf(placement.section)
-      : placement.shortcut.source === null ? 'section' : shortcutNameOf(placement.shortcut.source, placement.shortcut.sourceProjectName);
+    if (placement === undefined) return `this ${kind}`;
+    if (placement.kind === 'shortcut' && placement.shortcut.source === null) return 'this shortcut';
+    return `“${placement.kind === 'section' ? nameOf(placement.section)
+      : shortcutNameOf(placement.shortcut.source!, placement.shortcut.sourceProjectName)}”`;
   }
 
   /** Per-field optimism keeps newer canvas chrome fields when a write is refused. */

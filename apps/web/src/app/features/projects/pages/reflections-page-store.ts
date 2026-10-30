@@ -14,7 +14,6 @@ import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { readFailure, writeFailure, type Failure } from '../../../shared/feedback/failure';
 
-// The writes' raw text stays until Stage 4 gives them Details (Slice 78).
 /** A failed re-read over a journal still on screen: polite, never "Couldn’t load" (Slice 78). */
 const staleFailure = (error: unknown): Failure => ({ ...readFailure(error, 'this journal'), sentence: 'This journal may be out of date.' });
 const SAVED_UNREFRESHED = 'Saved, but this journal couldn’t refresh.';

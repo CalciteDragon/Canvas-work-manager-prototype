@@ -3,7 +3,6 @@ import type { ProjectId, ProjectSection, Reflection, ReflectionId, ReflectionSub
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../../core/history/operation-history-reporter';
 import { readFailure, writeFailure, type Failure } from '../../../../shared/feedback/failure';
-// The writes' raw text stays until Stage 4 gives them Details (Slice 78).
 interface ActiveRead { generation: number; promise: Promise<void>; queued: boolean; }
 /** Both writes report to the header's history with the reflection's own project (Slice 41). */
 const reflectionReport = ({ reflection, operation }: { reflection: Reflection; operation: OperationWriteReport['receipt'] }): OperationWriteReport => ({ projectId: reflection.projectId, receipt: operation });
