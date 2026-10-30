@@ -31,14 +31,16 @@ export type Row = {
   /** The `data-*-empty` hook that would falsely show in this region, or null. */
   emptyHook: string | null;
   pinned: 'top' | 'bottom' | null;
+  /** A `pending` row's declared text, which the region must show. */
+  text: string | null;
 };
 
 const KITCHEN = '/projects/project-kitchen';
 const section = (id: string) => `[data-section-id="section-project-kitchen-${id}"]`;
 const TASKS_R = section('tasks'), REFL_R = section('reflections'), TIME_R = section('timeline'), PROG_R = section('progress'), ACT_R = section('recent-activity'), BRIEF_R = section('brief');
 const SHORTCUT_R = '[data-shortcut-id="shortcut-renovation-kitchen-tasks"]';
-const row = (context: string, region: string, kind: Row['kind'], recovery: Row['recovery'], details: boolean, emptyHook: string | null = null, pinned: Row['pinned'] = null): Row =>
-  ({ context, region, kind, recovery, details, emptyHook, pinned });
+const row = (context: string, region: string, kind: Row['kind'], recovery: Row['recovery'], details: boolean, emptyHook: string | null = null, pinned: Row['pinned'] = null, text: string | null = null): Row =>
+  ({ context, region, kind, recovery, details, emptyHook, pinned, text });
 
 /**
  * The context table. **It is the gate's only source of exemptions**: profile 78 checks every
@@ -92,11 +94,11 @@ export const ROWS: Row[] = [
   row('header-progress-legacy', 'app-project-header', 'read', 'none', false),
   row('not-found', 'main', 'read', 'go-home', false),
   row('kitchen-loading', 'app-project-canvas', 'loading', 'none', false, 'data-empty-canvas'),
-  row('header-progress-pending', 'app-project-header', 'pending', 'none', false),
+  row('header-progress-pending', 'app-project-header', 'pending', 'none', false, null, null, 'Measuring…'),
 ];
 
-/** Per-capture working state shared by a context's hooks. */
-export type Ctx = { page: Page; entry: Record<string, unknown>; state: Record<string, unknown>; shot: (suffix: string) => Promise<string>; releases: (() => void)[] };
+/** Per-capture working state shared by a context's hooks; `regions` are the context's rows' regions. */
+export type Ctx = { page: Page; entry: Record<string, unknown>; state: Record<string, unknown>; regions: string[]; shot: (suffix: string) => Promise<string>; releases: (() => void)[] };
 export type Context = {
   id: string; seed: string; route: string | ((state: Record<string, unknown>) => string);
   persona?: 'user-alex' | 'user-sam';
@@ -342,8 +344,8 @@ export const CONTEXTS: Context[] = [
       await last.locator('[data-todo-toggle]').click();
       await waitForFailure(c.page, 'app-todos-page', 'Audit: todo complete failed');
       await scrollPort(c.page, 'app-todos-page', 'top');
-      // A successful complete on the first row opens the toast while the failed row is below.
-      await toggles.first().locator('[data-todo-toggle]').click();
+      // A completion opens no toast; deleting another row does (its Undo receipt), while the failed row stays below.
+      await c.page.locator(`app-todos-page [data-todo-row]:not([data-todo-id="${String(c.state['target'])}"]) [data-todo-delete]`).first().click();
       await c.page.waitForTimeout(500);
       c.entry['toastOpen'] = await c.page.locator('[data-toast]:popover-open').count() > 0;
     },
@@ -436,11 +438,16 @@ async function pinPress(c: Ctx) {
   c.entry['pinPresent'] = await pin.count() > 0;
   if (!await pin.count()) return;
   await pin.first().click(); await c.page.waitForTimeout(500);
-  c.entry['afterPinPress'] = await c.page.evaluate(probe, { regions: [], reason: null });
+  c.entry['afterPinPress'] = await c.page.evaluate(probe, { regions: c.regions, reason: null });
   c.entry['afterPinPressScreenshot'] = await c.shot('after-pin-press');
 }
 
-/** Browser-side evidence: regions, visible-reason and raw-reason checks, scroll port, pins. */
+/**
+ * Browser-side evidence: regions, visible-reason and raw-reason checks, and the pin gate's raw
+ * geometry — the scroll port's client box, the content track, sentence anchors, stuck
+ * `[data-pin-clearance]` controls, the open toast, each pinned copy and where focus is. Profile 78
+ * recomputes the clear port from these rather than trusting the app's own measurement.
+ */
 function probe({ regions, reason }: { regions: string[]; reason: string | null }) {
   const box = (e: Element) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
   const inClosedDetails = (e: Element) => { const d = e.closest('details:not([open])'); return !!d && !e.closest('summary'); };
@@ -448,9 +455,21 @@ function probe({ regions, reason }: { regions: string[]; reason: string | null }
   const text = (e: Element) => ((e as HTMLElement).innerText ?? e.textContent ?? '').trim();
   const name = (e: Element) => (e.getAttribute('aria-label') ?? text(e) ?? e.getAttribute('title') ?? '').trim();
   const isFailure = (e: Element) => (e.getAttribute('role') === 'alert' && !!e.textContent?.trim()) || [...e.attributes].some(a => /^data-.*error/.test(a.name));
-  const ports = [...document.querySelectorAll('main.workspace, .workspace, .project-workspace__main')];
-  const portEl = ports.find(e => ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)) ?? ports[0];
-  const scrollPort = portEl ? { selector: portEl.tagName.toLowerCase() + '.' + [...portEl.classList].join('.'), ...box(portEl), scrollTop: portEl.scrollTop, scrollHeight: portEl.scrollHeight, clientHeight: portEl.clientHeight } : null;
+  // The pins' port is the slot's nearest scrolling ancestor, as `scrollPortOf` finds it; the
+  // before build has no slot, so it falls back to the shell's workspace.
+  const scrolls = (e: Element) => /^(auto|scroll|overlay)$/.test(getComputedStyle(e).overflowY);
+  const slot = document.querySelector('app-pinned-failure-slot');
+  let portEl: Element | null = null;
+  for (let parent = slot?.parentElement ?? null; parent && !portEl; parent = parent.parentElement) if (scrolls(parent)) portEl = parent;
+  if (!portEl) { const ports = [...document.querySelectorAll('main.workspace, .workspace, .project-workspace__main')]; portEl = ports.find(scrolls) ?? ports[0] ?? null; }
+  const client = (e: Element) => { const r = e.getBoundingClientRect(); return { x: r.x + e.clientLeft, y: r.y + e.clientTop, width: e.clientWidth, height: e.clientHeight }; };
+  const scrollPort = portEl ? { selector: portEl.tagName.toLowerCase() + '.' + [...portEl.classList].join('.'), ...box(portEl), client: client(portEl), scrollTop: portEl.scrollTop, scrollHeight: portEl.scrollHeight, clientHeight: portEl.clientHeight } : null;
+  // The content track: the last element in tree order named `--toast-track`, which anchor() resolves to.
+  const tracks = [...document.querySelectorAll('*')].filter(e => (getComputedStyle(e) as CSSStyleDeclaration & { anchorName?: string }).anchorName?.split(',').map(n => n.trim()).includes('--toast-track') && e.getClientRects().length > 0);
+  const track = tracks.length ? box(tracks.at(-1)!) : null;
+  const sticky = portEl ? [...portEl.querySelectorAll('[data-pin-clearance]')].filter(e => e.getClientRects().length > 0).map(e => ({ box: box(e) })) : [];
+  const toastEl = [...document.querySelectorAll('[data-toast-open], [data-toast]:popover-open')].find(e => e.getClientRects().length > 0 && box(e).height > 0);
+  const toast = toastEl ? box(toastEl) : null;
   const edge = (b: { y: number; height: number }) => !scrollPort ? null : b.y + b.height <= scrollPort.y ? 'top' : b.y >= scrollPort.y + scrollPort.height ? 'bottom' : 'inside';
   const regionData = regions.map(region => {
     const el = document.querySelector(region);
@@ -462,12 +481,16 @@ function probe({ regions, reason }: { regions: string[]; reason: string | null }
       region, present: true, box: box(el), text: text(el).slice(0, 2000),
       alerts: all.filter(e => e.getAttribute('role') === 'alert' && shown(e)).map(text).filter(Boolean),
       statuses: all.filter(e => (e.getAttribute('role') === 'status' || e.hasAttribute('aria-live')) && e.getClientRects().length).map(text).filter(Boolean),
-      buttons: all.filter(e => e.matches('button, a[href], [role=button], summary')).map(e => ({ name: name(e), tag: e.tagName.toLowerCase(), recovery: e.getAttribute('data-recovery'), visible: shown(e), disabled: (e as HTMLButtonElement).disabled === true || e.getAttribute('aria-disabled') === 'true' })),
-      details: all.filter(e => e.tagName === 'DETAILS').map(d => ({ open: (d as HTMLDetailsElement).open, summary: text(d.querySelector('summary') ?? d), text: (d.textContent ?? '').trim().slice(0, 1000) })),
+      buttons: all.filter(e => e.matches('button, a[href], [role=button], summary')).map(e => ({ name: name(e), tag: e.tagName.toLowerCase(), recovery: e.getAttribute('data-recovery'), visible: shown(e), box: box(e), disabled: (e as HTMLButtonElement).disabled === true || e.getAttribute('aria-disabled') === 'true' })),
+      // A closed Details shows its summary; `shown(d)` would count the element as inside itself.
+      details: all.filter(e => e.tagName === 'DETAILS').map(d => ({ open: (d as HTMLDetailsElement).open, visible: shown(d.querySelector(':scope > summary') ?? d), summary: text(d.querySelector('summary') ?? d), text: (d.textContent ?? '').trim().slice(0, 1000) })),
       visibleEmptyHooks: [...new Set([el, ...all].filter(shown).flatMap(e => [...e.attributes].map(a => a.name).filter(n => /^data-.*-empty$|^data-empty-canvas$/.test(n))))],
       ariaBusy: el.getAttribute('aria-busy'),
       ariaBusyWithin: [el, ...all].some(e => e.getAttribute('aria-busy') === 'true'),
       loadingMessages: all.filter(e => e.matches('.state-message--loading')).map(text),
+      // A loading line counts as busy when it, or an ancestor inside the region, carries aria-busy.
+      loading: all.filter(e => e.matches('.state-message--loading')).map(e => { const busy = e.closest('[aria-busy="true"]'); return { text: text(e), visible: shown(e), busy: !!busy && (busy === el || el.contains(busy)) }; }),
+      anchors: all.filter(e => e.matches('[data-failure-sentence]') && e.getClientRects().length > 0).map(e => ({ id: e.id || null, text: text(e).slice(0, 300), box: box(e) })),
       failureBox, failureEdge: failureBox ? edge(failureBox) : null,
       failures: failures.slice(0, 10).map(e => ({ hooks: [...e.attributes].map(a => a.name).filter(n => n.startsWith('data-') || n === 'role'), text: text(e).slice(0, 300), box: box(e), edge: edge(box(e)) })),
     };
@@ -480,9 +503,19 @@ function probe({ regions, reason }: { regions: string[]; reason: string | null }
   }
   const patterns = [/"[a-zA-Z]+-[0-9a-z-]+"/g, /answered \d{3}/g, /(GET|PATCH|POST|DELETE) \/api/g, /prototype host/g, /§\d+/g];
   const rawReasonHits = [...new Set(texts.flatMap(t => patterns.flatMap(p => [...t.matchAll(p)].map(m => ({ pattern: String(p), match: m[0], text: t.slice(0, 200) })))).map(h => JSON.stringify(h)))].map(h => JSON.parse(h));
-  const pins = [...document.querySelectorAll('[data-failure-pin]')].map(e => ({ text: text(e), box: box(e), edge: edge(box(e)) }));
+  const pins = [...document.querySelectorAll('[data-failure-pin-region]')].map(region => {
+    const show = region.querySelector('[data-failure-pin]'), dismiss = region.querySelector('[data-failure-pin-dismiss]');
+    return { edge: show?.getAttribute('data-failure-pin') ?? null, indicator: text(region.querySelector('.pinned-failure__indicator') ?? region).slice(0, 4), sentence: text(region.querySelector('.pinned-failure__sentence') ?? region), name: show ? name(show) : null,
+      box: box(region), show: show ? box(show) : null, dismiss: dismiss ? box(dismiss) : null, side: edge(box(region)) };
+  });
   const toastOpen = document.querySelectorAll('[data-toast]:popover-open').length > 0;
-  return { regions: regionData, reasonVisible: reason ? texts.some(t => t.includes(reason)) : null, rawReasonHits, scrollPort, pins, toastOpen };
+  // Where focus is, against the rows' regions: inside one, on a sentence, or described by one there.
+  const active = document.activeElement;
+  const owner = active ? regions.map(r => document.querySelector(r)).find(r => r?.contains(active)) ?? null : null;
+  const sentenceIds = new Set(owner ? [...owner.querySelectorAll('[data-failure-sentence]')].map(e => e.id).filter(Boolean) : []);
+  const focus = active && active !== document.body ? { tag: active.tagName.toLowerCase(), name: name(active).slice(0, 200), inRegion: !!owner, isAnchor: !!owner && active.matches('[data-failure-sentence]'),
+    describes: (active.getAttribute('aria-describedby') ?? '').split(/\s+/).some(id => sentenceIds.has(id)), box: box(active) } : null;
+  return { regions: regionData, reasonVisible: reason ? texts.some(t => t.includes(reason)) : null, rawReasonHits, scrollPort, track, sticky, toast, pins, toastOpen, focus };
 }
 
 /** Slice 78's own evidence; frozen earlier verification journeys are deliberately not re-run. */
@@ -508,7 +541,7 @@ test('States runtime evidence and core tasks', async ({ browser }) => {
     page.on('pageerror', error => consoleErrors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
     const base = `states-${fixture.id}-${theme}-${width}`;
-    const c: Ctx = { page, entry, state, releases: [], shot: async suffix => { const file = `${base}-${suffix}.png`; await page.screenshot({ path: resolve(out, file), fullPage: true }); return file; } };
+    const c: Ctx = { page, entry, state, regions: rows.map(r => r.region), releases: [], shot: async suffix => { const file = `${base}-${suffix}.png`; await page.screenshot({ path: resolve(out, file), fullPage: true }); return file; } };
     const regionShots = async () => {
       const shots: Record<string, unknown> = {};
       for (const [i, region] of [...new Set([...rows.map(r => r.region), ...(fixture.frames ?? [])])].entries()) {

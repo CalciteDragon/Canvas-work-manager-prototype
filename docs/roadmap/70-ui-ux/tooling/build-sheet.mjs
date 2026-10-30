@@ -62,6 +62,12 @@ const exceptionFor = c => activeExceptions.find(e => e.test(c));
 const objectCell = cell => cell.route === '/app' || cell.route?.startsWith('/projects/') || cell.route === '/settings/archived-projects';
 // A selector may stand in for an axe node only when its baseline predates the structural identity (`axeNodeIdentity`).
 const structuralAnchor = node => /^(drag-preview|dragging)?\|/.test(node.stableAnchor ?? '');
+/**
+ * Profile 78 only: Slice 78 wrapped the sidebar's projects list in `div[data-projects-region]`, so
+ * the list's pre-existing axe nodes gained a new structural anchor. Both forms name one identity;
+ * every other anchor is compared as recorded.
+ */
+const anchorOf = node => profile === '78' && (/\|APP-SIDEBAR:\d+\|NAV:0\|DIV:1\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '') || /^\|data-projects-region=\|DIV\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '')) ? 'sidebar projects list' : node.stableAnchor;
 const objectPanels = new Set(['cards', 'object-rows', 'primitives', 'task-row', 'widget-frame', 'activity']);
 const chromeCell = cell => cell.route?.startsWith('/projects/') && !/\/(todos|archive|reflections)(?:$|\?)/.test(cell.route);
 const censusFailures = [], censusExceptions = [], intendedChanges = [], geometryReport = [];
@@ -290,7 +296,7 @@ for (const a of after.cells) {
   }
   if ((profile === '76' && chromeCell(a)) || ['77', '78'].includes(profile)) {
     const [was, now] = await Promise.all([read(join(beforeDir, b.artifacts.axe)), read(join(afterDir, a.artifacts.axe))]);
-    const key = (v, n) => v.id + ':' + (n.stableAnchor ?? n.target?.join(' '));
+    const key = (v, n) => v.id + ':' + (anchorOf(n) ?? n.target?.join(' '));
     const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(!['77', '78'].includes(profile) || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
     for (const violation of now.violations ?? []) if (violation.id !== 'color-contrast') for (const node of violation.nodes) {
       if (!known.has(key(violation,node)) && !known.has(violation.id + ':' + node.target?.join(' '))) failures.push({ cell: a.id, reason: 'new axe node ' + violation.id, target: node.target });
@@ -662,6 +668,9 @@ if (profile === '78') {
     const at = { context, theme, width }, touch = width === 375;
     if (!e || e.error) { fail('context not captured', { ...at, error: e?.error ?? null }); continue; }
     const was = stateBaseline?.entries?.find(x => x.context === context && x.theme === theme && x.width === width);
+    // A state's before often rendered another page (a whole-page loading line, a false empty), so a
+    // node is new only when no before state at this theme and width had it.
+    const view = (stateBaseline?.entries ?? []).filter(x => x.theme === theme && x.width === width);
     // The full census and the new-axe-node rule, as profile 77 runs them on its runtime entries.
     if (!Array.isArray(e.controls) || !Array.isArray(e.axe?.violations) || !Array.isArray(was?.axe?.violations)) fail('runtime control or axe collector missing', at);
     for (const c of (e.controls ?? []).filter(c => c.scope === 'product')) {
@@ -671,8 +680,8 @@ if (profile === '78') {
       const exception = exceptionFor(c);
       if (exception) censusExceptions.push({ ...detail, owner: exception.owner }); else censusFailures.push(detail);
     }
-    const nodeKey = (v, n) => v.id + ':' + (n.stableAnchor ?? n.target?.join(' '));
-    const known = new Set((was?.axe?.violations ?? []).flatMap(v => v.nodes.flatMap(n => [nodeKey(v, n), ...(structuralAnchor(n) ? [] : [v.id + ':' + n.target?.join(' ')])])));
+    const nodeKey = (v, n) => v.id + ':' + (anchorOf(n) ?? n.target?.join(' '));
+    const known = new Set(view.flatMap(x => x.axe?.violations ?? []).flatMap(v => v.nodes.flatMap(n => [nodeKey(v, n), ...(structuralAnchor(n) ? [] : [v.id + ':' + n.target?.join(' ')])])));
     for (const violation of e.axe?.violations ?? []) {
       if (['select-name', 'aria-progressbar-name', 'button-name'].includes(violation.id)) fail('runtime axe ' + violation.id, at);
       if (violation.id !== 'color-contrast') for (const node of violation.nodes) if (!known.has(nodeKey(violation, node)) && !known.has(violation.id + ':' + node.target?.join(' '))) fail('runtime new axe node ' + violation.id, { ...at, target: node.target });

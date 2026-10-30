@@ -1153,3 +1153,20 @@ test('profile 78 pin gate accepts valid pins and rejects each way a pin can be w
   const focusSentence = await statesSheet(t, pinned('pin-tall-tasklist-banner', x => { x.afterPinPress.focus = { inRegion: true, describes: false, isAnchor: true }; }));
   assert.equal(focusSentence.result.status, 0, 'focusing the sentence when no control describes it: ' + focusSentence.report);
 });
+
+test('profile 78 re-anchors the sidebar projects list its own region wrapper moved, and nothing else', async t => {
+  const before = { id: 'list', nodes: [{ target: ['.projects'], stableAnchor: '|data-beasties-container=|data-theme=dark|HTML|BODY:1|APP-ROOT:0|APP-SHELL:0|DIV:0|DIV:1|DIV:1|APP-SIDEBAR:0|NAV:0|DIV:1|UL:2|UL||' }] };
+  for (const [anchor, expected] of [['|data-projects-region=|DIV|UL:1|UL||', 0], ['|data-other-region=|DIV|UL:1|UL||', 1]]) {
+    const s = await statesSheet(t, { axe: [{ id: 'list', nodes: [{ target: ['.projects'], stableAnchor: anchor }] }], layouts: () => {} });
+    await writeFile(join(s.dirs[0], 'axe.json'), JSON.stringify({ violations: [before], incomplete: [] }));
+    assert.equal(s.run().status, expected, anchor);
+  }
+});
+
+test('profile 78 compares a state\'s runtime axe nodes with every before state at the same view', async t => {
+  const node = { target: ['li[data-work-project-id="project-kitchen"]'], stableAnchor: '|data-work-project-id=project-kitchen|LI|LI||' };
+  const after = e => editState(e, 'header-progress-pending', x => { x.axe = { violations: [{ id: 'listitem', nodes: [node] }], incomplete: [] }; }, 'dark|1440');
+  const elsewhere = view => e => editState(e, 'todos-failing', x => { x.axe = { violations: [{ id: 'listitem', nodes: [node] }], incomplete: [] }; }, view);
+  assert.equal((await statesSheet(t, { evidence: after, before: elsewhere('dark|1440') })).result.status, 0, 'known at the same view');
+  await statesFails(t, { evidence: after, before: elsewhere('dark|375') }, 'known only at another width');
+});
