@@ -2,8 +2,75 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done (Stage 4 parts a–e). Next is
-Stage 5: re-capture, sheet, reviews, Gate 2, real use.**
+rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done (Stage 4 parts a–e). Stage 5
+part a (the gate tooling) is done. Next is Stage 5 part b: fix the pin's touch target, the full
+after-capture, the sheet, reviews, then stop for Gate 2 (the user reviews the sheet; no real use
+before that).**
+
+- Stage 5, part a (`d4c7ac8`, `fd754a8`, review fixes `dcbe1e3`), reviewed once by a subagent
+  against the diff ("can the gate pass falsely?"). Five substantive findings and one minor finding
+  were fixed. Two minor findings were left; see "Left" below.
+  - **Profile 78** is in `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs`; its 20 tests are in
+    `build-sheet.test.mjs` (79 in all, green; run `node --test` on that file, as it is not part of
+    `pnpm test`). It reads `states-verification.json` from the before and verification dirs.
+    - **Profile 77's rules kept:** the breadcrumb-only census, new axe nodes and the visual
+      pairs.
+    - **Matrix:** every cell is gated at 1 px except `kitchen-error`, `kitchen-refused`,
+      `kitchen-archived` and `not-a-route`, which are reported. The Lab is panel-relative, with
+      `state-messages`, `states`, `task-row`, `navigation` and `section-states` changing.
+    - **States:** every Done when rule against every row of the context table, in all four
+      views.
+    - **Pin gate:** recomputes the clear port from raw geometry and fails on any missing input.
+    - **Tasks:** T01–T09 and T11 cost no more than before; T12 is a dead end before and costs
+      exactly one click after.
+    - **Gate-owned lists**, not the evidence: the Capture scope contexts, the visual pairs and
+      the per-pin clearance (the toast for `pin-todos-below`, the stuck quick-add for
+      `pin-tasklist-above`).
+    - **Table pinned:** a test evaluates the rig's `ROWS` and deep-equals the fixture copy.
+    - **Run it:** `node docs/roadmap/70-ui-ux/tooling/build-sheet.mjs
+      apps/e2e/ux-output/0c1917081b73a2892a30e0c6c548bff8b4e2fdc6 apps/e2e/ux-output/<after>
+      <sheet dir> apps/e2e/ux-output/<after> --profile 78`.
+  - **Rig** (`apps/e2e/ux/states-verification.ts`):
+    - **Rows:** a `pending` row declares its `text` (`Measuring…`).
+    - **Probe records:**
+      - the slot's scroll port client box, the `--toast-track` content track, the
+        `[data-pin-clearance]` boxes and the open toast;
+      - sentence anchors per region;
+      - each pin's edge, indicator, box, Show and close boxes;
+      - focus after a press;
+      - recovery and summary boxes, Details visibility (measured on the summary) and busy
+        loading lines;
+      - canvas-level failures outside every frame.
+    - **`pin-todos-below`** now deletes another row to open the Undo toast; a completion opens
+      none.
+    - **Details:** the step clicks element handles. It used to click `nth()` locators over a
+      shrinking `:not([open])` set, so the last Details stayed closed.
+  - **Proved on subsets only** (dark 1440 and a few 375 views of the pins, reads, loading,
+    pending, Lab and `kitchen-bodies-failing`), against the real baseline. Two traps:
+    - `UX_STATES_MATCH` runs append to `ux-output/<HEAD>/states-verification.json`, so stale
+      entries from earlier subsets linger until the full run replaces them.
+    - The gate reads the before from the slice-77 baseline, which is valid and reused, so do not
+      rebuild it.
+  - **Two relaxations, profile 78 only:**
+    - The sidebar projects list's pre-existing axe `list` node keeps its identity across this
+      slice's `div[data-projects-region]` wrapper.
+    - A state's known axe nodes are those of every before state on the same route, theme and
+      width, because a state's before often rendered that route another way.
+  - **Found by the gate, for part b:** the pinned copy's Show button is **27.5 px tall at 375**.
+    The plan requires 44 px on touch, so `pin-todos-below` and `pin-section-collapse` fail at 375
+    until `pinned-failure-slot.scss`'s `.pinned-failure__show` meets the touch target.
+  - **Not captured, for part b:**
+    - `pin-tall-tasklist-banner` at 375 still has no banner, so the gate fails those two views.
+      A CDP touch drag was tried: the CDK preview starts, but the placeholder never enters the
+      target list. It was reverted and needs another way, such as a keyboard or programmatic
+      move.
+    - The Capture scope's "`FailureMessage` stories" have no capture: the rig covers the Lab's
+      `state-messages` panel. Storybook builds are the Done when check.
+  - **Left (minor):**
+    - `dashboard-real-ai` has no injected `reason`, so provider text is caught only by the
+      raw-reason patterns.
+    - The post-press reveal and the `describes` focus check match any sentence in the region,
+      not the pinned one by id. This is sound while each pinned region holds one failure.
 
 - Stage 4, part e (`f4b157b`, `c79f71b`, `581982d`, docs `875f45c`), reviewed once by a subagent
   against the diff: no substantive findings. **Step 4 is complete.**
@@ -1520,3 +1587,14 @@ None open. Three were answered by the user on 2026-10-29:
     Projects group, per the Stage 2 trap, rather than `FailureMessage`'s own `live="status"`.
     The announcement may include "Try again" and "Details"; a retry that fails again with the
     same sentence is not re-announced. Both are for real use to judge.
+- **Stage 5, part a (2026-10-30):** the gate tooling. Three plan changes came from it.
+  - **Context table rows** gain `text`, a `pending` row's declared text, which the test plan's
+    "a `pending` row without its declared text" needs.
+  - **Rules added to profile 78 beyond Done when's list**, each from Capture scope's "Gated within
+    the change":
+    - every Details summary passes the target census;
+    - beside a section row, no failure sits on the canvas outside every frame;
+    - a pinned context shows exactly one pin, and none after the press.
+  - **Two relaxations to the new-axe-node rule:** the sidebar list's re-anchoring, and a known set
+    taken per route and view (see the State header). Both came from real evidence, where
+    pre-existing violations read as new.
