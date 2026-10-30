@@ -68,11 +68,14 @@ occurrence with the root `PinnedFailures` registry and watches the sentence with
 `PinnedFailureSlot`, which the app shell renders inside `.workspace`, draws one copy per edge —
 the most recent, "and N more" — clear of a stuck `[data-pin-clearance]` control and an open
 toast, and centred on the toast's content track. Pressing a copy is the only thing that scrolls:
-it brings the sentence into the clear port and focuses the control whose `aria-describedby` names
-it (the sentence itself when that control is disabled). Close dismisses that occurrence only; a
-replacement failure re-arms. The trap: the sentence id must be unique and inside the host, and
-the clearance hook is opt-in, so a sticky control without it is not measured. No product surface
-registers yet.
+it brings the sentence (and the control about to take focus, when both fit) into the clear port
+and focuses the control whose `aria-describedby` names it (the sentence itself when that control
+is disabled). Close dismisses that occurrence only; a replacement failure re-arms. The trap: the
+sentence id must be unique and inside the host, and the clearance hook is opt-in, so a sticky
+control without it is not measured. What registers: `TaskRow` (canvas Task List rows), Todos rows,
+the section and shortcut frames' collapse failures, and the Task List section's drag-receive
+banner (on `.task-list-section`, subject the list's name). Read banners, page-level failures and
+restore rows do not. The Task List's sticky quick-add carries `data-pin-clearance`.
 
 ## Key symbols
 

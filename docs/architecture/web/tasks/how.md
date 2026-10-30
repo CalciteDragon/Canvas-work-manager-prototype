@@ -20,8 +20,9 @@
    absent at submit counts as committed. `error()` is the list read's `Failure` ("this task
    list"), shown in the section banner with Try again (`retry()`) instead of the empty sentence;
    quick-add stays enabled under it. `receiveError()` is a drag-receive's failure ("Couldn’t
-   move the task into this list. Try again."), in the same banner with no Try again; a read
-   never clears it, and loading
+   move the task into this list. Try again."), in the same banner with no Try again, and the
+   only banner pinned off screen (`TaskListSection` binds `[appPinnedFailure]` on its root; row
+   failures pin from `TaskRow` itself; see [web / how](../how.md)); a read never clears it, and loading
    another section does. A successful add or receive after a failed read starts a quiet full
    read (`refresh()`, which waits for writes in flight) that clears the failure (Slice 78,
    L4-027). The trap: clear the field only when the pending entry

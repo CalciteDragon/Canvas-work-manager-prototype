@@ -72,3 +72,14 @@ is pending, or a held list that a person expected to move.
 listed closed-state change: the canvas live region left the grid, and project content rose 24 px.
 The sticky add form is transparent at rest, with a solid plate only while stuck. Field status
 stays out of the field's accessible name.
+
+**Amended, 2026-10-30 (Slice 78).** A failure's sentence keeps its place on the object, and the
+host's raw reason moves under a collapsed Details beside it. Feedback still never moves the page,
+but an inline write failure whose sentence is wholly outside the workspace's scroll port is pinned
+to the nearer edge, clear of the stuck quick-add and an open toast, as a button "↓ Couldn’t
+<verb> “X”." (↑ above). It applies to task rows (canvas Task List and Todos), section and shortcut
+collapse failures and the Task List's drag-receive banner; read failures, page-level failures and
+restore rows are not pinned. Only the user's press scrolls: it brings the sentence and the control
+it describes into view and focuses that control. Close dismisses that occurrence; a new failure
+re-arms. This closes the "row failure below the fold" open question (the user's choice on
+2026-10-29).
