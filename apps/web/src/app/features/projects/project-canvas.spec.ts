@@ -500,7 +500,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
         failOn: { 'shortcuts.list': new GatewayError('unreachable', 0, 'shortcut placements unavailable') },
       });
 
-      expect(query(fixture, '[data-placement-order-incomplete]')).not.toBeNull();
+      expect(query(fixture, '[data-shortcuts-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load all of this page’s sections, so adding and moving are paused.');
       expect(queryAll(fixture, 'app-insertion-point')).toHaveLength(0);
       expect(query(fixture, '[data-section-drag-handle]')?.getAttribute('aria-disabled')).toBe('true');
     });
@@ -532,9 +532,67 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       failOn: { 'shortcuts.list': new GatewayError('unreachable', 0, 'shortcut placements unavailable') },
     });
 
-    expect(query(fixture, '[data-placement-order-incomplete]')).not.toBeNull();
+    expect(query(fixture, '[data-shortcuts-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load all of this page’s sections, so adding and moving are paused.');
     expect(queryAll(fixture, 'app-insertion-point')).toHaveLength(0);
     expect(query(fixture, '[data-section-drag-handle]')?.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('a shortcuts read failure is one message with Try again and Details, and Try again re-reads (Slice 78, §19)', async () => {
+    const { fixture, gateway } = await render({
+      shortcutsAllowed: true,
+      failOn: { 'shortcuts.list': new GatewayError('unreachable', 0, 'shortcut placements unavailable') },
+    });
+
+    const failure = query(fixture, '[data-shortcuts-error]');
+    expect(queryAll(fixture, 'app-failure-message')).toHaveLength(1);
+    expect(failure?.querySelector('details')?.textContent).toContain('shortcut placements unavailable');
+    expect(failure?.querySelector('[data-failure-sentence]')?.textContent).not.toContain('unavailable');
+    expect(query(fixture, '[data-section-error]')).toBeNull();
+
+    gateway.options.failOn = undefined;
+    (failure?.querySelector('[data-recovery="try-again"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-shortcuts-error]')).toBeNull();
+    expect(queryAll(fixture, 'app-insertion-point').length).toBeGreaterThan(0);
+  });
+
+  it('a failed sections read shows Try again, no empty sentence, and Try again re-reads (Slice 78, L4-002, L4-003)', async () => {
+    const { fixture, gateway } = await render({
+      failOn: { 'sections.list': new GatewayError('internal_error', 500, 'disk on fire') },
+    });
+
+    const failure = query(fixture, '[data-canvas-error]');
+    expect(failure?.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load this page.');
+    expect(failure?.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(failure?.querySelector('details')?.textContent).toContain('disk on fire');
+    expect(query(fixture, '[data-empty-canvas]')).toBeNull();
+
+    gateway.options.failOn = undefined;
+    (failure?.querySelector('[data-recovery="try-again"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-canvas-error] [data-recovery]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(query(fixture, '[data-canvas-loading]')).toBeNull();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-canvas-error]')).toBeNull();
+    expect(queryAll(fixture, '[data-section-frame]').length).toBeGreaterThan(0);
+  });
+
+  it('while the first load is pending says Loading canvas…, busy, and no failure text (Slice 78)', async () => {
+    const sectionsGate = deferred<void>();
+    const { fixture } = await render({ shortcutsAllowed: true, sectionsGate });
+
+    const loading = query(fixture, '[data-canvas-loading]');
+    expect(loading?.textContent).toContain('Loading canvas…');
+    expect(loading?.classList).toContain('state-message--loading');
+    expect(loading?.getAttribute('aria-busy')).toBe('true');
+    expect(query(fixture, 'app-failure-message')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('could not be loaded');
+    sectionsGate.resolve();
+    await fixture.whenStable();
   });
 
   it('adds a Home shortcut through the same popup and remembers its insertion position', async () => {
@@ -775,6 +833,11 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(query(fixture, '[data-open-archive]')).toBeNull();
     expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
     expect(queryAll(fixture, '[data-toast]')).toHaveLength(1);
+    // Slice 78: the sentence alone, the reason under a closed Details.
+    expect(query(fixture, '[data-toast] .toast__message')?.textContent).not.toContain('response was lost');
+    expect(query(fixture, '[data-toast] .toast__message')?.textContent).toMatch(/^Couldn’t remove the .+ section\. Try again\.$/);
+    expect((query(fixture, '[data-toast] details') as HTMLDetailsElement | null)?.open).toBe(false);
+    expect(query(fixture, '[data-toast] details')?.textContent).toContain('Task removal response was lost');
     query(fixture, '[data-toast-dismiss]')!.focus();
     query(fixture, '[data-toast-dismiss]')!.click();
     await fixture.whenStable();

@@ -14,7 +14,7 @@ import { Toast } from './toast';
     <button class="button" data-toast-menu-opener popovertarget="toast-story-menu">Open menu</button>
     <button class="button" (click)="modal.showModal()">Open modal</button>
     <div id="toast-story-menu" class="lift lift--popover menu" popover="auto"><button class="menu__item">Menu action</button></div>
-    <app-toast [open]="open()" [tone]="tone()" [message]="tone() === 'alert' ? 'Could not remove the section. Try again.' : 'Removed the Notes section.'" [detail]="detail()" (dismissed)="dismiss()">
+    <app-toast [open]="open()" [tone]="tone()" [message]="tone() === 'alert' ? 'Couldn’t remove the Notes section. Try again.' : 'Removed the Notes section.'" [detail]="detail()" (dismissed)="dismiss()">
       @if (withUndo()) { <button class="button" type="button">Undo</button> }
     </app-toast>
     <dialog #modal class="lift lift--dialog"><h2>Confirm change</h2><button class="button" (click)="modal.close()">Close modal</button></dialog>

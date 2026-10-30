@@ -10,6 +10,7 @@ import type {
 } from '@cwm/contracts';
 import type { ReceiptUndoResult } from '../../../core/history/receipt-undo';
 import type { OperationWriteReport } from '../../../core/history/operation-history-reporter';
+import type { Failure } from '../../../shared/feedback/failure';
 
 /**
  * **Every sentence the header's Undo/Redo controls say** (Slice 41, §31), as pure functions over
@@ -30,8 +31,10 @@ const curly = (text: string): string => text.replace(/"([^"]*)"/g, '“$1”');
 export const sectionRemovedFeedback = (name: string, already = false): HistoryFeedback => ({
   tone: 'status', message: already ? `The ${name} section was already removed.` : `Removed the ${name} section.`,
 });
-/** A failed removal keeps its explicit retry in the acting toast. */
-export const sectionRemoveFailedFeedback = (reason: string): HistoryFeedback => ({ tone: 'alert', message: `Could not remove the section. ${reason}` });
+/** A failed removal keeps its explicit retry in the acting toast; its reason is the toast's Details (Slice 78). */
+export const sectionRemoveFailedFeedback = (failure: Failure): HistoryFeedback => ({
+  tone: 'alert', message: failure.sentence, ...(failure.reason === null ? {} : { detail: failure.reason }),
+});
 /** A saved write is acknowledged independently from its failed follow-up read. */
 export const canvasRefreshFailedFeedback = (): HistoryFeedback => ({ tone: 'status', message: 'The change was saved, but this canvas could not be refreshed.' });
 /** A deleted task remains recoverable in Archive. */

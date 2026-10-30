@@ -509,8 +509,37 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(store.sections()).toHaveLength(2);
     expect(store.placements().every((placement) => placement.kind === 'section')).toBe(true);
-    expect(store.sectionError()).toContain('shortcut read failed');
+    expect(store.shortcutsError()).toEqual({ sentence: 'Couldn’t load all of this page’s sections, so adding and moving are paused.', reason: 'shortcut read failed' });
+    expect(store.sectionError()).toBeNull();
     expect(store.error()).toBeNull();
+  });
+
+  it('a shortcuts read failure is its own state: a later section write does not clear it (Slice 78, §19)', async () => {
+    const { store } = setup({
+      shortcutList: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'shortcut read failed'); }),
+    });
+    await store.load(PROJECT, PAGE);
+
+    await store.renameSection(store.sections()[0]!.id, 'Renamed');
+
+    expect(store.shortcutsError()?.sentence).toBe('Couldn’t load all of this page’s sections, so adding and moving are paused.');
+  });
+
+  it('the shortcuts Try again re-reads, busy while it runs, and clears the failure', async () => {
+    const shortcutList = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'shortcut read failed'))
+      .mockResolvedValue([shortcut('shortcut-a', 2)]);
+    const { store } = setup({ shortcutList });
+    await store.load(PROJECT, PAGE);
+
+    const retry = store.retryShortcuts();
+    expect(store.shortcutsRetryPending()).toBe(true);
+    await retry;
+
+    expect(store.shortcutsRetryPending()).toBe(false);
+    expect(store.shortcutsError()).toBeNull();
+    expect(store.orderComplete()).toBe(true);
+    expect(store.shortcuts()).toHaveLength(1);
   });
 
   it('marks the combined order incomplete on a load or refreshSections read failure and recovers', async () => {
@@ -523,17 +552,17 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     await store.load(PROJECT, PAGE);
     expect(store.orderComplete()).toBe(false);
-    expect(store.sectionError()).toContain('load shortcut read failed');
+    expect(store.shortcutsError()?.reason).toBe('load shortcut read failed');
 
     live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
     await settleLive();
     expect(store.orderComplete()).toBe(false);
-    expect(store.sectionError()).toContain('refresh shortcut read failed');
+    expect(store.shortcutsError()?.reason).toBe('refresh shortcut read failed');
 
     live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
     await settleLive();
     expect(store.orderComplete()).toBe(true);
-    expect(store.sectionError()).toBeNull();
+    expect(store.shortcutsError()).toBeNull();
   });
 
   it('updates orderComplete on refreshShortcuts and reconcileSections reads', async () => {
@@ -617,7 +646,25 @@ describe('ProjectPageStore (§19, §26)', () => {
     await store.load(PROJECT, PAGE);
 
     expect(store.placements()).toEqual([]);
-    expect(store.error()).toContain('canvas read failed');
+    expect(store.error()).toEqual({ sentence: 'This page isn’t available.', reason: 'canvas read failed' });
+  });
+
+  it('says a failed sections read in product words, keeps it while Try again re-reads, then clears it (Slice 78)', async () => {
+    const list = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('internal_error', 500, 'disk on fire'))
+      .mockResolvedValue([section('section-text', 'markdown', 0)]);
+    const { store } = setup({ sectionOverrides: { list } });
+    await store.load(PROJECT, PAGE);
+    expect(store.error()).toEqual({ sentence: 'Couldn’t load this page.', reason: 'disk on fire' });
+
+    const retry = store.retry();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('Couldn’t load this page.');
+    await retry;
+
+    expect(store.loading()).toBe(false);
+    expect(store.error()).toBeNull();
+    expect(store.sections()).toHaveLength(1);
   });
 
   it('keeps the rest of the canvas when one container’s rows cannot be read', async () => {
@@ -700,7 +747,8 @@ describe('ProjectPageStore (§19, §26)', () => {
     // An empty canvas is a legitimate state, so "nothing to draw" and "could not read it"
     // must not look the same. The project itself is the shell's error to report.
     expect(store.sections()).toEqual([]);
-    expect(store.error()).toContain('no such page');
+    expect(store.error()?.sentence).toBe('This page isn’t available.');
+    expect(store.error()?.reason).toContain('no such page');
   });
 
   it('adds a section with the registry definition’s default config', async () => {
@@ -816,7 +864,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       }),
     });
     await store.load(PROJECT, PAGE);
-    const sectionError = store.sectionError();
+    const sectionError = store.shortcutsError()?.sentence;
 
     expect(store.orderComplete()).toBe(false);
     expect(await store.addSection(definition(), { position: 1 })).toEqual({
@@ -835,7 +883,8 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(gateway.sections.create).not.toHaveBeenCalled();
     expect(gateway.shortcuts.create).not.toHaveBeenCalled();
-    expect(store.sectionError()).toBe(sectionError);
+    expect(store.shortcutsError()?.sentence).toBe(sectionError);
+    expect(store.sectionError()).toBeNull();
   });
 
   it('returns a loading result before the first canvas read and treats a stale create as complete', async () => {
@@ -1357,7 +1406,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(await store.removeSection(next.id)).toBe(false);
 
     expect(store.recoveryNotice()).toEqual(previous);
-    expect(store.failedRemoval()).toEqual({ sectionId: next.id, message: 'remove response was lost' });
+    expect(store.failedRemoval()).toEqual({ sectionId: next.id, failure: { sentence: expect.stringMatching(/^Couldn’t remove the .+ section\. Try again\.$/), reason: 'remove response was lost' } });
     listed = [];
     expect(await store.retryFailedRemoval()).toBe(true);
     expect(remove).toHaveBeenLastCalledWith(next.id);
@@ -1480,8 +1529,9 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sections()).toEqual(before);
     expect(store.failedRemoval()).toMatchObject({
       sectionId: 'section-text',
-      message: 'could not reach the prototype host',
+      failure: { reason: 'could not reach the prototype host' },
     });
+    expect(store.failedRemoval()?.failure.sentence).not.toContain('could not reach');
     expect(store.sectionError()).toBeNull();
   });
 
@@ -1551,7 +1601,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       details = candidate;
 
       expect(await store.removeSection('section-tasks' as SectionId)).toBe(false);
-      expect(store.failedRemoval()?.message).toContain('still holds 3 tasks');
+      expect(store.failedRemoval()?.failure.reason).toContain('still holds 3 tasks');
       expect(store.sectionError()).toBeNull();
     }
   });
@@ -1980,7 +2030,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await store.load(PROJECT, PAGE);
     await tasks.load(container);
     expect(store.sections()).toEqual([]);
-    expect(store.error()).toContain('host starting');
+    expect(store.error()?.reason).toBe('host starting');
     expect(tasks.loadFailed()).toBe(true);
 
     live.emitConnected();
@@ -2008,7 +2058,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     const { store, gateway, live } = setup({ sectionOverrides: { list } });
 
     await store.load(PROJECT, PAGE);
-    expect(store.error()).toContain('host starting');
+    expect(store.error()?.reason).toBe('host starting');
 
     live.emitConnected();
     await settleLive();

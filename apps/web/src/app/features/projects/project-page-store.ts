@@ -22,6 +22,7 @@ import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } 
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import type { LiveEvent } from '@cwm/contracts';
 import { canvasRefreshFailedFeedback, sectionRemovedFeedback } from './history/history-feedback';
+import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 import type { SectionDefinition } from './sections/registry';
 
 const messageOf = (error: unknown): string =>
@@ -29,6 +30,12 @@ const messageOf = (error: unknown): string =>
 
 const FAILED_REMOVAL_GUARD_MESSAGE =
   'Retry or dismiss the unresolved removal above before removing another section.';
+
+/** The shortcuts read's failure (Slice 78): the canonical sections are on screen, so it names what is paused. */
+const shortcutsReadFailure = (error: unknown): Failure => ({
+  ...readFailure(error, 'this page’s shortcuts'),
+  sentence: 'Couldn’t load all of this page’s sections, so adding and moving are paused.',
+});
 
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
 
@@ -76,7 +83,8 @@ export interface SectionRecoveryNoticeState {
 /** An explicit Retry remove repeats the exact canvas action after an uncertain failure. */
 export interface FailedSectionRemoval {
   sectionId: SectionId;
-  message: string;
+  /** The sentence for the toast and the reason for its Details (Slice 78). */
+  failure: Failure;
 }
 
 /**
@@ -150,8 +158,16 @@ export class ProjectPageStore {
   private activeLoad: Promise<void> | null = null;
   private destroyed = false;
   private fullRecoveryQueued = false;
-  private readonly errorState = signal<string | null>(null);
+  /**
+   * The sections read's failure (Slice 78). Kept until a read of the same page answers, so Try
+   * again stays on screen, busy, while it re-reads.
+   */
+  private readonly errorState = signal<Failure | null>(null);
+  /** Write failures. Never the shortcuts read's: an unrelated write must not clear that. */
   private readonly sectionErrorState = signal<string | null>(null);
+  /** The shortcuts read's failure, apart from writes (§19). Writes and drag stay gated by `orderComplete`. */
+  private readonly shortcutsErrorState = signal<Failure | null>(null);
+  private readonly shortcutsRetryPendingState = signal(false);
   private readonly recoveryNoticeState = signal<SectionRecoveryNoticeState | null>(null);
   private readonly failedRemovalState = signal<FailedSectionRemoval | null>(null);
   private readonly removalPendingState = signal(false);
@@ -198,6 +214,9 @@ export class ProjectPageStore {
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly sectionError = this.sectionErrorState.asReadonly();
+  readonly shortcutsError = this.shortcutsErrorState.asReadonly();
+  /** True while `retryShortcuts` runs: the shortcuts failure's Try again is busy. */
+  readonly shortcutsRetryPending = this.shortcutsRetryPendingState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
   readonly recoveryNotice = this.recoveryNoticeState.asReadonly();
@@ -338,9 +357,9 @@ export class ProjectPageStore {
         this.orderCompleteState.set(
           !this.requestedShortcutsAllowed || shortcutsResult.status === 'fulfilled',
         );
-        if (shortcutsResult.status === 'rejected') {
-          this.sectionErrorState.set(messageOf(shortcutsResult.reason));
-        }
+        this.shortcutsErrorState.set(
+          shortcutsResult.status === 'rejected' ? shortcutsReadFailure(shortcutsResult.reason) : null,
+        );
         if (sectionsResult.status === 'rejected') {
           // Quiet — see above. Keep the currently painted canvas intact.
           continue;
@@ -399,14 +418,33 @@ export class ProjectPageStore {
         this.acceptCollapseRead(this.composePlacements([], shortcuts));
         this.setCanvas(this.composePlacements(this.sectionsState(), shortcuts));
         this.orderCompleteState.set(true);
+        this.shortcutsErrorState.set(null);
         this.sectionErrorState.set(null);
       } catch (error) {
         if (this.current(generation, projectId, pageId)) {
           this.orderCompleteState.set(false);
-          this.sectionErrorState.set(messageOf(error));
+          this.shortcutsErrorState.set(shortcutsReadFailure(error));
         }
       }
     });
+  }
+
+  /** The failed sections read's Try again: the same load, which keeps the failure until it answers. */
+  retry(): Promise<void> {
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (projectId === undefined || pageId === undefined) return Promise.resolve();
+    return this.load(projectId, pageId, this.requestedShortcutsAllowed, this.requestedRootProjectId);
+  }
+
+  /** The failed shortcuts read's Try again: a re-read of the shortcuts alone, the canvas kept. */
+  async retryShortcuts(): Promise<void> {
+    this.shortcutsRetryPendingState.set(true);
+    try {
+      await this.refreshShortcuts();
+    } finally {
+      this.shortcutsRetryPendingState.set(false);
+    }
   }
 
   /**
@@ -424,6 +462,7 @@ export class ProjectPageStore {
     this.collapseErrorsState.set({});
     this.collapsePendingState.set(new Set());
     const current = () => generation === this.loadGeneration;
+    const samePage = this.requestedProjectId === projectId && this.requestedPageId === pageId;
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
     this.requestedShortcutsAllowed = shortcutsAllowed;
@@ -439,8 +478,10 @@ export class ProjectPageStore {
 
     const operation = this.track(async () => {
       this.loadingState.set(true);
-      this.errorState.set(null);
+      // A re-read of the same page keeps its read failure until it answers (Slice 78).
+      if (!samePage) this.errorState.set(null);
       this.sectionErrorState.set(null);
+      this.shortcutsErrorState.set(null);
       const [sectionsResult, shortcutsResult] = await Promise.allSettled([
         this.gateway.sections.list(projectId, { pageId }),
         this.readShortcuts(projectId, pageId),
@@ -449,14 +490,15 @@ export class ProjectPageStore {
       this.orderCompleteState.set(!shortcutsAllowed || shortcutsResult.status === 'fulfilled');
       if (sectionsResult.status === 'rejected') {
         this.setCanvas([]);
-        this.errorState.set(messageOf(sectionsResult.reason));
+        this.errorState.set(readFailure(sectionsResult.reason, 'this page'));
       } else {
+        this.errorState.set(null);
         const sections = [...sectionsResult.value].sort(byPosition);
         if (shortcutsResult.status === 'fulfilled') {
           this.setCanvas(this.composePlacements(sections, shortcutsResult.value));
         } else {
           this.setCanvas(this.composePlacements(sections, []));
-          this.sectionErrorState.set(messageOf(shortcutsResult.reason));
+          this.shortcutsErrorState.set(shortcutsReadFailure(shortcutsResult.reason));
         }
         this.loaded = true;
       }
@@ -799,7 +841,7 @@ export class ProjectPageStore {
             return;
           }
         }
-        this.failedRemovalState.set({ sectionId: id, message: messageOf(error) });
+        this.failedRemovalState.set({ sectionId: id, failure: writeFailure(error, `Couldn’t remove the ${removedName} section. Try again.`) });
         failed = true;
         return;
       }
@@ -1184,7 +1226,7 @@ export class ProjectPageStore {
     if (!this.orderCompleteState()) {
       return Promise.resolve({
         ok: false,
-        message: this.sectionErrorState() ?? 'The canvas order is incomplete',
+        message: this.shortcutsErrorState()?.sentence ?? 'The canvas order is incomplete',
       });
     }
     const generation = this.loadGeneration;
@@ -1222,9 +1264,9 @@ export class ProjectPageStore {
     this.orderCompleteState.set(
       !this.requestedShortcutsAllowed || shortcutsResult.status === 'fulfilled',
     );
-    if (shortcutsResult.status === 'rejected') {
-      this.sectionErrorState.set(messageOf(shortcutsResult.reason));
-    }
+    this.shortcutsErrorState.set(
+      shortcutsResult.status === 'rejected' ? shortcutsReadFailure(shortcutsResult.reason) : null,
+    );
     if (sectionsResult.status === 'rejected') return false;
     const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
     this.acceptCollapseRead(this.composePlacements(sectionsResult.value, shortcutsResult.status === 'fulfilled' ? shortcuts : []));

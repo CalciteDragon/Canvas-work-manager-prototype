@@ -45,6 +45,7 @@ import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 import { ShortcutFrame } from './shortcuts/shortcut-frame';
 import { ShortcutStore } from './shortcuts/shortcut-store';
 import { canvasRefreshFailedFeedback, sectionRemoveFailedFeedback } from './history/history-feedback';
+import { FailureMessage } from '../../shared/feedback/failure-message';
 
 interface GridInsertionTarget {
   index: number;
@@ -60,6 +61,7 @@ interface GridInsertionTarget {
   selector: 'app-project-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FailureMessage,
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
@@ -210,7 +212,7 @@ export class ProjectCanvas {
       const notice = this.store.recoveryNotice();
       const failed = this.store.failedRemoval();
       untracked(() => {
-        if (failed !== null) this.toast.show(sectionRemoveFailedFeedback(failed.message), undefined, this.canvasFallback);
+        if (failed !== null) this.toast.show(sectionRemoveFailedFeedback(failed.failure), undefined, this.canvasFallback);
         else if (notice !== null && !notice.undoing) this.toast.show({ tone: 'status',
           message: notice.refreshFailed ? canvasRefreshFailedFeedback().message : notice.message,
         }, notice.refreshFailed ? undefined : notice.report, this.canvasFallback);

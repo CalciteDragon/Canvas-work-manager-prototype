@@ -113,7 +113,7 @@ describe('history feedback (Slice 41)', () => {
     const rows = [
       [sectionRemovedFeedback('Notes'), 'Removed the Notes section.'],
       [sectionRemovedFeedback('Notes', true), 'The Notes section was already removed.'],
-      [sectionRemoveFailedFeedback('Try again.'), 'Could not remove the section. Try again.'],
+      [sectionRemoveFailedFeedback({ sentence: 'Couldn’t remove the Notes section. Try again.', reason: 'host stopped' }), 'Couldn’t remove the Notes section. Try again.'],
       [canvasRefreshFailedFeedback(), 'The change was saved, but this canvas could not be refreshed.'],
       [taskArchivedFeedback('Tile'), 'Archived “Tile”.'],
       [workstreamCompletedFeedback('Kitchen'), 'Completed Kitchen.'],
@@ -129,6 +129,12 @@ describe('history feedback (Slice 41)', () => {
       expect(feedback.message).toBe(expected);
       expect(feedback.message).not.toMatch(/header|history|the controls|was recorded|\d{4}-\d{2}-\d{2}T|"/);
     }
+  });
+
+  it('keeps a failed removal’s reason in its detail, out of the sentence (Slice 78)', () => {
+    expect(sectionRemoveFailedFeedback({ sentence: 'Couldn’t remove the Notes section. Try again.', reason: 'host stopped' }))
+      .toEqual({ tone: 'alert', message: 'Couldn’t remove the Notes section. Try again.', detail: 'host stopped' });
+    expect(sectionRemoveFailedFeedback({ sentence: 'Couldn’t remove the Notes section. Try again.', reason: null }).detail).toBeUndefined();
   });
 
   it('names each control state, enabled only for an unblocked step', () => {

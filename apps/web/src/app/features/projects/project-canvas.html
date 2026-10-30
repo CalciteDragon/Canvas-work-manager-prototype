@@ -21,16 +21,31 @@
   <p data-section-error class="project-canvas__error" role="alert">{{ sectionError }}</p>
 }
 
-@if (!store.orderComplete()) {
-  <p data-placement-order-incomplete class="project-canvas__error" role="status">
-    Some placements could not be loaded. Add and move operations are unavailable until the full order can be loaded.
-  </p>
+@if (store.shortcutsError(); as failure) {
+  @if (store.error() === null) {
+    <app-failure-message
+      data-shortcuts-error
+      [failure]="failure"
+      live="alert"
+      recovery="try-again"
+      [pending]="store.shortcutsRetryPending()"
+      (retry)="store.retryShortcuts()"
+    />
+  }
 }
 
-@if (store.loading()) {
-  <p data-canvas-loading class="project-canvas__muted">Loading canvas…</p>
-} @else if (store.error(); as error) {
-  <p data-canvas-error class="project-canvas__error" role="alert">{{ error }}</p>
+<!-- The failure first: Try again keeps it on screen, busy, until the read answers (Slice 78). -->
+@if (store.error(); as failure) {
+  <app-failure-message
+    data-canvas-error
+    [failure]="failure"
+    live="alert"
+    recovery="try-again"
+    [pending]="store.loading()"
+    (retry)="store.retry()"
+  />
+} @else if (store.loading()) {
+  <p data-canvas-loading class="state-message state-message--loading" aria-busy="true">Loading canvas…</p>
 } @else if (canvasMounted()) {
   <div
     data-section-canvas
@@ -210,7 +225,7 @@
 }
 
 <app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'"
-  [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []"
+  [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []" [detail]="toast.state()?.detail ?? null"
   [suppressed]="toast.slot.suppressed()" [pendingUndo]="toast.pendingUndo()"
   (dismissed)="dismissToast()">
   @if (toast.offer() !== 'unavailable') {

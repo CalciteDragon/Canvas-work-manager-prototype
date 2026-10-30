@@ -206,6 +206,16 @@ page with "Couldn’t load this project." and Try again (`retry()`), with the re
 A re-read of the same project keeps the failure on screen, its Try again busy, until the read
 answers; loading another project clears it at once.
 
+`ProjectPageStore` keeps its two reads' failures apart from its writes' (§19). `error()` is the
+sections read's `Failure` ("Couldn’t load this page.", Try again through `retry()`, kept busy
+while the same page re-reads). `shortcutsError()` is the shortcuts read's: "Couldn’t load all of
+this page’s sections, so adding and moving are paused.", with Try again through
+`retryShortcuts()` (`shortcutsRetryPending()` while it runs). Only a successful shortcuts read
+clears it; `sectionError()` holds write failures only, so an unrelated write cannot. Writes and
+drag stay gated by `orderComplete()`. "Loading canvas…" is a `.state-message--loading` line with
+`aria-busy`; nothing else says the order is incomplete. A failed removal's `FailedSectionRemoval`
+carries a `Failure`, and the canvas toast binds its reason as `detail`, the toast's Details.
+
 MarkdownSection is an eager shell with a deferred body and escaped source placeholder.
 `placeholderTextOf` simplifies the placeholder for converted prose: it drops a backslash before
 ASCII punctuation or a line break and the `&#32;`/`&#9;`/`&#13;` references the conversion writes,
