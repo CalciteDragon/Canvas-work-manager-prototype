@@ -101,6 +101,6 @@
   <!-- A failed project write, in the header — never the full-page "Project unavailable"
        state, which would blank the page the user is standing on. -->
   @if (!detailsOpen() && writeError(); as writeError) {
-    <p data-project-write-error class="project-header__error" role="alert">{{ writeError }}</p>
+    <app-failure-message data-project-write-error class="project-header__error" weight="inline" [failure]="writeError" live="alert" />
   }
 </header>

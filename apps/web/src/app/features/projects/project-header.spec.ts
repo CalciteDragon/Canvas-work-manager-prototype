@@ -199,11 +199,12 @@ describe('ProjectHeader lifts (§26)', () => {
     fixture.componentRef.setInput('saveDetails', async () => false);
     await edit(fixture);
     change(fixture, '[data-project-rename-input]', 'Refit');
-    fixture.componentRef.setInput('writeError', 'Refused');
+    fixture.componentRef.setInput('writeError', { sentence: 'Couldn’t save the details of “Home renovation”. Try again.', reason: 'Refused' });
     query(fixture, '[data-project-details-save]').click();
     await settle(fixture);
     expect(query(fixture, '[data-project-write-error]')).toBeNull();
-    expect(query(fixture, '[data-project-details-dialog] [role="alert"]').textContent).toContain('Refused');
+    expect(query(fixture, '[data-project-details-dialog] [role="alert"]').textContent?.trim()).toBe('Couldn’t save the details of “Home renovation”. Try again.');
+    expect(query(fixture, '[data-project-details-dialog] details').textContent).toContain('Refused');
     query(fixture, '[data-project-details-cancel]').click();
     await settle(fixture);
     query(fixture, '[data-project-discard]').click();

@@ -178,13 +178,6 @@
 .project-nav__manager-status,
 .project-nav__manager-error {
   margin: var(--space-2) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.project-nav__manager-error p {
-  margin: 0 0 var(--space-1);
-  color: var(--color-danger);
 }
 
 .project-nav__heading {

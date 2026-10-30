@@ -5,10 +5,16 @@ import {
 import { isSubproject, type Project, type UpdateProjectInput } from '@cwm/contracts';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { LiftStack } from '../../shared/lifts/lift-stack';
+import { FailureMessage } from '../../shared/feedback/failure-message';
+import type { Failure } from '../../shared/feedback/failure';
+
+/** A refused save the header has no reason for. */
+const NOT_SAVED: Failure = { sentence: 'The project details could not be saved.', reason: null };
 
 /** A single-commit project details draft with field-level live refresh and guarded dismissal. */
 @Component({
   selector: 'app-project-details-dialog',
+  imports: [FailureMessage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './project-details-dialog.html',
   styleUrl: './project-details-dialog.scss',
@@ -17,7 +23,9 @@ export class ProjectDetailsDialog {
   readonly project = input.required<Project>();
   readonly opener = input.required<HTMLElement>();
   readonly save = input.required<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>();
-  readonly writeError = input<string | null>(null);
+  /** The header's project write failure (Slice 78): its sentence here, the reason under Details. */
+  readonly writeError = input<Failure | null>(null);
+  protected readonly saveFailure = computed(() => this.writeError() ?? NOT_SAVED);
   readonly closed = output<void>();
   readonly name = signal('');
   readonly description = signal('');

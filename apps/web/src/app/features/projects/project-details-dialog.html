@@ -16,7 +16,7 @@
     @if (error(); as error) {
       <p class="project-details__error" role="alert">{{ error }}</p>
     } @else if (failed()) {
-      <p class="project-details__error" role="alert">{{ writeError() ?? 'The project details could not be saved.' }}</p>
+      <app-failure-message class="project-details__error" weight="inline" [failure]="saveFailure()" live="alert" />
     }
     @if (discarding()) {
       <div data-project-discard-confirm>

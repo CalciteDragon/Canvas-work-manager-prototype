@@ -98,13 +98,9 @@
     @if (pageWritePending()) {
       <p data-page-toggle-pending class="project-nav__manager-status" role="status">Saving page settings…</p>
     }
-    @if (pageWriteError(); as error) {
-      <div data-page-toggle-error class="project-nav__manager-error" role="alert">
-        <p>{{ error }}</p>
-        @if (pageWriteRetryKind() !== null) {
-          <button type="button" class="button button--sm" data-page-toggle-retry (click)="retryPageRequested.emit()">Retry refresh</button>
-        }
-      </div>
+    @if (pageWriteError(); as failure) {
+      <app-failure-message data-page-toggle-error class="project-nav__manager-error" weight="inline" [failure]="failure" live="alert"
+        [recovery]="pageWriteRetryKind() !== null ? 'retry-refresh' : null" (retry)="retryPageRequested.emit()" />
     }
   </div>
 

@@ -16,14 +16,29 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { readFailure, type Failure } from '../../shared/feedback/failure';
+import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 
+// The work-create dialog's failure is still raw until that dialog takes a `Failure` (Slice 78).
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+/** What a refused project write was for, by the fields it carried (Slice 78). */
+const projectWriteSentence = (input: UpdateProjectInput, name: string): string => {
+  const fields = Object.keys(input);
+  const verb = input.status === 'archived' ? 'archive'
+    : fields.length !== 1 ? 'save the details of'
+    : input.name !== undefined ? 'rename'
+    : input.status !== undefined ? 'change the status of'
+    : input.description !== undefined ? 'change the description of'
+    : 'change the date of';
+  return `Couldn’t ${verb} “${name}”. Try again.`;
+};
 
 /** Navigation, so archived projects have no business in it (§31) — as in `ShellStore`. */
 const NAVIGABLE_STATUSES = ProjectStatusSchema.options.filter((status) => status !== 'archived');
 type ConfigurablePageKind = Exclude<ProjectPageKind, 'home' | 'work'>;
+/** A page's name in a write failure's sentence ("the Todos page"). */
+const pageNameOf = (kind: ConfigurablePageKind): string => kind.charAt(0).toUpperCase() + kind.slice(1);
 
 /**
  * A subproject and the work under it. **Derived view state, not an entity**, for the same
@@ -79,9 +94,9 @@ export class ProjectWorkspaceStore {
    * failure below. Try again keeps it until the read answers, so the button stays on screen, busy.
    */
   private readonly errorState = signal<Failure | null>(null);
-  private readonly writeErrorState = signal<string | null>(null);
+  private readonly writeErrorState = signal<Failure | null>(null);
   private readonly pageWritePendingState = signal(false);
-  private readonly pageWriteErrorState = signal<string | null>(null);
+  private readonly pageWriteErrorState = signal<Failure | null>(null);
   private readonly pageWriteRetryKindState = signal<ConfigurablePageKind | null>(null);
   private readonly pageWriteRetryEnabledState = signal<boolean | null>(null);
   private readonly projectWritesState = signal(0);
@@ -407,7 +422,7 @@ export class ProjectWorkspaceStore {
             (written) => ({ projectId: written.page.projectId, projectName: root.name, receipt: written.operation }));
         } catch (error) {
           if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
-            this.setPageOperationError(messageOf(error));
+            this.setPageOperationError(writeFailure(error, `Couldn’t turn ${enabled ? 'on' : 'off'} the ${pageNameOf(kind)} page. Try again.`));
           }
           return false;
         }
@@ -478,17 +493,17 @@ export class ProjectWorkspaceStore {
   }
 
   private setPageOperationError(
-    message: string,
+    failure: Failure,
     retryKind?: ConfigurablePageKind,
     retryEnabled?: boolean,
   ): void {
-    this.pageWriteErrorState.set(message);
+    this.pageWriteErrorState.set(failure);
     this.pageWriteRetryKindState.set(retryKind ?? null);
     this.pageWriteRetryEnabledState.set(retryEnabled ?? null);
   }
 
-  private pageRefreshError(kind: ConfigurablePageKind, enabled: boolean, error: unknown): string {
-    return `${kind.charAt(0).toUpperCase() + kind.slice(1)} was ${enabled ? 'enabled' : 'disabled'}, but navigation could not refresh: ${messageOf(error)}`;
+  private pageRefreshError(kind: ConfigurablePageKind, enabled: boolean, error: unknown): Failure {
+    return writeFailure(error, `Turned ${enabled ? 'on' : 'off'} the ${pageNameOf(kind)} page, but navigation couldn’t refresh.`);
   }
 
   private resumeQueuedContextRefresh(): void {
@@ -648,7 +663,7 @@ export class ProjectWorkspaceStore {
         } catch (error) {
           if (current()) {
             if (paint !== null) this.projectState.set(before);
-            this.writeErrorState.set(messageOf(error));
+            this.writeErrorState.set(writeFailure(error, projectWriteSentence(input, before.name)));
           }
           return false;
         } finally {

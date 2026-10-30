@@ -12,6 +12,8 @@ import {
 } from './project-page-registry';
 import { ProjectWorkItem } from './project-work-item';
 import { Icon } from '../../shared/components/icon/icon';
+import { FailureMessage } from '../../shared/feedback/failure-message';
+import type { Failure } from '../../shared/feedback/failure';
 
 /**
  * §23's second navigation column: a root's pages, then the work hierarchy beneath it.
@@ -28,7 +30,7 @@ import { Icon } from '../../shared/components/icon/icon';
 @Component({
   selector: 'app-project-page-navigation',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectWorkItem, RouterLink, Icon],
+  imports: [ProjectWorkItem, RouterLink, Icon, FailureMessage],
   templateUrl: './project-page-navigation.html',
   styleUrl: './project-page-navigation.scss',
 })
@@ -51,7 +53,7 @@ export class ProjectPageNavigation {
   readonly breadcrumbs = input<Project[]>([]);
   readonly collapsed = input<boolean>(false);
   readonly pageWritePending = input<boolean>(false);
-  readonly pageWriteError = input<string | null>(null);
+  readonly pageWriteError = input<Failure | null>(null);
   readonly pageWriteRetryKind = input<OptionalProjectPageKind | null>(null);
   /** A focusable unavailable plus spells out this reason without requesting a write. */
   readonly workCreateBlocked = input<string | null>(null);

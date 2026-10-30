@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { isSubproject, type Project, type UpdateProjectInput } from '@cwm/contracts';
 import { Icon } from '../../shared/components/icon/icon';
+import { FailureMessage } from '../../shared/feedback/failure-message';
+import type { Failure } from '../../shared/feedback/failure';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
@@ -25,7 +27,7 @@ import { ProjectArchiveConfirm } from './project-archive-confirm';
 @Component({
   selector: 'app-project-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectMoreMenu, ProjectDetailsDialog, ProjectArchiveConfirm, Icon],
+  imports: [ProjectMoreMenu, ProjectDetailsDialog, ProjectArchiveConfirm, Icon, FailureMessage],
   templateUrl: './project-header.html',
   styleUrl: './project-header.scss',
 })
@@ -33,7 +35,7 @@ export class ProjectHeader {
   readonly project = input.required<Project>();
   /** §39's percentage, or `null` for "not available" — which is not the same as 0%. */
   readonly progress = input<number | null>(null);
-  readonly writeError = input<string | null>(null);
+  readonly writeError = input<Failure | null>(null);
   readonly routeLanding = input(true);
   readonly saveDetails = input<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>(async () => false);
   readonly confirmArchive = input<() => Promise<boolean>>(async () => false);

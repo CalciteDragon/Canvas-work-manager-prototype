@@ -132,7 +132,7 @@ export const Pending: Story = {
 export const Refused: Story = {
   args: {
     pages: HOME_ONLY,
-    pageWriteError: 'The Archive page could not be saved.',
+    pageWriteError: { sentence: 'Couldn’t turn on the Archive page. Try again.', reason: 'The Archive page could not be saved.' },
   },
   play: async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Project page settings for Home renovation' }));

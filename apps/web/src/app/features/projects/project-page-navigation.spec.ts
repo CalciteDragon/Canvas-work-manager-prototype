@@ -325,7 +325,7 @@ describe('ProjectPageNavigation (§23)', () => {
     const todos = query(fixture, '[data-page-toggle-kind="todos"] input') as HTMLInputElement;
     todos.click();
     expect(todos.checked).toBe(true);
-    fixture.componentRef.setInput('pageWriteError', 'Could not save page');
+    fixture.componentRef.setInput('pageWriteError', { sentence: 'Couldn’t turn on the Todos page. Try again.', reason: 'Could not save page' });
     fixture.detectChanges();
     expect(todos.checked).toBe(true);
   });
@@ -339,9 +339,24 @@ describe('ProjectPageNavigation (§23)', () => {
     expect(query(pending, '[data-page-toggle-pending]')?.textContent).toContain('Saving');
 
     pending.componentRef.setInput('pageWritePending', false);
-    pending.componentRef.setInput('pageWriteError', 'Could not save page');
+    pending.componentRef.setInput('pageWriteError', { sentence: 'Couldn’t turn on the Todos page. Try again.', reason: 'Could not save page' });
     pending.detectChanges();
-    expect(query(pending, '[data-page-toggle-error]')?.textContent).toContain('Could not save page');
+    // Slice 78: the alert is the sentence; the reason is a closed Details beside it.
+    const sentence = query(pending, '[data-page-toggle-error] [data-failure-sentence]')!;
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(sentence.textContent?.trim()).toBe('Couldn’t turn on the Todos page. Try again.');
+    expect(query(pending, '[data-page-toggle-error] details')?.textContent).toContain('Could not save page');
+    expect(query(pending, '[data-page-toggle-error] [data-recovery]')).toBeNull();
+
+    const retried = vi.fn();
+    pending.componentInstance.retryPageRequested.subscribe(retried);
+    pending.componentRef.setInput('pageWriteError', { sentence: 'Turned on the Todos page, but navigation couldn’t refresh.', reason: 'pages read failed' });
+    pending.componentRef.setInput('pageWriteRetryKind', 'todos');
+    pending.detectChanges();
+    const retry = query(pending, '[data-page-toggle-error] [data-recovery="retry-refresh"]')!;
+    expect(retry.textContent?.trim()).toBe('Retry refresh');
+    retry.click();
+    expect(retried).toHaveBeenCalledTimes(1);
   });
 
   it('marks the open page with aria-current, and nothing else', async () => {

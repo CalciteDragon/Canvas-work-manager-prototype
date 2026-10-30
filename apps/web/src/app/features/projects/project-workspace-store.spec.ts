@@ -111,7 +111,7 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     expect(await store.saveDetails({ name: 'Refit', description: 'Rooms', targetDate: null })).toBe(false);
     expect(store.project()?.name).toBe('Home renovation');
     expect(store.project()?.description).toBeUndefined();
-    expect(store.writeError()).toBe('Details refused');
+    expect(store.writeError()).toEqual({ sentence: 'Couldn’t save the details of “Home renovation”. Try again.', reason: 'Details refused' });
     store.clearWriteError();
     expect(store.writeError()).toBeNull();
   });
@@ -706,7 +706,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
 
     expect(await store.setPageEnabled('todos', true)).toBe(false);
     expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
-    expect(store.pageWriteError()).toContain('page settings changed');
+    expect(store.pageWriteError()).toEqual({ sentence: 'Couldn’t turn on the Todos page. Try again.', reason: 'page settings changed' });
     expect(store.pageWriteRetryKind()).toBeNull();
   });
 
@@ -732,7 +732,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
 
     expect(await store.setPageEnabled('todos', true)).toBe(false);
     expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
-    expect(store.pageWriteError()).toContain('was enabled');
+    expect(store.pageWriteError()).toEqual({ sentence: 'Turned on the Todos page, but navigation couldn’t refresh.', reason: 'pages read failed' });
     expect(store.pageWriteRetryKind()).toBe('todos');
 
     expect(await store.retryPageContext()).toBe(true);
@@ -832,7 +832,7 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
 
     expect(renamed).toBe(false);
     expect(store.project()?.name).toBe('Home renovation');
-    expect(store.writeError()).toContain('someone else renamed it');
+    expect(store.writeError()).toEqual({ sentence: 'Couldn’t rename “Home renovation”. Try again.', reason: expect.stringContaining('someone else renamed it') });
   });
 
   it('stores a description on a work unit', async () => {
@@ -893,7 +893,7 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
 
     expect(archived).toBe(false);
     expect(store.project()?.status).toBe('active');
-    expect(store.writeError()).toContain('archive its live sub-projects first');
+    expect(store.writeError()).toEqual({ sentence: 'Couldn’t archive “Home renovation”. Try again.', reason: expect.stringContaining('archive its live sub-projects first') });
   });
 });
 
