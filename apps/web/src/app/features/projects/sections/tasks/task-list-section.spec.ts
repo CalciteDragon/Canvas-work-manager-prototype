@@ -799,6 +799,42 @@ describe('TaskListSection quick-add feedback (Slice 75, §34, §63)', () => {
     expect(input.hasAttribute('aria-invalid')).toBe(false);
   });
 
+  it('shows a failed read in the banner with Try again, never the empty sentence, and keeps quick-add enabled (Slice 78)', async () => {
+    const options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = {
+      tasks: [],
+      failOn: { 'tasks.list': new GatewayError('unreachable', 0, 'host down') },
+    };
+    const gateway = new FakeWorkManagerGateway(options);
+    const { fixture } = await render(gateway);
+
+    expect(query(fixture, '[data-tasks-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t reach your workspace, so this task list didn’t load.');
+    expect(query(fixture, '[data-tasks-error] details')?.textContent).toContain('host down');
+    expect(query(fixture, '[data-tasks-empty]')).toBeNull();
+    expect(query(fixture, '[data-quick-task-title]')?.hasAttribute('disabled')).toBe(false);
+    expect(query(fixture, '[data-quick-create] button[type="submit"]')?.getAttribute('aria-disabled')).toBeNull();
+
+    options.failOn = {};
+    query(fixture, '[data-tasks-error] [data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-tasks-error]')).toBeNull();
+    expect(query(fixture, '[data-tasks-empty]')).not.toBeNull();
+  });
+
+  it('shows a drag-receive failure in the banner with no Try again, beside an intact list (§34)', async () => {
+    const { fixture, store } = await render(new FakeWorkManagerGateway({
+      tasks: [task('task-1'), task('task-2')],
+      failOn: { 'tasks.update': new GatewayError('internal_error', 500, 'move refused') },
+    }));
+
+    await store.receive('task-elsewhere' as TaskId, section().id);
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-tasks-receive-error]')?.textContent).toContain('move refused');
+    expect(query(fixture, '[data-tasks-receive-error] [data-recovery]')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('[data-task-row]')).toHaveLength(2);
+  });
+
   it('shows a failed completion on its row, not as a section banner', async () => {
     const { fixture } = await render(new FakeWorkManagerGateway({
       tasks: [task('task-1'), task('task-2')],

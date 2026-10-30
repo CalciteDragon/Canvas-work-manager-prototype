@@ -549,7 +549,67 @@ describe('TaskListStore.refresh (§62)', () => {
 
     expect(store.tasks().map(({ title }) => title)).toEqual(['Write the first draft']);
     expect(store.error()).toBeNull();
-    expect(store.loadFailed()).toBe(false);
+  });
+
+  it('says a failed read in product words and keeps it through Try again until it answers (Slice 78)', async () => {
+    const { store, gateway } = setup();
+    const list = gateway.tasks.list as ReturnType<typeof vi.fn>;
+    list.mockRejectedValueOnce(new GatewayError('not_found', 404, 'Section section-project-a-tasks was not found'));
+    await store.load(section());
+    expect(store.error()).toEqual({ sentence: 'This task list isn’t available.', reason: 'Section section-project-a-tasks was not found' });
+    expect(store.tasks()).toEqual([]);
+
+    const again = deferred<Task[]>();
+    list.mockImplementationOnce(() => again.promise);
+    const retrying = store.retry();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('This task list isn’t available.');
+    again.resolve([task()]);
+    await retrying;
+
+    expect(store.error()).toBeNull();
+    expect(store.tasks()).toHaveLength(1);
+  });
+
+  it('clears a read failure when another section loads', async () => {
+    const { store, gateway } = setup();
+    (gateway.tasks.list as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new GatewayError('internal_error', 500, 'boom'));
+    await store.load(section());
+    expect(store.error()?.sentence).toBe('Couldn’t load this task list.');
+    const other = store.load(section('project-b'));
+    expect(store.error()).toBeNull();
+    await other;
+  });
+
+  it('keeps a drag-receive failure apart from the read, and a successful write after a failed read re-reads in full (Slice 78)', async () => {
+    const update = vi.fn(async () => { throw new GatewayError('internal_error', 500, 'move refused'); });
+    const { store, gateway } = setup({ update });
+    const list = gateway.tasks.list as ReturnType<typeof vi.fn>;
+    list.mockRejectedValueOnce(new GatewayError('unreachable', 0, 'down'));
+    await store.load(section());
+
+    expect(await store.receive('task-elsewhere' as TaskId, section().id)).toBe(false);
+    expect(store.receiveError()).toContain('move refused');
+    expect(store.error()?.sentence).toBe('Couldn’t reach your workspace, so this task list didn’t load.');
+
+    const reads = list.mock.calls.length;
+    expect(await store.create('Added anyway')).toBe('added');
+    await Promise.resolve(); await Promise.resolve();
+    expect(list.mock.calls.length).toBe(reads + 1);
+    expect(store.error()).toBeNull();
+  });
+
+  it('a failed read never clears a drag-receive failure', async () => {
+    const update = vi.fn(async () => { throw new GatewayError('internal_error', 500, 'move refused'); });
+    const { store, gateway } = setup({ update });
+    await store.load(section());
+    await store.receive('task-elsewhere' as TaskId, section().id);
+    (gateway.tasks.list as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new GatewayError('unreachable', 0, 'down'));
+
+    await store.refresh();
+
+    expect(store.receiveError()).toContain('move refused');
+    expect(store.tasks()).toHaveLength(1);
   });
 
   it('defers while an optimistic completion is in flight, and lands once it settles', async () => {

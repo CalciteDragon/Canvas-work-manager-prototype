@@ -27,6 +27,7 @@ import { SHELL_NARROW_QUERY } from '../../../../core/shell/app-shell';
 import { LiftFocus } from '../../../../shared/lifts/lift-focus';
 import { LiftStack } from '../../../../shared/lifts/lift-stack';
 import { Toast } from '../../../../shared/feedback/toast';
+import { FailureMessage } from '../../../../shared/feedback/failure-message';
 import { ReceiptToast } from '../../../../core/history/receipt-toast';
 import { taskArchivedFeedback } from '../../history/history-feedback';
 
@@ -47,7 +48,7 @@ export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
 @Component({
   selector: 'app-task-list-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDrag, CdkDropList, TaskRow, PendingTaskRow, TaskDetailDrawer, Toast, RouterLink],
+  imports: [CdkDrag, CdkDropList, TaskRow, PendingTaskRow, TaskDetailDrawer, Toast, RouterLink, FailureMessage],
   providers: [TaskListStore],
   templateUrl: './task-list-section.html',
   styleUrl: './task-list-section.scss',

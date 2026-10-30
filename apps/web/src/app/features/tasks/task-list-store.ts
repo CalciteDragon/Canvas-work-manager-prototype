@@ -2,6 +2,7 @@ import { Injectable, PendingTasks, computed, inject, signal } from '@angular/cor
 import type { ProjectId, ProjectSection, SectionId, Task, TaskId, TaskPriority, TaskWriteResult, UpdateTaskInput } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
+import { readFailure, type Failure } from '../../shared/feedback/failure';
 import type { PendingTaskCreate, TaskCreateOutcome, TaskDrawerField, TaskFieldSave, TaskFieldSaves } from './task-write-state';
 
 type MutableTaskField = keyof Pick<
@@ -10,6 +11,7 @@ type MutableTaskField = keyof Pick<
 >;
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+const readFailed = (error: unknown): Failure => readFailure(error, 'this task list');
 
 /** Slice 75's failure copy: what did not happen, to which task, and what to do. */
 const failedOn = (verb: string, title: string, error: unknown): string => `Couldn’t ${verb} “${title}”. Try again. ${messageOf(error)}`;
@@ -62,8 +64,10 @@ export class TaskListStore {
   private readonly sectionIdState = signal<SectionId | null>(null);
   private readonly selectedTaskIdState = signal<TaskId | null>(null);
   private readonly loadingState = signal(false);
-  private readonly errorState = signal<string | null>(null);
-  private readonly loadFailedState = signal(false);
+  private readonly errorState = signal<Failure | null>(null);
+  private readonly receiveErrorState = signal<string | null>(null);
+  /** What `load` was last asked for, so Try again can ask it again. */
+  private requested: ProjectSection | null = null;
   private readonly completingIdsState = signal<ReadonlySet<TaskId>>(new Set());
   private readonly archivingIdsState = signal<ReadonlySet<TaskId>>(new Set());
   private readonly pendingCreateState = signal<PendingTaskCreate | null>(null);
@@ -100,13 +104,14 @@ export class TaskListStore {
   readonly sectionId = this.sectionIdState.asReadonly();
   readonly selectedTaskId = this.selectedTaskIdState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
-  readonly error = this.errorState.asReadonly();
   /**
-   * Whether the *list* is missing, as opposed to a drag-receive having failed. `error` carries
-   * both, so a reader that needs to know "are these tasks trustworthy" has to ask this instead.
-   * Row, field and quick-add failures have their own signals (Slice 75).
+   * The *list* is missing: the read failed (Slice 78). Kept apart from every write failure, so a
+   * write never replaces it and it never clears one. Row, field and quick-add failures have their
+   * own signals (Slice 75).
    */
-  readonly loadFailed = this.loadFailedState.asReadonly();
+  readonly error = this.errorState.asReadonly();
+  /** A task dragged in from another list did not move here; it shares the section banner (§34). */
+  readonly receiveError = this.receiveErrorState.asReadonly();
   /** The rows with a completion toggle in flight. */
   readonly completingIds = this.completingIdsState.asReadonly();
   readonly archivingIds = this.archivingIdsState.asReadonly();
@@ -151,11 +156,13 @@ export class TaskListStore {
     // newer `loadGeneration` instead — that number is how `load` recognises its own answer,
     // and bumping it here would make every load discard its own result.
     return this.track(() => this.mutating(async () => {
+      // A re-read of the same section keeps its failure on screen until it answers (Slice 78).
+      if (this.sectionIdState() !== section.id) this.errorState.set(null);
+      this.requested = section;
       this.projectIdState.set(section.projectId);
       this.sectionIdState.set(section.id);
       this.loadingState.set(true);
-      this.errorState.set(null);
-      this.loadFailedState.set(false);
+      this.receiveErrorState.set(null);
       // A new container starts with none of the old one's writes on screen.
       this.pendingCreateState.set(null);
       this.createErrorState.set(null);
@@ -165,6 +172,7 @@ export class TaskListStore {
         const tasks = await this.gateway.tasks.list({ sectionId: section.id, includeArchived: false });
         if (generation !== this.loadGeneration) return;
         this.tasksState.set(tasks);
+        this.errorState.set(null);
         const selectedTask = this.selectedTaskIdState();
         if (selectedTask !== null && !tasks.some(({ id }) => id === selectedTask)) {
           this.selectedTaskIdState.set(null);
@@ -172,18 +180,27 @@ export class TaskListStore {
       } catch (error) {
         if (generation !== this.loadGeneration) return;
         this.tasksState.set([]);
-        this.errorState.set(messageOf(error));
-        this.loadFailedState.set(true);
+        this.errorState.set(readFailed(error));
       } finally {
         if (generation === this.loadGeneration) this.loadingState.set(false);
       }
     }));
   }
 
+  /** The failed read's Try again: the same load, which keeps the failure until it answers. */
+  retry(): Promise<void> {
+    return this.requested === null ? Promise.resolve() : this.load(this.requested);
+  }
+
+  /** A successful write after a failed read starts a full read, which clears the failure (L4-027). */
+  private rereadAfterWrite(): void {
+    if (this.errorState() !== null) void this.retry();
+  }
+
   /**
    * §62's quiet re-read: same request as `load`, none of its chrome.
    *
-   * It never touches `loading`, `error` or `loadFailed`, because an agent's write must not
+   * It never touches `loading`, and never sets `error`, because an agent's write must not
    * flicker a skeleton over a page the user is reading — nor, if the host blinks, replace it
    * with an error nobody caused. A failed refresh simply leaves the rendered list alone
    * until the next frame.
@@ -233,10 +250,7 @@ export class TaskListStore {
         }
         // A quiet read must not erase a mutation error, but it can heal the stale load error
         // that said no list existed before the connection came back.
-        if (this.loadFailedState()) {
-          this.errorState.set(null);
-          this.loadFailedState.set(false);
-        }
+        this.errorState.set(null);
       } catch {
         // Quiet, by design — see the doc comment.
       }
@@ -287,6 +301,7 @@ export class TaskListStore {
         if (!ours()) return 'stale';
         this.tasksState.update((tasks) => (tasks.some(({ id }) => id === task.id) ? tasks : [...tasks, task]));
         this.pendingCreateState.set(null);
+        this.rereadAfterWrite();
         return 'added';
       } catch (error) {
         if (!ours()) return 'stale';
@@ -300,7 +315,10 @@ export class TaskListStore {
             // committed row is merged, and the rest of the read waits for the queued refresh.
             this.refreshQueued = true;
             if (committed !== undefined) this.tasksState.update((current) => (current.some(({ id }) => id === committed.id) ? current : [...current, committed]));
-          } else this.tasksState.set(tasks);
+          } else {
+            this.tasksState.set(tasks);
+            this.errorState.set(null);
+          }
           if (committed !== undefined) return 'added';
           this.createErrorState.set(`Couldn’t add “${title}”. Try again. ${messageOf(error)}`);
           return 'failed';
@@ -416,13 +434,15 @@ export class TaskListStore {
       if (this.sectionIdState() !== sectionId) return false;
       if (this.tasksState().some((task) => task.id === id)) return false;
 
-      this.errorState.set(null);
+      this.receiveErrorState.set(null);
       try {
         const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.update(id, { sectionId }), taskReport);
         this.tasksState.update((tasks) => [...tasks, task]);
+        this.rereadAfterWrite();
         return true;
       } catch (error) {
-        this.errorState.set(messageOf(error));
+        // Raw until Stage 4 gives the write failures their Details (Slice 78).
+        this.receiveErrorState.set(messageOf(error));
         return false;
       }
     }));

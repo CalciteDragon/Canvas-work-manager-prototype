@@ -27,8 +27,12 @@
     <p data-quick-create-status class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
   }
 
-  @if (store.error(); as error) {
-    <p data-tasks-error class="task-list-section__error" role="alert">{{ error }}</p>
+  <!-- The section banner (§34): the read's failure with Try again, a drag-receive failure without (Slice 78). -->
+  @if (store.error(); as failure) {
+    <app-failure-message data-tasks-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.loading()" (retry)="store.retry()" />
+  }
+  @if (store.receiveError(); as message) {
+    <p data-tasks-error data-tasks-receive-error class="task-list-section__error" role="alert">{{ message }}</p>
   }
 
   @if (dragging()) {
@@ -37,9 +41,10 @@
   <div class="task-workspace">
     @if (readOnly()) {
       <div class="task-list" [attr.aria-busy]="store.loading()">
-        @if (store.loading()) {
+        <!-- Under a failed read the banner speaks: no loading line, no empty sentence (Slice 78). -->
+        @if (store.loading() && store.error() === null) {
           <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
-        } @else if (store.tasks().length === 0) {
+        } @else if (store.tasks().length === 0 && store.error() === null) {
           <p data-tasks-empty class="task-list-section__muted">The source has no tasks yet.</p>
         } @else {
           @for (task of store.tasks(); track task.id) {
@@ -65,9 +70,9 @@
         (cdkDropListDropped)="dropTask($any($event))"
         [attr.aria-busy]="store.loading()"
       >
-        @if (store.loading()) {
+        @if (store.loading() && store.error() === null) {
           <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
-        } @else if (store.tasks().length === 0 && store.pendingCreate() === null) {
+        } @else if (store.tasks().length === 0 && store.pendingCreate() === null && store.error() === null) {
           <p data-tasks-empty class="task-list-section__muted">No tasks yet. Add the first one above.</p>
         } @else {
           @for (task of store.tasks(); track task.id) {

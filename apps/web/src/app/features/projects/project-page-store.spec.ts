@@ -712,7 +712,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     // One container's failure must not blank the Markdown section beside it.
     expect(store.sections()).toHaveLength(2);
     expect(store.error()).toBeNull();
-    expect(tasks.error()).toContain('could not reach');
+    expect(tasks.error()?.reason).toContain('could not reach');
   });
 
   it('ignores a slower earlier page load, so two clicks cannot mix two canvases', async () => {
@@ -2063,7 +2063,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await tasks.load(container);
     expect(store.sections()).toEqual([]);
     expect(store.error()?.reason).toBe('host starting');
-    expect(tasks.loadFailed()).toBe(true);
+    expect(tasks.error()?.reason).toBe('host starting');
 
     live.emitConnected();
     await settleLive();
@@ -2076,7 +2076,6 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await tasks.sync(container);
     expect(tasks.tasks().map(({ id }) => id)).toEqual(['task-recovered']);
     expect(tasks.error()).toBeNull();
-    expect(tasks.loadFailed()).toBe(false);
   });
 
   // The recovery above repaints the canvas and clears the error, which is the whole point of
