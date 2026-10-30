@@ -590,7 +590,7 @@ test('a stale Archive row stays blocked through a quiet frame and Retry until a 
 
   await entry(first.id).locator('[data-archived-restore]').click();
   const error = page.locator('[data-archive-error]');
-  await expect(error).toContainText('Restore succeeded, but Archive could not refresh');
+  await expect(error).toContainText('but Archive couldn’t refresh');
   await expect(entry(first.id)).toBeVisible();
   await allDisabled();
   // The block is a stale list, not an archived project.
@@ -603,7 +603,7 @@ test('a stale Archive row stays blocked through a quiet frame and Retry until a 
   await expect(error).toBeVisible();
   await allDisabled();
 
-  const retry = page.locator('[data-archive-retry]');
+  const retry = page.locator('[data-archive-error] [data-recovery]');
   const readsBeforeRetry = held.length;
   await retry.focus();
   await page.keyboard.press('Enter');

@@ -242,16 +242,17 @@ describe('ArchivePage (§31)', () => {
     host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(host.querySelector('[data-archive-error]')?.textContent).toContain('Restore succeeded');
+    expect(host.querySelector('[data-archive-error] [data-failure-sentence]')?.textContent).toMatch(/^Restored “.+”, but Archive couldn’t refresh\.$/);
+    expect(host.querySelector('[data-archive-error] [data-recovery]')?.textContent?.trim()).toBe('Retry refresh');
     expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(true);
     expect(host.querySelector('[data-archived-blocked]')).toBeNull();
 
     let answer!: (result: ProjectArchiveResult) => void;
     gateway.archive.get = vi.fn(() => new Promise<ProjectArchiveResult>((resolve) => { answer = resolve; }));
-    host.querySelector<HTMLButtonElement>('[data-archive-retry]')!.click();
+    host.querySelector<HTMLButtonElement>('[data-archive-error] [data-recovery]')!.click();
     fixture.detectChanges();
-    expect(host.querySelector('[data-archive-error]')?.textContent).toContain('Restore succeeded');
-    expect(host.querySelector('[data-archive-retry]')).not.toBeNull();
+    expect(host.querySelector('[data-archive-error]')?.textContent).toContain('but Archive couldn’t refresh');
+    expect(host.querySelector('[data-archive-error] [data-recovery]')?.getAttribute('aria-disabled')).toBe('true');
     expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(true);
     host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.click();
 
@@ -261,5 +262,22 @@ describe('ArchivePage (§31)', () => {
     expect(host.querySelector('[data-archive-error]')).toBeNull();
     expect(host.querySelector('[data-archived-item]')).toBeNull();
     expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
+  });
+
+  it('says a failed first read with Try again and no empty sentence; a failed read over the list politely (Slice 78)', async () => {
+    const { fixture, gateway } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    gateway.archive.get = vi.fn().mockRejectedValue(new GatewayError('unreachable', 0, 'archive read failed'));
+    await fixture.componentInstance.store.load(PROJECT, { quiet: true });
+    fixture.detectChanges();
+
+    const status = host.querySelector('[data-archive-status]')!;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(status.querySelector('[data-archive-error] [data-failure-sentence]')?.textContent?.trim()).toBe('This archive may be out of date.');
+    expect(status.querySelector('[data-archive-error] [data-failure-sentence]')?.getAttribute('role')).toBeNull();
+    expect(status.querySelector('[data-archive-error] [data-recovery]')?.textContent?.trim()).toBe('Try again');
+    expect(host.textContent).not.toContain('Couldn’t load');
+    expect(host.querySelector('[data-archived-item]')).not.toBeNull();
+    expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(true);
   });
 });

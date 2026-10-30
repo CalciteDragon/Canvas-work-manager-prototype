@@ -26,18 +26,14 @@
 
 .archive-page__description,
 .archive-page__empty,
-.archive-page__muted,
-.archive-page__error {
+.archive-page__muted {
   margin: var(--space-2) 0 0;
   color: var(--color-text-muted);
 }
 
-.archive-page__error {
-  color: var(--color-danger);
-}
-
-.archive-page__retry {
-  justify-self: start;
+// Kept mounted so a stale notice is announced, but out of the grid's gaps while empty.
+.archive-page__status:empty {
+  position: absolute;
 }
 
 .archive-page__count {

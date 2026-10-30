@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, effe
 import { RouterLink } from '@angular/router';
 import { nameOf, type ProjectArchiveItem } from '@cwm/contracts';
 import { Toast } from '../../../shared/feedback/toast';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { ReceiptToast } from '../../../core/history/receipt-toast';
 import { restoredItemFeedback, restoredProjectFeedback } from '../history/history-feedback';
 import type {
@@ -18,7 +19,7 @@ import type { ProjectPageRenderer } from '../project-page-contract';
 @Component({
   selector: 'app-archive-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ArchivedRegion, RouterLink, Toast],
+  imports: [ArchivedRegion, RouterLink, Toast, FailureMessage],
   providers: [ArchivePageStore],
   templateUrl: './archive-page.html',
   styleUrl: './archive-page.scss',

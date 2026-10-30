@@ -18,13 +18,17 @@
     }
   </div>
 
-  @if (store.loading()) {
+  <!-- One mounted region for all four states, so a stale notice is announced politely and Try
+     again keeps focus when a refusal turns stale (Slice 78). Restore stays paused under each. -->
+  <div data-archive-status class="archive-page__status" role="status">
+    @if (store.error(); as error) {
+      <app-failure-message data-archive-error [failure]="error" [live]="error.kind === 'stale' ? null : 'alert'"
+        [recovery]="error.kind === 'committed-unrefreshed' ? 'retry-refresh' : 'try-again'"
+        [pending]="store.retryPending()" (retry)="store.retry()" />
+    }
+  </div>
+  @if (store.loading() && store.error() === null) {
     <p data-archive-loading class="archive-page__muted">Loading archive…</p>
-  } @else if (store.error(); as error) {
-    <p data-archive-error class="archive-page__error" role="alert">{{ error }}</p>
-    <button data-archive-retry type="button" class="button archive-page__retry" (click)="store.retry()">
-      Retry archive read
-    </button>
   }
 
   @if (!store.loading()) {

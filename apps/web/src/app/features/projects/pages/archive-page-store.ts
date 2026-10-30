@@ -8,11 +8,22 @@ import type {
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { isProjectRecordEvent, type LiveEvent } from '@cwm/contracts';
+import { isProjectRecordEvent, nameOf, type LiveEvent } from '@cwm/contracts';
+import { readFailure, type Failure } from '../../../shared/feedback/failure';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
-/** The one error a later failed read must not replace: the write it describes already committed. */
-const COMMITTED_UNREFRESHED = 'Restore succeeded, but Archive could not refresh. Try again.';
+const codeOf = (error: unknown): unknown => (typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined);
+
+/**
+ * Archive's four failure states (Slice 78), highest precedence first: a committed restore whose
+ * refresh failed (Retry refresh), a refused restore, a failed read over a list on screen (stale,
+ * polite), and a failed read with nothing on screen (load). Any of them pauses Restore until a
+ * successful read (Slice 47).
+ */
+export type ArchiveErrorKind = 'committed-unrefreshed' | 'refused' | 'stale' | 'load';
+export interface ArchiveError extends Failure {
+  readonly kind: ArchiveErrorKind;
+}
 
 /** §31's root-wide Archive read and its canonical restore operations. */
 @Injectable()
@@ -28,7 +39,8 @@ export class ArchivePageStore {
 
   private readonly resultState = signal<ProjectArchiveResult | null>(null);
   private readonly loadingState = signal(true);
-  private readonly errorState = signal<string | null>(null);
+  private readonly errorState = signal<ArchiveError | null>(null);
+  private readonly retryPendingState = signal(false);
   private readonly restoringState = signal<ReadonlySet<string>>(new Set());
   private readonly restoreReportState = signal<OperationWriteReport | null>(null);
   private projectIdState = signal<ProjectId | null>(null);
@@ -39,6 +51,8 @@ export class ArchivePageStore {
   readonly items = computed(() => this.resultState()?.items ?? []);
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
+  /** True while Try again or Retry refresh reads: its button is busy and keeps focus. */
+  readonly retryPending = this.retryPendingState.asReadonly();
   readonly restoring = this.restoringState.asReadonly();
   /** The latest committed Restore's exact response receipt, for its own toast. */
   readonly restoreReport = this.restoreReportState.asReadonly();
@@ -65,7 +79,7 @@ export class ArchivePageStore {
    * refused write or a failed post-write re-read, and a pending quiet frame or Retry is not yet
    * a current projection: only a successful read of the same root clears it.
    */
-  load(projectId: ProjectId, options: { quiet?: boolean } = {}): Promise<boolean> {
+  load(projectId: ProjectId, options: { quiet?: boolean; handover?: boolean } = {}): Promise<boolean> {
     if (this.destroyed) return Promise.resolve(false);
     const generation = ++this.generation;
     const previousProjectId = this.projectIdState();
@@ -74,6 +88,7 @@ export class ArchivePageStore {
       this.restoreReportState.set(null);
       this.resultState.set(null);
       this.errorState.set(null);
+      this.retryPendingState.set(false);
     }
     const quiet = options.quiet === true && this.resultState() !== null;
     return this.track(async () => {
@@ -85,10 +100,13 @@ export class ArchivePageStore {
         this.errorState.set(null);
         return true;
       } catch (error) {
-        // A committed write stays reported: a later failed read does not replace that fact with
-        // a transport message. Any other error is replaced, so a failed Retry visibly ran.
+        // A committed write stays reported, and a held refusal outlives a live frame's failed
+        // read; Try again hands a refusal over to its read, which turns stale when it fails.
         if (this.current(generation, projectId)) {
-          this.errorState.update((retained) => (retained === COMMITTED_UNREFRESHED ? retained : messageOf(error)));
+          this.errorState.update((held) =>
+            held?.kind === 'committed-unrefreshed' || (held?.kind === 'refused' && options.handover !== true) ? held
+            : this.resultState() !== null ? { kind: 'stale', ...readFailure(error, 'this archive'), sentence: 'This archive may be out of date.' }
+            : { kind: 'load', ...readFailure(error, 'this archive') });
         }
         return false;
       } finally {
@@ -143,11 +161,11 @@ export class ArchivePageStore {
       const refreshGeneration = this.generation;
       const refreshed = await refreshPromise;
       if (!this.current(refreshGeneration, projectId)) return false;
-      if (!refreshed) this.errorState.set(COMMITTED_UNREFRESHED);
+      if (!refreshed) this.errorState.set(this.committedUnrefreshed(item, this.errorState()?.reason ?? null));
       return true;
     } catch (error) {
       if (!this.current(generation, projectId)) return false;
-      this.errorState.set(written ? COMMITTED_UNREFRESHED : messageOf(error));
+      this.errorState.set(written ? this.committedUnrefreshed(item, messageOf(error)) : this.refused(item, error));
       return written;
     } finally {
       if (!this.destroyed) {
@@ -164,9 +182,41 @@ export class ArchivePageStore {
    * Retry is read-only. It is quiet when a list is on screen, so the retained error and this
    * control stay put — and keep keyboard focus — until the replacement read answers.
    */
-  retry(): Promise<boolean> {
+  async retry(): Promise<boolean> {
     const projectId = this.projectIdState();
-    return projectId === null ? Promise.resolve(false) : this.load(projectId, { quiet: true });
+    if (projectId === null) return false;
+    this.retryPendingState.set(true);
+    try {
+      return await this.load(projectId, { quiet: true, handover: true });
+    } finally {
+      if (this.projectIdState() === projectId) this.retryPendingState.set(false);
+    }
+  }
+
+  private committedUnrefreshed(item: ProjectArchiveItem, reason: string | null): ArchiveError {
+    return { kind: 'committed-unrefreshed', sentence: `Restored “${this.titleOf(item)}”, but Archive couldn’t refresh.`, reason };
+  }
+
+  /** Not slice 75's "Try again" frame: the button re-reads, it does not restore. */
+  private refused(item: ProjectArchiveItem, error: unknown): ArchiveError {
+    const title = this.titleOf(item);
+    const sentence = codeOf(error) === 'unreachable'
+      ? `Couldn’t reach your workspace, so “${title}” may not have been restored.`
+      : `Couldn’t restore “${title}”. The archive may have changed.`;
+    return { kind: 'refused', sentence, reason: messageOf(error) };
+  }
+
+  private titleOf(item: ProjectArchiveItem): string {
+    switch (item.kind) {
+      case 'subproject':
+        return item.project.name;
+      case 'section':
+        return nameOf(item.section);
+      case 'task':
+        return item.task.title;
+      case 'reflection':
+        return item.reflection.title?.trim() || 'Reflection';
+    }
   }
 
   private onLiveEvent(event: LiveEvent): void {
