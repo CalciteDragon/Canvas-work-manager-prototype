@@ -86,6 +86,7 @@ export class ProjectWorkspaceStore {
   private readonly progressState = signal<ProgressResult | null>(null);
   /** Set only when no value has been read for this project: a failed re-read keeps the last one. */
   private readonly progressFailedState = signal(false);
+  private progressReadSequence = 0;
   private readonly loadingState = signal(true);
   private readonly missingState = signal(false);
   /**
@@ -553,7 +554,11 @@ export class ProjectWorkspaceStore {
   }
 
   private async readProgress(projectId: ProjectId, generation: number): Promise<void> {
-    const current = () => !this.destroyed && generation === this.loadGeneration && this.requestedProjectId === projectId;
+    // Only the newest read speaks: the page renders before the first one answers, so a task
+    // completed meanwhile starts a second read that the first must not overwrite.
+    const sequence = ++this.progressReadSequence;
+    const current = () => !this.destroyed && generation === this.loadGeneration && this.requestedProjectId === projectId
+      && sequence === this.progressReadSequence;
     try {
       const result = await this.gateway.progress.get(projectId);
       if (current()) {

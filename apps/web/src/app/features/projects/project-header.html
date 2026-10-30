@@ -107,8 +107,8 @@
     }
   }
 
-  <!-- A failed project write, in the header — never the full-page "Project unavailable"
-       state, which would blank the page the user is standing on. -->
+  <!-- A failed project write, in the header — never the full-page unavailable or failed
+       project state, which would blank the page the user is standing on. -->
   @if (!detailsOpen() && writeError(); as writeError) {
     <app-failure-message data-project-write-error class="project-header__error" weight="inline" [failure]="writeError" live="alert" />
   }

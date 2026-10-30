@@ -10,6 +10,19 @@ describe('ProgressService', () => {
     expect(await harness.progressService.calculate(harness.actor, MINE)).toMatchObject({ percentage: 0, completed: 0, total: 1 });
   });
 
+  // Slice 78's header fact reads "No tasks to measure" for both, so "No tasks yet" would be false.
+  it('counts only the project’s own tasks, so a root whose tasks sit in a workstream has nothing to measure, archived or not', async () => {
+    const harness = buildHarness();
+    const child = await harness.projectService.create(harness.actor, { kind: 'subproject', workspaceId: harness.actor.workspaceId, parentProjectId: MINE, name: 'Workstream' });
+    await harness.taskService.create(harness.actor, { projectId: child.id, title: 'Nested' });
+    expect(await harness.progressService.calculate(harness.actor, MINE)).toMatchObject({ percentage: null, explanation: 'No tasks to measure' });
+    await harness.projectService.archive(harness.actor, child.id);
+    expect((await harness.progressService.calculate(harness.actor, child.id)).percentage).toBe(0);
+    const empty = await harness.projectService.create(harness.actor, { kind: 'root', workspaceId: harness.actor.workspaceId, name: 'Attic' });
+    await harness.projectService.archive(harness.actor, empty.id);
+    expect((await harness.progressService.calculate(harness.actor, empty.id)).percentage).toBeNull();
+  });
+
   it('counts all unarchived tasks including cancelled', async () => {
     const harness = buildHarness();
     await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Done', status: 'done' });

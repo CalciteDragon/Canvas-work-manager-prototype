@@ -371,7 +371,7 @@ describe('ProjectWorkspaceStore — the progress fact (§26, §39)', () => {
     expect(store.progress()).toBe(0);
   });
 
-  it('is empty when the read counts nothing — the domain’s answer for a root whose tasks all sit in workstreams — archived too', async () => {
+  it('is empty when the read counts nothing, archived too (the domain’s answer for a root whose tasks sit in workstreams: progress-service.test.ts)', async () => {
     const { store } = storeWith({ projects: [...renovation(), root('project-attic', 'Legacy attic', { status: 'archived' })] });
     await store.load('project-renovation' as ProjectId);
     expect(store.progress()).toBe('empty');
@@ -388,6 +388,23 @@ describe('ProjectWorkspaceStore — the progress fact (§26, §39)', () => {
     gateway.progress.get = get;
     await store.refreshProgress();
     expect(store.progress()).toBe('empty');
+  });
+
+  it('lets only the newest read speak: an older answer arriving last does not overwrite it', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    const first = deferred<ReturnType<typeof measured>>();
+    const second = deferred<ReturnType<typeof measured>>();
+    const reads = [first, second];
+    gateway.progress.get = () => reads.shift()!.promise as never;
+    const loading = store.load('project-renovation' as ProjectId);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const refreshing = store.refreshProgress();
+    second.resolve(measured('project-renovation', 50));
+    await refreshing;
+    expect(store.progress()).toBe(50);
+    first.resolve(measured('project-renovation', 25));
+    await loading;
+    expect(store.progress()).toBe(50);
   });
 
   it('keeps the last value when a re-read fails, and starts pending again on another project', async () => {
