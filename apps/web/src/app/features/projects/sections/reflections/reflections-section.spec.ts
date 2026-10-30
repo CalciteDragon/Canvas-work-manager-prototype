@@ -195,7 +195,8 @@ describe('ReflectionsSection (§36)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-reflection-edit-form] [data-reflection-edit-error]')?.textContent).toContain('save broke');
+    expect(query(fixture, '[data-reflection-edit-form] [data-reflection-edit-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t save your changes to this reflection. Try again.');
+    expect(query(fixture, '[data-reflection-edit-form] [data-reflection-edit-error] details')?.textContent).toContain('save broke');
     expect(query(fixture, '[data-reflections-error]')).toBeNull();
     query(fixture, '[data-reflection-cancel]')!.click();
     fixture.detectChanges();
@@ -239,7 +240,8 @@ describe('ReflectionsSection (§36)', () => {
     options.failOn = { ...options.failOn, 'reflections.create': new GatewayError('internal_error', 500, 'create broke') };
     await fixture.componentInstance.create({ body: 'A note', title: '', prompt: '' });
     fixture.detectChanges();
-    expect(query(fixture, '[data-reflection-compose-error]')?.textContent).toContain('create broke');
+    expect(query(fixture, '[data-reflection-compose-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t add your reflection. Try again.');
+    expect(query(fixture, '[data-reflection-compose-error] details')?.textContent).toContain('create broke');
     expect(query(fixture, '[data-reflections-error]')?.textContent).not.toContain('create broke');
   });
 });

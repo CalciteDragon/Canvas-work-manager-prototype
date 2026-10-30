@@ -135,9 +135,9 @@ describe('ReflectionsStore (§36)', () => {
     await store.load(section());
 
     expect(await store.create('   ')).toBe(false);
-    expect(store.createError()).toContain('body');
+    expect(store.createError()).toEqual({ sentence: 'A reflection body is required.', reason: null });
     expect(await store.create('Valid')).toBe(false);
-    expect(store.createError()).toContain('host unavailable');
+    expect(store.createError()).toEqual({ sentence: 'Couldn’t add your reflection. Try again.', reason: 'host unavailable' });
     // Slice 78: a write failure never takes the read's place (§19).
     expect(store.error()).toBeNull();
     expect(store.reflections()).toEqual([before]);
@@ -176,7 +176,7 @@ describe('ReflectionsStore (§36)', () => {
 
     expect(await store.saveEdit('Title', 'Body')).toBe(false);
     expect(store.editingId()).toBe(before.id);
-    expect(store.editError()).toContain('save failed');
+    expect(store.editError()).toEqual({ sentence: 'Couldn’t save your changes to this reflection. Try again.', reason: expect.stringContaining('save failed') });
     expect(store.error()).toBeNull();
     expect(store.createError()).toBeNull();
   });
@@ -212,7 +212,7 @@ describe('ReflectionsStore (§36)', () => {
 
     expect(await store.create('A note')).toBe(false);
     expect(store.error()?.sentence).toBe('Couldn’t load this journal.');
-    expect(store.createError()).toContain('create broke');
+    expect(store.createError()?.reason).toContain('create broke');
 
     options.failOn = {};
     const reads = () => gateway.calls.filter(({ method }) => method === 'reflections.list').length;

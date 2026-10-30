@@ -12,10 +12,9 @@ import { isProjectRecordEvent } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { readFailure, type Failure } from '../../../shared/feedback/failure';
+import { readFailure, writeFailure, type Failure } from '../../../shared/feedback/failure';
 
 // The writes' raw text stays until Stage 4 gives them Details (Slice 78).
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 /** A failed re-read over a journal still on screen: polite, never "Couldn’t load" (Slice 78). */
 const staleFailure = (error: unknown): Failure => ({ ...readFailure(error, 'this journal'), sentence: 'This journal may be out of date.' });
 const SAVED_UNREFRESHED = 'Saved, but this journal couldn’t refresh.';
@@ -51,8 +50,8 @@ export class ReflectionsPageStore {
   private readonly refreshErrorState = signal<Failure | null>(null);
   private readonly savedUnrefreshedState = signal<Failure | null>(null);
   private readonly refreshPendingState = signal(false);
-  private readonly addContainerErrorState = signal<string | null>(null);
-  private readonly writeErrorState = signal<string | null>(null);
+  private readonly addContainerErrorState = signal<Failure | null>(null);
+  private readonly writeErrorState = signal<Failure | null>(null);
   private readonly creatingContainerState = signal(false);
   private readonly writingState = signal(false);
 
@@ -194,7 +193,7 @@ export class ReflectionsPageStore {
       this.containerCountState.set(1);
       return true;
     } catch (error) {
-      if (this.current(generation, projectId, pageId)) this.addContainerErrorState.set(messageOf(error));
+      if (this.current(generation, projectId, pageId)) this.addContainerErrorState.set(writeFailure(error, 'Couldn’t add a Reflections container. Try again.'));
       return false;
     } finally {
       this.endWrite(generation, projectId, pageId);
@@ -213,11 +212,11 @@ export class ReflectionsPageStore {
     const projectId = this.projectIdState();
     const sectionId = this.containerState()?.id;
     if (!body) {
-      this.writeErrorState.set('A reflection body is required.');
+      this.writeErrorState.set({ sentence: 'A reflection body is required.', reason: null });
       return false;
     }
     if (projectId === null || sectionId === undefined) {
-      this.writeErrorState.set('Add a Reflections container before writing here.');
+      this.writeErrorState.set({ sentence: 'Add a Reflections container before writing here.', reason: null });
       return false;
     }
     if (this.writingGeneration !== null) return false;
@@ -242,7 +241,7 @@ export class ReflectionsPageStore {
       ));
       committed = true;
     } catch (error) {
-      if (this.current(generation, projectId, this.pageIdState())) this.writeErrorState.set(messageOf(error));
+      if (this.current(generation, projectId, this.pageIdState())) this.writeErrorState.set(writeFailure(error, 'Couldn’t add your reflection. Try again.'));
       return false;
     }
     finally {

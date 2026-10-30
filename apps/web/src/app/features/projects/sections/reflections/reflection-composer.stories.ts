@@ -34,7 +34,7 @@ export const ReadOnly: Story = {
 };
 
 export const Error: Story = {
-  args: { error: 'The prototype host could not save this reflection.' },
+  args: { error: { sentence: 'Couldn’t add your reflection. Try again.', reason: 'The prototype host could not save this reflection.' } },
 };
 
 export const SubmitAndClear: Story = {

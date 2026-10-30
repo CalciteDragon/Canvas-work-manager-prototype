@@ -77,12 +77,25 @@ describe('ReflectionComposer (§36)', () => {
   it('hides the form in read-only mode and shows the owner-supplied error', async () => {
     const { fixture } = await render();
     fixture.componentRef.setInput('readOnly', true);
-    fixture.componentRef.setInput('error', 'The journal could not be saved.');
+    fixture.componentRef.setInput('error', { sentence: 'Couldn’t add your reflection. Try again.', reason: 'The journal could not be saved.' });
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[data-reflection-create]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('[data-reflection-compose-error]')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('[data-reflection-compose-error] details')?.textContent).toContain(
       'The journal could not be saved.',
     );
+  });
+
+  it('describes the body by the failure’s sentence alone, the reason under Details (Slice 78)', async () => {
+    const { fixture } = await render();
+    fixture.componentRef.setInput('error', { sentence: 'Couldn’t add your reflection. Try again.', reason: 'offline' });
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const sentence = element.querySelector<HTMLElement>('[data-reflection-compose-error] [data-failure-sentence]')!;
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(element.querySelector('[data-reflection-body]')?.getAttribute('aria-describedby')).toBe(sentence.id);
+    expect(sentence.textContent?.trim()).toBe('Couldn’t add your reflection. Try again.');
+    expect(element.querySelector<HTMLDetailsElement>('[data-reflection-compose-error] details')?.open).toBe(false);
   });
 });

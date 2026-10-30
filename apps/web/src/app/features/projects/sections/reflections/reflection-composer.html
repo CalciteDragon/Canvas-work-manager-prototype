@@ -8,7 +8,7 @@
         <option [value]="item">{{ item }}</option>
       }
     </select>
-    <textarea class="field" data-reflection-body #body rows="3" placeholder="Write a reflection"></textarea>
+    <textarea class="field" data-reflection-body #body rows="3" placeholder="Write a reflection" [attr.aria-describedby]="error() === null ? null : errorId"></textarea>
     @if (subject(); as selected) {
       <div data-reflection-subject class="reflection-composer__subject">
         <span>About {{ selected.name }}</span>
@@ -18,6 +18,6 @@
     <button type="submit" class="button button--primary">Add reflection</button>
   </form>
 }
-@if (error(); as message) {
-  <p data-reflection-compose-error class="reflection-composer__error" role="alert">{{ message }}</p>
+@if (error(); as failure) {
+  <app-failure-message data-reflection-compose-error class="reflection-composer__error" weight="inline" [failure]="failure" live="alert" [sentenceId]="errorId" />
 }

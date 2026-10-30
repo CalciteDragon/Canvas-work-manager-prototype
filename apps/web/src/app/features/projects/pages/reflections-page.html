@@ -56,7 +56,7 @@
           {{ store.creatingContainer() ? 'Adding…' : 'Add reflections container' }}
         </button>
         @if (store.addContainerError(); as message) {
-          <p data-reflections-add-container-error class="reflections-page__error" role="alert">{{ message }}</p>
+          <app-failure-message data-reflections-add-container-error weight="inline" [failure]="message" live="alert" />
         }
       }
     }

@@ -194,6 +194,17 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'journal.get').length).toBe(2);
   });
 
+  it('says a refused write in product words, the reason kept for Details (Slice 78)', async () => {
+    const { store, gateway } = setup();
+    await store.load(PROJECT, PAGE);
+    gateway.reflections.create = async () => { throw new GatewayError('unreachable', 0, 'offline'); };
+
+    expect(await store.create('   ')).toBe(false);
+    expect(store.writeError()).toEqual({ sentence: 'A reflection body is required.', reason: null });
+    expect(await store.create('A note')).toBe(false);
+    expect(store.writeError()).toEqual({ sentence: 'Couldn’t add your reflection. Try again.', reason: 'offline' });
+  });
+
   it('does not let a pre-write journal read repaint the feed after the write', async () => {
     const { store, gateway } = setup();
     const first = deferred<ProjectJournalResult>();
@@ -279,7 +290,7 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     expect(await store.ensureContainer()).toBe(false);
     expect(store.container()).toBeNull();
     // Slice 78: the add is a write, kept apart from the container read's failure (§19).
-    expect(store.addContainerError()).toContain('could not add');
+    expect(store.addContainerError()).toEqual({ sentence: 'Couldn’t add a Reflections container. Try again.', reason: 'The page could not add a Reflections container.' });
     expect(store.containerError()).toBeNull();
   });
 

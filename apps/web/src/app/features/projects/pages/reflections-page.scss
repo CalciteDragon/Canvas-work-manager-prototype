@@ -46,15 +46,10 @@
 }
 
 .reflections-page__description,
-.reflections-page__muted,
-.reflections-page__error {
+.reflections-page__muted {
   margin: var(--space-2) 0 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.reflections-page__error {
-  color: var(--color-danger);
 }
 
 // Kept mounted so a notice is announced, but out of the grid's gaps while empty.
