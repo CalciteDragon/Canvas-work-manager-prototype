@@ -18,6 +18,8 @@ import { SECTION_FRAME_NAME } from '../section-frame-name';
 import type { SectionContentInputs } from '../section-contract';
 import type { SectionDefinition } from '../registry';
 import { Icon } from '../../../../shared/components/icon/icon';
+import { FailureMessage } from '../../../../shared/feedback/failure-message';
+import type { Failure } from '../../../../shared/feedback/failure';
 import { toolbarKeydown, toolbarFocusin } from '../../canvas-chrome/toolbar-keys';
 import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 
@@ -28,7 +30,7 @@ import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 @Component({
   selector: 'app-project-section-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDragHandle, NgComponentOutlet, Icon],
+  imports: [CdkDragHandle, NgComponentOutlet, Icon, FailureMessage],
   templateUrl: './project-section-frame.html',
   styleUrl: './project-section-frame.scss',
   // Content names itself from what this frame displays (slice 72, L5-004).
@@ -38,7 +40,7 @@ export class ProjectSectionFrame {
   readonly section = input.required<ProjectSection>();
   readonly definition = input.required<SectionDefinition>();
   readonly collapsePending = input(false);
-  readonly collapseError = input<string | null>(null);
+  readonly collapseError = input<Failure | null>(null);
   readonly toolbarKeydown = toolbarKeydown;
   readonly toolbarFocusin = toolbarFocusin;
   private titlePointerType = '';

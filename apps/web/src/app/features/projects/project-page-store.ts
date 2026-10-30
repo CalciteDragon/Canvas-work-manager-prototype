@@ -25,11 +25,14 @@ import { canvasRefreshFailedFeedback, sectionRemovedFeedback } from './history/h
 import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 import type { SectionDefinition } from './sections/registry';
 
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+/** Said before any write, so it has no reason for Details (Slice 78). */
+const FAILED_REMOVAL_GUARD: Failure = {
+  sentence: 'Retry or dismiss the unresolved removal above before removing another section.',
+  reason: null,
+};
 
-const FAILED_REMOVAL_GUARD_MESSAGE =
-  'Retry or dismiss the unresolved removal above before removing another section.';
+/** A canvas write's sentence, in slice 75's frame: "Couldn’t <verb> “X”. Try again." */
+const placementWrite = (verb: string, name: string): string => `Couldn’t ${verb} “${name}”. Try again.`;
 
 /** The shortcuts read's failure (Slice 78): the canonical sections are on screen, so it names what is paused. */
 const shortcutsReadFailure = (error: unknown): Failure => ({
@@ -164,7 +167,7 @@ export class ProjectPageStore {
    */
   private readonly errorState = signal<Failure | null>(null);
   /** Write failures. Never the shortcuts read's: an unrelated write must not clear that. */
-  private readonly sectionErrorState = signal<string | null>(null);
+  private readonly sectionErrorState = signal<Failure | null>(null);
   /** The shortcuts read's failure, apart from writes (§19). Writes and drag stay gated by `orderComplete`. */
   private readonly shortcutsErrorState = signal<Failure | null>(null);
   private readonly shortcutsRetryPendingState = signal(false);
@@ -199,7 +202,7 @@ export class ProjectPageStore {
   private readonly fieldWrites = new Map<string, PlacementFieldWriteState>();
   private readonly failedCollapseIntent = new Map<string, boolean>();
 
-  private readonly collapseErrorsState = signal<Partial<Record<string, string>>>({});
+  private readonly collapseErrorsState = signal<Partial<Record<string, Failure>>>({});
   private readonly collapsePendingState = signal<ReadonlySet<string>>(new Set());
   /** Collapse refusal text belongs to its placement, rather than the canvas banner. */
   readonly collapseErrors = this.collapseErrorsState.asReadonly();
@@ -653,6 +656,7 @@ export class ProjectPageStore {
     const from = before.findIndex((placement) => placement.kind === 'section' && placement.section.id === id);
     if (from < 0) return Promise.resolve(false);
     if (from === position) return Promise.resolve(true);
+    const name = this.placementName('section', id);
 
     const generation = this.loadGeneration;
     const current = () => this.current(generation, projectId, pageId);
@@ -686,7 +690,7 @@ export class ProjectPageStore {
           // Mixed-orientation CDK sorting moves DOM nodes itself. Changing the track key
           // makes Angular recreate the wrappers in canonical order after a rejected write.
           this.canvasRevisionState.update((revision) => revision + 1);
-          this.sectionErrorState.set(messageOf(error));
+          this.sectionErrorState.set(writeFailure(error, placementWrite('move', name)));
         }
         return false;
       }
@@ -698,6 +702,7 @@ export class ProjectPageStore {
   setColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): Promise<boolean> {
     return this.writePlacementField(
       `section:${id}:columnSpan`,
+      placementWrite('resize', this.placementName('section', id)),
       columnSpan,
       () => this.sectionsState().find((section) => section.id === id)?.columnSpan,
       (span) => this.patchSectionColumnSpan(id, span as SectionColumnSpan),
@@ -715,6 +720,7 @@ export class ProjectPageStore {
   setColumnSpanShortcut(id: SectionShortcutId, columnSpan: SectionColumnSpan): Promise<boolean> {
     return this.writePlacementField(
       `shortcut:${id}:columnSpan`,
+      placementWrite('resize', this.placementName('shortcut', id)),
       columnSpan,
       () => this.shortcutsState().find((shortcut) => shortcut.id === id)?.columnSpan,
       (span) => this.patchShortcutColumnSpan(id, span as SectionColumnSpan),
@@ -725,7 +731,7 @@ export class ProjectPageStore {
   }
 
   updateShortcut(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<boolean> {
-    return this.mutate(async ({ current }) => {
+    return this.mutate(placementWrite('change', this.placementName('shortcut', id)), async ({ current }) => {
       const { shortcut } = await this.reportedShortcutWrite(() => this.gateway.shortcuts.update(id, input));
       if (!current()) return;
       this.replaceShortcut(shortcut);
@@ -741,6 +747,7 @@ export class ProjectPageStore {
     const from = before.findIndex((placement) => placement.kind === 'shortcut' && placement.shortcut.id === id);
     if (from < 0) return Promise.resolve(false);
     if (from === position) return Promise.resolve(true);
+    const name = this.placementName('shortcut', id);
     const generation = this.loadGeneration;
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
@@ -764,7 +771,7 @@ export class ProjectPageStore {
           if (current()) {
             this.setCanvas(before);
             this.canvasRevisionState.update((revision) => revision + 1);
-            this.sectionErrorState.set(messageOf(error));
+            this.sectionErrorState.set(writeFailure(error, placementWrite('move', name)));
           }
           return false;
         }
@@ -773,7 +780,7 @@ export class ProjectPageStore {
   }
 
   removeShortcut(id: SectionShortcutId): Promise<boolean> {
-    return this.mutate(async ({ current, projectId, pageId, generation }) => {
+    return this.mutate(placementWrite('remove', this.placementName('shortcut', id)), async ({ current, projectId, pageId, generation }) => {
       await reportedWrite(this.reporter, () => this.gateway.shortcuts.remove(id),
         (removed) => ({ projectId: removed.projectId, receipt: removed.operation }));
       if (!current()) return;
@@ -795,11 +802,11 @@ export class ProjectPageStore {
    * against a local host is not one.
    */
   renameSection(id: SectionId, title: string | null): Promise<boolean> {
-    return this.updateSection(id, { title });
+    return this.updateSection(id, { title }, placementWrite('rename', this.placementName('section', id)));
   }
 
   updateConfig(id: SectionId, config: SectionConfig): Promise<boolean> {
-    return this.updateSection(id, { config });
+    return this.updateSection(id, { config }, placementWrite('save', this.placementName('section', id)));
   }
 
   /**
@@ -812,14 +819,14 @@ export class ProjectPageStore {
     if (this.removalPendingState()) return Promise.resolve(false);
     const unresolved = this.failedRemovalState();
     if (unresolved !== null && !this.isSameFailedRemoval(unresolved, id)) {
-      this.sectionErrorState.set(FAILED_REMOVAL_GUARD_MESSAGE);
+      this.sectionErrorState.set(FAILED_REMOVAL_GUARD);
       return Promise.resolve(false);
     }
     const name = this.sectionsState().find((section) => section.id === id);
     const removedName = name === undefined ? 'requested' : nameOf(name);
     this.removalPendingState.set(true);
     let failed = false;
-    const operation = this.mutate(async ({ current, projectId, pageId, generation }) => {
+    const operation = this.mutate(`Couldn’t remove the ${removedName} section. Try again.`, async ({ current, projectId, pageId, generation }) => {
       let result: Awaited<ReturnType<typeof this.gateway.sections.remove>>;
       try {
         result = await reportedWrite(this.reporter, () => this.gateway.sections.remove(id),
@@ -911,7 +918,7 @@ export class ProjectPageStore {
   /** Dismisses only the failed remove message; any recovery notice stays. */
   dismissFailedRemoval(): void {
     this.failedRemovalState.set(null);
-    if (this.sectionErrorState() === FAILED_REMOVAL_GUARD_MESSAGE) this.sectionErrorState.set(null);
+    if (this.sectionErrorState() === FAILED_REMOVAL_GUARD) this.sectionErrorState.set(null);
   }
 
   private clearFailedRemovalFor(id: SectionId): void {
@@ -950,8 +957,9 @@ export class ProjectPageStore {
   private updateSection(
     id: SectionId,
     input: Parameters<typeof this.gateway.sections.update>[1],
+    failureSentence: string,
   ): Promise<boolean> {
-    return this.mutate(async ({ current }) => {
+    return this.mutate(failureSentence, async ({ current }) => {
       const updated = await reportedWrite(this.reporter, () => this.gateway.sections.update(id, input), sectionReport);
       if (!current()) return;
       this.replaceSection(updated.section);
@@ -1005,8 +1013,7 @@ export class ProjectPageStore {
   private collapsePlacement(kind: 'section' | 'shortcut', id: string, collapsed: boolean): Promise<boolean> {
     const placement = this.placementsState().find(candidate => candidate.kind === kind && placementId(candidate) === id);
     if (placement === undefined) return Promise.resolve(false);
-    const name = placement.kind === 'section' ? nameOf(placement.section)
-      : placement.shortcut.source === null ? 'section' : shortcutNameOf(placement.shortcut.source, placement.shortcut.sourceProjectName);
+    const name = this.placementName(kind, id);
     const record = () => kind === 'section'
       ? this.sectionsState().find(section => section.id === id)
       : this.shortcutsState().find(shortcut => shortcut.id === id);
@@ -1015,7 +1022,7 @@ export class ProjectPageStore {
     const pageId = this.requestedPageId;
     this.clearCollapseError(id);
     return this.writePlacementField(
-      `${kind}:${id}:collapsed`, collapsed,
+      `${kind}:${id}:collapsed`, placementWrite(collapsed ? 'collapse' : 'expand', name), collapsed,
       () => record()?.collapsed,
       value => {
         const current = record();
@@ -1041,7 +1048,7 @@ export class ProjectPageStore {
         if (latest) {
           this.failedCollapseIntent.set(id, collapsed);
           this.collapseErrorsState.update(errors => ({ ...errors,
-            [id]: `Couldn't ${collapsed ? 'collapse' : 'expand'} “${name}”. Try again. ${messageOf(error)}` }));
+            [id]: writeFailure(error, placementWrite(collapsed ? 'collapse' : 'expand', name)) }));
         }
         if (!(error instanceof GatewayError) || !['unreachable', 'internal_error', 'invalid_response'].includes(error.code)) return;
         // A possibly committed write owes one quiet read; it never repeats the write.
@@ -1081,9 +1088,18 @@ export class ProjectPageStore {
     this.collapsePendingState.set(pending);
   }
 
+  /** What a write failure calls a placement: the section's name, or the shortcut's (Slice 78). */
+  private placementName(kind: 'section' | 'shortcut', id: string): string {
+    const placement = this.placementsState().find(candidate => candidate.kind === kind && placementId(candidate) === id);
+    if (placement === undefined) return 'section';
+    return placement.kind === 'section' ? nameOf(placement.section)
+      : placement.shortcut.source === null ? 'section' : shortcutNameOf(placement.shortcut.source, placement.shortcut.sourceProjectName);
+  }
+
   /** Per-field optimism keeps newer canvas chrome fields when a write is refused. */
   private writePlacementField<T>(
     key: string,
+    failureSentence: string,
     columnSpan: PlacementFieldValue,
     readCurrent: () => PlacementFieldValue | undefined,
     paint: (span: PlacementFieldValue) => void,
@@ -1145,7 +1161,7 @@ export class ProjectPageStore {
             this.paintPlacementField(state!, paint);
             this.cleanupFieldWrite(stateKey, state!);
             if (onFailure !== undefined) await onFailure(error, latest());
-            else if (latest()) this.sectionErrorState.set(messageOf(error));
+            else if (latest()) this.sectionErrorState.set(writeFailure(error, failureSentence));
           }
           this.cleanupFieldWrite(stateKey, state!);
           return false;
@@ -1181,6 +1197,7 @@ export class ProjectPageStore {
    * silent failure on a remove or a config save is the one that costs the user work.
    */
   private mutate(
+    failureSentence: string,
     operation: (context: {
       current: () => boolean;
       projectId: ProjectId;
@@ -1201,7 +1218,7 @@ export class ProjectPageStore {
           await operation({ current, projectId, pageId, generation });
           return true;
         } catch (error) {
-          if (current()) this.sectionErrorState.set(messageOf(error));
+          if (current()) this.sectionErrorState.set(writeFailure(error, failureSentence));
           return false;
         }
       }),
@@ -1241,7 +1258,7 @@ export class ProjectPageStore {
           const placementId = await operation({ current, projectId, pageId, generation });
           return placementId === undefined || !current() ? { ok: true } : { ok: true, placementId };
         } catch (error) {
-          return current() ? { ok: false, message: messageOf(error) } : { ok: true };
+          return current() ? { ok: false, message: error instanceof Error ? error.message : String(error) } : { ok: true };
         }
       }),
     );

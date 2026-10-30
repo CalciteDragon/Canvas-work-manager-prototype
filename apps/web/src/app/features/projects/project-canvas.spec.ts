@@ -362,7 +362,8 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-section-frame] [role="alert"]')?.textContent).toContain('the host is not running');
+    expect(query(fixture, '[data-section-frame] [role="alert"]')?.textContent?.trim()).toMatch(/^Couldn’t collapse “.+”\. Try again\.$/);
+    expect(query(fixture, '[data-section-frame] app-failure-message details')?.textContent).toContain('the host is not running');
     expect(query(fixture, '[data-section-error]')).toBeNull();
     // Still expanded: the write never landed, so nothing on the canvas moved.
     expect(query(fixture, '[data-section-collapse]')?.getAttribute('aria-expanded')).toBe('true');
@@ -726,7 +727,11 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(target.classList).toContain('section-canvas__item--span-12');
-    expect(query(fixture, '[data-section-error]')?.textContent).toContain('resize could not be saved');
+    // A canvas write says what failed in product words, the reason under a closed Details (Slice 78).
+    expect(query(fixture, '[data-section-error] [data-failure-sentence]')?.textContent?.trim()).toMatch(/^Couldn’t resize “.+”\. Try again\.$/);
+    expect(query(fixture, '[data-section-error] [data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect((query(fixture, '[data-section-error] details') as HTMLDetailsElement | null)?.open).toBe(false);
+    expect(query(fixture, '[data-section-error] details')?.textContent).toContain('resize could not be saved');
   });
 
   it('moves a section by keyboard, announces its position, and restores focus', async () => {

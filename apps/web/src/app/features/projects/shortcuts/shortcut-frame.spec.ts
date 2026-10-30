@@ -188,10 +188,13 @@ it('slice 76 provides one named toolbar, a read-only cue and unlink remove', () 
   expect(query(fixture, '[data-shortcut-remove]')!.classList.contains('tool--danger')).toBe(false);
   expect(query(fixture, '[data-shortcut-remove] app-icon')!.getAttribute('name')).toBe('unlink');
   expect(query(fixture, '[data-section-title-edit]')).toBeNull();
-  fixture.componentRef.setInput('collapseError', 'Shortcut collapse refused.');
+  fixture.componentRef.setInput('collapseError', { sentence: 'Couldn’t collapse “Markdown (Website launch)”. Try again.', reason: 'Shortcut collapse refused.' });
   fixture.componentRef.setInput('collapsePending', true); fixture.detectChanges();
   const alert = query(fixture, '[role="alert"]')!;
-  expect(alert.textContent).toContain('Shortcut collapse refused.');
+  expect(alert.textContent?.trim()).toBe('Couldn’t collapse “Markdown (Website launch)”. Try again.');
+  const details = alert.parentElement!.querySelector<HTMLDetailsElement>('details')!;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain('Shortcut collapse refused.');
   expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-describedby')).toBe(alert.id);
   expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-busy')).toBe('true');
   expect(query(fixture, '[data-shortcut-frame]')!.getAttribute('aria-busy')).toBe('true');

@@ -13,6 +13,8 @@ import {
 import type { SectionContentInputs } from '../sections/section-contract';
 import { definitionFor } from '../sections/registry';
 import { Icon } from '../../../shared/components/icon/icon';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
+import type { Failure } from '../../../shared/feedback/failure';
 import { toolbarKeydown, toolbarFocusin } from '../canvas-chrome/toolbar-keys';
 import { moveDirectionFor } from '../canvas-chrome/move-keys';
 
@@ -20,7 +22,7 @@ import { moveDirectionFor } from '../canvas-chrome/move-keys';
 @Component({
   selector: 'app-shortcut-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDragHandle, NgComponentOutlet, RouterLink, Icon],
+  imports: [CdkDragHandle, NgComponentOutlet, RouterLink, Icon, FailureMessage],
   templateUrl: './shortcut-frame.html',
   styleUrl: './shortcut-frame.scss',
   // Content names itself from what this frame displays (slice 72, L5-004).
@@ -29,7 +31,7 @@ import { moveDirectionFor } from '../canvas-chrome/move-keys';
 export class ShortcutFrame {
   readonly shortcut = input.required<ResolvedSectionShortcut>();
   readonly collapsePending = input(false);
-  readonly collapseError = input<string | null>(null);
+  readonly collapseError = input<Failure | null>(null);
   readonly toolbarKeydown = toolbarKeydown;
   readonly toolbarFocusin = toolbarFocusin;
   readonly movePending = input(false);

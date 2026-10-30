@@ -35,7 +35,7 @@ for (const theme of ['dark','light'] as const) test.describe(`Section chrome ${t
       await frame.getByRole('button',{name:/^Expand /}).click();await page.waitForTimeout(2200);
     }
     expect(Math.max(...runs)).toBeLessThan(100);refuse=true;await frame.getByRole('button',{name:/^Collapse /}).click();
-    await expect(frame.getByRole('alert')).toContainText("Couldn't collapse");await expect(frame.locator('[data-section-content]')).toBeVisible();await expect(page.locator('[data-section-error]')).toHaveCount(0);
+    await expect(frame.getByRole('alert')).toContainText('Couldn’t collapse');await expect(frame.locator('[data-section-content]')).toBeVisible();await expect(page.locator('[data-section-error]')).toHaveCount(0);
   });
   test('grid grip moves onUp/Down and roves onLeft/Right',async({page})=>{
     await setLayout('project-kitchen' as never,'grid');await page.goto('/projects/project-kitchen');const grip=page.getByRole('button',{name:'Move Markdown',exact:true}).first();
@@ -137,7 +137,8 @@ test('prototype failure injection refuses collapse on that frame', async ({ page
   await page.goto('/projects/project-kitchen'); await expect(page.getByRole('region', { name: 'Markdown', exact: true }).first()).toBeVisible(); await page.waitForLoadState('networkidle'); await page.keyboard.press('Control+Shift+D');
   await page.locator('[data-panel-failure][data-rate="1"]').click(); await page.locator('[data-dev-panel-close]').click();
   const frame = page.getByRole('region', { name: 'Markdown', exact: true }).first(); await frame.getByRole('button', { name: 'Collapse Markdown', exact: true }).click();
-  await expect(frame.getByRole('alert')).toContainText('prototype failure injection'); await expect(page.locator('[data-section-error]')).toHaveCount(0);
+  // Slice 78: the alert is the sentence; the reason waits behind Details on the same failure.
+  await expect(frame.getByRole('alert')).toContainText('Couldn’t'); await expect(frame.locator('app-failure-message details')).toContainText('prototype failure injection'); await expect(page.locator('[data-section-error]')).toHaveCount(0);
   await page.keyboard.press('Control+Shift+D'); await page.locator('[data-panel-failure][data-rate="0"]').click(); await page.locator('[data-dev-panel-close]').click();
 });
 

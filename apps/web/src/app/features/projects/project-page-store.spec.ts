@@ -1050,10 +1050,10 @@ describe('ProjectPageStore (§19, §26)', () => {
       expect(await store.setCollapsed(id, true)).toBe(false);
       expect(store.sections()[0].collapsed).toBe(false);
       expect(calls(gateway.sections.list)).toBe(code === 'rule_violation' ? 1 : 2);
-      expect(store.collapseErrors()[id]).toContain('refused');
+      expect(store.collapseErrors()[id]).toEqual({ sentence: expect.stringMatching(/^Couldn’t (collapse|expand) “.+”\. Try again\.$/), reason: expect.stringContaining('refused') });
       expect(store.sectionError()).toBeNull();
       live.emit({ type: 'project.updated', entityId: PROJECT, projectId: PROJECT }); await settleLive();
-      expect(store.collapseErrors()[id]).toContain('refused');
+      expect(store.collapseErrors()[id]?.reason).toContain('refused');
       vi.mocked(gateway.sections.list).mockResolvedValue([section(id, 'markdown', 0, { collapsed: true })]);
       live.emit({ type: 'project.updated', entityId: PROJECT, projectId: PROJECT }); await settleLive();
       expect(store.collapseErrors()[id]).toBeUndefined();
@@ -1144,7 +1144,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       await store.load(PROJECT, PAGE); const saving = store.setCollapsedShortcut('shortcut-a' as never, true);
       expect(store.shortcuts()[0].collapsed).toBe(true);
       gate.reject(new GatewayError('rule_violation', 0, 'shortcut refused')); await saving;
-      expect(store.shortcuts()[0].collapsed).toBe(false); expect(store.collapseErrors()['shortcut-a']).toContain('shortcut refused');
+      expect(store.shortcuts()[0].collapsed).toBe(false); expect(store.collapseErrors()['shortcut-a']?.reason).toContain('shortcut refused');
       const next = deferred<Awaited<ReturnType<WorkManagerGateway['shortcuts']['update']>>>(); vi.spyOn(gateway.shortcuts, 'update').mockReturnValue(next.promise);
       const retry = store.setCollapsedShortcut('shortcut-a' as never, true); expect(store.collapseErrors()['shortcut-a']).toBeUndefined();
       next.reject(new GatewayError('rule_violation', 0, 'again')); await retry;
@@ -1198,7 +1198,7 @@ describe('ProjectPageStore (§19, §26)', () => {
       collapsed: true,
       title: 'Backlog',
     });
-    expect(store.sectionError()).toContain('resize refused');
+    expect(store.sectionError()).toEqual({ sentence: expect.stringMatching(/^Couldn’t resize “.+”\. Try again\.$/), reason: 'resize refused' });
   });
 
   it('does not let an older failed section resize roll back a newer width', async () => {
@@ -1249,7 +1249,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     newer.reject(new GatewayError('unreachable', 0, 'newer resize failed'));
     expect(await second).toBe(false);
     expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(12);
-    expect(store.sectionError()).toContain('newer resize failed');
+    expect(store.sectionError()?.reason).toBe('newer resize failed');
   });
 
   it('keeps the earlier preview until its request also fails when the newer resize fails first', async () => {
@@ -1274,7 +1274,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     older.reject(new GatewayError('unreachable', 0, 'older resize failed'));
     expect(await first).toBe(false);
     expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(12);
-    expect(store.sectionError()).toContain('newer resize failed');
+    expect(store.sectionError()?.reason).toBe('newer resize failed');
   });
 
   it('paints a shortcut resize immediately and restores only its width on failure', async () => {
@@ -1293,7 +1293,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(await saving).toBe(false);
     expect(gateway.shortcuts.update).toHaveBeenCalledWith('shortcut-a', { columnSpan: 6 });
     expect(store.shortcuts()[0]).toMatchObject({ columnSpan: 12, collapsed: true });
-    expect(store.sectionError()).toContain('shortcut resize failed');
+    expect(store.sectionError()).toEqual({ sentence: expect.stringMatching(/^Couldn’t resize “.+”\. Try again\.$/), reason: 'shortcut resize failed' });
   });
 
   it('removes a section, closes the position gap, reports its receipt and points to the header for Undo', async () => {
@@ -1411,7 +1411,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(remove).toHaveBeenCalledOnce();
     expect(store.failedRemoval()).toEqual(unresolved);
-    expect(store.sectionError()).toContain('Retry or dismiss');
+    expect(store.sectionError()).toEqual({ sentence: expect.stringContaining('Retry or dismiss'), reason: null });
 
     store.dismissFailedRemoval();
     expect(store.sectionError()).toBeNull();
@@ -1595,7 +1595,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(await store.renameSection('section-tasks' as SectionId, 'Backlog')).toBe(false);
     expect(store.sections()).toEqual(before);
-    expect(store.sectionError()).toContain('nope');
+    expect(store.sectionError()).toEqual({ sentence: expect.stringMatching(/^Couldn’t rename “.+”\. Try again\.$/), reason: 'nope' });
   });
 
   it('removes a live-row container with one ID-only write and refreshes owned data', async () => {
@@ -1691,7 +1691,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sections()).toEqual(before);
     expect(store.sections()).not.toBe(before);
     expect(store.canvasRevision()).toBe(revision + 1);
-    expect(store.sectionError()).toContain('move did not persist');
+    expect(store.sectionError()).toEqual({ sentence: expect.stringMatching(/^Couldn’t move “.+”\. Try again\.$/), reason: 'move did not persist' });
   });
 
   it('ignores a move answer for the project left during the write', async () => {
@@ -1972,7 +1972,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(await store.setCollapsedShortcut('shortcut-a' as never, true)).toBe(false);
 
     expect(store.placements()).toEqual(before);
-    expect(store.collapseErrors()['shortcut-a']).toContain('shortcut update failed');
+    expect(store.collapseErrors()['shortcut-a']?.reason).toContain('shortcut update failed');
   });
 
   it('removes only the placement and leaves the source section collection visible', async () => {
@@ -2004,7 +2004,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(await store.moveSection('section-text' as SectionId, 2)).toBe(false);
 
     expect(store.placements().map((placement) => placement.kind === 'section' ? placement.section.id : placement.shortcut.id)).toEqual(before);
-    expect(store.sectionError()).toContain('section move failed');
+    expect(store.sectionError()?.reason).toBe('section move failed');
   });
 
   it('routes a minimal current-project event by type and entityId and bumps both revisions', async () => {

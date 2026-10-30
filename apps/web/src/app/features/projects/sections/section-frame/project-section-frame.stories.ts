@@ -76,7 +76,7 @@ export const Renaming: Story = {
   play: async ({ canvasElement }) => { await userEvent.click(within(canvasElement).getByRole('button', { name: 'Rename Launch notes' })); },
 };
 export const CollapsePending: Story = { args: { collapsePending: true, section: labSection({ title: 'Launch notes', collapsed: true }) } };
-export const CollapseRefused: Story = { args: { collapseError: 'Couldn’t collapse “Launch notes”. Try again. The server did not answer.' } };
+export const CollapseRefused: Story = { args: { collapseError: { sentence: 'Couldn’t collapse “Launch notes”. Try again.', reason: 'The server did not answer.' } } };
 
 /** Each specimen can also be switched with the global theme control. */
 export const RestLight: Story = { ...Rest, globals: { theme: 'light' } };

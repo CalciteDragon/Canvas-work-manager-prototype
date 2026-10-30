@@ -103,7 +103,7 @@
   </header>
 
   @if (collapseError(); as error) {
-    <p class="section-frame__error" role="alert" [id]="'section-collapse-error-' + section().id">{{ error }}</p>
+    <app-failure-message weight="inline" [failure]="error" live="alert" [sentenceId]="'section-collapse-error-' + section().id" />
   }
 
   @if (configOpen()) {

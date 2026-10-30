@@ -66,7 +66,7 @@
   <p data-shortcut-read-only class="shortcut-frame__read-only">Read-only here. Open the source to change it.</p>
 
   @if (collapseError(); as error) {
-    <p class="shortcut-frame__error" role="alert" [id]="'shortcut-collapse-error-' + shortcut().id">{{ error }}</p>
+    <app-failure-message weight="inline" [failure]="error" live="alert" [sentenceId]="'shortcut-collapse-error-' + shortcut().id" />
   }
 
   @if (shortcut().availability !== 'available') {

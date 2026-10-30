@@ -485,9 +485,11 @@ describe('slice 76 named section chrome', () => {
   });
 
   it('links a frame collapse alert and exposes its pending state', () => {
-    const fixture = render(); fixture.componentRef.setInput('collapseError', 'Could not collapse.'); fixture.componentRef.setInput('collapsePending', true); fixture.detectChanges();
+    const fixture = render(); fixture.componentRef.setInput('collapseError', { sentence: 'Couldn’t collapse “Launch notes”. Try again.', reason: 'The server did not answer.' }); fixture.componentRef.setInput('collapsePending', true); fixture.detectChanges();
     const alert = query(fixture, '[role="alert"]')!;
-    expect(alert.textContent).toContain('Could not collapse.');
+    expect(alert.textContent?.trim()).toBe('Couldn’t collapse “Launch notes”. Try again.');
+    // The reason is a closed Details beside the described sentence (Slice 78).
+    expect(alert.parentElement!.querySelector('details')?.textContent).toContain('The server did not answer.');
     expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-describedby')).toBe(alert.id);
     expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-busy')).toBe('true');
     expect(query(fixture, '[data-section-frame]')!.getAttribute('aria-busy')).toBe('true');

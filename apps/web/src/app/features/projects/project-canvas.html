@@ -17,8 +17,8 @@
   </p>
 }
 
-@if (store.sectionError(); as sectionError) {
-  <p data-section-error class="project-canvas__error" role="alert">{{ sectionError }}</p>
+@if (store.sectionError(); as failure) {
+  <app-failure-message data-section-error [failure]="failure" live="alert" />
 }
 
 @if (store.shortcutsError(); as failure) {

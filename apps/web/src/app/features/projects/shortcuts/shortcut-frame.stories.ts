@@ -146,4 +146,4 @@ export const RemovePlacement: Story = {
 };
 
 export const CollapsePending: Story = { args: { collapsePending: true, shortcut: shortcut({ collapsed: true }) } };
-export const CollapseRefused: Story = { args: { collapseError: 'Couldn’t collapse this shortcut. Try again. The server did not answer.' } };
+export const CollapseRefused: Story = { args: { collapseError: { sentence: 'Couldn’t collapse this shortcut. Try again.', reason: 'The server did not answer.' } } };

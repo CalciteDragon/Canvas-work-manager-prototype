@@ -15,15 +15,6 @@
   color: var(--color-text-muted);
 }
 
-.project-canvas__error {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border: var(--border-hairline) solid var(--color-danger);
-  border-radius: var(--radius-md);
-  background: var(--color-danger-surface);
-  color: var(--color-danger);
-}
-
 .project-controls {
   display: flex;
   align-items: center;
