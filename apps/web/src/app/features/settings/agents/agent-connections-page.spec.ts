@@ -179,12 +179,43 @@ describe('AgentConnectionsPage (§53)', () => {
     expect(text(fixture, '[data-agents-empty]')).toContain('agent-heavy');
   });
 
-  it('reports a failed load instead of implying there are no connections', async () => {
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({ failWith: new GatewayError('unreachable', 0, 'could not reach the prototype host') }),
+  it('reports a failed load in product words with Try again, instead of implying there are no connections (Slice 78)', async () => {
+    const { fixture, gateway } = await render(
+      new FakeWorkManagerGateway({ agentConnections: [connection()], failWith: new GatewayError('unreachable', 0, 'could not reach the prototype host') }),
     );
+    const host = fixture.nativeElement as HTMLElement;
 
-    expect(text(fixture, '[data-agents-error]')).toBe('could not reach the prototype host');
-    expect(fixture.nativeElement.querySelector('[data-agents-empty]')).toBeNull();
+    expect(text(fixture, '[data-agents-error] [data-failure-sentence]')).toBe('Couldn’t reach your workspace, so your agent connections didn’t load.');
+    expect(host.querySelector('[data-agents-error] [data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(host.querySelector('[data-agents-error] details')?.textContent).toContain('could not reach the prototype host');
+    expect(host.querySelector('[data-agents-empty]')).toBeNull();
+    expect(host.querySelector('[data-agents-pending]')).toBeNull();
+
+    gateway.options.failWith = undefined;
+    const tryAgain = host.querySelector<HTMLButtonElement>('[data-agents-error] [data-recovery]')!;
+    expect(tryAgain.textContent?.trim()).toBe('Try again');
+    tryAgain.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-agents-error] [data-recovery]')?.getAttribute('aria-disabled')).toBe('true');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-agents-error]')).toBeNull();
+    expect(host.querySelectorAll('[data-agent-connection]')).toHaveLength(1);
+  });
+
+  it('says a Revoke failure on the page with no Try again, and keeps the list (Slice 78)', async () => {
+    const { fixture } = await render(
+      new FakeWorkManagerGateway({ agentConnections: [connection()], failOn: { 'agents.revoke': new GatewayError('conflict', 409, 'already revoked elsewhere') } }),
+    );
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>('[data-agent-revoke]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(text(fixture, '[data-agents-revoke-error]')).toBe('already revoked elsewhere');
+    expect(host.querySelector('[data-agents-revoke-error]')?.getAttribute('role')).toBe('alert');
+    expect(host.querySelector('[data-recovery]')).toBeNull();
+    expect(host.querySelector('[data-agents-error]')).toBeNull();
+    expect(host.querySelectorAll('[data-agent-connection]')).toHaveLength(1);
   });
 });

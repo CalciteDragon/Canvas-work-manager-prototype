@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import type { AgentConnection, AgentConnectionId, AgentPermission } from '@cwm/contracts';
 import { AgentConnectionsStore } from './agent-connections-store';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
 
 interface PermissionRow {
   key: AgentPermission;
@@ -39,6 +40,7 @@ const PERMISSIONS: readonly PermissionRow[] = [
 @Component({
   selector: 'app-agent-connections-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FailureMessage],
   providers: [AgentConnectionsStore],
   templateUrl: './agent-connections-page.html',
   styleUrl: './agent-connections-page.scss',
