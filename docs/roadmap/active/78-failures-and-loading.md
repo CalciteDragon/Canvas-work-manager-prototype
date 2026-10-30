@@ -2,8 +2,47 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0, 1, 2 and 3 are done. Stage 4 is
-next.**
+rounds and accepted by the user on 2026-10-29. **Stages 0–3 are done; Stage 4 part a (write
+failures' Details) is done. Stage 4's next part is the dialogs.**
+
+- Stage 4, part a (`f05744f`, `9e688be`, `a71cd02`, `90560ce`, `7fd25f1`, `b3b4cd6`, `a8619b8`,
+  docs `b3390a7`, review fixes `554201e`), reviewed once by a subagent against the diff (no
+  substantive findings; two minor ones fixed, one kept as a choice, below). Every write slot
+  below is now a `Failure` in its slice-75 place, rendered by `FailureMessage` (or, in the
+  drawer, a `[data-field-details]` Details outside the field's label), the control's
+  `aria-describedby` naming the sentence alone. Validation refusals are `Failure`s with
+  `reason: null`, so they show no Details.
+  - **Task List.** `rowErrors` (complete/reopen/delete), `createError` (add, uncertain commit —
+    its Details holds the *write's* reason, deliberately — and validation), `receiveError`
+    ("Couldn’t move the task into this list. Try again.", this part's sentence), and
+    `TaskFieldSave` `{ state: 'failed', failure }` ("Not saved. Try again."). `TaskRow.error` is
+    a `Failure`; its selection guard adds `summary, details`. `.task-row__error` and
+    `.task-list-section__error` are deleted.
+  - **Todos.** `rowErrors` and the Delete page alert `writeError` ("Couldn’t delete “X”. Try
+    again.", region weight, as its old banner). `.todos__error` is deleted.
+  - **Canvas.** `sectionError()` is a `Failure`: `mutate`/`updateSection`/`writePlacementField`
+    take a sentence, named by `placementName` ("Couldn’t move/resize/rename/save/change/remove
+    “X”. Try again.", "this shortcut" for a sourceless shortcut). `FAILED_REMOVAL_GUARD` is a
+    reason-less `Failure` (identity check kept). `collapseErrors` are `Failure`s ("Couldn’t
+    collapse “X”…", now with curly quotes); both frames' `collapseError` inputs take them.
+    `CanvasWriteResult` still carries a raw `message` (dialogs part).
+  - **Reflections.** Section `createError`/`editError`, the page's `writeError` and
+    `addContainerError`. `ReflectionComposer.error` is a `Failure` and the body names the
+    sentence by `aria-describedby` (new).
+  - **Workspace.** `writeError()` names the write by its fields (`projectWriteSentence`:
+    rename, status, description, date, archive, "save the details of"); the header and, because
+    it shares the signal, the **project details dialog's** save failure render it (the dialog's
+    own validation and the rest of the dialog are the dialogs part's). `pageWriteError()`:
+    "Couldn’t turn on the Todos page. Try again." or "Turned on the Todos page, but navigation
+    couldn’t refresh." with FailureMessage's Retry refresh; `data-page-toggle-retry` is gone.
+  - **Agents.** The permission card's failure is a `Failure`; Revoke stays raw (slice 8).
+  - e2e edited, not run: `placement.spec.ts` (create, complete, field, permission),
+    `section-chrome.spec.ts:38,140`. Others keep passing on the wrapper's `textContent`.
+  - Still raw, for later parts: sidebar New project (`ShellStore.createError`), work-create
+    (`createWorkstream`), `CanvasWriteResult`/`mutateWithResult` and the section-create and
+    picker `create` callbacks, the picker's `createError`, Markdown's save.
+  - `docs/architecture/web/tasks/how.md`, `web/projects/how.md` and `web/what.md` say what is
+    true. `pnpm test` and `pnpm lint` green at the end of the part; e2e not run.
 
 - Stage 3, part d (`bd30373`, `a8755fc`, `fb65a87`, review fixes `0dfc976`), reviewed once by a
   subagent against the diff (no substantive findings; the minor ones were fixed or are noted
@@ -197,7 +236,8 @@ next.**
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 4 (`## Implementation sequence` step 4): write failures' Details, dialogs,
+**Next:** Stage 4 (`## Implementation sequence` step 4): dialogs (the raw slots listed in
+part a's entry),
 Markdown, the progress fact, not-found (`UnavailablePage`, which changes the interim `not_found`
 e2e assertions noted in part b), then the pinned-failure registry/directive/slot tests and wiring.
 The raw write slots left by parts a–d are listed in their entries above.
