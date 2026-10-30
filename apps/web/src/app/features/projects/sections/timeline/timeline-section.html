@@ -1,5 +1,7 @@
-@if (store.error(); as error) { <p data-timeline-error class="timeline__error" role="alert">{{ error }}</p> }
-@if (store.loading()) { <p data-timeline-loading>Building timeline…</p> }
+<!-- The failure in place of the empty sentence; Try again keeps it on screen, busy, until the read answers (Slice 78). -->
+@if (store.error(); as failure) {
+  <app-failure-message data-timeline-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.loading()" (retry)="store.retry()" />
+} @else if (store.loading()) { <p data-timeline-loading>Building timeline…</p> }
 @else if (store.items().length === 0) { <p data-timeline-empty>No dated work yet.</p> }
 <ol class="timeline">
   @for (item of store.items(); track item.kind + ':' + item.id) {

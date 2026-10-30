@@ -20,7 +20,6 @@
 .timeline__status { grid-column: 4; grid-row: 1; }
 .timeline__date { grid-column: 5; grid-row: 1; }
 .timeline__invalid { color: var(--color-warning); }
-.timeline__error { color: var(--color-danger); }
 
 @media (max-width: bp.$compact) {
   .timeline { grid-template-columns: var(--object-row-control-width) minmax(0, 1fr); }

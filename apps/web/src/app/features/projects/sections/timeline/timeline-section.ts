@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectSection, SectionConfig, TimelineItem } from '@cwm/contracts';
+import { FailureMessage } from '../../../../shared/feedback/failure-message';
 import type { SectionContentInputs } from '../section-contract';
 import { TimelineStore } from './timeline-store';
 
 @Component({
   selector: 'app-timeline-section',
-  imports: [RouterLink],
+  imports: [RouterLink, FailureMessage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [TimelineStore],
   templateUrl: './timeline-section.html',

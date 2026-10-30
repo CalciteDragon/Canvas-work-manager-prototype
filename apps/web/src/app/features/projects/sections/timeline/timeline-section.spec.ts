@@ -118,5 +118,13 @@ describe('TimelineSection (§38)', () => {
       failWith: new GatewayError('unreachable', 0, 'timeline could not load'),
     });
     expect(query(failed.fixture, '[data-timeline-error]')?.textContent).toContain('timeline could not load');
+    expect(query(failed.fixture, '[data-timeline-error] [data-failure-sentence]')?.textContent?.trim())
+      .toBe('Couldn’t reach your workspace, so this timeline didn’t load.');
+    expect(query(failed.fixture, '[data-timeline-empty]')).toBeNull();
+    const reads = () => failed.gateway.calls.filter(({ method }) => method === 'timeline.get').length;
+    const before = reads();
+    query(failed.fixture, '[data-timeline-error] [data-recovery="try-again"]')!.click();
+    await failed.fixture.whenStable();
+    expect(reads()).toBe(before + 1);
   });
 });

@@ -102,7 +102,36 @@ describe('TimelineStore (§38)', () => {
     await store.load('project-b' as ProjectId);
 
     expect(store.items()).toEqual([]);
-    expect(store.error()).toContain('timeline is offline');
+    expect(store.error()).toEqual({ sentence: 'Couldn’t reach your workspace, so this timeline didn’t load.', reason: 'timeline is offline' });
     expect(store.loading()).toBe(false);
+  });
+
+  it('keeps the failure on screen through Try again until the read answers, then clears it (Slice 78)', async () => {
+    const again = deferred<TimelineResult>();
+    const get = vi.fn<WorkManagerGateway['timeline']['get']>()
+      .mockRejectedValueOnce(new GatewayError('not_found', 404, 'Project project-a was not found'))
+      .mockImplementationOnce(() => again.promise);
+    const store = setup(get);
+    await store.load('project-a' as ProjectId);
+    expect(store.error()?.sentence).toBe('This timeline isn’t available.');
+
+    const retrying = store.retry();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('This timeline isn’t available.');
+    again.resolve(result()); await retrying;
+
+    expect(store.error()).toBeNull();
+    expect(store.items()).toHaveLength(2);
+  });
+
+  it('clears a read failure on the next successful quiet read', async () => {
+    const get = vi.fn<WorkManagerGateway['timeline']['get']>()
+      .mockRejectedValueOnce(new GatewayError('internal_error', 500, 'boom'))
+      .mockResolvedValueOnce(result());
+    const store = setup(get);
+    await store.load('project-a' as ProjectId);
+    expect(store.error()?.sentence).toBe('Couldn’t load this timeline.');
+    await store.sync('project-a' as ProjectId);
+    expect(store.error()).toBeNull();
   });
 });
