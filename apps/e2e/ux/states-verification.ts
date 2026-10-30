@@ -547,6 +547,8 @@ test('States runtime evidence and core tasks', async ({ browser }) => {
       entry['aria'] = await page.locator('body').ariaSnapshot();
       const pinned = rows.some(r => r.pinned);
       if (!pinned) await regionShots();
+      // A pin is pressed while still pinned: clicking a Details summary scrolls its row into view first.
+      if (pinned) await fixture.after?.(c);
       // Open every closed Details in the rows' regions, record what it reveals, then close it again.
       const closed = page.locator(rows.map(r => `${r.region} details:not([open]) > summary`).join(', ') || 'details-none');
       if (await closed.count()) {
@@ -556,7 +558,7 @@ test('States runtime evidence and core tasks', async ({ browser }) => {
         entry['detailsOpenScreenshot'] = await c.shot('details');
         await page.evaluate(sel => document.querySelectorAll(sel).forEach(s => { (s.parentElement as HTMLDetailsElement).open = false; }), rows.map(r => `${r.region} details > summary`).join(', '));
       }
-      await fixture.after?.(c);
+      if (!pinned) await fixture.after?.(c);
       if (pinned) await regionShots();
     } catch (error) { entry['error'] = String(error); }
     finally {
