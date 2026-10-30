@@ -212,6 +212,41 @@ describe('PinnedFailureDirective', () => {
       expect(sentence.getBoundingClientRect().top).toBeGreaterThanOrEqual(60);
     });
 
+    it('brings the focused control clear of the stuck control too, when it sits above the sentence and both fit', async () => {
+      const { element, port, pins, fail, shown } = await setup();
+      await fail();
+      const sentence = element.querySelector<HTMLElement>('#row-error')!;
+      const control = element.querySelector<HTMLElement>('[data-control]')!;
+      port.scrollTop = 500;
+      geometry(port, sentence, 140);
+      // The checkbox heads the row, 60 px above its sentence.
+      vi.spyOn(control, 'getBoundingClientRect').mockImplementation(() => rect(80 - port.scrollTop, 20));
+      pins.setClearance(port, { top: 60, bottom: 0 });
+      TestBed.tick();
+      latest().report('top');
+      pins.reveal(shown().top!.id);
+      expect(control.getBoundingClientRect().top).toBeGreaterThanOrEqual(60);
+      expect(sentence.getBoundingClientRect().bottom).toBeLessThanOrEqual(400);
+      expect(document.activeElement).toBe(control);
+    });
+
+    it('keeps the sentence in view when the control and sentence together are taller than the clear port', async () => {
+      const { element, port, pins, fail, shown } = await setup();
+      await fail();
+      const sentence = element.querySelector<HTMLElement>('#row-error')!;
+      const control = element.querySelector<HTMLElement>('[data-control]')!;
+      port.scrollTop = 1000;
+      geometry(port, sentence, 700);
+      vi.spyOn(control, 'getBoundingClientRect').mockImplementation(() => rect(100 - port.scrollTop, 20));
+      pins.setClearance(port, { top: 60, bottom: 0 });
+      TestBed.tick();
+      latest().report('top');
+      pins.reveal(shown().top!.id);
+      const top = sentence.getBoundingClientRect().top;
+      expect(top).toBeGreaterThanOrEqual(60);
+      expect(top + 20).toBeLessThanOrEqual(400);
+    });
+
     it('focuses the sentence when the control is disabled', async () => {
       const { fixture, element, port, pins, fail, shown } = await setup();
       await fail();

@@ -116,7 +116,11 @@ export class PinnedFailureDirective {
     return [...this.host.querySelectorAll<HTMLElement>('[id]')].find((element) => element.id === id) ?? null;
   }
 
-  /** The pinned copy's press: destination first, then one scroll, then focus without a second one. */
+  /**
+   * The pinned copy's press: destination first, then one scroll, then focus without a second one.
+   * The scroll brings the sentence, and the control about to take focus when the two fit, into
+   * the clear port.
+   */
   private reveal(port: HTMLElement, sentenceId: string, registration: PinRegistration | null): void {
     if (!this.host.isConnected) {
       registration?.unregister();
@@ -129,7 +133,11 @@ export class PinnedFailureDirective {
     if (target === anchor && !anchor.hasAttribute('tabindex')) anchor.setAttribute('tabindex', '-1');
 
     const { top: clearTop, bottom: clearBottom } = this.clearPort(port, REVEAL_GAP_PX);
-    const box = anchor.getBoundingClientRect();
+    // The focused control comes clear too, so a stuck control cannot cover it, when both fit.
+    const sentenceBox = anchor.getBoundingClientRect();
+    const targetBox = target.getBoundingClientRect();
+    const both = { top: Math.min(sentenceBox.top, targetBox.top), bottom: Math.max(sentenceBox.bottom, targetBox.bottom) };
+    const box = both.bottom - both.top <= clearBottom - clearTop ? both : sentenceBox;
     // A sentence taller than the clear port is aligned to its top.
     const delta = box.top < clearTop ? box.top - clearTop : box.bottom > clearBottom ? Math.min(box.bottom - clearBottom, box.top - clearTop) : 0;
     if (delta !== 0) port.scrollTop += delta;
