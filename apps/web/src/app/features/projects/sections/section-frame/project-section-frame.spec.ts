@@ -93,7 +93,7 @@ const render = (
   fixture.componentRef.setInput('section', section(overrides));
   fixture.componentRef.setInput('definition', definition(definitionOverrides));
   fixture.componentRef.setInput('rename', rename);
-  fixture.componentRef.setInput('saveConfig', async () => true);
+  fixture.componentRef.setInput('saveConfig', async () => null);
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
@@ -132,7 +132,7 @@ describe('ProjectSectionFrame (§31)', () => {
     frame.removeRequested.subscribe((event) => seen.push(['remove', event]));
     fixture.componentRef.setInput('saveConfig', async (id: string, config: SectionConfig) => {
       seen.push(['config', { id, config }]);
-      return true;
+      return null;
     });
 
     query(fixture, '[data-section-collapse]')!.click();
@@ -409,9 +409,10 @@ describe('ProjectSectionFrame (§31)', () => {
 
 it('content config writes return the saveConfig result', async () => {
   const fixture = render();
-  const save = vi.fn(async () => false);
+  const refused = { sentence: 'Couldn’t save “Notes”. Try again.', reason: 'refused' };
+  const save = vi.fn(async () => refused);
   fixture.componentRef.setInput('saveConfig', save);
-  expect(await fixture.componentInstance.contentInputs().onConfigChange({ text: 'draft' })).toBe(false);
+  expect(await fixture.componentInstance.contentInputs().onConfigChange({ text: 'draft' })).toBe(refused);
   expect(save).toHaveBeenCalledWith('section-a', { text: 'draft' });
 });
 

@@ -1017,13 +1017,44 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sectionError()).toBeNull();
   });
 
+  // Slice 78 (L4-018): the config save's failure belongs to the section's own editor.
+  it('returns a config save failure and neither sets nor clears the canvas section error', async () => {
+    const { store } = setup({
+      sectionOverrides: {
+        update: vi.fn(async (_id, input) => {
+          throw new GatewayError('rule_violation', 409, 'config' in input ? 'config refused' : 'collapse refused');
+        }),
+      },
+    });
+    expect(await store.updateConfig('section-text' as SectionId, { markdown: 'early' })).toEqual({
+      sentence: 'The page is still loading. Try again in a moment.',
+      reason: null,
+    });
+    await store.load(PROJECT, PAGE);
+    await store.renameSection('section-text' as SectionId, 'Brief');
+    const unrelated = store.sectionError();
+    expect(unrelated).not.toBeNull();
+
+    const failure = await store.updateConfig('section-text' as SectionId, { markdown: 'edited' });
+
+    expect(failure?.sentence).toMatch(/^Couldn’t save .+\. Try again\.$/);
+    expect(failure?.reason).toBe('config refused');
+    expect(store.sectionError()).toBe(unrelated);
+
+    TestBed.resetTestingModule();
+    const clean = setup({ sectionOverrides: { update: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'config refused'); }) } });
+    await clean.store.load(PROJECT, PAGE);
+    expect(await clean.store.updateConfig('section-text' as SectionId, { markdown: 'edited' })).not.toBeNull();
+    expect(clean.store.sectionError()).toBeNull();
+  });
+
   it('collapses, resizes and re-configures a section through the gateway', async () => {
     const { store, gateway } = setup();
     await store.load(PROJECT, PAGE);
 
     expect(await store.setCollapsed('section-text' as SectionId, true)).toBe(true);
     expect(await store.setColumnSpan('section-text' as SectionId, 6)).toBe(true);
-    expect(await store.updateConfig('section-text' as SectionId, { markdown: 'edited' })).toBe(true);
+    expect(await store.updateConfig('section-text' as SectionId, { markdown: 'edited' })).toBeNull();
 
     expect(gateway.sections.update).toHaveBeenNthCalledWith(1, 'section-text', { collapsed: true });
     expect(gateway.sections.update).toHaveBeenNthCalledWith(2, 'section-text', { columnSpan: 6 });

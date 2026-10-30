@@ -1,3 +1,4 @@
+import { READ_ONLY_CONFIG } from '../sections/section-contract';
 import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ProjectSectionSchema, ResolvedSectionShortcutSchema, type ProjectId } from '@cwm/contracts';
@@ -139,7 +140,7 @@ it('markdown shortcut is read-only', async () => {
   fixture.detectChanges();
   expect(query(fixture, 'h3')?.textContent).toBe('Canonical source');
   expect(query(fixture, '[data-markdown-edit]')).toBeNull();
-  expect(await fixture.componentInstance.contentInputs().onConfigChange({ markdown: 'ignored' })).toBe(false);
+  expect(await fixture.componentInstance.contentInputs().onConfigChange({ markdown: 'ignored' })).toBe(READ_ONLY_CONFIG);
 });
 
 it('a shortcut to a Markdown section holding an extra key shows only the guidance (Slice 64)', async () => {

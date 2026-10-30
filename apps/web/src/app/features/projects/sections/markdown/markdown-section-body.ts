@@ -4,6 +4,7 @@ import {
 } from '@angular/core';
 import { nameOf, type ProjectSection, type SectionConfig } from '@cwm/contracts';
 import { MarkdownRenderer } from '../../../../shared/components/markdown-renderer/markdown-renderer';
+import { writeFailure, type Failure } from '../../../../shared/feedback/failure';
 import { readMarkdownConfig } from './markdown-config';
 import { MarkdownSourceEditor } from './markdown-source-editor';
 
@@ -17,11 +18,12 @@ import { MarkdownSourceEditor } from './markdown-source-editor';
 })
 export class MarkdownSectionBody {
   readonly section = input.required<ProjectSection>();
-  readonly save = input.required<(config: SectionConfig) => Promise<boolean>>();
+  /** Resolves `null` when saved, or the failure the editor shows (Slice 78). */
+  readonly save = input.required<(config: SectionConfig) => Promise<Failure | null>>();
   readonly readOnly = input(false);
   readonly editing = signal(false);
   readonly pending = signal(false);
-  readonly failed = signal(false);
+  readonly failure = signal<Failure | null>(null);
   readonly base = signal('');
   readonly content = computed(() => readMarkdownConfig(this.section().config));
   readonly source = computed(() => {
@@ -40,23 +42,24 @@ export class MarkdownSectionBody {
   /** Each Edit creates a new editor seeded from the current stored source. */
   edit(): void {
     if (this.destroyed || this.pending() || !this.canEdit()) return;
-    this.base.set(this.source()); this.failed.set(false); this.editing.set(true);
+    this.base.set(this.source()); this.failure.set(null); this.editing.set(true);
   }
 
   /** Replace config once; a refused write leaves the editor and its draft mounted. */
   async saveDraft(draft: string): Promise<void> {
     if (this.destroyed || this.pending() || !this.editing() || !this.canEdit()) return;
     if (draft === this.source()) { this.closeEditor(); return; }
-    this.pending.set(true); this.failed.set(false);
-    let saved = false;
-    try { saved = await this.save()({ markdown: draft }); }
-    catch { /* The normal canvas callback resolves false; an unexpected refusal keeps the draft too. */ }
+    this.pending.set(true); this.failure.set(null);
+    let failure: Failure | null;
+    try { failure = await this.save()({ markdown: draft }); }
+    // The canvas callback resolves its failure; an unexpected throw keeps the draft too.
+    catch (error) { failure = writeFailure(error, `Couldn’t save “${this.name()}”. Try again.`); }
     if (this.destroyed) return;
-    if (saved) {
+    if (failure === null) {
       // Source may already be patched by our own write. Close in this same turn, before
       // dropping pending, so no intermediate render announces a false external change.
       this.closeEditor(); this.pending.set(false);
-    } else { this.failed.set(true); this.pending.set(false); }
+    } else { this.failure.set(failure); this.pending.set(false); }
   }
 
   cancel(): void {
@@ -65,7 +68,7 @@ export class MarkdownSectionBody {
   }
 
   private closeEditor(): void {
-    this.editing.set(false); this.failed.set(false);
+    this.editing.set(false); this.failure.set(null);
     afterNextRender(() => {
       if (!this.destroyed && !this.editing()) this.host.nativeElement.querySelector<HTMLButtonElement>('[data-markdown-edit]')?.focus();
     }, { injector: this.injector });

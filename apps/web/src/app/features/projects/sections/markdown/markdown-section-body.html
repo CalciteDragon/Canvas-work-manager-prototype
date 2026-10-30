@@ -9,7 +9,7 @@
       <p class="markdown-section-body__note">This section is read-only. Your draft is kept; you can copy it or Cancel.</p>
     }
     <app-markdown-source-editor #editor [initialSource]="base()" [name]="name()"
-      [pending]="pending()" [failed]="failed()" [changedElsewhere]="changedElsewhere()" [saveBlocked]="!canEdit()"
+      [pending]="pending()" [failure]="failure()" [changedElsewhere]="changedElsewhere()" [saveBlocked]="!canEdit()"
       (ready)="editor.focusSource()" (saveRequested)="saveDraft($event)" (cancelRequested)="cancel()" />
   } @else if (content().state !== 'unreadable') {
     <app-markdown-renderer [source]="source()" />

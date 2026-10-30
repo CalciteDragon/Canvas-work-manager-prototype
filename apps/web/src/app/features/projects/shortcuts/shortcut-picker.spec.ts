@@ -1,3 +1,4 @@
+import { READ_ONLY_CONFIG } from '../sections/section-contract';
 import { ProjectSectionSchema, TaskSchema } from '@cwm/contracts';
 import { type ProjectId, type ProjectPageId, type SectionId } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -67,7 +68,7 @@ describe('ShortcutPicker (§27)', () => {
     const content = fixture.debugElement.query(By.directive(TaskListSection)).componentInstance as TaskListSection;
     expect(content.readOnly()).toBe(true);
     expect((content as unknown as { sourceLink: () => unknown }).sourceLink()).toBeNull();
-    expect(await content.onConfigChange()({})).toBe(false);
+    expect(await content.onConfigChange()({})).toBe(READ_ONLY_CONFIG);
     expect(fixture.nativeElement.querySelector('[data-quick-create], a[data-task-title]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-task-title]')?.textContent).toBe('Preview task');
     expect(gateway.calls.some(({ method }) => method === 'tasks.list')).toBe(true);

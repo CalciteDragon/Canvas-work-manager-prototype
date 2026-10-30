@@ -508,7 +508,7 @@ export class ProjectCanvas {
   }
 
   /** Stable, awaited callback shared by all content frames. */
-  readonly saveSectionConfig = (id: SectionId, config: SectionConfig): Promise<boolean> =>
+  readonly saveSectionConfig = (id: SectionId, config: SectionConfig): Promise<Failure | null> =>
     this.store.updateConfig(id, config);
 
   projectDataChanged(): void {

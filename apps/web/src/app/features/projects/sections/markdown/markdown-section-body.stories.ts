@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { ProjectSectionSchema } from '@cwm/contracts';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import { MarkdownSectionBody } from './markdown-section-body';
+import type { Failure } from '../../../../shared/feedback/failure';
 
 const section = (config: unknown = { markdown: '# Kickoff\n\n- Pick a date\n- Write the brief' }) => ProjectSectionSchema.parse({
   id: 'section-markdown-story', projectId: 'project-story', pageId: 'page-story', type: 'markdown', title: 'Kickoff',
@@ -12,7 +13,7 @@ const section = (config: unknown = { markdown: '# Kickoff\n\n- Pick a date\n- Wr
 const meta: Meta<MarkdownSectionBody> = {
   title: 'Projects/Sections/Markdown',
   component: MarkdownSectionBody,
-  args: { section: section(), save: fn(async () => true), readOnly: false },
+  args: { section: section(), save: fn(async () => null), readOnly: false },
 };
 export default meta;
 type Story = StoryObj<MarkdownSectionBody>;
@@ -37,7 +38,7 @@ export const Preview: Story = {
   },
 };
 export const Pending: Story = {
-  args: { save: () => new Promise<boolean>(() => undefined) },
+  args: { save: () => new Promise<Failure | null>(() => undefined) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Edit Markdown for Kickoff' }));
@@ -47,12 +48,13 @@ export const Pending: Story = {
   },
 };
 export const Refused: Story = {
-  args: { save: async () => false },
+  args: { save: async (): Promise<Failure> => ({ sentence: 'Couldn’t save “Kickoff”. Try again.', reason: 'The prototype host is not answering.' }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Edit Markdown for Kickoff' }));
     await userEvent.type(canvas.getByRole('textbox'), '\n\nKeep this draft.');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
-    await expect(canvas.getByText('Not saved — your draft is kept.')).toBeVisible();
+    await expect(canvas.getByRole('alert')).toHaveTextContent('Couldn’t save “Kickoff”. Try again.');
+    await expect(canvas.getByRole('textbox')).toHaveValue(expect.stringContaining('Keep this draft.'));
   },
 };

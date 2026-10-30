@@ -14,7 +14,7 @@ import { ShortcutStore } from './shortcut-store';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { writeFailure, type Failure } from '../../../shared/feedback/failure';
 import { definitionFor } from '../sections/registry';
-import type { SectionContentInputs } from '../sections/section-contract';
+import { READ_ONLY_CONFIG, type SectionContentInputs } from '../sections/section-contract';
 
 /** §27's source picker: identity discovery, with read-only content loaded on Preview. */
 @Component({
@@ -40,7 +40,7 @@ export class ShortcutPicker {
   readonly store = inject(ShortcutStore);
   readonly preview = signal<SectionId | null>(null);
   readonly definitionFor = definitionFor;
-  private readonly noopConfig = async (_config: SectionConfig): Promise<boolean> => false;
+  private readonly noopConfig = async (_config: SectionConfig): Promise<Failure | null> => READ_ONLY_CONFIG;
   private readonly noopProjectData = (): void => {};
   readonly previewInputs = computed(() => new Map(this.store.sources().map((source) => [source.sourceSectionId, {
     section: source.section,

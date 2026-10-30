@@ -8,7 +8,7 @@ import { MarkdownSectionBody } from './markdown-section-body';
 const render = (config: unknown) => {
   TestBed.configureTestingModule({ deferBlockBehavior: DeferBlockBehavior.Manual });
   const fixture = TestBed.createComponent(MarkdownSection);
-  const save = vi.fn(async () => true);
+  const save = vi.fn(async () => null);
   fixture.componentRef.setInput('section', ProjectSectionSchema.parse({
     id: 'section-a', projectId: 'project-a', pageId: 'page-a', type: 'markdown',
     config, position: 0, columnSpan: 12, collapsed: false,

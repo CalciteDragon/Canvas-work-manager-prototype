@@ -32,7 +32,7 @@ const meta: Meta<ProjectSectionFrame> = {
     section: labSection({ title: 'Launch notes' }),
     definition: stubSectionDefinition(),
     rename: async () => true,
-    saveConfig: async () => true,
+    saveConfig: async () => null,
     projectDataRevision: 0,
     projectHierarchyRevision: 0,
   },

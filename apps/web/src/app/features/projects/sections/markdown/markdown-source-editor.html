@@ -3,15 +3,16 @@
     <app-markdown-renderer [source]="draft()" />
   } @else {
     <textarea #source data-markdown-source class="field markdown-source-editor__source" rows="10" [value]="draft()" [readOnly]="pending()"
-      [attr.aria-label]="'Markdown source for ' + name()" (input)="setDraft($event)"></textarea>
+      [attr.aria-label]="'Markdown source for ' + name()" [attr.aria-describedby]="failure() === null ? null : failureId"
+      (input)="setDraft($event)"></textarea>
   }
   @if (changedElsewhere()) {
     <p data-markdown-changed-elsewhere class="markdown-source-editor__note" role="status">
       This section changed elsewhere since you started editing. Saving replaces it.
     </p>
   }
-  @if (failed()) {
-    <p data-markdown-failed class="markdown-source-editor__note">Not saved — your draft is kept.</p>
+  @if (failure(); as failure) {
+    <app-failure-message data-markdown-failed weight="inline" [failure]="failure" live="alert" [sentenceId]="failureId" />
   }
   <div class="markdown-source-editor__actions">
     <button data-markdown-preview type="button" class="button button--ghost" [attr.aria-pressed]="preview()"

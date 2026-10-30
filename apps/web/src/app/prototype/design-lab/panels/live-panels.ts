@@ -66,7 +66,7 @@ export class LivePanels {
 
   protected readonly sectionDefinition = stubSectionDefinition();
   protected readonly renameSection = async (): Promise<boolean> => true;
-  protected readonly saveSectionConfig = async (): Promise<boolean> => true;
+  protected readonly saveSectionConfig = async (): Promise<null> => null;
   protected readonly fullWidth = labSection({ id: 'section-full', title: 'Tools at rest', columnSpan: 12 });
   protected readonly halfWidth = labSection({ id: 'section-half', title: 'Focus within', columnSpan: 6 });
   protected readonly collapsed = labSection({ id: 'section-collapsed', title: 'Collapsed', collapsed: true });

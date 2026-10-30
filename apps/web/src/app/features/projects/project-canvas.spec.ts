@@ -1324,14 +1324,18 @@ describe('ProjectCanvas — arriving at a container (§27, §34)', () => {
   });
 });
 
-it('section config save resolves false and shows the error on refusal', async () => {
+// Slice 78 (L4-018): the failure is returned to the section's editor, never a second canvas alert.
+it('section config save resolves its failure and leaves the canvas alert alone', async () => {
   const { fixture } = await render({
     sections: [section('section-text', 'markdown', 0)],
     failOn: { 'sections.update': new GatewayError('unreachable', 0, 'source could not be saved') },
   });
   const frame = fixture.debugElement.query(By.directive(ProjectSectionFrame)).componentInstance as ProjectSectionFrame;
-  expect(await frame.contentInputs().onConfigChange({ markdown: 'kept draft' })).toBe(false);
+  expect(await frame.contentInputs().onConfigChange({ markdown: 'kept draft' })).toEqual({
+    sentence: expect.stringMatching(/^Couldn’t save .+\. Try again\.$/),
+    reason: 'source could not be saved',
+  });
   await fixture.whenStable();
   fixture.detectChanges();
-  expect(query(fixture, '[data-section-error]')?.textContent).toContain('source could not be saved');
+  expect(query(fixture, '[data-section-error]')).toBeNull();
 });

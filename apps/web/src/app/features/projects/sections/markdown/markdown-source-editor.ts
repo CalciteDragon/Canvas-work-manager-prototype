@@ -3,11 +3,15 @@ import {
   input, output, signal, viewChild, type OnInit,
 } from '@angular/core';
 import { MarkdownRenderer } from '../../../../shared/components/markdown-renderer/markdown-renderer';
+import { FailureMessage } from '../../../../shared/feedback/failure-message';
+import type { Failure } from '../../../../shared/feedback/failure';
+
+let nextEditor = 0;
 
 /** A fresh, presentational source draft for one editing session. */
 @Component({
   selector: 'app-markdown-source-editor',
-  imports: [MarkdownRenderer],
+  imports: [MarkdownRenderer, FailureMessage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './markdown-source-editor.html',
   styleUrl: './markdown-source-editor.scss',
@@ -16,7 +20,9 @@ export class MarkdownSourceEditor implements OnInit {
   readonly initialSource = input.required<string>();
   readonly name = input.required<string>();
   readonly pending = input(false);
-  readonly failed = input(false);
+  /** The refused save's failure: one inline alert here, the reason under Details (Slice 78, L4-018). */
+  readonly failure = input<Failure | null>(null);
+  protected readonly failureId = `markdown-save-error-${++nextEditor}`;
   readonly changedElsewhere = input(false);
   readonly saveBlocked = input(false);
   readonly saveRequested = output<string>();

@@ -814,8 +814,17 @@ export class ProjectPageStore {
     return this.updateSection(id, { title }, placementWrite('rename', this.placementName('section', id)));
   }
 
-  updateConfig(id: SectionId, config: SectionConfig): Promise<boolean> {
-    return this.updateSection(id, { config }, placementWrite('save', this.placementName('section', id)));
+  /**
+   * Resolves `null` when saved, or the save's `Failure` for the section's own editor. The
+   * canvas-level `sectionError` is neither cleared before this write nor set by its failure,
+   * so a config save never shows a second alert or removes an unrelated one (Slice 78, L4-018).
+   */
+  async updateConfig(id: SectionId, config: SectionConfig): Promise<Failure | null> {
+    let failure: Failure = CANVAS_STILL_LOADING;
+    const saved = await this.updateSection(id, { config }, placementWrite('save', this.placementName('section', id)), (refused) => {
+      failure = refused;
+    });
+    return saved ? null : failure;
   }
 
   /**
@@ -967,12 +976,13 @@ export class ProjectPageStore {
     id: SectionId,
     input: Parameters<typeof this.gateway.sections.update>[1],
     failureSentence: string,
+    onFailure?: (failure: Failure) => void,
   ): Promise<boolean> {
     return this.mutate(failureSentence, async ({ current }) => {
       const updated = await reportedWrite(this.reporter, () => this.gateway.sections.update(id, input), sectionReport);
       if (!current()) return;
       this.replaceSection(updated.section);
-    });
+    }, onFailure);
   }
 
   private patchSectionColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): void {
@@ -1207,7 +1217,8 @@ export class ProjectPageStore {
 
   /**
    * The canvas is left exactly as it was when a write fails, with the reason visible. A
-   * silent failure on a remove or a config save is the one that costs the user work.
+   * silent failure on a remove or a config save is the one that costs the user work. With
+   * `onFailure` the caller owns the failure: `sectionError` is neither cleared nor set.
    */
   private mutate(
     failureSentence: string,
@@ -1217,6 +1228,7 @@ export class ProjectPageStore {
       pageId: ProjectPageId;
       generation: number;
     }) => Promise<void>,
+    onFailure?: (failure: Failure) => void,
   ): Promise<boolean> {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
@@ -1226,12 +1238,13 @@ export class ProjectPageStore {
 
     return this.track(() =>
       this.whileWriting(async () => {
-        if (current()) this.sectionErrorState.set(null);
+        if (onFailure === undefined && current()) this.sectionErrorState.set(null);
         try {
           await operation({ current, projectId, pageId, generation });
           return true;
         } catch (error) {
-          if (current()) this.sectionErrorState.set(writeFailure(error, failureSentence));
+          if (onFailure !== undefined) onFailure(writeFailure(error, failureSentence));
+          else if (current()) this.sectionErrorState.set(writeFailure(error, failureSentence));
           return false;
         }
       }),

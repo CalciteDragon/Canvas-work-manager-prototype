@@ -61,7 +61,7 @@ export class ProjectSectionFrame {
   readonly moveRequested = output<'previous' | 'next'>();
   readonly removeRequested = output<SectionId>();
   /** Awaited content writes retain a draft on refusal. */
-  readonly saveConfig = input.required<(id: SectionId, config: SectionConfig) => Promise<boolean>>();
+  readonly saveConfig = input.required<(id: SectionId, config: SectionConfig) => Promise<Failure | null>>();
   readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
   readonly projectDataChanged = output<void>();
 
@@ -75,7 +75,7 @@ export class ProjectSectionFrame {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
 
-  private readonly emitConfig = (config: SectionConfig): Promise<boolean> =>
+  private readonly emitConfig = (config: SectionConfig): Promise<Failure | null> =>
     this.saveConfig()(this.section().id, config);
   private readonly emitProjectDataChange = (): void => this.projectDataChanged.emit();
 

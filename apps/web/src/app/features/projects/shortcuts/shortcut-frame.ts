@@ -10,7 +10,7 @@ import {
   type SectionConfig,
   type SectionShortcutId,
 } from '@cwm/contracts';
-import type { SectionContentInputs } from '../sections/section-contract';
+import { READ_ONLY_CONFIG, type SectionContentInputs } from '../sections/section-contract';
 import { definitionFor } from '../sections/registry';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
@@ -54,7 +54,7 @@ export class ShortcutFrame {
   readonly pageLabel = computed(() => pageLabel(this.shortcut().sourcePageKind));
   readonly sourceLink = computed(() => ({ route: this.sourceRoute(), fragment: `section-${this.shortcut().source.id}` }));
 
-  private readonly noopConfig = async (_config: SectionConfig): Promise<boolean> => false;
+  private readonly noopConfig = async (_config: SectionConfig): Promise<Failure | null> => READ_ONLY_CONFIG;
   private readonly noopProjectData = (): void => {};
 
   readonly contentInputs = computed<SectionContentInputs>(() => ({

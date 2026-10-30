@@ -2,6 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { ProjectSectionSchema, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { MarkdownSectionBody } from './markdown-section-body';
+import type { Failure } from '../../../../shared/feedback/failure';
+
+const NOT_SAVED: Failure = { sentence: 'Couldn’t save “Kickoff”. Try again.', reason: 'host stopped' };
 
 const section = (config: unknown = { markdown: '# Plan' }) => ProjectSectionSchema.parse({
   id: 'section-a', projectId: 'project-a', pageId: 'page-a', type: 'markdown', title: 'Kickoff',
@@ -9,9 +12,9 @@ const section = (config: unknown = { markdown: '# Plan' }) => ProjectSectionSche
   createdAt: '2026-10-01T12:00:00.000Z', updatedAt: '2026-10-01T12:00:00.000Z',
 });
 
-const render = (config: unknown = { markdown: '# Plan' }, readOnly = false, result: Promise<boolean> = Promise.resolve(true)) => {
+const render = (config: unknown = { markdown: '# Plan' }, readOnly = false, result: Promise<Failure | null> = Promise.resolve(null)) => {
   const fixture = TestBed.createComponent(MarkdownSectionBody);
-  const save = vi.fn<(config: SectionConfig) => Promise<boolean>>(() => result);
+  const save = vi.fn<(config: SectionConfig) => Promise<Failure | null>>(() => result);
   fixture.componentRef.setInput('section', section(config));
   fixture.componentRef.setInput('save', save);
   fixture.componentRef.setInput('readOnly', readOnly);
@@ -63,16 +66,40 @@ describe('MarkdownSectionBody', () => {
     update({ markdown: '# Current' }); await click('[data-markdown-edit]');
     expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Current');
   });
-  it('failed Save keeps the draft', async () => {
-    const { query, click, type } = render(undefined, false, Promise.resolve(false));
+  // Slice 78 (L4-018): one message, on the editor — the save's sentence as an inline alert, the
+  // reason under a closed Details, the source described by the sentence alone.
+  it('failed Save keeps the draft and says why once, on the editor', async () => {
+    const { query, click, type } = render(undefined, false, Promise.resolve(NOT_SAVED));
     await click('[data-markdown-edit]'); type('# Unsaved'); await click('[data-markdown-save]');
-    expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Unsaved');
-    expect(query('[data-markdown-failed]').textContent).toContain('Not saved — your draft is kept.');
-    expect(query('[role="alert"]')).toBeNull(); expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
+    const source = query<HTMLTextAreaElement>('[data-markdown-source]');
+    expect(source.value).toBe('# Unsaved');
+    const failed = query('[data-markdown-failed]');
+    const sentence = failed.querySelector<HTMLElement>('[data-failure-sentence]')!;
+    expect(sentence.textContent?.trim()).toBe('Couldn’t save “Kickoff”. Try again.');
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(failed.querySelector('details')?.open).toBe(false);
+    expect(failed.querySelector('details')?.textContent).toContain('host stopped');
+    expect(document.getElementById(source.getAttribute('aria-describedby')!)).toBe(sentence);
+    expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
+  });
+  it('a thrown Save says the section’s sentence with the reason under Details', async () => {
+    const { query, click, type, save } = render();
+    save.mockImplementation(() => Promise.reject(new Error('socket closed')));
+    await click('[data-markdown-edit]'); type('# Unsaved'); await click('[data-markdown-save]');
+    expect(query('[data-markdown-failed] [data-failure-sentence]').textContent?.trim()).toBe('Couldn’t save “Kickoff”. Try again.');
+    expect(query('[data-markdown-failed] details').textContent).toContain('socket closed');
+  });
+  it('Cancel after a failed Save leaves no alert behind', async () => {
+    const { query, click, type } = render(undefined, false, Promise.resolve(NOT_SAVED));
+    await click('[data-markdown-edit]'); type('# Unsaved'); await click('[data-markdown-save]');
+    expect(query('[data-markdown-failed]')).not.toBeNull();
+    await click('[data-markdown-cancel]');
+    expect(query('app-markdown-source-editor')).toBeNull();
+    expect(query('[data-markdown-failed]')).toBeNull(); expect(query('[role="alert"]')).toBeNull();
   });
   it('pending Save cannot be repeated', async () => {
-    let resolve!: (result: boolean) => void;
-    const result = new Promise<boolean>((done) => { resolve = done; });
+    let resolve!: (result: Failure | null) => void;
+    const result = new Promise<Failure | null>((done) => { resolve = done; });
     const { fixture, save, query, click, type } = render(undefined, false, result);
     await click('[data-markdown-edit]'); type('# Waiting'); await click('[data-markdown-save]');
     expect(query<HTMLTextAreaElement>('[data-markdown-source]').readOnly).toBe(true);
@@ -82,7 +109,7 @@ describe('MarkdownSectionBody', () => {
     }
     await click('[data-markdown-save]'); await click('[data-markdown-cancel]');
     expect(save).toHaveBeenCalledTimes(1); expect(query('app-markdown-source-editor')).not.toBeNull();
-    resolve(false); await fixture.whenStable();
+    resolve(NOT_SAVED); await fixture.whenStable();
   });
   it('a section update does not erase the draft', async () => {
     const { query, click, type, update } = render();
@@ -92,33 +119,33 @@ describe('MarkdownSectionBody', () => {
     expect(query('[data-markdown-changed-elsewhere]').textContent).toContain('Saving replaces it.');
   });
   it('an update during a refused pending Save announces once it settles', async () => {
-    let resolve!: (result: boolean) => void;
-    const result = new Promise<boolean>((done) => { resolve = done; });
+    let resolve!: (result: Failure | null) => void;
+    const result = new Promise<Failure | null>((done) => { resolve = done; });
     const { query, click, type, update, settle } = render(undefined, false, result);
     await click('[data-markdown-edit]'); type('# Mine'); await click('[data-markdown-save]');
     update({ markdown: '# Other' }); expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
-    resolve(false); await settle();
+    resolve(NOT_SAVED); await settle();
     expect(query('[data-markdown-changed-elsewhere]')).not.toBeNull();
     expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Mine');
   });
   it('own successful Save never shows the changed-elsewhere notice', async () => {
-    let resolve!: (result: boolean) => void;
-    const result = new Promise<boolean>((done) => { resolve = done; });
+    let resolve!: (result: Failure | null) => void;
+    const result = new Promise<Failure | null>((done) => { resolve = done; });
     const { fixture, query, click, type, update } = render(undefined, false, result);
     await click('[data-markdown-edit]'); type('# Mine');
     const saving = fixture.componentInstance.saveDraft('# Mine'); fixture.detectChanges();
     update({ markdown: '# Mine' }); expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
-    resolve(true); await saving;
+    resolve(null); await saving;
     // First possible render after settlement, before stability or a later frame.
     fixture.detectChanges(); expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
     expect(fixture.componentInstance.editing()).toBe(false); expect(fixture.componentInstance.pending()).toBe(false);
   });
   it('late answer after destroy is ignored', async () => {
-    let resolve!: (result: boolean) => void;
-    const result = new Promise<boolean>((done) => { resolve = done; });
+    let resolve!: (result: Failure | null) => void;
+    const result = new Promise<Failure | null>((done) => { resolve = done; });
     const { fixture, click, type } = render(undefined, false, result);
     await click('[data-markdown-edit]'); type('# Mine');
-    const saving = fixture.componentInstance.saveDraft('# Mine'); fixture.destroy(); resolve(true);
+    const saving = fixture.componentInstance.saveDraft('# Mine'); fixture.destroy(); resolve(null);
     await expect(saving).resolves.toBeUndefined();
     expect(fixture.componentInstance.editing()).toBe(true); expect(fixture.componentInstance.pending()).toBe(true);
   });

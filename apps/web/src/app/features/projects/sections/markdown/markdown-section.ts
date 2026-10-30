@@ -1,6 +1,6 @@
 import type { SectionContentInputs } from '../section-contract';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import type { ProjectSection, SectionConfig } from '@cwm/contracts';
+import type { ProjectSection } from '@cwm/contracts';
 import { MarkdownSectionBody } from './markdown-section-body';
 import { readMarkdownConfig } from './markdown-config';
 
@@ -31,7 +31,7 @@ export const placeholderTextOf = (source: string): string =>
 })
 export class MarkdownSection {
   readonly section = input.required<ProjectSection>();
-  readonly onConfigChange = input.required<(config: SectionConfig) => Promise<boolean>>();
+  readonly onConfigChange = input.required<SectionContentInputs['onConfigChange']>();
   readonly onProjectDataChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
