@@ -53,6 +53,10 @@
   margin: var(--space-1) 0 0;
 }
 
+.project-header__progress-pending {
+  color: var(--color-text-muted);
+}
+
 .project-header__status {
   text-transform: capitalize;
 }

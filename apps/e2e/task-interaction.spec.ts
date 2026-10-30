@@ -42,6 +42,8 @@ for (const theme of ['dark', 'light'] as const) {
     if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     const progress = page.locator('[data-project-progress]');
+    // The page renders before the measurement answers, saying "Measuring…" meanwhile (Slice 78).
+    await expect(progress).toHaveText(/% complete/);
     const before = await progress.innerText();
     const completedResponse = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/api/tasks/${a.id}/complete`));
     await row(page, a.id).locator('[data-task-complete]').click();

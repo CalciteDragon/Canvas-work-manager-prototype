@@ -10,6 +10,13 @@ import { ProjectDetailsDialog } from './project-details-dialog';
 import { ProjectArchiveConfirm } from './project-archive-confirm';
 
 /**
+ * §39's header fact, by state rather than `number | null` (Slice 78, L4-017). `pending` while the
+ * first read is out, `empty` when the domain has nothing to count, `failed` when no value could be
+ * read for this project, otherwise the percentage — `0` included.
+ */
+export type ProgressFact = 'pending' | 'empty' | 'failed' | number;
+
+/**
  * §26's Project Header, rendered once per project by `ProjectWorkspaceShell` — at the top of
  * the workspace track, beside the full-height navigation column and above whichever page is
  * showing. §23's diagram is the one describing the shell, so it wins over reading §26's
@@ -33,8 +40,7 @@ import { ProjectArchiveConfirm } from './project-archive-confirm';
 })
 export class ProjectHeader {
   readonly project = input.required<Project>();
-  /** §39's percentage, or `null` for "not available" — which is not the same as 0%. */
-  readonly progress = input<number | null>(null);
+  readonly progress = input<ProgressFact>('pending');
   readonly writeError = input<Failure | null>(null);
   readonly routeLanding = input(true);
   readonly saveDetails = input<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>(async () => false);

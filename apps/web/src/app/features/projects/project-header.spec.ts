@@ -65,9 +65,28 @@ describe('ProjectHeader lifts (§26)', () => {
     fixture.componentRef.setInput('progress', 0);
     await settle(fixture);
     expect(query(fixture, '[data-project-progress]').textContent).toContain('0%');
-    fixture.componentRef.setInput('progress', null);
+  });
+
+  it('names the progress fact’s state, never "Not available" (§39, L4-017)', async () => {
+    const fixture = await render();
+    const fact = () => query(fixture, '[data-project-progress]');
+    fixture.componentRef.setInput('progress', 'pending');
     await settle(fixture);
-    expect(query(fixture, '[data-project-progress-unavailable]')).toBeTruthy();
+    expect(fact().textContent?.trim()).toBe('Measuring…');
+    expect(query(fixture, '[data-project-progress-pending]')).toBeTruthy();
+    expect(fact().querySelector('[role="status"], [role="alert"], [aria-busy]')).toBeNull();
+    fixture.componentRef.setInput('progress', 'empty');
+    await settle(fixture);
+    expect(fact().textContent?.trim()).toBe('No tasks to measure');
+    fixture.componentRef.setInput('progress', 'failed');
+    await settle(fixture);
+    expect(fact().textContent?.trim()).toBe('Couldn’t load');
+    expect(query(fixture, '[data-project-progress-failed]')).toBeTruthy();
+    for (const value of ['pending', 'empty', 'failed', 0] as const) {
+      fixture.componentRef.setInput('progress', value);
+      await settle(fixture);
+      expect(fact().textContent).not.toContain('Not available');
+    }
   });
 
   it('uses a native menu invoker, focuses the first item, and navigates menu keys', async () => {

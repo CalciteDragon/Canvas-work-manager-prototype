@@ -88,7 +88,11 @@ focus, and dismissal falls back to a surviving row control or the heading.
 
 1. `ProjectWorkspaceShell` reads `projectId` and optional `pageKind` from the route,
    provides `ProjectWorkspaceStore`, and loads the project, its pages, progress and work
-   tree. It resolves the page positively; a non-resolvable URL redirects to the canonical
+   tree. The page renders once the context answers; the header's progress fact
+   ([`ProgressFact`](../../../api/miscellaneous/typealiases.html#ProgressFact)) says a muted
+   "Measuring…" until its own read answers, then the percentage, "No tasks to measure" when the
+   domain counts nothing (live or archived), or "Couldn’t load" when no value has been read for
+   this project — a failed re-read keeps the last value. It resolves the page positively; a non-resolvable URL redirects to the canonical
    page carrying a notice in navigation state.
 2. It renders `ProjectHeader` once and `ProjectPageNavigation` in the column, then
    mounts the registry's renderer for the page through `NgComponentOutlet` with a

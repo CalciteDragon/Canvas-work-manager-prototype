@@ -345,6 +345,63 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
   });
 });
 
+/**
+ * §39's header fact names its state (Slice 78, L4-017): pending while the first read is out,
+ * empty when there is nothing to count, failed only before any value was read, never "Not available".
+ */
+describe('ProjectWorkspaceStore — the progress fact (§26, §39)', () => {
+  const measured = (projectId: string, percentage: number | null) => ({
+    projectId: projectId as ProjectId, formula: 'count' as const, percentage, completed: 0, total: percentage === null ? 0 : 4,
+    explanation: percentage === null ? 'No tasks to measure' : 'some tasks complete',
+  });
+
+  it('is pending while the first read is out, without holding the page, then a percentage', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    const read = deferred<ReturnType<typeof measured>>();
+    gateway.progress.get = () => read.promise as never;
+    const loading = store.load('project-renovation' as ProjectId);
+    expect(store.progress()).toBe('pending');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.progress()).toBe('pending');
+    // The page does not wait on the measurement: the header renders, saying "Measuring…".
+    expect(store.project()?.id).toBe('project-renovation');
+    expect(store.loading()).toBe(false);
+    read.resolve(measured('project-renovation', 0));
+    await loading;
+    expect(store.progress()).toBe(0);
+  });
+
+  it('is empty when the read counts nothing — the domain’s answer for a root whose tasks all sit in workstreams — archived too', async () => {
+    const { store } = storeWith({ projects: [...renovation(), root('project-attic', 'Legacy attic', { status: 'archived' })] });
+    await store.load('project-renovation' as ProjectId);
+    expect(store.progress()).toBe('empty');
+    await store.load('project-attic' as ProjectId);
+    expect(store.progress()).toBe('empty');
+  });
+
+  it('is failed when no value has been read for this project, and a later success replaces it', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    const get = gateway.progress.get;
+    gateway.progress.get = () => Promise.reject(new GatewayError('internal_error', 500, 'progress exploded'));
+    await store.load('project-renovation' as ProjectId);
+    expect(store.progress()).toBe('failed');
+    gateway.progress.get = get;
+    await store.refreshProgress();
+    expect(store.progress()).toBe('empty');
+  });
+
+  it('keeps the last value when a re-read fails, and starts pending again on another project', async () => {
+    const { store, gateway } = storeWith({ projects: renovation(), progress: measured('project-renovation', 40) });
+    await store.load('project-renovation' as ProjectId);
+    expect(store.progress()).toBe(40);
+    gateway.progress.get = () => Promise.reject(new GatewayError('unreachable', 503, 'host starting'));
+    await store.refreshProgress();
+    expect(store.progress()).toBe(40);
+    void store.load('project-kitchen' as ProjectId);
+    expect(store.progress()).toBe('pending');
+  });
+});
+
 describe('ProjectWorkspaceStore and live updates (§62)', () => {
   it('treats not-found context refreshes as missing, clears them on recovery, and keeps other refresh failures quiet', async () => {
     const live = new FakeLiveUpdates();

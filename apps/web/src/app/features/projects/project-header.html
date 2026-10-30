@@ -20,13 +20,22 @@
     <div>
       <dt>Progress</dt>
       <dd data-project-progress>
-        <!-- `@if (progress(); as value)` would be wrong: a project with nothing done yet has
-             progress `0`, which is falsy, and would read as "Not available" — the one number
-             this control most needs to say. -->
-        @if (progress() !== null) {
-          {{ progress() }}% complete
-        } @else {
-          <span data-project-progress-unavailable>Not available</span>
+        <!-- `pending` is a muted line in the fact's own text style, not a loading row: the header
+             keeps its 1 px rule, and the fact is never "No tasks to measure" or "Couldn't load"
+             before the first read answers. `0` is a percentage, not a missing one. -->
+        @switch (progress()) {
+          @case ('pending') {
+            <span data-project-progress-pending class="project-header__progress-pending">Measuring…</span>
+          }
+          @case ('empty') {
+            <span data-project-progress-empty>No tasks to measure</span>
+          }
+          @case ('failed') {
+            <span data-project-progress-failed>Couldn’t load</span>
+          }
+          @default {
+            {{ progress() }}% complete
+          }
         }
       </dd>
     </div>

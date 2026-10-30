@@ -17,6 +17,7 @@ import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } 
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
+import type { ProgressFact } from './project-header';
 
 /** What a refused project write was for, by the fields it carried (Slice 78). */
 const projectWriteSentence = (input: UpdateProjectInput, name: string): string => {
@@ -83,6 +84,8 @@ export class ProjectWorkspaceStore {
   private readonly ownPagesState = signal<ProjectPage[]>([]);
   private readonly descendantsState = signal<Project[]>([]);
   private readonly progressState = signal<ProgressResult | null>(null);
+  /** Set only when no value has been read for this project: a failed re-read keeps the last one. */
+  private readonly progressFailedState = signal(false);
   private readonly loadingState = signal(true);
   private readonly missingState = signal(false);
   /**
@@ -111,10 +114,13 @@ export class ProjectWorkspaceStore {
   readonly pageWritePending = this.pageWritePendingState.asReadonly();
   readonly pageWriteError = this.pageWriteErrorState.asReadonly();
   readonly pageWriteRetryKind = this.pageWriteRetryKindState.asReadonly();
-  readonly progressResult = this.progressState.asReadonly();
 
   readonly root = computed<Project | null>(() => this.ancestorsState()[0] ?? this.projectState());
-  readonly progress = computed<number | null>(() => this.progressState()?.percentage ?? null);
+  readonly progress = computed<ProgressFact>(() => {
+    const result = this.progressState();
+    if (result === null) return this.progressFailedState() ? 'failed' : 'pending';
+    return result.percentage ?? 'empty';
+  });
   readonly projectWritePending = computed(() => this.projectWritesState() > 0);
 
   readonly subprojectTree = computed<WorkTreeNode[]>(() => {
@@ -272,6 +278,7 @@ export class ProjectWorkspaceStore {
       this.pageWriteRetryKindState.set(null);
       this.pageWriteRetryEnabledState.set(null);
       this.progressState.set(null);
+      this.progressFailedState.set(false);
       try {
         const context = await this.readContext(projectId);
         if (!current()) return;
@@ -287,10 +294,11 @@ export class ProjectWorkspaceStore {
         }
       } finally {
         if (current()) {
-          // Only when there is a project to measure: a second guaranteed-failing request adds
-          // nothing to a page that is already saying it cannot read the project.
+          // The page renders without waiting on the measurement, whose header fact says
+          // "Measuring…" meanwhile (Slice 78). Only when there is a project to measure: a second
+          // guaranteed-failing request adds nothing to a page that cannot read the project.
+          this.loadingState.set(false);
           if (this.projectState() !== null) await this.readProgress(projectId, generation);
-          if (current()) this.loadingState.set(false);
         }
       }
     });
@@ -372,6 +380,7 @@ export class ProjectWorkspaceStore {
     this.ownPagesState.set([]);
     this.descendantsState.set([]);
     this.progressState.set(null);
+    this.progressFailedState.set(false);
   }
 
   /**
@@ -544,13 +553,16 @@ export class ProjectWorkspaceStore {
   }
 
   private async readProgress(projectId: ProjectId, generation: number): Promise<void> {
+    const current = () => !this.destroyed && generation === this.loadGeneration && this.requestedProjectId === projectId;
     try {
       const result = await this.gateway.progress.get(projectId);
-      if (!this.destroyed && generation === this.loadGeneration && this.requestedProjectId === projectId) {
+      if (current()) {
         this.progressState.set(result);
+        this.progressFailedState.set(false);
       }
     } catch {
-      // A missing percentage renders "Not available"; a failed re-read keeps the last one.
+      // "Couldn't load" only while nothing has been read; a failed re-read keeps the last value.
+      if (current() && this.progressState() === null) this.progressFailedState.set(true);
     }
   }
 
