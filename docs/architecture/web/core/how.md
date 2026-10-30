@@ -99,7 +99,8 @@ returns feedback to that same toast and shares the header's transition guard.
 - `shared/components/icon` (slice 72) — the sidebar's New project plus and the drawer's Close.
   It imports nothing from `core`, `features` or `prototype`.
 - `shared/feedback` — `ToastSlot` ownership used by `ReceiptToast` and suppression in the phone
-  navigation drawer. Shared feedback imports no core store or feature.
+  navigation drawer; the shell renders `PinnedFailureSlot` inside `.workspace`, which finds that
+  port as its nearest scrolling ancestor. Shared feedback imports no core store or feature.
 
 **Depended on by**
 

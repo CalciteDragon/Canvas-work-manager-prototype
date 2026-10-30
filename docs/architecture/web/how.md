@@ -60,6 +60,20 @@ caller's `data-*-error` hook, `sentenceId` names the only element a control shou
 by, and the reason sits beside it in a native `<details>`. Slice 78 is moving every store to it;
 until a store has moved, its own message still ends with the host's reason.
 
+An inline write failure whose sentence is off screen can be pinned to its scroll port's edge.
+`PinnedFailureDirective` (`[appPinnedFailure]`, on the row or frame that owns the failure, with
+`pinnedFailureSubject` and `pinnedFailureSentence`, the sentence's id) registers each failure
+occurrence with the root `PinnedFailures` registry and watches the sentence with an
+`IntersectionObserver` rooted at the nearest scrolling ancestor, shrunk by the measured clearance.
+`PinnedFailureSlot`, which the app shell renders inside `.workspace`, draws one copy per edge —
+the most recent, "and N more" — clear of a stuck `[data-pin-clearance]` control and an open
+toast, and centred on the toast's content track. Pressing a copy is the only thing that scrolls:
+it brings the sentence into the clear port and focuses the control whose `aria-describedby` names
+it (the sentence itself when that control is disabled). Close dismisses that occurrence only; a
+replacement failure re-arms. The trap: the sentence id must be unique and inside the host, and
+the clearance hook is opt-in, so a sticky control without it is not measured. No product surface
+registers yet.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -79,6 +93,9 @@ until a store has moved, its own message still ends with the host's reason.
 | `FailureMessage` | component | One failure form: sentence, optional recovery, reason under Details | [API](../../api/components/FailureMessage.html) |
 | `Failure`, `readFailure`, `writeFailure` | interface / functions | The one error-to-sentence translation | [API](../../api/interfaces/Failure.html) |
 | `ToastSlot` | injectable | One visible toast, navigation dismissal and modal suppression | [API](../../api/injectables/ToastSlot.html) |
+| `PinnedFailures` | injectable | Registry of off-screen write failures: most recent per edge, occurrence dismissal, clearance | [API](../../api/injectables/PinnedFailures.html) |
+| `PinnedFailureDirective` | directive | Registers a reference's failure and watches its sentence in the scroll port | [API](../../api/directives/PinnedFailureDirective.html) |
+| `PinnedFailureSlot` | component | Draws the pinned copies at the port's clear edges; press reveals, close dismisses | [API](../../api/components/PinnedFailureSlot.html) |
 
 Each subsystem's `how.md` lists its own.
 
