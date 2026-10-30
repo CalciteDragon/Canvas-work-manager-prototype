@@ -91,3 +91,9 @@
 .pinned-failure__dismiss {
   flex: 0 0 auto;
 }
+
+@media (hover: none), (any-pointer: coarse) {
+  .pinned-failure__show {
+    min-block-size: var(--size-hit-target);
+  }
+}

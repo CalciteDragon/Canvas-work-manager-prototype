@@ -390,16 +390,24 @@ export const CONTEXTS: Context[] = [
     act: async c => {
       const from = c.page.locator(`[data-section-id="${String(c.state['source'])}"] [data-task-row]`).first();
       // The pointer cannot leave the viewport: bring the source to the top so the tall target
-      // list's first rows sit below it on screen, then drop onto the target list's top.
+      // list sits below it on screen. Once the drag has started, drop on the first point of the
+      // list that the list itself owns: at 375 the quick-add field covers the list's top edge,
+      // and CDK will not enter a list through an element outside it.
       await c.page.locator(`[data-section-id="${String(c.state['source'])}"]`).evaluate(e => e.scrollIntoView({ block: 'start' }));
-      const to = c.page.locator(`${TASKS_R} .cdk-drop-list`).first();
-      const a = await from.boundingBox(), b = await to.boundingBox();
-      if (!a || !b) throw new Error('Drag rows are missing');
-      const viewport = c.page.viewportSize()!;
-      const dropY = Math.min(b.y + 40, viewport.height - 10);
+      const a = await from.boundingBox();
+      if (!a) throw new Error('Drag rows are missing');
       await c.page.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await c.page.mouse.down();
       await c.page.mouse.move(a.x + a.width / 2, a.y + a.height / 2 + 12, { steps: 4 });
-      await c.page.mouse.move(b.x + b.width / 2, dropY, { steps: 20 });
+      const drop = await c.page.locator(`${TASKS_R} .cdk-drop-list`).first().evaluate(list => {
+        const r = list.getBoundingClientRect(), x = r.left + r.width / 2;
+        for (let y = Math.max(r.top, 0) + 5; y < Math.min(r.bottom, innerHeight) - 5; y += 10) {
+          const at = document.elementFromPoint(x, y);
+          if (at && list.contains(at)) return { x, y };
+        }
+        return null;
+      });
+      if (!drop) { await c.page.mouse.up(); throw new Error('No point of the target list is on screen'); }
+      await c.page.mouse.move(drop.x, drop.y, { steps: 20 });
       await c.page.waitForTimeout(200); await c.page.mouse.up();
       const shown = await waitForFailure(c.page, TASKS_R, 'Audit: task move failed').then(() => true, () => false);
       c.entry['bannerProduced'] = shown;
