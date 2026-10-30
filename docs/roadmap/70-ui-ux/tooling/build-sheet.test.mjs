@@ -946,7 +946,7 @@ function stateEntry(context, theme, width, rows) {
     regions: mine.map(r => region(r, false)), reasonVisible: reason ? false : null, rawReasonHits: [], pins: pinned ? [pin(pinned)] : [],
     detailsOpen: reason ? mine.map(r => region(r, true, r.pinned ? [anchor(g.port.y + 300)] : [])) : undefined,
     afterPinPress: pinned ? { ...frame, pins: [], regions: mine.map(r => region(r, false, [anchor(g.port.y + 300)])), focus: { inRegion: true, describes: true, isAnchor: false, tag: 'button' } } : undefined,
-    controls: [], axe: { violations: [], incomplete: [] }, consoleErrors: [],
+    controls: [], axe: { violations: [], incomplete: [] }, consoleErrors: [], canvasFailures: [],
     ...(context === 'lab' ? { panels: stateLabPanels() } : {}),
   };
 }
@@ -1169,4 +1169,34 @@ test('profile 78 compares a state\'s runtime axe nodes with every before state a
   const elsewhere = view => e => editState(e, 'todos-failing', x => { x.axe = { violations: [{ id: 'listitem', nodes: [node] }], incomplete: [] }; }, view);
   assert.equal((await statesSheet(t, { evidence: after, before: elsewhere('dark|1440') })).result.status, 0, 'known at the same view');
   await statesFails(t, { evidence: after, before: elsewhere('dark|375') }, 'known only at another width');
+});
+
+test('the profile 78 fixture table is the rig\'s ROWS, so a changed row fails here first', async () => {
+  const source = await readFile(new URL('../../../../apps/e2e/ux/states-verification.ts', import.meta.url), 'utf8');
+  const constants = ['const section =', 'const TASKS_R =', 'const SHORTCUT_R ='].map(start => source.split('\n').find(line => line.startsWith(start)));
+  assert.ok(constants.every(Boolean), 'the rig\'s region constants moved');
+  const body = source.match(/export const ROWS: Row\[\] = \[\n([\s\S]*?)\n\];/)?.[1];
+  assert.ok(body, 'the rig\'s ROWS table moved');
+  const rows = new Function('row', `${constants.join('\n').replace(/\((\w+): string\)/g, '($1)')}\nreturn [${body}];`)(stateRow);
+  assert.deepEqual(rows, stateRows());
+});
+
+test('profile 78 censuses Details summaries, refuses stray pins and canvas-level failures beside section rows', async t => {
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.regions[0].buttons.push({ name: 'Details', tag: 'summary', recovery: null, visible: true, box: { x: 0, y: 0, width: 60, height: 12 } }); }, 'dark|1440') }, 'small Details summary');
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.regions[0].buttons.push({ name: 'Details', tag: 'summary', recovery: null, visible: true, box: { x: 0, y: 0, width: 60, height: 30 } }); }, 'light|375') }, 'small touch Details summary');
+  await statesFails(t, { evidence: e => editState(e, 'pin-todos-below', x => { x.pins.push({ ...x.pins[0], edge: 'top', indicator: '↑' }); }, 'dark|1440') }, 'stray top pin');
+  await statesFails(t, { evidence: e => editState(e, 'pin-todos-below', x => { x.afterPinPress.pins = [{ ...x.pins[0], edge: 'top', indicator: '↑' }]; }, 'dark|1440') }, 'press swaps the pin to the other edge');
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-bodies-failing', x => { x.canvasFailures = [{ text: 'Couldn’t load tasks.', box: { x: 300, y: 80, width: 400, height: 20 } }]; }, 'dark|1440') }, 'duplicate canvas-level failure');
+  await statesFails(t, { evidence: e => editState(e, 'markdown-save-failing', x => { delete x.canvasFailures; }, 'dark|1440') }, 'canvas failures not recorded');
+  const sectionsRead = await statesSheet(t, { evidence: e => editState(e, 'kitchen-sections-failing', x => { x.canvasFailures = [{ text: 'Couldn’t load this canvas.', box: { x: 300, y: 80, width: 400, height: 20 } }]; }) });
+  assert.equal(sectionsRead.result.status, 0, 'a canvas row owns its canvas-level failure: ' + sectionsRead.report);
+});
+
+test('profile 78 reads a state\'s known axe nodes only from before states on the same route and view, and T12 costs exactly one click', async t => {
+  const node = { target: ['li[data-work-project-id="project-kitchen"]'], stableAnchor: '|data-work-project-id=project-kitchen|LI|LI||' };
+  const after = e => editState(e, 'header-progress-pending', x => { x.route = '/projects/project-kitchen'; x.axe = { violations: [{ id: 'listitem', nodes: [node] }], incomplete: [] }; }, 'dark|1440');
+  const elsewhere = route => e => editState(e, 'todos-failing', x => { x.route = route; x.axe = { violations: [{ id: 'listitem', nodes: [node] }], incomplete: [] }; }, 'dark|1440');
+  assert.equal((await statesSheet(t, { evidence: after, before: elsewhere('/projects/project-kitchen') })).result.status, 0, 'known on the same route');
+  await statesFails(t, { evidence: after, before: elsewhere('/projects/project-renovation/pages/todos') }, 'known only on another route');
+  await statesFails(t, { evidence: e => { e.tasks.find(x => x.id === 'T12').clicks = 0; } }, 'T12 costs no clicks');
 });

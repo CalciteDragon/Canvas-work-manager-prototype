@@ -509,13 +509,18 @@ function probe({ regions, reason }: { regions: string[]; reason: string | null }
       box: box(region), show: show ? box(show) : null, dismiss: dismiss ? box(dismiss) : null, side: edge(box(region)) };
   });
   const toastOpen = document.querySelectorAll('[data-toast]:popover-open').length > 0;
+  // Failures on the canvas outside every section and shortcut frame (a duplicate canvas-level alert).
+  const canvasFailures = [...document.querySelectorAll('app-project-canvas, app-project-canvas *')]
+    .filter(e => isFailure(e) && shown(e) && !e.closest('[data-section-id], [data-shortcut-id]'))
+    .filter((e, _, all) => !all.some(outer => outer !== e && outer.contains(e)))
+    .map(e => ({ hooks: [...e.attributes].map(a => a.name).filter(n => n.startsWith('data-') || n === 'role'), text: text(e).slice(0, 300), box: box(e) }));
   // Where focus is, against the rows' regions: inside one, on a sentence, or described by one there.
   const active = document.activeElement;
   const owner = active ? regions.map(r => document.querySelector(r)).find(r => r?.contains(active)) ?? null : null;
   const sentenceIds = new Set(owner ? [...owner.querySelectorAll('[data-failure-sentence]')].map(e => e.id).filter(Boolean) : []);
   const focus = active && active !== document.body ? { tag: active.tagName.toLowerCase(), name: name(active).slice(0, 200), inRegion: !!owner, isAnchor: !!owner && active.matches('[data-failure-sentence]'),
     describes: (active.getAttribute('aria-describedby') ?? '').split(/\s+/).some(id => sentenceIds.has(id)), box: box(active) } : null;
-  return { regions: regionData, reasonVisible: reason ? texts.some(t => t.includes(reason)) : null, rawReasonHits, scrollPort, track, sticky, toast, pins, toastOpen, focus };
+  return { regions: regionData, reasonVisible: reason ? texts.some(t => t.includes(reason)) : null, rawReasonHits, scrollPort, track, sticky, toast, pins, toastOpen, canvasFailures, focus };
 }
 
 /** Slice 78's own evidence; frozen earlier verification journeys are deliberately not re-run. */
@@ -585,8 +590,11 @@ test('States runtime evidence and core tasks', async ({ browser }) => {
       // Open every closed Details in the rows' regions, record what it reveals, then close it again.
       const closed = page.locator(rows.map(r => `${r.region} details:not([open]) > summary`).join(', ') || 'details-none');
       if (await closed.count()) {
-        const summaries = await closed.all();
-        for (const summary of summaries) await summary.click().catch(() => undefined);
+        // Handles, not `nth()` locators: the `:not([open])` set shrinks as each one opens.
+        const summaries = await closed.elementHandles();
+        const detailsErrors: string[] = [];
+        for (const summary of summaries) await summary.click().catch(error => { detailsErrors.push(String(error).split('\n')[0]!); });
+        if (detailsErrors.length) entry['detailsErrors'] = detailsErrors;
         entry['detailsOpen'] = (await page.evaluate(probe, { regions: rows.map(r => r.region), reason: fixture.reason ?? null })).regions;
         entry['detailsOpenScreenshot'] = await c.shot('details');
         await page.evaluate(sel => document.querySelectorAll(sel).forEach(s => { (s.parentElement as HTMLDetailsElement).open = false; }), rows.map(r => `${r.region} details > summary`).join(', '));

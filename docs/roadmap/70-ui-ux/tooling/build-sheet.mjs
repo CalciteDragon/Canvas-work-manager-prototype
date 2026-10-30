@@ -668,9 +668,9 @@ if (profile === '78') {
     const at = { context, theme, width }, touch = width === 375;
     if (!e || e.error) { fail('context not captured', { ...at, error: e?.error ?? null }); continue; }
     const was = stateBaseline?.entries?.find(x => x.context === context && x.theme === theme && x.width === width);
-    // A state's before often rendered another page (a whole-page loading line, a false empty), so a
-    // node is new only when no before state at this theme and width had it.
-    const view = (stateBaseline?.entries ?? []).filter(x => x.theme === theme && x.width === width);
+    // A state's before often rendered the same route another way (a whole-page loading line, a false
+    // empty), so a node is new only when no before state on this route, theme and width had it.
+    const view = (stateBaseline?.entries ?? []).filter(x => x.theme === theme && x.width === width && x.route === e.route);
     // The full census and the new-axe-node rule, as profile 77 runs them on its runtime entries.
     if (!Array.isArray(e.controls) || !Array.isArray(e.axe?.violations) || !Array.isArray(was?.axe?.violations)) fail('runtime control or axe collector missing', at);
     for (const c of (e.controls ?? []).filter(c => c.scope === 'product')) {
@@ -702,6 +702,10 @@ if (profile === '78') {
     if (e.reason && e.reasonVisible !== false) check(null, 'injected reason visible outside a closed Details', { reasonVisible: e.reasonVisible ?? null });
     if (!Array.isArray(e.rawReasonHits) || e.rawReasonHits.length) check(null, 'raw reason text visible', { hits: e.rawReasonHits ?? null });
     if (!mine.some(r => r.pinned) && (!Array.isArray(e.pins) || e.pins.length)) check(null, 'pinned copy shown while no row is pinned', { pins: e.pins ?? null });
+    // A section's failure belongs in its frame: beside a section row, nothing fails at canvas level
+    // outside every frame (the canvas rows own their own canvas-level failure).
+    if (mine.some(r => /^\[data-(section|shortcut)-id=/.test(r.region)) && !mine.some(r => r.region === 'app-project-canvas') && (!Array.isArray(e.canvasFailures) || e.canvasFailures.length))
+      check(null, 'failure outside every section frame on the canvas', { canvasFailures: e.canvasFailures ?? null });
     for (const r of mine) {
       const reg = e.regions?.find(x => x.region === r.region);
       if (!reg?.present) { check(r, 'row region missing'); continue; }
@@ -714,6 +718,7 @@ if (profile === '78') {
         if (!own.length) check(r, 'declared recovery control missing', { recovery: r.recovery, controls: recoveries.map(b => b.name) });
         for (const b of own) if (!targetOk(b.box, touch)) check(r, 'recovery control under target size', { box: b.box ?? null });
       }
+      for (const b of (reg.buttons ?? []).filter(b => b.tag === 'summary' && b.visible === true)) if (!targetOk(b.box, touch)) check(r, 'Details summary under target size', { box: b.box ?? null });
       const opened = e.detailsOpen?.find(x => x.region === r.region);
       if (r.details) {
         if (!e.reason) check(r, 'details row with no injected reason');
@@ -732,7 +737,7 @@ if (profile === '78') {
       if (PIN_CLEARANCE[context] === 'toast' && !clear.toast) check(r, 'the toast is not open over the bottom edge');
       if (PIN_CLEARANCE[context] === 'sticky' && !clear.stuck.length) check(r, 'the quick-add is not stuck at the top edge');
       const onEdge = e.pins.filter(p => p.edge === r.pinned);
-      if (onEdge.length !== 1) check(r, `${onEdge.length} pinned copies at the ${r.pinned} edge`, { pins: e.pins });
+      if (onEdge.length !== 1 || e.pins.length !== 1) check(r, `${onEdge.length} pinned copies at the ${r.pinned} edge, ${e.pins.length} in all`, { pins: e.pins });
       for (const p of onEdge) {
         if (p.indicator !== (top ? '↑' : '↓')) check(r, 'pin indicator does not point to its reference', { indicator: p.indicator ?? null });
         if (![p.box, p.show, p.dismiss].every(isBox)) { check(r, 'pin geometry missing'); continue; }
@@ -749,7 +754,7 @@ if (profile === '78') {
       const after = clearPort(pressed), revealed = pressed.regions?.find(x => x.region === r.region)?.anchors;
       if (!after || !Array.isArray(pressed.pins) || !Array.isArray(revealed) || !revealed.length || revealed.some(x => !isBox(x.box))) check(r, 'pin press geometry missing');
       else {
-        if (pressed.pins.some(p => p.edge === r.pinned)) check(r, 'pin still shown after its press');
+        if (pressed.pins.length) check(r, 'a pin is still shown after the press', { pins: pressed.pins });
         if (!revealed.some(x => x.box.y >= after.top - 0.5 && x.box.y + x.box.height <= after.bottom + 0.5)) check(r, 'pin press did not reveal its sentence anchor');
       }
       if (!(pressed.focus?.inRegion === true && (pressed.focus.describes === true || pressed.focus.isAnchor === true))) check(r, 'pin press did not focus the control its sentence describes', { focus: pressed.focus ?? null });
@@ -765,7 +770,7 @@ if (profile === '78') {
   }
   const was12 = task(stateBaseline, 'T12'), now12 = task(stateEvidence, 'T12');
   // Before is a dead end; after costs one click.
-  if (!was12 || was12.status === 'completed' || !(was12.deadEnds > 0) || !complete(now12) || now12.clicks > 1 || now12.keystrokes > 0) fail('T12 is not a dead end before and one click after', { before: was12 ?? null, after: now12 ?? null });
+  if (!was12 || was12.status === 'completed' || !(was12.deadEnds > 0) || !complete(now12) || now12.clicks !== 1 || now12.keystrokes > 0) fail('T12 is not a dead end before and one click after', { before: was12 ?? null, after: now12 ?? null });
 }
 
 const primitives = profile === '72' ? await optional(join(verificationDir, 'primitives-verification.json')) : null;
