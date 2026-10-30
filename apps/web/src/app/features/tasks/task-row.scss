@@ -6,7 +6,6 @@
 .task-row__title { font-weight: var(--font-weight-semibold); text-align: start; overflow-wrap: anywhere; }
 .task-row__metadata { display: flex; flex-wrap: wrap; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .task-row--failed { border-color: var(--color-danger); }
-.task-row__error { margin: var(--space-1) 0 0; color: var(--color-danger); font-size: var(--font-size-sm); }
 .task-row__overdue-label { color: var(--color-danger); }
 .task-row--archiving { opacity: var(--opacity-disabled); }
 /* Pending creates keep their existing, noninteractive treatment (Slice 75). */

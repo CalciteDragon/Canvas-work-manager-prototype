@@ -60,6 +60,12 @@
   color: var(--color-danger);
 }
 
+// A field and its failure's Details sit together, closer than the drawer's gap (Slice 78).
+.drawer__field-group {
+  display: grid;
+  gap: var(--space-1);
+}
+
 .drawer__field .field,
 .drawer__field .select {
   width: 100%;

@@ -109,8 +109,12 @@ for (const touch of [false, true]) {
       const field = section.locator('[data-quick-task-title]');
       await field.fill('Order tiles');
       await field.press('Enter');
-      const message = section.locator('[data-quick-create-error]');
-      await expect(message).toHaveText('Couldn’t add “Order tiles”. Try again. Injected create failure');
+      const failure = section.locator('[data-quick-create-error]');
+      const message = failure.locator('[data-failure-sentence]');
+      await expect(message).toHaveText('Couldn’t add “Order tiles”. Try again.');
+      // Slice 78: the reason is behind Details, outside the field's description.
+      await failure.locator('summary').click();
+      await expect(failure.locator('details')).toContainText('Injected create failure');
       await expect(field).toHaveValue('Order tiles');
       await expect(field).toHaveAttribute('aria-describedby', (await message.getAttribute('id'))!);
       await expect(section.locator('[data-task-pending]')).toHaveCount(0);
@@ -172,7 +176,9 @@ for (const touch of [false, true]) {
       for (const task of [first, second]) {
         const row = section.locator(`[data-task-row][data-task-id="${task.id}"]`);
         await row.locator('[data-task-complete]').click();
-        await expect(row.locator('[data-task-error]')).toHaveText(`Couldn’t complete “${task.title}”. Try again. Injected completion failure`);
+        await expect(row.locator('[data-task-error] [data-failure-sentence]')).toHaveText(`Couldn’t complete “${task.title}”. Try again.`);
+        await row.locator('[data-task-error] summary').click();
+        await expect(row.locator('[data-task-error] details')).toContainText('Injected completion failure');
         await expect(row.locator('[data-task-complete]')).not.toBeChecked();
       }
       await expect(section.locator('[data-task-error]')).toHaveCount(2);
@@ -207,7 +213,9 @@ for (const touch of [false, true]) {
 
       fail = true;
       await priority.selectOption('low');
-      await expect(drawer.locator('[data-field-status="priority"]')).toHaveText('Not saved. Try again. Injected save failure');
+      await expect(drawer.locator('[data-field-status="priority"]')).toHaveText('Not saved. Try again.');
+      await drawer.locator('[data-field-details="priority"] summary').click();
+      await expect(drawer.locator('[data-field-details="priority"]')).toContainText('Injected save failure');
       await expect(priority).toHaveValue('high');
       await expect(row).toHaveClass(/task-row--high-priority/);
     });

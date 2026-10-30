@@ -56,8 +56,8 @@
         @else { <span [class.task-row__overdue-label]="item.kind === 'overdue'">{{ item.text }}</span> }
       }
     </div>
-    @if (shownError(); as message) {
-      <p data-task-error class="task-row__error object-row__context" role="alert" [id]="errorId()">{{ message }}</p>
+    @if (shownError(); as failure) {
+      <app-failure-message data-task-error class="object-row__context" weight="inline" [failure]="failure" live="alert" [sentenceId]="errorId()" />
     }
   </div>
 

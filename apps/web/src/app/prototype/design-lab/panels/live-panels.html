@@ -7,7 +7,7 @@
     <app-task-row [task]="high" [now]="now" />
     <app-task-row [task]="normal" [selected]="true" [now]="now" />
     <app-task-row [task]="normal" [compact]="true" [now]="now" />
-    <app-task-row [task]="failed" [now]="now" error="Couldn’t complete “Verify analytics events”. Try again. The server did not answer." />
+    <app-task-row [task]="failed" [now]="now" [error]="failedRowError" />
     <app-pending-task-row title="Order sample tiles" />
   </div>
 </section>

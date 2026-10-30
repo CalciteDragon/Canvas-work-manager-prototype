@@ -13,10 +13,12 @@ import { RouterLink } from '@angular/router';
 import { taskMeta } from './task-meta';
 import { Icon } from '../../shared/components/icon/icon';
 import { isOverdue } from './task-overdue';
+import { FailureMessage } from '../../shared/feedback/failure-message';
+import type { Failure } from '../../shared/feedback/failure';
 
 @Component({
   selector: 'app-task-row',
-  imports: [Icon, RouterLink],
+  imports: [Icon, RouterLink, FailureMessage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './task-row.html',
   styleUrl: './task-row.scss',
@@ -34,7 +36,7 @@ export class TaskRow {
    */
   readonly archiving = input(false);
   /** A failed write on this row (Slice 75): shown under the title, named by the checkbox. */
-  readonly error = input<string | null>(null);
+  readonly error = input<Failure | null>(null);
   readonly now = input(Date.now());
   readonly readOnly = input(false);
   /** A projection opens its canonical section instead of selecting a local task (§34). */
@@ -115,7 +117,7 @@ export class TaskRow {
   selectBackground(event: MouseEvent): void {
     if (this.readOnly() || this.link()) return;
     const row = this.row().nativeElement;
-    if (event.target instanceof Element && event.target.closest('button, input, a, select, textarea, label')) {
+    if (event.target instanceof Element && event.target.closest('button, input, a, select, textarea, label, summary, details')) {
       return;
     }
     if (this.pointerMoved(event)) return;

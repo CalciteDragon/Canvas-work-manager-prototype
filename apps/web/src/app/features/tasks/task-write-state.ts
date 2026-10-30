@@ -1,3 +1,5 @@
+import type { Failure } from '../../shared/feedback/failure';
+
 /**
  * Slice 75's browser-side view of the writes a Task List has in flight. None of these is a
  * contract type: they describe what the page is waiting for, never what the server holds.
@@ -22,6 +24,6 @@ export type TaskDrawerField = 'title' | 'priority' | 'dueAt' | 'estimate';
 export type TaskFieldSave =
   | { readonly state: 'saving' }
   | { readonly state: 'saved' }
-  | { readonly state: 'failed'; readonly message: string };
+  | { readonly state: 'failed'; readonly failure: Failure };
 
 export type TaskFieldSaves = Partial<Record<TaskDrawerField, TaskFieldSave>>;

@@ -374,7 +374,8 @@ describe('TaskListSection (§30, §66)', () => {
     fixture.detectChanges();
     expect(editor.value).toBe('Retain this draft');
     expect(query(fixture, '[data-task-drawer] h2')?.textContent).toBe('Task task-1');
-    expect(query(fixture, '[data-field-status="title"]')?.textContent).toContain('Title refused');
+    expect(query(fixture, '[data-field-status="title"]')?.textContent?.trim()).toBe('Not saved. Try again.');
+    expect(query(fixture, '[data-field-details="title"]')?.textContent).toContain('Title refused');
     expect(query(fixture, '[data-tasks-error]')).toBeNull();
     editor.dispatchEvent(new FocusEvent('blur'));
     expect(gateway.tasks.update).toHaveBeenCalledOnce();
@@ -760,9 +761,13 @@ describe('TaskListSection quick-add feedback (Slice 75, §34, §63)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(input.value).toBe('Order tiles');
-    const message = query(fixture, '[data-quick-create-error]')!;
-    expect(message.textContent).toContain('Couldn’t add “Order tiles”. Try again.');
+    const message = query(fixture, '[data-quick-create-error] [data-failure-sentence]')!;
+    expect(message.textContent?.trim()).toBe('Couldn’t add “Order tiles”. Try again.');
+    expect(message.getAttribute('role')).toBe('alert');
     expect(input.getAttribute('aria-describedby')).toBe(message.id);
+    // The reason is a closed Details beside the described sentence (Slice 78).
+    expect(query(fixture, '[data-quick-create-error] details')?.textContent).toContain('offline');
+    expect(message.textContent).not.toContain('offline');
     expect(query(fixture, '[data-tasks-error]')).toBeNull();
   });
 
@@ -789,7 +794,8 @@ describe('TaskListSection quick-add feedback (Slice 75, §34, §63)', () => {
     fixture.detectChanges();
     expect(pending.create).not.toHaveBeenCalled();
     expect(input.getAttribute('aria-invalid')).toBe('true');
-    expect(query(fixture, '[data-quick-create-error]')?.textContent?.trim()).toBe('Enter a task title.');
+    expect(query(fixture, '[data-quick-create-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Enter a task title.');
+    expect(query(fixture, '[data-quick-create-error] details')).toBeNull();
     expect(document.activeElement).toBe(input);
 
     input.value = 'O';
@@ -830,7 +836,9 @@ describe('TaskListSection quick-add feedback (Slice 75, §34, §63)', () => {
     await store.receive('task-elsewhere' as TaskId, section().id);
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-tasks-receive-error]')?.textContent).toContain('move refused');
+    expect(query(fixture, '[data-tasks-receive-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t move the task into this list. Try again.');
+    expect(query(fixture, '[data-tasks-receive-error] [data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(query(fixture, '[data-tasks-receive-error] details')?.textContent).toContain('move refused');
     expect(query(fixture, '[data-tasks-receive-error] [data-recovery]')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('[data-task-row]')).toHaveLength(2);
   });

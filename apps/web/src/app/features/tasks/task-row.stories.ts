@@ -107,7 +107,7 @@ export const Reopening: Story = {
 export const Failed: Story = {
   args: {
     task: task({ title: 'Verify analytics events' }),
-    error: 'Couldn’t complete “Verify analytics events”. Try again. The server did not answer.',
+    error: { sentence: 'Couldn’t complete “Verify analytics events”. Try again.', reason: 'The server did not answer.' },
   },
 };
 

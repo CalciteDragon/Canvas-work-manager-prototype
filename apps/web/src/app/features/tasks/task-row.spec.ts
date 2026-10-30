@@ -257,19 +257,38 @@ describe('TaskRow', () => {
     expect(element.querySelector('[data-task-error]')).toBeNull();
     expect(element.querySelector('[data-task-complete]')?.hasAttribute('aria-describedby')).toBe(false);
 
-    fixture.componentRef.setInput('error', 'Couldn’t complete “Write the first draft”. Try again. Offline');
+    fixture.componentRef.setInput('error', { sentence: 'Couldn’t complete “Write the first draft”. Try again.', reason: 'Offline' });
     await fixture.whenStable();
-    const message = element.querySelector<HTMLElement>('[data-task-error]')!;
-    expect(message.getAttribute('role')).toBe('alert');
-    expect(message.textContent).toContain('Couldn’t complete “Write the first draft”. Try again.');
-    expect(message.id).not.toBe('');
-    expect(element.querySelector('[data-task-complete]')?.getAttribute('aria-describedby')).toBe(message.id);
+    const failure = element.querySelector<HTMLElement>('[data-task-error]')!;
+    const sentence = failure.querySelector<HTMLElement>('[data-failure-sentence]')!;
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(sentence.textContent?.trim()).toBe('Couldn’t complete “Write the first draft”. Try again.');
+    expect(sentence.id).not.toBe('');
+    // The checkbox is described by the sentence alone; the reason is a closed Details beside it (Slice 78).
+    expect(element.querySelector('[data-task-complete]')?.getAttribute('aria-describedby')).toBe(sentence.id);
+    const details = failure.querySelector<HTMLDetailsElement>('details')!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain('Offline');
+    expect(sentence.contains(details)).toBe(false);
     expect(element.querySelector('[data-task-row]')?.classList.contains('task-row--failed')).toBe(true);
+  });
+
+  it('never selects the row when its failure’s Details is opened or read (Slice 78)', async () => {
+    const { fixture, element, component } = await render();
+    const emitted = vi.fn();
+    component.selectedRequested.subscribe(emitted);
+    fixture.componentRef.setInput('error', { sentence: 'Couldn’t complete “Write the first draft”. Try again.', reason: 'Offline' });
+    await fixture.whenStable();
+    element.querySelector<HTMLElement>('[data-task-error] summary')!.click();
+    element.querySelector<HTMLElement>('[data-task-error] details p')!.click();
+    expect(emitted).not.toHaveBeenCalled();
+    element.querySelector<HTMLElement>('[data-task-row]')!.click();
+    expect(emitted).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a read-only row free of a write error', async () => {
     const { fixture, element } = await render(task(), { readOnly: true });
-    fixture.componentRef.setInput('error', 'Ignored');
+    fixture.componentRef.setInput('error', { sentence: 'Ignored', reason: null });
     await fixture.whenStable();
     expect(element.querySelector('[data-task-error]')).toBeNull();
   });

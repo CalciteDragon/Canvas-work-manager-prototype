@@ -20,8 +20,8 @@
         class="button button--primary"
         [attr.aria-disabled]="store.pendingCreate() === null ? null : 'true'"
       >{{ store.pendingCreate() === null ? 'Add task' : 'Adding…' }}</button>
-      @if (store.createError(); as message) {
-        <p data-quick-create-error class="quick-create__error field-status field-status--failed" role="alert" [id]="createErrorId()">{{ message }}</p>
+      @if (store.createError(); as failure) {
+        <app-failure-message data-quick-create-error class="quick-create__error" weight="inline" [failure]="failure" live="alert" [sentenceId]="createErrorId()" />
       }
     </form>
     <p data-quick-create-status class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
@@ -31,8 +31,8 @@
   @if (store.error(); as failure) {
     <app-failure-message data-tasks-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.loading()" (retry)="store.retry()" />
   }
-  @if (store.receiveError(); as message) {
-    <p data-tasks-error data-tasks-receive-error class="task-list-section__error" role="alert">{{ message }}</p>
+  @if (store.receiveError(); as failure) {
+    <app-failure-message data-tasks-error data-tasks-receive-error [failure]="failure" live="alert" />
   }
 
   @if (dragging()) {

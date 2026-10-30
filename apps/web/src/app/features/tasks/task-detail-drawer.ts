@@ -19,7 +19,7 @@ const FIELD_NAMES: Record<TaskDrawerField, string> = { title: 'Title', priority:
 
 /** What a field's own write says beside its label (Slice 75). */
 const statusText = (save: TaskFieldSave): string =>
-  save.state === 'saving' ? 'Saving…' : save.state === 'saved' ? 'Saved' : save.message;
+  save.state === 'saving' ? 'Saving…' : save.state === 'saved' ? 'Saved' : save.failure.sentence;
 
 @Component({
   imports: [Icon],
@@ -46,15 +46,17 @@ export class TaskDetailDrawer {
   readonly overdue = computed(() => isOverdue(this.task(), this.now()));
   /**
    * The field status to show, if any. The drawer's own blank-title refusal outranks a title
-   * save failure, so one field never carries two alerts.
+   * save failure, so one field never carries two alerts. A failure's `reason` is for its Details
+   * (Slice 78), never the status text.
    */
   readonly fieldStatus = computed(() => {
     const saves = this.saveStates();
     const blankTitle = this.titleError() !== null;
-    return (field: TaskDrawerField): { text: string; state: TaskFieldSave['state']; id: string } | null => {
+    return (field: TaskDrawerField): { text: string; state: TaskFieldSave['state']; id: string; reason: string | null } | null => {
       const save = saves[field];
       if (save === undefined || (field === 'title' && blankTitle)) return null;
-      return { text: statusText(save), state: save.state, id: `task-field-status-${this.task().id}-${field}` };
+      const reason = save.state === 'failed' ? save.failure.reason : null;
+      return { text: statusText(save), state: save.state, id: `task-field-status-${this.task().id}-${field}`, reason };
     };
   });
   /** One polite sentence for the field that changed last; failures and saves alike. */

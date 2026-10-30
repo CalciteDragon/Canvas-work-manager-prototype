@@ -61,6 +61,7 @@ export class LivePanels {
   });
   protected readonly high = labTask({ id: 'task-high', title: 'Fix the sign-up form', priority: 'high' });
   protected readonly failed = labTask({ id: 'task-failed', title: 'Verify analytics events' });
+  protected readonly failedRowError: Failure = { sentence: 'Couldn’t complete “Verify analytics events”. Try again.', reason: 'The server did not answer.' };
   protected readonly now = Date.parse('2026-08-27T16:00:00.000Z');
 
   protected readonly sectionDefinition = stubSectionDefinition();

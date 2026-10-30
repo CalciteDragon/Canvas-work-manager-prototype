@@ -236,14 +236,20 @@ it('says its edits save automatically (Slice 75, L3-008)', async () => {
     expect(priority.getAttribute('aria-hidden')).toBe('true');
     expect(priority.closest('label')?.querySelector('[data-task-priority]')).not.toBeNull();
 
-    fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, dueAt: { state: 'failed', message: 'Not saved. Try again. offline' } });
+    fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, dueAt: { state: 'failed', failure: { sentence: 'Not saved. Try again.', reason: 'offline' } } });
     await fixture.whenStable();
     expect(element.querySelector('[data-field-status="priority"]')?.textContent?.trim()).toBe('Saved');
     expect(element.querySelector('[data-field-status="priority"]')?.classList.contains('field-status--saved')).toBe(true);
     const due = element.querySelector<HTMLElement>('[data-field-status="dueAt"]')!;
-    expect(due.textContent?.trim()).toBe('Not saved. Try again. offline');
+    expect(due.textContent?.trim()).toBe('Not saved. Try again.');
     expect(element.querySelector('[data-task-due-date]')?.getAttribute('aria-invalid')).toBe('true');
     expect(element.querySelector('[data-task-due-date]')?.getAttribute('aria-describedby')).toBe(due.id);
+    // The reason is a closed Details outside the label, so it is neither the field's name nor its description (Slice 78).
+    const details = element.querySelector<HTMLDetailsElement>('[data-field-details="dueAt"]')!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain('offline');
+    expect(details.closest('label')).toBeNull();
+    expect(element.querySelector('[data-field-details="priority"]')).toBeNull();
   });
 
   it('announces the latest save in one polite region', async () => {
@@ -266,14 +272,14 @@ it('says its edits save automatically (Slice 75, L3-008)', async () => {
     fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, title: { state: 'saving' } });
     await fixture.whenStable();
     expect(region()).toBe('');
-    fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, title: { state: 'failed', message: 'Not saved. Try again. offline' } });
+    fixture.componentRef.setInput('saveStates', { priority: { state: 'saved' }, title: { state: 'failed', failure: { sentence: 'Not saved. Try again.', reason: 'offline' } } });
     await fixture.whenStable();
-    expect(region()).toBe('Title: Not saved. Try again. offline');
+    expect(region()).toBe('Title: Not saved. Try again.');
   });
 
   it('never shows the blank-title alert and a title save failure together', async () => {
     const { fixture, element } = await render();
-    fixture.componentRef.setInput('saveStates', { title: { state: 'failed', message: 'Not saved. Try again. offline' } });
+    fixture.componentRef.setInput('saveStates', { title: { state: 'failed', failure: { sentence: 'Not saved. Try again.', reason: 'offline' } } });
     await fixture.whenStable();
     const control = typeTitle(element, '   ');
     enter(control);

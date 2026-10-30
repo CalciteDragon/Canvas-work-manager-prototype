@@ -227,7 +227,7 @@ describe('TaskListStore', () => {
     expect(await store.create('New task')).toBe('refused');
     expect(gateway.tasks.create).not.toHaveBeenCalled();
     // A task cannot exist without a container to render it, so there is nowhere to put one.
-    expect(store.createError()).toContain('section');
+    expect(store.createError()?.sentence).toContain('section');
   });
 
   it('rejects a blank quick-create title without calling the gateway', async () => {
@@ -236,7 +236,7 @@ describe('TaskListStore', () => {
 
     expect(await store.create('   ')).toBe('refused');
     expect(gateway.tasks.create).not.toHaveBeenCalled();
-    expect(store.createError()).toBe('Enter a task title.');
+    expect(store.createError()).toEqual({ sentence: 'Enter a task title.', reason: null });
     expect(store.error()).toBeNull();
   });
 
@@ -301,7 +301,7 @@ describe('TaskListStore', () => {
 
     expect(store.tasks()[0]).toEqual(before);
     expect(store.error()).toBeNull();
-    expect(store.rowErrors().get(before.id)).toContain('could not reach the prototype host');
+    expect(store.rowErrors().get(before.id)?.reason).toContain('could not reach the prototype host');
   });
 
   it('does not let an older failed completion overwrite a newer title mutation', async () => {
@@ -355,7 +355,7 @@ describe('TaskListStore', () => {
     expect(callsWhileOlderPending).toBe(1);
     expect(callsAfterOlderSettled).toBe(2);
     expect(store.tasks()[0]?.title).toBe('Persisted title');
-    expect(store.fieldSave(task().id, 'title')).toEqual({ state: 'failed', message: expect.stringContaining('newer edit failed') });
+    expect(store.fieldSave(task().id, 'title')).toEqual({ state: 'failed', failure: { sentence: 'Not saved. Try again.', reason: expect.stringContaining('newer edit failed') } });
   });
 });
 
@@ -380,7 +380,7 @@ describe('TaskListStore under the panel’s failure injection (§63)', () => {
 
     expect(store.tasks()[0]?.status).toBe('todo');
     expect(store.tasks()[0]?.completedAt).toBeUndefined();
-    expect(store.rowErrors().get('task-a' as TaskId)).toContain('prototype failure injection');
+    expect(store.rowErrors().get('task-a' as TaskId)?.reason).toContain('prototype failure injection');
   });
 });
 
@@ -415,7 +415,7 @@ describe('TaskListStore.reopen (§34, §62, §63)', () => {
     gate.reject(new GatewayError('conflict', 409, 'the task is archived'));
     expect(await reopening).toBe(false);
     expect(store.tasks()[0]).toEqual(before);
-    expect(store.rowErrors().get(before.id)).toContain('the task is archived');
+    expect(store.rowErrors().get(before.id)?.reason).toContain('the task is archived');
     expect(store.completingIds().has(before.id)).toBe(false);
   });
 
@@ -589,7 +589,7 @@ describe('TaskListStore.refresh (§62)', () => {
     await store.load(section());
 
     expect(await store.receive('task-elsewhere' as TaskId, section().id)).toBe(false);
-    expect(store.receiveError()).toContain('move refused');
+    expect(store.receiveError()?.reason).toContain('move refused');
     expect(store.error()?.sentence).toBe('Couldn’t reach your workspace, so this task list didn’t load.');
 
     const reads = list.mock.calls.length;
@@ -610,7 +610,7 @@ describe('TaskListStore.refresh (§62)', () => {
 
     await store.retry();
 
-    expect(store.receiveError()).toContain('move refused');
+    expect(store.receiveError()?.reason).toContain('move refused');
     expect(store.error()?.reason).toBe('still down');
   });
 
@@ -641,7 +641,7 @@ describe('TaskListStore.refresh (§62)', () => {
 
     await store.refresh();
 
-    expect(store.receiveError()).toContain('move refused');
+    expect(store.receiveError()?.reason).toContain('move refused');
     expect(store.tasks()).toHaveLength(1);
   });
 
@@ -751,7 +751,7 @@ describe('TaskListStore.archive (§34)', () => {
 
     // The write was never optimistic, so there is nothing to revert — the row simply stayed.
     expect(store.tasks()).toEqual([before]);
-    expect(store.rowErrors().get(before.id)).toContain('could not reach the prototype host');
+    expect(store.rowErrors().get(before.id)?.reason).toContain('could not reach the prototype host');
   });
 });
 
@@ -800,7 +800,7 @@ describe('TaskListStore.archive', () => {
     expect(await store.archive(task().id)).toBe(false);
 
     expect(store.tasks().map(({ id }) => id)).toEqual([task().id]);
-    expect(store.rowErrors().get(task().id)).toContain('cannot be archived');
+    expect(store.rowErrors().get(task().id)?.reason).toContain('cannot be archived');
     expect(store.archivingIds().has(task().id)).toBe(false);
   });
 });
@@ -885,7 +885,7 @@ describe('TaskListStore quick-add pending row (Slice 75, §34, §63)', () => {
     expect(vi.mocked(gateway.tasks.list).mock.calls.length).toBe(reads + 1);
     expect(store.pendingCreate()).toBeNull();
     expect(store.tasks().map(({ id }) => id)).toEqual(['task-a']);
-    expect(store.createError()).toBe('Couldn’t add “Order tiles”. Try again. could not reach the prototype host');
+    expect(store.createError()).toEqual({ sentence: 'Couldn’t add “Order tiles”. Try again.', reason: 'could not reach the prototype host' });
     expect(store.error()).toBeNull();
   });
 
@@ -911,7 +911,7 @@ describe('TaskListStore quick-add pending row (Slice 75, §34, §63)', () => {
     await store.load(section());
 
     expect(await store.create('Buy milk')).toBe('failed');
-    expect(store.createError()).toContain('Couldn’t add “Buy milk”');
+    expect(store.createError()?.sentence).toBe('Couldn’t add “Buy milk”. Try again.');
   });
 
   it('says the add could not be confirmed when the owed read also fails', async () => {
@@ -923,7 +923,7 @@ describe('TaskListStore quick-add pending row (Slice 75, §34, §63)', () => {
 
     expect(await store.create('Order tiles')).toBe('unconfirmed');
     expect(store.pendingCreate()).toBeNull();
-    expect(store.createError()).toBe('Couldn’t confirm “Order tiles” was added. Check the list before adding it again.');
+    expect(store.createError()).toEqual({ sentence: 'Couldn’t confirm “Order tiles” was added. Check the list before adding it again.', reason: 'offline' });
   });
 
   it('drops a pending add when the store loads another section, and its late answer paints nothing', async () => {
@@ -982,8 +982,8 @@ describe('TaskListStore failures stay on their row (Slice 75, L4-005)', () => {
 
     await store.complete(a.id);
     await store.complete(b.id);
-    expect(store.rowErrors().get(a.id)).toBe('Couldn’t complete “Write the first draft”. Try again. offline');
-    expect(store.rowErrors().get(b.id)).toBe('Couldn’t complete “Verify analytics events”. Try again. offline');
+    expect(store.rowErrors().get(a.id)).toEqual({ sentence: 'Couldn’t complete “Write the first draft”. Try again.', reason: 'offline' });
+    expect(store.rowErrors().get(b.id)).toEqual({ sentence: 'Couldn’t complete “Verify analytics events”. Try again.', reason: 'offline' });
     expect(store.error()).toBeNull();
 
     complete.mockImplementationOnce(async (id) => resultOf(task({ id, status: 'done', completedAt: AT })));
@@ -1003,9 +1003,9 @@ describe('TaskListStore failures stay on their row (Slice 75, L4-005)', () => {
     });
     await store.load(section());
     await store.reopen(done.id);
-    expect(store.rowErrors().get(done.id)).toBe('Couldn’t reopen “Write the first draft”. Try again. Reopen refused');
+    expect(store.rowErrors().get(done.id)).toEqual({ sentence: 'Couldn’t reopen “Write the first draft”. Try again.', reason: 'Reopen refused' });
     await store.archive(done.id);
-    expect(store.rowErrors().get(done.id)).toBe('Couldn’t delete “Write the first draft”. Try again. offline');
+    expect(store.rowErrors().get(done.id)).toEqual({ sentence: 'Couldn’t delete “Write the first draft”. Try again.', reason: 'offline' });
   });
 
   it('keeps a blank drawer title on its field, not the section', async () => {
@@ -1014,7 +1014,7 @@ describe('TaskListStore failures stay on their row (Slice 75, L4-005)', () => {
     expect(await store.updateTitle(task().id, '   ')).toBe(false);
     expect(gateway.tasks.update).not.toHaveBeenCalled();
     expect(store.error()).toBeNull();
-    expect(store.fieldSave(task().id, 'title')).toEqual({ state: 'failed', message: 'Enter a task title.' });
+    expect(store.fieldSave(task().id, 'title')).toEqual({ state: 'failed', failure: { sentence: 'Enter a task title.', reason: null } });
   });
 });
 
@@ -1041,7 +1041,7 @@ describe('TaskListStore optimistic field edits (Slice 75, §63, L3-008)', () => 
     expect(store.tasks()[0]?.dueAt).toBe('2026-09-03T23:59:59.999Z');
     expect(await editing).toBe(false);
     expect(store.tasks()[0]?.dueAt).toBeUndefined();
-    expect(store.fieldSave(task().id, 'dueAt')).toEqual({ state: 'failed', message: 'Not saved. Try again. offline' });
+    expect(store.fieldSave(task().id, 'dueAt')).toEqual({ state: 'failed', failure: { sentence: 'Not saved. Try again.', reason: 'offline' } });
     expect(store.error()).toBeNull();
   });
 

@@ -26,81 +26,101 @@
     {{ task().description || 'No description yet.' }}
   </p>
 
-  <label class="control-label drawer__field">
-    <span class="control-label__row">
-      <span>Title</span>
-      @if (fieldStatus()('title'); as status) {
-        <span data-field-status="title" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+  <div class="drawer__field-group">
+    <label class="control-label drawer__field">
+      <span class="control-label__row">
+        <span>Title</span>
+        @if (fieldStatus()('title'); as status) {
+          <span data-field-status="title" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        }
+      </span>
+      <input
+        class="field"
+        data-task-drawer-title
+        type="text"
+        [value]="draft()"
+        [attr.aria-invalid]="titleError() !== null || fieldStatus()('title')?.state === 'failed'"
+        [attr.aria-describedby]="fieldStatus()('title')?.state === 'failed' ? fieldStatus()('title')!.id : null"
+        (input)="updateDraft($any($event.target).value)"
+        (blur)="commitTitle(true)"
+        (keydown.enter)="commitTitle()"
+        (keydown.escape)="escapeTitle($event)"
+      />
+      @if (titleError(); as error) {
+        <span class="drawer__error" role="alert">{{ error }}</span>
       }
-    </span>
-    <input
-      class="field"
-      data-task-drawer-title
-      type="text"
-      [value]="draft()"
-      [attr.aria-invalid]="titleError() !== null || fieldStatus()('title')?.state === 'failed'"
-      [attr.aria-describedby]="fieldStatus()('title')?.state === 'failed' ? fieldStatus()('title')!.id : null"
-      (input)="updateDraft($any($event.target).value)"
-      (blur)="commitTitle(true)"
-      (keydown.enter)="commitTitle()"
-      (keydown.escape)="escapeTitle($event)"
-    />
-    @if (titleError(); as error) {
-      <span class="drawer__error" role="alert">{{ error }}</span>
+    </label>
+    @if (fieldStatus()('title')?.reason; as reason) {
+      <details data-field-details="title" class="state-message__details"><summary>Details</summary><p>{{ reason }}</p></details>
     }
-  </label>
+  </div>
 
-  <label class="control-label drawer__field">
-    <span class="control-label__row">
-      <span>Priority</span>
-      @if (fieldStatus()('priority'); as status) {
-        <span data-field-status="priority" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
-      }
-    </span>
-    <select
-      class="select"
-      data-task-priority
-      [attr.aria-invalid]="fieldStatus()('priority')?.state === 'failed' ? 'true' : null"
-      [attr.aria-describedby]="fieldStatus()('priority')?.state === 'failed' ? fieldStatus()('priority')!.id : null"
-      [value]="task().priority"
-      (change)="changePriority($any($event.target).value)"
-    >
-      @for (priority of priorities; track priority) {
-        <option [value]="priority" [selected]="priority === task().priority">{{ priority }}</option>
-      }
-    </select>
-  </label>
+  <div class="drawer__field-group">
+    <label class="control-label drawer__field">
+      <span class="control-label__row">
+        <span>Priority</span>
+        @if (fieldStatus()('priority'); as status) {
+          <span data-field-status="priority" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        }
+      </span>
+      <select
+        class="select"
+        data-task-priority
+        [attr.aria-invalid]="fieldStatus()('priority')?.state === 'failed' ? 'true' : null"
+        [attr.aria-describedby]="fieldStatus()('priority')?.state === 'failed' ? fieldStatus()('priority')!.id : null"
+        [value]="task().priority"
+        (change)="changePriority($any($event.target).value)"
+      >
+        @for (priority of priorities; track priority) {
+          <option [value]="priority" [selected]="priority === task().priority">{{ priority }}</option>
+        }
+      </select>
+    </label>
+    @if (fieldStatus()('priority')?.reason; as reason) {
+      <details data-field-details="priority" class="state-message__details"><summary>Details</summary><p>{{ reason }}</p></details>
+    }
+  </div>
 
-  <label class="control-label drawer__field">
-    <span class="control-label__row">
-      <span>Due date</span>
-      @if (fieldStatus()('dueAt'); as status) {
-        <span data-field-status="dueAt" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
-      }
-    </span>
-    <input
-      class="field"
-      data-task-due-date
-      [attr.aria-invalid]="fieldStatus()('dueAt')?.state === 'failed' ? 'true' : null"
-      [attr.aria-describedby]="fieldStatus()('dueAt')?.state === 'failed' ? fieldStatus()('dueAt')!.id : null"
-      type="date"
-      [value]="dueDate()"
-      (change)="changeDueDate($any($event.target).value)"
-    />
-  </label>
+  <div class="drawer__field-group">
+    <label class="control-label drawer__field">
+      <span class="control-label__row">
+        <span>Due date</span>
+        @if (fieldStatus()('dueAt'); as status) {
+          <span data-field-status="dueAt" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        }
+      </span>
+      <input
+        class="field"
+        data-task-due-date
+        [attr.aria-invalid]="fieldStatus()('dueAt')?.state === 'failed' ? 'true' : null"
+        [attr.aria-describedby]="fieldStatus()('dueAt')?.state === 'failed' ? fieldStatus()('dueAt')!.id : null"
+        type="date"
+        [value]="dueDate()"
+        (change)="changeDueDate($any($event.target).value)"
+      />
+    </label>
+    @if (fieldStatus()('dueAt')?.reason; as reason) {
+      <details data-field-details="dueAt" class="state-message__details"><summary>Details</summary><p>{{ reason }}</p></details>
+    }
+  </div>
 
-  <label class="control-label drawer__field">
-    <span class="control-label__row">
-      <span>Estimate</span>
-      @if (fieldStatus()('estimate'); as status) {
-        <span data-field-status="estimate" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
-      }
-    </span>
-    <input class="field" data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''"
-      [attr.aria-invalid]="fieldStatus()('estimate')?.state === 'failed' ? 'true' : null"
-      [attr.aria-describedby]="fieldStatus()('estimate')?.state === 'failed' ? fieldStatus()('estimate')!.id : null"
-      (change)="changeEstimate($any($event.target).value)" />
-  </label>
+  <div class="drawer__field-group">
+    <label class="control-label drawer__field">
+      <span class="control-label__row">
+        <span>Estimate</span>
+        @if (fieldStatus()('estimate'); as status) {
+          <span data-field-status="estimate" aria-hidden="true" class="field-status" [class.field-status--saved]="status.state === 'saved'" [class.field-status--failed]="status.state === 'failed'" [id]="status.id">{{ status.text }}</span>
+        }
+      </span>
+      <input class="field" data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''"
+        [attr.aria-invalid]="fieldStatus()('estimate')?.state === 'failed' ? 'true' : null"
+        [attr.aria-describedby]="fieldStatus()('estimate')?.state === 'failed' ? fieldStatus()('estimate')!.id : null"
+        (change)="changeEstimate($any($event.target).value)" />
+    </label>
+    @if (fieldStatus()('estimate')?.reason; as reason) {
+      <details data-field-details="estimate" class="state-message__details"><summary>Details</summary><p>{{ reason }}</p></details>
+    }
+  </div>
   <p data-task-save-announcement class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
 
   <dl class="drawer__facts">

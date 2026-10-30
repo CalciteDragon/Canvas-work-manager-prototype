@@ -2,7 +2,7 @@ import { Injectable, PendingTasks, computed, inject, signal } from '@angular/cor
 import type { ProjectId, ProjectSection, SectionId, Task, TaskId, TaskPriority, TaskWriteResult, UpdateTaskInput } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
-import { readFailure, type Failure } from '../../shared/feedback/failure';
+import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 import type { PendingTaskCreate, TaskCreateOutcome, TaskDrawerField, TaskFieldSave, TaskFieldSaves } from './task-write-state';
 
 type MutableTaskField = keyof Pick<
@@ -10,11 +10,13 @@ type MutableTaskField = keyof Pick<
   'title' | 'description' | 'status' | 'priority' | 'estimate' | 'projectId' | 'sectionId' | 'parentTaskId' | 'startAt' | 'dueAt' | 'completedAt' | 'updatedAt'
 >;
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 const readFailed = (error: unknown): Failure => readFailure(error, 'this task list');
 
 /** Slice 75's failure copy: what did not happen, to which task, and what to do. */
-const failedOn = (verb: string, title: string, error: unknown): string => `Couldn’t ${verb} “${title}”. Try again. ${messageOf(error)}`;
+const failedOn = (verb: string, title: string, error: unknown): Failure => writeFailure(error, `Couldn’t ${verb} “${title}”. Try again.`);
+/** A refusal said before any write: a sentence with nothing for Details. */
+const refusal = (sentence: string): Failure => ({ sentence, reason: null });
+const TITLE_REQUIRED = 'Enter a task title.';
 
 const fieldKey = (id: TaskId, field: TaskDrawerField): string => `${id}:${field}`;
 
@@ -65,14 +67,14 @@ export class TaskListStore {
   private readonly selectedTaskIdState = signal<TaskId | null>(null);
   private readonly loadingState = signal(false);
   private readonly errorState = signal<Failure | null>(null);
-  private readonly receiveErrorState = signal<string | null>(null);
+  private readonly receiveErrorState = signal<Failure | null>(null);
   /** What `load` was last asked for, so Try again can ask it again. */
   private requested: ProjectSection | null = null;
   private readonly completingIdsState = signal<ReadonlySet<TaskId>>(new Set());
   private readonly archivingIdsState = signal<ReadonlySet<TaskId>>(new Set());
   private readonly pendingCreateState = signal<PendingTaskCreate | null>(null);
-  private readonly createErrorState = signal<string | null>(null);
-  private readonly rowErrorsState = signal<ReadonlyMap<TaskId, string>>(new Map());
+  private readonly createErrorState = signal<Failure | null>(null);
+  private readonly rowErrorsState = signal<ReadonlyMap<TaskId, Failure>>(new Map());
   private readonly fieldSavesState = signal<ReadonlyMap<string, { id: TaskId; field: TaskDrawerField; save: TaskFieldSave }>>(new Map());
   private createKey = 0;
   /**
@@ -131,7 +133,7 @@ export class TaskListStore {
 
   /** Typing answers an empty-title refusal; a failed add keeps its message until the next add. */
   clearTitleRefusal(): void {
-    if (this.createErrorState() === 'Enter a task title.') this.createErrorState.set(null);
+    if (this.createErrorState()?.sentence === TITLE_REQUIRED) this.createErrorState.set(null);
   }
 
   fieldSave(id: TaskId, field: TaskDrawerField): TaskFieldSave | null {
@@ -281,14 +283,14 @@ export class TaskListStore {
   create(rawTitle: string): Promise<TaskCreateOutcome> {
     const title = rawTitle.trim();
     if (title === '') {
-      this.createErrorState.set('Enter a task title.');
+      this.createErrorState.set(refusal(TITLE_REQUIRED));
       return Promise.resolve('refused');
     }
     if (this.pendingCreateState() !== null) return Promise.resolve('refused');
     const projectId = this.projectIdState();
     const sectionId = this.sectionIdState();
     if (projectId === null || sectionId === null) {
-      this.createErrorState.set('Tasks cannot be created before the section loads.');
+      this.createErrorState.set(refusal('Tasks cannot be created before the section loads.'));
       return Promise.resolve('refused');
     }
 
@@ -326,12 +328,12 @@ export class TaskListStore {
             this.errorState.set(null);
           }
           if (committed !== undefined) return 'added';
-          this.createErrorState.set(`Couldn’t add “${title}”. Try again. ${messageOf(error)}`);
+          this.createErrorState.set(writeFailure(error, `Couldn’t add “${title}”. Try again.`));
           return 'failed';
         } catch {
           if (!ours()) return 'stale';
           this.pendingCreateState.set(null);
-          this.createErrorState.set(`Couldn’t confirm “${title}” was added. Check the list before adding it again.`);
+          this.createErrorState.set(writeFailure(error, `Couldn’t confirm “${title}” was added. Check the list before adding it again.`));
           return 'unconfirmed';
         }
       }
@@ -341,7 +343,7 @@ export class TaskListStore {
   updateTitle(id: TaskId, rawTitle: string): Promise<boolean> {
     const title = rawTitle.trim();
     if (title === '') {
-      this.setFieldSave(id, 'title', { state: 'failed', message: 'Enter a task title.' });
+      this.setFieldSave(id, 'title', { state: 'failed', failure: refusal(TITLE_REQUIRED) });
       return Promise.resolve(false);
     }
     return this.updateFields(id, 'title', { title }, ['title', 'updatedAt']);
@@ -447,8 +449,7 @@ export class TaskListStore {
         this.rereadAfterWrite();
         return true;
       } catch (error) {
-        // Raw until Stage 4 gives the write failures their Details (Slice 78).
-        this.receiveErrorState.set(messageOf(error));
+        this.receiveErrorState.set(writeFailure(error, 'Couldn’t move the task into this list. Try again.'));
         return false;
       }
     }));
@@ -526,7 +527,7 @@ export class TaskListStore {
       } catch (error) {
         if (latest()) {
           this.patchCurrent(id, confirmed.task, fields, operationRevision);
-          this.setFieldSave(id, field, { state: 'failed', message: `Not saved. Try again. ${messageOf(error)}` });
+          this.setFieldSave(id, field, { state: 'failed', failure: writeFailure(error, 'Not saved. Try again.') });
         }
         return false;
       } finally {
@@ -536,12 +537,12 @@ export class TaskListStore {
     })));
   }
 
-  private setRowError(id: TaskId, message: string | null): void {
+  private setRowError(id: TaskId, failure: Failure | null): void {
     this.rowErrorsState.update((errors) => {
-      if (message === null && !errors.has(id)) return errors;
+      if (failure === null && !errors.has(id)) return errors;
       const next = new Map(errors);
-      if (message === null) next.delete(id);
-      else next.set(id, message);
+      if (failure === null) next.delete(id);
+      else next.set(id, failure);
       return next;
     });
   }
