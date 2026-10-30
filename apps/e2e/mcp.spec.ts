@@ -63,6 +63,25 @@ test('workspace.read alone returns canonical task origins over HTTP MCP', async 
   }
 });
 
+test('the real AI provider’s failure reaches HTTP MCP as a null digest with every other field and no provider text (§24, §44)', async () => {
+  await seed('agent-heavy');
+  await setClock(PINNED_NOW);
+  await requestApi.post('/prototype/ai-provider', { provider: 'real' });
+  const client = await connectMcp(TOKEN, 'cwm-digest-failure-e2e');
+  try {
+    const answer = await client.callTool({ name: 'get_dashboard_context', arguments: {} });
+    expect(answer.isError).not.toBe(true);
+    const dashboard = DashboardResultSchema.parse(answer.structuredContent);
+    expect(dashboard.dailyDigest).toBeNull();
+    for (const field of Object.keys(DashboardResultSchema.shape)) expect(dashboard).toHaveProperty(field);
+    expect(dashboard.activeProjects.length).toBeGreaterThan(0);
+    expect(JSON.stringify(answer)).not.toMatch(/RealAIProvider|not implemented|PROTOTYPE_AI_PROVIDER/);
+  } finally {
+    await client.close();
+    await requestApi.post('/prototype/ai-provider', { provider: 'mock' });
+  }
+});
+
 test('an agent’s task appears in the open page without a reload, attributed to Claude', async ({ page }) => {
   await seed('agent-heavy');
   await setClock(PINNED_NOW);
