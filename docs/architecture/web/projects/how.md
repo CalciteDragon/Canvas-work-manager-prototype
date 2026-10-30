@@ -71,8 +71,9 @@ before its first await, then reconciles again from the current row after settlem
 refusal cannot leave the browser's own state changed. Cancelled tasks have no toggle, and
 workstreams retain one-way Complete. A failed complete or reopen is said on its row
 (`rowErrors`, `[data-todo-row-error]`, linked from the control by `aria-describedby`) as
-"Couldn’t complete “X”. Try again." with the reason; that row's next attempt or a load clears it.
-Only a failed Delete uses the page alert `[data-todo-write-error]` (Slice 75).
+"Couldn’t complete “X”. Try again."; that row's next attempt or a load clears it. Only a failed
+Delete uses the page alert `[data-todo-write-error]` (Slice 75), "Couldn’t delete “X”. Try
+again.". Both are `Failure`s rendered by `FailureMessage`, the reason under Details (Slice 78).
 
 Todos captures the task title and owner before optimistic Delete removes the row. A committed
 answer opens its own “Archived …” toast with receipt Undo and Open archive, even after the final
@@ -223,7 +224,10 @@ while the same page re-reads). `shortcutsError()` is the shortcuts read's: "Coul
 this page’s sections, so adding and moving are paused.", with Try again through
 `retryShortcuts()` (`shortcutsRetryPending()` while it runs). Only a successful shortcuts read
 clears it; `sectionError()` holds write failures only, so an unrelated write cannot. Writes and
-drag stay gated by `orderComplete()`. "Loading canvas…" is a `.state-message--loading` line with
+drag stay gated by `orderComplete()`. Each `sectionError()` write names its placement in slice
+75's frame — "Couldn’t move “X”. Try again.", resize, rename, save (settings), change and remove
+for shortcuts, and the section removal's own sentence — with the reason under Details; the
+removal guard ("Retry or dismiss the unresolved removal…") is a sentence alone. "Loading canvas…" is a `.state-message--loading` line with
 `aria-busy`; nothing else says the order is incomplete. A failed removal's `FailedSectionRemoval`
 carries a `Failure`, and the canvas toast binds its reason as `detail`, the toast's Details.
 
@@ -235,8 +239,10 @@ quiet or loud: `TimelineStore` ("this timeline"), `ActivityStore` ("recent activ
 `ProgressStore.writeError()` is the formula write's ("Couldn’t change how progress is measured.
 Try again.", beside the controls, the result kept); `stale()` is a failed re-read after a write
 ("This progress may be out of date.") whose Try again, `retryStale()`, is quiet.
-`ReflectionsStore.createError()` shows on the composer and `editError()` beside the edit form
-(raw text until Stage 4); a successful write after a failed read re-reads in full. A shortcut
+`ReflectionsStore.createError()` ("Couldn’t add your reflection. Try again.") shows on the
+composer, whose body names the sentence by `aria-describedby`, and `editError()` ("Couldn’t save
+your changes to this reflection. Try again.") beside the edit form, each with Details; a
+successful write after a failed read re-reads in full. A shortcut
 frame's body is its source section's component, so it inherits these.
 
 The Todos and Reflections pages do the same for their reads (`readFailure(…, 'this list')`;
@@ -247,7 +253,8 @@ with a quiet Try again (`retryRefresh()`, busy as `refreshPending()`). On Todos 
 is never covered by a stale notice. On the Reflections page a save whose re-read failed is
 `savedUnrefreshed()`, "Saved, but this journal couldn’t refresh." with Retry refresh; it outranks
 stale, and a later failed quiet read keeps it. The container add's failure is
-`addContainerError()`, apart from the container read's `containerError()`.
+`addContainerError()` ("Couldn’t add a Reflections container. Try again."), apart from the
+container read's `containerError()`; the composer's `writeError()` is the section's sentence.
 
 MarkdownSection is an eager shell with a deferred body and escaped source placeholder.
 `placeholderTextOf` simplifies the placeholder for converted prose: it drops a backslash before
@@ -296,7 +303,8 @@ start keeps its original straddle. Narrow layouts still hide gap marks and resiz
 `ProjectPageStore` reapplies pending `collapsed` and `columnSpan` fields in `setCanvas`,
 including every `replaceSection` and `replaceShortcut`. Collapse records history normally,
 but paints before the response. `collapsePending` and `collapseErrors` are keyed by placement
-id and passed to frames. Refusals restore the confirmed field. The gateway codes
+id and passed to frames as `Failure`s ("Couldn’t collapse “X”. Try again.", the reason under
+Details). Refusals restore the confirmed field. The gateway codes
 `unreachable`, `internal_error` and `invalid_response` also owe one quiet read. A read clears
 an error only if it confirms the requested collapse value; the next toggle, load or generation
 clears it too. The frame's alert describes Collapse.
@@ -452,6 +460,14 @@ dirty fields retain their base. Unchanged Save closes without writing, blank nam
 dirty dismissal asks Discard changes, and a failed Save keeps the draft and one dialog alert.
 Discard clears that error before the header returns. Archive confirmation uses the existing
 archive callback, keeps header Undo and returns focus to More, including refusal.
+
+A refused project write is the store's `writeError()`, a `Failure` named by what it was for
+("Couldn’t rename “X”. Try again.", change the status, description or date of, archive, or save
+the details of): `[data-project-write-error]` in the header, or the details dialog's alert while
+it is open, each with the reason under Details (Slice 78). A page toggle's failure is
+`pageWriteError()` in the page settings: "Couldn’t turn on the Todos page. Try again.", or, when
+the toggle committed but navigation's read failed, "Turned on the Todos page, but navigation
+couldn’t refresh." with Retry refresh (`[data-recovery="retry-refresh"]`, which re-reads only).
 
 All surfaces register with shared LiftStack; custom work/section creation dialogs retain
 their existing CDK traps and adopt the lift paint. The canvas releases section creation's

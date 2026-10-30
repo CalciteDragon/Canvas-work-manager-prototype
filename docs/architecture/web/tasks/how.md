@@ -8,7 +8,8 @@
 2. Each row renders as `TaskRow` with the task and its flags; the section wires the row's
    callbacks to store methods. Title or background clicks select idempotently and open
    `TaskDetailDrawer`; title Enter/Space are the keyboard path. A moved mouse/pen gesture or a
-   new background text selection does not select. Checkbox and Delete never select. Since slice 72
+   new background text selection does not select. Checkbox, Delete and a failure's Details
+   (`summary, details` in the guard) never select. Since slice 72
    the checkbox is the shared `.checkbox` primitive over the native input, the Delete the quiet
    trash `.tool`, and the details drawer's Close an `.icon-button` that keeps its "Close task
    details" name; the drawer's fields use `.field` and `.select`.
@@ -18,8 +19,9 @@
    `unconfirmed` or `stale`). A failure owes one list read, and a same-title task whose id was
    absent at submit counts as committed. `error()` is the list read's `Failure` ("this task
    list"), shown in the section banner with Try again (`retry()`) instead of the empty sentence;
-   quick-add stays enabled under it. `receiveError()` is a drag-receive's failure, in the same
-   banner with no Try again (raw text until Stage 4); a read never clears it, and loading
+   quick-add stays enabled under it. `receiveError()` is a drag-receive's failure ("Couldn’t
+   move the task into this list. Try again."), in the same banner with no Try again; a read
+   never clears it, and loading
    another section does. A successful add or receive after a failed read starts a quiet full
    read (`refresh()`, which waits for writes in flight) that clears the failure (Slice 78,
    L4-027). The trap: clear the field only when the pending entry
@@ -34,6 +36,13 @@
    live refreshes. Dirty compares against its last synced base title. Escape discards a dirty
    draft before blur; otherwise it closes. Blur after Enter does not send a second PATCH;
    explicit Enter retries a failed write.
+   Every write failure is a `Failure` (Slice 78): `rowErrors` ("Couldn’t complete “X”. Try
+   again.", reopen and delete alike), `createError` (a refused add, the uncertain-commit
+   sentence, or a validation refusal with no reason) and a failed field save
+   (`{ state: 'failed', failure }`, "Not saved. Try again."). Each keeps its slice-75 place and
+   `aria-describedby` link to the sentence alone; the reason is a closed Details beside it —
+   `FailureMessage` on the row and quick-add, and in the drawer a `[data-field-details]` outside
+   the field's label, so it is neither the field's name nor its description.
 4. Live frames naming a task the store holds trigger a quiet re-read unless a write is in
    flight, in which case the re-read waits. `pendingMutations` coalesces those reads;
    `loadGeneration` rejects answers crossing a container switch, and a read crossed by a
