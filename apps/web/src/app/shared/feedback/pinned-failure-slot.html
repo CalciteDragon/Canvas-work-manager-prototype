@@ -1,0 +1,14 @@
+@for (edge of edges; track edge) {
+  @if (shown()[edge]; as pin) {
+    <div #region class="pinned-failure" [class]="'pinned-failure--' + edge" [style]="frame()" [attr.data-failure-pin-region]="edge"
+      (focusin)="focusIn(edge)" (focusout)="focusOut($event, region)">
+      <button type="button" class="pinned-failure__show" [attr.data-failure-pin]="edge" [attr.aria-label]="label(pin)" (click)="reveal(pin)">
+        <span class="pinned-failure__indicator" aria-hidden="true">{{ edge === 'top' ? '↑' : '↓' }}</span>&ngsp;<span class="pinned-failure__sentence">{{ pin.sentence }}</span>
+        @if (pin.more) {&ngsp;<span class="pinned-failure__more">and {{ pin.more }} more</span> }
+      </button>
+      <button type="button" class="icon-button pinned-failure__dismiss" [attr.data-failure-pin-dismiss]="edge" [attr.aria-label]="'Dismiss “' + pin.subject + '”'" (click)="dismiss(pin)">
+        <app-icon name="close" />
+      </button>
+    </div>
+  }
+}
