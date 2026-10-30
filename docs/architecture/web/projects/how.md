@@ -36,7 +36,9 @@ Only the open Preview mounts content, so source discovery never reads owned rows
 read is `ShortcutStore.error()`, a `Failure` ("Couldn’t load the list of sections.") rendered by
 a region `FailureMessage` (`data-shortcut-picker-error`) with Try again (`retry()`) busy on
 `loading()`; a re-read of the same page keeps it until it answers, another page clears it. The
-picker's `createError` is its own, still a raw string until Stage 4.
+picker's `createError` is its own: the failed Add's `Failure` ("Couldn’t add a shortcut to “X”. Try
+again.") as an inline `FailureMessage` (`data-shortcut-picker-create-error`) with the reason under
+Details, and only that source's Add is described by the sentence.
 
 `ShortcutFrame.name` and the shortcut branch of `ProjectCanvas.placementName` call contracts'
 `shortcutNameOf(source, sourceProjectName)`. Untitled sources gain their owning project in
@@ -56,7 +58,9 @@ deferred until a pending submit settles. The shell closes on `store.loading()` o
 chosen closes focus the visible plus or the narrow column toggle after rendering.
 `ProjectWorkspaceStore.createWorkstream` trims and validates the draft, guards a single flight per
 load generation, reports the child's creation receipt and requests a quiet context read only in
-the generation that started it. Creation keeps the URL and uses the header's existing cross-owner
+the generation that started it. It resolves `null` or a `Failure`: a refusal before sending is a
+sentence with no reason, a refused write "Couldn’t add “X”. Try again." with the reason, which the
+dialog shows as an inline `FailureMessage` (`data-create-work-error`) that describes the name field. Creation keeps the URL and uses the header's existing cross-owner
 history feedback. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
 The column itself is deferred inside the loaded-root branch, alongside the deferred create dialog;
 the loaded context triggers it immediately. Loading reserves the navigation grid track; a failed
@@ -260,11 +264,16 @@ MarkdownSection is an eager shell with a deferred body and escaped source placeh
 `placeholderTextOf` simplifies the placeholder for converted prose: it drops a backslash before
 ASCII punctuation or a line break and the `&#32;`/`&#9;`/`&#13;` references the conversion writes,
 so the escapes do not flash before the body renders. It is display-only, not a decoder.
-The frame supplies a stable `saveConfig(id, config): Promise<boolean>` callback through
-`SectionContentInputs`; the canvas delegates to `ProjectPageStore.updateConfig`. Shortcuts
-pass a false-returning no-op. The body mounts a fresh `MarkdownSourceEditor` for each Edit;
-Save replaces the whole config after an awaited result, while Cancel and unchanged Save write
-nothing. A failed Save keeps the draft, and pending protects it from further edits or dismissal.
+The frame supplies a stable `saveConfig(id, config): Promise<Failure | null>` callback through
+`SectionContentInputs`; the canvas delegates to `ProjectPageStore.updateConfig`, which writes
+through `mutate`'s `onFailure` so the canvas-level `sectionError` is neither cleared nor set: the
+failure goes back to the section alone (L4-018). Before the first read it answers "The page is
+still loading. Try again in a moment." Shortcuts pass a no-op that answers `READ_ONLY_CONFIG`. The
+body mounts a fresh `MarkdownSourceEditor` for each Edit; Save replaces the whole config after an
+awaited result, while Cancel and unchanged Save write nothing. A failed Save keeps the draft and
+shows the returned `Failure` once, on the editor (`data-markdown-failed`, an inline alert with the
+reason under Details, describing the source); Cancel closes the editor and the message with it.
+Pending protects the draft from further edits or dismissal.
 A live source update keeps the draft and announces replacement; unreadable config blocks Save
 and shows only the guidance note. `MarkdownConfigSchema` comes from contracts, where the domain
 enforces it on every write, so only a hand edit, or Undo/Redo replaying state recorded before Slice 64,
@@ -332,7 +341,7 @@ clears it too. The frame's alert describes Collapse.
 | `InsertionPoint`, `SectionResizeHandle` | components | Canvas insertion and resize controls; their marks come from the shared `Icon` | [API](../../../api/components/InsertionPoint.html) |
 | `toolbarKeydown`, `toolbarFocusin` | functions | Roving toolbar movement and active tool on any focus entry | [API](../../../api/miscellaneous/functions.html#toolbarKeydown) |
 | `gridInsertionGaps` | function | Sparse grid gaps that can fit a supported width | [API](../../../api/miscellaneous/variables.html#gridInsertionGaps) |
-| `CanvasWriteResult` | type | Success or displayed canvas-write failure | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
+| `CanvasWriteResult` | type | Success, or the canvas create's `Failure` for its popup | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
 | `TaskListSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The five registered types beside Markdown | [API](../../../api/components/TaskListSection.html) |
 | `MarkdownSection`, `MarkdownSectionBody` | components | Eager shell, deferred source rendering and awaited authoring | [API](../../../api/components/MarkdownSection.html) |
 | `placeholderTextOf` | function | Display-only simplification of escaped source for the eager placeholder | [API](../../../api/miscellaneous/variables.html#placeholderTextOf) |
@@ -421,7 +430,10 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   project, and specs that a live frame during the write does not overwrite the paint and that the
   write reports begin, commit and end.
 - **A popup or frame that must preserve input on failure:** return a `CanvasWriteResult`
-  from the store and translate its message at the callback boundary. `ShortcutPicker` reports
+  from the store; its failure is a `Failure` ("Couldn’t add the Notes section. Try again.", the
+  reason for Details), and the canvas's own refusals before sending (no insertion point, the page
+  still loading, the shortcuts read failed) are reason-less `Failure`s. `SectionCreateDialog` shows
+  it as an inline `FailureMessage` (`data-create-section-error`) that describes the name field. `ShortcutPicker` reports
   its pending state to `SectionCreateDialog`, which blocks Back, Cancel and Escape until a
   shortcut write settles; success closes the dialog and refusal keeps the picker error visible.
   A successful create resolves `{ ok: true, placementId }`, and closing the dialog scrolls that
@@ -457,7 +469,9 @@ shared keyboard movement. Status commits immediately; Edit details opens a three
 with one Save. ProjectWorkspaceStore.saveDetails uses its existing optimistic project write,
 sending only changed name/description/date fields in one PATCH. Clean fields follow refreshes;
 dirty fields retain their base. Unchanged Save closes without writing, blank name refuses,
-dirty dismissal asks Discard changes, and a failed Save keeps the draft and one dialog alert.
+dirty dismissal asks Discard changes, and a failed Save keeps the draft and one dialog alert
+(`data-project-details-error`, an inline `FailureMessage`: the blank-name refusal describes the
+name field, a failed save describes Save and keeps its reason under Details).
 Discard clears that error before the header returns. Archive confirmation uses the existing
 archive callback, keeps header Undo and returns focus to More, including refusal.
 
