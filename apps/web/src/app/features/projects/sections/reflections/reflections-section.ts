@@ -1,9 +1,10 @@
 import type { SectionContentInputs } from '../section-contract';
 import { ChangeDetectionStrategy, Component, ViewChild, effect, inject, input, signal } from '@angular/core';
 import type { ProjectSection, ReflectionId, SectionConfig } from '@cwm/contracts';
+import { FailureMessage } from '../../../../shared/feedback/failure-message';
 import { ReflectionComposer, type ReflectionDraft } from './reflection-composer';
 import { ReflectionsStore } from './reflections-store';
-@Component({ selector: 'app-reflections-section', changeDetection: ChangeDetectionStrategy.OnPush, imports: [ReflectionComposer], providers: [ReflectionsStore], templateUrl: './reflections-section.html', styleUrl: './reflections-section.scss' })
+@Component({ selector: 'app-reflections-section', changeDetection: ChangeDetectionStrategy.OnPush, imports: [ReflectionComposer, FailureMessage], providers: [ReflectionsStore], templateUrl: './reflections-section.html', styleUrl: './reflections-section.scss' })
 export class ReflectionsSection {
   readonly section = input.required<ProjectSection>(); readonly onConfigChange = input.required<(config: SectionConfig) => void>(); readonly onProjectDataChange = input.required<() => void>(); readonly projectDataRevision = input.required<number>(); readonly projectHierarchyRevision = input.required<number>(); readonly readOnly = input(false);
   readonly sourceLink = input<SectionContentInputs['sourceLink']>(null); readonly store = inject(ReflectionsStore); readonly editing = signal<ReflectionId | null>(null);

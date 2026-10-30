@@ -135,9 +135,11 @@ describe('ReflectionsStore (§36)', () => {
     await store.load(section());
 
     expect(await store.create('   ')).toBe(false);
-    expect(store.error()).toContain('body');
+    expect(store.createError()).toContain('body');
     expect(await store.create('Valid')).toBe(false);
-    expect(store.error()).toContain('host unavailable');
+    expect(store.createError()).toContain('host unavailable');
+    // Slice 78: a write failure never takes the read's place (§19).
+    expect(store.error()).toBeNull();
     expect(store.reflections()).toEqual([before]);
   });
 
@@ -174,7 +176,52 @@ describe('ReflectionsStore (§36)', () => {
 
     expect(await store.saveEdit('Title', 'Body')).toBe(false);
     expect(store.editingId()).toBe(before.id);
-    expect(store.error()).toContain('save failed');
+    expect(store.editError()).toContain('save failed');
+    expect(store.error()).toBeNull();
+    expect(store.createError()).toBeNull();
+  });
+
+  it('says a failed read in product words and keeps it through Try again until it answers (Slice 78)', async () => {
+    const again = deferred<Reflection[]>();
+    const list = vi.fn<WorkManagerGateway['reflections']['list']>()
+      .mockRejectedValueOnce(new GatewayError('not_found', 404, 'Section section-project-a-reflections was not found'))
+      .mockImplementationOnce(() => again.promise);
+    const store = setup({ reflections: { list } } as unknown as WorkManagerGateway);
+    await store.load(section());
+    expect(store.error()).toEqual({ sentence: 'This journal isn’t available.', reason: 'Section section-project-a-reflections was not found' });
+
+    const retrying = store.retry();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('This journal isn’t available.');
+    again.resolve([reflection()]);
+    await retrying;
+
+    expect(store.error()).toBeNull();
+    expect(store.reflections()).toHaveLength(1);
+  });
+
+  it('keeps a read failure through a failed create, and a successful create re-reads in full (Slice 78)', async () => {
+    const options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = {
+      reflections: [reflection()],
+      failOn: { 'reflections.list': new GatewayError('internal_error', 500, 'list broke'), 'reflections.create': new GatewayError('internal_error', 500, 'create broke') },
+    };
+    const gateway = new FakeWorkManagerGateway(options);
+    const store = setup(gateway);
+    await store.load(section());
+    expect(store.error()?.sentence).toBe('Couldn’t load this journal.');
+
+    expect(await store.create('A note')).toBe(false);
+    expect(store.error()?.sentence).toBe('Couldn’t load this journal.');
+    expect(store.createError()).toContain('create broke');
+
+    options.failOn = {};
+    const reads = () => gateway.calls.filter(({ method }) => method === 'reflections.list').length;
+    const before = reads();
+    expect(await store.create('A note')).toBe(true);
+    await Promise.resolve();
+    expect(reads()).toBe(before + 1);
+    expect(store.error()).toBeNull();
+    expect(store.createError()).toBeNull();
   });
 
   it('ignores an older load response after navigation', async () => {

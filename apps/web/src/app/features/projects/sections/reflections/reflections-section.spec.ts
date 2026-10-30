@@ -184,6 +184,24 @@ describe('ReflectionsSection (§36)', () => {
     expect(query(fixture, '[data-reflection-entry]')?.textContent).toContain('Revised body');
   });
 
+  it('shows an edit failure beside the edit form, never in the read banner (Slice 78)', async () => {
+    const { fixture } = await render(new FakeWorkManagerGateway({
+      reflections: [reflection()],
+      failOn: { 'reflections.update': new GatewayError('internal_error', 500, 'save broke') },
+    }));
+    query(fixture, '[data-reflection-edit]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-reflection-edit-form]')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-reflection-edit-form] [data-reflection-edit-error]')?.textContent).toContain('save broke');
+    expect(query(fixture, '[data-reflections-error]')).toBeNull();
+    query(fixture, '[data-reflection-cancel]')!.click();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-reflection-edit-error]')).toBeNull();
+  });
+
   it('renders empty, pending, and failure states visibly', async () => {
     const empty = await render(new FakeWorkManagerGateway({ reflections: [] }));
     expect(query(empty.fixture, '[data-reflections-empty]')).not.toBeNull();
@@ -197,6 +215,31 @@ describe('ReflectionsSection (§36)', () => {
     expect(query(failed.fixture, '[data-reflections-error]')?.textContent).toContain(
       'could not load reflections',
     );
+    expect(query(failed.fixture, '[data-reflections-error] [data-failure-sentence]')?.textContent?.trim()).toBe(
+      'Couldn’t reach your workspace, so this journal didn’t load.',
+    );
     expect(query(failed.fixture, '[data-reflections-pending]')).toBeNull();
+    expect(query(failed.fixture, '[data-reflections-empty]')).toBeNull();
+  });
+
+  it('keeps the composer enabled under a failed read, re-reads on Try again, and shows a create failure on the composer (Slice 78)', async () => {
+    const options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = {
+      reflections: [],
+      failOn: { 'reflections.list': new GatewayError('internal_error', 500, 'list broke') },
+    };
+    const { fixture, gateway } = await render(new FakeWorkManagerGateway(options));
+    const reads = () => gateway.calls.filter(({ method }) => method === 'reflections.list').length;
+    expect(query(fixture, '[data-reflection-body]')?.hasAttribute('disabled')).toBe(false);
+
+    const before = reads();
+    query(fixture, '[data-reflections-error] [data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+    expect(reads()).toBe(before + 1);
+
+    options.failOn = { ...options.failOn, 'reflections.create': new GatewayError('internal_error', 500, 'create broke') };
+    await fixture.componentInstance.create({ body: 'A note', title: '', prompt: '' });
+    fixture.detectChanges();
+    expect(query(fixture, '[data-reflection-compose-error]')?.textContent).toContain('create broke');
+    expect(query(fixture, '[data-reflections-error]')?.textContent).not.toContain('create broke');
   });
 });
