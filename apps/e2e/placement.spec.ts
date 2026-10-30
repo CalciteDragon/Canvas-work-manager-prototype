@@ -109,12 +109,12 @@ for (const touch of [false, true]) {
       const field = section.locator('[data-quick-task-title]');
       await field.fill('Order tiles');
       await field.press('Enter');
-      const failure = section.locator('[data-quick-create-error]');
-      const message = failure.locator('[data-failure-sentence]');
+      const createFailure = section.locator('[data-quick-create-error]');
+      const message = createFailure.locator('[data-failure-sentence]');
       await expect(message).toHaveText('Couldn’t add “Order tiles”. Try again.');
       // Slice 78: the reason is behind Details, outside the field's description.
-      await failure.locator('summary').click();
-      await expect(failure.locator('details')).toContainText('Injected create failure');
+      await createFailure.locator('summary').click();
+      await expect(createFailure.locator('details')).toContainText('Injected create failure');
       await expect(field).toHaveValue('Order tiles');
       await expect(field).toHaveAttribute('aria-describedby', (await message.getAttribute('id'))!);
       await expect(section.locator('[data-task-pending]')).toHaveCount(0);
@@ -306,11 +306,11 @@ test('a refused agent permission change is said in that agent’s card (F21)', a
   const cursor = page.locator('[data-connection-id="agent-cursor"]');
   const box = cursor.locator('[data-permission="tasks.write"]');
   await box.click();
-  const failure = cursor.locator('[data-agent-permission-error]');
-  const message = failure.locator('[data-failure-sentence]');
+  const permissionFailure = cursor.locator('[data-agent-permission-error]');
+  const message = permissionFailure.locator('[data-failure-sentence]');
   await expect(message).toHaveText('Couldn’t change Modify tasks for Cursor. Try again.');
-  await failure.locator('summary').click();
-  await expect(failure.locator('details')).toContainText('Injected permission failure');
+  await permissionFailure.locator('summary').click();
+  await expect(permissionFailure.locator('details')).toContainText('Injected permission failure');
   await expect(box).toHaveAttribute('aria-describedby', (await message.getAttribute('id'))!);
   await expect(box).not.toBeChecked();
   await expect(page.locator('[data-agents-error]')).toHaveCount(0);
