@@ -26,6 +26,7 @@ import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history
 import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
 import { ReceiptToast } from '../../core/history/receipt-toast';
 import { FailureMessage } from '../../shared/feedback/failure-message';
+import type { Failure } from '../../shared/feedback/failure';
 import { Toast } from '../../shared/feedback/toast';
 import { WORKSPACE_NARROW_BREAKPOINT } from '../../core/layout/breakpoints';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
@@ -171,7 +172,7 @@ export class ProjectWorkspaceShell {
     visit(this.store.subprojectTree(), 1);
     return result;
   });
-  readonly createWorkstream = (parentId: ProjectId, name: string): Promise<string | null> => this.store.createWorkstream(parentId, name);
+  readonly createWorkstream = (parentId: ProjectId, name: string): Promise<Failure | null> => this.store.createWorkstream(parentId, name);
 
   readonly notice = this.noticeState.asReadonly();
   readonly noticeEnableKind = this.noticeEnableKindState.asReadonly();

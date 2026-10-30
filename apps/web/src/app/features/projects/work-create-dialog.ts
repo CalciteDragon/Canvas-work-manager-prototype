@@ -4,6 +4,8 @@ import {
 } from '@angular/core';
 import type { ProjectId } from '@cwm/contracts';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
+import { FailureMessage } from '../../shared/feedback/failure-message';
+import { writeFailure, type Failure } from '../../shared/feedback/failure';
 
 /** One live parent choice in the root's work hierarchy. */
 export interface WorkCreateParent {
@@ -17,17 +19,19 @@ export interface WorkCreateParent {
 @Component({
   selector: 'app-work-create-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FailureMessage],
   templateUrl: './work-create-dialog.html',
   styleUrl: './work-create-dialog.scss',
 })
 export class WorkCreateDialog {
   readonly parents = input.required<readonly WorkCreateParent[]>();
-  readonly create = input.required<(parentId: ProjectId, name: string) => Promise<string | null>>();
+  /** Resolves `null` on success, or the failure to show beside the form: a sentence, the reason for Details (Slice 78). */
+  readonly create = input.required<(parentId: ProjectId, name: string) => Promise<Failure | null>>();
   readonly closed = output<void>();
   readonly selectedParentId = signal<ProjectId | null>(null);
   readonly name = signal('');
   readonly pending = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = signal<Failure | null>(null);
   /** A blank name is refused beside the field before anything is sent (Slice 75, L4-024). */
   readonly nameRefused = signal(false);
   readonly parentNote = signal<string | null>(null);
@@ -117,7 +121,7 @@ export class WorkCreateDialog {
         this.closed.emit();
       } else this.error.set(error);
     } catch (error) {
-      if (!this.destroyed) this.error.set(error instanceof Error ? error.message : String(error));
+      if (!this.destroyed) this.error.set(writeFailure(error, `Couldn’t add “${this.name().trim()}”. Try again.`));
     } finally {
       this.pending.set(false);
       this.reconcileParent();

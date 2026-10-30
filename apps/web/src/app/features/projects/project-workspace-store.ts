@@ -18,10 +18,6 @@ import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 
-// The work-create dialog's failure is still raw until that dialog takes a `Failure` (Slice 78).
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
 /** What a refused project write was for, by the fields it carried (Slice 78). */
 const projectWriteSentence = (input: UpdateProjectInput, name: string): string => {
   const fields = Object.keys(input);
@@ -306,20 +302,24 @@ export class ProjectWorkspaceStore {
     return projectId === undefined ? Promise.resolve() : this.load(projectId);
   }
 
-  /** Creates named work through the existing project gateway; the new child's history owns it. */
-  createWorkstream(parentId: ProjectId, rawName: string): Promise<string | null> {
+  /**
+   * Creates named work through the existing project gateway; the new child's history owns it.
+   * Resolves `null`, or the dialog's `Failure`: a refusal before sending has no reason (Slice 78).
+   */
+  createWorkstream(parentId: ProjectId, rawName: string): Promise<Failure | null> {
+    const refuse = (sentence: string) => Promise.resolve({ sentence, reason: null });
     const name = rawName.trim();
-    if (name === '') return Promise.resolve('A workstream name is required.');
+    if (name === '') return refuse('A workstream name is required.');
     const root = this.root();
     if (this.destroyed || this.loading() || root === null || this.project()?.id !== this.requestedProjectId) {
-      return Promise.resolve('Load a project before adding a workstream.');
+      return refuse('Load a project before adding a workstream.');
     }
     const contains = (nodes: WorkTreeNode[]): boolean => nodes.some((node) => node.project.id === parentId || contains(node.children));
     if (parentId !== root.id && !contains(this.subprojectTree())) {
-      return Promise.resolve('Choose an available parent for this workstream.');
+      return refuse('Choose an available parent for this workstream.');
     }
     const generation = this.loadGeneration;
-    if (this.workCreateGeneration === generation) return Promise.resolve('A workstream is already being created.');
+    if (this.workCreateGeneration === generation) return refuse('A workstream is already being created.');
     this.workCreateGeneration = generation;
     return this.track(async () => {
       try {
@@ -329,7 +329,7 @@ export class ProjectWorkspaceStore {
         if (!this.destroyed && generation === this.loadGeneration) this.refreshContext();
         return null;
       } catch (error) {
-        return messageOf(error);
+        return writeFailure(error, `Couldn’t add “${name}”. Try again.`);
       } finally {
         if (this.workCreateGeneration === generation) this.workCreateGeneration = null;
       }

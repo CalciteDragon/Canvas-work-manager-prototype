@@ -134,7 +134,9 @@ test('real archived-ancestry refusal retains the name and parent without creatin
   const before = await projects();
   await api.patch('/api/projects/project-cabinets', { status: 'archived' });
   await dialogOf(page).getByRole('button', { name: 'Create', exact: true }).click();
-  await expect(dialogOf(page).getByRole('alert')).toContainText('archived');
+  // Slice 78: the alert is the product sentence; the host's reason is under Details.
+  await expect(dialogOf(page).getByRole('alert')).toHaveText('Couldn’t add “Refused draft”. Try again.');
+  await expect(dialogOf(page).locator('[data-create-work-error] details')).toContainText('archived');
   await expect(nameOf(page)).toHaveValue('Refused draft');
   await expect(parentOf(page)).toHaveValue('project-cabinets');
   expect((await projects()).length).toBe(before.length);
@@ -151,7 +153,8 @@ test('a failed create keeps its draft and an archived root explains why the plus
     ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message: 'Create failed for this journey' }) })
     : route.fallback());
   await dialogOf(page).getByRole('button', { name: 'Create', exact: true }).click();
-  await expect(dialogOf(page).getByRole('alert')).toContainText('Create failed for this journey');
+  await expect(dialogOf(page).getByRole('alert')).toHaveText('Couldn’t add “Transport draft”. Try again.');
+  await expect(dialogOf(page).locator('[data-create-work-error] details')).toContainText('Create failed for this journey');
   await expect(nameOf(page)).toHaveValue('Transport draft');
   await expect(parentOf(page)).toHaveValue('project-kitchen');
   expect((await projects()).length).toBe(before.length);

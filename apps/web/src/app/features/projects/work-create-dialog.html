@@ -9,7 +9,7 @@
         <input class="field" data-create-work-name type="text" required autocomplete="off" [value]="name()"
           [disabled]="pending()" (input)="setName($event)"
           [attr.aria-invalid]="nameRefused() ? 'true' : null"
-          [attr.aria-describedby]="nameRefused() ? 'work-create-name-error' : null" />
+          [attr.aria-describedby]="nameRefused() ? 'work-create-name-error' : error() !== null ? 'work-create-error' : null" />
         @if (nameRefused()) {
           <span id="work-create-name-error" data-create-work-name-error class="field-status field-status--failed" role="alert">Enter a name.</span>
         }
@@ -25,8 +25,8 @@
       @if (parentNote(); as note) {
         <p data-create-work-parent-note class="work-create-dialog__note" role="status">{{ note }}</p>
       }
-      @if (error(); as message) {
-        <p data-create-work-error class="work-create-dialog__error" role="alert">{{ message }}</p>
+      @if (error(); as failure) {
+        <app-failure-message data-create-work-error weight="inline" [failure]="failure" live="alert" sentenceId="work-create-error" />
       }
       <p data-create-work-inside class="work-create-dialog__note">Inside {{ selectedParentName() }}</p>
       <footer>

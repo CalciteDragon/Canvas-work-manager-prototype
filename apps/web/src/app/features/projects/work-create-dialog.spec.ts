@@ -3,6 +3,7 @@ import { ToastSlot } from '../../shared/feedback/toast-slot';
 import type { ProjectId } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkCreateDialog, type WorkCreateParent } from './work-create-dialog';
+import type { Failure } from '../../shared/feedback/failure';
 
 const ROOT = 'project-root' as ProjectId;
 const KITCHEN = 'project-kitchen' as ProjectId;
@@ -12,7 +13,7 @@ const PARENTS: WorkCreateParent[] = [
   { id: 'project-garden' as ProjectId, name: 'Garden', depth: 1, completed: true },
 ];
 
-const render = async (create: (parentId: ProjectId, name: string) => Promise<string | null> = async () => null) => {
+const render = async (create: (parentId: ProjectId, name: string) => Promise<Failure | null> = async () => null) => {
   TestBed.resetTestingModule();
   const fixture = TestBed.createComponent(WorkCreateDialog);
   fixture.componentRef.setInput('parents', PARENTS);
@@ -96,8 +97,8 @@ describe('WorkCreateDialog (§23, §26)', () => {
   });
 
   it('calls create once while pending; busy guards dismissal; failure retains name and parent with alert; success closes', async () => {
-    let finish!: (message: string | null) => void;
-    const create = vi.fn(() => new Promise<string | null>((resolve) => (finish = resolve)));
+    let finish!: (failure: Failure | null) => void;
+    const create = vi.fn(() => new Promise<Failure | null>((resolve) => (finish = resolve)));
     const fixture = await render(create);
     const closed = vi.fn();
     fixture.componentInstance.closed.subscribe(closed);
@@ -112,12 +113,20 @@ describe('WorkCreateDialog (§23, §26)', () => {
     query(fixture, '[data-work-create-dialog]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     fixture.componentInstance.close();
     expect(closed).not.toHaveBeenCalled();
-    finish('The parent is archived.');
+    finish({ sentence: 'Couldn’t add “Paint samples”. Try again.', reason: 'The parent is archived.' });
     await first;
     fixture.detectChanges();
     expect(query<HTMLInputElement>(fixture, '[data-create-work-name]').value).toBe('Paint samples');
     expect(query<HTMLSelectElement>(fixture, '[data-create-work-parent]').value).toBe(KITCHEN);
-    expect(query(fixture, '[role="alert"]').textContent).toContain('The parent is archived.');
+    // Slice 78: the sentence is the alert and the name's description; the reason is under a closed Details.
+    const error = query(fixture, '[data-create-work-error]');
+    const sentence = error.querySelector<HTMLElement>('[data-failure-sentence]')!;
+    expect(sentence.textContent?.trim()).toBe('Couldn’t add “Paint samples”. Try again.');
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(error.querySelector('details')?.open).toBe(false);
+    expect(error.querySelector('details')?.textContent).toContain('The parent is archived.');
+    const name = query<HTMLInputElement>(fixture, '[data-create-work-name]');
+    expect(document.getElementById(name.getAttribute('aria-describedby')!)).toBe(sentence);
     const second = fixture.componentInstance.submit();
     finish(null);
     await second;
@@ -140,7 +149,7 @@ describe('WorkCreateDialog (§23, §26)', () => {
   });
 
   it('keeps focus on the modal while every control is disabled during a write', async () => {
-    let finish!: (message: string | null) => void;
+    let finish!: (failure: Failure | null) => void;
     const fixture = await render(() => new Promise((resolve) => (finish = resolve)));
     nameWork(fixture);
     const submit = query(fixture, '[data-create-work-submit]');
@@ -153,7 +162,7 @@ describe('WorkCreateDialog (§23, §26)', () => {
     dialog.dispatchEvent(tab);
     expect(tab.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(dialog);
-    finish('Try again');
+    finish({ sentence: 'Try again', reason: null });
     await request;
   });
 
@@ -172,7 +181,7 @@ describe('WorkCreateDialog (§23, §26)', () => {
   });
 
   it('defers stale parent reset while pending until refusal; successful close does not reset', async () => {
-    let finish!: (message: string | null) => void;
+    let finish!: (failure: Failure | null) => void;
     const fixture = await render(() => new Promise((resolve) => (finish = resolve)));
     chooseKitchen(fixture);
     nameWork(fixture);
@@ -181,7 +190,7 @@ describe('WorkCreateDialog (§23, §26)', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.selectedParentId()).toBe(KITCHEN);
     expect(query(fixture, '[data-create-work-parent-note]')).toBeNull();
-    finish('Parent unavailable');
+    finish({ sentence: 'Parent unavailable', reason: null });
     await request;
     fixture.detectChanges();
     expect(query<HTMLSelectElement>(fixture, '[data-create-work-parent]').value).toBe(ROOT);

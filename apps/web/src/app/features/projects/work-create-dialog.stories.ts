@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/angular-vite';
 import type { ProjectId } from '@cwm/contracts';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import { WorkCreateDialog, type WorkCreateParent } from './work-create-dialog';
+import type { Failure } from '../../shared/feedback/failure';
 
 const parents: WorkCreateParent[] = [
   { id: 'project-root' as ProjectId, name: 'Renovation', depth: 0, completed: false },
@@ -31,7 +32,7 @@ export const NestedParent: Story = {
 };
 
 export const Pending: Story = {
-  args: { create: () => new Promise<string | null>(() => undefined) },
+  args: { create: () => new Promise<Failure | null>(() => undefined) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByRole('textbox', { name: 'Name' }), 'Paint samples');
@@ -41,13 +42,13 @@ export const Pending: Story = {
 };
 
 export const Refused: Story = {
-  args: { create: async () => 'The parent is archived.' },
+  args: { create: async (): Promise<Failure> => ({ sentence: 'Couldn’t add “Paint samples”. Try again.', reason: 'The parent is archived.' }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByRole('textbox', { name: 'Name' }), 'Paint samples');
     await userEvent.selectOptions(canvas.getByRole('combobox', { name: 'Parent' }), 'project-kitchen');
     await userEvent.click(canvas.getByRole('button', { name: /^Create$/ }));
-    await expect(canvas.getByRole('alert')).toHaveTextContent('The parent is archived.');
+    await expect(canvas.getByRole('alert')).toHaveTextContent('Couldn’t add “Paint samples”. Try again.');
   },
 };
 

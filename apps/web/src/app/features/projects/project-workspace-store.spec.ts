@@ -140,7 +140,7 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     const { store, gateway } = storeWith({ projects: renovation() });
     expect(await store.createWorkstream('project-renovation' as ProjectId, 'Draft')).toBeTruthy();
     await store.load('project-renovation' as ProjectId);
-    expect(await store.createWorkstream('project-renovation' as ProjectId, '  ')).toBe('A workstream name is required.');
+    expect(await store.createWorkstream('project-renovation' as ProjectId, '  ')).toEqual({ sentence: 'A workstream name is required.', reason: null });
     expect(await store.createWorkstream('project-unknown' as ProjectId, 'Draft')).toBeTruthy();
     expect(gateway.calls.filter((call) => call.method === 'projects.create')).toHaveLength(0);
   });
@@ -163,11 +163,12 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'projects.get' || method === 'pages.list')).toHaveLength(reads);
   });
 
-  it('returns a refused create message and leaves the tree unchanged', async () => {
+  it('returns a refused create as a sentence with its reason apart and leaves the tree unchanged', async () => {
     const { store, gateway } = storeWith({ projects: renovation(), failOn: { 'projects.create': new GatewayError('conflict', 409, 'The parent is archived.') } });
     await store.load('project-renovation' as ProjectId);
     const before = store.subprojectTree();
-    expect(await store.createWorkstream('project-kitchen' as ProjectId, 'Draft')).toBe('The parent is archived.');
+    // Slice 78: the product sentence; the host's reason only for Details.
+    expect(await store.createWorkstream('project-kitchen' as ProjectId, 'Draft')).toEqual({ sentence: 'Couldn’t add “Draft”. Try again.', reason: 'The parent is archived.' });
     expect(store.subprojectTree()).toBe(before);
     expect(gateway.calls.filter(({ method }) => method === 'projects.create')).toHaveLength(1);
   });
