@@ -8,6 +8,16 @@ a current read, so a race is verified against the canonical write refusal too.
 
 ## Runtime flow
 
+Slice 78 uses `ux/slice78.config.ts` on web 4256, host 4356 and `.prototype/ux-slice78.json`, with
+the `0c19170` baseline in `apps/e2e/ux-output/slice78-baseline-web/browser` (`UX_BEFORE` for the
+before). `UX_STATES_MATCH` selects `context|theme|width` entries of `states-verification.ts` and
+merges them into the current commit's file, and `UX_STATES_SKIP_TASKS` reuses recorded tasks; run
+one theme and width per foreground command, the last without the skip. `UX_MATCH` does the same
+for the matrix. The rig waits for a failure through `failureProbe`, which also counts the shared
+`[data-failure-sentence]` and a reason under a closed Details. The trap: a summary under the
+phone menu cannot take a pointer click, so the rig opens it from the DOM and records
+`detailsForced`.
+
 Slice 77 uses `ux/slice77.config.ts` on web 4254, host 4354 and
 `.prototype/ux-slice77.json`. Its genuine `e0e1467` baseline source is exported outside
 `apps/e2e/`; the output is `apps/e2e/ux-output/slice77-baseline-web/browser`. Set

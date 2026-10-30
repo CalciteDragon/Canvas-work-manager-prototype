@@ -1,5 +1,14 @@
 # What the testing system is made of
 
+Slice 78 adds `apps/e2e/states.spec.ts` for failures and loading: T12's lifted read recovering
+through Try again with no empty sentence, the real provider failing only the digest, Go to Home
+from an unavailable project, the sidebar's loading line, keyboard reach of Try again and Details,
+and every pinned failure's edge, clearance, press, dismissal and navigation at 1440 and 375 touch.
+`mcp.spec.ts` checks the null digest over HTTP MCP. The isolated `ux/slice78.config.ts` rig runs
+`ux/states-verification.ts`, whose context table is the only source of profile 78's state
+exemptions; `build-sheet.test.mjs` pins that table. Lab plane boxes name their `data-panel`, so a
+specimen that overflows its panel is still gated as that panel's.
+
 Slice 77 adds `ux/slice77.config.ts` and `ux/objects-verification.ts` for isolated genuine
 before/after captures, title alignment, unchanged regions, the named visual inventory and
 T01–T09/T11. Sheet profile 77 requires both runtime files and all pairs, removes the row

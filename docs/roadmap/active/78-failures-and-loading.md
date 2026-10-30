@@ -2,10 +2,58 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done (Stage 4 parts a–e). Stage 5
-part a (the gate tooling) is done. Next is Stage 5 part b: fix the pin's touch target, the full
-after-capture, the sheet, reviews, then stop for Gate 2 (the user reviews the sheet; no real use
-before that).**
+rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done. Stage 5 parts a (gate
+tooling) and b (acceptance run and sheet) are done. The sheet has 26 gate failures in five
+categories, and each needs a product or gate-semantics call (Open questions 4–8). Next: answer
+those, apply the answers, re-capture and rebuild the sheet to zero failures. Then S5C runs the
+reviews, then Gate 2 (the user). No real use before Gate 2.**
+
+- Stage 5, part b (`0ba1095`, `a73ed6a`, `ead9993`, `02fd472`, `350086c`, `2a3fa6f`):
+  - **Acceptance items 1–4 and 6:**
+    - `pnpm test` and `pnpm lint` are green.
+    - `pnpm e2e` is green in full: 233 existing tests in three batches, plus the new
+      `states.spec.ts` (19 tests) and the new `mcp.spec.ts` test. Two failures were timeouts that
+      passed on re-run (`canvas-history.spec.ts:145`, `project-history.spec.ts:285`).
+      `phone-layout.spec.ts` is unedited.
+    - The initial bundle is 1,138.63 kB, under 1,150.
+    - The MCP null-digest tests pass: the mcp-tools contract test, the host stdio test and the
+      new HTTP test in `mcp.spec.ts`.
+  - **`apps/e2e/states.spec.ts` was missing.** It was in the file list but never written. It now
+    covers the Test plan row. Behaviour was pinned after the fact; a mutation check (the reveal's
+    scroll removed) turns the pin tests red.
+  - **Fixed, product:**
+    - `.pinned-failure__show` meets 44 px on touch.
+    - The Lab page provides its own `PinnedFailures`. At 375 its failing TaskRow specimen had
+      pinned a real copy over the Lab.
+  - **Fixed, evidence:**
+    - **Tall-banner drag:** it drops on a point the target list owns. At 375 the quick-add
+      covers the list's top edge.
+    - **Failure detection:** `failureProbe` and the probe's `isFailure` count
+      `[data-failure-sentence]`, and a reason under a closed Details.
+    - **Digest row:** its region is the digest tile, because a failed digest never renders
+      `app-daily-digest-widget`. The test's pinned copy of the table follows.
+    - **`dashboard-me-failing` at 375:** the rig opens the phone menu. A Details summary the
+      pointer cannot reach opens from the DOM and is recorded as `detailsForced`.
+    - **Profile 78** places Lab planes by their recorded `data-panel`. It also counts a state's
+      own before as known when the two routes differ only by a rig-generated project id. Each
+      has a new fault test (81 in `build-sheet.test.mjs`).
+  - **Tried and reverted:** an `aria-label` on the reflection body. It cleared axe
+    `label-title-only`, but changed the field's census identity in about 70 populated cells (Open
+    question 7).
+  - **Sheet:** `/workspace/projects/Canvas-work-manager-prototype/apps/e2e/ux-output/slice78-sheet/index.html`.
+    - **Inputs:** before `0c19170…` (the slice-77 baseline, reused); after
+      `apps/e2e/ux-output/2a3fa6f5589e380448edd91f797a46c4fde6b5ab` (194 matrix cells and 168
+      states entries, complete).
+    - **Result:** 194 pairs and 26 gate failures, all under Open questions 4–8. The census,
+      Lab, pins, visual pairs and T01–T12 pass.
+  - **Rebuild it:** `node docs/roadmap/70-ui-ux/tooling/build-sheet.mjs
+    apps/e2e/ux-output/0c1917081b73a2892a30e0c6c548bff8b4e2fdc6 apps/e2e/ux-output/<after>
+    apps/e2e/ux-output/slice78-sheet apps/e2e/ux-output/<after> --profile 78`.
+  - **Capture recipe:** about 25 minutes in nine foreground commands; see `testing/how.md`.
+    - **States:** one view per command, `UX_STATES_MATCH='\|dark\|1440$'` with
+      `UX_STATES_SKIP_TASKS=1`; the last view runs without the skip.
+    - **Matrix:** `UX_MATCH='-dark-1440$'` and so on, plus `-1024$`.
+    - **Rebuild first:** `pnpm --filter web build` after any product change.
 
 - Stage 5, part a (`d4c7ac8`, `fd754a8`, review fixes `dcbe1e3`), reviewed once by a subagent
   against the diff ("can the gate pass falsely?"). Five substantive findings and one minor finding
@@ -1392,6 +1440,60 @@ None open. Three were answered by the user on 2026-10-29:
    entry's *Revisit when*; the prototype keeps Details, and nothing changes in this slice.
 3. **The header's history Retry.** Keeps its label; a note for the §8 comb.
 
+**Open, from Stage 5 part b (2026-10-30).** These hold the sheet's last 26 gate failures. Each
+needs a product or gate-semantics call; profile 78 was not loosened to pass them.
+
+4. **The project read failure has no h1.** 8 failures: `kitchen-error` matrix cells and
+   `project-read-failing` states, axe `page-has-heading-one`.
+   - **Why:** Build (Stage 3a) says the retryable failure has "no heading". The before had the
+     h1 "Project unavailable", so the new-axe-node rule flags it.
+   - **Options:**
+     - (a) A visible h1 over the `FailureMessage`, e.g. "Couldn't load this project", with the
+       sentence reworded so it is not said twice.
+     - (b) A visually hidden h1.
+     - (c) Accept the regression and exempt it in profile 78.
+   - **Recommend (a):** route focus and the heading outline also want it.
+5. **The toast clips its message at 375.** 2 failures: `write-section-removal-toast`, axe
+   `scrollable-region-focusable` on `.toast__message`.
+   - **Why:** at 375 the 44 px actions and the new Details row overflow
+     `--toast-max-block-size` (12rem). The message shrinks and scrolls, and "Try again." is cut
+     off. This is a real defect.
+   - **Options:**
+     - (a) Raise the cap on touch only.
+     - (b) Put Details in the actions row.
+     - (c) Make the message focusable and keep the scroll.
+   - **Recommend (a).** `feedback.spec.ts:101` (long titles keep the actions inside) must still
+     pass.
+6. **Non-failure rows declared `read`.** 8 failures: `header-progress-empty-project` and
+   `header-progress-legacy`, "empty hook visible in a failed read".
+   - **Why:** their correct after state is "No tasks to measure", with the new
+     `data-project-progress-empty` hook. That hook is not in Done when's hook list. These
+     contexts are not failures, but the table has no kind for "not a failure".
+   - **Options:**
+     - (a) Add a row kind (e.g. `settled`) that checks recovery `none` and no Details, but not
+       the empty rule.
+     - (b) Exempt the hook in rows with no injected failure.
+   - **Recommend (a).**
+7. **The reflection body has no label.** 4 failures: `kitchen-reflection-create-failing`, axe
+   `label-title-only`.
+   - **Why:** the textarea is named only by its placeholder. The failure's `aria-describedby`
+     now exposes that. An `aria-label` equal to the placeholder fixes axe, but the census reads
+     `aria-label` as the control's identity and fails about 70 populated cells.
+   - **Options:**
+     - (a) A visible "Reflection" label (a design change to populated pixels).
+     - (b) A visually hidden `<label for>`.
+     - (c) The `aria-label`, plus a census exception for this field.
+   - **Needs a design call.**
+8. **Canvas-wide false-empty rule on `kitchen-shortcuts-failing`.** 4 failures: Kitchen's
+   Reflections and Recent Activity are truly empty (their reads succeeded).
+   - **Why:** the row's region is the whole canvas, and no narrower selector exists in both
+     builds.
+   - **Options:**
+     - (a) For a canvas-region row, ignore empty hooks inside section and shortcut frames, which
+       their own rows own.
+     - (b) Give the row's region the after build's `[data-shortcuts-error]` container.
+   - **Recommend (a).**
+
 ## Revisions
 
 - **Round 1 (2026-10-29):** fifteen substantive and ten minor findings, each checked against the
@@ -1598,3 +1700,14 @@ None open. Three were answered by the user on 2026-10-29:
   - **Two relaxations to the new-axe-node rule:** the sidebar list's re-anchoring, and a known set
     taken per route and view (see the State header). Both came from real evidence, where
     pre-existing violations read as new.
+- **Stage 5, part b (2026-10-30):** the acceptance run and the sheet. Four plan changes came
+  from it.
+  - **`dashboard-real-ai`:** the row's region is the digest tile
+    (`[data-dashboard-tile][data-widget-type="daily_digest"]`), not `app-daily-digest-widget`,
+    which a failed digest never renders.
+  - **Two gate rules sharpened** with fault tests, not loosened:
+    - A Lab plane belongs to the `data-panel` that holds it.
+    - A state's own before is known even when a rig-generated project id changes its route.
+  - **Failure detection:** the rig's wait and failure probe count the shared
+    `[data-failure-sentence]`.
+  - **Open questions 4–8** are added for the 26 remaining gate failures.
