@@ -5,6 +5,9 @@
   [attr.data-shortcut-availability]="shortcut().availability"
   [class.shortcut-frame--collapsed]="shortcut().collapsed"
   [attr.aria-labelledby]="'shortcut-title-' + shortcut().id"
+  [appPinnedFailure]="collapseError()"
+  [pinnedFailureSubject]="name()"
+  [pinnedFailureSentence]="'shortcut-collapse-error-' + shortcut().id"
 >
   <header class="shortcut-frame__header">
     <div class="shortcut-frame__heading">

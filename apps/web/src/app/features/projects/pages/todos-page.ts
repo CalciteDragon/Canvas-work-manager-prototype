@@ -17,6 +17,7 @@ import type { ProjectId, ProjectLayoutMode, ProjectPageId, ProjectTodoItem } fro
 import { Icon } from '../../../shared/components/icon/icon';
 import { Toast } from '../../../shared/feedback/toast';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
+import { PinnedFailureDirective } from '../../../shared/feedback/pinned-failure.directive';
 import { ReceiptToast } from '../../../core/history/receipt-toast';
 import { taskArchivedFeedback, workstreamCompletedFeedback } from '../history/history-feedback';
 import { TodosPageStore, isTodoFinished, todoIdOf, todoTitleOf } from './todos-page-store';
@@ -53,7 +54,7 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-todos-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icon, Toast, FailureMessage],
+  imports: [RouterLink, Icon, Toast, FailureMessage, PinnedFailureDirective],
   providers: [TodosPageStore],
   templateUrl: './todos-page.html',
   styleUrl: './todos-page.scss',

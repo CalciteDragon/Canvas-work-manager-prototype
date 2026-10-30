@@ -6,6 +6,9 @@
   [attr.data-column-span]="section().columnSpan"
   [class.section-frame--collapsed]="effectiveCollapsed()"
   [attr.aria-labelledby]="'section-title-' + section().id"
+  [appPinnedFailure]="collapseError()"
+  [pinnedFailureSubject]="name()"
+  [pinnedFailureSentence]="'section-collapse-error-' + section().id"
 >
   <header class="section-frame__header">
     <h2

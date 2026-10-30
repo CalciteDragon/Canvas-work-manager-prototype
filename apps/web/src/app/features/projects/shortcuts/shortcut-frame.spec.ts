@@ -3,7 +3,9 @@ import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ProjectSectionSchema, ResolvedSectionShortcutSchema, type ProjectId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
+import { By } from '@angular/platform-browser';
 import { ShortcutFrame } from './shortcut-frame';
+import { PinnedFailureDirective } from '../../../shared/feedback/pinned-failure.directive';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 
@@ -199,4 +201,20 @@ it('slice 76 provides one named toolbar, a read-only cue and unlink remove', () 
   expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-describedby')).toBe(alert.id);
   expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-busy')).toBe('true');
   expect(query(fixture, '[data-shortcut-frame]')!.getAttribute('aria-busy')).toBe('true');
+});
+
+it('slice 78 pins a collapse failure by the frame, named by the shortcut and watched by its sentence (§24)', () => {
+  TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  const fixture = render();
+  const pinned = fixture.debugElement.query(By.directive(PinnedFailureDirective));
+  const pin = pinned.injector.get(PinnedFailureDirective);
+  expect(pinned.nativeElement).toBe(query(fixture, '[data-shortcut-frame]'));
+  expect(pin.appPinnedFailure()).toBeNull();
+  const failure = { sentence: 'Couldn’t collapse “Markdown (Website launch)”. Try again.', reason: null };
+  fixture.componentRef.setInput('collapseError', failure); fixture.detectChanges();
+  const sentence = query(fixture, '[role="alert"]')!;
+  expect(pin.appPinnedFailure()).toBe(failure);
+  expect(pin.pinnedFailureSubject()).toBe('Markdown (Website launch)');
+  expect(pin.pinnedFailureSentence()).toBe(sentence.id);
+  expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-describedby')).toBe(sentence.id);
 });

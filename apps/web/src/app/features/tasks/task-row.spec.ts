@@ -2,7 +2,9 @@ import { Router, provideRouter } from '@angular/router';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { TaskSchema, type Task } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
+import { By } from '@angular/platform-browser';
 import { TaskRow } from './task-row';
+import { PinnedFailureDirective } from '../../shared/feedback/pinned-failure.directive';
 
 const AT = '2026-08-27T16:00:00.000Z';
 const NOW = Date.parse(AT);
@@ -271,6 +273,31 @@ describe('TaskRow', () => {
     expect(details.textContent).toContain('Offline');
     expect(sentence.contains(details)).toBe(false);
     expect(element.querySelector('[data-task-row]')?.classList.contains('task-row--failed')).toBe(true);
+  });
+
+  it('pins its failure by the row, named by its title and watched by its sentence (Slice 78, §24)', async () => {
+    const { fixture, element } = await render();
+    const pinned = fixture.debugElement.query(By.directive(PinnedFailureDirective));
+    const pin = pinned.injector.get(PinnedFailureDirective);
+    expect(pinned.nativeElement).toBe(element.querySelector('[data-task-row]'));
+    expect(pin.appPinnedFailure()).toBeNull();
+
+    const failure = { sentence: 'Couldn’t complete “Write the first draft”. Try again.', reason: 'Offline' };
+    fixture.componentRef.setInput('error', failure);
+    await fixture.whenStable();
+    expect(pin.appPinnedFailure()).toBe(failure);
+    expect(pin.pinnedFailureSubject()).toBe('Write the first draft');
+    const sentence = element.querySelector<HTMLElement>('[data-task-error] [data-failure-sentence]')!;
+    expect(pin.pinnedFailureSentence()).toBe(sentence.id);
+    // The press focuses the control that the sentence describes.
+    expect(element.querySelector('[data-task-complete]')?.getAttribute('aria-describedby')).toBe(sentence.id);
+  });
+
+  it('registers no pin for a read-only row', async () => {
+    const { fixture } = await render(task(), { readOnly: true });
+    fixture.componentRef.setInput('error', { sentence: 'Ignored', reason: null });
+    await fixture.whenStable();
+    expect(fixture.debugElement.query(By.directive(PinnedFailureDirective)).injector.get(PinnedFailureDirective).appPinnedFailure()).toBeNull();
   });
 
   it('never selects the row when its failure’s Details is opened or read (Slice 78)', async () => {

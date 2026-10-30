@@ -16,7 +16,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { ProjectSection, SectionConfig, SectionId, Task, TaskId, TaskPriority } from '@cwm/contracts';
+import { nameOf, type ProjectSection, type SectionConfig, type SectionId, type Task, type TaskId, type TaskPriority } from '@cwm/contracts';
 import { TaskDetailDrawer } from '../../../tasks/task-detail-drawer';
 import { TaskDrawerCoordinator } from '../../../tasks/task-drawer-coordinator';
 import { PendingTaskRow } from '../../../tasks/pending-task-row';
@@ -28,6 +28,7 @@ import { LiftFocus } from '../../../../shared/lifts/lift-focus';
 import { LiftStack } from '../../../../shared/lifts/lift-stack';
 import { Toast } from '../../../../shared/feedback/toast';
 import { FailureMessage } from '../../../../shared/feedback/failure-message';
+import { PinnedFailureDirective } from '../../../../shared/feedback/pinned-failure.directive';
 import { ReceiptToast } from '../../../../core/history/receipt-toast';
 import { taskArchivedFeedback } from '../../history/history-feedback';
 
@@ -48,7 +49,7 @@ export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
 @Component({
   selector: 'app-task-list-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDrag, CdkDropList, TaskRow, PendingTaskRow, TaskDetailDrawer, Toast, RouterLink, FailureMessage],
+  imports: [CdkDrag, CdkDropList, TaskRow, PendingTaskRow, TaskDetailDrawer, Toast, RouterLink, FailureMessage, PinnedFailureDirective],
   providers: [TaskListStore],
   templateUrl: './task-list-section.html',
   styleUrl: './task-list-section.scss',
@@ -95,6 +96,9 @@ export class TaskListSection {
 
   readonly dropId = computed(() => taskListDropId(this.section().id));
   readonly createErrorId = computed(() => `quick-create-error-${this.section().id}`);
+  readonly receiveErrorId = computed(() => `tasks-receive-error-${this.section().id}`);
+  /** What a pinned drag-receive failure is called: the list it failed to land in. */
+  readonly name = computed(() => nameOf(this.section()));
   /** The polite line that says a quick-add landed; the row itself is the visible confirmation. */
   readonly announcement = signal('');
 

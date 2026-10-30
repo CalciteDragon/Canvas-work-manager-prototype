@@ -6,6 +6,7 @@ import { ProjectSectionSchema, type ProjectSection, type SectionConfig } from '@
 import { describe, expect, it, vi } from 'vitest';
 import type { SectionDefinition } from '../registry';
 import { ProjectSectionFrame } from './project-section-frame';
+import { PinnedFailureDirective } from '../../../../shared/feedback/pinned-failure.directive';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
@@ -483,6 +484,21 @@ describe('slice 76 named section chrome', () => {
       move.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
       expect(moves.mock.calls).toEqual([['previous'], ['next']]);
     } finally { fixture.nativeElement.remove(); }
+  });
+
+  it('pins a collapse failure by the frame, named by the section and watched by its sentence (Slice 78, §24)', () => {
+    const fixture = render();
+    const pinned = fixture.debugElement.query(By.directive(PinnedFailureDirective));
+    const pin = pinned.injector.get(PinnedFailureDirective);
+    expect(pinned.nativeElement).toBe(query(fixture, '[data-section-frame]'));
+    expect(pin.appPinnedFailure()).toBeNull();
+    const failure = { sentence: 'Couldn’t collapse “Launch notes”. Try again.', reason: null };
+    fixture.componentRef.setInput('collapseError', failure); fixture.detectChanges();
+    const sentence = query(fixture, '[role="alert"]')!;
+    expect(pin.appPinnedFailure()).toBe(failure);
+    expect(pin.pinnedFailureSubject()).toBe(fixture.componentInstance.name());
+    expect(pin.pinnedFailureSentence()).toBe(sentence.id);
+    expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-describedby')).toBe(sentence.id);
   });
 
   it('links a frame collapse alert and exposes its pending state', () => {

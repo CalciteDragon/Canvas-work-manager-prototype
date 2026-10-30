@@ -16,6 +16,8 @@ import { GatewayError } from '../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
+import { By } from '@angular/platform-browser';
+import { PinnedFailureDirective } from '../../../shared/feedback/pinned-failure.directive';
 import { TodosPage } from './todos-page';
 import { TodosPageStore } from './todos-page-store';
 
@@ -252,6 +254,28 @@ describe('TodosPage (§34)', () => {
     expect(rowFor(fixture, 'task-done').querySelector('[data-todo-row-error] details')?.textContent).toContain('Reopen refused');
     expect(query(fixture, '[data-todo-write-error]')).toBeNull();
     expect(dataChanged).not.toHaveBeenCalled();
+  });
+
+  it('pins a row failure by its row, never the page’s Delete failure (Slice 78, §24)', async () => {
+    const { fixture } = await render({ items: [taskItem('task-done', { status: 'done', completedAt: AT })], reopenRejects: new GatewayError('conflict', 409, 'Reopen refused') });
+    const pinFor = (row: HTMLElement) => fixture.debugElement.queryAll(By.directive(PinnedFailureDirective))
+      .find((pinned) => pinned.nativeElement === row)!.injector.get(PinnedFailureDirective);
+    expect(pinFor(rowFor(fixture, 'task-done')).appPinnedFailure()).toBeNull();
+
+    const toggle = rowFor(fixture, 'task-done').querySelector<HTMLInputElement>('[data-todo-toggle]')!;
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const row = rowFor(fixture, 'task-done');
+    const pin = pinFor(row);
+    const sentence = row.querySelector<HTMLElement>('[data-todo-row-error] [data-failure-sentence]')!;
+    expect(pin.appPinnedFailure()?.sentence).toBe(sentence.textContent?.trim());
+    expect(pin.pinnedFailureSubject()).toBe(row.querySelector('[data-todo-link]')?.textContent?.trim());
+    expect(pin.pinnedFailureSentence()).toBe(sentence.id);
+    expect(toggle.getAttribute('aria-describedby')).toBe(sentence.id);
+    // Only rows register: the page's alerts stay where they are.
+    expect(fixture.debugElement.queryAll(By.directive(PinnedFailureDirective)).every((pinned) => pinned.nativeElement.matches('[data-todo-row]'))).toBe(true);
   });
 
   it('keeps blocked toggles focusable and resets their native state without writing', async () => {

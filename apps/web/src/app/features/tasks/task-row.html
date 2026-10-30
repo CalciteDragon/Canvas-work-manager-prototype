@@ -18,6 +18,9 @@
   [class.task-row--archiving]="archiving()"
   [class.task-row--failed]="shownError() !== null"
   [attr.aria-busy]="pending() || archiving()"
+  [appPinnedFailure]="shownError()"
+  [pinnedFailureSubject]="task().title"
+  [pinnedFailureSentence]="errorId()"
 >
   @if (!readOnly()) {
     <input

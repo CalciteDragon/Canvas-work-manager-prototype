@@ -37,6 +37,9 @@
           [attr.data-todo-id]="idOf(item)"
           [attr.data-todo-kind]="item.kind"
           [class.todos__row--finished]="finished(item)"
+          [appPinnedFailure]="store.rowErrors().get(idOf(item)) ?? null"
+          [pinnedFailureSubject]="titleOf(item)"
+          [pinnedFailureSentence]="'todo-error-' + idOf(item)"
         >
           @if (item.kind === 'task' && item.task.status !== 'cancelled') {
             <input

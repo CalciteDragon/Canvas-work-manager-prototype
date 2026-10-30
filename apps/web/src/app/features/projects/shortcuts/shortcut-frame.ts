@@ -15,6 +15,7 @@ import { definitionFor } from '../sections/registry';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
 import type { Failure } from '../../../shared/feedback/failure';
+import { PinnedFailureDirective } from '../../../shared/feedback/pinned-failure.directive';
 import { toolbarKeydown, toolbarFocusin } from '../canvas-chrome/toolbar-keys';
 import { moveDirectionFor } from '../canvas-chrome/move-keys';
 
@@ -22,7 +23,7 @@ import { moveDirectionFor } from '../canvas-chrome/move-keys';
 @Component({
   selector: 'app-shortcut-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDragHandle, NgComponentOutlet, RouterLink, Icon, FailureMessage],
+  imports: [CdkDragHandle, NgComponentOutlet, RouterLink, Icon, FailureMessage, PinnedFailureDirective],
   templateUrl: './shortcut-frame.html',
   styleUrl: './shortcut-frame.scss',
   // Content names itself from what this frame displays (slice 72, L5-004).

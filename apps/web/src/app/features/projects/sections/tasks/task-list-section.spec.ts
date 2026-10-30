@@ -5,13 +5,15 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { RECEIPT_UNDO } from '../../../../core/history/receipt-undo';
 import { ToastSlot } from '../../../../shared/feedback/toast-slot';
-import { OperationReceiptSchema, ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskAddResult, type TaskId, type TaskWriteResult } from '@cwm/contracts';
+import { nameOf, OperationReceiptSchema, ProjectSectionSchema, TaskSchema, type ProjectSection, type Task, type TaskAddResult, type TaskId, type TaskWriteResult } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { TaskListStore } from '../../../tasks/task-list-store';
 import { TaskListSection } from './task-list-section';
+import { PinnedFailureDirective } from '../../../../shared/feedback/pinned-failure.directive';
+import { PIN_CLEARANCE_ATTRIBUTE } from '../../../../shared/feedback/pinned-failure-slot';
 import { LiftStack } from '../../../../shared/lifts/lift-stack';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -841,6 +843,34 @@ describe('TaskListSection quick-add feedback (Slice 75, §34, §63)', () => {
     expect(query(fixture, '[data-tasks-receive-error] details')?.textContent).toContain('move refused');
     expect(query(fixture, '[data-tasks-receive-error] [data-recovery]')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('[data-task-row]')).toHaveLength(2);
+  });
+
+  it('pins a drag-receive failure by its banner sentence, never the read banner (Slice 78, §24)', async () => {
+    const { fixture, store } = await render(new FakeWorkManagerGateway({
+      tasks: [task('task-1')],
+      failOn: { 'tasks.update': new GatewayError('internal_error', 500, 'move refused') },
+    }));
+    const pinned = fixture.debugElement.queryAll(By.directive(PinnedFailureDirective))
+      .find((candidate) => candidate.nativeElement.matches('.task-list-section'))!;
+    const pin = pinned.injector.get(PinnedFailureDirective);
+    expect(pin.appPinnedFailure()).toBeNull();
+
+    await store.receive('task-elsewhere' as TaskId, section().id);
+    fixture.detectChanges();
+    const sentence = query(fixture, '[data-tasks-receive-error] [data-failure-sentence]')!;
+    expect(pin.appPinnedFailure()).toBe(store.receiveError());
+    expect(pin.pinnedFailureSubject()).toBe(nameOf(section()));
+    expect(pin.pinnedFailureSentence()).toBe(sentence.id);
+    expect(sentence.id).not.toBe('');
+  });
+
+  it('registers no pin for a failed read, and marks the sticky quick-add as the top edge’s clearance', async () => {
+    const { fixture } = await render(new FakeWorkManagerGateway({ failOn: { 'tasks.list': new GatewayError('internal_error', 500, 'read refused') } }));
+    expect(query(fixture, '[data-tasks-error]')).not.toBeNull();
+    for (const pinned of fixture.debugElement.queryAll(By.directive(PinnedFailureDirective))) {
+      expect(pinned.injector.get(PinnedFailureDirective).appPinnedFailure()).toBeNull();
+    }
+    expect(query(fixture, '[data-quick-create]')!.hasAttribute(PIN_CLEARANCE_ATTRIBUTE)).toBe(true);
   });
 
   it('shows a failed completion on its row, not as a section banner', async () => {

@@ -15,10 +15,11 @@ import { Icon } from '../../shared/components/icon/icon';
 import { isOverdue } from './task-overdue';
 import { FailureMessage } from '../../shared/feedback/failure-message';
 import type { Failure } from '../../shared/feedback/failure';
+import { PinnedFailureDirective } from '../../shared/feedback/pinned-failure.directive';
 
 @Component({
   selector: 'app-task-row',
-  imports: [Icon, RouterLink, FailureMessage],
+  imports: [Icon, RouterLink, FailureMessage, PinnedFailureDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './task-row.html',
   styleUrl: './task-row.scss',

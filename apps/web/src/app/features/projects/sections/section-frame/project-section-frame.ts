@@ -20,6 +20,7 @@ import type { SectionDefinition } from '../registry';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { FailureMessage } from '../../../../shared/feedback/failure-message';
 import type { Failure } from '../../../../shared/feedback/failure';
+import { PinnedFailureDirective } from '../../../../shared/feedback/pinned-failure.directive';
 import { toolbarKeydown, toolbarFocusin } from '../../canvas-chrome/toolbar-keys';
 import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 
@@ -30,7 +31,7 @@ import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 @Component({
   selector: 'app-project-section-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDragHandle, NgComponentOutlet, Icon, FailureMessage],
+  imports: [CdkDragHandle, NgComponentOutlet, Icon, FailureMessage, PinnedFailureDirective],
   templateUrl: './project-section-frame.html',
   styleUrl: './project-section-frame.scss',
   // Content names itself from what this frame displays (slice 72, L5-004).

@@ -1,6 +1,12 @@
-<div class="task-list-section">
+<!-- Only the drag-receive write failure is pinned; a failed read stays a banner (Slice 78, §24). -->
+<div
+  class="task-list-section"
+  [appPinnedFailure]="store.receiveError()"
+  [pinnedFailureSubject]="name()"
+  [pinnedFailureSentence]="receiveErrorId()"
+>
   @if (!readOnly()) {
-    <form data-quick-create class="quick-create" novalidate (submit)="quickCreate($any($event), quickTitle)">
+    <form data-quick-create data-pin-clearance class="quick-create" novalidate (submit)="quickCreate($any($event), quickTitle)">
       <span class="quick-create__plate" aria-hidden="true"></span>
       <label class="control-label quick-create__title">
         <span>Task title</span>
@@ -32,7 +38,7 @@
     <app-failure-message data-tasks-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.loading()" (retry)="store.retry()" />
   }
   @if (store.receiveError(); as failure) {
-    <app-failure-message data-tasks-error data-tasks-receive-error [failure]="failure" live="alert" />
+    <app-failure-message data-tasks-error data-tasks-receive-error [failure]="failure" live="alert" [sentenceId]="receiveErrorId()" />
   }
 
   @if (dragging()) {
