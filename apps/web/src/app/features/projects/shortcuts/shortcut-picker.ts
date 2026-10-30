@@ -11,6 +11,7 @@ import {
 import { NgComponentOutlet } from '@angular/common';
 import type { ProjectId, ProjectPageId, SectionConfig, SectionId, ShortcutSource } from '@cwm/contracts';
 import { ShortcutStore } from './shortcut-store';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { definitionFor } from '../sections/registry';
 import type { SectionContentInputs } from '../sections/section-contract';
 
@@ -18,7 +19,7 @@ import type { SectionContentInputs } from '../sections/section-contract';
 @Component({
   selector: 'app-shortcut-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet],
+  imports: [NgComponentOutlet, FailureMessage],
   templateUrl: './shortcut-picker.html',
   styleUrl: './shortcut-picker.scss',
 })

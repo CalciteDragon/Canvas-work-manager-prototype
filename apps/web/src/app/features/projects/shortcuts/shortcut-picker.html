@@ -1,8 +1,9 @@
 <div data-shortcut-picker class="shortcut-picker">
-  @if (store.loading()) {
+  @if (store.error(); as failure) {
+    <app-failure-message data-shortcut-picker-error [failure]="failure" live="alert" recovery="try-again"
+      [pending]="store.loading()" (retry)="store.retry()" />
+  } @else if (store.loading()) {
     <p data-shortcut-picker-loading class="shortcut-picker__muted">Finding sections…</p>
-  } @else if (store.error(); as error) {
-    <p data-shortcut-picker-error class="shortcut-picker__error" role="alert">{{ error }}</p>
   } @else if (store.sources().length === 0) {
     <p data-shortcut-picker-empty class="shortcut-picker__muted">No other sections are available in this project tree.</p>
   } @else {

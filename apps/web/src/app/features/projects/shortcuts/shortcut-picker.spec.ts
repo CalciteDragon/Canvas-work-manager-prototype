@@ -84,6 +84,29 @@ describe('ShortcutPicker (§27)', () => {
     });
   }
 
+  it('says a failed discovery read in product words with Try again and no empty sentence (Slice 78)', async () => {
+    const gateway = new FakeWorkManagerGateway({ shortcutSources: sources, failOn: { 'shortcuts.sources': new GatewayError('unreachable', 0, 'sources read failed') } });
+    const { fixture } = await renderPreview(gateway);
+    const host = fixture.nativeElement as HTMLElement;
+    const error = host.querySelector('[data-shortcut-picker-error]')!;
+    expect(error.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t reach your workspace, so the list of sections didn’t load.');
+    expect(error.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(error.querySelector('details')?.textContent).toContain('sources read failed');
+    expect(host.querySelector('[data-shortcut-picker-empty]')).toBeNull();
+    expect(host.querySelector('[data-shortcut-picker-loading]')).toBeNull();
+
+    gateway.options.failOn = {};
+    const tryAgain = error.querySelector<HTMLButtonElement>('[data-recovery]')!;
+    expect(tryAgain.textContent?.trim()).toBe('Try again');
+    tryAgain.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-shortcut-picker-error] [data-recovery]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(host.querySelector('[data-shortcut-picker-loading]')).toBeNull();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(host.querySelector('[data-shortcut-picker-error]')).toBeNull();
+    expect(host.querySelectorAll('[data-shortcut-source-option]')).toHaveLength(1);
+  });
+
   it('slice 77 previews an unavailable source type with explanatory text', async () => {
     const unknown = { ...sources[0]!, type: 'unavailable-type', section: { ...sources[0]!.section, type: 'unavailable-type' } };
     const { fixture } = await renderPreview(new FakeWorkManagerGateway({ shortcutSources: [unknown] }));

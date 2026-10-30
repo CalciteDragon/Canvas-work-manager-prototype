@@ -32,7 +32,11 @@ use it for title navigation. Shortcut headings explain that editing happens at t
 The picker groups identities by owner and page. Opening Preview mounts that source's registry
 component with read-only inputs, stable no-op callbacks and `sourceLink: null`; content reads use
 the viewer's gateway grants and failures remain inside the disclosure while Add stays available.
-Only the open Preview mounts content, so source discovery never reads owned rows.
+Only the open Preview mounts content, so source discovery never reads owned rows. A failed discovery
+read is `ShortcutStore.error()`, a `Failure` ("Couldn’t load the list of sections.") rendered by
+a region `FailureMessage` (`data-shortcut-picker-error`) with Try again (`retry()`) busy on
+`loading()`; a re-read of the same page keeps it until it answers, another page clears it. The
+picker's `createError` is its own, still a raw string until Stage 4.
 
 `ShortcutFrame.name` and the shortcut branch of `ProjectCanvas.placementName` call contracts'
 `shortcutNameOf(source, sourceProjectName)`. Untitled sources gain their owning project in
