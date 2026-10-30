@@ -63,3 +63,24 @@ it('serializes and coalesces loud and quiet activity reads', async () => {
   await Promise.resolve();
   expect(store.entries().map(({ id }) => id)).toEqual(['activity-trailing']);
 });
+
+it('keeps a read failure through Try again until it answers, then clears it (Slice 78)', async () => {
+  const again = deferred<ActivityFeedEntry[]>();
+  const list = vi.fn()
+    .mockRejectedValueOnce(new GatewayError('internal_error', 500, 'boom'))
+    .mockImplementationOnce(() => again.promise);
+  const gateway = { activity: { list } } as unknown as WorkManagerGateway;
+  TestBed.configureTestingModule({ providers: [ActivityStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+  const store = TestBed.inject(ActivityStore);
+  await store.load(PROJECT);
+  expect(store.error()).toEqual({ sentence: 'Couldn’t load recent activity.', reason: 'boom' });
+
+  const retrying = store.retry();
+  expect(store.loading()).toBe(true);
+  expect(store.error()?.sentence).toBe('Couldn’t load recent activity.');
+  again.resolve([entry('activity-back')]);
+  await retrying;
+
+  expect(store.error()).toBeNull();
+  expect(store.entries().map(({ id }) => id)).toEqual(['activity-back']);
+});

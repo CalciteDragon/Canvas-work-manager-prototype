@@ -1,7 +1,7 @@
 import { Injectable, PendingTasks, inject, signal } from '@angular/core';
 import type { ActivityFeedEntry, ProjectId } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
-const messageOf = (e: unknown) => e instanceof Error ? e.message : String(e);
+import { readFailure, type Failure } from '../../shared/feedback/failure';
 interface ActiveRead { generation: number; promise: Promise<void>; queued: boolean; }
 /**
  * §57's feed for one project. Component-scoped, never root (§20) — two Recent Activity
@@ -10,13 +10,20 @@ interface ActiveRead { generation: number; promise: Promise<void>; queued: boole
 @Injectable()
 export class ActivityStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY); private readonly pendingTasks = inject(PendingTasks); private generation = 0; private activeRead: ActiveRead | null = null;
-  private readonly itemsState = signal<ActivityFeedEntry[]>([]); private readonly loadingState = signal(false); private readonly errorState = signal<string | null>(null);
+  private readonly itemsState = signal<ActivityFeedEntry[]>([]); private readonly loadingState = signal(false); private readonly errorState = signal<Failure | null>(null);
   readonly entries = this.itemsState.asReadonly(); readonly loading = this.loadingState.asReadonly(); readonly error = this.errorState.asReadonly();
   /** What `load` was last asked for, so §62's quiet refresh can ask the same question again. */
   private projectId: ProjectId | null = null; private limit = 20;
 
   /** `limit` keeps a section from becoming the whole history of a busy project. */
-  load(projectId: ProjectId, limit = 20): Promise<void> { this.projectId = projectId; this.limit = limit; return this.startRead(++this.generation, false); }
+  load(projectId: ProjectId, limit = 20): Promise<void> {
+    // A re-read of the same project keeps its failure on screen until it answers (Slice 78).
+    if (this.projectId !== projectId) this.errorState.set(null);
+    this.projectId = projectId; this.limit = limit; return this.startRead(++this.generation, false);
+  }
+
+  /** The failed read's Try again: the same read, repeated. */
+  retry(): Promise<void> { return this.projectId === null ? Promise.resolve() : this.load(this.projectId, this.limit); }
 
   /** First call is loud; later revision calls for the same project are quiet and coalesced. */
   sync(projectId: ProjectId, limit = 20): Promise<void> {
@@ -36,12 +43,12 @@ export class ActivityStore {
     if (projectId === null) return Promise.resolve();
     const state = { generation, queued: false, promise: Promise.resolve() } as ActiveRead;
     const settled = this.pendingTasks.add();
-    if (!quiet) { this.loadingState.set(true); this.errorState.set(null); }
+    if (!quiet) this.loadingState.set(true);
     state.promise = (async () => { try {
       const entries = await this.gateway.activity.list({ projectId, limit: this.limit });
       if (generation === this.generation && this.projectId === projectId) { this.itemsState.set(entries); this.errorState.set(null); }
     } catch (error) {
-      if (!quiet && generation === this.generation && this.projectId === projectId) { this.itemsState.set([]); this.errorState.set(messageOf(error)); }
+      if (!quiet && generation === this.generation && this.projectId === projectId) { this.itemsState.set([]); this.errorState.set(readFailure(error, 'recent activity')); }
     } finally {
       settled();
       if (!quiet && generation === this.generation) this.loadingState.set(false);

@@ -112,7 +112,21 @@ describe('RecentActivitySection (§30, §57)', () => {
       new FakeWorkManagerGateway({ failWith: new GatewayError('unreachable', 0, 'could not reach the prototype host') }),
     );
 
-    expect(text(fixture, '[data-activity-error]')).toBe('could not reach the prototype host');
+    expect(text(fixture, '[data-activity-error] [data-failure-sentence]')).toBe('Couldn’t reach your workspace, so recent activity didn’t load.');
+    expect(text(fixture, '[data-activity-error] details')).toContain('could not reach the prototype host');
+    expect(fixture.nativeElement.querySelector('[data-activity-empty]')).toBeNull();
+  });
+
+  it('re-reads on Try again, including after not_found (Slice 78)', async () => {
+    const gateway = new FakeWorkManagerGateway({ failWith: new GatewayError('not_found', 404, 'Project project-a was not found') });
+    const { fixture } = await render(gateway);
+    expect(text(fixture, '[data-activity-error] [data-failure-sentence]')).toBe('Recent activity isn’t available.');
+    const before = gateway.calls.filter(({ method }) => method === 'activity.list').length;
+
+    (fixture.nativeElement.querySelector('[data-activity-error] [data-recovery="try-again"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(gateway.calls.filter(({ method }) => method === 'activity.list')).toHaveLength(before + 1);
   });
 });
 

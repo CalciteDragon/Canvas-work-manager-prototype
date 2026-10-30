@@ -1,4 +1,6 @@
-@if (store.error(); as error) { <p data-activity-error class="recent-activity__error" role="alert">{{ error }}</p> }
-@if (store.loading()) { <p data-activity-pending>Loading activity…</p> } @else {
+<!-- The failure in place of the empty feed; Try again keeps it on screen, busy, until the read answers (Slice 78). -->
+@if (store.error(); as failure) {
+  <app-failure-message data-activity-error [failure]="failure" live="alert" recovery="try-again" [pending]="store.loading()" (retry)="store.retry()" />
+} @else if (store.loading()) { <p data-activity-pending>Loading activity…</p> } @else {
   <app-activity-feed [entries]="store.entries()" emptyMessage="Nothing has happened in this project yet." />
 }
