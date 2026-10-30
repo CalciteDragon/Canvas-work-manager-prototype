@@ -2,9 +2,38 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0–3 are done; Stage 4 parts a (write
-failures' Details), b (dialogs, Markdown), c (progress fact, not-found) and d (the pinned-failure
-registry, directive and slot, unwired) are done. Stage 4's next part (e) wires the directive.**
+rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done (Stage 4 parts a–e). Next is
+Stage 5: re-capture, sheet, reviews, Gate 2, real use.**
+
+- Stage 4, part e (`f4b157b`, `c79f71b`, `581982d`, docs `875f45c`), reviewed once by a subagent
+  against the diff: no substantive findings. **Step 4 is complete.**
+  - **Wired.** `[appPinnedFailure]` + subject + sentence id on the `TaskRow` `<article>`
+    (`shownError()`, so read-only rows never register; subject the title; `task-error-<id>`); the
+    Todos `<li>` (`store.rowErrors().get(id) ?? null`, `titleOf`, `todo-error-<id>`); the section
+    frame and shortcut frame `<section>` (`collapseError()`, `name()`, the existing collapse-error
+    ids, which their collapse buttons already name in `aria-describedby`); and the Task List
+    section's root `.task-list-section` for `store.receiveError()` (subject `nameOf(section)`, new
+    `receiveErrorId()` = `tasks-receive-error-<id>`, now passed to the banner's `sentenceId`; no
+    control describes it, so a press focuses the sentence). Read banners, page-level failures and
+    restore rows do not register (specs pin it). `.quick-create` carries `data-pin-clearance`.
+    The feedback decision is amended (the pinned edge).
+  - **Found in real use, fixed:** pressing a top pin revealed the sentence just below the stuck
+    quick-add, which left the row's checkbox (the focus target) under it. The press now
+    scrolls the sentence plus the focus target into the clear port when both fit, and the sentence
+    alone otherwise (`c79f71b`, two directive tests).
+  - **Rig:** `states-verification.ts` presses a pin before opening Details for pinned contexts
+    (clicking a summary scrolls its row into view and unpins it, so `pinPresent` was false).
+    With that, `UX_STATES_MATCH='^pin-'` against this build shows each pin at its edge with its
+    arrow at 1440 and 375, and each press unpins it with the target in view.
+    `pin-tall-tasklist-banner` at 375 still has no banner (touch drag, known).
+  - **Bundle:** `pnpm --filter web build` initial total **1,138.38 kB** (850 + 288.38), under the
+    1,150 kB ceiling with about 11.6 kB left. Stage 5 must watch it.
+  - **Left (minor):** the reveal measures clearance before it scrolls, so a quick-add that only
+    sticks after the scroll is not allowed for (this predates part e). The wiring specs assert the
+    bound inputs, not registration in `PinnedFailures`; the rig covers registration. Part d's three
+    "Left" items stand: the toast's clearance drops while it fades; the ResizeObserver does not watch
+    `[data-pin-clearance]`, so a stuck quick-add that grows a create error without a scroll keeps a
+    stale clearance until the next scroll; there is no dev warning for a missing sentence id.
 
 - Stage 4, part d (`c5b0deb`, `eda2494`, `6ff8e28`, `5c5daf5`, docs `93cf6f3`, review fixes
   `e6695b8`), reviewed once by a subagent against the diff. Two substantive findings were fixed:
@@ -359,8 +388,8 @@ registry, directive and slot, unwired) are done. Stage 4's next part (e) wires t
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 4 (`## Implementation sequence` step 4), part e: wire `appPinnedFailure` as listed
-under part d's "S4E must wire" above. The registry, directive and slot are done.
+**Next:** Stage 5 (`## Implementation sequence` step 5): re-capture, sheet, reviews, Gate 2,
+real use. Stage 4 is complete (part e above).
 The raw write slots left by parts a–d are listed in their entries above.
 
 **Traps found in Stage 0:**
@@ -368,8 +397,8 @@ The raw write slots left by parts a–d are listed in their entries above.
   the whole page's "Loading project…".
 - `pin-tall-tasklist-banner` produces its drag-receive banner only at 1440. Touch emulation does
   not drive the CDK drag, so its 375 entries carry a `notes` field and no banner.
-- Pinned-context presses look for the after build's `[data-failure-pin]` hook. Stage 4 must use
-  that name, or update `pinPress` in `states-verification.ts`.
+- Pinned-context presses look for the after build's `[data-failure-pin]` hook, which is the name
+  that was built. The rig presses pins before opening Details (S4E).
 - Profile 78 in `build-sheet.mjs` is not written yet; it is Stage 5's.
 
 Redesign slice 6b-1 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Redesign slice 6b
