@@ -56,12 +56,18 @@ export class PinnedFailureSlot {
       // The toast opens and closes by this attribute; its geometry is the bottom edge's clearance.
       const toast = new MutationObserver(remeasure);
       toast.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-toast-open'] });
+      // It opens and closes with a transform, so the box is only settled once that has run.
+      const settled = (event: Event): void => {
+        if (event.target instanceof Element && event.target.matches('[data-toast]')) remeasure();
+      };
+      document.addEventListener('transitionend', settled);
       destroyRef.onDestroy(() => {
         cancelAnimationFrame(this.frameRequest);
         port.removeEventListener('scroll', remeasure);
         window.removeEventListener('resize', remeasure);
         resized?.disconnect();
         toast.disconnect();
+        document.removeEventListener('transitionend', settled);
       });
     });
 

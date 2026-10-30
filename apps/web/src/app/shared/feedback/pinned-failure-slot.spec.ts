@@ -147,4 +147,24 @@ describe('PinnedFailureSlot', () => {
     expect(region.style.getPropertyValue('--pin-block-end')).toBe(`${window.innerHeight - (656 - 156)}px`);
     toast.remove();
   });
+
+  it('measures the toast again once its entrance transition ends', async () => {
+    const { port, pins, add, settle } = await setup();
+    const toast = document.createElement('section');
+    toast.setAttribute('data-toast', '');
+    toast.setAttribute('data-toast-open', '');
+    document.body.append(toast);
+    vi.spyOn(port, 'getBoundingClientRect').mockReturnValue(rect(56, 600));
+    Object.defineProperty(port, 'clientHeight', { configurable: true, value: 600 });
+    // Still shifted down by its entrance transform when first measured.
+    const toastAt = vi.spyOn(toast, 'getBoundingClientRect').mockReturnValue(rect(508, 140));
+    add('Below', 'bottom');
+    await settle();
+    expect(pins.clearanceOf(port).bottom).toBe(148);
+    toastAt.mockReturnValue(rect(500, 140));
+    toast.dispatchEvent(new Event('transitionend', { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(pins.clearanceOf(port).bottom).toBe(156);
+    toast.remove();
+  });
 });

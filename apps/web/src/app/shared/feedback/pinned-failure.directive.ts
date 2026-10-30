@@ -1,6 +1,6 @@
-import { Directive, ElementRef, Injector, afterNextRender, effect, inject, input, type EffectRef } from '@angular/core';
+import { Directive, ElementRef, Injector, afterNextRender, effect, inject, input, untracked, type EffectRef } from '@angular/core';
 import type { Failure } from './failure';
-import { PinnedFailures, scrollPortOf, type PinRegistration } from './pinned-failures';
+import { PinnedFailures, scrollPortOf, type PinEdge, type PinRegistration } from './pinned-failures';
 
 /** Room left between a revealed sentence and the clear edge it was brought to. */
 const REVEAL_GAP_PX = 8;
@@ -36,8 +36,9 @@ export class PinnedFailureDirective {
     effect((onCleanup) => {
       const failure = this.appPinnedFailure();
       if (!failure) return;
-      const subject = this.pinnedFailureSubject();
-      const sentenceId = this.pinnedFailureSentence();
+      // Keyed on the occurrence alone: renaming the object must not re-arm or reorder its pin.
+      const subject = untracked(this.pinnedFailureSubject);
+      const sentenceId = untracked(this.pinnedFailureSentence);
       let registration: PinRegistration | null = null;
       let watching: EffectRef | null = null;
       // The sentence renders in the same pass as the failure: find it once it is in the DOM.
@@ -62,9 +63,18 @@ export class PinnedFailureDirective {
     });
   }
 
-  /** Watches `anchor` against the port shrunk by its measured clearance, re-observing as that changes. */
+  /**
+   * Watches `anchor` against the port shrunk by its measured clearance, re-observing as that
+   * changes. The observer reports crossings only, so while pinned a scroll also re-sides it: a
+   * jump from above the port to below it (End, a track click) crosses nothing.
+   */
   private observe(port: HTMLElement, anchor: HTMLElement, registration: PinRegistration): EffectRef | null {
     if (typeof IntersectionObserver === 'undefined') return null;
+    let pinnedAt: PinEdge | null = null;
+    const place = (edge: PinEdge | null): void => {
+      pinnedAt = edge;
+      registration.place(edge);
+    };
     return effect((onCleanup) => {
       const { top, bottom } = this.pins.clearanceOf(port);
       const observer = new IntersectionObserver((entries) => {
@@ -72,11 +82,34 @@ export class PinnedFailureDirective {
         // A callback queued before disconnect still arrives: the registration ignores it once gone.
         if (!entry || !this.host.isConnected) return;
         const above = entry.boundingClientRect.bottom <= (entry.rootBounds?.top ?? 0);
-        registration.place(entry.isIntersecting ? null : above ? 'top' : 'bottom');
+        place(entry.isIntersecting ? null : above ? 'top' : 'bottom');
       }, { root: port, rootMargin: `${-top}px 0px ${-bottom}px 0px`, threshold: 0 });
       observer.observe(anchor);
-      onCleanup(() => observer.disconnect());
+      let frame = 0;
+      const reside = (): void => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+          if (pinnedAt === null || !this.host.isConnected) return;
+          const clear = this.clearPort(port, 0);
+          const box = anchor.getBoundingClientRect();
+          if (box.bottom <= clear.top) place('top');
+          else if (box.top >= clear.bottom) place('bottom');
+        });
+      };
+      port.addEventListener('scroll', reside, { passive: true });
+      onCleanup(() => {
+        observer.disconnect();
+        cancelAnimationFrame(frame);
+        port.removeEventListener('scroll', reside);
+      });
     }, { injector: this.injector });
+  }
+
+  /** The port's uncovered band in viewport pixels, `gap` in from each covered edge. */
+  private clearPort(port: HTMLElement, gap: number): { readonly top: number; readonly bottom: number } {
+    const { top: coveredTop, bottom: coveredBottom } = this.pins.clearanceOf(port);
+    const portTop = port.getBoundingClientRect().top + port.clientTop;
+    return { top: portTop + coveredTop + gap, bottom: portTop + port.clientHeight - coveredBottom - gap };
   }
 
   private sentence(id: string): HTMLElement | null {
@@ -92,13 +125,10 @@ export class PinnedFailureDirective {
     const anchor = this.sentence(sentenceId) ?? this.host;
     const control = [...this.host.querySelectorAll<HTMLElement>('[aria-describedby]')]
       .find((candidate) => candidate.getAttribute('aria-describedby')!.split(/\s+/).includes(sentenceId));
-    let target = control && usable(control) ? control : anchor;
+    const target = control && usable(control) ? control : anchor;
     if (target === anchor && !anchor.hasAttribute('tabindex')) anchor.setAttribute('tabindex', '-1');
 
-    const { top: coveredTop, bottom: coveredBottom } = this.pins.clearanceOf(port);
-    const portTop = port.getBoundingClientRect().top + port.clientTop;
-    const clearTop = portTop + coveredTop + REVEAL_GAP_PX;
-    const clearBottom = portTop + port.clientHeight - coveredBottom - REVEAL_GAP_PX;
+    const { top: clearTop, bottom: clearBottom } = this.clearPort(port, REVEAL_GAP_PX);
     const box = anchor.getBoundingClientRect();
     // A sentence taller than the clear port is aligned to its top.
     const delta = box.top < clearTop ? box.top - clearTop : box.bottom > clearBottom ? Math.min(box.bottom - clearBottom, box.top - clearTop) : 0;

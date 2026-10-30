@@ -33,7 +33,7 @@ const rect = (top: number, height: number): DOMRect => ({ top, bottom: top + hei
   template: `
     <div data-port style="overflow: auto">
       @if (shown()) {
-        <div data-row [appPinnedFailure]="failure()" pinnedFailureSubject="Order tiles" pinnedFailureSentence="row-error">
+        <div data-row [appPinnedFailure]="failure()" [pinnedFailureSubject]="subject()" pinnedFailureSentence="row-error">
           <button type="button" data-control [disabled]="disabled()" [attr.aria-describedby]="failure() ? 'row-error' : null">Complete</button>
           @if (failure(); as failure) { <p id="row-error" role="alert">{{ failure.sentence }}</p> }
         </div>
@@ -44,6 +44,7 @@ class Host {
   readonly failure = signal<Failure | null>(null);
   readonly shown = signal(true);
   readonly disabled = signal(false);
+  readonly subject = signal('Order tiles');
 }
 
 const FAILED: Failure = { sentence: 'Couldn’t complete “Order tiles”. Try again.', reason: 'Audit' };
@@ -101,6 +102,35 @@ describe('PinnedFailureDirective', () => {
     TestBed.tick();
     expect(first.disconnected).toBe(true);
     expect(latest().options.rootMargin).toBe('-48px 0px -120px 0px');
+  });
+
+  it('moves to the other edge when a scroll jumps the sentence past the port without crossing it', async () => {
+    const { element, port, fail, shown } = await setup();
+    await fail();
+    const sentence = element.querySelector<HTMLElement>('#row-error')!;
+    vi.spyOn(port, 'getBoundingClientRect').mockReturnValue(rect(0, 400));
+    Object.defineProperty(port, 'clientHeight', { configurable: true, value: 400 });
+    const at = vi.spyOn(sentence, 'getBoundingClientRect').mockReturnValue(rect(-60, 20));
+    latest().report('top');
+    at.mockReturnValue(rect(900, 20));
+    port.dispatchEvent(new Event('scroll'));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(shown().top).toBeNull();
+    expect(shown().bottom).toMatchObject({ subject: 'Order tiles' });
+  });
+
+  it('keeps a dismissal and its place when only the subject changes', async () => {
+    const { fixture, pins, fail, shown } = await setup();
+    await fail();
+    latest().report('bottom');
+    pins.dismiss(shown().bottom!.id);
+    const observers = FakeObserver.instances.length;
+    fixture.componentInstance.subject.set('Order floor tiles');
+    await fixture.whenStable();
+    expect(FakeObserver.instances).toHaveLength(observers);
+    latest().report('in');
+    latest().report('bottom');
+    expect(shown().bottom).toBeNull();
   });
 
   it('goes when the failure clears, and a late callback cannot re-pin it', async () => {
@@ -193,6 +223,31 @@ describe('PinnedFailureDirective', () => {
       pins.reveal(shown().bottom!.id);
       expect(document.activeElement).toBe(sentence);
       expect(sentence.getAttribute('tabindex')).toBe('-1');
+    });
+
+    it('focuses the sentence when no control describes itself by it', async () => {
+      const { element, port, pins, fail, shown } = await setup();
+      await fail();
+      element.querySelector('[data-control]')!.removeAttribute('aria-describedby');
+      const sentence = element.querySelector<HTMLElement>('#row-error')!;
+      geometry(port, sentence, 900);
+      latest().report('bottom');
+      pins.reveal(shown().bottom!.id);
+      expect(document.activeElement).toBe(sentence);
+    });
+
+    it('focuses the reference when its sentence has gone', async () => {
+      const { element, port, pins, fail, shown } = await setup();
+      await fail();
+      const row = element.querySelector<HTMLElement>('[data-row]')!;
+      element.querySelector('[data-control]')!.removeAttribute('aria-describedby');
+      vi.spyOn(port, 'getBoundingClientRect').mockReturnValue(rect(0, 400));
+      vi.spyOn(row, 'getBoundingClientRect').mockReturnValue(rect(900, 40));
+      latest().report('bottom');
+      element.querySelector('#row-error')!.remove();
+      pins.reveal(shown().bottom!.id);
+      expect(document.activeElement).toBe(row);
+      expect(row.getAttribute('tabindex')).toBe('-1');
     });
 
     it('unregisters a reference that has left the document instead of scrolling', async () => {
