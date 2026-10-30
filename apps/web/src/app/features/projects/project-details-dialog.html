@@ -4,7 +4,7 @@
   <form (submit)="submit($event)">
     <div class="project-details__fields">
       <label class="control-label" for="project-rename">Name</label>
-      <input id="project-rename" class="field" data-project-rename-input autocomplete="off" [value]="name()" [readOnly]="pending()" (input)="setField('name', $event)" />
+      <input id="project-rename" class="field" data-project-rename-input autocomplete="off" [attr.aria-describedby]="failure()?.describes === 'name' ? 'project-details-error' : null" [value]="name()" [readOnly]="pending()" (input)="setField('name', $event)" />
       <label class="control-label" for="project-description">Description</label>
       <textarea id="project-description" class="field" data-project-description-input [value]="description()" [readOnly]="pending()" (input)="setField('description', $event)"></textarea>
       <label class="control-label" for="project-target-date">{{ isWorkUnit() ? 'Due date' : 'Target date' }}</label>
@@ -13,10 +13,8 @@
         <button type="button" class="button button--ghost" data-project-target-date-clear [attr.aria-disabled]="pending()" (click)="clearDate()">Clear</button>
       </div>
     </div>
-    @if (error(); as error) {
-      <p class="project-details__error" role="alert">{{ error }}</p>
-    } @else if (failed()) {
-      <app-failure-message class="project-details__error" weight="inline" [failure]="saveFailure()" live="alert" />
+    @if (failure(); as shown) {
+      <app-failure-message data-project-details-error weight="inline" [failure]="shown.failure" live="alert" sentenceId="project-details-error" />
     }
     @if (discarding()) {
       <div data-project-discard-confirm>
@@ -28,7 +26,8 @@
       </div>
     }
     <div class="project-details__actions">
-      <button type="submit" class="button button--primary" data-project-details-save [attr.aria-disabled]="pending()">{{ pending() ? 'Saving…' : 'Save' }}</button>
+      <button type="submit" class="button button--primary" data-project-details-save [attr.aria-disabled]="pending()"
+        [attr.aria-describedby]="failure()?.describes === 'save' ? 'project-details-error' : null">{{ pending() ? 'Saving…' : 'Save' }}</button>
       <button type="button" class="button" data-project-details-cancel [attr.aria-disabled]="pending()" (click)="requestClose()">Cancel</button>
     </div>
   </form>

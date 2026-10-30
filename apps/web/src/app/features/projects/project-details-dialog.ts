@@ -6,10 +6,9 @@ import { isSubproject, type Project, type UpdateProjectInput } from '@cwm/contra
 import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { FailureMessage } from '../../shared/feedback/failure-message';
-import type { Failure } from '../../shared/feedback/failure';
+import { writeFailure, type Failure } from '../../shared/feedback/failure';
 
-/** A refused save the header has no reason for. */
-const NOT_SAVED: Failure = { sentence: 'The project details could not be saved.', reason: null };
+const notSavedSentence = (name: string): string => `Couldn’t save the details of “${name}”. Try again.`;
 
 /** A single-commit project details draft with field-level live refresh and guarded dismissal. */
 @Component({
@@ -25,15 +24,23 @@ export class ProjectDetailsDialog {
   readonly save = input.required<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>();
   /** The header's project write failure (Slice 78): its sentence here, the reason under Details. */
   readonly writeError = input<Failure | null>(null);
-  protected readonly saveFailure = computed(() => this.writeError() ?? NOT_SAVED);
   readonly closed = output<void>();
   readonly name = signal('');
   readonly description = signal('');
   readonly targetDate = signal('');
   readonly pending = signal(false);
   readonly discarding = signal(false);
-  readonly error = signal<string | null>(null);
+  /** This dialog's own failure: the blank-name refusal (no reason) or a save that threw. */
+  readonly error = signal<Failure | null>(null);
+  /** The save answered `false`; the header's `writeError` says why, when it has a reason. */
   readonly failed = signal(false);
+  /** The one failure shown, and which control it describes: the name for a refusal, Save otherwise. */
+  protected readonly failure = computed<{ failure: Failure; describes: 'name' | 'save' } | null>(() => {
+    const error = this.error();
+    if (error !== null) return { failure: error, describes: error.reason === null ? 'name' : 'save' };
+    if (!this.failed()) return null;
+    return { failure: this.writeError() ?? { sentence: notSavedSentence(this.project().name), reason: null }, describes: 'save' };
+  });
   readonly isWorkUnit = computed(() => isSubproject(this.project()));
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   private readonly injector = inject(Injector);
@@ -86,7 +93,7 @@ export class ProjectDetailsDialog {
     event.preventDefault();
     if (this.pending() || this.finished) return;
     this.error.set(null);
-    if (!this.name().trim()) { this.error.set('A project name is required.'); return; }
+    if (!this.name().trim()) { this.error.set({ sentence: 'A project name is required.', reason: null }); return; }
     const patch = this.patch();
     if (!Object.keys(patch).length) { this.finish(); return; }
     this.pending.set(true);
@@ -96,7 +103,7 @@ export class ProjectDetailsDialog {
         if (!this.destroyed) this.finish();
       } else if (!this.destroyed) this.failed.set(true);
     } catch (error) {
-      if (!this.destroyed) this.error.set(error instanceof Error ? error.message : String(error));
+      if (!this.destroyed) this.error.set(writeFailure(error, notSavedSentence(this.project().name)));
     } finally {
       this.pending.set(false);
     }

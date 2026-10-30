@@ -53,3 +53,50 @@ describe('ProjectDetailsDialog — one commit (§26)', () => {
     expect(fixture.componentInstance.failed()).toBe(true);
   });
 });
+
+describe('ProjectDetailsDialog — failures (Slice 78, §24, §63)', () => {
+  const failureOf = (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const wrapper = element.querySelector<HTMLElement>('[data-project-details-error]')!;
+    return { element, wrapper, sentence: wrapper.querySelector<HTMLElement>('[data-failure-sentence]')! };
+  };
+
+  it('refuses a blank name with a sentence, no Details, named by the name field', async () => {
+    const { fixture, save } = await render();
+    fixture.componentInstance.name.set('  ');
+    await fixture.componentInstance.submit(new Event('submit'));
+    const { element, wrapper, sentence } = failureOf(fixture);
+    expect(save).not.toHaveBeenCalled();
+    expect(sentence.textContent?.trim()).toBe('A project name is required.');
+    expect(sentence.getAttribute('role')).toBe('alert');
+    expect(wrapper.querySelector('details')).toBeNull();
+    const name = element.querySelector<HTMLInputElement>('[data-project-rename-input]')!;
+    expect(document.getElementById(name.getAttribute('aria-describedby')!)).toBe(sentence);
+  });
+
+  it('shows the header’s write failure as its sentence with the reason under Details, named by Save', async () => {
+    const { fixture, save } = await render();
+    save.mockResolvedValue(false);
+    fixture.componentRef.setInput('writeError', { sentence: 'Couldn’t rename “Kitchen”. Try again.', reason: 'host stopped' });
+    fixture.componentInstance.name.set('Refit');
+    await fixture.componentInstance.submit(new Event('submit'));
+    const { element, wrapper, sentence } = failureOf(fixture);
+    expect(sentence.textContent?.trim()).toBe('Couldn’t rename “Kitchen”. Try again.');
+    expect(wrapper.querySelector('details')?.open).toBe(false);
+    expect(wrapper.querySelector('details')?.textContent).toContain('host stopped');
+    const saveButton = element.querySelector<HTMLElement>('[data-project-details-save]')!;
+    expect(document.getElementById(saveButton.getAttribute('aria-describedby')!)).toBe(sentence);
+    expect(element.querySelector('[data-project-rename-input]')?.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('turns a thrown save into the details sentence with the reason under Details', async () => {
+    const { fixture, save } = await render();
+    save.mockRejectedValue(new Error('socket closed'));
+    fixture.componentInstance.description.set('New');
+    await fixture.componentInstance.submit(new Event('submit'));
+    const { wrapper, sentence } = failureOf(fixture);
+    expect(sentence.textContent?.trim()).toBe('Couldn’t save the details of “Kitchen”. Try again.');
+    expect(wrapper.querySelector('details')?.textContent).toContain('socket closed');
+  });
+});

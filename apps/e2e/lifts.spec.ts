@@ -140,7 +140,9 @@ for (const theme of ['dark', 'light'] as const) {
           ? route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'conflict', message: 'Details refused for this journey' }) })
           : route.fallback());
         await page.locator('[data-project-details-save]').click();
-        await expect(page.locator('[data-project-details-dialog] [role="alert"]')).toContainText('Details refused');
+        // Slice 78: the alert is the product sentence; the host's reason is under Details.
+        await expect(page.locator('[data-project-details-dialog] [role="alert"]')).toHaveText(/^Couldn’t rename “.+”\. Try again\.$/);
+        await expect(page.locator('[data-project-details-error] details')).toContainText('Details refused');
         await expect(page.locator('[data-project-write-error]')).toHaveCount(0);
         await expect(page.locator('[data-project-rename-input]')).toHaveValue('Uncommitted draft');
         await page.locator('[data-project-details-cancel]').click();
