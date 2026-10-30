@@ -2,8 +2,40 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0–3 are done; Stage 4 part a (write
-failures' Details) is done. Stage 4's next part is the dialogs.**
+rounds and accepted by the user on 2026-10-29. **Stages 0–3 are done; Stage 4 parts a (write
+failures' Details) and b (dialogs, Markdown) are done. Stage 4's next part is the progress fact.**
+
+- Stage 4, part b (`fb1cc70`, `22ef8a7`, `9063191`, `e84511a`, `b9e0104`, docs `3722dc5`, review
+  fixes `73eff1f`), reviewed once by a subagent against the diff (no substantive findings; two
+  minor ones fixed; leaving `phone-layout.spec.ts:310` alone, as this plan requires, was a choice).
+  - **Canvas creates.** `CanvasWriteResult` is `{ ok: false; failure: Failure }`.
+    `mutateWithResult` takes a sentence: `addSection` says "Couldn’t add the {Type} section. Try
+    again." or "Couldn’t add “{title}”…"; `addShortcut(input, sourceName)` (new required argument)
+    says "Couldn’t add a shortcut to “{name}”…". Not loaded → "The page is still loading. Try again
+    in a moment." (`CANVAS_STILL_LOADING`); order incomplete → the shortcuts-read sentence, both
+    reason-less. `project-canvas.ts`'s own refusals are reason-less (`refusal()`).
+  - **Dialogs.** Section-create (`data-create-section-error`, describes the name field), the
+    picker's Add (`createError` is `{ sourceSectionId, failure }`; only that source's Add is
+    described), work-create (`createWorkstream` → `Failure | null`, "Couldn’t add “X”…",
+    `data-create-work-error` describes the name), project details (one
+    `data-project-details-error`: the blank-name refusal describes the name, a failed save
+    describes Save; `NOT_SAVED` is now "Couldn’t save the details of “X”…"), and the sidebar's New
+    project (`ShellStore.createError` is a `Failure`, "Couldn’t create “X”. Try again.", inline
+    beside the form, describing the reopened name). All inline weight, `live="alert"`. Dead
+    `section-create-dialog__error`, `shortcut-picker__error`, `work-create-dialog__error`,
+    `project-details__error` deleted; the sidebar's `[data-create-error]` keeps only its inset.
+  - **Markdown.** `SectionContentInputs.onConfigChange` and the frame's `saveConfig` are
+    `Promise<Failure | null>`; shortcuts' no-op answers `READ_ONLY_CONFIG` (`section-contract.ts`).
+    `mutate`/`updateSection` take `onFailure`; `updateConfig` uses it, so the canvas
+    `sectionError` is neither cleared nor set. The editor's `failure` input renders one inline
+    alert (`data-markdown-failed`) that describes the source. Its sentence is the store's "Couldn’t
+    save “X”. Try again." (the old "Not saved — your draft is kept." is gone; the draft stays
+    visibly kept). Cancel clears it.
+  - e2e edited, not run: `canvas-editing.spec.ts:544`, `work-navigation.spec.ts:137,154`,
+    `lifts.spec.ts:143`. Bundle 1,122.58 kB initial (1,122.16 kB at the part's start).
+  - `web/projects/how.md` and `web/core/what.md` say what is true. `pnpm test` and `pnpm lint`
+    green at the end of the part.
+  - Still raw: Revoke (slice 8), as recorded. No dialog slot is left raw.
 
 - Stage 4, part a (`f05744f`, `9e688be`, `a71cd02`, `90560ce`, `7fd25f1`, `b3b4cd6`, `a8619b8`,
   docs `b3390a7`, review fixes `554201e`), reviewed once by a subagent against the diff (no
@@ -236,9 +268,7 @@ failures' Details) is done. Stage 4's next part is the dialogs.**
     `UX_STATES_SKIP_TASKS=1` run keeps the recorded tasks. Each run takes a few minutes; run them
     in the foreground.
 
-**Next:** Stage 4 (`## Implementation sequence` step 4): dialogs (the raw slots listed in
-part a's entry),
-Markdown, the progress fact, not-found (`UnavailablePage`, which changes the interim `not_found`
+**Next:** Stage 4 (`## Implementation sequence` step 4): the progress fact, not-found (`UnavailablePage`, which changes the interim `not_found`
 e2e assertions noted in part b), then the pinned-failure registry/directive/slot tests and wiring.
 The raw write slots left by parts a–d are listed in their entries above.
 
