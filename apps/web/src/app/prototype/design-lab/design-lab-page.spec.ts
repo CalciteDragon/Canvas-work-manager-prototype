@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
+import { PinnedFailures } from '../../shared/feedback/pinned-failures';
 import { DesignLabPage } from './design-lab-page';
 import { DESIGN_LAB_TOKENS } from './design-lab-tokens';
 
@@ -30,6 +31,15 @@ afterEach(() => {
 });
 
 describe('DesignLabPage (§22, §67)', () => {
+  it('keeps its failing specimens out of the shell’s pinned-failure slot (Slice 78, §24)', async () => {
+    const { fixture } = await render();
+    const root = TestBed.inject(PinnedFailures);
+    const lab = fixture.debugElement.injector.get(PinnedFailures);
+
+    expect(lab).not.toBe(root);
+    expect(fixture.nativeElement.querySelector('[data-panel="task-row"] [data-task-error]')).not.toBeNull();
+  });
+
   it('renders every catalogue panel with no gateway provided', async () => {
     const { element } = await render();
 

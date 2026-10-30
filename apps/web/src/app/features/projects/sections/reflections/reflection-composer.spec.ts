@@ -98,4 +98,11 @@ describe('ReflectionComposer (§36)', () => {
     expect(sentence.textContent?.trim()).toBe('Couldn’t add your reflection. Try again.');
     expect(element.querySelector<HTMLDetailsElement>('[data-reflection-compose-error] details')?.open).toBe(false);
   });
+
+  it('names the body itself, so a failure that describes it is never its only label (Slice 78)', async () => {
+    const { fixture } = await render();
+    const body = fixture.nativeElement.querySelector('[data-reflection-body]') as HTMLTextAreaElement;
+
+    expect(body.getAttribute('aria-label')).toBe(body.getAttribute('placeholder'));
+  });
 });

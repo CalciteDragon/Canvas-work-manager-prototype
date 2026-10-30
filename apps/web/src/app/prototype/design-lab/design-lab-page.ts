@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { ThemeService } from '../../core/theme/theme-service';
+import { PinnedFailures } from '../../shared/feedback/pinned-failures';
 import { buildDesignLabExport, type DesignLabExport } from './design-lab-export';
 import { DesignLabStore } from './design-lab-store';
 import { DESIGN_LAB_TOKENS, type DesignLabToken } from './design-lab-tokens';
@@ -20,11 +21,15 @@ import { ControlPanels } from './panels/control-panels';
  * The page injects **no gateway**. Every panel is presentational and every fixture is a
  * plain contract object, which `design-lab-page.spec.ts` proves by providing no gateway
  * token at all.
+ *
+ * The page provides its own `PinnedFailures`, which no slot draws: a failing specimen scrolled
+ * out of view is a specimen, not a failure to pin over the Lab (Slice 78).
  */
 @Component({
   selector: 'app-design-lab-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LivePanels, PrimitivePanels, ControlPanels, PlanePanels],
+  providers: [PinnedFailures],
   templateUrl: './design-lab-page.html',
   styleUrl: './design-lab-page.scss',
 })
