@@ -112,3 +112,16 @@ export class PinnedFailures {
     });
   }
 }
+
+/**
+ * The nearest scrolling ancestor: the port a pin's edges belong to (`.workspace` in the app),
+ * found rather than named, so `shared/` never refers to the shell.
+ */
+export const scrollPortOf = (element: Element): HTMLElement | null => {
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    const style = getComputedStyle(parent);
+    // jsdom does not expand the `overflow` shorthand; browsers report the longhand.
+    if (/^(auto|scroll|overlay)$/.test(style.overflowY || style.overflow)) return parent;
+  }
+  return null;
+};
