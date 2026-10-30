@@ -30,14 +30,14 @@ export class ProjectDetailsDialog {
   readonly targetDate = signal('');
   readonly pending = signal(false);
   readonly discarding = signal(false);
-  /** This dialog's own failure: the blank-name refusal (no reason) or a save that threw. */
-  readonly error = signal<Failure | null>(null);
+  /** This dialog's own failure — the blank-name refusal or a save that threw — and the control it describes. */
+  readonly error = signal<{ failure: Failure; describes: 'name' | 'save' } | null>(null);
   /** The save answered `false`; the header's `writeError` says why, when it has a reason. */
   readonly failed = signal(false);
   /** The one failure shown, and which control it describes: the name for a refusal, Save otherwise. */
   protected readonly failure = computed<{ failure: Failure; describes: 'name' | 'save' } | null>(() => {
     const error = this.error();
-    if (error !== null) return { failure: error, describes: error.reason === null ? 'name' : 'save' };
+    if (error !== null) return error;
     if (!this.failed()) return null;
     return { failure: this.writeError() ?? { sentence: notSavedSentence(this.project().name), reason: null }, describes: 'save' };
   });
@@ -93,7 +93,7 @@ export class ProjectDetailsDialog {
     event.preventDefault();
     if (this.pending() || this.finished) return;
     this.error.set(null);
-    if (!this.name().trim()) { this.error.set({ sentence: 'A project name is required.', reason: null }); return; }
+    if (!this.name().trim()) { this.error.set({ failure: { sentence: 'A project name is required.', reason: null }, describes: 'name' }); return; }
     const patch = this.patch();
     if (!Object.keys(patch).length) { this.finish(); return; }
     this.pending.set(true);
@@ -103,7 +103,7 @@ export class ProjectDetailsDialog {
         if (!this.destroyed) this.finish();
       } else if (!this.destroyed) this.failed.set(true);
     } catch (error) {
-      if (!this.destroyed) this.error.set(writeFailure(error, notSavedSentence(this.project().name)));
+      if (!this.destroyed) this.error.set({ failure: writeFailure(error, notSavedSentence(this.project().name)), describes: 'save' });
     } finally {
       this.pending.set(false);
     }

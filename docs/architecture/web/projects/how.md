@@ -430,7 +430,7 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   project, and specs that a live frame during the write does not overwrite the paint and that the
   write reports begin, commit and end.
 - **A popup or frame that must preserve input on failure:** return a `CanvasWriteResult`
-  from the store; its failure is a `Failure` ("Couldn’t add the Notes section. Try again.", the
+  from the store; its failure is a `Failure` ("Couldn’t add the Markdown section. Try again.", the
   reason for Details), and the canvas's own refusals before sending (no insertion point, the page
   still loading, the shortcuts read failed) are reason-less `Failure`s. `SectionCreateDialog` shows
   it as an inline `FailureMessage` (`data-create-section-error`) that describes the name field. `ShortcutPicker` reports
