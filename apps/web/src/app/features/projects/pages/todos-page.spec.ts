@@ -249,7 +249,7 @@ describe('TodosPage (§34)', () => {
     fixture.detectChanges();
     expect(toggle.checked).toBe(true);
     // Slice 75: on the row, beside the box that moved back; the page alert is for Delete.
-    expect(rowFor(fixture, 'task-done').querySelector('[data-todo-row-error]')?.textContent).toContain('Reopen refused');
+    expect(rowFor(fixture, 'task-done').querySelector('[data-todo-row-error] details')?.textContent).toContain('Reopen refused');
     expect(query(fixture, '[data-todo-write-error]')).toBeNull();
     expect(dataChanged).not.toHaveBeenCalled();
   });
@@ -411,7 +411,9 @@ describe('TodosPage (§34)', () => {
     failedDelete.click();
     await failed.fixture.whenStable();
     failed.fixture.detectChanges();
-    expect(query(failed.fixture, '[data-todo-write-error]')?.textContent).toContain('cannot be archived');
+    expect(query(failed.fixture, '[data-todo-write-error] [data-failure-sentence]')?.textContent?.trim()).toMatch(/^Couldn’t delete “.+”. Try again.$/);
+    expect(query(failed.fixture, '[data-todo-write-error] [data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(query(failed.fixture, '[data-todo-write-error] details')?.textContent).toContain('cannot be archived');
     expect(query(failed.fixture, '[data-todo-id="task-early"]')).not.toBeNull();
     expect(document.activeElement).toBe(rowFor(failed.fixture, 'task-early').querySelector('[data-todo-delete]'));
   });
@@ -539,7 +541,7 @@ describe('TodosPage (§34)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(query(fixture, '[data-todo-id="task-early"]')).not.toBeNull();
-    expect(query(fixture, '[data-todo-write-error]')?.textContent).toContain(failure.message);
+    expect(query(fixture, '[data-todo-write-error] details')?.textContent).toContain(failure.message);
     expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
@@ -590,7 +592,7 @@ describe('TodosPage (§34)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(query(fixture, '[data-todo-id="task-nested"]')).not.toBeNull();
-    expect(query(fixture, '[data-todo-write-error]')?.textContent).toContain('tasks.write');
+    expect(query(fixture, '[data-todo-write-error] details')?.textContent).toContain('tasks.write');
     expect(query(fixture, '[data-toast-open]')).toBeNull();
   });
 
@@ -601,9 +603,13 @@ describe('TodosPage (§34)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const message = rowFor(fixture, 'task-early').querySelector<HTMLElement>('[data-todo-row-error]')!;
-    expect(message.textContent?.trim()).toMatch(/^Couldn’t complete “.+”. Try again. the task is archived$/);
+    const message = rowFor(fixture, 'task-early').querySelector<HTMLElement>('[data-todo-row-error] [data-failure-sentence]')!;
+    expect(message.textContent?.trim()).toMatch(/^Couldn’t complete “.+”. Try again.$/);
     expect(message.getAttribute('role')).toBe('alert');
+    // The toggle is described by the sentence alone; the reason waits behind a closed Details (Slice 78).
+    const details = rowFor(fixture, 'task-early').querySelector<HTMLDetailsElement>('[data-todo-row-error] details')!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain('the task is archived');
     expect(rowFor(fixture, 'task-early').querySelector('[data-todo-toggle]')?.getAttribute('aria-describedby')).toBe(message.id);
     expect(query(fixture, '[data-todo-write-error]')).toBeNull();
     expect(rowFor(fixture, 'task-early').querySelector('[data-todo-status]')?.textContent?.trim()).toBe('To do');

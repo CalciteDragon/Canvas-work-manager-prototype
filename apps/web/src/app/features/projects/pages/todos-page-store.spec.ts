@@ -243,7 +243,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
     expect(statusOf(store, 'task-1')).toBe('in_progress');
     // Slice 75: a completion failure belongs to its row, not the page.
     expect(store.writeError()).toBeNull();
-    expect(store.rowErrors().get('task-1')).toMatch(/^Couldn’t complete “.+”. Try again. the task is archived$/);
+    expect(store.rowErrors().get('task-1')).toEqual({ sentence: expect.stringMatching(/^Couldn’t complete “.+”. Try again.$/), reason: 'the task is archived' });
     expect(store.completing()).toBeNull();
   });
 
@@ -348,7 +348,7 @@ describe('TodosPageStore — deleting tasks (§34)', () => {
     expect(await failed.store.delete(parent)).toBe(false);
     expect(failed.store.items()).toEqual(original);
     expect(failed.store.deleting()).toBeNull();
-    expect(failed.store.writeError()).toContain('cannot be archived');
+    expect(failed.store.writeError()).toEqual({ sentence: expect.stringMatching(/^Couldn’t delete “.+”. Try again.$/), reason: 'the task cannot be archived' });
   });
 });
 
@@ -388,7 +388,7 @@ describe('TodosPageStore — reopening tasks (§34, §62, §63)', () => {
     expect(await reopening).toBe(false);
     expect(store.items()).toEqual([before]);
     expect(store.writeError()).toBeNull();
-    expect(store.rowErrors().get('task-done')).toMatch(/^Couldn’t reopen “.+”. Try again. the task is archived$/);
+    expect(store.rowErrors().get('task-done')).toEqual({ sentence: expect.stringMatching(/^Couldn’t reopen “.+”. Try again.$/), reason: 'the task is archived' });
     expect(store.completing()).toBeNull();
   });
 

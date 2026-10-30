@@ -31,14 +31,6 @@
   font-size: var(--font-size-sm);
 }
 
-.todos__error {
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--color-danger-surface);
-  color: var(--color-danger);
-}
-
 .todos__status:empty {
   // Kept mounted so a stale notice is announced, but out of the column's gaps while empty.
   position: absolute;
@@ -57,8 +49,6 @@
 .todos__row-error {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
 }
 
 // Finished work stays on the list (§34) and simply stops competing for attention.

@@ -6,8 +6,8 @@
     </p>
   </header>
 
-  @if (store.writeError(); as writeError) {
-    <p data-todo-write-error class="todos__error" role="alert">{{ writeError }}</p>
+  @if (store.writeError(); as failure) {
+    <app-failure-message data-todo-write-error [failure]="failure" live="alert" />
   }
   <!-- The list on screen is still the better answer than a blank page, so this says the
      chronology may be behind rather than replacing it. Mounted always, so it is announced. -->
@@ -111,7 +111,7 @@
           }
 
           @if (store.rowErrors().get(idOf(item)); as rowError) {
-            <p data-todo-row-error class="todos__row-error" role="alert" [id]="'todo-error-' + idOf(item)">{{ rowError }}</p>
+            <app-failure-message data-todo-row-error class="todos__row-error" weight="inline" [failure]="rowError" live="alert" [sentenceId]="'todo-error-' + idOf(item)" />
           }
         </li>
       }

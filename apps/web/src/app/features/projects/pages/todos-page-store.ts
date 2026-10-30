@@ -3,12 +3,10 @@ import { isProjectRecordEvent, type LiveEvent, type ProjectId, type ProjectTodoI
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { readFailure, type Failure } from '../../../shared/feedback/failure';
+import { readFailure, writeFailure, type Failure } from '../../../shared/feedback/failure';
 
 /** A failed re-read over a list still on screen: polite, never "Couldn’t load" (Slice 78). */
 const staleFailure = (error: unknown): Failure => ({ ...readFailure(error, 'this list'), sentence: 'This list may be out of date.' });
-// The writes' raw text stays until Stage 4 gives them Details (Slice 78).
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /** The id a row is addressed by, whichever kind it is. */
 export const todoIdOf = (item: ProjectTodoItem): string =>
@@ -75,8 +73,8 @@ export class TodosPageStore {
   private readonly errorState = signal<Failure | null>(null);
   private readonly refreshErrorState = signal<Failure | null>(null);
   private readonly refreshPendingState = signal(false);
-  private readonly writeErrorState = signal<string | null>(null);
-  private readonly rowErrorsState = signal<ReadonlyMap<string, string>>(new Map());
+  private readonly writeErrorState = signal<Failure | null>(null);
+  private readonly rowErrorsState = signal<ReadonlyMap<string, Failure>>(new Map());
   private readonly completingState = signal<string | null>(null);
   private readonly deletingState = signal<string | null>(null);
 
@@ -226,7 +224,7 @@ export class TodosPageStore {
       // The **exact** prior record, not a guessed `todo`: the row may have been in progress or
       // blocked, and the canvas it lives on still says so.
       this.replace(id, item);
-      this.setRowError(id, `Couldn’t complete “${todoTitleOf(item)}”. Try again. ${messageOf(error)}`);
+      this.setRowError(id, writeFailure(error, `Couldn’t complete “${todoTitleOf(item)}”. Try again.`));
       return false;
     } finally {
       if (current()) {
@@ -242,12 +240,12 @@ export class TodosPageStore {
     }
   }
 
-  private setRowError(id: string, message: string | null): void {
-    if (message === null && !this.rowErrorsState().has(id)) return;
+  private setRowError(id: string, failure: Failure | null): void {
+    if (failure === null && !this.rowErrorsState().has(id)) return;
     this.rowErrorsState.update((errors) => {
       const next = new Map(errors);
-      if (message === null) next.delete(id);
-      else next.set(id, message);
+      if (failure === null) next.delete(id);
+      else next.set(id, failure);
       return next;
     });
   }
@@ -287,7 +285,7 @@ export class TodosPageStore {
     } catch (error) {
       if (!current()) return false;
       this.replace(id, item);
-      this.setRowError(id, `Couldn’t reopen “${item.task.title}”. Try again. ${messageOf(error)}`);
+      this.setRowError(id, writeFailure(error, `Couldn’t reopen “${item.task.title}”. Try again.`));
       return false;
     } finally {
       if (current()) {
@@ -337,7 +335,7 @@ export class TodosPageStore {
     } catch (error) {
       if (!current()) return false;
       this.itemsState.set(before);
-      this.writeErrorState.set(messageOf(error));
+      this.writeErrorState.set(writeFailure(error, `Couldn’t delete “${todoTitleOf(item)}”. Try again.`));
       return false;
     } finally {
       if (current()) {
