@@ -306,8 +306,11 @@ test('a refused agent permission change is said in that agent’s card (F21)', a
   const cursor = page.locator('[data-connection-id="agent-cursor"]');
   const box = cursor.locator('[data-permission="tasks.write"]');
   await box.click();
-  const message = cursor.locator('[data-agent-permission-error]');
-  await expect(message).toHaveText('Couldn’t change Modify tasks for Cursor. Try again. Injected permission failure');
+  const failure = cursor.locator('[data-agent-permission-error]');
+  const message = failure.locator('[data-failure-sentence]');
+  await expect(message).toHaveText('Couldn’t change Modify tasks for Cursor. Try again.');
+  await failure.locator('summary').click();
+  await expect(failure.locator('details')).toContainText('Injected permission failure');
   await expect(box).toHaveAttribute('aria-describedby', (await message.getAttribute('id'))!);
   await expect(box).not.toBeChecked();
   await expect(page.locator('[data-agents-error]')).toHaveCount(0);

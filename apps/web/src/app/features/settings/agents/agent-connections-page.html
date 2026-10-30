@@ -59,7 +59,7 @@
         </ul>
         </fieldset>
         @if (permissionFailure(connection); as failure) {
-          <p data-agent-permission-error class="agents__card-error" role="alert" [id]="failure.id">{{ failure.message }}</p>
+          <app-failure-message data-agent-permission-error class="agents__card-error" weight="inline" [failure]="failure.failure" live="alert" [sentenceId]="failure.id" />
         }
 
         <footer class="agents__card-footer">

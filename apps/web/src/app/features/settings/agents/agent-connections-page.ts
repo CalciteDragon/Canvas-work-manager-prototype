@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import type { AgentConnection, AgentConnectionId, AgentPermission } from '@cwm/contracts';
 import { AgentConnectionsStore } from './agent-connections-store';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
+import type { Failure } from '../../../shared/feedback/failure';
 
 interface PermissionRow {
   key: AgentPermission;
@@ -49,15 +50,15 @@ export class AgentConnectionsPage {
   protected readonly store = inject(AgentConnectionsStore);
   protected readonly permissions = PERMISSIONS;
 
-  /** Slice 75's per-object failure: the permission and the connection by name, then the reason. */
-  protected permissionFailure(connection: AgentConnection): { id: string; permission: AgentPermission; message: string } | null {
+  /** Slice 75's per-object failure: the permission and the connection by name; the reason under Details (Slice 78). */
+  protected permissionFailure(connection: AgentConnection): { id: string; permission: AgentPermission; failure: Failure } | null {
     const failure = this.store.permissionFailures().get(connection.id);
     if (failure === undefined) return null;
     const label = PERMISSIONS.find((row) => row.key === failure.permission)?.label ?? failure.permission;
     return {
       id: `agent-permission-error-${connection.id}`,
       permission: failure.permission,
-      message: `Couldn’t change ${label} for ${connection.name}. Try again. ${failure.reason}`,
+      failure: { sentence: `Couldn’t change ${label} for ${connection.name}. Try again.`, reason: failure.reason },
     };
   }
 

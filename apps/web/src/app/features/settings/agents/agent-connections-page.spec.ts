@@ -153,12 +153,14 @@ describe('AgentConnectionsPage (§53)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const message = cursor.querySelector<HTMLElement>('[data-agent-permission-error]')!;
-    expect(message.textContent?.trim()).toBe(
-      'Couldn’t change Modify tasks for Cursor. Try again. agent connections can only be managed by the person who owns them',
-    );
+    const message = cursor.querySelector<HTMLElement>('[data-agent-permission-error] [data-failure-sentence]')!;
+    expect(message.textContent?.trim()).toBe('Couldn’t change Modify tasks for Cursor. Try again.');
     expect(message.getAttribute('role')).toBe('alert');
     expect(cursorBox.getAttribute('aria-describedby')).toBe(message.id);
+    // Slice 78: the reason waits behind a closed Details, outside the box's description.
+    const details = cursor.querySelector<HTMLDetailsElement>('[data-agent-permission-error] details')!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain('agent connections can only be managed by the person who owns them');
     expect(claude.querySelector('[data-agent-permission-error]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-agents-error]')).toBeNull();
     // The grant on screen is still the one in force — the refused change was not applied
