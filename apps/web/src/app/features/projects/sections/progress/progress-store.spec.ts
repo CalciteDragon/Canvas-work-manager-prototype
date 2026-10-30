@@ -70,8 +70,65 @@ describe('ProgressStore', () => {
     options.failOn = { 'progress.get': new GatewayError('unreachable', 0, 'refresh failed') };
 
     expect(await store.setFormula('weighted')).toBe(true);
-    expect(store.error()).toContain('refresh failed');
+    // Slice 78: a failed re-read after the write is the polite stale form, the result kept.
+    expect(store.error()).toBeNull();
+    expect(store.writeError()).toBeNull();
+    expect(store.stale()).toEqual({ sentence: 'This progress may be out of date.', reason: 'refresh failed' });
+    expect(store.result()?.percentage).toBe(0);
     expect(gateway.argumentTo('projects.update')).toEqual({ id: project.id, input: { progressFormula: 'weighted' } });
+
+    // A stale Try again is quiet: failing again it stays stale and keeps the result.
+    await store.retryStale();
+    expect(store.stale()?.sentence).toBe('This progress may be out of date.');
+    expect(store.loading()).toBe(false);
+    expect(store.result()?.percentage).toBe(0);
+
+    options.failOn = {};
+    const retrying = store.retryStale();
+    expect(store.stalePending()).toBe(true);
+    await retrying;
+    expect(store.stalePending()).toBe(false);
+    expect(store.stale()).toBeNull();
+  });
+
+  it('keeps a formula write failure apart from the read: the result stays, with the sentence and its reason (Slice 78)', async () => {
+    const options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = {
+      projects: [project],
+      progress: { projectId: project.id, formula: 'count', percentage: 40, completed: 2, total: 5, explanation: '2 of 5 tasks complete' },
+    };
+    const gateway = new FakeWorkManagerGateway(options);
+    TestBed.configureTestingModule({ providers: [ProgressStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const store = TestBed.inject(ProgressStore);
+    await store.load(project.id);
+    options.failOn = { 'projects.update': new GatewayError('internal_error', 500, 'update refused') };
+
+    expect(await store.setFormula('weighted')).toBe(false);
+
+    expect(store.writeError()).toEqual({ sentence: 'Couldn’t change how progress is measured. Try again.', reason: 'update refused' });
+    expect(store.error()).toBeNull();
+    expect(store.result()?.percentage).toBe(40);
+  });
+
+  it('keeps a failed read on screen through Try again until it answers, then clears it (Slice 78)', async () => {
+    const again = deferred<ProgressResult>();
+    const get = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('not_found', 404, 'Project project-a was not found'))
+      .mockImplementationOnce(() => again.promise);
+    const gateway = new FakeWorkManagerGateway({ projects: [project] });
+    Object.assign(gateway.progress, { get });
+    TestBed.configureTestingModule({ providers: [ProgressStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const store = TestBed.inject(ProgressStore);
+    await store.load(PROJECT_A);
+    expect(store.error()?.sentence).toBe('Progress isn’t available.');
+
+    const retrying = store.retry();
+    expect(store.loading()).toBe(true);
+    expect(store.error()?.sentence).toBe('Progress isn’t available.');
+    again.resolve({ projectId: PROJECT_A, formula: 'count', percentage: 10, completed: 1, total: 10, explanation: 'back' });
+    await retrying;
+
+    expect(store.error()).toBeNull();
+    expect(store.result()?.percentage).toBe(10);
   });
 
   it('ignores an older project response that lands after navigation', async () => {
@@ -107,6 +164,7 @@ describe('ProgressStore', () => {
 
     expect(await changing).toBe(false);
     expect(store.error()).toBeNull();
+    expect(store.writeError()).toBeNull();
     expect(store.result()).toMatchObject({ projectId: PROJECT_B });
   });
 });

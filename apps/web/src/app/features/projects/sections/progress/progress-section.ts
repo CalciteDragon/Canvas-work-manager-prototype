@@ -1,13 +1,14 @@
 import type { SectionContentInputs } from '../section-contract';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
 import { nameOf, type ProgressFormula, type ProjectSection, type SectionConfig } from '@cwm/contracts';
+import { FailureMessage } from '../../../../shared/feedback/failure-message';
 import { SECTION_FRAME_NAME } from '../section-frame-name';
 import { ProgressStore } from './progress-store';
 
 /** Distinguishes two Progress views over the same source on one page. */
 let nextInstance = 0;
 
-@Component({ selector: 'app-progress-section', changeDetection: ChangeDetectionStrategy.OnPush, providers: [ProgressStore], templateUrl: './progress-section.html', styleUrl: './progress-section.scss' })
+@Component({ selector: 'app-progress-section', changeDetection: ChangeDetectionStrategy.OnPush, imports: [FailureMessage], providers: [ProgressStore], templateUrl: './progress-section.html', styleUrl: './progress-section.scss' })
 export class ProgressSection {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();

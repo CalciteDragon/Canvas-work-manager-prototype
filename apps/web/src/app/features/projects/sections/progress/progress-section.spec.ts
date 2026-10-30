@@ -1,7 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ProjectSectionSchema } from '@cwm/contracts';
+import { ProjectSchema, ProjectSectionSchema } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
+import { GatewayError } from '../../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { ProgressSection } from './progress-section';
@@ -140,4 +141,59 @@ it('emphasises only the active formula without a lone primary (slice 77)', async
  await fixture.whenStable();fixture.detectChanges();
  expect(fixture.nativeElement.querySelector('.button--primary')).toBeNull();
  expect(fixture.nativeElement.querySelector('[aria-pressed="true"]')?.classList.contains('progress-section__choice--active')).toBe(true);
+});
+
+describe('ProgressSection failures (Slice 78)', () => {
+  const progress = { projectId: section.projectId, formula: 'count' as const, percentage: 50, completed: 1, total: 2, explanation: 'half' };
+  const projects = [ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', kind: 'root', name: 'Launch', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' })];
+  const render = async (options: ConstructorParameters<typeof FakeWorkManagerGateway>[0]) => {
+    const gateway = new FakeWorkManagerGateway(options);
+    TestBed.configureTestingModule({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const fixture = TestBed.createComponent(ProgressSection);
+    fixture.componentRef.setInput('section', section); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
+    fixture.detectChanges(); await fixture.whenStable(); await settle(); fixture.detectChanges();
+    return { fixture, gateway, element: fixture.nativeElement as HTMLElement };
+  };
+
+  it('shows a failed read with Try again in place of the result, and re-reads', async () => {
+    const { fixture, gateway, element } = await render({ failWith: new GatewayError('unreachable', 0, 'host down') });
+    expect(element.querySelector('[data-progress-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t reach your workspace, so progress didn’t load.');
+    expect(element.querySelector('.progress-section__summary')).toBeNull();
+    const before = gateway.calls.filter(({ method }) => method === 'progress.get').length;
+    element.querySelector<HTMLButtonElement>('[data-progress-error] [data-recovery="try-again"]')!.click();
+    await fixture.whenStable();
+    expect(gateway.calls.filter(({ method }) => method === 'progress.get')).toHaveLength(before + 1);
+  });
+
+  it('keeps the result and controls under a formula write failure, its reason under Details', async () => {
+    const options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = { progress, projects };
+    const { fixture, element } = await render(options);
+    options.failOn = { 'projects.update': new GatewayError('internal_error', 500, 'update refused') };
+    await fixture.componentInstance.choose('weighted'); fixture.detectChanges();
+
+    expect(element.querySelector('[data-progress-write-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t change how progress is measured. Try again.');
+    expect(element.querySelector('[data-progress-write-error] details')?.textContent).toContain('update refused');
+    expect(element.querySelector('.progress-section__summary')).not.toBeNull();
+    expect(element.querySelector('.progress-section__controls')).not.toBeNull();
+  });
+
+  it('says a failed re-read after a write politely, with Try again, keeping the result and controls', async () => {
+    const options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = { progress, projects };
+    const { fixture, element } = await render(options);
+    options.failOn = { 'progress.get': new GatewayError('unreachable', 0, 'refresh failed') };
+    await fixture.componentInstance.choose('weighted'); fixture.detectChanges();
+
+    const status = element.querySelector('[data-progress-status]')!;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(status.querySelector('[data-progress-stale] [data-failure-sentence]')?.textContent?.trim()).toBe('This progress may be out of date.');
+    expect(status.querySelector('[data-progress-stale] [data-recovery="try-again"]')).not.toBeNull();
+    expect(element.textContent).not.toContain('Couldn’t load');
+    expect(element.querySelector('.progress-section__summary')).not.toBeNull();
+    expect(element.querySelector('.progress-section__controls')).not.toBeNull();
+
+    status.querySelector<HTMLButtonElement>('[data-recovery="try-again"]')!.click();
+    await fixture.whenStable(); await settle(); fixture.detectChanges();
+    expect(element.querySelector('[data-progress-stale]')).not.toBeNull();
+    expect(element.querySelector('.progress-section__controls')).not.toBeNull();
+  });
 });
