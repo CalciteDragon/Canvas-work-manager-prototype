@@ -36,8 +36,64 @@ describe('ArchivedProjectsStore (Slice 44)', () => {
     await store.load();
     store.chooseStatus(project.id, 'planning');
     expect(await store.restore(project.id)).toBe(false);
-    expect(store.error()).toContain('Restore the parent first');
+    // Slice 78: the refusal is said in product words, its reason apart; it outranks the quiet re-read before it.
+    expect(store.error()).toEqual({ kind: 'refused', sentence: 'Couldn’t restore “Old launch”. The list may have changed.', reason: 'Restore the parent first' });
     expect(gateway.calls.at(-1)?.method).toBe('projects.archived');
+  });
+
+  it('keeps the refusal when the quiet re-read before it fails too (Slice 78)', async () => {
+    const { store, gateway } = setup({ archivedProjects: result, failOn: {
+      'projects.update': new GatewayError('conflict', 409, 'Restore the parent first'),
+    } });
+    await store.load();
+    store.chooseStatus(project.id, 'planning');
+    gateway.options.failOn = { ...gateway.options.failOn, 'projects.archived': new GatewayError('unreachable', 503, 'Offline') };
+    expect(await store.restore(project.id)).toBe(false);
+    expect(store.error()).toMatchObject({ kind: 'refused', reason: 'Restore the parent first' });
+  });
+
+  it('says an unreachable restore may not have been restored (Slice 78)', async () => {
+    const { store } = setup({ archivedProjects: result, failOn: { 'projects.update': new GatewayError('unreachable', 0, 'host offline') } });
+    await store.load();
+    store.chooseStatus(project.id, 'active');
+    expect(await store.restore(project.id)).toBe(false);
+    expect(store.error()).toEqual({ kind: 'refused', sentence: 'Couldn’t reach your workspace, so “Old launch” may not have been restored.', reason: 'host offline' });
+  });
+
+  it('says a failed first read as a load failure, and a failed read over the list as stale (Slice 78)', async () => {
+    const { store, gateway } = setup();
+    gateway.options.failOn = { 'projects.archived': new GatewayError('unreachable', 0, 'list read failed') };
+    expect(await store.load()).toBe(false);
+    expect(store.error()).toEqual({ kind: 'load', sentence: 'Couldn’t reach your workspace, so this list didn’t load.', reason: 'list read failed' });
+
+    gateway.options.failOn = {};
+    expect(await store.retry()).toBe(true);
+    expect(store.error()).toBeNull();
+    gateway.options.failOn = { 'projects.archived': new GatewayError('internal_error', 500, 'quiet read failed') };
+    expect(await store.load({ quiet: true })).toBe(false);
+    expect(store.error()).toEqual({ kind: 'stale', sentence: 'This list may be out of date.', reason: 'quiet read failed' });
+    expect(store.items()).toHaveLength(1);
+    // Restore stays paused under stale, as under the other three.
+    store.chooseStatus(project.id, 'active');
+    expect(await store.restore(project.id)).toBe(false);
+    gateway.options.failOn = {};
+    expect(await store.retry()).toBe(true);
+    expect(await store.restore(project.id)).toBe(true);
+  });
+
+  it('keeps Try again busy and the failure on screen while it reads (Slice 78)', async () => {
+    const { store, gateway } = setup();
+    gateway.options.failOn = { 'projects.archived': new GatewayError('unreachable', 0, 'list read failed') };
+    await store.load();
+    let answer!: (value: ArchivedProjectsResult) => void;
+    vi.spyOn(gateway.projects, 'archived').mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+    const retrying = store.retry();
+    expect(store.retryPending()).toBe(true);
+    expect(store.error()?.kind).toBe('load');
+    answer(result);
+    await retrying;
+    expect(store.retryPending()).toBe(false);
+    expect(store.error()).toBeNull();
   });
 
   it('retains a successful write message when its follow-up read fails and Retry only reads', async () => {
@@ -46,24 +102,27 @@ describe('ArchivedProjectsStore (Slice 44)', () => {
     store.chooseStatus(project.id, 'active');
     gateway.options.failOn = { 'projects.archived': new GatewayError('unreachable', 503, 'Offline') };
     expect(await store.restore(project.id)).toBe(true);
-    expect(store.error()).toContain('Restore succeeded');
+    expect(store.error()).toEqual({ kind: 'committed-unrefreshed', sentence: 'Restored “Old launch”, but this list couldn’t refresh.', reason: 'Offline' });
     const writes = gateway.calls.filter((call) => call.method === 'projects.update').length;
     expect(await store.restore(project.id)).toBe(false);
     expect(gateway.calls.filter((call) => call.method === 'projects.update')).toHaveLength(writes);
     await store.retry();
     expect(gateway.calls.filter((call) => call.method === 'projects.update')).toHaveLength(writes);
     // Slice 47: a later failed read does not erase the fact that the write committed.
-    expect(store.error()).toContain('Restore succeeded');
+    expect(store.error()?.kind).toBe('committed-unrefreshed');
   });
 
-  it('replaces a refusal with a later read failure, so Retry visibly ran', async () => {
+  it('hands a refusal over to its Try again read, which turns stale when it fails, so Try again visibly ran', async () => {
     const { store, gateway } = setup({ archivedProjects: result, failOn: { 'projects.update': new GatewayError('conflict', 409, 'Restore the parent first') } });
     await store.load();
     store.chooseStatus(project.id, 'planning');
     expect(await store.restore(project.id)).toBe(false);
     gateway.options.failOn = { 'projects.archived': new GatewayError('unreachable', 503, 'Offline') };
+    // A live frame's failed read leaves the held refusal as it is.
+    expect(await store.load({ quiet: true })).toBe(false);
+    expect(store.error()).toMatchObject({ kind: 'refused', reason: 'Restore the parent first' });
     expect(await store.retry()).toBe(false);
-    expect(store.error()).toContain('Offline');
+    expect(store.error()).toEqual({ kind: 'stale', sentence: 'This list may be out of date.', reason: 'Offline' });
   });
 
   it('keeps Restore blocked while a live-frame read is pending after a failed refresh', async () => {
@@ -77,7 +136,7 @@ describe('ArchivedProjectsStore (Slice 44)', () => {
     live.emit({ type: 'project.updated', entityType: 'project', entityId: project.id,
       projectId: project.id, rootProjectId: project.id });
     await Promise.resolve();
-    expect(store.error()).toContain('Restore succeeded');
+    expect(store.error()?.kind).toBe('committed-unrefreshed');
     expect(await store.restore(project.id)).toBe(false);
     expect(gateway.calls.filter((call) => call.method === 'projects.update')).toHaveLength(1);
     resolveRead({ items: [] });

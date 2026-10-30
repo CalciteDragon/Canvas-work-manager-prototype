@@ -2,14 +2,20 @@
 
 Settings routes `/settings/archived-projects` to `ArchivedProjectsPage` outside project
 navigation. Its store reads `projects.archived()` via the gateway, keeps an explicit status per
-row, reports the existing project write to history and refreshes after success or refusal. It
-keeps an acknowledged success when only the following read fails and offers a read-only Retry.
+row, reports the existing project write to history and refreshes after success or refusal. Its
+`error()` holds Archive's four failure states in Archive's precedence (Slice 78), said of "this
+list": a committed restore whose refresh failed ("Restored “X”, but this list couldn’t refresh.",
+Retry refresh), a refused restore ("Couldn’t restore “X”. The list may have changed.", or the
+reach sentence for `unreachable`), a stale list ("This list may be out of date.", polite) and a
+load failure, each one `FailureMessage` (`data-archived-error`) whose read-only Try again stays
+busy on `retryPending()`. Restore stays paused under all four until a read succeeds; the quiet
+re-read before a refusal ends in the refusal, and Try again hands a refusal over to its read.
 Project frames and reconnects refresh the workspace list. Committed Restore opens one toast
 naming the project and resulting status, with Open it and no Undo outside a workspace. Focus
 moves to its first action only when the removed Restore control or body still owns focus;
 dismissal falls back to a surviving Restore or the heading. Failed Restore and Retry retain the
 existing bounded list-focus recovery, and a person who moved focus elsewhere keeps it. A later
-failed read keeps a “Restore succeeded” error so the committed write stays acknowledged.
+failed read keeps the committed-unrefreshed state so the committed write stays acknowledged.
 
 ## Runtime flow
 

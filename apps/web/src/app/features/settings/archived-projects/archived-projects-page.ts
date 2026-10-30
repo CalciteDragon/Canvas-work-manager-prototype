@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectRestoreStatus } from '@cwm/contracts';
 import { ArchivedProjectsStore } from './archived-projects-store';
 import { Toast } from '../../../shared/feedback/toast';
+import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { ReceiptToast } from '../../../core/history/receipt-toast';
 import { restoredProjectFeedback } from '../../projects/history/history-feedback';
 
@@ -10,7 +11,7 @@ import { restoredProjectFeedback } from '../../projects/history/history-feedback
 @Component({
   selector: 'app-archived-projects-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Toast],
+  imports: [RouterLink, Toast, FailureMessage],
   providers: [ArchivedProjectsStore],
   templateUrl: './archived-projects-page.html',
   styleUrl: './archived-projects-page.scss',
@@ -85,9 +86,9 @@ export class ArchivedProjectsPage {
     });
   }
 
-  /** A successful Retry removes itself with the error, so it hands focus on the same way. */
+  /** A successful Try again or Retry refresh removes itself with the error, so it hands focus on the same way. */
   protected retry(): Promise<void> {
-    return this.keepFocus('data-archived-retry', () => this.store.retry(), 0);
+    return this.keepFocus('data-recovery', () => this.store.retry(), 0);
   }
 
   /**
@@ -108,14 +109,14 @@ export class ArchivedProjectsPage {
   }
 
   /**
-   * The next usable control: Retry while the retained list is blocked by an error; otherwise the
+   * The next usable control: Try again (or Retry refresh) while the retained list is blocked by an error; otherwise the
    * enabled status selector now at `index` — the row that took a restored row's place, a child it
    * revealed, or the previous row when it was last; otherwise the heading. A later row's Restore
    * is disabled until a status is chosen, so it is never the target.
    */
   private focusNext(index: number): void {
     const host = this.host.nativeElement;
-    const retry = host.querySelector<HTMLElement>('[data-archived-retry]:not(:disabled)');
+    const retry = host.querySelector<HTMLElement>('[data-archived-error] [data-recovery]');
     if (this.store.error() !== null && retry !== null) {
       retry.focus();
       return;

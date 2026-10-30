@@ -3,14 +3,16 @@
   <p>Restore a project to bring it back to the workspace. Its separately archived contents remain in Archive.</p>
 </header>
 
-@if (store.error(); as message) {
-  <div class="archived-projects__error" role="alert">
-    <p data-archived-error>{{ message }}</p>
-    <button data-archived-retry type="button" class="button" [disabled]="store.busy() !== null" (click)="retry()">Retry list</button>
-  </div>
+<!-- Archive's one message for all four states (Slice 78): the stale notice is polite, the others
+   alerts; Try again keeps focus when a refusal turns stale, and Restore stays paused under each. -->
+@if (store.error(); as error) {
+  <app-failure-message class="archived-projects__failure" data-archived-error [failure]="error"
+    [live]="error.kind === 'stale' ? 'status' : 'alert'"
+    [recovery]="error.kind === 'committed-unrefreshed' ? 'retry-refresh' : 'try-again'"
+    [pending]="store.retryPending()" (retry)="retry()" />
 }
 
-@if (store.loading() && store.items().length === 0) {
+@if (store.loading() && store.items().length === 0 && store.error() === null) {
   <p data-archived-loading role="status">Loading archived projects…</p>
 } @else if (store.items().length === 0 && store.error() === null) {
   <p data-archived-empty>No archived projects are ready to restore in this workspace.</p>

@@ -92,16 +92,45 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
     expect(gateway.calls).toContainEqual({ method: 'projects.update', argument: { id: project.id, input: { status: 'on_hold' } } });
   });
 
-  it('offers a read-only Retry after a list failure', async () => {
+  it('offers a read-only Try again after a list failure, with no empty sentence (Slice 78)', async () => {
     const { fixture, gateway } = await render(new FakeWorkManagerGateway({ failOn: { 'projects.archived': new GatewayError('unreachable', 503, 'Offline') } }));
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('[data-archived-error]')?.textContent).toContain('Offline');
+    const error = host.querySelector('[data-archived-error]')!;
+    expect(error.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t reach your workspace, so this list didn’t load.');
+    expect(error.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('alert');
+    expect(error.querySelector('details')?.textContent).toContain('Offline');
+    expect(error.querySelector('[data-recovery]')?.textContent?.trim()).toBe('Try again');
+    expect(host.querySelector('[data-archived-empty]')).toBeNull();
+    expect(host.querySelector('[data-archived-loading]')).toBeNull();
     gateway.options.failOn = {};
-    host.querySelector<HTMLButtonElement>('[data-archived-retry]')!.click();
+    host.querySelector<HTMLButtonElement>('[data-archived-error] [data-recovery]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(host.querySelector('[data-archived-empty]')).not.toBeNull();
     expect(gateway.calls.every((call) => call.method === 'projects.archived')).toBe(true);
+  });
+
+  it('says a failed read over the list politely, keeps the list and pauses Restore until Try again reads (Slice 78)', async () => {
+    const { fixture, gateway } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    gateway.options.failOn = { 'projects.archived': new GatewayError('internal_error', 500, 'quiet read failed') };
+    await fixture.componentInstance['store'].load({ quiet: true });
+    fixture.detectChanges();
+    const error = host.querySelector('[data-archived-error]')!;
+    expect(error.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('This list may be out of date.');
+    expect(error.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('status');
+    expect(error.querySelector('[data-recovery]')?.textContent?.trim()).toBe('Try again');
+    expect(host.textContent).not.toContain('Couldn’t load');
+    expect(host.querySelector('[data-archived-project]')).not.toBeNull();
+    const select = host.querySelector<HTMLSelectElement>('[data-archived-status]')!;
+    select.value = 'active'; select.dispatchEvent(new Event('change')); fixture.detectChanges();
+    expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(true);
+
+    gateway.options.failOn = {};
+    host.querySelector<HTMLButtonElement>('[data-archived-error] [data-recovery]')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(host.querySelector('[data-archived-error]')).toBeNull();
+    expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(false);
   });
 
   it('disables a stale Restore row when the write succeeded but its refresh failed', async () => {
@@ -114,13 +143,14 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
     const restore = host.querySelector<HTMLButtonElement>('[data-archived-restore]')!;
     restore.click();
     await fixture.whenStable(); fixture.detectChanges();
-    expect(host.querySelector('[data-archived-error]')?.textContent).toContain('Restore succeeded');
+    expect(host.querySelector('[data-archived-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Restored “Past launch”, but this list couldn’t refresh.');
+    expect(host.querySelector('[data-archived-error] [data-recovery]')?.textContent?.trim()).toBe('Retry refresh');
     expect(restore.disabled).toBe(true);
     restore.click();
     expect(gateway.calls.filter((call) => call.method === 'projects.update')).toHaveLength(1);
     gateway.options.failOn = {};
     gateway.options.archivedProjects = { items: [] };
-    host.querySelector<HTMLButtonElement>('[data-archived-retry]')!.click();
+    host.querySelector<HTMLButtonElement>('[data-archived-error] [data-recovery]')!.click();
     await fixture.whenStable(); fixture.detectChanges();
     expect(host.querySelector('[data-archived-project]')).toBeNull();
   });
@@ -286,10 +316,10 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
       // A successful Retry removes itself with the error; focus moves on rather than dropping.
       gateway.options.failOn = {};
       gateway.options.archivedProjects = { items: [second] };
-      host.querySelector<HTMLButtonElement>('[data-archived-retry]')!.focus();
-      host.querySelector<HTMLButtonElement>('[data-archived-retry]')!.click();
+      host.querySelector<HTMLButtonElement>('[data-archived-error] [data-recovery]')!.focus();
+      host.querySelector<HTMLButtonElement>('[data-archived-error] [data-recovery]')!.click();
       await settle(fixture);
-      expect(host.querySelector('[data-archived-retry]')).toBeNull();
+      expect(host.querySelector('[data-archived-error] [data-recovery]')).toBeNull();
       expect(document.activeElement).toBe(statusOf(fixture, second.project.id));
     });
 

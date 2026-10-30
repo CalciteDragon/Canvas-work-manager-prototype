@@ -193,12 +193,12 @@ test.describe('narrow touch recovery', () => {
       await page.route('**/api/archived-projects', failList);
       await expect(restore(child.id)).toBeEnabled();
       await activate(restore(child.id), theme);
-      await expect(page.locator('[data-archived-error]')).toContainText('Restore succeeded');
+      await expect(page.locator('[data-archived-error]')).toContainText('but this list couldn’t refresh');
       await expect(restore(child.id)).toBeDisabled();
       await expect(page.locator('[data-toast]:popover-open [data-restore-open]')).toBeFocused();
       await page.unroute('**/api/archived-projects', failList);
       await page.unroute(`**/api/projects/${child.id}`, armOnWrite);
-      await activate(page.locator('[data-archived-retry]'), theme);
+      await activate(page.locator('[data-archived-error] [data-recovery]'), theme);
       await expect(row(page, child.id)).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();
       expect((await api.get<{ status: string }>(`/api/projects/${child.id}`)).status).toBe('on_hold');
