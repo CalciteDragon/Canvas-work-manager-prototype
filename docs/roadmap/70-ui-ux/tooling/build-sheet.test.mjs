@@ -858,3 +858,298 @@ test('profile 77 measures the real inline New project form rather than requiring
     assert.equal(result.status,change==='none'?0:1,width+' '+change+' '+result.stderr);
   }
 });
+
+// Profile 78: the states gate. A copy of `apps/e2e/ux/states-verification.ts`'s context table,
+// with evidence that satisfies every rule; each test breaks one thing and expects the gate to fail.
+const kitchenSection = id => `[data-section-id="section-project-kitchen-${id}"]`;
+const [TASKS_R, REFL_R, TIME_R, PROG_R, ACT_R, BRIEF_R] = ['tasks', 'reflections', 'timeline', 'progress', 'recent-activity', 'brief'].map(kitchenSection);
+const SHORTCUT_R = '[data-shortcut-id="shortcut-renovation-kitchen-tasks"]';
+const stateRow = (context, region, kind, recovery, details, emptyHook = null, pinned = null, text = null) => ({ context, region, kind, recovery, details, emptyHook, pinned, text });
+const stateRows = () => [
+  stateRow('dashboard-me-failing', 'app-dashboard-page', 'read', 'try-again', true, 'data-dashboard-empty'),
+  stateRow('dashboard-me-failing', 'app-sidebar', 'read', 'try-again', true, 'data-projects-empty'),
+  stateRow('dashboard-real-ai', 'app-daily-digest-widget', 'read', 'try-again', false),
+  stateRow('sidebar-loading', 'app-sidebar', 'loading', 'none', false, 'data-projects-empty'),
+  stateRow('sidebar-failed', 'app-sidebar', 'read', 'try-again', true, 'data-projects-empty'),
+  stateRow('project-read-failing', 'main', 'read', 'try-again', true),
+  stateRow('project-unavailable-alex', 'main', 'read', 'go-home', false),
+  stateRow('kitchen-sections-failing', 'app-project-canvas', 'read', 'try-again', true, 'data-empty-canvas'),
+  stateRow('kitchen-shortcuts-failing', 'app-project-canvas', 'read', 'try-again', true),
+  stateRow('kitchen-bodies-failing', TASKS_R, 'read', 'try-again', true, 'data-tasks-empty'),
+  stateRow('kitchen-bodies-failing', REFL_R, 'read', 'try-again', true, 'data-reflections-empty'),
+  stateRow('kitchen-bodies-failing', TIME_R, 'read', 'try-again', true, 'data-timeline-empty'),
+  stateRow('kitchen-bodies-failing', PROG_R, 'read', 'try-again', true),
+  stateRow('kitchen-bodies-failing', ACT_R, 'read', 'try-again', true, 'data-activity-empty'),
+  stateRow('kitchen-reflection-create-failing', REFL_R, 'write', 'none', true),
+  stateRow('kitchen-reflection-edit-failing', REFL_R, 'write', 'none', true),
+  stateRow('kitchen-section-create-failing', 'app-section-create-dialog', 'write', 'none', true),
+  stateRow('kitchen-tasks-lifted', TASKS_R, 'read', 'try-again', true, 'data-tasks-empty'),
+  stateRow('todos-failing', 'app-todos-page', 'read', 'try-again', true, 'data-todos-empty'),
+  stateRow('reflections-page-failing', 'app-reflections-page', 'read', 'try-again', true, 'data-reflections-empty'),
+  stateRow('archive-failing', 'app-archive-page', 'read', 'try-again', true, 'data-archive-empty'),
+  stateRow('archived-projects-failing', 'app-archived-projects-page', 'read', 'try-again', true, 'data-archived-empty'),
+  stateRow('agents-failing', 'app-agent-connections-page', 'read', 'try-again', true, 'data-agents-empty'),
+  stateRow('picker-discovery-failing', 'app-shortcut-picker', 'read', 'try-again', true, 'data-shortcut-picker-empty'),
+  stateRow('todos-stale', 'app-todos-page', 'stale', 'try-again', true, 'data-todos-empty'),
+  stateRow('archive-restore-failing', 'app-archive-page', 'write', 'try-again', true),
+  stateRow('archive-restore-unrefreshed', 'app-archive-page', 'write', 'retry-refresh', true),
+  stateRow('archive-stale', 'app-archive-page', 'stale', 'try-again', true, 'data-archive-empty'),
+  stateRow('archived-projects-stale', 'app-archived-projects-page', 'stale', 'try-again', true, 'data-archived-empty'),
+  stateRow('kitchen-progress-formula-failing', PROG_R, 'write', 'none', true),
+  stateRow('write-task-complete', TASKS_R, 'write', 'none', true),
+  stateRow('write-drawer-field', 'app-task-detail-drawer', 'write', 'none', true),
+  stateRow('write-quick-add', TASKS_R, 'write', 'none', true),
+  stateRow('write-section-removal-toast', '[data-toast]:popover-open', 'write', 'none', true),
+  stateRow('markdown-save-failing', BRIEF_R, 'write', 'none', true),
+  stateRow('pin-todos-below', 'app-todos-page', 'write', 'none', true, null, 'bottom'),
+  stateRow('pin-tasklist-above', TASKS_R, 'write', 'none', true, null, 'top'),
+  stateRow('pin-section-collapse', BRIEF_R, 'write', 'none', true, null, 'top'),
+  stateRow('pin-shortcut-collapse', SHORTCUT_R, 'write', 'none', true, null, 'bottom'),
+  stateRow('pin-tall-tasklist-banner', TASKS_R, 'write', 'none', true, null, 'top'),
+  stateRow('header-progress-empty-project', 'app-project-header', 'read', 'none', false),
+  stateRow('header-progress-failing', 'app-project-header', 'read', 'none', false),
+  stateRow('header-progress-legacy', 'app-project-header', 'read', 'none', false),
+  stateRow('not-found', 'main', 'read', 'go-home', false),
+  stateRow('kitchen-loading', 'app-project-canvas', 'loading', 'none', false, 'data-empty-canvas'),
+  stateRow('header-progress-pending', 'app-project-header', 'pending', 'none', false, null, null, 'Measuring…'),
+];
+const STATE_VIEWS = [['dark', 1440], ['dark', 375], ['light', 1440], ['light', 375]];
+const RECOVERY_NAMES = { 'try-again': 'Try again', 'go-home': 'Go to Home', 'retry-refresh': 'Retry refresh', reload: 'Reload' };
+/** The workspace's scroll port and the content track inside it, per width. */
+const stateGeometry = width => width === 375
+  ? { port: { x: 0, y: 56, width: 375, height: 756 }, track: { x: 0, y: 56, width: 375, height: 756 } }
+  : { port: { x: 240, y: 48, width: 1200, height: 852 }, track: { x: 480, y: 48, width: 960, height: 852 } };
+const stateLabPanels = () => ['controls', 'state-messages', 'states', 'task-row', 'navigation', 'section-states', 'buttons'].map((id, i) => ({ id, x: 20, y: 100 + i * 400, width: 600, height: 380 }));
+function stateEntry(context, theme, width, rows) {
+  const mine = rows.filter(r => r.context === context), g = stateGeometry(width);
+  const reason = mine.some(r => r.details) ? `Audit: ${context} failed` : null;
+  const pinned = mine.find(r => r.pinned)?.pinned ?? null;
+  const sticky = context === 'pin-tasklist-above' ? [{ box: { x: g.track.x, y: g.port.y, width: g.track.width, height: 60 } }] : [];
+  const toast = context === 'pin-todos-below' ? { x: g.track.x + 8, y: g.port.y + g.port.height - 80, width: g.track.width - 16, height: 64 } : null;
+  const clearTop = g.port.y + (sticky.length ? 60 : 0), clearBottom = toast ? toast.y : g.port.y + g.port.height;
+  const anchor = y => ({ id: 'sentence-1', text: 'Couldn’t save this.', box: { x: g.track.x + 20, y, width: 300, height: 20 } });
+  const hidden = pinned === 'top' ? anchor(g.port.y - 120) : anchor(g.port.y + g.port.height + 120);
+  const region = (r, open, anchors = r.pinned ? [hidden] : []) => ({
+    region: r.region, present: true, box: { x: g.track.x, y: 200, width: g.track.width, height: 300 }, text: r.text ?? 'Couldn’t load this.',
+    buttons: r.recovery === 'none' ? [] : [{ name: RECOVERY_NAMES[r.recovery], tag: r.recovery === 'go-home' ? 'a' : 'button', recovery: r.recovery, visible: true, disabled: false, box: { x: g.track.x + 10, y: 220, width: 96, height: width === 375 ? 44 : 32 } }],
+    details: r.details ? [{ open, visible: true, summary: 'Details', text: `Details ${reason}` }] : [],
+    visibleEmptyHooks: [], loading: r.kind === 'loading' ? [{ text: 'Loading…', visible: true, busy: true }] : [],
+    failures: [{ box: { x: g.track.x + 10, y: 240, width: 200, height: 20 } }], anchors,
+  });
+  const pin = edge => {
+    const x = g.track.x + 8, w = g.track.width - 16, h = 52, y = edge === 'top' ? clearTop + 8 : clearBottom - 8 - h;
+    return { edge, indicator: edge === 'top' ? '↑' : '↓', sentence: 'Couldn’t save this.', box: { x, y, width: w, height: h }, show: { x: x + 4, y: y + 4, width: w - 56, height: 44 }, dismiss: { x: x + w - 48, y: y + 4, width: 44, height: 44 } };
+  };
+  const frame = { scrollPort: { ...g.port, client: { ...g.port } }, track: { ...g.track }, sticky, toast };
+  return {
+    context, theme, width, reason, screenshot: `states-${context}-${theme}-${width}.png`, aria: '- main', ...frame,
+    regions: mine.map(r => region(r, false)), reasonVisible: reason ? false : null, rawReasonHits: [], pins: pinned ? [pin(pinned)] : [],
+    detailsOpen: reason ? mine.map(r => region(r, true, r.pinned ? [anchor(g.port.y + 300)] : [])) : undefined,
+    afterPinPress: pinned ? { ...frame, pins: [], regions: mine.map(r => region(r, false, [anchor(g.port.y + 300)])), focus: { inRegion: true, describes: true, isAnchor: false, tag: 'button' } } : undefined,
+    controls: [], axe: { violations: [], incomplete: [] }, consoleErrors: [],
+    ...(context === 'lab' ? { panels: stateLabPanels() } : {}),
+  };
+}
+const stateTasks = phase => [...[...Array.from({ length: 9 }, (_, i) => 'T' + String(i + 1).padStart(2, '0')), 'T11'].map(id => ({ id, status: 'completed', clicks: 2, keystrokes: 1, deadEnds: 0 })),
+  phase ? { id: 'T12', status: 'completed', clicks: 1, keystrokes: 0, deadEnds: 0 } : { id: 'T12', status: 'blocked', clicks: 0, keystrokes: 0, deadEnds: 1 }];
+const stateEvidence = phase => {
+  const rows = stateRows();
+  const contexts = [...new Set(rows.map(r => r.context)), 'lab'];
+  return { commit: phase ? 'after' : 'before', complete: true, rows, entries: contexts.flatMap(context => STATE_VIEWS.map(([theme, width]) => stateEntry(context, theme, width, rows))), tasks: stateTasks(phase) };
+};
+/** Applies `fn` to one context's entries: every view, or only `view` (`'dark|1440'`). */
+const editState = (evidence, context, fn, view = null) => { for (const e of evidence.entries) if (e.context === context && (!view || view === `${e.theme}|${e.width}`)) fn(e); return evidence; };
+async function statesSheet(t, change = {}) {
+  const f = await fixture(t);
+  f.layout.immutable = [];
+  if (change.route) f.cell.route = change.route;
+  if (change.cellId) f.cell.id = change.cellId;
+  if (change.width) f.cell.viewport = { width: change.width, height: 812 };
+  const evidence = [stateEvidence(0), stateEvidence(1)];
+  for (const phase of [0, 1]) {
+    await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+    await f.json(phase, 'layout.json', { ...f.layout, controls: change.controls ?? [] });
+    change[phase ? 'evidence' : 'before']?.(evidence[phase]);
+    await f.json(phase, 'states-verification.json', evidence[phase]);
+    for (const entry of evidence[phase].entries) if (entry.screenshot) await writeFile(join(f.dirs[phase], entry.screenshot), 'state image');
+  }
+  if (change.missing !== undefined) await rm(join(f.dirs[change.missing], 'states-verification.json'));
+  await f.json(1, 'layout.json', { ...f.layout, planes: [{ ...f.layout.planes[0], y: change.move ?? 0 }], controls: change.controls ?? [], viewport: change.width ?? 1440, document: change.width ?? 1440 });
+  if (change.axe) await f.json(1, 'axe.json', { violations: change.axe, incomplete: [] });
+  change.layouts?.(f);
+  const run = () => spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '78'], { encoding: 'utf8' });
+  const result = change.layouts ? null : run();
+  return { f, run, result, dirs: f.dirs, report: result ? await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) : null };
+}
+/** A refusal counts only when the gate ran to its report and listed a failure: a crash is not a refusal. */
+const statesFails = async (t, change, label) => {
+  const s = await statesSheet(t, change);
+  assert.equal(s.result.status, 1, `${label} passed the gate`);
+  const report = JSON.parse(await readFile(join(s.dirs[2], 'report.json'), 'utf8').catch(() => 'null'));
+  assert.ok(report?.geometryFailures?.length, `${label}: the gate did not run to a report: ${s.result.stderr.slice(0, 400)}`);
+  return s;
+};
+
+test('profile 78 accepts complete states evidence and emits the Gate 2 sheet', async t => {
+  const s = await statesSheet(t);
+  assert.equal(s.result.status, 0, s.report);
+  const html = await readFile(join(s.dirs[2], 'index.html'), 'utf8');
+  assert.match(html, /Slice 78 · States/);
+  assert.match(html, /Core task costs/);
+  assert.match(html, /T12/);
+  const report = JSON.parse(s.report);
+  assert.equal(report.statesVisualPairs.filter(p => p.status !== 'paired').length, 0);
+  assert.equal(await readFile(join(s.dirs[2], 'after-states-pin-todos-below-dark-1440.png'), 'utf8'), 'state image');
+});
+
+test('profile 78 fails on a missing or incomplete states-verification.json', async t => {
+  await statesFails(t, { missing: 1 }, 'missing after evidence');
+  await statesFails(t, { missing: 0 }, 'missing before evidence');
+  await statesFails(t, { evidence: e => { e.complete = false; } }, 'incomplete after evidence');
+});
+
+test('profile 78 fails on a Capture scope context with no table row or an uncaptured view', async t => {
+  await statesFails(t, { evidence: e => { e.rows = e.rows.filter(r => r.context !== 'todos-stale'); } }, 'dropped row');
+  await statesFails(t, { evidence: e => { e.rows = e.rows.filter(r => r.context !== 'pin-todos-below'); e.entries = e.entries.filter(x => x.context !== 'pin-todos-below'); } }, 'dropped row and context');
+  await statesFails(t, { evidence: e => { e.entries = e.entries.filter(x => !(x.context === 'not-found' && x.width === 375 && x.theme === 'dark')); } }, 'missing view');
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-loading', x => { x.error = 'Timeout'; }, 'light|375') }, 'errored view');
+  await statesFails(t, { evidence: e => { e.rows.find(r => r.context === 'todos-failing').kind = 'broken'; } }, 'invalid kind');
+});
+
+test('profile 78 fails when a row names an empty hook the web source no longer has', async t => {
+  await statesFails(t, { evidence: e => { e.rows.find(r => r.context === 'todos-failing').emptyHook = 'data-todo-list-empty'; } }, 'renamed hook');
+});
+
+test('profile 78 fails on an empty hook shown inside a read row region, or a region that is not there', async t => {
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.regions[0].visibleEmptyHooks = ['data-todos-empty']; }, 'dark|1440') }, 'visible empty hook');
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-sections-failing', x => { x.regions[0].visibleEmptyHooks = ['data-empty-canvas']; }, 'light|375') }, 'visible empty canvas');
+  await statesFails(t, { evidence: e => editState(e, 'agents-failing', x => { x.regions[0] = { region: x.regions[0].region, present: false }; }, 'dark|1440') }, 'absent region');
+});
+
+test('profile 78 gates the declared recovery control and its target size', async t => {
+  await statesFails(t, { evidence: e => editState(e, 'archive-failing', x => { x.regions[0].buttons = []; }, 'dark|1440') }, 'missing Try again');
+  await statesFails(t, { evidence: e => editState(e, 'archive-failing', x => { x.regions[0].buttons[0].visible = false; }, 'dark|1440') }, 'hidden Try again');
+  await statesFails(t, { evidence: e => editState(e, 'archive-restore-unrefreshed', x => { x.regions[0].buttons[0].name = 'Try again'; x.regions[0].buttons[0].recovery = 'try-again'; }, 'dark|1440') }, 'wrong recovery');
+  await statesFails(t, { evidence: e => editState(e, 'not-found', x => { x.regions[0].buttons = []; }, 'light|1440') }, 'missing Go to Home');
+  await statesFails(t, { evidence: e => editState(e, 'write-task-complete', x => { x.regions[0].buttons = [{ name: 'Try again', tag: 'button', recovery: 'try-again', visible: true, box: { x: 0, y: 0, width: 96, height: 32 } }]; }, 'dark|1440') }, 'undeclared Try again');
+  await statesFails(t, { evidence: e => editState(e, 'header-progress-failing', x => { x.regions[0].buttons = [{ name: 'Retry refresh', tag: 'button', recovery: null, visible: true, box: { x: 0, y: 0, width: 96, height: 32 } }]; }, 'dark|1440') }, 'undeclared Retry refresh');
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.regions[0].buttons[0].box.height = 20; }, 'dark|1440') }, 'small Try again');
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.regions[0].buttons[0].box.height = 40; }, 'light|375') }, 'small touch Try again');
+  const pass = await statesSheet(t, { evidence: e => editState(e, 'header-progress-failing', x => { x.regions[0].buttons = [{ name: 'Retry', tag: 'button', recovery: null, visible: true, box: { x: 0, y: 0, width: 96, height: 32 } }]; }) });
+  assert.equal(pass.result.status, 0, 'the header history Retry is not a recovery control: ' + pass.report);
+});
+
+test('profile 78 gates loading rows and pending rows', async t => {
+  await statesFails(t, { evidence: e => editState(e, 'sidebar-loading', x => { x.regions[0].loading = []; }, 'dark|1440') }, 'no loading line');
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-loading', x => { x.regions[0].loading[0].busy = false; }, 'light|375') }, 'not busy');
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-loading', x => { x.regions[0].loading[0].visible = false; }, 'dark|375') }, 'hidden loading line');
+  await statesFails(t, { evidence: e => { e.rows.find(r => r.kind === 'pending').text = null; } }, 'pending row without text');
+  await statesFails(t, { evidence: e => editState(e, 'header-progress-pending', x => { x.regions[0].text = 'No tasks to measure'; }, 'dark|1440') }, 'pending text not shown');
+});
+
+test('profile 78 gates the injected reason, raw-reason patterns and Details', async t => {
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.reasonVisible = true; }, 'dark|1440') }, 'reason visible');
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.reasonVisible = null; }, 'dark|1440') }, 'reason unmeasured');
+  await statesFails(t, { evidence: e => editState(e, 'dashboard-real-ai', x => { x.rawReasonHits = [{ pattern: '/answered \\d{3}/g', match: 'answered 500', text: 'The prototype host answered 500' }]; }, 'light|375') }, 'raw reason');
+  await statesFails(t, { evidence: e => editState(e, 'write-quick-add', x => { x.detailsOpen = undefined; }, 'dark|1440') }, 'Details never opened');
+  await statesFails(t, { evidence: e => editState(e, 'write-quick-add', x => { x.detailsOpen[0].details[0].text = 'Details'; }, 'dark|1440') }, 'Details without the reason');
+  await statesFails(t, { evidence: e => editState(e, 'write-quick-add', x => { x.detailsOpen[0].details[0].open = false; }, 'dark|1440') }, 'Details did not open');
+  await statesFails(t, { evidence: e => editState(e, 'not-found', x => { x.regions[0].details = [{ open: false, visible: true, summary: 'Details', text: 'Details' }]; }, 'dark|1440') }, 'Details on a details:false row');
+  await statesFails(t, { evidence: e => { const r = e.rows.find(r => r.context === 'todos-failing'); r.details = false; } }, 'details:false row that shows Details');
+});
+
+test('profile 78 keeps failures inside their section frame', async t => {
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-bodies-failing', x => { x.regions[0].failures[0].box.y = 20; }, 'dark|1440') }, 'failure above the frame');
+});
+
+test('profile 78 gates must-not-change cells at 1 px and exempts only the four named matrix cells', async t => {
+  assert.equal((await statesSheet(t, { move: 1 })).result.status, 0);
+  await statesFails(t, { move: 2 }, 'populated project moved 2 px');
+  await statesFails(t, { move: 2, cellId: 'kitchen-loading-dark-1440', route: '/projects/project-kitchen' }, 'kitchen-loading moved 2 px');
+  for (const id of ['kitchen-error-dark-1440', 'kitchen-refused-light-375', 'kitchen-archived-dark-1440', 'not-a-route-light-1440']) {
+    const s = await statesSheet(t, { move: 20, cellId: id, route: id.startsWith('not-a-route') ? '/not-a-route' : '/projects/project-kitchen' });
+    assert.equal(s.result.status, 0, id + ' ' + s.report);
+    assert.ok(JSON.parse(s.report).geometryReport.some(r => r.cell === id), id + ' movement is reported');
+  }
+});
+
+test('profile 78 keeps only the breadcrumb census exception', async t => {
+  await statesFails(t, { controls: [{ scope: 'product', class: 'task-row__title', text: 'Task', width: 80, height: 20 }] }, 'task row title exception');
+  const s = await statesSheet(t, { controls: [{ scope: 'product', class: 'project-nav__breadcrumb', text: 'Home', width: 80, height: 16 }] });
+  assert.equal(s.result.status, 0, s.report);
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.controls = [{ scope: 'product', class: 'button button--sm', text: 'Try again', width: 80, height: 20 }]; }, 'dark|1440') }, 'small runtime control');
+  await statesFails(t, { axe: [{ id: 'nested-interactive', nodes: [{ target: ['.new'] }] }] }, 'new matrix axe node');
+  await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.axe = { violations: [{ id: 'aria-allowed-role', nodes: [{ target: ['.pin'] }] }], incomplete: [] }; }, 'dark|1440') }, 'new runtime axe node');
+});
+
+test('profile 78 gates the Lab panel-relative, with only the named panels changing', async t => {
+  for (const [panel, expected] of [['state-messages', 0], ['states', 0], ['task-row', 0], ['navigation', 0], ['section-states', 0], ['controls', 1], ['buttons', 1]]) {
+    const s = await statesSheet(t, { route: '/prototype/design', cellId: 'prototype-design-dark-1440', layouts: f => {} });
+    const base = JSON.parse(await readFile(join(s.dirs[0], 'layout.json'), 'utf8'));
+    const control = { tag: 'button', text: 'Primary · Rest', panel, scope: 'prototype', class: 'button', x: 20, y: 100, width: 80, height: 32 };
+    await writeFile(join(s.dirs[0], 'layout.json'), JSON.stringify({ ...base, controls: [control] }));
+    await writeFile(join(s.dirs[1], 'layout.json'), JSON.stringify({ ...base, controls: [{ ...control, width: 82 }] }));
+    assert.equal(s.run().status, expected, panel);
+  }
+  // An unchanged panel that moves with the panels above it is compared in its own frame.
+  const moved = await statesSheet(t, { route: '/prototype/design', cellId: 'prototype-design-dark-1440', layouts: f => {}, evidence: e => editState(e, 'lab', x => { x.panels = x.panels.map(p => p.id === 'buttons' ? { ...p, y: p.y + 40 } : p); }) });
+  const base = JSON.parse(await readFile(join(moved.dirs[0], 'layout.json'), 'utf8'));
+  const control = { tag: 'button', text: 'Primary · Rest', panel: 'buttons', scope: 'prototype', class: 'button', x: 20, y: 2500, width: 80, height: 32 };
+  await writeFile(join(moved.dirs[0], 'layout.json'), JSON.stringify({ ...base, controls: [control] }));
+  await writeFile(join(moved.dirs[1], 'layout.json'), JSON.stringify({ ...base, controls: [{ ...control, y: 2540 }] }));
+  const translated = moved.run();
+  assert.equal(translated.status, 0, 'panel translation ' + await readFile(join(moved.dirs[2], 'report.json'), 'utf8').then(r => JSON.stringify(JSON.parse(r).geometryFailures)).catch(() => translated.stderr));
+  await statesFails(t, { route: '/prototype/design', cellId: 'prototype-design-dark-1440', evidence: e => editState(e, 'lab', x => { delete x.panels; }, 'dark|1440') }, 'missing after Lab panels');
+  await statesFails(t, { before: e => editState(e, 'lab', x => { x.panels = []; }, 'light|375') }, 'missing before Lab panels');
+  await statesFails(t, { evidence: e => editState(e, 'lab', x => { x.panels = x.panels.map(p => p.id === 'controls' ? { ...p, height: p.height + 4 } : p); }, 'dark|1440') }, 'resized unchanged panel');
+});
+
+test('profile 78 gates core task costs and T12', async t => {
+  await statesFails(t, { evidence: e => { e.tasks.find(x => x.id === 'T04').clicks = 3; } }, 'T04 regressed');
+  await statesFails(t, { evidence: e => { e.tasks = e.tasks.filter(x => x.id !== 'T11'); } }, 'T11 missing');
+  await statesFails(t, { evidence: e => { Object.assign(e.tasks.find(x => x.id === 'T12'), { status: 'blocked', deadEnds: 1 }); } }, 'T12 still a dead end');
+  await statesFails(t, { evidence: e => { e.tasks.find(x => x.id === 'T12').clicks = 2; } }, 'T12 costs two clicks');
+  await statesFails(t, { before: e => { Object.assign(e.tasks.find(x => x.id === 'T12'), { status: 'completed', deadEnds: 0, clicks: 1 }); } }, 'T12 before not a dead end');
+  await statesFails(t, { evidence: e => { e.tasks = null; } }, 'no tasks');
+});
+
+test('profile 78 requires every visual acceptance pair', async t => {
+  await statesFails(t, { before: e => editState(e, 'pin-todos-below', x => { delete x.screenshot; }, 'light|375') }, 'missing before pin pair');
+  await statesFails(t, { evidence: e => editState(e, 'header-progress-legacy', x => { x.error = 'Timeout'; }, 'light|1440') }, 'errored after pair');
+});
+
+test('profile 78 pin gate accepts valid pins and rejects each way a pin can be wrong', async t => {
+  const g = stateGeometry(1440), dark = 'dark|1440';
+  const pinned = (context, fn, view = dark) => ({ evidence: e => editState(e, context, fn, view) });
+  for (const [label, change] of [
+    ['missing pin', pinned('pin-todos-below', x => { x.pins = []; })],
+    ['two pins on the edge', pinned('pin-todos-below', x => { x.pins = [x.pins[0], { ...x.pins[0] }]; })],
+    ['wrong edge', pinned('pin-todos-below', x => { x.pins[0].edge = 'top'; })],
+    ['wrong indicator', pinned('pin-section-collapse', x => { x.pins[0].indicator = '↓'; })],
+    ['pin for a visible sentence anchor', pinned('pin-shortcut-collapse', x => { x.regions[0].anchors[0].box.y = 400; })],
+    ['one of two anchors visible', pinned('pin-shortcut-collapse', x => { x.regions[0].anchors.push({ ...x.regions[0].anchors[0], box: { ...x.regions[0].anchors[0].box, y: 400 } }); })],
+    ['pin outside the scroll port', pinned('pin-section-collapse', x => { x.pins[0].box.y = g.port.y - 10; })],
+    ['pin outside the content track', pinned('pin-section-collapse', x => { x.pins[0].box.x = g.track.x - 20; })],
+    ['pin in the middle of the port', pinned('pin-section-collapse', x => { x.pins[0].box.y = 450; })],
+    ['pin under the stuck quick-add', pinned('pin-tasklist-above', x => { x.pins[0].box.y = g.port.y + 20; })],
+    ['pin under the open toast', pinned('pin-todos-below', x => { x.pins[0].box.y = x.toast.y - 20; })],
+    ['toast not open', pinned('pin-todos-below', x => { x.toast = null; })],
+    ['quick-add not stuck', pinned('pin-tasklist-above', x => { x.sticky[0].box.y = 300; })],
+    ['missing anchor geometry', pinned('pin-tall-tasklist-banner', x => { x.regions[0].anchors = []; })],
+    ['anchor without a box', pinned('pin-tall-tasklist-banner', x => { delete x.regions[0].anchors[0].box; })],
+    ['missing sticky geometry', pinned('pin-section-collapse', x => { delete x.sticky; })],
+    ['missing toast geometry', pinned('pin-section-collapse', x => { delete x.toast; })],
+    ['missing scroll port', pinned('pin-section-collapse', x => { delete x.scrollPort.client; })],
+    ['missing track', pinned('pin-section-collapse', x => { delete x.track; })],
+    ['small pin on touch', pinned('pin-section-collapse', x => { x.pins[0].show.height = 40; }, 'light|375')],
+    ['small close button', pinned('pin-section-collapse', x => { x.pins[0].dismiss.width = 20; })],
+    ['press not recorded', pinned('pin-todos-below', x => { delete x.afterPinPress; })],
+    ['pin left after the press', pinned('pin-todos-below', x => { x.afterPinPress.pins = [x.pins[0]]; })],
+    ['sentence still hidden after the press', pinned('pin-todos-below', x => { x.afterPinPress.regions[0].anchors[0].box.y = 2000; })],
+    ['focus outside the owner after the press', pinned('pin-todos-below', x => { x.afterPinPress.focus.inRegion = false; })],
+    ['focus not on the described control after the press', pinned('pin-todos-below', x => { x.afterPinPress.focus = { inRegion: true, describes: false, isAnchor: false }; })],
+    ['pin in a context with no pinned row', pinned('write-task-complete', x => { x.pins = [{ edge: 'top', indicator: '↑', box: { x: 600, y: 60, width: 400, height: 52 }, show: { x: 600, y: 60, width: 300, height: 44 }, dismiss: { x: 950, y: 60, width: 44, height: 44 } }]; })],
+  ]) await statesFails(t, change, label);
+  const focusSentence = await statesSheet(t, pinned('pin-tall-tasklist-banner', x => { x.afterPinPress.focus = { inRegion: true, describes: false, isAnchor: true }; }));
+  assert.equal(focusSentence.result.status, 0, 'focusing the sentence when no control describes it: ' + focusSentence.report);
+});
