@@ -38,7 +38,7 @@
    an intermediate property, so real fallback media retain control of the final filter.
    The section-chrome rest-opacity knob exports with Copy CSS; the live section-frame panel
    shows rest and focus specimens. Its wrapper follows the canvas's quiet defaults on pointer
-   and touch. `CURRENT_SLICE` is 77 for captured friction notes.
+   and touch. `CURRENT_SLICE` is 78 for captured friction notes.
 
 ## Key symbols
 
