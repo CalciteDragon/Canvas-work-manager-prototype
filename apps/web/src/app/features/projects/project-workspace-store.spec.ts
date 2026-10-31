@@ -266,7 +266,7 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     await store.load('project-renovation' as ProjectId);
 
     expect(store.missing()).toBe(false);
-    expect(store.error()).toEqual({ sentence: 'Couldn’t load this project.', reason: 'disk on fire' });
+    expect(store.error()).toEqual({ sentence: 'Something went wrong while it was loading.', reason: 'disk on fire' });
   });
 
   it('keeps the failure on screen while Try again re-reads the same project, then clears it', async () => {
@@ -276,7 +276,7 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
 
     const retry = store.retry();
     expect(store.loading()).toBe(true);
-    expect(store.error()?.sentence).toBe('Couldn’t load this project.');
+    expect(store.error()?.sentence).toBe('Something went wrong while it was loading.');
     await retry;
 
     expect(store.error()).toBeNull();
@@ -290,7 +290,7 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     await store.retry();
 
     expect(store.loading()).toBe(false);
-    expect(store.error()?.sentence).toBe('Couldn’t reach your workspace, so this project didn’t load.');
+    expect(store.error()?.sentence).toBe('Couldn’t reach your workspace.');
   });
 
   it('does not carry one project’s failure onto the next project’s load', async () => {

@@ -36,5 +36,14 @@ export const readFailure = (error: unknown, subject: string): Failure => {
   return { sentence, reason: reasonOf(error) };
 };
 
+/**
+ * A failed read under a heading that already says "Couldn’t load …" (the project page's h1): the
+ * sentence says only what the heading does not. `not_found` is not here; it has its own page.
+ */
+export const headedReadFailure = (error: unknown): Failure => ({
+  sentence: field(error, 'code') === 'unreachable' ? 'Couldn’t reach your workspace.' : 'Something went wrong while it was loading.',
+  reason: reasonOf(error),
+});
+
 /** A failed write: the caller's slice-75 sentence ("Couldn’t <verb> “X”. Try again."), its reason apart. */
 export const writeFailure = (error: unknown, sentence: string): Failure => ({ sentence, reason: reasonOf(error) });

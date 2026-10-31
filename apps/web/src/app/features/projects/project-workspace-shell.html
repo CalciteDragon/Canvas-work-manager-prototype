@@ -27,15 +27,17 @@
       }
     </app-unavailable-page>
   } @else {
-    <app-failure-message
-      data-project-error
-      class="project-workspace__failure"
-      [failure]="failure"
-      live="alert"
-      recovery="try-again"
-      [pending]="store.loading()"
-      (retry)="store.retry()"
-    />
+    <section class="project-workspace__failure" aria-labelledby="project-failure-heading">
+      <h1 id="project-failure-heading" data-route-focus tabindex="-1">Couldn’t load this project</h1>
+      <app-failure-message
+        data-project-error
+        [failure]="failure"
+        live="alert"
+        recovery="try-again"
+        [pending]="store.loading()"
+        (retry)="store.retry()"
+      />
+    </section>
   }
 } @else if (store.loading()) {
   <p data-project-loading class="project-workspace__muted">Loading project…</p>

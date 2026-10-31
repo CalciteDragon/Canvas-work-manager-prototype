@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { readFailure, writeFailure } from './failure';
+import { headedReadFailure, readFailure, writeFailure } from './failure';
 
 const REASON = 'Task "task-kitchen-1" was not found (404).';
 
@@ -28,6 +28,14 @@ describe('failure (Slice 78, §24, §63)', () => {
     expect(readFailure({ code: 'not_found', message: 'gone' }, 'this journal'))
       .toEqual({ sentence: 'This journal isn’t available.', reason: 'gone' });
     expect(writeFailure({ code: 'conflict', message: 'stale' }, 'Couldn’t save.')).toEqual({ sentence: 'Couldn’t save.', reason: 'stale' });
+  });
+
+  it('under a heading that names the read, says only what the heading does not (Open question 4)', () => {
+    expect(headedReadFailure(new GatewayError('unreachable', 0, 'fetch failed')))
+      .toEqual({ sentence: 'Couldn’t reach your workspace.', reason: 'fetch failed' });
+    expect(headedReadFailure(new GatewayError('internal_error', 500, 'boom')))
+      .toEqual({ sentence: 'Something went wrong while it was loading.', reason: 'boom' });
+    expect(headedReadFailure(new GatewayError('internal_error', 500, REASON)).sentence).not.toMatch(/task-kitchen-1|404|"/);
   });
 
   it('gives a non-error the generic sentence and String(error) as its reason', () => {

@@ -16,7 +16,7 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
+import { headedReadFailure, readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 import type { ProgressFact } from './project-header';
 
 /** What a refused project write was for, by the fields it carried (Slice 78). */
@@ -291,7 +291,8 @@ export class ProjectWorkspaceStore {
         else {
           this.clearContext();
           this.missingState.set(false);
-          this.errorState.set(readFailure(error, 'this project'));
+          // The shell heads this failure "Couldn’t load this project".
+          this.errorState.set(headedReadFailure(error));
         }
       } finally {
         if (current()) {

@@ -73,8 +73,18 @@
   margin: var(--space-3);
 }
 
+// The read failure's page: a heading over the shared failure form (Open question 4).
 .project-workspace__failure {
-  margin: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  justify-items: start;
+  padding: var(--space-5);
+}
+
+.project-workspace__failure h1 {
+  margin: 0;
+  font-size: var(--font-size-xl);
 }
 
 .project-workspace__error {

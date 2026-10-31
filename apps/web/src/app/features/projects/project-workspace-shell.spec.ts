@@ -525,7 +525,14 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     });
 
     const failure = query(harness, '[data-project-error]');
-    expect(failure?.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load this project.');
+    // Open question 4: a visible h1 names the failure; the sentence beneath does not say it again.
+    const heading = query(harness, 'h1');
+    expect(heading?.textContent?.trim()).toBe('Couldn’t load this project');
+    expect(heading?.hasAttribute('data-route-focus')).toBe(true);
+    expect(heading?.getAttribute('tabindex')).toBe('-1');
+    expect(heading?.closest('section')?.getAttribute('aria-labelledby')).toBe(heading?.id);
+    expect(heading?.closest('section')?.contains(failure)).toBe(true);
+    expect(failure?.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Something went wrong while it was loading.');
     expect(failure?.querySelector('[data-failure-sentence]')?.getAttribute('role')).toBe('alert');
     expect(failure?.querySelector('details')?.open).toBe(false);
     expect(failure?.querySelector('details')?.textContent).toContain('disk on fire');
