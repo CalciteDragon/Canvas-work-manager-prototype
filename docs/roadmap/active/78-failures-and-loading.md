@@ -1295,7 +1295,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | `shared/feedback/pinned-failures.ts` (+ spec) | create | Root-provided registry, most recent per edge, counts, occurrence dismissal and lifecycle cleanup |
 | `shared/feedback/pinned-failure.directive.ts` (+ spec) | create | Registers the failure sentence anchor and reveal/focus reference; observes the nearest scrolling ancestor and cleans up on replacement/destruction |
 | `shared/feedback/pinned-failure-slot.{ts,html}` (+ spec, stories) | create | Draws pins in the content track at measured clear edges; press reveals/focuses the owner; close dismisses with guarded focus recovery |
-| `core/history/receipt-undo.ts`, `core/history/receipt-toast.ts` (+ spec) | modify | `ReceiptUndoResult` gains the optional `detail`; the receipt toast passes it on |
+| `core/history/receipt-undo.ts` (+ spec), `core/history/receipt-toast.spec.ts` | modify | `ReceiptUndoResult` gains the optional `detail`; the receipt toast already passes the result on, so only its spec changes |
 | `apps/web/src/styles/_controls.scss` | modify | `.state-message` with `--failed`, `--loading`, `__details` |
 | Component stylesheets holding dead `__error` classes (Stage 0 lists each) | modify | Delete the classes `FailureMessage` replaces |
 | `core/gateway/testing/fake-gateway.ts` | modify | A dashboard with a `null` digest; per-read failure switches the specs need |
@@ -1306,7 +1306,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 |---|---|---|
 | `core/shell/shell-store.ts` (+ spec) | modify | `Failure`; loading state; Try again |
 | `core/shell/sidebar/sidebar.{html,ts}` (+ spec) | modify | Loading line; polite failure with Try again; New project failure Details |
-| `core/shell/app-shell.{html,ts,scss}` (+ spec) | modify | Shell-level failures through `FailureMessage`; render `PinnedFailureSlot` in `.workspace` |
+| `core/shell/app-shell.{html,ts}` (+ spec) | modify | Shell-level failures through `FailureMessage`; render `PinnedFailureSlot` in `.workspace` (`app-shell.scss` needed no change) |
 | `features/dashboard/dashboard-store.ts`, `dashboard-page.{html,ts}` (+ specs) | modify | `Failure`; Try again; public `retryDigest()` with a pending flag; widget `retry` calls it |
 | `features/dashboard/widgets/registry.ts` (+ spec) | modify | `DashboardWidgetDefinition` (lines 24-31) gains optional `failureOf(dashboard)`; the digest's entry (line 44) supplies it |
 | `features/dashboard/widgets/widget-frame/dashboard-widget-frame.{ts,html}` | modify | When `failureOf` returns a failure, render it instead of mounting the widget; emit `retry`; a `pending` input sets `aria-busy` and disables Try again |
@@ -1370,7 +1370,8 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 
 | File | Change | Responsibility |
 |---|---|---|
-| Spec §21, §23, §24, §34, §42, §63, §68 | modify | Amendments in place (§34: quick-add's reason and the drawer's "Not saved. Try again." wording at spec line 2230) |
+| Spec §21, §23, §24, §34, §44, §63, §68 | modify | Amendments in place (§34: quick-add's reason and the drawer's "Not saved. Try again." wording at spec line 2230; the digest's provider failure is §44's, not §42's) |
+| `docs/guides/first-milestone-walkthrough.md` (step 31) | modify | The real provider now fails only the digest |
 | `docs/decisions/2026-10-failures-speak-product-words.md` | create | One failure shape; sentence by code; reason under Details; Try again repeats only the read; the label rule; read and write kept apart; no false empty; stale content said politely; writes stay enabled under a read failure; the digest fails alone and its reason stays on the console. *Revisit when* the MVP is specified: **Details should be hidden in production** (the user's note, 2026-10-29); the prototype keeps it for diagnosis, and nothing changes now. Links [dashboard layout and content split](../../decisions/2026-08-dashboard-layout-and-content-split.md) |
 | `docs/decisions/2026-10-feedback-stays-on-the-object.md` | amend | Sentences keep their place; the reason moves under Details; an off-screen failure is pinned to the scroll port's edge and only the user's press scrolls |
 | `docs/decisions/README.md` | modify | Index |
@@ -1378,6 +1379,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | `docs/architecture/prototype-host/why.md` (line 52), `docs/architecture/prototype-host/prototype-runtime/why.md` (line 63), `docs/architecture/prototype-host/api/how.md` (line 57), `docs/architecture/web/dashboard/why.md` (line 39) | modify | Same |
 | `docs/architecture/web/{how,what}.md`, `web/core/*`, `web/dashboard/*`, `web/projects/*`, `web/tasks/*`, `web/prototype-tooling/*`, `docs/architecture/contracts/what.md`, `docs/architecture/domain/{how,what}.md`, `docs/architecture/mcp-tools/what.md`, `docs/architecture/testing/{how,what}.md` | modify | What is now true |
 | `docs/roadmap/active/70-ui-ux-overhaul.md` | modify | Handoff: 6b split into 78 and 79 |
+| `docs/architecture/web/overview.md`, `docs/architecture/prototype-host/api/overview.md`, `docs/architecture/{contracts,domain}/why.md`, `docs/roadmap/planned/79-empty-archived-and-editing.md` | modify | What is now true; the decision linked from each system it shapes; 79's handoff |
 
 ## Implementation sequence
 

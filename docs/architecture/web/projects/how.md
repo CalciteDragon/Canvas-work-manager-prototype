@@ -258,14 +258,16 @@ Try again.", beside the controls, the result kept); `stale()` is a failed re-rea
 `ReflectionsStore.createError()` ("Couldn’t add your reflection. Try again.") shows on the
 composer, whose body names the sentence by `aria-describedby`, and `editError()` ("Couldn’t save
 your changes to this reflection. Try again.") beside the edit form, each with Details; a
-successful write after a failed read re-reads in full. A shortcut
+successful write after a failed read re-reads the whole journal quietly (`sync()`), so a second
+failure keeps what was saved on screen. A shortcut
 frame's body is its source section's component, so it inherits these.
 
 The Todos and Reflections pages do the same for their reads (`readFailure(…, 'this list')`;
 the Reflections page's journal, completed work and container reads each with their own Try
 again). A failed quiet re-read over content on screen is the polite stale notice, "This list may be
 out of date." or "This journal may be out of date.", in a `role="status"` region mounted always,
-with a quiet Try again (`retryRefresh()`, busy as `refreshPending()`). On Todos a held load failure
+with a quiet Try again (`retryRefresh()`, busy as `refreshPending()`; on the Reflections page it
+re-reads the journal, completed work and container in turn, as any of the three can make it stale). On Todos a held load failure
 is never covered by a stale notice. On the Reflections page a save whose re-read failed is
 `savedUnrefreshed()`, "Saved, but this journal couldn’t refresh." with Retry refresh; it outranks
 stale, and a later failed quiet read keeps it. The container add's failure is

@@ -242,3 +242,5 @@ now keep task quick-add in the list; workstream default/navigation changes remai
 
 
 Slice 77 follows [rows open their canonical owner](../../../decisions/2026-10-rows-open-their-canonical-owner.md): shared anatomy, title-only navigation and independent write controls.
+
+Slice 78 follows [a failure speaks product words](../../../decisions/2026-10-failures-speak-product-words.md): a project that is missing or not shared is unavailable, with Go to Home, while any other failed read is headed "Couldn’t load this project" with Try again; a section's failed read replaces its empty line rather than sitting above the canvas; read and write failures are kept apart; and the progress fact says "Measuring…", "No tasks to measure" or "Couldn’t load".

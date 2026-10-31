@@ -210,8 +210,10 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 30. **Projects.** The **Active Projects** widget lists projects with their progress. Clicking one
     opens it.
 31. **AI digest.** The **Daily Digest** widget shows the generated lines and says which provider
-    produced them. Switch **AI provider** in the development panel and reload: the source
-    changes.
+    produced them. Switch **AI provider** in the development panel to **real** and reload: the
+    real provider is a stub that fails, so the digest's place says "Couldn’t write today’s
+    digest." with Try again while the other widgets stay, and the host's console logs why.
+    Switch back to **mock** and press Try again.
 32. **Fun fact.** The **Fun Fact** widget shows one fact. Move the date in the development panel
     and reload — the fact changes with the day, because it is keyed to the clock.
 33. **The date arithmetic is real.** With `overdue-chaos`, set the development panel's date

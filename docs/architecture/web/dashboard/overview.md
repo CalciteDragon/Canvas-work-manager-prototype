@@ -18,7 +18,9 @@ one line in `DASHBOARD_WIDGET_REGISTRY`, rendered in preset sizes inside a commo
   (one gateway call whose query is merged from each visible widget's `queryFrom`).
 - `DashboardPage`: render the registry's component for each visible widget in its
   `small | medium | wide | full` size; an unregistered type renders an honest note.
-- Every widget has a real empty state; the digest says it is prototype-composed.
+- Every widget has a real empty state; the digest says it is prototype-composed. A failed
+  dashboard read is one alert with Try again; a `null` digest fails only the digest's place,
+  "Couldn’t write today’s digest." with Try again, and the other widgets stay (Slice 78).
 - Re-read on live frames, so an agent's completion moves Today and Recent Progress.
 
 ## Not responsible for

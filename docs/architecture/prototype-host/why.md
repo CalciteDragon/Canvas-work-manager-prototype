@@ -52,7 +52,7 @@ never learn that any of it exists.
 that rejects; the dashboard read answers with a `null` digest and the rest of Home, and the
 explanation goes to the host's console through `console.error`, never stdout, which stdio
 owns. Quietly falling back to the mock would make an experiment about real AI
-unfalsifiable (§44).
+unfalsifiable (§44; [decision](../../decisions/2026-10-failures-speak-product-words.md)).
 
 **Started separately from the web app.** `concurrently` handed `tsx watch` a piped stdin
 and the host hung silently; `pnpm dev` now prints the two commands and exits

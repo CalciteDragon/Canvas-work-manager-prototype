@@ -44,6 +44,9 @@ navigation (direction principles 3, 4 and 6).
 - **The archive refusal comes first** (L4-008). This is the user's choice. The Archive
   confirmation knows when live workstreams block it. It names them as links, says to archive them
   first, and offers no commit. The domain rule does not change, and there is no cascade.
+  Slice 78 left the refusal that still reaches the header saying "Couldn’t archive “X”. Try
+  again." (`projectWriteSentence` in `project-workspace-store.ts`), with the reason under
+  Details. "Try again" invites a retry that cannot succeed, so 79 words it with the rest.
 - **Restore works one way** (L4-012): the same status choice and option casing on Archive and on
   Settings › Archived projects.
 - **The digest's overdue line leads to the tasks** (W4-028).

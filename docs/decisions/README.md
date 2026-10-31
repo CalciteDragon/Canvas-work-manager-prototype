@@ -26,7 +26,9 @@ decisions carry 2026-10-20 amendments. The user accepted Slice 76 Gate 2 on 2026
 — Slice 75: pending vocabulary, the saved cue, failures on their row, field or card, new items
 in view with focus, and the canvas scroll hold. It amends the one-toast entry (no toast for a
 task create), creation defaults, checkbox reopen, task Delete feedback and the phone drawer on
-2026-10-20. The user accepted Slice 75 Gate 2 the same day; the entry records it.
+2026-10-20. The user accepted Slice 75 Gate 2 the same day; the entry records it. A Slice 78
+amendment (2026-10-30) moves each failure's reason under Details and pins an off-screen failure
+to the workspace's edge, scrolling only when pressed.
 
 [Feedback is one toast with receipt-specific Undo](2026-10-feedback-is-one-toast-with-undo.md)
 and [Archive is always visitable](2026-10-archive-is-always-visitable.md) — current Slice 74

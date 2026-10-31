@@ -15,8 +15,9 @@ projection, completion lock and project-scoped receipts have different state.
 
 - `TaskRow`: normal, overdue, completed, high priority, selected and compact variants;
   reversible completion; title or background selection; and an icon-only **Delete** control that calls the
-  existing soft-archive behavior. A row-level `error` input shows a write's failure under the
-  title, linked from the checkbox; `PendingTaskRow` is the "Adding…" row a quick-add paints
+  existing soft-archive behavior. A row-level `error` input takes a write's `Failure`: its
+  sentence under the title, linked from the checkbox, its reason under a closed Details, pinned to
+  the workspace's edge while the sentence is scrolled away (Slice 78); `PendingTaskRow` is the "Adding…" row a quick-add paints
   before the host answers (Slice 75).
   The seventh §4 variant, *Agent Modified*, has no data behind it and is deliberately
   absent ([decision](../../../decisions/2026-08-agent-modified-has-no-data-behind-it.md)).

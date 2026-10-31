@@ -273,3 +273,7 @@ so every transport gets one answer
 malformed Markdown config on the same terms, because agents write sections too and a refusal naming
 the key beats a section no one can edit
 ([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
+
+**The digest fails alone.** `DashboardService` catches only the AI provider's rejection and answers
+with a `null` digest; a repository failure still fails the read, because the rest of Home would be
+wrong without it ([decision](../../decisions/2026-10-failures-speak-product-words.md)).

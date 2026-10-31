@@ -22,8 +22,8 @@
    quick-add stays enabled under it. `receiveError()` is a drag-receive's failure ("Couldn’t
    move the task into this list. Try again."), in the same banner with no Try again, and the
    only banner pinned off screen (`TaskListSection` binds `[appPinnedFailure]` on its root; row
-   failures pin from `TaskRow` itself; see [web / how](../how.md)); a read never clears it, and loading
-   another section does. A successful add or receive after a failed read starts a quiet full
+   failures pin from `TaskRow` itself; see [web / how](../how.md)); a read never clears it, nor a
+   failed add, row or field write, and loading another section clears them all. A successful add or receive after a failed read starts a quiet full
    read (`refresh()`, which waits for writes in flight) that clears the failure (Slice 78,
    L4-027). The trap: clear the field only when the pending entry
    is this submit's, or a refused second submit loses its draft. A completion

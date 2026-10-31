@@ -903,6 +903,8 @@ marks are quiet but visible on pointer and touch, and interaction raises their e
 
 *Corrected at slice 72 (2026-10-15).* Control primitives are global classes in `_controls.scss` over native elements, applied in templates: buttons in four ranks (primary, secondary, ghost, danger) and two heights, where ghost is unfilled but keeps a faint edge at rest (amended at slice 72.1), icon buttons, tools, one field and select treatment, checkbox and radio, pill, link, a visible control label and a separated danger zone. Every interactive primitive is at least 24 px with a pointer and 44 px on touch, and heights follow the density knob while targets never do. Components position a primitive and never paint one. App-owned marks are one monochrome SVG set; user-chosen project emoji stay content ([decision](docs/decisions/2026-10-control-primitives-are-global-classes.md), [decision](docs/decisions/2026-10-app-icons-are-one-svg-set.md)).
 
+*Slice 78.* Failure, loading and stale states share one form, `.state-message`, in two weights: a *region* replaces a section body, page or widget, and an *inline* message keeps a row's, field's or card's place. A failure is a sentence in product words with its recovery control (Try again, Retry refresh, Go to Home or Reload page); the host's raw reason sits only under a collapsed native Details beside it. A loading line is muted, with `aria-busy` on its region. A write failure whose sentence is scrolled out of the workspace is pinned to the scroll port's edge with an arrow toward it, and only pressing it scrolls ([decision](docs/decisions/2026-10-failures-speak-product-words.md), [decision](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
+
 ---
 
 # 22. Prototype Themes
@@ -1070,6 +1072,8 @@ A 768 px tablet keeps the inline sidebar
 
 *Corrected at Slice 70 Gate 1 (2026-10-14): one navigation tree.* The global sidebar and the project column condense into one hierarchy. Each root expands to its enabled pages and its workstreams, exactly one current item is marked, and phones get one pattern. The two-column layout above remains the implemented state until the shell-layer redesign slice lands ([decision](docs/decisions/2026-10-one-navigation-tree.md)).
 
+*Slice 78.* The sidebar says "Loading projects…" until its first read answers, and "No projects yet" only when a read has answered with none. A failed read says "Couldn’t load your projects." with Try again in a polite status region, so an outage that also fails Home is announced once ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
+
 ---
 
 # 24. Home Dashboard
@@ -1120,6 +1124,8 @@ Changes made by connected AI agents.
 section, with the same transient expansion and heading focus as Todos. Rows carry page/section
 origin identity under workspace.read and omit tasks whose container cannot resolve. Active Projects
 shows ancestor names. Task metadata shares status, high priority, date and Overdue ordering.
+
+*Slice 78 (§24, §44).* A failed dashboard read is one alert, "Couldn’t load Home.", with Try again. The Daily Digest can fail alone: the dashboard context's `dailyDigest` is `null` when the AI provider fails, the other widgets render, and the digest's place says "Couldn’t write today’s digest." with Try again and no Details. The provider's reason stays on the host's console; MCP's `get_dashboard_context` returns the same `null` ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
 
 # 25. Dashboard Widget Model
 
@@ -2234,6 +2240,8 @@ is for load and drag-receive failures. On Todos, complete and reopen failures si
 Delete failures stay page-level. The drawer says "Changes save automatically." and shows Saving…,
 Saved or "Not saved. Try again." beside each field ([why](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
 
+*Amended 2026-10-30, Slice 78:* the sentences keep their place, and the reason a failed add, row write or field save carried beside them moves under a collapsed Details. A section's task-list read failure replaces its empty line with "Couldn’t load this task list." and Try again; a successful write after a failed read re-reads the whole list ([decision](docs/decisions/2026-10-failures-speak-product-words.md), [why](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
+
 ## The Todos page
 
 A root's optional **Todos** page answers one question: *what is coming up, across everything
@@ -2628,6 +2636,8 @@ PROTOTYPE_AI_PROVIDER=real
 ```
 
 Real AI must never be required to run the prototype.
+
+*Slice 78.* When the real provider fails, only the digest is lost: the dashboard answers with `dailyDigest: null` and logs the provider's reason on the host's console, never in an API or MCP response (§24; [decision](docs/decisions/2026-10-failures-speak-product-words.md)).
 
 ---
 
@@ -3655,6 +3665,8 @@ a failure restores the last value the server confirmed, never an older optimisti
 row and the drawer never disagree while a write is pending. A failed quick-add's owed read counts
 the write as committed only for a same-title task whose id was absent at submit.
 
+*Slice 78.* A store keeps its read failure apart from its write failures: a write failure never replaces the read's, and a failed read never clears a write's. Try again repeats only the failed read and keeps the failure on screen, busy, until it answers. A failed quiet re-read over content still on screen is the polite "may be out of date" notice rather than an alert; a committed write whose follow-up read failed says Retry refresh ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
+
 ---
 
 # 64. Repository Structure
@@ -3914,6 +3926,8 @@ shows a recovery state with the normal Undo/Redo controls and captured project l
 creator's history summary may name the absent project; another actor still receives not-found.
 Landing an Undo or Redo live update causes the workspace context to reload once for that history
 revision, so a root tree reflects restored descendants without a page reload.*
+
+*Slice 78: a project that is missing or not shared, and an unknown address, share one layout.* `/projects/:projectId` for such a project says "This project isn’t available" (no id) and `**` says "This page doesn’t exist"; both offer Go to Home and land focus on their heading. Any other project read failure is headed "Couldn’t load this project" with Try again ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
 
 ---
 

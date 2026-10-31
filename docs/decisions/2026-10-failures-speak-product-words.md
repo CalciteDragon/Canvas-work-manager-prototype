@@ -80,3 +80,9 @@ this keeps, with the reason moved under Details).
   not clipped under its 44 px actions and Details row.
 - A field a failure describes has a visible label in the control-label style, never an
   `aria-label` alone: the Reflections composer's body is labelled "Reflection".
+
+**Amended, 2026-10-30 — Slice 78 review.** `failure.ts` stays the only place an error is read:
+`failureCode` hands a code to a caller that words its own sentence by it (Archive's and Settings'
+refused restore, "Couldn’t reach your workspace, so “X” may not have been restored."). The spec
+is corrected in place to match this entry: §21, §23, §24, §34, §44, §63 and §68 each carry a
+*Slice 78* paragraph.

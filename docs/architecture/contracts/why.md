@@ -213,3 +213,5 @@ on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
 
 
 Slice 77 keeps navigation identity in contracts and routes in the web, following [rows open their canonical owner](../../decisions/2026-10-rows-open-their-canonical-owner.md).
+
+Slice 78 makes the dashboard context's `dailyDigest` nullable, so a failed provider loses only the digest and carries no reason over the wire, following [a failure speaks product words](../../decisions/2026-10-failures-speak-product-words.md).

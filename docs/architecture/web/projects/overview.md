@@ -34,6 +34,9 @@ schema-version-6 converter was removed in Slice 66.
   creation Undo it renders creator-only recovery at the original project URL; if the history read
   fails while that project is missing, the unavailable state offers a generic Retry — but not
   for a `not_found` history, which is what everyone but the creator receives.
+- A project that is missing or not shared shows the shared unavailable layout, "This project
+  isn’t available" with Go to Home and no id; any other failed project read is headed
+  "Couldn’t load this project" with Try again and its reason under Details (Slice 78).
 - The shell provides `TaskDrawerCoordinator`, reserves desktop drawer width and keeps explicit
   Archive-heading requests in root-lived `ProjectColumnFocusRequest` across shell replacement.
 - `ProjectWorkspaceStore`: the project record, §39's progress, §26's writes, the `missing` state
