@@ -1,11 +1,78 @@
 <!-- plan id="78" status="active" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back" -->
 # Slice 78 — States: failures and loading
 
-**State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done. Stage 5 parts a and b are
-done, S5FIX applied the user's answers to Open questions 4–8, and S5FIX2 applied the answer to
-Open question 9. The sheet has 0 gate failures. Next: S5C reviews, then Gate 2 (the user). No
-real use before Gate 2.**
+**State (2026-10-31):** **awaiting Gate 2 (user review of the sheet).** The plan was reviewed in
+twelve rounds and accepted by the user on 2026-10-29. Stages 0–4 are done, and so are Stage 5's
+parts a and b, S5FIX (Q4–Q8), S5FIX2 (Q9) and S5C (the reviews). The sheet has 0 gate failures.
+**Next: the user reviews the sheet at Gate 2. No real use before Gate 2. The Outcome is not
+written, and the slice is not closed.**
+
+- **Sheet:** `apps/e2e/ux-output/slice78-sheet/index.html`.
+  - **Inputs:** before `0c1917081b73a2892a30e0c6c548bff8b4e2fdc6`; after
+    `apps/e2e/ux-output/5728e2bf22f83d674afa496ed604dceceebbe3a0`. The after has 194 matrix cells
+    with 0 errors, and 168 states entries, `complete`, with T01–T12.
+  - **Result:** 194 pairs and **0 gate failures**: geometry, census, state checks (164 views),
+    pins, Lab and tasks. All 24 visual acceptance pairs are present.
+  - The 196 `intentionalLabChanges` are the same as S5FIX2's: the Lab panels and Q9's label
+    reflow.
+  - **Rebuild:** `node docs/roadmap/70-ui-ux/tooling/build-sheet.mjs
+    apps/e2e/ux-output/0c1917081b73a2892a30e0c6c548bff8b4e2fdc6
+    apps/e2e/ux-output/5728e2bf22f83d674afa496ed604dceceebbe3a0 apps/e2e/ux-output/slice78-sheet
+    apps/e2e/ux-output/5728e2bf22f83d674afa496ed604dceceebbe3a0 --profile 78`.
+- **What the user should look at, under "Visual acceptance before / after":**
+  - The failure family. The `lab · dark · 1440` pair now has a second row, "scrolled to the
+    region", that shows the old "Empty, loading and error" panel beside the new "Empty, loading
+    and failed".
+  - `dashboard-real-ai` at 375 light: its scrolled shot shows the digest's failure beside the
+    six widgets.
+  - The section failures in `kitchen-bodies-failing` (1440 dark, and 375 light with Details open).
+  - The unavailable and `**` pages; the pinned failure at both edges (`pin-todos-below`); the
+    header progress fact; Archive, Settings › Archived projects, and the agents retries.
+  - The core task costs table: T12 goes from a dead end to one click.
+  - Open question 10 below.
+- **S5C (2026-10-31):** five review passes ran with fresh context, against the diff, the plan,
+  the findings, `direction.md` and the sheet: correctness, spec, boundaries, acceptance and
+  living documentation. They found no blockers. Each finding was checked against the code; the
+  ones that held were fixed test-first. Commits:
+  - `af79ac2`, store fixes:
+    - Reflections re-reads quietly after a write, so a second failure keeps the saved
+      reflection on screen.
+    - Task List's Try again on the same section no longer clears a failed add, row or field
+      write.
+    - The Reflections page's stale Try again re-reads the journal, then completed work, then the
+      container.
+  - `1e60a94`: Go to Home and Reload page carry `data-recovery`. The gate's name is "Reload
+    page". `failureCode` in `failure.ts` replaces the two archive stores' copied `codeOf`.
+  - `5c61c74`: `CURRENT_SLICE` is 78.
+  - `5728e2b`: the rig takes a `focus` shot scrolled to the region for `lab` and
+    `dashboard-real-ai`, and the sheet shows it beside the pair. Until now the workspace's inner
+    scroll had cut both images off: the Lab image showed only its top, and the 375 Home image
+    ended before the digest. The `before` dir's states were re-run for those three views only
+    (`UX_STATES_MATCH`), and stay `complete`. There are 86 tests in `build-sheet.test.mjs`.
+  - `f981f7d`, documentation:
+    - The spec carries Slice 78 paragraphs in §21, §23, §24, §34, §44, §63 and §68. They were
+      promised but missing.
+    - Walkthrough step 31 now says the real provider fails only the digest.
+    - The decision is linked from the projects, contracts, domain and prototype-host `why.md`
+      files.
+    - Three `overview.md` files are updated.
+    - The decision index blurb and a dated amendment on the failures decision are added.
+    - The change list is corrected, and 79's plan gains the header archive refusal's "Try
+      again." handoff.
+  - **Findings that did not hold:**
+    - The Markdown failure no longer says "your draft is kept". This was planned (Build, Markdown
+      bullet), and the draft stays visibly kept.
+    - The Lab importing `dailyDigestFailure` from `features/` is the allowed direction, as
+      `live-panels.ts` already does.
+    - The header archive refusal's sentence is handed to slice 79, which owns that wording.
+  - **Left as a question, not fixed:** Open question 10.
+  - **Checks:**
+    - `pnpm test` (web 1,388) and `pnpm lint` are green.
+    - `pnpm --filter web storybook:build` passes.
+    - The initial bundle is 1.14 MB, under 1,150 kB.
+    - e2e passed on one worker: `states`, `reflections`, `archive`, `archived-projects`,
+      `placement` and `feedback`, 88 in all. The full `pnpm e2e` was last green at S5FIX
+      (260). Since then the only product changes are the S5C fixes above.
 
 - S5FIX2 (`00b84b9`, plus the docs commit), **Q9, user decision (a):**
   - Profile 78 accepts Q7's label reflow and nothing else. The label's height is measured: it is
@@ -1518,6 +1585,25 @@ None open. Three were answered by the user on 2026-10-29:
    64 px of toast clearance. Any other movement still fails. No cell became report-only, and the
    before was not recaptured.
 
+**Raised by S5C (2026-10-31), for Gate 2:**
+
+10. **Archive's and Settings › Archived projects' stale notice may not be announced.**
+    - **Context:** each page renders one `FailureMessage` for its four states. It is mounted only
+      while an error is held: `archive-page.html` and `archived-projects-page.html`.
+    - **The problem:** when a quiet re-read fails over a list with no error held, the message is
+      inserted already holding its `role="status"` text. `FailureMessage`'s own doc comment says
+      screen readers often skip such an insertion. Todos, Reflections and the sidebar avoid this
+      with a `role="status"` wrapper that is always mounted.
+    - **Why it was not fixed:** the one-message design is deliberate. A refusal that turns stale
+      keeps the same instance, so Try again keeps focus (Build, "Archive").
+    - **Options:**
+      - (a) Leave it. The stale case on these two pages is rare and visible.
+      - (b) Mount a wrapper around the stale case only. This costs the refusal-to-stale focus
+        continuity.
+      - (c) Add a visually hidden status region that is always mounted and repeats the stale
+        sentence. A screen reader reads it twice when browsing.
+    - **Impact:** a11y only. Nothing visual changes, and no gate depends on it.
+
 ## Revisions
 
 - **Round 1 (2026-10-29):** fifteen substantive and ten minor findings, each checked against the
@@ -1750,3 +1836,11 @@ None open. Three were answered by the user on 2026-10-29:
   - Its height is measured rather than declared. The prompt-to-body gap must grow to equal the
     "Prompt" label's gap, so a shifted body cannot set its own allowance.
   - The rebuilt sheet has 0 gate failures.
+- **S5C (2026-10-31), reviews:** five review passes ran (State header).
+  - The change list was corrected:
+    - `app-shell.scss` and `receipt-toast.ts` were never changed.
+    - The spec row names §44 in place of §42.
+    - The walkthrough, the two `why.md` files and the docs edited outside the list are now listed.
+  - Open question 10 was added.
+  - The rig's `focus` shot and the sheet's scrolled row are evidence changes only. No gate rule
+    changed.
