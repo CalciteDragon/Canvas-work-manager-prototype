@@ -321,6 +321,24 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     expect(store.items()).toHaveLength(1);
   });
 
+  it('re-reads the completed work too when its quiet read made the notice stale (Slice 78)', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    const completed = gateway.journal.completedWork.bind(gateway.journal);
+    gateway.journal.completedWork = vi.fn().mockRejectedValue(new GatewayError('unreachable', 0, 'picker offline'));
+    live.emit({ type: 'reflection.added', entityType: 'reflection', entityId: 'reflection-other', projectId: PROJECT });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.refreshError()?.reason).toBe('picker offline');
+
+    expect(await store.retryRefresh()).toBe(false);
+    expect(store.refreshError()?.reason).toBe('picker offline');
+
+    gateway.journal.completedWork = vi.fn(completed);
+    expect(await store.retryRefresh()).toBe(true);
+    expect(gateway.journal.completedWork).toHaveBeenCalledWith(PROJECT);
+    expect(store.refreshError()).toBeNull();
+  });
+
   it('refreshes all three projections after a matching live event', async () => {
     const { store, gateway, live } = setup();
     await store.load(PROJECT, PAGE);

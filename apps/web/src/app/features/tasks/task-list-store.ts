@@ -163,16 +163,15 @@ export class TaskListStore {
       if (this.sectionIdState() !== section.id) {
         this.errorState.set(null);
         this.receiveErrorState.set(null);
+        this.createErrorState.set(null);
+        this.rowErrorsState.set(new Map());
+        this.fieldSavesState.set(new Map());
       }
       this.requested = section;
       this.projectIdState.set(section.projectId);
       this.sectionIdState.set(section.id);
       this.loadingState.set(true);
-      // A new container starts with none of the old one's writes on screen.
       this.pendingCreateState.set(null);
-      this.createErrorState.set(null);
-      this.rowErrorsState.set(new Map());
-      this.fieldSavesState.set(new Map());
       try {
         const tasks = await this.gateway.tasks.list({ sectionId: section.id, includeArchived: false });
         if (generation !== this.loadGeneration) return;

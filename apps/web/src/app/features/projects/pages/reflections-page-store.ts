@@ -146,14 +146,21 @@ export class ReflectionsPageStore {
     return projectId === null ? Promise.resolve(false) : this.readJournal(this.generation, projectId, false);
   }
 
-  /** The stale notice's Try again and the saved state's Retry refresh: a quiet journal read. */
+  /**
+   * The stale notice's Try again and the saved state's Retry refresh: the three quiet reads, any of
+   * which can have made the notice stale, one after another so a later failure keeps it.
+   */
   async retryRefresh(): Promise<boolean> {
     const projectId = this.projectIdState();
     if (projectId === null || this.refreshPendingState()) return false;
     const generation = this.generation;
+    const pageId = this.pageIdState();
     this.refreshPendingState.set(true);
     try {
-      return await this.readJournal(generation, projectId, true);
+      const journal = await this.readJournal(generation, projectId, true);
+      const candidates = await this.readCandidates(generation, projectId, true);
+      const container = pageId === null || await this.readContainer(generation, projectId, pageId, true);
+      return journal && candidates && container;
     } finally {
       if (generation === this.generation) this.refreshPendingState.set(false);
     }

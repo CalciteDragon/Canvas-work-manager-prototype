@@ -224,6 +224,22 @@ describe('ReflectionsStore (§36)', () => {
     expect(store.createError()).toBeNull();
   });
 
+  it('keeps a saved reflection on screen when the re-read after it fails again (Slice 78)', async () => {
+    const options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = {
+      reflections: [],
+      failOn: { 'reflections.list': new GatewayError('internal_error', 500, 'list broke') },
+    };
+    const store = setup(new FakeWorkManagerGateway(options));
+    await store.load(section());
+
+    expect(await store.create('A note')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(store.reflections().map(({ body }) => body)).toEqual(['A note']);
+    expect(store.error()?.sentence).toBe('Couldn’t load this journal.');
+    expect(store.loading()).toBe(false);
+  });
+
   it('ignores an older load response after navigation', async () => {
     const older = deferred<Reflection[]>();
     const list = vi

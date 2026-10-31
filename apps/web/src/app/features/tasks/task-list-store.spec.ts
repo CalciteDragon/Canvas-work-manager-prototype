@@ -571,6 +571,25 @@ describe('TaskListStore.refresh (§62)', () => {
     expect(store.tasks()).toHaveLength(1);
   });
 
+  it('a Try again on the same section never clears a failed add (Slice 78)', async () => {
+    const create = vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); });
+    const { store, gateway } = setup({ create });
+    const list = gateway.tasks.list as ReturnType<typeof vi.fn>;
+    list.mockRejectedValueOnce(new GatewayError('unreachable', 0, 'down'));
+    await store.load(section());
+    await store.create('Buy milk');
+    expect(store.createError()?.sentence).toBe('Couldn’t add “Buy milk”. Try again.');
+
+    list.mockRejectedValueOnce(new GatewayError('unreachable', 0, 'still down'));
+    const retrying = store.retry();
+    expect(store.createError()?.sentence).toBe('Couldn’t add “Buy milk”. Try again.');
+    await retrying;
+    expect(store.createError()?.sentence).toBe('Couldn’t add “Buy milk”. Try again.');
+
+    await store.load(section('project-b'));
+    expect(store.createError()).toBeNull();
+  });
+
   it('clears a read failure when another section loads', async () => {
     const { store, gateway } = setup();
     (gateway.tasks.list as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new GatewayError('internal_error', 500, 'boom'));
