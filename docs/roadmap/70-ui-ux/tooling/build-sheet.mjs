@@ -659,11 +659,15 @@ if (profile === '78') {
   const rows = Array.isArray(stateEvidence?.rows) ? stateEvidence.rows : [];
   for (const context of STATE_CAPTURE_SCOPE) if (!rows.some(r => r.context === context)) fail('Capture scope context has no table row', { context });
   for (const r of rows) {
-    if (!['read', 'write', 'stale', 'loading', 'pending'].includes(r.kind) || !Object.keys(RECOVERY_NAMES).concat('none').includes(r.recovery) || typeof r.details !== 'boolean' || ![null, 'top', 'bottom'].includes(r.pinned ?? null) || typeof r.region !== 'string')
+    if (!['read', 'write', 'stale', 'loading', 'pending', 'settled'].includes(r.kind) || !Object.keys(RECOVERY_NAMES).concat('none').includes(r.recovery) || typeof r.details !== 'boolean' || ![null, 'top', 'bottom'].includes(r.pinned ?? null) || typeof r.region !== 'string')
       fail('invalid context table row', { row: r });
     if (r.emptyHook != null && (!/^data-[\w-]+-empty$|^data-empty-canvas$/.test(r.emptyHook) || !await webHook(r.emptyHook))) fail('row empty hook not found in the web source', { context: r.context, emptyHook: r.emptyHook });
     if (r.kind === 'pending' && !r.text) fail('pending row without its declared text', { context: r.context });
+    // A settled row is a correct non-failure answer ("No tasks to measure"): no recovery, no Details.
+    if (r.kind === 'settled' && (r.recovery !== 'none' || r.details)) fail('settled row declaring a recovery or Details', { row: r });
   }
+  // Section and shortcut frames with rows of their own: their empty hooks are theirs to judge.
+  const ownedFrames = new Set(rows.map(r => r.region).filter(region => /^\[data-(section|shortcut)-id=/.test(region)));
   for (const context of [...STATE_CAPTURE_SCOPE, 'lab']) for (const [theme, width] of STATE_VIEWS) {
     const e = stateEvidence?.entries?.find(x => x.context === context && x.theme === theme && x.width === width);
     const at = { context, theme, width }, touch = width === 375;
@@ -715,7 +719,15 @@ if (profile === '78') {
     for (const r of mine) {
       const reg = e.regions?.find(x => x.region === r.region);
       if (!reg?.present) { check(r, 'row region missing'); continue; }
-      if (r.kind === 'read' && (!Array.isArray(reg.visibleEmptyHooks) || reg.visibleEmptyHooks.length)) check(r, 'empty hook visible in a failed read', { hooks: reg.visibleEmptyHooks ?? null });
+      if (r.kind === 'settled' && e.reason) check(r, 'settled row in a context with an injected failure');
+      if (r.kind === 'read') {
+        // A canvas row ignores a truly empty section that its own row owns (Open question 8); every
+        // visible hook must be placed, and a hook outside every owned frame still fails.
+        const hooks = reg.visibleEmptyHooks, frames = reg.emptyHookFrames;
+        const placed = Array.isArray(hooks) && Array.isArray(frames) && hooks.every(h => frames.some(f => f.hook === h));
+        const unowned = r.region === 'app-project-canvas' && placed ? [...new Set(frames.filter(f => !ownedFrames.has(f.frame)).map(f => f.hook))] : hooks;
+        if (!Array.isArray(unowned) || unowned.length) check(r, 'empty hook visible in a failed read', { hooks: hooks ?? null, frames: frames ?? null });
+      }
       if (!Array.isArray(reg.buttons)) check(r, 'region control evidence missing');
       const recoveries = (reg.buttons ?? []).filter(b => b.visible === true && (Object.values(RECOVERY_NAMES).includes(b.name?.trim()) || Object.hasOwn(RECOVERY_NAMES, b.recovery ?? '')));
       if (r.recovery === 'none') { if (recoveries.length) check(r, 'undeclared recovery control', { controls: recoveries.map(b => b.name) }); }

@@ -25,7 +25,8 @@ export type Row = {
   context: string;
   /** A CSS selector present in both builds; the first match is the region. */
   region: string;
-  kind: 'read' | 'write' | 'stale' | 'loading' | 'pending';
+  /** `settled` is a correct non-failure answer: no recovery, no Details, and no empty rule. */
+  kind: 'read' | 'write' | 'stale' | 'loading' | 'pending' | 'settled';
   recovery: 'try-again' | 'go-home' | 'retry-refresh' | 'reload' | 'none';
   details: boolean;
   /** The `data-*-empty` hook that would falsely show in this region, or null. */
@@ -90,9 +91,9 @@ export const ROWS: Row[] = [
   row('pin-section-collapse', BRIEF_R, 'write', 'none', true, null, 'top'),
   row('pin-shortcut-collapse', SHORTCUT_R, 'write', 'none', true, null, 'bottom'),
   row('pin-tall-tasklist-banner', TASKS_R, 'write', 'none', true, null, 'top'),
-  row('header-progress-empty-project', 'app-project-header', 'read', 'none', false),
+  row('header-progress-empty-project', 'app-project-header', 'settled', 'none', false),
   row('header-progress-failing', 'app-project-header', 'read', 'none', false),
-  row('header-progress-legacy', 'app-project-header', 'read', 'none', false),
+  row('header-progress-legacy', 'app-project-header', 'settled', 'none', false),
   row('not-found', 'main', 'read', 'go-home', false),
   row('kitchen-loading', 'app-project-canvas', 'loading', 'none', false, 'data-empty-canvas'),
   row('header-progress-pending', 'app-project-header', 'pending', 'none', false, null, null, 'Measuring…'),
@@ -495,6 +496,12 @@ function probe({ regions, reason }: { regions: string[]; reason: string | null }
       // A closed Details shows its summary; `shown(d)` would count the element as inside itself.
       details: all.filter(e => e.tagName === 'DETAILS').map(d => ({ open: (d as HTMLDetailsElement).open, visible: shown(d.querySelector(':scope > summary') ?? d), summary: text(d.querySelector('summary') ?? d), text: (d.textContent ?? '').trim().slice(0, 1000) })),
       visibleEmptyHooks: [...new Set([el, ...all].filter(shown).flatMap(e => [...e.attributes].map(a => a.name).filter(n => /^data-.*-empty$|^data-empty-canvas$/.test(n))))],
+      // Each shown empty hook and the section or shortcut frame inside the region that holds it.
+      emptyHookFrames: [...new Set([el, ...all].filter(shown).flatMap(e => [...e.attributes].map(a => a.name).filter(n => /^data-.*-empty$|^data-empty-canvas$/.test(n)).map(hook => {
+        const frame = e.closest('[data-section-id], [data-shortcut-id]');
+        const at = frame && el.contains(frame) && frame !== el ? (frame.hasAttribute('data-section-id') ? `[data-section-id="${frame.getAttribute('data-section-id')}"]` : `[data-shortcut-id="${frame.getAttribute('data-shortcut-id')}"]`) : null;
+        return JSON.stringify({ hook, frame: at });
+      })))].map(x => JSON.parse(x) as { hook: string; frame: string | null }),
       ariaBusy: el.getAttribute('aria-busy'),
       ariaBusyWithin: [el, ...all].some(e => e.getAttribute('aria-busy') === 'true'),
       loadingMessages: all.filter(e => e.matches('.state-message--loading')).map(text),

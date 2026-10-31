@@ -906,9 +906,9 @@ const stateRows = () => [
   stateRow('pin-section-collapse', BRIEF_R, 'write', 'none', true, null, 'top'),
   stateRow('pin-shortcut-collapse', SHORTCUT_R, 'write', 'none', true, null, 'bottom'),
   stateRow('pin-tall-tasklist-banner', TASKS_R, 'write', 'none', true, null, 'top'),
-  stateRow('header-progress-empty-project', 'app-project-header', 'read', 'none', false),
+  stateRow('header-progress-empty-project', 'app-project-header', 'settled', 'none', false),
   stateRow('header-progress-failing', 'app-project-header', 'read', 'none', false),
-  stateRow('header-progress-legacy', 'app-project-header', 'read', 'none', false),
+  stateRow('header-progress-legacy', 'app-project-header', 'settled', 'none', false),
   stateRow('not-found', 'main', 'read', 'go-home', false),
   stateRow('kitchen-loading', 'app-project-canvas', 'loading', 'none', false, 'data-empty-canvas'),
   stateRow('header-progress-pending', 'app-project-header', 'pending', 'none', false, null, null, 'Measuring…'),
@@ -933,7 +933,7 @@ function stateEntry(context, theme, width, rows) {
     region: r.region, present: true, box: { x: g.track.x, y: 200, width: g.track.width, height: 300 }, text: r.text ?? 'Couldn’t load this.',
     buttons: r.recovery === 'none' ? [] : [{ name: RECOVERY_NAMES[r.recovery], tag: r.recovery === 'go-home' ? 'a' : 'button', recovery: r.recovery, visible: true, disabled: false, box: { x: g.track.x + 10, y: 220, width: 96, height: width === 375 ? 44 : 32 } }],
     details: r.details ? [{ open, visible: true, summary: 'Details', text: `Details ${reason}` }] : [],
-    visibleEmptyHooks: [], loading: r.kind === 'loading' ? [{ text: 'Loading…', visible: true, busy: true }] : [],
+    visibleEmptyHooks: [], emptyHookFrames: [], loading: r.kind === 'loading' ? [{ text: 'Loading…', visible: true, busy: true }] : [],
     failures: [{ box: { x: g.track.x + 10, y: 240, width: 200, height: 20 } }], anchors,
   });
   const pin = edge => {
@@ -1024,6 +1024,35 @@ test('profile 78 fails on an empty hook shown inside a read row region, or a reg
   await statesFails(t, { evidence: e => editState(e, 'todos-failing', x => { x.regions[0].visibleEmptyHooks = ['data-todos-empty']; }, 'dark|1440') }, 'visible empty hook');
   await statesFails(t, { evidence: e => editState(e, 'kitchen-sections-failing', x => { x.regions[0].visibleEmptyHooks = ['data-empty-canvas']; }, 'light|375') }, 'visible empty canvas');
   await statesFails(t, { evidence: e => editState(e, 'agents-failing', x => { x.regions[0] = { region: x.regions[0].region, present: false }; }, 'dark|1440') }, 'absent region');
+});
+
+test('profile 78 does not hold a settled row to the empty rule, and holds it to everything else (Open question 6)', async t => {
+  // "No tasks to measure" is the right answer for a project with nothing to measure, not a failure.
+  const asRead = e => { e.rows.find(r => r.context === 'header-progress-empty-project').kind = 'read'; };
+  const empty = e => editState(e, 'header-progress-empty-project', x => { x.regions[0].visibleEmptyHooks = ['data-project-progress-empty']; });
+  const pass = await statesSheet(t, { evidence: e => { empty(e); } });
+  assert.equal(pass.result.status, 0, 'a settled row may show its empty hook: ' + pass.report);
+  await statesFails(t, { evidence: e => { asRead(e); empty(e); } }, 'the same hook on a read row');
+  await statesFails(t, { evidence: e => { e.rows.find(r => r.context === 'header-progress-legacy').recovery = 'try-again'; } }, 'a settled row declaring a recovery');
+  await statesFails(t, { evidence: e => { e.rows.find(r => r.context === 'header-progress-legacy').details = true; } }, 'a settled row declaring Details');
+  await statesFails(t, { evidence: e => { editState(e, 'header-progress-legacy', x => { x.regions[0].buttons = [{ name: 'Try again', tag: 'button', recovery: 'try-again', visible: true, box: { x: 0, y: 0, width: 96, height: 32 } }]; }, 'dark|1440'); } }, 'a settled row showing Try again');
+  await statesFails(t, { evidence: e => { editState(e, 'header-progress-legacy', x => { x.regions[0].details = [{ open: false, visible: true, summary: 'Details', text: 'Details' }]; }, 'light|375'); } }, 'a settled row showing Details');
+  await statesFails(t, { evidence: e => { editState(e, 'header-progress-legacy', x => { x.reason = 'Audit: injected'; x.reasonVisible = false; }); } }, 'a settled row in a context with an injected failure');
+});
+
+test('profile 78 lets a canvas row ignore empty hooks inside frames that have their own rows, and nothing else (Open question 8)', async t => {
+  const hooks = (frames, context = 'kitchen-shortcuts-failing') => e => editState(e, context, x => {
+    x.regions[0].visibleEmptyHooks = [...new Set(frames.map(f => f.hook))];
+    x.regions[0].emptyHookFrames = frames;
+  });
+  const owned = [{ hook: 'data-reflections-empty', frame: REFL_R }, { hook: 'data-activity-empty', frame: ACT_R }];
+  const pass = await statesSheet(t, { evidence: hooks(owned) });
+  assert.equal(pass.result.status, 0, 'Reflections and Recent Activity are truly empty: ' + pass.report);
+  await statesFails(t, { evidence: hooks([...owned, { hook: 'data-empty-canvas', frame: null }]) }, 'an empty hook outside every frame');
+  await statesFails(t, { evidence: hooks([{ hook: 'data-notes-empty', frame: '[data-section-id="section-project-kitchen-notes"]' }]) }, 'an empty hook in a frame with no row of its own');
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-shortcuts-failing', x => { x.regions[0].visibleEmptyHooks = ['data-reflections-empty']; }) }, 'an empty hook with no frame evidence');
+  await statesFails(t, { evidence: e => editState(e, 'kitchen-shortcuts-failing', x => { delete x.regions[0].emptyHookFrames; x.regions[0].visibleEmptyHooks = ['data-reflections-empty']; }) }, 'frame evidence missing');
+  await statesFails(t, { evidence: hooks([{ hook: 'data-tasks-empty', frame: TASKS_R }], 'kitchen-tasks-lifted') }, 'a section row still owns its own empty hook');
 });
 
 test('profile 78 gates the declared recovery control and its target size', async t => {
