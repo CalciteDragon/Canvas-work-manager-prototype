@@ -308,3 +308,6 @@
 @supports not (backdrop-filter: blur(1px)) { @include solid-planes; }
 @media (forced-colors: active) { @include solid-planes; }
 @media (prefers-reduced-motion: reduce) { :root { --motion-duration-cap: 80ms; } }
+// Slice 78, Open question 5: on touch the toast's 44 px actions and its Details row need more
+// room, so a failure's "Try again." is not clipped. The shell's clearance follows the token.
+@media (hover: none), (any-pointer: coarse) { :root { --toast-max-block-size: 16rem; } }

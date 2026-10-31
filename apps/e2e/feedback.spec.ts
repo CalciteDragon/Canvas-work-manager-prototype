@@ -120,6 +120,28 @@ test('a long task title keeps Undo and Dismiss inside the phone toast when focus
   }
 });
 
+test.describe('A failed write toast at 375 touch', () => {
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+
+  // Slice 78, Open question 5: the 44 px actions and the Details row fit under the touch cap.
+  test('shows its whole message, Try again included, without scrolling it', async ({ page }) => {
+    await page.route(url => /^\/api\/sections\/[^/]+$/.test(url.pathname), route => route.request().method() === 'DELETE'
+      ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message: 'Section removal failed' }) })
+      : route.fallback());
+    await page.goto(kitchen);
+    await page.getByRole('button', { name: /^Remove section / }).first().tap();
+    const message = toast(page).locator('.toast__message');
+    await expect(message).toContainText('Try again.');
+    const fit = await message.evaluate(e => ({ scroll: e.scrollHeight, client: e.clientHeight }));
+    expect(fit.scroll).toBeLessThanOrEqual(fit.client);
+    const box = (await toast(page).boundingBox())!;
+    for (const control of [toast(page).getByRole('button', { name: 'Dismiss', exact: true }), toast(page).locator('summary')]) {
+      const b = (await control.boundingBox())!;
+      expect(b.y + b.height).toBeLessThanOrEqual(box.y + box.height);
+    }
+  });
+});
+
 type Mode = 'keyboard' | 'pointer' | 'touch';
 const press = async (control: Locator, mode: Mode) => {
   if (mode === 'keyboard') { await control.focus(); await control.press('Enter'); }
