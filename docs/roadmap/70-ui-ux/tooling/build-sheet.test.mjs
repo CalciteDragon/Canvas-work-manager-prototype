@@ -971,7 +971,7 @@ async function statesSheet(t, change = {}) {
     await f.json(phase, 'layout.json', { ...f.layout, controls: change.controls ?? [] });
     change[phase ? 'evidence' : 'before']?.(evidence[phase]);
     await f.json(phase, 'states-verification.json', evidence[phase]);
-    for (const entry of evidence[phase].entries) if (entry.screenshot) await writeFile(join(f.dirs[phase], entry.screenshot), 'state image');
+    for (const entry of evidence[phase].entries) for (const file of [entry.screenshot, entry.focusScreenshot]) if (file) await writeFile(join(f.dirs[phase], file), 'state image');
   }
   if (change.missing !== undefined) await rm(join(f.dirs[change.missing], 'states-verification.json'));
   await f.json(1, 'layout.json', { ...f.layout, planes: [{ ...f.layout.planes[0], y: change.move ?? 0 }], controls: change.controls ?? [], viewport: change.width ?? 1440, document: change.width ?? 1440 });
@@ -1000,6 +1000,18 @@ test('profile 78 accepts complete states evidence and emits the Gate 2 sheet', a
   const report = JSON.parse(s.report);
   assert.equal(report.statesVisualPairs.filter(p => p.status !== 'paired').length, 0);
   assert.equal(await readFile(join(s.dirs[2], 'after-states-pin-todos-below-dark-1440.png'), 'utf8'), 'state image');
+});
+
+test('profile 78 shows a pair\'s scrolled focus shot beside it, before and after, when the rig took one', async t => {
+  const focus = evidence => editState(evidence, 'lab', e => { e.focusScreenshot = `states-lab-${e.theme}-${e.width}-focus.png`; }, 'dark|1440');
+  const s = await statesSheet(t, { before: focus, evidence: focus });
+  assert.equal(s.result.status, 0, s.report);
+  const html = await readFile(join(s.dirs[2], 'index.html'), 'utf8');
+  const lab = html.slice(html.indexOf('id="pair-lab-dark-1440"'), html.indexOf('</article>', html.indexOf('id="pair-lab-dark-1440"')));
+  assert.match(lab, /before-states-lab-dark-1440-focus\.png/);
+  assert.match(lab, /after-states-lab-dark-1440-focus\.png/);
+  assert.match(lab, /scrolled to the region/);
+  assert.equal(await readFile(join(s.dirs[2], 'after-states-lab-dark-1440-focus.png'), 'utf8'), 'state image');
 });
 
 test('profile 78 fails on a missing or incomplete states-verification.json', async t => {

@@ -119,6 +119,11 @@ export type Context = {
   held?: boolean;
   /** Extra element screenshots. */
   frames?: string[];
+  /**
+   * The workspace scrolls inside the page, so the full-page shot is the viewport. A focus shot is
+   * scrolled to the first match, taken last so it moves no evidence; a build without one takes none.
+   */
+  focus?: string;
 };
 
 const body = (message: string) => JSON.stringify({ error: 'internal_error', message });
@@ -171,7 +176,7 @@ export const CONTEXTS: Context[] = [
     setup: c => fail(c.page, /^\/api\/me$/, 'GET', 'Audit: me read failed'),
     // At 375 the sidebar's own failure sits behind the phone menu; open it, as sidebar-failed does.
     act: async c => { await waitForFailure(c.page, null, 'Audit: me read failed'); await openPhoneMenu(c.page); await waitForFailure(c.page, 'app-sidebar', 'Audit: me read failed'); } },
-  { id: 'dashboard-real-ai', seed: 'agent-heavy', route: '/app', frames: ['app-dashboard-page'],
+  { id: 'dashboard-real-ai', seed: 'agent-heavy', route: '/app', frames: ['app-dashboard-page'], focus: '[data-dashboard-tile][data-widget-type="daily_digest"]',
     prepare: () => jsonRequest('/prototype/ai-provider', { method: 'POST', body: { provider: 'real' } }).then(() => undefined),
     act: c => waitForFailure(c.page, null),
     teardown: () => jsonRequest('/prototype/ai-provider', { method: 'POST', body: { provider: 'mock' } }).then(() => undefined) },
@@ -430,7 +435,8 @@ export const CONTEXTS: Context[] = [
   { id: 'header-progress-pending', seed: 'nested-projects', route: KITCHEN, held: true,
     // Before 78 the workspace waits on this read, so the whole page shows its loading line.
     setup: c => hold(c, /^\/api\/projects\/project-kitchen\/progress$/, 120_000), act: heldObserved },
-  { id: 'lab', seed: 'nested-projects', route: '/prototype/design',
+  // Before 78 the state specimens panel is `states`; slice 78 replaces it with `state-messages`.
+  { id: 'lab', seed: 'nested-projects', route: '/prototype/design', focus: '[data-panel="state-messages"], [data-panel="states"]',
     after: async c => { c.entry['panels'] = await c.page.locator('[data-panel]').evaluateAll(panels => panels.map(panel => { const r = panel.getBoundingClientRect(); return { id: panel.getAttribute('data-panel'), x: r.x, y: r.y, width: r.width, height: r.height }; })); } },
 ];
 
@@ -625,6 +631,11 @@ test('States runtime evidence and core tasks', async ({ browser }) => {
       }
       if (!pinned) await fixture.after?.(c);
       if (pinned) await regionShots();
+      const focus = fixture.focus ? page.locator(fixture.focus).first() : null;
+      if (focus && await focus.count()) {
+        await focus.evaluate(e => e.scrollIntoView({ block: 'start' }));
+        entry['focusScreenshot'] = await c.shot('focus');
+      }
     } catch (error) { entry['error'] = String(error); }
     finally {
       for (const release of c.releases) release();

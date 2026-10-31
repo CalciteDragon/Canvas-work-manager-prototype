@@ -1063,9 +1063,12 @@ if (profile === '78') {
     const was = find(stateBaseline, pair.context, pair.theme, pair.width), now = find(stateEvidence, pair.context, pair.theme, pair.width);
     const pictures = [];
     for (const [phase, item, dir] of [['before', was, beforeDir], ['after', now, verificationDir]]) if (item?.screenshot && !item.error) pictures.push(figure(await copy(phase, dir, item.screenshot), phase));
+    // The workspace scrolls inside the page, so a full-page shot is the viewport: the rig's focus shot is scrolled to the region.
+    const focused = [];
+    for (const [phase, item, dir] of [['before', was, beforeDir], ['after', now, verificationDir]]) if (item?.focusScreenshot && !item.error) focused.push(figure(await copy(phase, dir, item.focusScreenshot), phase + ' · scrolled to the region'));
     const more = [];
     for (const [field, caption] of extras) if (now?.[field]) more.push(figure(await copy('after', verificationDir, now[field]), 'after · ' + caption));
-    featured.push(`<article id="pair-${esc(pair.context)}-${pair.theme}-${pair.width}"><h3>${esc(`${pair.context} · ${pair.theme} · ${pair.width}`)}</h3><p>${esc(pair.findings)} · ${esc(pair.status)}</p><div class="pair">${pictures.join('')}</div>${more.length ? `<div class="pair">${more.join('')}</div>` : ''}</article>`);
+    featured.push(`<article id="pair-${esc(pair.context)}-${pair.theme}-${pair.width}"><h3>${esc(`${pair.context} · ${pair.theme} · ${pair.width}`)}</h3><p>${esc(pair.findings)} · ${esc(pair.status)}</p><div class="pair">${pictures.join('')}</div>${focused.length ? `<div class="pair">${focused.join('')}</div>` : ''}${more.length ? `<div class="pair">${more.join('')}</div>` : ''}</article>`);
   }
   const costs = '<table><tr><th>Task</th><th>Before clicks / keys</th><th>After clicks / keys</th><th>Before → after</th></tr>' + [...Array.from({ length: 9 }, (_, i) => 'T' + String(i + 1).padStart(2, '0')), 'T11', 'T12'].map(id => {
     const was = stateBaseline?.tasks?.find?.(t => t.id === id), now = stateEvidence?.tasks?.find?.(t => t.id === id);
