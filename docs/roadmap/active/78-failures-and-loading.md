@@ -3,10 +3,26 @@
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
 rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done. Stage 5 parts a and b are
-done, and S5FIX applied the user's answers to Open questions 4–8. The sheet's 26 failures are
-gone. It now fails only on Open question 9: the geometry gate cannot accept Q7's intended
-reflow (192 failures, one cause). Next: the user's call on Open question 9, then apply it and
-rebuild the sheet to zero, then S5C reviews, then Gate 2 (the user). No real use before Gate 2.**
+done, S5FIX applied the user's answers to Open questions 4–8, and S5FIX2 applied the answer to
+Open question 9. The sheet has 0 gate failures. Next: S5C reviews, then Gate 2 (the user). No
+real use before Gate 2.**
+
+- S5FIX2 (`00b84b9`, plus the docs commit), **Q9, user decision (a):**
+  - Profile 78 accepts Q7's label reflow and nothing else. The label's height is measured: it is
+    the growth of the prompt-to-body gap, and it must equal the "Prompt" label's gap. Boxes at or
+    below the body move by exactly that height. A box holding the body grows by it, and a control
+    centred in that box moves by half. The 375 toast-open workspace's scroll height also gains Q5's
+    64 px.
+  - **Tests:** two new tests make 85 in `build-sheet.test.mjs`. Twelve refusals prove that an
+    unrelated shift, an over-sized shift, a taller label, a full-height centred move, an unlabelled
+    body and misplaced toast clearance all still fail.
+  - **Sheet:** `apps/e2e/ux-output/slice78-sheet/index.html`, 194 pairs, rebuilt with the
+    command below. It has **0 geometry and 0 census failures**. State checks, pins, Lab and tasks
+    pass. The reflow is listed under `intentionalLabChanges` for exactly the 66 cells Q9 named,
+    and the toast clearance only on `kitchen-remove-feedback` at 375.
+  - **No product code changed,** so the after capture is still `ccd792f`. That means the e2e
+    result is still S5FIX's 260 green, and the initial bundle is still 1,139.27 kB; neither was
+    re-run. `pnpm test` and `pnpm lint` are green.
 
 - S5FIX (`f9f6cbe`, `ce00a7d`, `82fe7fb`, `ccd792f`, plus the docs commit):
   - **Q4:** the project read failure has a visible h1, "Couldn’t load this project", with
@@ -1491,32 +1507,14 @@ None open. Three were answered by the user on 2026-10-29:
    here). The rig records each hook's frame (`emptyHookFrames`); a hook outside every frame, in a
    frame with no row, or without frame evidence still fails.
 
-**Open, from S5FIX (2026-10-30):**
+**Answered by the user on 2026-10-30** (from S5FIX):
 
-9. **The geometry gate has no way to accept Q7's intended reflow.** The rebuilt sheet has 0 state,
-   census and pin failures, but **192 geometry failures in 66 matrix cells.** These are every
-   kitchen-canvas cell, `busy-week-project`, `nested-projects-project` and `reflections`, at every
-   view.
-   - **Why:** profile 78 requires every box in a non-exempt matrix cell to stay within 1 px.
-     Q7's visible "Reflection" label adds 27.5 px under every reflection composer, and everything
-     below it moves. The deltas:
-     - 1,378 changes of +27.5, 196 of +27 or +28 (scroll heights rounded);
-     - 32 of +13.75, for controls centred in a row beside the taller frame;
-     - 2 of +91, in `kitchen-remove-feedback` at 375: the label plus Q5's 4rem more toast clearance
-       with the toast open.
-     No other change. The user called the after-capture change intended, but the standing rule is
-     not to loosen profile 78 beyond Q6 and Q8, so the gate is unchanged.
-   - **Options:**
-     - (a) A narrow profile-78 rule, test-first, like the Lab's measured section-frame
-       translation. In a cell with a reflection composer, a box at or below the composer's body may
-       move by exactly the label's measured height, or half of it when vertically centred, within
-       1 px. In a toast-open touch cell, a scroll height may also grow by the 4rem clearance.
-       Anything else still fails.
-     - (b) List the 66 cells as report-only, like `kitchen-error`. This is broad, because it stops
-       gating all other movement in those cells.
-     - (c) Re-run the before with the label, which would mean rebuilding the slice-77 baseline. This
-       is not recommended, because the before would then no longer be the baseline.
-   - **Recommend (a).**
+9. **The geometry gate had no way to accept Q7's intended reflow** (192 failures in 66 matrix
+   cells). **Accepted (a), the narrow exception:** profile 78 measures the label and lets boxes at
+   or below the reflection body move by exactly its height, or half of it for controls centred in
+   the box that holds the body. On the 375 toast-open screen, the workspace may also gain Q5's
+   64 px of toast clearance. Any other movement still fails. No cell became report-only, and the
+   before was not recaptured.
 
 ## Revisions
 
@@ -1745,3 +1743,8 @@ None open. Three were answered by the user on 2026-10-29:
   - A canvas row ignores empty hooks inside frames that have rows of their own (Q8).
   - The re-capture and sheet rebuild cleared all 26 failures. They surfaced Open question 9,
     Q7's reflow under the strict geometry gate, which is left for a gate call.
+- **S5FIX2 (2026-10-30), user decision:** the user answered Open question 9 with (a). Changes:
+  - Profile 78 gains the narrow reflection-label reflow rule (State header, `testing/how.md`).
+  - Its height is measured rather than declared. The prompt-to-body gap must grow to equal the
+    "Prompt" label's gap, so a shifted body cannot set its own allowance.
+  - The rebuilt sheet has 0 gate failures.
