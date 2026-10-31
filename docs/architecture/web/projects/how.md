@@ -227,7 +227,10 @@ shared [`UnavailablePage`](../../../api/components/UnavailablePage.html) (`data-
 Home, with the history Retry projected beside it when the summary read failed. It has no Try again,
 no Details and no id, so another persona's project reads the same as a removed one (W4-024). The
 route-focus heading is also the narrow column's focus target. Any other failure replaces the
-page with "Couldn’t load this project." and Try again (`retry()`), with the reason under Details.
+page with the route-focus h1 "Couldn’t load this project" over a `FailureMessage` whose sentence
+(`headedReadFailure`) says only what the heading does not: "Something went wrong while it was
+loading.", or "Couldn’t reach your workspace."; Try again (`retry()`) and the reason under Details.
+The narrow column's focus still lands on its Try again.
 A re-read of the same project keeps the failure on screen, its Try again busy, until the read
 answers; loading another project clears it at once.
 
@@ -299,7 +302,9 @@ a shortcut retains the item links. A Progress bar is named from what its frame d
 inherits it. The bar appends "progress" unless the name already says it, never uses the frame's
 heading's interactive state, and is described by its own summary through a per-instance id. The Reflections composer's prompt select and the
 Reflections page's subject picker carry visible `.control-label`s ("Prompt", per-instance id;
-"Subject"); the title and body stay named by their placeholders. Each shortcut picker Add is named by
+"Subject"), and so does the composer's body ("Reflection", Slice 78), so its failure's
+`aria-describedby` never leaves it named by a placeholder alone; the title stays named by its
+placeholder. Each shortcut picker Add is named by
 its row's identity ("Add {name}, {breadcrumb} · {page}"), because a source carries no title for
 `shortcutNameOf`.
 

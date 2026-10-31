@@ -49,10 +49,13 @@ closes feedback, and modal suppression hides it without dropping it. Status toas
 eight unattended seconds; hover, focus and suppression pause and restart that timer. Alerts and
 pending Undo never time out. `ReceiptToast` in core composes this presentational layer with the
 workspace's inert-default receipt port. The toast docks in the content track with a matching
-reserve and becomes solid whenever another lift is open. A toast given a `detail` (a failure's raw
+reserve and becomes solid whenever another lift is open. Its height cap,
+`--toast-max-block-size`, is 12rem, and 16rem on touch, where the 44 px actions and a failure's
+Details row would otherwise clip the message; the shell's clearance follows the token. A toast given a `detail` (a failure's raw
 reason) shows it under a collapsed Details and never announces it.
 
-Failures are a `Failure { sentence, reason }` from `readFailure(error, subject)` or
+Failures are a `Failure { sentence, reason }` from `readFailure(error, subject)`,
+`headedReadFailure(error)` (for a read whose heading already says "Couldn’t load …") or
 `writeFailure(error, sentence)` in `shared/feedback/failure.ts`, which reads `code` and `message`
 structurally and imports nothing from `core/`. `FailureMessage` renders one: a region weight in
 place of a body, page or widget, or an inline weight on a row or field; the host carries the
@@ -94,7 +97,7 @@ restore rows do not. The Task List's sticky quick-add carries `data-pin-clearanc
 
 | `Toast` | component | Presentational feedback, live regions and timer | [API](../../api/components/Toast.html) |
 | `FailureMessage` | component | One failure form: sentence, optional recovery, reason under Details | [API](../../api/components/FailureMessage.html) |
-| `Failure`, `readFailure`, `writeFailure` | interface / functions | The one error-to-sentence translation | [API](../../api/interfaces/Failure.html) |
+| `Failure`, `readFailure`, `headedReadFailure`, `writeFailure` | interface / functions | The one error-to-sentence translation | [API](../../api/interfaces/Failure.html) |
 | `ToastSlot` | injectable | One visible toast, navigation dismissal and modal suppression | [API](../../api/injectables/ToastSlot.html) |
 | `PinnedFailures` | injectable | Registry of off-screen write failures: most recent per edge, occurrence dismissal, clearance | [API](../../api/injectables/PinnedFailures.html) |
 | `PinnedFailureDirective` | directive | Registers a reference's failure and watches its sentence in the scroll port | [API](../../api/directives/PinnedFailureDirective.html) |

@@ -16,7 +16,10 @@ one theme and width per foreground command, the last without the skip. `UX_MATCH
 for the matrix. The rig waits for a failure through `failureProbe`, which also counts the shared
 `[data-failure-sentence]` and a reason under a closed Details. The trap: a summary under the
 phone menu cannot take a pointer click, so the rig opens it from the DOM and records
-`detailsForced`.
+`detailsForced`. A `settled` row is a correct non-failure answer ("No tasks to measure"): it
+declares no recovery and no Details and is not held to the empty rule. Each region records
+`emptyHookFrames`, the section or shortcut frame holding each shown empty hook, so a canvas row
+ignores a truly empty section that has a row of its own, and nothing else.
 
 Slice 77 uses `ux/slice77.config.ts` on web 4254, host 4354 and
 `.prototype/ux-slice77.json`. Its genuine `e0e1467` baseline source is exported outside

@@ -2,11 +2,39 @@
 # Slice 78 — States: failures and loading
 
 **State (2026-10-30):** implementing (AGENTS.md step 3). The plan was reviewed in twelve
-rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done. Stage 5 parts a (gate
-tooling) and b (acceptance run and sheet) are done. The sheet has 26 gate failures in five
-categories, and each needs a product or gate-semantics call (Open questions 4–8). Next: answer
-those, apply the answers, re-capture and rebuild the sheet to zero failures. Then S5C runs the
-reviews, then Gate 2 (the user). No real use before Gate 2.**
+rounds and accepted by the user on 2026-10-29. **Stages 0–4 are done. Stage 5 parts a and b are
+done, and S5FIX applied the user's answers to Open questions 4–8. The sheet's 26 failures are
+gone. It now fails only on Open question 9: the geometry gate cannot accept Q7's intended
+reflow (192 failures, one cause). Next: the user's call on Open question 9, then apply it and
+rebuild the sheet to zero, then S5C reviews, then Gate 2 (the user). No real use before Gate 2.**
+
+- S5FIX (`f9f6cbe`, `ce00a7d`, `82fe7fb`, `ccd792f`, plus the docs commit):
+  - **Q4:** the project read failure has a visible h1, "Couldn’t load this project", with
+    `data-route-focus`. `headedReadFailure` words the sentence beneath.
+  - **Q5:** on touch, `--toast-max-block-size` is 16rem. New `feedback.spec.ts` test: the failed
+    removal toast at 375 touch shows its whole message.
+  - **Q6, Q8:** the `settled` row kind, and `emptyHookFrames` with the frame-owned rule. Two new
+    tests make 83 in `build-sheet.test.mjs`. Header-progress-empty-project and -legacy are
+    `settled`.
+  - **Q7:** a visible "Reflection" `.control-label` on the composer's body. The story's role
+    query follows the new name.
+  - **Checks:** `pnpm test` and `pnpm lint` are green. `pnpm e2e` is green in full: 260 tests in
+    four batches, no retries. The initial bundle is 1,139.27 kB.
+  - **After capture:** `apps/e2e/ux-output/ccd792fa94bd9f3a7d1c16deb6fd33eff93a2ae3`, from the
+    build of `ccd792f`. It holds 194 matrix cells with 0 errors, and 168 states entries,
+    `complete`, with T01–T12 completed.
+  - **Sheet:** `apps/e2e/ux-output/slice78-sheet/index.html`, 194 pairs.
+    - State checks, census, pins, Lab and tasks all pass.
+    - **192 geometry failures in 66 cells**, all Q7's +27.5 px label reflow, or half of it for
+      centred controls. In `kitchen-remove-feedback` at 375 it adds Q5's 4rem clearance: Open
+      question 9.
+  - **Rebuild:** `node docs/roadmap/70-ui-ux/tooling/build-sheet.mjs
+    apps/e2e/ux-output/0c1917081b73a2892a30e0c6c548bff8b4e2fdc6
+    apps/e2e/ux-output/ccd792fa94bd9f3a7d1c16deb6fd33eff93a2ae3 apps/e2e/ux-output/slice78-sheet
+    apps/e2e/ux-output/ccd792fa94bd9f3a7d1c16deb6fd33eff93a2ae3 --profile 78`.
+  - **Recapture** only if product code changes again. The recipe is below and in `testing/how.md`.
+    Each of the 4 states views and 5 matrix views took about 2 minutes, run one per foreground
+    command.
 
 - Stage 5, part b (`0ba1095`, `a73ed6a`, `ead9993`, `02fd472`, `350086c`, `2a3fa6f`):
   - **Acceptance items 1–4 and 6:**
@@ -729,9 +757,12 @@ digest leaves the rest of Home standing, and a missing project or page leads bac
     link. There is no Try again, no Details and no id. This holds for another persona's project too,
     and reveals nothing about whose it is (W4-024, L4-014). The header's existing history Retry
     stays available on this page, as it is today.
-  - Any other project read failure shows a region `FailureMessage` "Couldn't load this project."
-    with Try again and Details, replacing the "Project unavailable" notice section
-    (`project-workspace-shell.html:17`) rather than sitting under that heading.
+  - Any other project read failure shows a visible h1, "Couldn't load this project" (with
+    `data-route-focus`), over a region `FailureMessage` whose sentence says only what the heading
+    does not ("Something went wrong while it was loading.", or "Couldn't reach your workspace."),
+    with Try again and Details. It replaces the "Project unavailable" notice section
+    (`project-workspace-shell.html:17`) rather than sitting under that heading. (Amended
+    2026-10-30, Open question 4: this said "no heading".)
   - The `**` page says "This page doesn't exist", then "Check the address, or go to Home.", with
     the same link, in the same layout. It no longer cites §68.
   - The shared layout is a new `UnavailablePage` component
@@ -1364,7 +1395,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | `shell-store.spec.ts` / `sidebar.spec.ts`: while the first read is pending the tree shows "Loading projects…" and never "No projects yet"; a failed read shows "Couldn't load your projects." with Try again and no `role="alert"`; Try again re-reads and clears | L4-001, L4-002 |
 | `dashboard-page.spec.ts`: `/me` failure shows one alert and Try again; a `null` digest renders six widgets and the digest failure; the digest's Try again re-reads quietly, keeping the widgets | L4-002, L4-022 |
 | `dashboard-widget-frame.spec.ts`, `registry.spec.ts`: a definition's `failureOf` renders the failure without mounting the widget and emits `retry`; `pending` sets `aria-busy`; a widget without the hook renders as before | Widget contract stays data-only |
-| `project-workspace-shell.spec.ts`: `not_found` gives "This project isn't available", Go to Home, no Try again, no Details, no id, focus on the heading, and the history Retry still offered when history failed; `internal_error` gives "Couldn't load this project." with Try again that re-reads | W4-024, L4-014 |
+| `project-workspace-shell.spec.ts`: `not_found` gives "This project isn't available", Go to Home, no Try again, no Details, no id, focus on the heading, and the history Retry still offered when history failed; `internal_error` gives the h1 "Couldn't load this project" (route focus) over "Something went wrong while it was loading." with Try again that re-reads | W4-024, L4-014 |
 | `project-canvas.spec.ts`, `project-page-store.spec.ts`: a failed sections read and a failed shortcuts read each show Try again that re-reads; a later section write does not clear the shortcuts read failure; a `sectionError` write shows the sentence with Details; the removal guard shows its sentence alone | L4-002, L6-003 |
 | `task-list-section.spec.ts`, `reflections-section.spec.ts`, `timeline-section.spec.ts`: under a failed read the empty sentence is absent; Try again re-reads; a later successful quiet read clears the failure; quick-add and the composer stay enabled | L4-003, L4-027 |
 | `task-list-store.spec.ts`, `reflections-store.spec.ts`: a write failure does not replace or clear the read failure; a successful write after a failed read starts a full read that clears it | L4-027 |
@@ -1440,58 +1471,51 @@ None open. Three were answered by the user on 2026-10-29:
    entry's *Revisit when*; the prototype keeps Details, and nothing changes in this slice.
 3. **The header's history Retry.** Keeps its label; a note for the §8 comb.
 
-**Open, from Stage 5 part b (2026-10-30).** These hold the sheet's last 26 gate failures. Each
-needs a product or gate-semantics call; profile 78 was not loosened to pass them.
+**Answered by the user on 2026-10-30** (from Stage 5 part b; each closed its sheet failures):
 
-4. **The project read failure has no h1.** 8 failures: `kitchen-error` matrix cells and
-   `project-read-failing` states, axe `page-has-heading-one`.
-   - **Why:** Build (Stage 3a) says the retryable failure has "no heading". The before had the
-     h1 "Project unavailable", so the new-axe-node rule flags it.
+4. **The project read failure has no h1** (8 failures). **Accepted (a):** a visible h1, "Couldn't
+   load this project", with `data-route-focus`; the sentence beneath is reworded by
+   `headedReadFailure` so it is not said twice. Build is amended.
+5. **The toast clips its message at 375** (2 failures). **Accepted (a):** on touch
+   (`(hover: none), (any-pointer: coarse)`) `--toast-max-block-size` is 16rem, not 12rem. The
+   shell's toast clearance follows the token.
+6. **Non-failure rows declared `read`** (8 failures). **Accepted (a):** a `settled` row kind in the
+   context table and profile 78. It must declare recovery `none` and no Details, may not sit in a
+   context with an injected failure, and is not held to the empty rule.
+7. **The reflection body has no label** (4 failures). **User chose a visible label:** "Reflection",
+   a `.control-label` like the composer's "Prompt". No `aria-label`. The reflection screens' after
+   captures change on purpose.
+8. **Canvas-wide false-empty rule on `kitchen-shortcuts-failing`** (4 failures). **Accepted (a),
+   narrowed by the user:** a canvas-region row ignores an empty hook only inside a section or
+   shortcut frame that is itself the region of a row in the table (Reflections and Recent Activity
+   here). The rig records each hook's frame (`emptyHookFrames`); a hook outside every frame, in a
+   frame with no row, or without frame evidence still fails.
+
+**Open, from S5FIX (2026-10-30):**
+
+9. **The geometry gate has no way to accept Q7's intended reflow.** The rebuilt sheet has 0 state,
+   census and pin failures, but **192 geometry failures in 66 matrix cells.** These are every
+   kitchen-canvas cell, `busy-week-project`, `nested-projects-project` and `reflections`, at every
+   view.
+   - **Why:** profile 78 requires every box in a non-exempt matrix cell to stay within 1 px.
+     Q7's visible "Reflection" label adds 27.5 px under every reflection composer, and everything
+     below it moves. The deltas:
+     - 1,378 changes of +27.5, 196 of +27 or +28 (scroll heights rounded);
+     - 32 of +13.75, for controls centred in a row beside the taller frame;
+     - 2 of +91, in `kitchen-remove-feedback` at 375: the label plus Q5's 4rem more toast clearance
+       with the toast open.
+     No other change. The user called the after-capture change intended, but the standing rule is
+     not to loosen profile 78 beyond Q6 and Q8, so the gate is unchanged.
    - **Options:**
-     - (a) A visible h1 over the `FailureMessage`, e.g. "Couldn't load this project", with the
-       sentence reworded so it is not said twice.
-     - (b) A visually hidden h1.
-     - (c) Accept the regression and exempt it in profile 78.
-   - **Recommend (a):** route focus and the heading outline also want it.
-5. **The toast clips its message at 375.** 2 failures: `write-section-removal-toast`, axe
-   `scrollable-region-focusable` on `.toast__message`.
-   - **Why:** at 375 the 44 px actions and the new Details row overflow
-     `--toast-max-block-size` (12rem). The message shrinks and scrolls, and "Try again." is cut
-     off. This is a real defect.
-   - **Options:**
-     - (a) Raise the cap on touch only.
-     - (b) Put Details in the actions row.
-     - (c) Make the message focusable and keep the scroll.
-   - **Recommend (a).** `feedback.spec.ts:101` (long titles keep the actions inside) must still
-     pass.
-6. **Non-failure rows declared `read`.** 8 failures: `header-progress-empty-project` and
-   `header-progress-legacy`, "empty hook visible in a failed read".
-   - **Why:** their correct after state is "No tasks to measure", with the new
-     `data-project-progress-empty` hook. That hook is not in Done when's hook list. These
-     contexts are not failures, but the table has no kind for "not a failure".
-   - **Options:**
-     - (a) Add a row kind (e.g. `settled`) that checks recovery `none` and no Details, but not
-       the empty rule.
-     - (b) Exempt the hook in rows with no injected failure.
-   - **Recommend (a).**
-7. **The reflection body has no label.** 4 failures: `kitchen-reflection-create-failing`, axe
-   `label-title-only`.
-   - **Why:** the textarea is named only by its placeholder. The failure's `aria-describedby`
-     now exposes that. An `aria-label` equal to the placeholder fixes axe, but the census reads
-     `aria-label` as the control's identity and fails about 70 populated cells.
-   - **Options:**
-     - (a) A visible "Reflection" label (a design change to populated pixels).
-     - (b) A visually hidden `<label for>`.
-     - (c) The `aria-label`, plus a census exception for this field.
-   - **Needs a design call.**
-8. **Canvas-wide false-empty rule on `kitchen-shortcuts-failing`.** 4 failures: Kitchen's
-   Reflections and Recent Activity are truly empty (their reads succeeded).
-   - **Why:** the row's region is the whole canvas, and no narrower selector exists in both
-     builds.
-   - **Options:**
-     - (a) For a canvas-region row, ignore empty hooks inside section and shortcut frames, which
-       their own rows own.
-     - (b) Give the row's region the after build's `[data-shortcuts-error]` container.
+     - (a) A narrow profile-78 rule, test-first, like the Lab's measured section-frame
+       translation. In a cell with a reflection composer, a box at or below the composer's body may
+       move by exactly the label's measured height, or half of it when vertically centred, within
+       1 px. In a toast-open touch cell, a scroll height may also grow by the 4rem clearance.
+       Anything else still fails.
+     - (b) List the 66 cells as report-only, like `kitchen-error`. This is broad, because it stops
+       gating all other movement in those cells.
+     - (c) Re-run the before with the label, which would mean rebuilding the slice-77 baseline. This
+       is not recommended, because the before would then no longer be the baseline.
    - **Recommend (a).**
 
 ## Revisions
@@ -1711,3 +1735,13 @@ needs a product or gate-semantics call; profile 78 was not loosened to pass them
   - **Failure detection:** the rig's wait and failure probe count the shared
     `[data-failure-sentence]`.
   - **Open questions 4–8** are added for the 26 remaining gate failures.
+- **S5FIX (2026-10-30), user decision:** the user answered Open questions 4–8 (see Open
+  questions). Changes:
+  - Build's "no heading" for the retryable project failure becomes a visible h1 with a reworded
+    sentence (Q4).
+  - The toast's height cap rises on touch only (Q5).
+  - Profile 78 and the context table gain the `settled` row kind (Q6).
+  - The reflection body gains a visible "Reflection" label (Q7).
+  - A canvas row ignores empty hooks inside frames that have rows of their own (Q8).
+  - The re-capture and sheet rebuild cleared all 26 failures. They surfaced Open question 9,
+    Q7's reflow under the strict geometry gate, which is left for a gate call.

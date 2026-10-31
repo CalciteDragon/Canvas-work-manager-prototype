@@ -71,3 +71,12 @@ Related: [the dashboard splits layout from content](2026-08-dashboard-layout-and
 (the single read is why any other failure still fails Home whole) and
 [feedback stays on the object](2026-10-feedback-stays-on-the-object.md) (whose write sentences
 this keeps, with the reason moved under Details).
+
+**Amended, 2026-10-30 — Slice 78 (user decisions).** Three answers from the acceptance sheet:
+- A project that fails to load, other than `not_found`, has a visible h1, "Couldn’t load this
+  project", that route focus lands on. The sentence beneath says only what the heading does not
+  ("Something went wrong while it was loading.", or "Couldn’t reach your workspace.").
+- On touch the toast's height cap rises from 12rem to 16rem, so a failed write's "Try again." is
+  not clipped under its 44 px actions and Details row.
+- A field a failure describes has a visible label in the control-label style, never an
+  `aria-label` alone: the Reflections composer's body is labelled "Reflection".
