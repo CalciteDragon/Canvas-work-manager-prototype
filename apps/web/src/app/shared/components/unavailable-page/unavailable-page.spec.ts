@@ -33,12 +33,13 @@ describe('UnavailablePage (§68, Slice 78)', () => {
     const home = element.querySelector<HTMLAnchorElement>('a[data-go-home]')!;
     expect(home.textContent?.trim()).toBe('Go to Home');
     expect(home.getAttribute('href')).toBe('/app');
+    expect(home.getAttribute('data-recovery')).toBe('go-home');
   });
 
   it('offers no Try again and no Details, and keeps what its caller projects', () => {
     const element = setup();
     expect(element.querySelector('details')).toBeNull();
-    expect(element.querySelector('[data-recovery]')).toBeNull();
+    expect(element.querySelector('[data-recovery="try-again"]')).toBeNull();
     expect(element.textContent).not.toContain('Try again');
     expect(element.querySelector('[data-extra]')).not.toBeNull();
   });

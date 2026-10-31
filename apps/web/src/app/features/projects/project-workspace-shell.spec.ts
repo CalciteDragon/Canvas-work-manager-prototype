@@ -326,6 +326,7 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     expect(message?.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load project navigation.');
     expect(message?.querySelector('[role="alert"]')).not.toBeNull();
     expect(message?.querySelector('a')?.textContent?.trim()).toBe('Reload page');
+    expect(message?.querySelector('a')?.getAttribute('data-recovery')).toBe('reload');
     expect(message?.querySelector('a')?.getAttribute('href')).toBe('/projects/project-kitchen');
   });
 

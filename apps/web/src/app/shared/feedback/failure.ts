@@ -2,9 +2,10 @@
  * A failure as the product says it (Slice 78, §24, §63): a sentence in product words, and the
  * raw host reason kept apart for a collapsed Details. View state, not a contract.
  *
- * This is the only translation from an error to words. It reads `code` and `message`
- * **structurally**, so `shared/` imports nothing from `core/`; each caller chooses its own
- * recovery (Try again, Go to Home, Retry refresh, Reload page).
+ * This is the only place an error is read. It reads `code` and `message` **structurally**, so
+ * `shared/` imports nothing from `core/`; each caller chooses its own recovery (Try again, Go to
+ * Home, Retry refresh, Reload page), and a caller that words its own sentence by code asks
+ * `failureCode`.
  */
 export interface Failure {
   /** What the user reads: no record id, enum, path or status. */
@@ -20,6 +21,9 @@ const field = (error: unknown, name: 'code' | 'message'): string | null => {
 };
 
 const reasonOf = (error: unknown): string => field(error, 'message') ?? String(error);
+
+/** An error's `code`, for a caller whose own sentence depends on it (Archive's refused restore); `null` for a non-error. */
+export const failureCode = (error: unknown): string | null => field(error, 'code');
 
 const capitalized = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 

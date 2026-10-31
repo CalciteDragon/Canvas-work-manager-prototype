@@ -74,7 +74,7 @@
                real cure for a lazy chunk that failed to load (Slice 78). -->
           <div class="state-message state-message--region state-message--failed project-workspace__nav-failure">
             <p class="state-message__sentence" data-failure-sentence role="alert">Couldn’t load project navigation.</p>
-            <a class="button button--sm" [href]="navigationReloadUrl()">Reload page</a>
+            <a class="button button--sm" data-recovery="reload" [href]="navigationReloadUrl()">Reload page</a>
           </div>
         </div>
       }

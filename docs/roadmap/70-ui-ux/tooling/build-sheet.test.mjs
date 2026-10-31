@@ -914,7 +914,7 @@ const stateRows = () => [
   stateRow('header-progress-pending', 'app-project-header', 'pending', 'none', false, null, null, 'Measuring…'),
 ];
 const STATE_VIEWS = [['dark', 1440], ['dark', 375], ['light', 1440], ['light', 375]];
-const RECOVERY_NAMES = { 'try-again': 'Try again', 'go-home': 'Go to Home', 'retry-refresh': 'Retry refresh', reload: 'Reload' };
+const RECOVERY_NAMES = { 'try-again': 'Try again', 'go-home': 'Go to Home', 'retry-refresh': 'Retry refresh', reload: 'Reload page' };
 /** The workspace's scroll port and the content track inside it, per width. */
 const stateGeometry = width => width === 375
   ? { port: { x: 0, y: 56, width: 375, height: 756 }, track: { x: 0, y: 56, width: 375, height: 756 } }

@@ -18,7 +18,7 @@ import { RouterLink } from '@angular/router';
       <h1 data-route-focus data-unavailable-heading tabindex="-1">{{ heading() }}</h1>
       <p data-unavailable-sentence>{{ sentence() }}</p>
       <div class="unavailable__actions">
-        <a class="button button--primary" data-go-home routerLink="/app">Go to Home</a>
+        <a class="button button--primary" data-go-home data-recovery="go-home" routerLink="/app">Go to Home</a>
         <ng-content />
       </div>
     </section>

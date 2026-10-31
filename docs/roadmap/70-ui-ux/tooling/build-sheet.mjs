@@ -652,7 +652,7 @@ const STATE_CAPTURE_SCOPE = ['dashboard-me-failing', 'dashboard-real-ai', 'sideb
   'pin-tall-tasklist-banner', 'header-progress-empty-project', 'header-progress-failing', 'header-progress-legacy', 'not-found', 'kitchen-loading',
   'header-progress-pending'];
 const STATE_VIEWS = [['dark', 1440], ['dark', 375], ['light', 1440], ['light', 375]];
-const RECOVERY_NAMES = { 'try-again': 'Try again', 'go-home': 'Go to Home', 'retry-refresh': 'Retry refresh', reload: 'Reload' };
+const RECOVERY_NAMES = { 'try-again': 'Try again', 'go-home': 'Go to Home', 'retry-refresh': 'Retry refresh', reload: 'Reload page' };
 /** What each pinned context must have on screen for its pin to prove clearance (Capture scope). */
 const PIN_CLEARANCE = { 'pin-todos-below': 'toast', 'pin-tasklist-above': 'sticky' };
 /** The plan's Visual acceptance table, one pair per row and view. */

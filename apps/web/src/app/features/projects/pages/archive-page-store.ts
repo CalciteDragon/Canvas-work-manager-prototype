@@ -9,10 +9,9 @@ import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { isProjectRecordEvent, nameOf, type LiveEvent } from '@cwm/contracts';
-import { readFailure, type Failure } from '../../../shared/feedback/failure';
+import { failureCode, readFailure, type Failure } from '../../../shared/feedback/failure';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
-const codeOf = (error: unknown): unknown => (typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined);
 
 /**
  * Archive's four failure states (Slice 78), highest precedence first: a committed restore whose
@@ -200,7 +199,7 @@ export class ArchivePageStore {
   /** Not slice 75's "Try again" frame: the button re-reads, it does not restore. */
   private refused(item: ProjectArchiveItem, error: unknown): ArchiveError {
     const title = this.titleOf(item);
-    const sentence = codeOf(error) === 'unreachable'
+    const sentence = failureCode(error) === 'unreachable'
       ? `Couldn’t reach your workspace, so “${title}” may not have been restored.`
       : `Couldn’t restore “${title}”. The archive may have changed.`;
     return { kind: 'refused', sentence, reason: messageOf(error) };

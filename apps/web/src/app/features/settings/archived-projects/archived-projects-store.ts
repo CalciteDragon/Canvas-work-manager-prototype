@@ -4,11 +4,10 @@ import { isProjectRecordEvent } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { readFailure } from '../../../shared/feedback/failure';
+import { failureCode, readFailure } from '../../../shared/feedback/failure';
 import type { ArchiveError } from '../../projects/pages/archive-page-store';
 
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error);
-const codeOf = (error: unknown): unknown => (typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined);
 
 /** Workspace-scoped recovery state. The host decides which projects are currently restorable. */
 @Injectable()
@@ -152,7 +151,7 @@ export class ArchivedProjectsStore {
 
   /** Not slice 75's "Try again" frame: the button re-reads, it does not restore. */
   private refused(name: string, error: unknown): ArchiveError {
-    const sentence = codeOf(error) === 'unreachable'
+    const sentence = failureCode(error) === 'unreachable'
       ? `Couldn’t reach your workspace, so “${name}” may not have been restored.`
       : `Couldn’t restore “${name}”. The list may have changed.`;
     return { kind: 'refused', sentence, reason: messageOf(error) };

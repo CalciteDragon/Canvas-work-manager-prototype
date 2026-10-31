@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { headedReadFailure, readFailure, writeFailure } from './failure';
+import { failureCode, headedReadFailure, readFailure, writeFailure } from './failure';
 
 const REASON = 'Task "task-kitchen-1" was not found (404).';
 
@@ -42,6 +42,12 @@ describe('failure (Slice 78, §24, §63)', () => {
     expect(readFailure('socket hang up', 'Home')).toEqual({ sentence: 'Couldn’t load Home.', reason: 'socket hang up' });
     expect(readFailure(undefined, 'Home')).toEqual({ sentence: 'Couldn’t load Home.', reason: 'undefined' });
     expect(readFailure({ code: 42 }, 'Home')).toEqual({ sentence: 'Couldn’t load Home.', reason: '[object Object]' });
+  });
+
+  it('reads a code for a caller that words its own sentence, and nothing from a non-error', () => {
+    expect(failureCode(new GatewayError('unreachable', 0, 'offline'))).toBe('unreachable');
+    expect(failureCode({ code: 42 })).toBeNull();
+    expect(failureCode('unreachable')).toBeNull();
   });
 
 });
