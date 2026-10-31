@@ -90,6 +90,25 @@ const STATE_LAB_PANELS = new Set(['state-messages', 'states', 'task-row', 'navig
 const labPanels = profile === '78' ? STATE_LAB_PANELS : objectPanels;
 const [labAfter, labBefore] = profile === '78' ? [stateEvidence, stateBaseline] : [objectEvidence, objectBaseline];
 const labEntry = (evidence, theme, width) => evidence?.entries?.find(e => (e.row === 'lab' || e.context === 'lab') && e.theme === theme && e.width === width);
+/**
+ * Profile 78, Open question 9 (user decision, 2026-10-30): Q7 gave the reflection composer's body
+ * a visible "Reflection" label. Its height is measured, not declared: the growth of the gap between
+ * the prompt and the body, which must now equal the gap the "Prompt" label already holds above the
+ * prompt. Returns `null` unless a cell has exactly that one change.
+ */
+const reflectionLabel = (bl, al) => {
+  const i = al.controls?.findIndex(c => c.tag === 'textarea' && /^reflection-composer-.+-body$/.test(c.id ?? ''));
+  if (!(i >= 2) || al.controls.filter(c => /^reflection-composer-.+-body$/.test(c.id ?? '')).length !== 1) return null;
+  const was = bl.controls?.[i], prompt = al.controls[i - 1];
+  if (was?.tag !== 'textarea' || bl.controls[i - 1]?.tag !== 'select' || prompt.tag !== 'select' || !/^reflection-composer-.+-prompt$/.test(prompt.id ?? '')) return null;
+  const gap = (controls, from, to) => controls[to].y - (controls[from].y + controls[from].height);
+  const [promptBefore, bodyBefore, promptAfter, bodyAfter] = [gap(bl.controls, i - 2, i - 1), gap(bl.controls, i - 1, i), gap(al.controls, i - 2, i - 1), gap(al.controls, i - 1, i)];
+  const height = bodyAfter - bodyBefore;
+  if (height <= 1 || Math.abs(promptAfter - promptBefore) > 0.5 || Math.abs(bodyAfter - promptAfter) > 0.5) return null;
+  return { height, top: was.y };
+};
+/** Q5 raised `--toast-max-block-size` on touch from 12rem to 16rem; the shell's toast clearance follows it. */
+const TOUCH_TOAST_CLEARANCE_RISE = 64;
 await mkdir(output, { recursive: true });
 const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const failures = [], exceptions = [], pairs = [], contrast = [];
@@ -116,6 +135,7 @@ for (const a of after.cells) {
     }
   }
   const removedRow = profile === '74' ? removedFeedbackRow(bl, al) : null;
+  const label = profile === '78' && objectCell(a) && !stateExempt(a) ? reflectionLabel(bl, al) : null;
   for (const family of ['planes', 'controls', 'scrollRegions']) {
     let old = bl[family], next = al[family];
     if (!old || !next) { failures.push({ cell: a.id, family, reason: 'collector missing' }); continue; }
@@ -189,6 +209,33 @@ for (const a of after.cells) {
       }
       // Only the rail rows below the inserted knob shift; catalogue controls retain their boxes.
       if(knob)next=next.map((c,i)=>c.x<knob.x+knob.width && c.y>knob.y && old[i]?.tag===c.tag && old[i]?.text===c.text ? {...c,y:old[i].y}:c);
+    }
+    if (label) {
+      // Content at or below the body moves by exactly the label; a box holding the body grows by it,
+      // and a control centred in that box moves by half. The 375 toast-open screen's workspace also
+      // keeps Q5's added clearance. Anything else is compared unchanged.
+      const by = (was, now, field, shift) => typeof was?.[field] === 'number' && typeof now?.[field] === 'number' && Math.abs(now[field] - was[field] - shift) <= 1;
+      const holds = box => box.y < label.top - 1 && box.y + box.height > label.top + 1;
+      const grown = (bl.planes ?? []).filter((box, i) => holds(box) && by(box, al.planes?.[i], 'height', label.height));
+      const toast = a.state === 'remove-feedback' && (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
+      let moved = 0;
+      next = next.map((box, i) => {
+        const was = old[i], copy = { ...box };
+        if (!was) return box;
+        if (family === 'scrollRegions') {
+          for (const field of ['height', 'scrollHeight']) {
+            const rise = label.height + (toast && field === 'scrollHeight' && was.class === 'workspace' && !by(was, box, field, label.height) ? TOUCH_TOAST_CLEARANCE_RISE : 0);
+            if (was.scrollHeight > label.top && by(was, box, field, rise)) { copy[field] -= rise; moved++; }
+          }
+          return copy;
+        }
+        const centred = family === 'controls' && grown.some(p => Math.abs(was.y + was.height / 2 - (p.y + p.height / 2)) <= 1);
+        if (centred) { if (by(was, box, 'y', label.height / 2)) { copy.y -= label.height / 2; moved++; } }
+        else if (was.y >= label.top - 1 && by(was, box, 'y', label.height)) { copy.y -= label.height; moved++; }
+        else if (family === 'planes' && holds(was) && by(was, box, 'height', label.height)) { copy.height -= label.height; moved++; }
+        return copy;
+      });
+      if (moved) exceptions.push({ cell: a.id, family, reason: 'Reflection label reflow (Open question 9)', shift: label.height, boxes: moved, ...(toast && family === 'scrollRegions' ? { toastClearance: TOUCH_TOAST_CLEARANCE_RISE } : {}) });
     }
     const changes = [];
     if (old.length !== next.length) changes.push({ reason: 'count', before: old.length, after: next.length });

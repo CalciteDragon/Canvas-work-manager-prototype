@@ -19,7 +19,12 @@ phone menu cannot take a pointer click, so the rig opens it from the DOM and rec
 `detailsForced`. A `settled` row is a correct non-failure answer ("No tasks to measure"): it
 declares no recovery and no Details and is not held to the empty rule. Each region records
 `emptyHookFrames`, the section or shortcut frame holding each shown empty hook, so a canvas row
-ignores a truly empty section that has a row of its own, and nothing else.
+ignores a truly empty section that has a row of its own, and nothing else. The one movement the
+matrix gate accepts in a gated cell is the reflection body's "Reflection" label: it measures the
+label as the growth of the prompt-to-body gap, which must equal the "Prompt" label's own gap.
+Boxes at or below the body may move by exactly that height. A box holding the body may grow by it,
+and a control centred in that box moves by half. On the 375 toast-open screen, the workspace's
+scroll height may also gain Q5's 64 px of toast clearance. Any other movement still fails.
 
 Slice 77 uses `ux/slice77.config.ts` on web 4254, host 4354 and
 `.prototype/ux-slice77.json`. Its genuine `e0e1467` baseline source is exported outside

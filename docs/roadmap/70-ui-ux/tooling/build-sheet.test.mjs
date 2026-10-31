@@ -1102,6 +1102,81 @@ test('profile 78 gates must-not-change cells at 1 px and exempts only the four n
   }
 });
 
+/**
+ * Open question 9: one project cell with a reflection composer. `after` carries Q7's "Reflection"
+ * label (27.5 px, the same block as the composer's "Prompt" label) and the reflow it causes.
+ * `edit` changes the after layout before it is written.
+ */
+async function reflowSheet(t, { cellId = 'busy-week-project-dark-1440', width = 1440, state = null, edit = () => {} } = {}) {
+  const s = await statesSheet(t, { layouts: () => {} });
+  const h = width === 375 ? 44 : 40, L = 27.5;
+  const cell = { ...s.f.cell, id: cellId, route: '/projects/project-kitchen', viewport: { width, height: 812 }, ...(state ? { state } : {}) };
+  const control = (text, tag, y, more = {}) => ({ text, id: '', tag, type: null, role: null, class: tag === 'button' ? 'button' : tag === 'select' ? 'select' : 'field', scope: 'product', x: 20, y, width: 300, height: h, ...more });
+  const frame = (index, y, height) => ({ selector: 'app-project-section-frame', index, x: 0, y, width, height });
+  const title = 1189, prompt = title + h + 35.5, body = prompt + h + 8;
+  const layout = shift => ({
+    viewport: width, document: width, sectionContents: [], immutable: state ? [{ id: 'toast:0', x: 16, y: 600, width: 343, height: 128 }] : [],
+    planes: [{ selector: 'app-top-bar', index: 0, x: 0, y: 0, width, height: 64 }, frame(0, 1000, 700 + shift), frame(1, 1720 + shift, 400)],
+    controls: [
+      control('Rename Reflections', 'button', 1017),
+      control('', 'input', title),
+      control('No prompt', 'select', prompt, { id: 'reflection-composer-1-prompt' }),
+      control('', 'textarea', body + shift, { id: shift ? 'reflection-composer-1-body' : '', height: 96 }),
+      control('Add reflection', 'button', body + 104 + shift),
+      control('Resize Reflections', 'div', 1328 + shift / 2, { class: '', width: 24, height: 44 }),
+      control('Rename Timeline', 'button', 1737 + shift),
+    ],
+    scrollRegions: [
+      { tag: 'MAIN', class: 'workspace', width, scrollWidth: width, height: 764, scrollHeight: 2200 + Math.round(shift) },
+      { tag: 'DIV', class: 'project-workspace__main', width, scrollWidth: width, height: 2200 + Math.round(shift), scrollHeight: 2200 + Math.round(shift) },
+    ],
+  });
+  const after = layout(L);
+  edit(after, L);
+  for (const phase of [0, 1]) await s.f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [cell] });
+  await s.f.json(0, 'layout.json', layout(0));
+  await s.f.json(1, 'layout.json', after);
+  const result = s.run();
+  const report = JSON.parse(await readFile(join(s.dirs[2], 'report.json'), 'utf8').catch(() => 'null'));
+  return { result, report, why: JSON.stringify(report?.geometryFailures ?? result.stderr).slice(0, 1200) };
+}
+const byText = (layout, text) => layout.controls.find(c => c.text === text);
+
+test('profile 78 lets content at or below the reflection body move by exactly the label it gained (Open question 9)', async t => {
+  for (const width of [1440, 375]) {
+    const s = await reflowSheet(t, { width, cellId: `busy-week-project-dark-${width}` });
+    assert.equal(s.result.status, 0, width + ' ' + s.why);
+    assert.ok(s.report.intentionalLabChanges.some(e => /Reflection label/.test(e.reason) && e.shift === 27.5), 'the reflow is listed with its measured height');
+  }
+  // Q5's taller touch toast adds exactly its 4rem of clearance, only on the 375 toast-open screen.
+  const toast = await reflowSheet(t, { width: 375, cellId: 'kitchen-remove-feedback-dark-375', state: 'remove-feedback', edit: l => { l.scrollRegions[0].scrollHeight += 64; } });
+  assert.equal(toast.result.status, 0, 'touch toast clearance ' + toast.why);
+});
+
+test('profile 78 still fails any other movement beside the reflection label (Open question 9)', async t => {
+  const fails = async (label, options) => {
+    const s = await reflowSheet(t, options);
+    assert.equal(s.result.status, 1, label + ' passed the gate');
+    assert.ok(s.report?.geometryFailures?.length, label + ': the gate did not run to a report');
+  };
+  await fails('a control above the body moved by the label height', { edit: l => { byText(l, 'Rename Reflections').y += 27.5; } });
+  await fails('a control above the body moved by 3 px', { edit: l => { byText(l, 'Rename Reflections').y += 3; } });
+  await fails('the frame below moved more than the label', { edit: (l, L) => { l.planes[2].y += 5; byText(l, 'Rename Timeline').y += 5; } });
+  await fails('a control below moved more than the label', { edit: l => { byText(l, 'Add reflection').y += 4; } });
+  await fails('the centred control moved the whole label height', { edit: (l, L) => { byText(l, 'Resize Reflections').y += L / 2; } });
+  await fails('the containing frame grew more than the label', { edit: l => { l.planes[1].height += 6; } });
+  await fails('a scroll region grew more than the label', { edit: l => { l.scrollRegions[1].height += 10; } });
+  await fails('a label taller than the Prompt label', { edit: l => {
+    for (const c of l.controls.filter(c => ['', 'Add reflection', 'Rename Timeline'].includes(c.text) && c.tag !== 'input')) c.y += 12;
+    l.planes[1].height += 12; l.planes[2].y += 12; byText(l, 'Resize Reflections').y += 6;
+    for (const r of l.scrollRegions) { r.scrollHeight += 12; } l.scrollRegions[1].height += 12;
+  } });
+  await fails('the reflow without the labelled body', { edit: l => { l.controls.find(c => c.tag === 'textarea').id = ''; } });
+  await fails('toast clearance at 1440', { width: 1440, cellId: 'kitchen-remove-feedback-dark-1440', state: 'remove-feedback', edit: l => { l.scrollRegions[0].scrollHeight += 64; } });
+  await fails('toast clearance on a 375 screen without the toast', { width: 375, cellId: 'busy-week-project-dark-375', edit: l => { l.scrollRegions[0].scrollHeight += 64; } });
+  await fails('more than the toast clearance', { width: 375, cellId: 'kitchen-remove-feedback-dark-375', state: 'remove-feedback', edit: l => { l.scrollRegions[0].scrollHeight += 74; } });
+});
+
 test('profile 78 keeps only the breadcrumb census exception', async t => {
   await statesFails(t, { controls: [{ scope: 'product', class: 'task-row__title', text: 'Task', width: 80, height: 20 }] }, 'task row title exception');
   const s = await statesSheet(t, { controls: [{ scope: 'product', class: 'project-nav__breadcrumb', text: 'Home', width: 80, height: 16 }] });
