@@ -24,6 +24,8 @@ export class ReflectionComposer {
   /** The prompt select's id, for its visible label (slice 72, L5-003). */
   private readonly instance = ++nextInstance;
   protected readonly promptId = `reflection-composer-${this.instance}-prompt`;
+  /** The body's id, for its visible label (Slice 78, Open question 7). */
+  protected readonly bodyId = `reflection-composer-${this.instance}-body`;
   /** The failure sentence's id: the body's description names it, never the Details (Slice 78). */
   protected readonly errorId = `reflection-composer-${this.instance}-error`;
   readonly readOnly = input(false);

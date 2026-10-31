@@ -52,7 +52,7 @@ export const SubmitAndClear: Story = {
     });
     // `clear()` belongs to the page after a successful save; exercise the same public form
     // behavior here without inventing a second clear button in the component contract.
-    const form = canvas.getByRole('textbox', { name: 'Write a reflection' }).closest('form') as HTMLFormElement;
+    const form = canvas.getByRole('textbox', { name: 'Reflection' }).closest('form') as HTMLFormElement;
     form.reset();
     await expect(canvas.getByPlaceholderText('Write a reflection')).toHaveValue('');
   },

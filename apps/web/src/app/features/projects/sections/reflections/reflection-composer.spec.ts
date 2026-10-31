@@ -56,6 +56,16 @@ describe('ReflectionComposer (§36)', () => {
     expect(prompt.labels?.[0]?.classList).toContain('control-label');
   });
 
+  // Slice 78, Open question 7 (user decision): the body has a visible label, not only its placeholder.
+  it('labels the body with a visible "Reflection" control label', async () => {
+    const { fixture } = await render();
+    const body = fixture.nativeElement.querySelector('[data-reflection-body]') as HTMLTextAreaElement;
+
+    expect(body.labels?.[0]?.textContent?.trim()).toBe('Reflection');
+    expect(body.labels?.[0]?.classList).toContain('control-label');
+    expect(body.hasAttribute('aria-label')).toBe(false);
+  });
+
   it('emits subject removal and can clear all form controls', async () => {
     const { fixture, composer } = await render();
     fixture.componentRef.setInput('subject', subject);
