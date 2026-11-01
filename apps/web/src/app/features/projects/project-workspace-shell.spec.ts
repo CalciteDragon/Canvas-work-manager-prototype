@@ -552,6 +552,26 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     expect(query(harness, '[data-project-error]')).toBeNull();
     expect(query(harness, '[data-project-name]')?.textContent).toContain('Home renovation');
   });
+
+  // Real use (Acceptance check 7): with every read failing, the history read fails beside the
+  // project's, and a Try again that re-read only the project left a bare header Retry behind.
+  it('Try again on a failed project read also re-reads a history read that failed with it (Slice 78, §24, §68)', async () => {
+    const unreachable = new GatewayError('unreachable', 0, 'host stopped');
+    const { harness, gateway } = await open('/projects/project-renovation', {
+      failOn: { 'projects.get': unreachable, 'history.summary': unreachable },
+    });
+    await settle(harness);
+    const summaries = () => gateway.calls.filter(({ method }) => method === 'history.summary').length;
+    const before = summaries();
+
+    gateway.options.failOn = undefined;
+    (query(harness, '[data-project-error] [data-recovery="try-again"]') as HTMLButtonElement).click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Home renovation');
+    expect(summaries()).toBe(before + 1);
+    expect(query(harness, '[data-history-retry]')).toBeNull();
+  });
 });
 
 describe('ProjectWorkspaceShell — creation recovery (§68)', () => {

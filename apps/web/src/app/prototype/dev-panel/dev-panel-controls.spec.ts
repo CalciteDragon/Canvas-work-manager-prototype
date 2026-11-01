@@ -100,6 +100,15 @@ describe('DevPanelControls (§46)', () => {
     expect(texts(element, '[data-panel-ai]')).toEqual(['mock', 'real']);
   });
 
+  // Slice 78: the real provider fails the digest alone, so the hint must not promise a whole-dashboard error.
+  it('says the real provider fails only the Daily Digest, with the reason on the host console', async () => {
+    const hint = (await render()).querySelector('[aria-labelledby="dev-panel-ai"] .dev-panel__hint')?.textContent?.replace(/\s+/g, ' ');
+
+    expect(hint).toContain('only the Daily Digest fails');
+    expect(hint).toContain('host’s console');
+    expect(hint).not.toContain('as a whole');
+  });
+
   it('returns to device theme through the shared service', async () => {
     const fixture = await renderFixture();
     const theme = TestBed.inject(ThemeService);

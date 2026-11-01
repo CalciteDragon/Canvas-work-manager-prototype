@@ -480,6 +480,15 @@ export class ProjectWorkspaceShell {
     void this.store.retryPageContext();
   }
 
+  /**
+   * The failed project read's Try again repeats what opening the project read: the project, and
+   * the history when its read failed too (a no-op otherwise), so no bare header Retry is left.
+   */
+  retryProject(): void {
+    void this.store.retry();
+    this.history.retry();
+  }
+
   async enableNoticedPage(): Promise<void> {
     const kind = this.noticeEnableKindState();
     const root = this.store.root();

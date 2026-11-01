@@ -229,7 +229,9 @@ no Details and no id, so another persona's project reads the same as a removed o
 route-focus heading is also the narrow column's focus target. Any other failure replaces the
 page with the route-focus h1 "Couldn’t load this project" over a `FailureMessage` whose sentence
 (`headedReadFailure`) says only what the heading does not: "Something went wrong while it was
-loading.", or "Couldn’t reach your workspace."; Try again (`retry()`) and the reason under Details.
+loading.", or "Couldn’t reach your workspace."; Try again (the shell's `retryProject()`, which
+re-reads the project and, when its read failed too, the history, so no bare header Retry is left
+behind) and the reason under Details.
 The narrow column's focus still lands on its Try again.
 A re-read of the same project keeps the failure on screen, its Try again busy, until the read
 answers; loading another project clears it at once.
