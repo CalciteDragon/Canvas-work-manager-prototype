@@ -1,11 +1,17 @@
 <!-- plan id="78" status="active" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back" -->
 # Slice 78 — States: failures and loading
 
-**State (2026-10-31):** **awaiting Gate 2 (user review of the sheet).** The plan was reviewed in
+**State (2026-11-01):** **Gate 2 passed (user decision, 2026-11-01).** The plan was reviewed in
 twelve rounds and accepted by the user on 2026-10-29. Stages 0–4 are done, and so are Stage 5's
-parts a and b, S5FIX (Q4–Q8), S5FIX2 (Q9) and S5C (the reviews). The sheet has 0 gate failures.
-**Next: the user reviews the sheet at Gate 2. No real use before Gate 2. The Outcome is not
-written, and the slice is not closed.**
+parts a and b, S5FIX (Q4–Q8), S5FIX2 (Q9) and S5C (the reviews). The sheet has 0 gate failures,
+and the user accepted it on 2026-11-01. They answered Open question 10 with (a), leave it as is,
+and approved the project-load failure wording as written: "Couldn't load this project" over
+"Something went wrong while it was loading." or, when the server is unreachable, "Couldn't reach
+your workspace."
+**Next (AGENTS.md step 4's last part, then step 5), on the user's go-ahead only:** real use
+(Acceptance check 7), with friction recorded in `.prototype/notes.json` under `CURRENT_SLICE` 78;
+then the Outcome and `roadmap.mjs complete`. Neither has started. The Outcome is not written, and
+the slice is not closed.
 
 - **Sheet:** `apps/e2e/ux-output/slice78-sheet/index.html`.
   - **Inputs:** before `0c1917081b73a2892a30e0c6c548bff8b4e2fdc6`; after
@@ -29,7 +35,7 @@ written, and the slice is not closed.**
   - The unavailable and `**` pages; the pinned failure at both edges (`pin-todos-below`); the
     header progress fact; Archive, Settings › Archived projects, and the agents retries.
   - The core task costs table: T12 goes from a dead end to one click.
-  - Open question 10 below.
+  - Open question 10 below (answered (a) at Gate 2).
 - **S5C (2026-10-31):** five review passes ran with fresh context, against the diff, the plan,
   the findings, `direction.md` and the sheet: correctness, spec, boundaries, acceptance and
   living documentation. They found no blockers. Each finding was checked against the code; the
@@ -65,7 +71,7 @@ written, and the slice is not closed.**
     - The Lab importing `dailyDigestFailure` from `features/` is the allowed direction, as
       `live-panels.ts` already does.
     - The header archive refusal's sentence is handed to slice 79, which owns that wording.
-  - **Left as a question, not fixed:** Open question 10.
+  - **Left as a question, not fixed:** Open question 10 (answered (a) by the user at Gate 2).
   - **Checks:**
     - `pnpm test` (web 1,388) and `pnpm lint` are green.
     - `pnpm --filter web storybook:build` passes.
@@ -1585,7 +1591,7 @@ None open. Three were answered by the user on 2026-10-29:
    64 px of toast clearance. Any other movement still fails. No cell became report-only, and the
    before was not recaptured.
 
-**Raised by S5C (2026-10-31), for Gate 2:**
+**Raised by S5C (2026-10-31), answered by the user at Gate 2 (2026-11-01):**
 
 10. **Archive's and Settings › Archived projects' stale notice may not be announced.**
     - **Context:** each page renders one `FailureMessage` for its four states. It is mounted only
@@ -1603,6 +1609,9 @@ None open. Three were answered by the user on 2026-10-29:
       - (c) Add a visually hidden status region that is always mounted and repeats the stale
         sentence. A screen reader reads it twice when browsing.
     - **Impact:** a11y only. Nothing visual changes, and no gate depends on it.
+    - **Answered (a), leave it as is (user, 2026-11-01).** The rare background-refresh "may be
+      out of date" case on Archive and Settings › Archived projects keeps the shared message.
+      Nothing changes.
 
 ## Revisions
 
@@ -1844,3 +1853,12 @@ None open. Three were answered by the user on 2026-10-29:
   - Open question 10 was added.
   - The rig's `focus` shot and the sheet's scrolled row are evidence changes only. No gate rule
     changed.
+- **Gate 2 (2026-11-01), user decision:** the user accepted the before/after sheet
+  (`apps/e2e/ux-output/slice78-sheet/index.html`, 194 pairs, 0 gate failures). Changes:
+  - **Gate 2: passed** (State header; Done when's and Acceptance check 8's "The user accepts the
+    sheet at Gate 2" is met).
+  - Open question 10 is answered (a): leave it as is. No code change.
+  - The project-load failure wording is approved as written: the heading "Couldn't load this
+    project", and beneath it "Something went wrong while it was loading." or, when the server is
+    unreachable, "Couldn't reach your workspace." No code change.
+  - Next is real use, then the Outcome and close, on the user's separate go-ahead.

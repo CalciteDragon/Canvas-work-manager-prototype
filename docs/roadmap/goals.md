@@ -128,6 +128,12 @@ completes TH09. A task takes one row anatomy wherever it is listed, and rows tha
 open their canonical owner; MCP dashboard and upcoming-work tasks carry their origin. The
 accepted sheet has 194 pairs and zero gate failures. Redesign slice 6b, States, is next.
 
+**Slice 78 active — Gate 2 passed (2026-11-01).** [States: failures and loading](active/78-failures-and-loading.md),
+redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or
+loading states, a digest that fails alone, and not-found and no-access pages that lead back. The
+user accepted its sheet (194 pairs, zero gate failures). Real use, then the Outcome and close,
+come next on the user's go-ahead.
+
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:
 - [Slice 68 — cross-root move refusal names each placement](completed/68-cross-root-refusal-names-placements.md),

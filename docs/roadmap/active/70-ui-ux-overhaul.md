@@ -363,12 +363,16 @@ gate failures; T11 now completes in one click. The initial bundle is 1,101.98 kB
 ceiling. The drag explanation's layout shift (`note-2026-10-22-002`) is open; redesign slice 6b
 is next.
 
+**Slice 78 active — Gate 2 passed (2026-11-01).** [States: failures and loading](78-failures-and-loading.md),
+redesign slice 6b-1 (TH10). The user accepted the sheet (194 pairs, zero gate failures), answered
+its Open question 10 with (a), leave it as is, and approved the project-load failure wording as
+written. Next, on the user's go-ahead: real use (its Acceptance check 7), then the Outcome and
+`roadmap.mjs complete`. The rest of 6b and the §8 comb follow it.
+
 ### Redesign slice 6b (States) — planning brief
 
-Next slice. Nothing is in `active/` except this umbrella, and 6b has no candidate file: create it with
-`node scripts/roadmap.mjs new <id> states --title "Slice <id> — States: …" --summary "…"`, using the
-next free roadmap id (78 unless something else lands first), then run the five AGENTS.md steps.
-The plan carries the protocol §6 extras: findings closed, capture scope, visual acceptance, and
+Historical brief: 6b was created as [slice 78](78-failures-and-loading.md), now active as 6b-1;
+its State header is current. The plan carries the protocol §6 extras: findings closed, capture scope, visual acceptance, and
 behaviour versus appearance.
 
 - **Scope: TH10**, "Empty, loading, error and archived states are accidental" (patterns layer), in
