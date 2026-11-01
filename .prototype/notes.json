@@ -1325,6 +1325,62 @@
       "projectId": "project-kitchen",
       "slice": 77,
       "note": "Slice 77 live use (nested-projects Kitchen, 1440 mouse dark): added adjacent Friday errands and Weekend errands lists, dragged within Friday and then moved Collect paint samples to Weekend. The explanation appeared during drag, the in-list order stayed fixed, and the cross-list move persisted. Minor friction: inserting the two-line explanation above the list pushes the rows downward as dragging starts, so the source row moves beneath the lifted preview. No task was lost or unexpectedly reordered. Evidence: apps/e2e/ux-output/slice77-real-use/mouse-mid-drag.png, mouse-cross-list-moved.png and drag-results.json."
+    },
+    {
+      "id": "note-2026-11-01-001",
+      "createdAt": "2026-11-01T22:38:43.772Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 78,
+      "note": "Slice 78 real use (busy-week and nested-projects; 1440 mouse dark, 1440 keyboard only dark, 375 touch light): the failure rate went to 100 %, then 0 %, on Home, the project home, Todos, Archive and Reflections pages, Settings, Settings › AI & Agents and Settings › Archived projects. Every surface showed one failure form in product words (\"Couldn’t reach your workspace, so Home didn’t load.\" and so on) with Try again and Details, never an empty sentence, and each recovered with Try again and no reload. Keyboard: the sidebar's Try again was 5 Tabs from the top and the page's 8 more. Calendar and Search are still stubs, so only the sidebar fails there. Minor: the project read failure card is about 410 px wide under its h1 at 1440, while Home's spans the content width. Evidence: apps/e2e/ux-output/realuse78/ (report-*.json, shots/)."
+    },
+    {
+      "id": "note-2026-11-01-002",
+      "createdAt": "2026-11-01T22:38:43.852Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 78,
+      "note": "Slice 78 real use, fixed: with every read failing, the project read and the history read both failed. The project's Try again re-read only the project, so the recovered header kept a bare \"Retry\" beside Undo/Redo, with no sentence. Seen at 1440 and 375, on both seeds. Fixed in 2ba1a4b: the project failure's Try again also re-reads a failed history read. Re-checked in the real app: no header Retry after recovery."
+    },
+    {
+      "id": "note-2026-11-01-003",
+      "createdAt": "2026-11-01T22:38:43.932Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 78,
+      "note": "Slice 78 real use: a write that fails while the workspace is unreachable (completing \"Confirm renovation budget\" at 100 %) also fails the history re-read it owes. The header then shows a bare \"Retry\" with no sentence beside Undo/Redo. It stays after the connection is back, until it is pressed. The row's own message is clear. Not changed: the header Retry is the user's 2026-10-29 choice, so this is a candidate for the §8 comb (one reload vocabulary, and whether the history re-reads itself on the next successful read)."
+    },
+    {
+      "id": "note-2026-11-01-004",
+      "createdAt": "2026-11-01T22:38:44.012Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 78,
+      "note": "Slice 78 real use (1440 keyboard): after a successful Try again on Home's failure and on the sidebar's, the failure message (and its button) leaves the page, and focus falls to <body>. The next Tab starts again from the top of the page. Where focus should land after recovery (the region's heading, or its first item) is not settled by the plan: raised as an open question."
+    },
+    {
+      "id": "note-2026-11-01-005",
+      "createdAt": "2026-11-01T22:38:44.092Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 78,
+      "note": "Slice 78 real use (375 touch light): when every read fails, the sidebar's \"your projects didn’t load\" failure sits inside the closed Menu. The Menu button gives no sign of it. After the page's Try again recovered the project, the project list stayed failed until Menu was opened and its own Try again tapped. Candidate: the Menu button could show that its content failed, or a page recovery could also retry the sidebar. This is a design call, not changed."
+    },
+    {
+      "id": "note-2026-11-01-006",
+      "createdAt": "2026-11-01T22:38:44.172Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 78,
+      "note": "Slice 78 real use (busy-week, 1440 mouse dark): the AI provider was switched to real in the dev panel. Home showed six widgets and the Daily Digest alone said \"Couldn’t write today’s digest.\" with Try again. No Details and no provider text appeared. Try again kept focus and failed again, honestly. The host console logged \"prototype-host AI provider failed — PROTOTYPE_AI_PROVIDER=real is selected but RealAIProvider.generateDailyDigest is not implemented …\" once per read. The dev panel's hint still said the dashboard \"errors as a whole\"; it was fixed in 2ba1a4b. Switching back to mock restored the digest."
+    },
+    {
+      "id": "note-2026-11-01-007",
+      "createdAt": "2026-11-01T22:38:44.252Z",
+      "route": "/no/such/place",
+      "projectId": null,
+      "slice": 78,
+      "note": "Slice 78 real use (nested-projects as Alex, 1440 mouse dark and 375 touch light): Demo's /projects/project-renovation and /projects/project-kitchen/pages/todos both read \"This project isn’t available / It may have been removed, or it isn’t shared with you.\" with Go to Home, and no id, Details or Try again. /no/such/place read \"This page doesn’t exist / Check the address, or go to Home.\". Go to Home landed on /app with Alex's Home. No friction."
     }
   ]
 }

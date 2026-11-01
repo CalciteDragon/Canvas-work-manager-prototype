@@ -1,17 +1,19 @@
 <!-- plan id="78" status="active" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back" -->
 # Slice 78 — States: failures and loading
 
-**State (2026-11-01):** **Gate 2 passed (user decision, 2026-11-01).** The plan was reviewed in
-twelve rounds and accepted by the user on 2026-10-29. Stages 0–4 are done, and so are Stage 5's
-parts a and b, S5FIX (Q4–Q8), S5FIX2 (Q9) and S5C (the reviews). The sheet has 0 gate failures,
-and the user accepted it on 2026-11-01. They answered Open question 10 with (a), leave it as is,
-and approved the project-load failure wording as written: "Couldn't load this project" over
-"Something went wrong while it was loading." or, when the server is unreachable, "Couldn't reach
-your workspace."
-**Next (AGENTS.md step 4's last part, then step 5), on the user's go-ahead only:** real use
-(Acceptance check 7), with friction recorded in `.prototype/notes.json` under `CURRENT_SLICE` 78;
-then the Outcome and `roadmap.mjs complete`. Neither has started. The Outcome is not written, and
-the slice is not closed.
+**State (2026-11-01):** **Gate 2 passed (user decision, 2026-11-01); real use (Acceptance check 7)
+done (S6USE, 2026-11-01).** The plan was reviewed in twelve rounds and accepted by the user on
+2026-10-29. Stages 0–4 are done, and so are Stage 5's parts a and b, S5FIX (Q4–Q8), S5FIX2 (Q9),
+S5C (the reviews) and real use. The sheet has 0 gate failures, and the user accepted it on
+2026-11-01. They answered Open question 10 with (a), leave it as is, and approved the project-load
+failure wording as written: "Couldn't load this project" over "Something went wrong while it was
+loading." or, when the server is unreachable, "Couldn't reach your workspace."
+- **Real use:** see "Verification and real use (2026-11-01)" at the end of Revisions. It found
+  one bug in the slice, fixed in `2ba1a4b`, and a stale dev panel hint, fixed in the same commit.
+  It has seven notes in `.prototype/notes.json`, and it raised Open questions 11 and 12.
+**Next (AGENTS.md step 5), on the user's go-ahead only:** the user answers Open questions 11 and
+12, or defers them. Then the Outcome is written and `roadmap.mjs complete` runs. Neither has
+started. The Outcome is not written, and the slice is not closed.
 
 - **Sheet:** `apps/e2e/ux-output/slice78-sheet/index.html`.
   - **Inputs:** before `0c1917081b73a2892a30e0c6c548bff8b4e2fdc6`; after
@@ -1555,7 +1557,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 
 ## Open questions
 
-None open. Three were answered by the user on 2026-10-29:
+Two are open, 11 and 12, raised by real use (at the end of this section). Three were answered by the user on 2026-10-29:
 
 1. **Row failure below the fold.** Pinned to the viewport's edge with an indicator (Build).
 2. **Details in production.** It should be hidden in production. This is a note in the decision
@@ -1612,6 +1614,36 @@ None open. Three were answered by the user on 2026-10-29:
     - **Answered (a), leave it as is (user, 2026-11-01).** The rare background-refresh "may be
       out of date" case on Archive and Settings › Archived projects keeps the shared message.
       Nothing changes.
+
+**Raised by real use (S6USE, 2026-11-01), open:**
+
+11. **Where focus goes after a successful Try again.**
+    - **Context:** a keyboard user pressed Try again on Home's failure, and on the sidebar's. The
+      read succeeded, the `FailureMessage` and its button left the page, and focus fell to
+      `<body>`. The next Tab started again from the top. The plan settles focus while the failure
+      stays (Try again keeps focus, busy) and for pins, but not after recovery.
+    - **Options:**
+      - (a) Leave it as it is.
+      - (b) Move focus to the recovered region's heading, or to its container with
+        `tabindex="-1"`.
+      - (c) Move focus to the region's first interactive item.
+    - **Impact:** keyboard and screen reader users on every lifted read (Home, sidebar, sections,
+      Settings lists). It touches `FailureMessage`'s callers, not the copy.
+12. **At 375, the sidebar's failure is hidden behind a closed Menu.**
+    - **Context:** when every read fails, "Couldn't reach your workspace, so your projects didn't
+      load." sits inside the closed Menu drawer. The Menu button gives no sign of it. The page's
+      own Try again recovers the page, but not the project list. The user finds it failed only
+      when they open Menu, and must tap its Try again there.
+    - **Options:**
+      - (a) Leave it. The drawer's failure is correct once the drawer is opened.
+      - (b) The Menu button shows a failure mark while its content holds a failure.
+      - (c) A page-level Try again also retries a failed sidebar read.
+    - **Impact:** touch and narrow layouts only. (b) is a design change to the top bar.
+    - **Not raised as a question, noted for the §8 comb:** a write that fails while the workspace
+      is unreachable also fails the history re-read it owes. The header then keeps a bare "Retry",
+      with no sentence, until it is pressed, even after the connection is back. The label is the
+      user's 2026-10-29 choice (Open question 3). Whether the history should re-read itself on the
+      next successful read belongs to the comb.
 
 ## Revisions
 
@@ -1862,3 +1894,48 @@ None open. Three were answered by the user on 2026-10-29:
     project", and beneath it "Something went wrong while it was loading." or, when the server is
     unreachable, "Couldn't reach your workspace." No code change.
   - Next is real use, then the Outcome and close, on the user's separate go-ahead.
+- **S6USE (2026-11-01), real use:** Acceptance check 7 was run against the running prototype.
+  Changes:
+  - **Fix `2ba1a4b`:** the project failure's Try again also re-reads the history when that read
+    failed too. Before, the recovered project kept a bare header Retry. The projects `how.md`
+    says so.
+  - **Same commit:** the dev panel's AI hint no longer says the dashboard "errors as a whole".
+  - Open questions 11 and 12 were added (State header).
+
+**Verification and real use (2026-11-01).**
+
+- **Setup.** An isolated host on 4320, with `CWM_DATA_FILE` set to
+  `.prototype/realuse-78.json`. The production build was served on 4201, and the browser's 4200
+  and 4310 were routed to those two, as the capture rig does. Headless Chromium was driven by
+  scripts in `apps/e2e/ux-output/realuse78/` (git-ignored), with screenshots read pass by pass.
+  No server or browser was left running.
+- **Failure rate.** Both seeds were run at 1440 mouse (dark), 1440 keyboard only (Tab and Enter,
+  dark) and 375 touch (light, `iPhone 13` emulation).
+  - The rate was set to 100 % on Home, the project home, Todos, Archive and Reflections,
+    Settings, Settings › AI & Agents and Settings › Archived projects. On touch it was set at
+    `/prototype/state`. At 1440 it was set from the panel.
+  - The rate was then set to 0 % from the panel, without a reload. On touch an attached keyboard
+    was emulated for the chord alone.
+  - Every surface showed the one failure form with Try again and Details, and none showed an
+    empty sentence. Each recovered with Try again only.
+  - Keyboard reach: the sidebar's Try again was 5 Tabs from the top, and the page's 8 more.
+  - In a loaded project, a refused completion read "Couldn't complete “…”. Try again.". A
+    sidebar move to another project failed as "Couldn't load this project" and recovered with
+    one Try again.
+- **Real AI.** Home showed six widgets and the digest's own failure, with no provider text. The
+  host console logged `prototype-host AI provider failed — PROTOTYPE_AI_PROVIDER=real is selected
+  but RealAIProvider.generateDailyDigest is not implemented …` once per read. Mock restored the
+  digest.
+- **Alex.** At 1440 and 375, Demo's project and its Todos page read "This project isn't
+  available", with Go to Home only. `/no/such/place` read "This page doesn't exist". Go to Home
+  landed on `/app`.
+- **Found.**
+  - The bare header Retry after a project Try again, now fixed. The fix was re-checked in the
+    real app.
+  - The stale dev panel hint, now fixed.
+  - Focus falls to `<body>` after a successful Try again (Open question 11).
+  - The 375 sidebar failure hidden behind Menu (Open question 12).
+  - The history Retry left by a failed write (a §8 comb note).
+  - Seven notes in `.prototype/notes.json`.
+- **Checks.** `pnpm test` and `pnpm lint` (see the S6USE commit). The production build's initial
+  bundle is 1,139.4 kB, under the 1,150 kB ceiling and unchanged by the fix.
