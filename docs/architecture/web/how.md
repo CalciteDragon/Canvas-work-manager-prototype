@@ -65,7 +65,7 @@ until a store has moved, its own message still ends with the host's reason.
 
 A successful Try again removes the message and its button. If the button held focus, focus moves
 to the nearest `data-recovery-focus` element before the message in the same landmark (`main`,
-`nav` or a dialog), else to the first one that landmark shows after recovery. That is a region's
+`nav` or a dialog), else to the first one that landmark shows after recovery (also when every one before it has gone). That is a region's
 heading (with `tabindex="-1"`) or, in the sidebar, the Projects button. A recovering region marks
 its heading; a page with its own hand-off (Settings › Archived projects) marks none, and its
 hand-off runs first. Focus someone moved elsewhere during the read stays there

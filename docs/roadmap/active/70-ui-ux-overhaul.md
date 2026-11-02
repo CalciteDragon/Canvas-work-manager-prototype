@@ -363,16 +363,25 @@ gate failures; T11 now completes in one click. The initial bundle is 1,101.98 kB
 ceiling. The drag explanation's layout shift (`note-2026-10-22-002`) is open; redesign slice 6b
 is next.
 
-**Slice 78 active — Gate 2 passed (2026-11-01).** [States: failures and loading](78-failures-and-loading.md),
-redesign slice 6b-1 (TH10). The user accepted the sheet (194 pairs, zero gate failures), answered
-its Open question 10 with (a), leave it as is, and approved the project-load failure wording as
-written. Next, on the user's go-ahead: real use (its Acceptance check 7), then the Outcome and
-`roadmap.mjs complete`. The rest of 6b and the §8 comb follow it.
+**Slice 78 completed — Gate 2 accepted (2026-11-01).** [States: failures and loading](../completed/78-failures-and-loading.md),
+redesign slice 6b-1 (TH10), closes ten findings (9 S2, 1 S3).
+- **Gate 2:** the user accepted the sheet (194 pairs, zero gate failures).
+- **Real use** found two problems. A recovered project kept a bare header Retry, which is fixed.
+  Focus fell to the top of the page after a successful Try again.
+- **The user's answers (2026-11-01):** Q11, focus now moves to the recovered region's heading.
+  Q12, the 375 sidebar failure stays inside the closed Menu.
+- **Bundle:** the initial bundle is 1,140.75 kB, under the 1,150 kB ceiling.
+- **Deferred:** Slice 79 takes the header archive refusal's sentence. The §8 comb takes the
+  history Retry left by a write that failed while the workspace was unreachable.
+
+**Next: [Slice 79](../planned/79-empty-archived-and-editing.md)**, redesign slice 6b-2 (empty,
+archived and editing states). It starts when the user gives the go-ahead, with `roadmap.mjs
+start`. The §8 comb follows 6b.
 
 ### Redesign slice 6b (States) — planning brief
 
-Historical brief: 6b was created as [slice 78](78-failures-and-loading.md), now active as 6b-1;
-its State header is current. The plan carries the protocol §6 extras: findings closed, capture scope, visual acceptance, and
+Historical brief: 6b was created as [slice 78](../completed/78-failures-and-loading.md), completed as 6b-1;
+slice 79 is 6b-2. The plan carries the protocol §6 extras: findings closed, capture scope, visual acceptance, and
 behaviour versus appearance.
 
 - **Scope: TH10**, "Empty, loading, error and archived states are accidental" (patterns layer), in

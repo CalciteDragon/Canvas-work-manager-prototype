@@ -7,7 +7,7 @@
      record the rounds under Revisions. Before roadmap.mjs complete, write Outcome. -->
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). It follows
-[Slice 78](../active/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
+[Slice 78](../completed/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
 on 2026-10-29 and answered the shape questions below on the same day. The protocol §8 comb runs
 after this slice closes.
 

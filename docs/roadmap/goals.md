@@ -128,11 +128,13 @@ completes TH09. A task takes one row anatomy wherever it is listed, and rows tha
 open their canonical owner; MCP dashboard and upcoming-work tasks carry their origin. The
 accepted sheet has 194 pairs and zero gate failures. Redesign slice 6b, States, is next.
 
-**Slice 78 active — Gate 2 passed (2026-11-01).** [States: failures and loading](active/78-failures-and-loading.md),
-redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or
-loading states, a digest that fails alone, and not-found and no-access pages that lead back. The
-user accepted its sheet (194 pairs, zero gate failures). Real use, then the Outcome and close,
-come next on the user's go-ahead.
+**Slice 78 completed — Gate 2 accepted (2026-11-01).** [States: failures and loading](completed/78-failures-and-loading.md),
+redesign slice 6b-1 (TH10). A failed read now shows one failure message, in product words, with
+Try again, and never claims the content is empty. When the read recovers, focus moves to the
+section's heading. The digest can fail without taking the rest of Home with it, and not-found and
+no-access pages lead back to Home. The accepted sheet has 194 pairs and zero gate failures.
+Redesign slice 6b-2, [Slice 79](planned/79-empty-archived-and-editing.md) (empty, archived and
+editing states), is next. It starts when the user gives the go-ahead.
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:

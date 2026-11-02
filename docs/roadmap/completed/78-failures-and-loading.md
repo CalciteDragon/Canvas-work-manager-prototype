@@ -1,22 +1,21 @@
-<!-- plan id="78" status="active" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back" -->
+<!-- completed-record id="78" closed="2026-11-01" summary="Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back, off-screen failures pin, focus returns to the recovered heading; Gate 2 accepted" -->
 # Slice 78 — States: failures and loading
 
-**State (2026-11-01):** **Gate 2 passed (user decision, 2026-11-01); real use (Acceptance check 7)
-done (S6USE, 2026-11-01).** The plan was reviewed in twelve rounds and accepted by the user on
-2026-10-29. Stages 0–4 are done, and so are Stage 5's parts a and b, S5FIX (Q4–Q8), S5FIX2 (Q9),
-S5C (the reviews) and real use. The sheet has 0 gate failures, and the user accepted it on
-2026-11-01. They answered Open question 10 with (a), leave it as is, and approved the project-load
-failure wording as written: "Couldn't load this project" over "Something went wrong while it was
-loading." or, when the server is unreachable, "Couldn't reach your workspace."
-- **Real use:** see "Verification and real use (2026-11-01)" at the end of Revisions. It found
-  one bug in the slice, fixed in `2ba1a4b`, and a stale dev panel hint, fixed in the same commit.
-  It has seven notes in `.prototype/notes.json`, and it raised Open questions 11 and 12.
-**Next (AGENTS.md step 5), on the user's go-ahead only:** the user answers Open questions 11 and
-12, or defers them. Then the Outcome is written and `roadmap.mjs complete` runs. Neither has
-started. The Outcome is not written, and the slice is not closed.
+**State (2026-11-01):** **complete; see the Outcome.** Gate 2 passed (user decision, 2026-11-01),
+and real use (Acceptance check 7) is done (S6USE). The user answered Open questions 11 and 12 on
+2026-11-01. Q11 is the recovered region's heading, done in `7925bbe`; Q12 is leave it as is. The
+plan was reviewed in twelve rounds and accepted on 2026-10-29. The log below is the record of
+each stage. Slice 79 is next, on the user's go-ahead.
+- **Real use:** see "Verification and real use (2026-11-01)" at the end of Revisions.
 
 - **Sheet:** `apps/e2e/ux-output/slice78-sheet/index.html`.
-  - **Inputs:** before `0c1917081b73a2892a30e0c6c548bff8b4e2fdc6`; after
+  - **Rebuilt for Q11 (2026-11-01)** from `apps/e2e/ux-output/7925bbe622beb6924c3de2bc0d696e066c7d374a`.
+    Its states and tasks were re-captured on `7925bbe` (168 entries, `complete`, T01–T12). The
+    matrix was copied from `5728e2b` unchanged, so the report still names that commit as the
+    after: Q11 adds attributes only, and the matrix shows no pressed Try again. The result is
+    the same: 194 pairs and 0 gate failures. The only changed pixels are a 2×2 px antialiasing
+    patch in the 375 after-retry shots.
+  - **Inputs at Gate 2:** before `0c1917081b73a2892a30e0c6c548bff8b4e2fdc6`; after
     `apps/e2e/ux-output/5728e2bf22f83d674afa496ed604dceceebbe3a0`. The after has 194 matrix cells
     with 0 errors, and 168 states entries, `complete`, with T01–T12.
   - **Result:** 194 pairs and **0 gate failures**: geometry, census, state checks (164 views),
@@ -25,8 +24,8 @@ started. The Outcome is not written, and the slice is not closed.
     reflow.
   - **Rebuild:** `node docs/roadmap/70-ui-ux/tooling/build-sheet.mjs
     apps/e2e/ux-output/0c1917081b73a2892a30e0c6c548bff8b4e2fdc6
-    apps/e2e/ux-output/5728e2bf22f83d674afa496ed604dceceebbe3a0 apps/e2e/ux-output/slice78-sheet
-    apps/e2e/ux-output/5728e2bf22f83d674afa496ed604dceceebbe3a0 --profile 78`.
+    apps/e2e/ux-output/7925bbe622beb6924c3de2bc0d696e066c7d374a apps/e2e/ux-output/slice78-sheet
+    apps/e2e/ux-output/7925bbe622beb6924c3de2bc0d696e066c7d374a --profile 78`.
 - **What the user should look at, under "Visual acceptance before / after":**
   - The failure family. The `lab · dark · 1440` pair now has a second row, "scrolled to the
     region", that shows the old "Empty, loading and error" panel beside the new "Empty, loading
@@ -635,7 +634,7 @@ The raw write slots left by parts a–d are listed in their entries above.
   that was built. The rig presses pins before opening Details (S4E).
 - Profile 78 in `build-sheet.mjs` is not written yet; it is Stage 5's.
 
-Redesign slice 6b-1 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). Redesign slice 6b
+Redesign slice 6b-1 under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). Redesign slice 6b
 ("States", theme **TH10** "Empty, loading, error and archived states are accidental" in
 [themes.json](../70-ui-ux/themes.json)) is **split** by the user's choice on 2026-10-29, as slices
 4 and 6 were. This slice, **6b-1**, takes the failure and loading half. **6b-2** is
@@ -647,6 +646,91 @@ The user also answered on 2026-10-29: a failure's raw host reason moves **behind
 Details toggle**. The visible text is a product sentence only. This amends slice 75's
 [feedback decision](../../decisions/2026-10-feedback-stays-on-the-object.md), whose sentences end
 with the reason today.
+
+## Outcome
+
+The user accepted Gate 2 on 2026-11-01. A read that fails now says so in one form, in product
+words, with Try again. It never claims the content is empty. `Failure { sentence, reason }` in
+[failure.ts](../../../apps/web/src/app/shared/feedback/failure.ts) turns a gateway error into a
+sentence by its code, and every store holds one, with read and write failures kept apart.
+[FailureMessage](../../../apps/web/src/app/shared/feedback/failure-message.ts) draws it at region
+or inline weight, with the host's reason under a closed Details.
+- **Try again** keeps the failure on screen, busy and `aria-disabled`, until the read answers.
+  When the read recovers, focus moves to the recovered region's heading (Q11).
+- **The sidebar** says "Loading projects…" and says when its read failed.
+- **The digest fails alone.** The contract's digest is nullable, so MCP's
+  `get_dashboard_context` returns `dailyDigest: null` with no provider text, and the host logs why.
+- **A missing project, another persona's project and an unknown address** share
+  [UnavailablePage](../../../apps/web/src/app/shared/components/unavailable-page/unavailable-page.ts)
+  with Go to Home. A retryable project failure has its own heading.
+- **Pinned failures.** An inline write failure whose sentence is off screen is pinned to the
+  workspace's edge by [PinnedFailureDirective](../../../apps/web/src/app/shared/feedback/pinned-failure.directive.ts)
+  and [PinnedFailureSlot](../../../apps/web/src/app/shared/feedback/pinned-failure-slot.ts). It
+  scrolls only when pressed.
+- **Progress** reads "No tasks to measure", "Measuring…" or "Couldn't load", not "Not available".
+- **The Lab** shows the family in its `state-messages` panel.
+
+Ten findings close (9 S2, 1 S3; Findings closed).
+
+The [failures-speak-product-words decision](../../decisions/2026-10-failures-speak-product-words.md)
+records the main choices:
+- Domain and host messages are unchanged, because agents read them over MCP. The UI only stops
+  printing them.
+- A busy failure, not a loading line, so the pressed control stays and a second failure ends
+  visibly.
+- A polite, always-mounted status region for the sidebar, so Home's failure stays the page's one
+  alert.
+
+The user decided the gate and real-use questions:
+- Q4: the project failure's visible heading.
+- Q5: the touch-only toast cap.
+- Q6–Q9: the `settled` row kind, the "Reflection" label and its measured reflow.
+- Q10: the shared message stays on Archive's stale case.
+- Q11: [focus goes to the recovered heading](../../decisions/2026-11-focus-after-try-again-goes-to-the-heading.md).
+- Q12: the sidebar failure stays inside the closed Menu at 375.
+
+The [feedback-stays-on-the-object](../../decisions/2026-10-feedback-stays-on-the-object.md) entry
+carries the Details and pin amendment.
+
+Deviations, all recorded under Revisions:
+- `states.spec.ts` was missing until Stage 5b.
+- Profile 78 gained rules beyond Done when, and two evidence-based relaxations.
+- Gate failures produced Q4–Q9.
+- S5C's reviews fixed three store paths and the recovery hooks.
+- Real use found that a recovered project kept a bare header Retry (`2ba1a4b`) and that focus
+  fell to the top of the page after Try again (`7925bbe`).
+
+The accepted evidence is `apps/e2e/ux-output/slice78-sheet/`: 194 pairs, zero gate failures
+(geometry, census, 164 state checks, pins, Lab, tasks) and 24 visual acceptance pairs. T12 goes
+from a dead end to one click, and T01–T09 and T11 keep their costs.
+
+At close:
+- `pnpm test` (web 1,397) and `pnpm lint` are green, and the Storybook build passes.
+- The initial bundle is 1,140.75 kB, under 1,150 kB.
+- `states.spec.ts` (20) and the eleven specs nearest the change (168) pass on isolated ports. One
+  feedback timeout passed on re-run.
+- The full `pnpm e2e` was last green at S5FIX (260) and was not re-run after the S5C, S6USE and
+  Q11 changes.
+- WebKit is unverified.
+
+Deferred:
+- To [Slice 79](../planned/79-empty-archived-and-editing.md): first-run and empty content,
+  archived pages and refusals (including the header archive refusal's sentence), the Markdown
+  editor's Cancel and Preview, and the Task List count.
+- To slice 8: Revoke's failure text.
+- To the §8 comb: whether the history should re-read itself after a write failed while the
+  workspace was unreachable. Today the header keeps a bare Retry.
+
+Open: a screen-reader pass should judge whether landing on the heading repeats what recovery
+announces, and whether the sidebar's polite failure reads well.
+
+Documentation updated:
+- The spec (§21, §23, §24, §34, §44, §63, §68).
+- The web folders, including `how.md` for the recovery focus rule.
+- The projects, contracts, domain, prototype-host and testing folders.
+- The first-milestone walkthrough.
+- Two new decisions, the amendment and the index.
+- Seven friction notes.
 
 ## Goal
 
@@ -1615,7 +1699,7 @@ Two are open, 11 and 12, raised by real use (at the end of this section). Three 
       out of date" case on Archive and Settings › Archived projects keeps the shared message.
       Nothing changes.
 
-**Raised by real use (S6USE, 2026-11-01), open:**
+**Raised by real use (S6USE, 2026-11-01), both answered by the user on 2026-11-01:**
 
 11. **Where focus goes after a successful Try again.**
     - **Context:** a keyboard user pressed Try again on Home's failure, and on the sidebar's. The
@@ -1629,6 +1713,14 @@ Two are open, 11 and 12, raised by real use (at the end of this section). Three 
       - (c) Move focus to the region's first interactive item.
     - **Impact:** keyboard and screen reader users on every lifted read (Home, sidebar, sections,
       Settings lists). It touches `FailureMessage`'s callers, not the copy.
+    - **Answered (b), the recovered region's heading (user decision, 2026-11-01). Done in
+      `7925bbe`.** When a `FailureMessage` leaves while its pressed button still held focus,
+      focus moves to the nearest `data-recovery-focus` before it in its landmark, else to the
+      first one the landmark shows after recovery. Home, its widgets, the sidebar's Projects
+      button, section and shortcut titles, the project name, Todos, Archive, Reflections (page
+      and its three reads), AI & Agents and the section dialog mark theirs; headings that were
+      not focusable gain `tabindex="-1"`. Settings › Archived projects keeps its own hand-off.
+      [Decision](../../decisions/2026-11-focus-after-try-again-goes-to-the-heading.md).
 12. **At 375, the sidebar's failure is hidden behind a closed Menu.**
     - **Context:** when every read fails, "Couldn't reach your workspace, so your projects didn't
       load." sits inside the closed Menu drawer. The Menu button gives no sign of it. The page's
@@ -1639,6 +1731,7 @@ Two are open, 11 and 12, raised by real use (at the end of this section). Three 
       - (b) The Menu button shows a failure mark while its content holds a failure.
       - (c) A page-level Try again also retries a failed sidebar read.
     - **Impact:** touch and narrow layouts only. (b) is a design change to the top bar.
+    - **Answered (a), leave it as is (user decision, 2026-11-01).** Nothing changes.
     - **Not raised as a question, noted for the §8 comb:** a write that fails while the workspace
       is unreachable also fails the history re-read it owes. The header then keeps a bare "Retry",
       with no sentence, until it is pressed, even after the connection is back. The label is the
@@ -1901,6 +1994,19 @@ Two are open, 11 and 12, raised by real use (at the end of this section). Three 
     says so.
   - **Same commit:** the dev panel's AI hint no longer says the dashboard "errors as a whole".
   - Open questions 11 and 12 were added (State header).
+
+- **S6CLOSE (2026-11-01), user decision:** the user answered Open questions 11 and 12.
+  - **Q11 (b):** a successful Try again moves focus to the recovered region's heading. The rule
+    lives in `FailureMessage`, regions mark their heading with `data-recovery-focus`, and the
+    headings that were not focusable gain `tabindex="-1"` (`7925bbe`). It was test-first: four
+    `FailureMessage` specs, plus Home, digest and sidebar specs, failed before the change. So did
+    `states.spec.ts`'s T12 focus assertion and its new Home-and-sidebar keyboard journey. There
+    is a decision entry. One review pass over the diff found no bugs; its wording note on the
+    fallback is folded into the docs.
+  - **Q12 (a):** leave it as is.
+  - **Re-capture:** states and tasks on `7925bbe`; the sheet still has 0 gate failures (State
+    header).
+  - The Outcome is written, and the slice closes.
 
 **Verification and real use (2026-11-01).**
 

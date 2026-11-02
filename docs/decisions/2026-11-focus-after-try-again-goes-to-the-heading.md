@@ -27,7 +27,7 @@ row's status, so it marks nothing and keeps its own rule.
 The user chose the heading on 2026-11-01. When a `FailureMessage` leaves while its pressed Try
 again (or Retry refresh) still held focus, and focus is now lost, focus moves to the nearest
 `data-recovery-focus` element before the message in its landmark (`main`, `nav` or a dialog). If
-none precedes it, focus moves to the first one the landmark shows after recovery, such as a
+none before it is still on the page, focus moves to the first one the landmark shows after recovery, such as a
 recovered project's name. Marked headings carry `tabindex="-1"`. The sidebar marks its Projects
 button, which is the group's heading. Focus the person moved elsewhere during the read stays there.
 Nothing visual changes.
