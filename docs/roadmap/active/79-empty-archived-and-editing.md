@@ -1,9 +1,9 @@
 <!-- plan id="79" status="active" summary="Redesign slice 6b-2 (TH10): first-run dashboard, archived pages read-only with restore in place, archive refusal said before, Markdown drafts kept, digest overdue line, Task List count" -->
 # Slice 79 — States: empty, archived and editing
 
-**State (2026-11-02):** plan written (S79PLAN), review rounds 1–4 applied (round 4 in a cloud
+**State (2026-11-02):** plan written (S79PLAN), review rounds 1–5 applied (rounds 4–5 in a cloud
 session). Started with `roadmap.mjs start`; `CURRENT_SLICE` is 79. Not yet accepted by the user;
-no implementation has started. Next: review round 5 (AGENTS.md step 2), recorded under Revisions.
+no implementation has started. Next: review round 6 (AGENTS.md step 2), recorded under Revisions.
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
 [Slice 78](../completed/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
@@ -118,7 +118,7 @@ answered on 2026-10-29 and are not re-opened here.
         run inside `whileWriting`, so `refreshContext` waits for it
         (`project-workspace-store.ts:186-190, 699`).
         - **For an ancestor**, it is a cross-owner write. The existing cross-owner toast offers
-          Undo and Open owner (§26, spec lines 1213–1215; `project-history-store.ts:393-405`).
+          Undo and Open owner (§26, spec lines 1213–1215; `history/project-history-store.ts:393-405`).
         - **For the page's own project**, no toast is added. A write on the page's own history is
           never announced: `announceCrossOwner` runs only when the history ids differ, and the
           More menu's status choice has no toast either. The banner disappears, focus moves to the
@@ -257,10 +257,10 @@ answered on 2026-10-29 and are not re-opened here.
       source keeps its old `base`, so the existing "changed elsewhere" note shows, as §30's
       live-update rule requires.
     - **Opening the editor.** Today it seeds from `initialSource = base()`
-      (`markdown-section-body.html:11`, `markdown-source-editor.ts:42`). It gains an
+      (`markdown-section-body.html:11`, `markdown-source-editor.ts:41`). It gains an
       `initialDraft` input; with a kept draft, `base` is restored from the store.
     - **Discard draft.** The editor seeds `draft` once, in `ngOnInit`
-      (`markdown-source-editor.ts:42`), so it cannot reset itself to a newer source. The editor
+      (`markdown-source-editor.ts:41`), so it cannot reset itself to a newer source. The editor
       emits `discardRequested`, and the body does the rest:
       - it forgets the stored draft;
       - it sets `base` to the current `source()`;
@@ -270,7 +270,7 @@ answered on 2026-10-29 and are not re-opened here.
       The editor stays presentational and never injects the store.
     - **When it keeps.** A Cancel with a changed draft keeps it; `cancelRequested` now carries the
       draft, since the draft lives in `MarkdownSourceEditor.draft`
-      (`markdown-source-editor.ts:27`). An editor destroyed by navigation or by removal of its
+      (`markdown-source-editor.ts:31`). An editor destroyed by navigation or by removal of its
       host keeps its draft too (a live archive leaves it open, above): the body reads the editor's draft through a
       `viewChild` before it goes.
     - **When it forgets.** The store clears on the live event `prototype.reloaded` from
@@ -381,7 +381,9 @@ failure below the fold.
 | L4-023 (count) | S2 | "N tasks" in the Task List frame header |
 
 Twelve items (11 S2, 1 S3). The drag reserve closes on its pair. Todos `[disabled]` closes on
-the "Todos write pending" pair (live Home renovation) and, for its read-only half, on component
+the gate's pending-Todos rule and the "Todos write pending" pair (live Home renovation: Shift+Tab from
+the pending workstream row's title link lands on its Complete, which native `disabled` skips), and, for its
+read-only half, on component
 tests and the gate's selectors, since an archived root's Todos has no rows to capture.
 
 ## Acceptance check
@@ -444,7 +446,9 @@ tests and the gate's selectors, since an archived root's Todos has no rows to ca
 
    T01's after run presses the main column's New project; its before run presses the sidebar's.
    Each locator is scoped, so two "New project" buttons never trip strict mode. The after costs
-   must not exceed the slice-78 after counts in `apps/e2e/ux-output/7925bbe…/tasks/tasks.json`:
+   must not exceed the slice-78 after counts below, measured in `apps/e2e/ux-output/7925bbe…/tasks/tasks.json`.
+   That folder is git-ignored and absent from a fresh clone, so profile 79 holds the table as
+   constants in `build-sheet.mjs`, pinned by `build-sheet.test.mjs`, rather than reading it:
 
    | T01 | T02 | T03 | T04 | T05 | T06 | T07 | T08 | T09 | T11 | T12 |
    |---|---|---|---|---|---|---|---|---|---|---|
@@ -528,7 +532,13 @@ through the host API in the rig, never by editing seeds.
   captured). The rig records the first row's top before and after drag start.
 - **Todos write pending.** Live Home renovation's Todos with a completion held pending by a
   delayed route (`route.fallback()` after the delay): `aria-disabled`, no native `disabled`
-  (before: `[disabled]="writesBlocked()"`, `todos-page.html:60,107`).
+  (before: `[disabled]="writesBlocked()"`, `todos-page.html:60,107`). Both look alike at rest,
+  since `_controls.scss:409-411` styles `:disabled` and `[aria-disabled='true']` with one rule, so
+  the capture focuses the pending workstream row's title link (`data-todo-link`) and presses
+  Shift+Tab. Complete renders only on workstream rows (`todos-page.html:55-66`), and
+  `writesBlocked()` disables every row's Complete and Delete while any write is pending. Before,
+  focus skips the disabled Complete; after, it rests on that row's Complete with its focus ring.
+  1440 light only.
 - **Lab.** The `state-messages` and `section-frame` panels, and the new stories.
 
 **Gated within the change:**
@@ -558,10 +568,10 @@ every control it had.
 | Main-column New project pressed → the creation form focused (Menu open at 375) | empty, 1440 dark, 375 light | W1-001 |
 | Sidebar, archived only: "No projects yet" → "No active projects." + Settings link | empty + archived fixture, 1440 dark, 375 light | W4-034 |
 | Legacy attic: full-weight header, accent "Add a section" → banner with Restore as, no add action | nested-projects, 1440 light, 375 dark | L1-028, L4-007 |
-| Home renovation archived: live Add task, Edit, drag and delete → read-only sections under the banner | nested-projects (rig), 1440 dark | L4-007 |
+| Home renovation archived: live Add task, Edit, drag and delete → read-only sections under the banner; its Todos and Reflections pages with the archived sentence if Q7 is (a) | nested-projects (rig), 1440 dark | L4-007 (Q7) |
 | Legacy shelving under archived Legacy attic: fully editable → banner naming Legacy attic, read-only | nested-projects, 1440 light | L4-007 |
 | Banner restore and Undo: Home renovation archived → restored, then header Undo → banner back; Legacy attic's Undo pressed → the transition refusal | nested-projects (rig), 1440 dark | L4-007 |
-| Todos write pending: native `disabled` Complete and Delete → `aria-disabled` | nested-projects Home renovation (live, delayed completion), 1440 light | carried (slice 75) |
+| Todos write pending, after Shift+Tab from the pending workstream row's title link: focus skips native-`disabled` Complete → focus ring on `aria-disabled` Complete | nested-projects Home renovation (live, delayed completion), 1440 light | carried (slice 75) |
 | Archive Kitchen: commit offered → blocked form naming Cabinets as a link, Close only | nested-projects, 1440 dark, 375 light | L4-008 |
 | Late archive refusal: "Couldn’t archive … Try again." → "still has live workstreams. Archive them first." + Details | nested-projects, 1440 light | L4-008 |
 | Restore choice: Archive's lowercase preselected select and Settings' "Choose status" → one control | nested-projects Archive and Settings, 1440 light | L4-012 |
@@ -592,6 +602,7 @@ every control it had.
   - Todos' pending `aria-disabled`; the task checkbox, Complete and Delete are absent when
     read-only.
   - The archived root's Archive note points at the banner.
+  - Under Q7 (a), an archived root's Todos and Reflections pages say their work returns on restore.
   - The banner's owner write (`restoreOwner`) and its failure in the banner.
 - **Not behaviour.**
   - The domain, contracts, host, MCP tools, persistence and seeds do not change, apart from the
@@ -668,7 +679,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | File | Change | Responsibility |
 |---|---|---|
 | `features/projects/project-workspace-store.ts` (+ spec) | modify | `archivedOwner`, `readOnly`, `liveChildren` for the current project, `restoreOwner` (inside `whileWriting`, its own `restoreFailure` for the banner), `projectWriteSentence` with the code, descendants re-read after a refusal |
-| `features/projects/project-page-contract.ts` | modify | `readOnly` in `ProjectPageRendererInputs` (beside `restoreBlocked`) |
+| `features/projects/project-page-contract.ts` | modify | `readOnly` in `ProjectPageRendererInputs` (`:14`, beside `restoreBlocked`) and in the `ProjectPageRenderer` interface every typed renderer implements (`:39-49`) |
 | `features/projects/project-workspace-shell.{ts,html}` (+ spec) | modify | Banner placement, `rendererInputs.readOnly`, `liveChildren` to the confirmation |
 | `features/projects/archived-banner.{ts,html,scss}` (+ spec, stories) | create | The banner sentence for own, ancestor and archived-twice cases, its failure, and the `RestoreStatusChoice`; mounted behind `@defer (when readOnly())` if Q6 is answered (a) |
 | `features/projects/project-archive-confirm.{ts,html}` (+ spec; `project-archive-confirm.stories.ts` create) | modify | `liveChildren`; blocked form with links, statuses and Close only |
@@ -707,7 +718,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | File | Change |
 |---|---|
 | `Canvas Work Manager — Prototype Product, Design & Development Specification.md` | §29 `SectionDefinition.summary`; §21 variants; §23 archived-only wording; §24 first run and the overdue link; §26 the archived header, banner and empty canvas; §30 drafts and the Preview caption; §31 restore from the page's banner as well as Settings; §34 count and drag hint. Each correction is noted in its decision entry |
-| `docs/decisions/2026-11-archived-pages-are-read-only.md` | create, with the banner, outermost owner, what stays, Q4, Q5 |
+| `docs/decisions/2026-11-archived-pages-are-read-only.md` | create, with the banner, outermost owner, what stays, Q4, Q5, Q7 |
 | `docs/decisions/2026-11-empty-workspace-offers-the-first-project.md` | create: first run, the sidebar's archived-only wording, Q3 |
 | `docs/decisions/2026-11-digest-overdue-line-leads-to-the-tasks.md` | create, after Q1 |
 | `docs/decisions/2026-11-task-list-shows-its-count.md` | create: the header count and the hint overlay |
@@ -746,7 +757,8 @@ Each step is sized for one fresh session and ends green with its docs in the sam
    page.
 5. **Read-only canvas.** Canvas, section, shortcut and unknown frames, the Task List's static rows,
    and collapse per Q4.
-6. **Read-only pages.** Todos (with `aria-disabled` for pending) and the Reflections page.
+6. **Read-only pages.** Todos (with `aria-disabled` for pending) and the Reflections page,
+   with their archived-root sentences per Q7.
 7. **Refusal first.** `liveChildren`, the blocked confirmation, the late refusal's sentence and
    the re-read.
 8. **Empty workspace.** `ShellStore` split and `answered`, `ShellCommands`, sidebar wording, the
@@ -785,7 +797,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 | `section registry spec`, `project-section-frame.spec.ts`: only a `summary: true` type receives `reportSummary`, and no section logs NG0303; at 375 a long name truncates and the controls keep their offsets | L4-023 |
 | `task-list-section.spec.ts`: archived read-only rows are static with no Complete, Delete, drag or drawer, and say "No tasks." when empty; the shortcut flavour still links to its source; the count reports "N tasks" after a read, `null` while loading, after a failure or at zero; the drag hint overlays quick-add without changing the first row's offset | L4-007, L4-023, carried |
 | `todos-page.spec.ts`: read-only, with rows supplied by the test (the domain returns none for an archived root), has no task checkbox, Complete or Delete; the archived-root empty sentence per Q7; a pending completion gives `aria-disabled="true"` with a guarded click and no `disabled` attribute | Carried (slice 75) |
-| `reflections-page.spec.ts:234` (kept): the composer is absent on an archived root | L4-007 |
+| `reflections-page.spec.ts:234` (kept): the composer is absent on an archived root; under Q7 (a), an archived root with no items says "Its reflections come back when “X” is restored.", never "No reflections yet." | L4-007, Q7 |
 | `restore-status-choice.spec.ts`: one option list in one casing, default per Q2, Restore emits the status, `aria-disabled` while pending | L4-012 |
 | `archived-region.spec.ts`, `archived-projects-page.spec.ts`: both render `RestoreStatusChoice` with the same options and default, and restore through it as before; Settings' focus after a restore lands on the next row's choice | L4-012 |
 | `archive-page.spec.ts`: on an archived root the note points at the banner, not Settings; `readOnly` is declared | §31 amended |
@@ -794,7 +806,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 | `markdown-source-editor.spec.ts`: an offered draft shows "Your unsaved draft is back." and Discard draft, which restores the saved text and asks the store to forget; Preview shows "Unsaved preview"; Save is the only `button--primary` | L3-012, W4-031 |
 | `design-lab-page.spec.ts`: the empty and archived specimens and the header count specimen | §63 |
 | `apps/e2e/empty-archived-editing.spec.ts`: first run creates a project from the main column (1440 and 375); archiving the only project gives the archived-only sidebar; Legacy attic and Legacy shelving have no write controls; Legacy attic restores from the banner and its Undo, pressed, gives the transition refusal; Home renovation archived with nothing live restores from the banner, then the header's Undo puts the banner back; a banner restore failure shows in the banner; Archive Kitchen shows Cabinets as a link and no commit, and following it lands on Cabinets; a forced late refusal says what to do; Archive and Settings restore through the same control; the digest's overdue link reaches the overdue task; a Markdown draft survives Cancel and navigation and Discard draft drops it; a Task List header counts its rows; the first row holds still as a drag starts; keyboard reaches the banner's Restore and Discard draft, and after each restore focus is on the heading or on the next owner's restore choice | End to end |
-| `build-sheet.test.mjs` profile 79: fails on a Capture scope context with no `ROWS` row; any write-control selector visible in a read-only row's region, from a named list pinned to exist in the web source (`data-canvas-add`, `data-empty-canvas-add`, `app-insertion-point`, `data-insertion-point-button`, `app-section-resize-handle`, `data-section-drag-handle`, `data-section-remove`, `data-section-config`, `data-section-title-edit`, `data-shortcut-drag-handle`, `data-shortcut-remove`, `data-unknown-section-drag-handle`, `data-unknown-section-remove`, `data-quick-create`, `data-task-complete`, `data-task-delete`, `data-markdown-edit`, `data-reflection-create`, `data-reflection-edit`, `.progress-section__controls`, `data-todo-toggle`, `data-todo-complete` and `data-todo-delete`; plus `data-section-collapse` and `data-shortcut-collapse` if Q4 is answered (b) or (c)), so a rename fails instead of passing silently; a read-only row without the banner or without header rename and Parent; a blocked confirmation with a commit button or a child without a link; restore choices whose option labels or default differ; a first-run row without the main-column New project; an archived-only sidebar without the link or with "No projects yet"; a draft row whose source does not equal the typed draft; a preview without the caption; a count different from the rendered rows; a drag row whose first row moved more than 1 px; any change outside the named cells and panels; Task List cells changing more than the header count; a missing pair; T01–T09, T11 or T12 above the slice-78 after counts (T10 is excluded, as in profile 78), except a T09 of 2 clicks if Q2 is answered (b) | Gate |
+| `build-sheet.test.mjs` profile 79: fails on a Capture scope context with no `ROWS` row; any write-control selector visible in a read-only row's region, from a named list pinned to exist in the web source (`data-canvas-add`, `data-empty-canvas-add`, `app-insertion-point`, `data-insertion-point-button`, `app-section-resize-handle`, `data-section-drag-handle`, `data-section-remove`, `data-section-config`, `data-section-title-edit`, `data-shortcut-drag-handle`, `data-shortcut-remove`, `data-unknown-section-drag-handle`, `data-unknown-section-remove`, `data-quick-create`, `data-task-complete`, `data-task-delete`, `data-markdown-edit`, `data-reflection-create`, `data-reflection-edit`, `.progress-section__controls`, `data-todo-toggle`, `data-todo-complete`, `data-todo-delete`, `app-task-row.cdk-drag` (the row's bare `cdkDrag`, `task-list-section.html:86`) and the row's details button (name ending ", open details", as `capture.ts:41` finds it); plus `data-section-collapse` and `data-shortcut-collapse` if Q4 is answered (b) or (c)), so a rename fails instead of passing silently; a read-only row without the banner or without header rename and Parent; a blocked confirmation with a commit button or a child without a link; restore choices whose option labels or default differ; a first-run row without the main-column New project; an archived-only sidebar without the link or with "No projects yet"; a draft row whose source does not equal the typed draft; a preview without the caption; a count different from the rendered rows; a drag row whose first row moved more than 1 px; any change outside the named cells and panels; Task List cells changing more than the header count; a pending Todos row whose `data-todo-complete` or `data-todo-delete` has `disabled` or lacks `aria-disabled="true"`; under Q7 (a), a read-only Todos or Reflections row showing the ordinary empty sentence (`data-todos-empty` text "There is no work…", or "No reflections yet."); a missing pair; T01–T09, T11 or T12 above the slice-78 after counts (T10 is excluded, as in profile 78), except a T09 of 2 clicks if Q2 is answered (b) | Gate |
 
 ## Boundaries touched
 
@@ -824,7 +836,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 - A Task List count of open versus done, grouping, or a count on other section types.
 - A new core task (for example "restore from the page"). T01–T12 are the measure.
 - Re-styling other empty states (the widgets' sentences, Todos, Reflections). They keep their
-  text; the §8 comb judges them.
+  text, except the archived-root sentences if Q7 is answered (a); the §8 comb judges the rest.
 
 ## Open questions
 
@@ -1005,7 +1017,7 @@ Each changes the shape of the work, so implementation waits for the user's answe
 - **Round 2 (2026-11-02):** five substantive and eight minor findings, each checked against the
   code; all held. Changes:
   - **Own-project restore** adds no toast. The page's own history is never announced
-    (`project-history-store.ts:393`), and the More menu's status choice has none either. Focus
+    (`history/project-history-store.ts:393`), and the More menu's status choice has none either. Focus
     goes to the project name heading, and the header's Undo is the way back. An ancestor restore
     keeps the existing cross-owner toast.
   - **Legacy attic's Undo** is not explained by `blockedBy`, which names only archived projects.
@@ -1075,3 +1087,21 @@ Each changes the shape of the work, so implementation waits for the user's answe
     - `restoreOwner` gives `not_found` its own sentence, with no Try again.
     - Citations: `whileWriting` at `:699`, the archive `@defer` at `project-header.html:104`,
       §21 at spec line 906, §23 at 1048.
+- **Round 5 (2026-11-02, cloud session):** one substantive and five minor findings, each checked
+  against the code; all held. Changes:
+  - **The Todos pending pair showed no difference at rest.** `_controls.scss:409-411` styles
+    native `:disabled` and `[aria-disabled='true']` with one rule. The pair now captures focus:
+    Shift+Tab from the pending workstream row's title link skips a native-disabled Complete
+    before and rests on the `aria-disabled` one after. A gate rule now fails a pending row whose
+    Complete or Delete is natively `disabled`. (The reviewer's Tab-from-checkbox wording was
+    corrected: the checkbox and Complete are exclusive branches, `todos-page.html:44-66`.)
+  - **Minor:**
+    - Q7 is carried through Do not's non-goal, Behaviour vs. appearance, step 6, the decision
+      row, the Reflections spec row, the gate, and the Home renovation archived pair.
+    - The gate's read-only list adds the task row's bare `cdkDrag` and its details button.
+    - The slice-78 after counts are held as constants in profile 79, since `ux-output/` is
+      git-ignored and absent from a fresh clone.
+    - Citations: `draft` at `markdown-source-editor.ts:31` and `ngOnInit` at `:41`;
+      `history/project-history-store.ts`; the contract row names the `ProjectPageRenderer`
+      interface too.
+    - The Todos pending row says 1440 light only.
