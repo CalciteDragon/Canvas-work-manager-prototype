@@ -703,8 +703,8 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 2. **Foundations.** `.state-message` variants, `RestoreStatusChoice`, Lab specimens and stories.
 3. **Restore one way.** Archive row and Settings adopt the choice.
 4. **Archived owner and banner.** Store `archivedOwner`, `readOnly`, `restoreOwner`, live and
-   degraded cases, the banner, its shell placement, the renderer input on every page, and
-   `restoreBlocked` from `readOnly`.
+   degraded cases, the banner, its shell placement, and the renderer input on every
+   page.
 5. **Read-only canvas.** Canvas, section, shortcut and unknown frames, the Task List's static rows,
    and collapse per Q4.
 6. **Read-only pages.** Todos (with `aria-disabled` for pending) and the Reflections page.
