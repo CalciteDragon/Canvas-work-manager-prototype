@@ -1,9 +1,9 @@
 <!-- plan id="79" status="active" summary="Redesign slice 6b-2 (TH10): first-run dashboard, archived pages read-only with restore in place, archive refusal said before, Markdown drafts kept, digest overdue line, Task List count" -->
 # Slice 79 — States: empty, archived and editing
 
-**State (2026-11-02):** plan written (S79PLAN), review rounds 1–3 applied. Started with
-`roadmap.mjs start`; `CURRENT_SLICE` is 79. Not yet accepted by the user; no implementation has
-started. Next: review round 4 (AGENTS.md step 2), recorded under Revisions.
+**State (2026-11-02):** plan written (S79PLAN), review rounds 1–4 applied (round 4 in a cloud
+session). Started with `roadmap.mjs start`; `CURRENT_SLICE` is 79. Not yet accepted by the user;
+no implementation has started. Next: review round 5 (AGENTS.md step 2), recorded under Revisions.
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
 [Slice 78](../completed/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
@@ -18,7 +18,7 @@ Cancel or navigation (direction principles 3, 4 and 6).
 
 ## Spec sections
 
-- **§21** adds empty and archived variants to slice 78's `.state-message` (spec line 907).
+- **§21** adds empty and archived variants to slice 78's `.state-message` (spec line 906).
 - **§23** gives the sidebar archived-only wording (line 1075) and keeps Settings › Archived
   projects as the recovery route (lines 1046–1049).
 - **§24** adds Home's first-run content and the digest's overdue line (lines 1107, 1126).
@@ -108,13 +108,15 @@ answered on 2026-10-29 and are not re-opened here.
         attic”. Try again."), shown in the banner, not the header. A `rule_violation`, for example
         when an ancestor was archived meanwhile, says "Couldn’t restore “Legacy attic”. Something
         above it may have been archived." with the reason under Details. It then queues a context
-        refresh, which moves the banner to the new outermost owner. `refreshContext()` returns
-        `void`, so the sentence never waits on it.
+        refresh, which moves the banner to the new outermost owner. A `not_found` (the owner was
+        removed or its archive undone elsewhere) says "Couldn’t restore “Legacy attic”. It may
+        have changed elsewhere." with no Try again, and queues the same refresh. `refreshContext()`
+        returns `void`, so neither sentence waits on it.
       - **Success** bumps `contextWriteEpoch`, as the page writes do (`:426`), so an older
         in-flight read cannot repaint the ancestor as archived.
       - **Feedback.** The write is reported to history with the owner's id and name, and it must
         run inside `whileWriting`, so `refreshContext` waits for it
-        (`project-workspace-store.ts:186-190, 697`).
+        (`project-workspace-store.ts:186-190, 699`).
         - **For an ancestor**, it is a cross-owner write. The existing cross-owner toast offers
           Undo and Open owner (§26, spec lines 1213–1215; `project-history-store.ts:393-405`).
         - **For the page's own project**, no toast is added. A write on the page's own history is
@@ -188,13 +190,19 @@ answered on 2026-10-29 and are not re-opened here.
     Delete are absent on a read-only project, and so is the Reflections page's composer. The Reflections page already passes
     `readOnly` when archived (`reflections-page.ts:40`). These are root-only pages, so no
     ancestor case arises.
+    - **Reachability.** An archived root's Todos and Reflections reads return no items
+      (`project-todos-service.ts:70`, `project-journal-service.ts:64`; §31 hides live contents).
+      So the absent controls are proved by component tests with rows supplied, and by the gate's
+      selectors; no capture shows an archived Todos row. What an archived root's Todos and
+      Reflections pages *say* instead of today's "There is no work under this project yet…"
+      (`todos-page.html:26-28`) is Open question 7.
   - **Decision entries.** A new decision entry records the rule. Amend
     [reactivating under an archived ancestor](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
     and [nesting and archive rules](../../decisions/2026-08-project-nesting-and-archive-rules.md).
     The domain does not change: every refusal still stands behind the UI.
 - **The archive refusal comes first** (L4-008). *User's choice.*
   - **The check.** `ProjectArchiveConfirm` gains a `liveChildren` input, and `ProjectHeader`,
-    which renders it (`project-header.html:101-106`), passes it through. The store computes it as
+    which renders it (`project-header.html:104-108`), passes it through. The store computes it as
     the direct children that are not archived, which is exactly what `assertNoActiveChildren`
     checks:
     - for a root, the top level of `subprojectTree()`;
@@ -262,8 +270,8 @@ answered on 2026-10-29 and are not re-opened here.
       The editor stays presentational and never injects the store.
     - **When it keeps.** A Cancel with a changed draft keeps it; `cancelRequested` now carries the
       draft, since the draft lives in `MarkdownSourceEditor.draft`
-      (`markdown-source-editor.ts:27`). An editor destroyed by navigation, by removal of its host,
-      or by a live archive keeps its draft too: the body reads the editor's draft through a
+      (`markdown-source-editor.ts:27`). An editor destroyed by navigation or by removal of its
+      host keeps its draft too (a live archive leaves it open, above): the body reads the editor's draft through a
       `viewChild` before it goes.
     - **When it forgets.** The store clears on the live event `prototype.reloaded` from
       `LIVE_UPDATES`, which the shell and workspace stores already handle
@@ -317,7 +325,8 @@ answered on 2026-10-29 and are not re-opened here.
 
 - Every finding under Findings closed closes on its before/after pair, or on its machine check in
   profile 79's gate.
-- T01–T09, T11 and T12 cost no more than their slice-78 after counts.
+- T01–T09, T11 and T12 cost no more than their slice-78 after counts, except a T09 of 2 clicks
+  if Open question 2 is answered (b).
 - `pnpm test`, `pnpm lint`, `pnpm e2e` and `pnpm --filter web storybook:build` pass.
 - The production build stays under the 1150 kB initial ceiling.
 - The user accepts the sheet at Gate 2.
@@ -359,7 +368,7 @@ failure below the fold.
 | Finding | Sev | Closed by |
 |---|---|---|
 | W1-001 | S2 | The first-run block's New project in the main column opens the one creation form |
-| W4-001 | S2 | The same block, both personas, both themes |
+| W4-001 | S2 | The same block for Demo (both themes), Alex (light) and Sam (dark), as captured |
 | L4-020 | S2 | The block says what the product is for; seven "Nothing…" cards are no longer the only content (Open question 3) |
 | W4-034 | S2 | "No active projects." with the Settings › Archived projects link when only archived projects exist |
 | L4-007 | S2 | The archived banner with Restore in place; read-only sections and pages; no add, edit, drag or delete controls under an archived project or ancestor |
@@ -371,8 +380,9 @@ failure below the fold.
 | W4-031 | S2 | The "Unsaved preview" caption |
 | L4-023 (count) | S2 | "N tasks" in the Task List frame header |
 
-Twelve items (11 S2, 1 S3). The carried candidates (drag reserve, Todos `[disabled]`) close
-on their pair and on the gate's archived-control check.
+Twelve items (11 S2, 1 S3). The drag reserve closes on its pair. Todos `[disabled]` closes on
+the "Todos write pending" pair (live Home renovation) and, for its read-only half, on component
+tests and the gate's selectors, since an archived root's Todos has no rows to capture.
 
 ## Acceptance check
 
@@ -500,8 +510,9 @@ through the host API in the rig, never by editing seeds.
 - **Digest.**
   - overdue-chaos Home as Demo, and busy-week Home.
   - Sam (digest only) after the rig creates, as Sam through the host API, the finding's own
-    repro: a project with a task due 2026-08-20. Every seed project is in Demo's workspace
-    (`seeds.ts:58`), and Sam has none anywhere, so Sam otherwise sees first run.
+    repro, on overdue-chaos: a project with a task due 2026-08-20. Sam has no project in any
+    seed (Alex has one, "Alex private plan" on nested-projects, `seeds.ts:465-466`), so Sam
+    otherwise sees first run.
   - The owner section reached from a listed overdue task.
 
   First run is also what Alex and Sam see in almost every seed. That is true, and intended.
@@ -515,7 +526,9 @@ through the host API in the rig, never by editing seeds.
   the count; a shortcut Task List's header.
 - **Drag.** A Task List row just after `cdkDragStarted`, at 1440 only (touch drag is not
   captured). The rig records the first row's top before and after drag start.
-- **Todos write pending.** Complete pending: `aria-disabled`, no native `disabled`.
+- **Todos write pending.** Live Home renovation's Todos with a completion held pending by a
+  delayed route (`route.fallback()` after the delay): `aria-disabled`, no native `disabled`
+  (before: `[disabled]="writesBlocked()"`, `todos-page.html:60,107`).
 - **Lab.** The `state-messages` and `section-frame` panels, and the new stories.
 
 **Gated within the change:**
@@ -541,18 +554,18 @@ every control it had.
 
 | Pair (before → after) | Seed, size, theme | Findings |
 |---|---|---|
-| Empty Home: seven "Nothing…" cards, small sidebar + → first-run block with New project | empty, 1440 light, 375 dark | W1-001, W4-001, L4-020 |
+| Empty Home: seven "Nothing…" cards, small sidebar + → first-run block with New project | empty: Demo 1440 light and 375 dark; Alex 1440 light; Sam 375 dark | W1-001, W4-001, L4-020 |
 | Main-column New project pressed → the creation form focused (Menu open at 375) | empty, 1440 dark, 375 light | W1-001 |
 | Sidebar, archived only: "No projects yet" → "No active projects." + Settings link | empty + archived fixture, 1440 dark, 375 light | W4-034 |
 | Legacy attic: full-weight header, accent "Add a section" → banner with Restore as, no add action | nested-projects, 1440 light, 375 dark | L1-028, L4-007 |
 | Home renovation archived: live Add task, Edit, drag and delete → read-only sections under the banner | nested-projects (rig), 1440 dark | L4-007 |
 | Legacy shelving under archived Legacy attic: fully editable → banner naming Legacy attic, read-only | nested-projects, 1440 light | L4-007 |
 | Banner restore and Undo: Home renovation archived → restored, then header Undo → banner back; Legacy attic's Undo pressed → the transition refusal | nested-projects (rig), 1440 dark | L4-007 |
-| Archived Todos: native-disabled Complete and Delete → absent | nested-projects (rig), 1440 light | carried (slice 75) |
+| Todos write pending: native `disabled` Complete and Delete → `aria-disabled` | nested-projects Home renovation (live, delayed completion), 1440 light | carried (slice 75) |
 | Archive Kitchen: commit offered → blocked form naming Cabinets as a link, Close only | nested-projects, 1440 dark, 375 light | L4-008 |
 | Late archive refusal: "Couldn’t archive … Try again." → "still has live workstreams. Archive them first." + Details | nested-projects, 1440 light | L4-008 |
 | Restore choice: Archive's lowercase preselected select and Settings' "Choose status" → one control | nested-projects Archive and Settings, 1440 light | L4-012 |
-| Digest overdue line with nothing to follow → the overdue tasks listed as links under it (per Q1) | overdue-chaos as Sam, 1440 dark, 375 light | W4-028 |
+| Digest overdue line with nothing to follow → the overdue tasks listed as links under it (per Q1) | overdue-chaos with the rig's Sam fixture, as Sam, 1440 dark, 375 light | W4-028 |
 | Markdown Cancel, then Edit: saved text → draft back with Discard draft | nested-projects Kitchen, 1440 light | L3-012 |
 | Markdown navigate away and back, then Edit: saved text → draft back | nested-projects Kitchen, 1440 dark | L3-012 |
 | Markdown Preview: only `aria-pressed` → "Unsaved preview" caption | nested-projects Kitchen, 1440 light, 375 dark | W4-031 |
@@ -633,7 +646,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | File | Change | Responsibility |
 |---|---|---|
 | `apps/web/src/styles/_controls.scss` | modify | `.state-message--empty` (sentence plus optional action) and `.state-message--archived` (banner weight), tokens only |
-| `shared/projects/restore-status-choice.{ts,html}` (+ spec, stories) | create | "Restore as" select with one option list and casing, the default from Q2, and Restore; emits `restore(status)`; `aria-disabled` while pending; takes `ProjectRestoreStatus` from contracts |
+| `shared/projects/restore-status-choice.{ts,html}` (+ spec, stories) | create | "Restore as" select with one option list and casing, the default from Q2, and Restore; emits `restore(status)`; `aria-disabled` while pending; takes `ProjectRestoreStatus` from contracts; a `subjectLabel` input gives Restore the accessible name `Restore <label>`, as `restoreActionAriaLabel` does today (`archived-region.ts:196-200`), so T09's `button(/^Restore /)` and its exact-label check (`tasks.ts:119-121`) still hold |
 | `prototype/design-lab/panels/primitive-panels.html` (+ `design-lab-page.spec.ts`) | modify | Empty and archived specimens in `state-messages` |
 | `prototype/design-lab/panels/live-panels.html` (`data-panel="section-frame"`) | modify | Header count specimen |
 
@@ -645,7 +658,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | `core/shell/shell-commands.ts` (+ spec) | create | `workspaceEmpty` and `requestCreate()`, provided by `AppShell`, so pages never inject `ShellStore` |
 | `core/shell/app-shell.ts` (+ spec) | modify | Provide `ShellCommands`, feed `workspaceEmpty`; on `requestCreate`, open the Menu when narrow and call `sidebar().reopenCreate()` after the drawer's focus move |
 | `core/shell/sidebar/sidebar.{ts,html}` (+ spec; `sidebar.stories.ts` create) | modify | Archived-only wording and link, `hasArchived` input, `.state-message--empty` |
-| `features/dashboard/dashboard-page.{ts,html,scss}` (+ spec; `dashboard-page.stories.ts` create) | modify | First-run block from `ShellCommands.workspaceEmpty()`; its New project (`data-first-run-create`) calls `requestCreate()` |
+| `features/dashboard/dashboard-page.{ts,html,scss}` (+ spec; `dashboard-page.stories.ts` create) | modify | First-run block from `ShellCommands.workspaceEmpty()`; its New project (`data-first-run-create`) calls `requestCreate()`; mounted behind `@defer (when workspaceEmpty())` if Q6 is answered (a) |
 | `features/dashboard/widgets/daily-digest/daily-digest-widget.{ts,html}` (+ spec), `widgets/widget-content.scss` | modify | The overdue tasks listed under the prose (Q1 (a)) |
 | `features/dashboard/widgets/task-origin-link.ts` (+ spec) | create | The owner-section link Today's rows build inline (`today-widget.html:9-18`), extracted so the digest uses the same rule |
 | `features/dashboard/widgets/today/today-widget.{ts,html}` | modify | Use `task-origin-link.ts`; no visible change |
@@ -661,13 +674,13 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | `features/projects/project-archive-confirm.{ts,html}` (+ spec; `project-archive-confirm.stories.ts` create) | modify | `liveChildren`; blocked form with links, statuses and Close only |
 | `features/projects/project-header.{ts,html}` (+ spec) | modify | Pass `liveChildren` to the confirmation it renders |
 | `features/projects/pages/archive-page.{ts,html}` (+ spec, stories) | modify | Declare `readOnly`; the archived-root note points at the banner |
-| `features/projects/project-canvas.{ts,html}` (+ spec, stories) | modify | No insertion, add, drag or resize when read-only; archived empty canvas sentence |
+| `features/projects/project-canvas.{ts,html}` (+ spec, stories) | modify | No insertion, add, drag or resize when read-only; the inline unknown-section frame (`project-canvas.html:145-161`) drops `data-unknown-section-drag-handle` and `data-unknown-section-remove`; archived empty canvas sentence |
 | `features/projects/sections/section-frame/project-section-frame.{ts,html}` (+ spec) | modify | Read-only frame: no rename, settings, remove or drag handle; `readOnly` to content; collapse per Q4; renders `reportSummary` |
 | `features/projects/shortcuts/shortcut-frame.{ts,html}` (+ spec) | modify | Read-only frame: no drag handle or remove; renders `reportSummary` |
 | `features/projects/sections/section-contract.ts`, `sections/registry.ts` (+ spec) | modify | `reportSummary` passed only to types marked `summary: true` (Task List) |
 | `features/projects/sections/tasks/task-list-section.{ts,html,scss}` (+ spec; `task-list-section.stories.ts` create) | modify | Archived read-only rows (static, Q5) distinct from the shortcut flavour; the count; drag hint as an overlay |
-| `features/projects/pages/todos-page.{ts,html}` (+ spec, stories) | modify | `readOnly` hides the task checkbox, Complete and Delete; pending uses `aria-disabled` |
-| `features/projects/pages/reflections-page.ts` (+ spec) | modify | Declares the renderer's `readOnly` (root-only page; equal to its existing archived check) |
+| `features/projects/pages/todos-page.{ts,html}` (+ spec, stories) | modify | `readOnly` hides the task checkbox, Complete and Delete; pending uses `aria-disabled`; the archived-root sentence if Q7 is (a) |
+| `features/projects/pages/reflections-page.{ts,html}` (+ spec) | modify | Declares the renderer's `readOnly` (root-only page; equal to its existing archived check); the archived-root sentence if Q7 is (a) |
 | `features/projects/archived-region/archived-region.{ts,html}` (+ spec) | modify | Use `RestoreStatusChoice` |
 | `features/settings/archived-projects/archived-projects-page.{ts,html}`, `archived-projects-store.ts` (+ specs, stories) | modify | Use `RestoreStatusChoice` |
 
@@ -726,7 +739,8 @@ Each step is sized for one fresh session and ends green with its docs in the sam
    profile's gate in `build-sheet.mjs`. Run it against before-against-before to prove the
    wiring.
 2. **Foundations.** `.state-message` variants, `RestoreStatusChoice`, Lab specimens and stories.
-3. **Restore one way.** Archive row and Settings adopt the choice.
+3. **Restore one way.** Archive row and Settings adopt the choice. The step ends by running T09
+   through `ux/tasks.ts` on nested-projects to show its locator and exact-label check still hold.
 4. **Archived owner and banner.** Store `archivedOwner`, `readOnly`, `restoreOwner`, live and
    degraded cases, the banner, its shell placement, and the renderer input on every
    page.
@@ -759,7 +773,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 | `project-workspace-store.spec.ts`: `archivedOwner` for an archived project, an archived root over a live child, and two archived levels (outermost wins); `null` for live; restore through the banner calls `projects.update(ownerId, {status})` and reports the receipt | L4-007 |
 | `project-workspace-store.spec.ts`: `liveChildren` is the current project's non-archived direct children; a `rule_violation` on archive gives "“X” still has live workstreams. Archive them first." with the reason as `Failure.reason` and starts a descendants re-read; `unreachable` keeps "Couldn’t archive “X”. Try again." | L4-008 |
 | `archived-banner.spec.ts`: own, ancestor and "archived, and so is" sentences name the right projects; Restore emits the chosen status for the owner; `aria-disabled` and `aria-busy` while pending; a failure renders in the banner with Details | L4-007, L1-028 |
-| `project-workspace-store.spec.ts` (`restoreOwner`): restoring an ancestor never paints or replaces `projectState`, updates `ancestorsState`, re-reads descendants and reports a cross-owner receipt; restoring the page's own project updates `projectState`; `unreachable` gives "Couldn’t restore “Legacy attic”. Try again." in the banner, not the header; a `rule_violation` gives "Couldn’t restore “Legacy attic”. Something above it may have been archived." with Details and queues a refresh; the write count holds `restoreBlocked` while pending | Owner write |
+| `project-workspace-store.spec.ts` (`restoreOwner`): restoring an ancestor never paints or replaces `projectState`, updates `ancestorsState`, re-reads descendants and reports a cross-owner receipt; restoring the page's own project updates `projectState`; `unreachable` gives "Couldn’t restore “Legacy attic”. Try again." in the banner, not the header; a `rule_violation` gives "Couldn’t restore “Legacy attic”. Something above it may have been archived." with Details and queues a refresh; a `not_found` gives "Couldn’t restore “Legacy attic”. It may have changed elsewhere." with no Try again and queues a refresh; the write count holds `restoreBlocked` while pending | Owner write |
 | `project-workspace-store.spec.ts` (live and degraded): `restoreOwner` runs inside `whileWriting`, so a live frame during it defers `refreshContext`; on success it bumps `contextWriteEpoch`, so an older in-flight read cannot repaint the archived ancestor; a live frame archiving the project or an ancestor makes it read-only; a live restore clears it; a failed quiet refresh keeps the last `archivedOwner` and `liveChildren`; Kitchen archived under an archived Home renovation yields Home renovation first, then Kitchen after it is restored | Live changes; archived twice |
 | `project-workspace-shell.spec.ts`: going read-only while the drawer is open closes it; an own-project banner restore moves focus to the project name heading and adds no toast; an ancestor restore moves focus to the heading and shows the cross-owner toast; in the archived-twice case focus lands on the banner's restore choice for the next owner | Live changes; feedback; focus |
 | `markdown-section-body.spec.ts:179` (kept): read-only arriving mid-draft still blocks Save and permits Cancel, and Cancel now keeps the draft | §30 unchanged |
@@ -770,7 +784,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 | `project-section-frame.spec.ts`, `shortcut-frame.spec.ts`: read-only frames have no rename, settings, remove or drag handle and pass `readOnly: true`; collapse per Q4; `reportSummary` text renders after the name; live unchanged | L4-007 |
 | `section registry spec`, `project-section-frame.spec.ts`: only a `summary: true` type receives `reportSummary`, and no section logs NG0303; at 375 a long name truncates and the controls keep their offsets | L4-023 |
 | `task-list-section.spec.ts`: archived read-only rows are static with no Complete, Delete, drag or drawer, and say "No tasks." when empty; the shortcut flavour still links to its source; the count reports "N tasks" after a read, `null` while loading, after a failure or at zero; the drag hint overlays quick-add without changing the first row's offset | L4-007, L4-023, carried |
-| `todos-page.spec.ts`: read-only has no task checkbox, Complete or Delete; a pending completion gives `aria-disabled="true"` with a guarded click and no `disabled` attribute | Carried (slice 75) |
+| `todos-page.spec.ts`: read-only, with rows supplied by the test (the domain returns none for an archived root), has no task checkbox, Complete or Delete; the archived-root empty sentence per Q7; a pending completion gives `aria-disabled="true"` with a guarded click and no `disabled` attribute | Carried (slice 75) |
 | `reflections-page.spec.ts:234` (kept): the composer is absent on an archived root | L4-007 |
 | `restore-status-choice.spec.ts`: one option list in one casing, default per Q2, Restore emits the status, `aria-disabled` while pending | L4-012 |
 | `archived-region.spec.ts`, `archived-projects-page.spec.ts`: both render `RestoreStatusChoice` with the same options and default, and restore through it as before; Settings' focus after a restore lands on the next row's choice | L4-012 |
@@ -814,7 +828,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 
 ## Open questions
 
-Each changes the shape of the work, so implementation waits for the user's answers. There are six.
+Each changes the shape of the work, so implementation waits for the user's answers. There are seven.
 
 1. **Where does the digest's overdue line lead?** (W4-028)
    - *Context.* The digest is provider prose with no task ids. The overdue tasks are in the same
@@ -847,7 +861,7 @@ Each changes the shape of the work, so implementation waits for the user's answe
      - **(b)** Everywhere starts on "Choose status", with Restore disabled until a status is
        chosen.
    - *Recommendation:* **(a)**. The status is shown before the press, so nothing is guessed
-     silently. T09 and the banner stay one click. §23 (spec line 1047) asks that "Restore requires
+     silently. T09 and the banner stay one click. §23 (spec line 1048) asks that "Restore requires
      a deliberate non-archived status". (a) reads that as a visible, changeable status; (b) reads
      it as an explicit choice. The spec and the decision are amended either way.
    - *Impact.* (b) raises T09 from 1 to 2 clicks, which the plan would record as accepted. It also
@@ -895,11 +909,13 @@ Each changes the shape of the work, so implementation waits for the user's answe
      - `ShellCommands`, the first-run block and the digest list.
 
      The blocked confirmation costs nothing initially: `ProjectArchiveConfirm` is already behind
-     `@defer` (`project-header.html:101`).
+     `@defer` (`project-header.html:104`).
    - *Options.*
      - **(a)** Plan for the ceiling. The banner (with `RestoreStatusChoice`) goes behind
        `@defer (when readOnly())`, and the first-run block behind `@defer (when workspaceEmpty())`,
-       each with an empty placeholder so nothing shifts. Each step records the bundle. If it would
+       each with an empty placeholder. The banner cannot reserve its space ahead of time, since
+       `readOnly()` is known only once the context read lands, so the canvas moves down once,
+       when the chunk arrives; the gate measures after settling. Each step records the bundle. If it would
        still cross, stop and ask.
      - **(b)** Raise the ceiling now, for example to 1,200 kB, recorded as an amendment to
        [the budget decision](../../decisions/2026-08-initial-bundle-budget.md).
@@ -911,6 +927,26 @@ Each changes the shape of the work, so implementation waits for the user's answe
    - *Impact.* (a) makes the banner's first paint follow its chunk. The gate's banner row asserts
      presence after settling, not on the first frame. (b) needs the user's explicit approval;
      the ceiling has been theirs to move twice.
+
+7. **What an archived root's Todos and Reflections pages say.** (TH10, false empty states)
+   - *Context.* An archived root's Todos and Reflections reads return no items, on purpose: §31
+     hides an archived project's live contents (`project-todos-service.ts:68-70`,
+     `project-journal-service.ts:64`). The pages then show their ordinary empty sentences, "There
+     is no work under this project yet — no tasks, and no workstreams." (`todos-page.html:26-28`)
+     and "No reflections yet." (`reflections-page.html:98`). Under the new banner these are
+     false: the work exists and comes back on restore. No finding names these two pages, but they
+     are TH10's root cause, and this slice captures both pages on archived Home renovation.
+   - *Options.*
+     - **(a)** Web only, here: with `readOnly` true, each page shows the `.state-message--empty`
+       sentence "Its todos come back when “X” is restored." / "Its reflections come back when “X”
+       is restored." in place of the ordinary one. Two strings, two spec cases, no new pair (the
+       archived Home renovation captures already show them).
+     - **(b)** Leave the sentences, and file the false empties for the §8 comb.
+   - *Recommendation:* **(a)**. It is two strings on pages this slice already changes and
+     captures, and leaving a false sentence directly under the banner contradicts the banner.
+   - *Impact.* (a) adds the two strings to `todos-page.html` and `reflections-page.html`, a case
+     each to their specs and a gate rule (no ordinary empty sentence in a read-only row). No
+     domain or contract change. (b) leaves the slice as planned and records the deferral.
 
 **Defaults taken** (small and non-shape-changing; say if any is wrong):
 
@@ -925,6 +961,8 @@ Each changes the shape of the work, so implementation waits for the user's answe
 - **The banner** restores the outermost archived owner, and a failure shows in the banner.
 - **The blocked confirmation** lists each child with its status.
 - **The digest** lists at most five overdue tasks (if Q1 is (a)).
+- **A restore that finds its owner gone** (`not_found`) says "Couldn’t restore “X”. It may have
+  changed elsewhere." with no Try again.
 - **The late refusal** says "“X” still has live workstreams. Archive them first."
 - **The empty variant** is applied only to the surfaces this slice touches.
 
@@ -1014,3 +1052,26 @@ Each changes the shape of the work, so implementation waits for the user's answe
     - Digest rows use `data-digest-overdue`, so `objects.spec.ts:41` stays unique.
     - Under a `null` digest no overdue list shows.
     - Q5(b) is stated as built here if chosen.
+- **Round 4 (2026-11-02, cloud session):** three substantive and seven minor findings, each
+  checked against the code; all held. Changes:
+  - **The archived Todos pair could not exist.** An archived root's Todos and Reflections reads
+    return no items (`project-todos-service.ts:70`, `project-journal-service.ts:64`), so the pair
+    showed nothing either side. It is replaced by "Todos write pending" on live Home renovation
+    (before: native `disabled`, `todos-page.html:60,107`). The read-only half is proved by
+    component tests with rows supplied and by the gate's selectors. What those pages say instead
+    of their false empty sentence is new Open question 7.
+  - **Done when** now carries Q2(b)'s T09 exception, as the gate already did.
+  - **Personas in the pairs.** The first-run pair names Demo, Alex (light) and Sam (dark), and
+    W4-001's closure says what is captured. The digest pair names the rig's Sam fixture on
+    overdue-chaos, since no seed gives Sam a project.
+  - **Minor:**
+    - The "destroyed by a live archive" clause left from round 2 was dropped.
+    - Seed ownership corrected: Alex has "Alex private plan" on nested-projects.
+    - Q6(a) states that the banner moves the canvas once, when its chunk lands; the dashboard
+      row names the first-run `@defer`.
+    - `RestoreStatusChoice` takes a `subjectLabel` for `Restore <label>`, and step 3 re-runs
+      T09.
+    - The canvas row drops the inline unknown-section controls.
+    - `restoreOwner` gives `not_found` its own sentence, with no Try again.
+    - Citations: `whileWriting` at `:699`, the archive `@defer` at `project-header.html:104`,
+      §21 at spec line 906, §23 at 1048.
