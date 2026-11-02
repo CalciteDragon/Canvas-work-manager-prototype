@@ -110,6 +110,33 @@ test.describe('failures and loading at 1440', () => {
     await region.getByRole('button', { name: 'Try again', exact: true }).click();
     await expect(region.locator('[data-task-row]').first()).toBeVisible();
     await expect(region.locator('[data-failure-sentence]')).toHaveCount(0);
+    // Open question 11: the pressed button leaves with the failure, so focus moves to the section's heading.
+    await expect(region.locator('[data-section-title]')).toBeFocused();
+  });
+
+  test('a keyboard Try again that recovers Home or the sidebar moves focus to its heading, not the top of the page (Q11)', async ({ page }) => {
+    await seed('nested-projects');
+    let homeFailing = true;
+    let projectsFailing = true;
+    await fail(page, /^\/api\/dashboard$/, 'GET', 'Dashboard read failed', () => homeFailing);
+    await fail(page, /^\/api\/projects$/, 'GET', 'Projects read failed', () => projectsFailing);
+    await page.goto('/app');
+    const home = page.locator('[data-dashboard-error]');
+    const sidebar = page.locator('app-sidebar [data-projects-error]');
+    await expect(home.locator('[data-failure-sentence]')).toBeVisible();
+    await expect(sidebar.locator('[data-failure-sentence]')).toBeVisible();
+
+    homeFailing = false;
+    await home.getByRole('button', { name: 'Try again', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('[data-dashboard-tile]').first()).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeFocused();
+
+    projectsFailing = false;
+    await sidebar.getByRole('button', { name: 'Try again', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('app-sidebar app-project-tree-item').first()).toBeVisible();
+    await expect(page.locator('app-sidebar [data-projects-toggle]')).toBeFocused();
   });
 
   test('the real provider fails only the digest: six widgets render beside it and no provider text shows', async ({ page }) => {

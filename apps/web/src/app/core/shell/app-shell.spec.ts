@@ -81,6 +81,24 @@ describe('AppShell', () => {
     expect(element.querySelector('[data-projects-empty]')).not.toBeNull();
   });
 
+  // Slice 78, Open question 11 (user decision, 2026-11-01): focus does not fall to the top of the page.
+  it('moves focus from the sidebar’s pressed Try again to the Projects heading when the list recovers', async () => {
+    const { fixture, element } = await renderShell({
+      failOn: { 'projects.list': new GatewayError('unreachable', 0, 'the prototype host is not running') },
+    });
+    document.body.append(element);
+    const gateway = TestBed.inject(WORK_MANAGER_GATEWAY) as unknown as { options: { failOn?: unknown } };
+    gateway.options.failOn = undefined;
+    const retry = element.querySelector<HTMLElement>('[data-projects-error] [data-recovery="try-again"]')!;
+    retry.focus();
+    retry.click();
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-projects-error]')).toBeNull();
+    expect(document.activeElement).toBe(element.querySelector('[data-projects-toggle]'));
+    element.remove();
+  });
+
   it('keeps the explicit theme when a different persona loads (§22)', async () => {
     localStorage.setItem('cwm.theme', 'dark');
 

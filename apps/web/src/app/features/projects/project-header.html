@@ -4,7 +4,7 @@
   }}</span>
 
   <div class="project-header__identity">
-    <h1 data-project-name [attr.data-route-focus]="routeLanding() ? '' : null" tabindex="-1" class="project-header__name">{{ project().name }}</h1>
+    <h1 data-project-name [attr.data-route-focus]="routeLanding() ? '' : null" data-recovery-focus tabindex="-1" class="project-header__name">{{ project().name }}</h1>
     @if (project().description; as description) {
       <p data-project-description class="project-header__description">{{ description }}</p>
     }

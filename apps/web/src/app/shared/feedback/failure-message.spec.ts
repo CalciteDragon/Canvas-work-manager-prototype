@@ -107,3 +107,80 @@ describe('FailureMessage (Slice 78, §21, §24)', () => {
     expect(host.retried).not.toHaveBeenCalled();
   });
 });
+
+@Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FailureMessage],
+  template: `
+    <nav><button type="button" data-recovery-focus data-nav-heading>Projects</button></nav>
+    <main>
+      @if (failed()) {
+        <h1 data-failed-heading>Couldn’t load</h1>
+      } @else {
+        <h1 data-page-heading data-recovery-focus tabindex="-1">Page</h1>
+      }
+      <section>
+        <h2 data-region-heading [attr.data-recovery-focus]="marked() ? '' : null" tabindex="-1">Region</h2>
+        @if (failed()) {
+          <app-failure-message data-region-error [failure]="failure" recovery="try-again" (retry)="0" />
+        }
+        <button type="button" data-elsewhere>Elsewhere</button>
+      </section>
+    </main>
+  `,
+})
+class RecoveryHost {
+  readonly failure = FAILURE;
+  readonly failed = signal(true);
+  readonly marked = signal(true);
+}
+
+describe('FailureMessage focus after a successful Try again (Slice 78, Q11)', () => {
+  const recover = async (configure: (host: RecoveryHost) => void = () => undefined, before: (element: HTMLElement) => void = () => undefined) => {
+    const fixture = TestBed.createComponent(RecoveryHost);
+    configure(fixture.componentInstance);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    document.body.append(element);
+    const retry = element.querySelector<HTMLButtonElement>('[data-region-error] button[data-recovery]')!;
+    retry.focus();
+    retry.click();
+    before(element);
+    fixture.componentInstance.failed.set(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return { element, cleanup: () => element.remove() };
+  };
+
+  it('moves focus to the recovered region’s heading when the failure and its focused button leave', async () => {
+    const { element, cleanup } = await recover();
+    expect(document.activeElement).toBe(element.querySelector('[data-region-heading]'));
+    cleanup();
+  });
+
+  it('leaves focus where the person moved it while the read ran', async () => {
+    const { element, cleanup } = await recover(undefined, (element) => element.querySelector<HTMLElement>('[data-elsewhere]')!.focus());
+    expect(document.activeElement).toBe(element.querySelector('[data-elsewhere]'));
+    cleanup();
+  });
+
+  it('without a heading before it, takes the first one its landmark shows after recovery, never another landmark’s', async () => {
+    const { element, cleanup } = await recover((host) => host.marked.set(false));
+    expect(document.activeElement).toBe(element.querySelector('[data-page-heading]'));
+    cleanup();
+  });
+
+  it('does nothing when Try again did not hold focus', async () => {
+    const fixture = TestBed.createComponent(RecoveryHost);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    document.body.append(element);
+    element.querySelector<HTMLButtonElement>('[data-region-error] button[data-recovery]')!.click();
+    (document.activeElement as HTMLElement | null)?.blur();
+    fixture.componentInstance.failed.set(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(document.body);
+    element.remove();
+  });
+});

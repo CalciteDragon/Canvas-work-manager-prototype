@@ -12,7 +12,7 @@
     (keydown)="keydown($event)"
   >
     <header class="section-create-dialog__header">
-      <h2 id="section-create-title">{{ mode() === 'section' ? 'Add a section' : 'Add a shortcut' }}</h2>
+      <h2 id="section-create-title" tabindex="-1" data-recovery-focus>{{ mode() === 'section' ? 'Add a section' : 'Add a shortcut' }}</h2>
       @if (shortcutsAllowed() && mode() === 'section') {
         <button data-create-shortcut-mode type="button" class="button button--sm button--ghost" (click)="switchToShortcut()">Add shortcut</button>
       } @else if (mode() === 'shortcut') {

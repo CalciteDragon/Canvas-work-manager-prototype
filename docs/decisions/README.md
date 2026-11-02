@@ -162,6 +162,7 @@ Archive-label revision; both entries record acceptance.
 
 - [Lifts use the browser's top layer](2026-10-lifts-use-the-top-layer.md) — current; Slice 73 native modes and one transient lift.
 - [Route focus lands lost focus after user navigation](2026-10-route-focus-lands-lost-focus.md) — current; Slice 73 bounded heading/main landing.
+- [Focus after a successful Try again goes to the recovered region's heading](2026-11-focus-after-try-again-goes-to-the-heading.md) — current; Slice 78 Open question 11 (user decision, 2026-11-01).
 - [More is a menu with a single-commit details dialog](2026-10-more-is-a-menu-with-a-details-dialog.md) — current; Slice 73 status radios and one details PATCH.
 
 | Entry | Settled | Status |

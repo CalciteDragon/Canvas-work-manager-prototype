@@ -63,6 +63,14 @@ caller's `data-*-error` hook, `sentenceId` names the only element a control shou
 by, and the reason sits beside it in a native `<details>`. Slice 78 is moving every store to it;
 until a store has moved, its own message still ends with the host's reason.
 
+A successful Try again removes the message and its button. If the button held focus, focus moves
+to the nearest `data-recovery-focus` element before the message in the same landmark (`main`,
+`nav` or a dialog), else to the first one that landmark shows after recovery. That is a region's
+heading (with `tabindex="-1"`) or, in the sidebar, the Projects button. A recovering region marks
+its heading; a page with its own hand-off (Settings › Archived projects) marks none, and its
+hand-off runs first. Focus someone moved elsewhere during the read stays there
+([decision](../../decisions/2026-11-focus-after-try-again-goes-to-the-heading.md)).
+
 An inline write failure whose sentence is off screen can be pinned to its scroll port's edge.
 `PinnedFailureDirective` (`[appPinnedFailure]`, on the row or frame that owns the failure, with
 `pinnedFailureSubject` and `pinnedFailureSentence`, the sentence's id) registers each failure

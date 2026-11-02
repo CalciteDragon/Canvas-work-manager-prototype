@@ -11,7 +11,7 @@
 >
   <header class="shortcut-frame__header">
     <div class="shortcut-frame__heading">
-      <h2 data-shortcut-title tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
+      <h2 data-shortcut-title data-recovery-focus tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
         <span class="shortcut-frame__icon" aria-hidden="true"><app-icon name="open" /></span>
         {{ name() }}
       </h2>

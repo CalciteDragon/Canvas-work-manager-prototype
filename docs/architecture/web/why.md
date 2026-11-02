@@ -137,6 +137,8 @@ without another overlay dependency ([top-layer decision](../../decisions/2026-10
 Their explicit opener/fallback rule keeps focus predictable across menus and deferred dialogs.
 [Route focus](../../decisions/2026-10-route-focus-lands-lost-focus.md) recovers only lost focus,
 so feature-owned hand-offs retain priority.
+A successful Try again moves focus from its leaving button to the
+[recovered region's heading](../../decisions/2026-11-focus-after-try-again-goes-to-the-heading.md).
 [More's menu and details dialog](../../decisions/2026-10-more-is-a-menu-with-a-details-dialog.md)
 separate immediate choices from a single-commit draft.
 

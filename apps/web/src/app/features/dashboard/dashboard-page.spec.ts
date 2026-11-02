@@ -206,6 +206,23 @@ describe('DashboardPage (§24, §25)', () => {
     expect(element.querySelector('[data-dashboard-error]')).toBeNull();
     expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(1);
   });
+
+  // Slice 78, Open question 11 (user decision, 2026-11-01): focus does not fall to the top of the page.
+  it('moves focus from a pressed Try again to the Home heading when Home recovers', async () => {
+    const { fixture, element, gateway } = await renderPage([widget('w-today', 'today')], {
+      failWith: new GatewayError('internal_error', 500, 'boom'),
+    });
+    document.body.append(element);
+    gateway.options.failWith = undefined;
+    const retry = element.querySelector<HTMLElement>('[data-dashboard-error] [data-recovery="try-again"]')!;
+    retry.focus();
+    retry.click();
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-dashboard-error]')).toBeNull();
+    expect(document.activeElement).toBe(element.querySelector('h1'));
+    element.remove();
+  });
 });
 
 // Slice 78 (L4-022): the provider failing costs the digest, not Home.
@@ -246,6 +263,21 @@ describe('DashboardPage — a failed digest (§24, §43)', () => {
     expect(element.querySelector('[data-widget-failure]')).toBeNull();
     expect(element.querySelectorAll('[data-widget-digest-line]')).toHaveLength(2);
     expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(7);
+  });
+
+  it('moves focus from the digest’s pressed Try again to the digest’s heading when it recovers (Q11)', async () => {
+    const { fixture, element, gateway } = await renderPage(everyWidget(), { dashboard: dashboardWithoutDigest() });
+    vi.spyOn(gateway.dashboard, 'get').mockResolvedValueOnce(populated());
+    document.body.append(element);
+    const retry = element.querySelector<HTMLElement>('[data-widget-failure] [data-recovery="try-again"]')!;
+    retry.focus();
+    retry.click();
+    await new Promise((settled) => setTimeout(settled));
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-widget-failure]')).toBeNull();
+    expect(document.activeElement).toBe(element.querySelector('[data-widget-type="daily_digest"] [data-widget-title]'));
+    element.remove();
   });
 
   it('ends visibly when the digest’s retry fails again', async () => {
