@@ -374,7 +374,7 @@ redesign slice 6b-1 (TH10), closes ten findings (9 S2, 1 S3).
 - **Deferred:** Slice 79 takes the header archive refusal's sentence. The §8 comb takes the
   history Retry left by a write that failed while the workspace was unreachable.
 
-**Next: [Slice 79](../planned/79-empty-archived-and-editing.md)**, redesign slice 6b-2 (empty,
+**Next: [Slice 79](79-empty-archived-and-editing.md)**, redesign slice 6b-2 (empty,
 archived and editing states). It starts when the user gives the go-ahead, with `roadmap.mjs
 start`. The §8 comb follows 6b.
 

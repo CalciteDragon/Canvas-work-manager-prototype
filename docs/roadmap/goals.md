@@ -133,7 +133,7 @@ redesign slice 6b-1 (TH10). A failed read now shows one failure message, in prod
 Try again, and never claims the content is empty. When the read recovers, focus moves to the
 section's heading. The digest can fail without taking the rest of Home with it, and not-found and
 no-access pages lead back to Home. The accepted sheet has 194 pairs and zero gate failures.
-Redesign slice 6b-2, [Slice 79](planned/79-empty-archived-and-editing.md) (empty, archived and
+Redesign slice 6b-2, [Slice 79](active/79-empty-archived-and-editing.md) (empty, archived and
 editing states), is next. It starts when the user gives the go-ahead.
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
