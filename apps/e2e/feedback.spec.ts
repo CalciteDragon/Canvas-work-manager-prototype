@@ -184,7 +184,7 @@ const starred: { row: string; route: string; act: (page: Page, mode: Mode) => Pr
       await press(dialog.getByRole('button', { name: 'Create', exact: true }), mode);
     } },
   { row: 'Archive-page Restore', route: '/projects/project-renovation/pages/archive', message: /^Restored (“.+” to .+|.+ as .+)\.$/, expected: ['Undo', 'Dismiss'], focusInToast: true,
-    act: (page, mode) => press(page.locator('[data-archived-restore]:not([disabled])').first(), mode) },
+    act: (page, mode) => press(page.locator('[data-archived-restore]:not([disabled]), [data-restore-action]:not([disabled])').first(), mode) },
   { row: 'Todos workstream Complete', route: '/projects/project-renovation/pages/todos', message: /^Completed Kitchen\.$/, expected: ['Undo', 'Open Kitchen', 'Dismiss'], focusInToast: true,
     act: (page, mode) => press(page.getByRole('button', { name: 'Complete Kitchen', exact: true }), mode) },
 ];

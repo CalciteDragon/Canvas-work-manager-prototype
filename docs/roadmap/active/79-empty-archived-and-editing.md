@@ -8,7 +8,26 @@ continuation)**: profile 79 in `build-sheet.mjs`, driven by 23 fixture tests in
 `build-sheet.test.mjs` (all tooling tests green; profiles 71–78 unchanged). Commits 3fdab1e (the
 gate), f142b00 and 418c86f (fixes from the first cold review) and the closing commit (fixes from the
 second). **Step 2 (foundations) is done (S79S2, cloud session)**; see the Step 2 bullet below.
-Commits 83f6e13 (code and docs) and the handoff commit. **Next is step 3 (restore one way).**
+Commits 83f6e13 (code and docs) and the handoff commit. **Step 3 (restore one way) is done
+(S79S3)**; see the Step 3 bullet below. **Next is step 4 (archived owner and banner).**
+- **Step 3:** Archive's workstream rows (`archived-region`) and Settings › Archived projects render
+  `RestoreStatusChoice`; the duplicate option lists, Settings' "Choose status" and its "stays
+  disabled" rule are gone (`ArchivedProjectsStore.statusFor` is Active until chosen). **Hooks
+  decided:** the choice keeps its own `data-restore-status` / `data-restore-action`; Archive's other
+  rows keep `data-archived-restore`, and `archive-page.ts` (`RESTORE_CONTROLS`) and
+  `feedback.spec.ts:187` look for either; the e2e project-row locators moved (`archive.spec.ts`,
+  `archived-projects.spec.ts`, `web.spec.ts:220`). **Pending decided:** the choice's Restore reads
+  "Restoring…" while `pending` (same accessible name, `aria-disabled`, keeps focus); the restoring
+  row is pending, the others disabled, on both pages. Settings' focus after a restore, and on
+  dismissing its toast, lands on the next row's status select; Archive's dismissal still finds the
+  next Restore (only Settings' target is specified). §23 and §31 notes and the actionable-archive
+  decision's amendment landed with the code (44990eb). Unit and the four touched e2e specs green
+  (`archive`, `archived-projects`, `web`, `feedback`: 53 passed); `archived-projects.spec.ts`'s
+  focus test now reads the sibling's index, since dismissal lands on a row when one took its place.
+  **T09** run through `ux/tasks.ts` on nested-projects (rig servers 4257/4357, a throwaway
+  one-task spec, not committed): completed, 1 click, "Restored Legacy attic as Active.", the exact
+  label gone from Archive. Bundle **1,142.88 kB** initial. The step's cold review found no
+  substantive defect; two minors fixed (the feedback row and a `projects/how.md` sentence).
 - **Step 2:** `.state-message--empty` and `.state-message--archived` in `_controls.scss` (tokens
   only, no danger colour); `shared/projects/restore-status-choice.{ts,html,scss}` (+ spec, 6
   tests; stories `Default`, `Pending`, `Disabled`, `InArchivedBanner`), and
@@ -98,7 +117,8 @@ Commits 83f6e13 (code and docs) and the handoff commit. **Next is step 3 (restor
   on the commit form, opened from the menu item `/^Archive (project|workstream)…$/`;
   `[data-todo-row]`, `[data-todo-link]` and `[data-todo-complete]`; `[data-create-project-name]`.
   The banner counts as shown when its host or any of its content has a box.
-- **Bundle:** 1,141.59 kB initial after step 2 (1,140.75 before; ceiling 1,150 kB, not raised).
+- **Bundle:** 1,142.88 kB initial after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
+  1,150 kB, not raised). Steps 4 and 8 put the banner and first-run block behind `@defer` (Q6 (a)).
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
 [Slice 78](../completed/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
@@ -1491,3 +1511,9 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   schema), so the row says "imports only from contracts". The step's cold review also had the
   component, stories, §21 paragraph and decision amendment say only what is true now: no product
   page renders the choice or the variants until steps 3 and 4.
+- **2026-11-04, step 3 (S79S3).** Stage 0's note that the e2e specs stay green "if
+  `RestoreStatusChoice` keeps … the row hooks" no longer holds as written: the choice keeps its own
+  hooks, so the project-row locators in `archive.spec.ts`, `archived-projects.spec.ts`, `web.spec.ts`
+  and `feedback.spec.ts` moved, and `archived-projects.spec.ts`'s dismissal-to-heading assertion
+  became index-based (§77: the next row's choice is now a valid target). The choice gained
+  "Restoring…" text while pending, as Archive and Settings already said.

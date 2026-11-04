@@ -524,7 +524,8 @@ links to its own route. Settings recovery has Open it without Undo because it ha
 history store. Restore focus observes the native toast action until it has a nonzero layout box,
 inside the existing pending task. It moves focus only while the removed control or body still
 owns it at that point. Closing the toast, a newer Restore or component destruction cancels and
-settles the observation; dismissal falls back to a surviving Restore or the heading.
+settles the observation; dismissal falls back to a surviving Restore (in Settings, the restore
+choice of the row now at the restored row's place) or the heading.
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
