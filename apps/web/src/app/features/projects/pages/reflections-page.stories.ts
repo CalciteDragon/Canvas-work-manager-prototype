@@ -106,7 +106,7 @@ const unlinkedJournal = ProjectJournalResultSchema.parse({
   }],
 });
 
-const gatewayFor = (answer: 'full' | 'unlinked' | 'reopened' | 'archived' | 'empty' | 'no-container' | 'loading' | 'journal-error' | 'picker-error' | 'failed') => {
+const gatewayFor = (answer: 'full' | 'unlinked' | 'reopened' | 'archived' | 'archived-root' | 'empty' | 'no-container' | 'loading' | 'journal-error' | 'picker-error' | 'failed') => {
   const completedWork = ProjectCompletedWorkResultSchema.parse({
     projectId: PROJECT,
     candidates: answer === 'full' ? [subject] : [],
@@ -124,7 +124,9 @@ const gatewayFor = (answer: 'full' | 'unlinked' | 'reopened' | 'archived' | 'emp
             ? reopenedJournal
             : answer === 'archived'
               ? archivedJournal
-              : { projectId: PROJECT, items: [] },
+              : answer === 'archived-root'
+                ? { projectId: PROJECT, items: [], hiddenItemCount: 3 }
+                : { projectId: PROJECT, items: [] },
     completedWork,
   });
   if (answer === 'loading') {
@@ -193,6 +195,15 @@ export const RetainedArchivedSubject: Story = {
 
 export const Empty: Story = {
   decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor('empty') }] })],
+};
+
+/**
+ * Slice 79, Q7: an archived root's journal answers no entries and how many a restore brings back;
+ * the page is read-only, so there is no composer. (`RetainedArchivedSubject` is a live root.)
+ */
+export const ArchivedRoot: Story = {
+  args: { readOnly: true },
+  decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor('archived-root') }] })],
 };
 
 export const NoContainer: Story = {

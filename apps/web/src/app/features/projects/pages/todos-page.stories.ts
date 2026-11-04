@@ -152,6 +152,19 @@ export const NoWork: Story = {
   decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(result([])) }] })],
 };
 
+/**
+ * Slice 79, Q7: an archived root answers no rows and how many a restore brings back. The page is
+ * read-only, so a row, were there one, would carry no checkbox, Complete or Delete.
+ */
+export const ArchivedRoot: Story = {
+  args: { readOnly: true },
+  decorators: [
+    applicationConfig({
+      providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor({ projectId: ROOT, items: [], hiddenItemCount: 6 }) }],
+    }),
+  ],
+};
+
 export const Loading: Story = {
   decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor('pending') }] })],
 };

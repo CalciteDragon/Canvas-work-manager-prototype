@@ -142,6 +142,32 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     );
   });
 
+  // Slice 79, Q7: an archived root's journal answers no entries and how many a restore would show.
+  it('follows the journal’s hiddenItemCount, 0 when absent, and never keeps a count over a failure', async () => {
+    const { store, gateway } = setup();
+    expect(store.hiddenCount()).toBe(0);
+    await store.load(PROJECT, PAGE);
+    expect(store.hiddenCount()).toBe(0);
+
+    gateway.journal.get = async () => ({ projectId: PROJECT, items: [], hiddenItemCount: 3 });
+    await store.retryJournal();
+    expect(store.hiddenCount()).toBe(3);
+
+    // After a restore the live journal carries entries and no count.
+    gateway.journal.get = async () => journal;
+    await store.retryJournal();
+    expect(store.hiddenCount()).toBe(0);
+
+    gateway.journal.get = async () => ({ projectId: PROJECT, items: [], hiddenItemCount: 3 });
+    await store.retryJournal();
+    gateway.journal.get = async () => {
+      throw new GatewayError('unreachable', 0, 'journal offline');
+    };
+    await store.retryJournal();
+    expect(store.journalError()).not.toBeNull();
+    expect(store.hiddenCount()).toBe(0);
+  });
+
   it('keeps the picker usable when the journal read fails, and retries only that read', async () => {
     const { store, gateway } = setup();
     gateway.journal.get = async () => {

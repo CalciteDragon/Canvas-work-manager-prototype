@@ -92,12 +92,12 @@ const addReceipt: OperationReceipt = {
   expiresAt: '2026-09-06T10:00:00.000Z',
 };
 
-const render = async (options: { withSection?: boolean; onData?: () => void; completedWork?: typeof completedWork } = {}) => {
+const render = async (options: { withSection?: boolean; onData?: () => void; completedWork?: typeof completedWork; journal?: typeof journal; readOnly?: boolean } = {}) => {
   const gateway = new FakeWorkManagerGateway({
     projects: [root],
     pages: [page],
     sections: options.withSection === false ? [] : [section],
-    journal,
+    journal: options.journal ?? journal,
     completedWork: options.completedWork ?? completedWork,
   });
   const live = new FakeLiveUpdates();
@@ -112,6 +112,7 @@ const render = async (options: { withSection?: boolean; onData?: () => void; com
   fixture.componentRef.setInput('pageId', PAGE);
   fixture.componentRef.setInput('projectLayoutMode', 'flow');
   fixture.componentRef.setInput('restoreBlocked', false);
+  fixture.componentRef.setInput('readOnly', options.readOnly ?? false);
   fixture.componentRef.setInput('shortcutsAllowed', false);
   fixture.componentRef.setInput('rootProjectId', PROJECT);
   fixture.componentRef.setInput('onProjectDataChange', onData);
@@ -234,5 +235,37 @@ describe('ReflectionsPage (§36)', () => {
     fixture.componentRef.setInput('restoreBlocked', true);
     fixture.detectChanges();
     expect(query(fixture, '[data-reflection-create]')).toBeNull();
+  });
+
+  // Slice 79: the renderer's `readOnly` (the shell's archived state) alone hides the composer and
+  // the container add, without relying on `restoreBlocked`.
+  it('hides writing controls when the shell says read-only', async () => {
+    const { fixture } = await render({ readOnly: true });
+    expect(query(fixture, '[data-reflection-create]')).toBeNull();
+
+    const bare = await render({ readOnly: true, withSection: false });
+    expect(query(bare.fixture, '[data-reflections-no-container]')).not.toBeNull();
+    expect(query(bare.fixture, '[data-reflections-add-container]')).toBeNull();
+  });
+
+  // Slice 79, Q7 (the user's wording): how many reflections a restore would show, else the
+  // ordinary sentence, because it is true.
+  it('says how many reflections a restore would show, singular and plural, else “No reflections yet.”', async () => {
+    const archived = (hiddenItemCount?: number) =>
+      ProjectJournalResultSchema.parse({ projectId: PROJECT, items: [], ...(hiddenItemCount === undefined ? {} : { hiddenItemCount }) });
+    const empty = (fixture: Awaited<ReturnType<typeof render>>['fixture']) => query(fixture, '[data-reflections-empty]')?.textContent?.trim();
+
+    const three = await render({ readOnly: true, journal: archived(3) });
+    expect(empty(three.fixture)).toBe('Restore to view 3 hidden reflections.');
+    expect(query(three.fixture, '[data-reflections-empty]')?.classList).toContain('state-message--empty');
+    expect(query(three.fixture, '[data-reflection-create]')).toBeNull();
+
+    const one = await render({ readOnly: true, journal: archived(1) });
+    expect(empty(one.fixture)).toBe('Restore to view 1 hidden reflection.');
+
+    for (const count of [0, undefined]) {
+      const none = await render({ readOnly: true, journal: archived(count) });
+      expect(empty(none.fixture)).toBe('No reflections yet.');
+    }
   });
 });

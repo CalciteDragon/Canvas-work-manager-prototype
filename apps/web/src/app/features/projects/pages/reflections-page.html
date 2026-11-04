@@ -95,7 +95,8 @@
     } @else if (store.journalLoading()) {
       <p data-reflections-loading class="reflections-page__muted">Loading reflections…</p>
     } @else if (store.items().length === 0) {
-      <p data-reflections-empty class="reflections-page__muted">No reflections yet.</p>
+      <!-- Slice 79, Q7: an archived root answers no entries; say how many a restore brings back. -->
+      <p data-reflections-empty class="reflections-page__muted state-message--empty">{{ emptySentence() }}</p>
     } @else {
       <ol class="reflections-page__feed">
         @for (entry of store.items(); track entry.reflection.id) {

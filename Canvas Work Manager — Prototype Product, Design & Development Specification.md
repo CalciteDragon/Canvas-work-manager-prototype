@@ -1241,8 +1241,10 @@ banner under the header that names the outermost archived owner and restores it 
 canvas is read-only: no insertion marks, Add a section, drag, resize, section rename, settings or
 remove, and the sections' own write controls are absent, not disabled. Task List rows are static,
 with no drawer; an empty archived canvas says "This page has no sections." Collapse stays and
-toggles locally, unsaved, from the stored state. The header's Rename, Parent, status, Undo/Redo and
-More stay ([why](docs/decisions/2026-11-archived-pages-are-read-only.md)).
+toggles locally, unsaved, from the stored state. An archived root's Todos has no task checkbox,
+Complete or Delete, and its Reflections page no composer; their empty sentences say "Restore to
+view N hidden todos." (or reflections) when work is hidden (§31). The header's Rename, Parent,
+status, Undo/Redo and More stay ([why](docs/decisions/2026-11-archived-pages-are-read-only.md)).
 
 *Slice 74 feedback.* One toast owns the confirmation, actions and transition result. It follows
 the acted region in Tab order and is docked at the content track's bottom, with a matching reserve.

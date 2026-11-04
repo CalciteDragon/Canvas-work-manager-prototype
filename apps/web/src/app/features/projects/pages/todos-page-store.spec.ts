@@ -192,6 +192,33 @@ describe('TodosPageStore — reading (§34, §62)', () => {
     expect(store.items()).toHaveLength(1);
   });
 
+  // Slice 79, Q7: an archived root answers no rows and how many a restore would bring back.
+  it('follows the result’s hiddenItemCount, 0 when absent, and never keeps a count over a failure', async () => {
+    let answer: () => Promise<{ projectId: ProjectId; items: ProjectTodoItem[]; hiddenItemCount?: number }> =
+      async () => ({ projectId: ROOT, items: [], hiddenItemCount: 6 });
+    const { store } = setup({ todosGet: () => answer() });
+
+    expect(store.hiddenCount()).toBe(0);
+    await store.load(ROOT);
+    expect(store.hiddenCount()).toBe(6);
+
+    // After a restore the live answer carries rows and no count.
+    answer = async () => ({ projectId: ROOT, items: [taskItem('task-1')] });
+    await store.retry();
+    expect(store.hiddenCount()).toBe(0);
+    expect(store.items()).toHaveLength(1);
+
+    answer = async () => ({ projectId: ROOT, items: [], hiddenItemCount: 3 });
+    await store.retry();
+    expect(store.hiddenCount()).toBe(3);
+    answer = async () => {
+      throw new GatewayError('unreachable', 0, 'the host is not answering');
+    };
+    await store.retry();
+    expect(store.error()).not.toBeNull();
+    expect(store.hiddenCount()).toBe(0);
+  });
+
   it('keeps terminal rows exactly as the chronology answers them', async () => {
     const { store } = setup({
       items: [taskItem('task-done', { status: 'done' }), taskItem('task-cancelled', { status: 'cancelled' })],

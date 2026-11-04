@@ -23,9 +23,8 @@
   } @else if (store.loading()) {
     <p data-todos-loading class="todos__muted">Loading todos…</p>
   } @else if (store.items().length === 0) {
-    <p data-todos-empty class="todos__muted">
-      There is no work under this project yet — no tasks, and no workstreams.
-    </p>
+    <!-- Slice 79, Q7: an archived root answers no rows; say how many a restore brings back. -->
+    <p data-todos-empty class="todos__muted state-message--empty">{{ emptySentence() }}</p>
   } @else {
     <ol data-todos-list class="todos__list">
       @for (item of store.items(); track idOf(item)) {
@@ -41,7 +40,8 @@
           [pinnedFailureSubject]="titleOf(item)"
           [pinnedFailureSentence]="'todo-error-' + idOf(item)"
         >
-          @if (item.kind === 'task' && item.task.status !== 'cancelled') {
+          <!-- Slice 79, §31: an archived root writes nothing, so no checkbox, Complete or Delete. -->
+          @if (!readOnly() && item.kind === 'task' && item.task.status !== 'cancelled') {
             <input
               data-todo-toggle
               type="checkbox"
@@ -52,12 +52,12 @@
               [attr.aria-label]="(item.task.status === 'done' ? 'Reopen task ' : 'Complete ') + item.task.title"
               (change)="toggle(item, $event)"
             />
-          } @else if (item.kind === 'subproject' && !finished(item)) {
+          } @else if (!readOnly() && item.kind === 'subproject' && !finished(item)) {
             <button
               data-todo-complete
               type="button"
               class="button button--sm todos__complete object-row__tools"
-              [disabled]="writesBlocked()"
+              [attr.aria-disabled]="writesBlocked() ? 'true' : null"
               [attr.aria-describedby]="store.rowErrors().has(idOf(item)) ? 'todo-error-' + idOf(item) : null"
               [attr.aria-label]="'Complete ' + titleOf(item)"
               (click)="complete(item)"
@@ -99,12 +99,12 @@
             </a>
           }
 
-          @if (item.kind === 'task') {
+          @if (item.kind === 'task' && !readOnly()) {
             <button
               data-todo-delete
               type="button"
               class="tool todos__delete object-row__tools"
-              [disabled]="writesBlocked()"
+              [attr.aria-disabled]="writesBlocked() ? 'true' : null"
               [attr.aria-label]="'Delete task ' + item.task.title"
               [attr.title]="'Delete task ' + item.task.title"
               (click)="delete(item)"

@@ -69,6 +69,12 @@ export class ReflectionsPageStore {
 
   readonly result = this.journalState.asReadonly();
   readonly items = computed(() => this.journalState()?.items ?? []);
+  /**
+   * How many entries a restore would bring back: the journal's `hiddenItemCount`, which the
+   * domain sets only for an archived root (Slice 79, Q7), and 0 when absent or when the journal
+   * failed to load, so a count is never left over a failure.
+   */
+  readonly hiddenCount = computed(() => (this.journalErrorState() === null ? this.journalState()?.hiddenItemCount ?? 0 : 0));
   readonly candidates = this.candidatesState.asReadonly();
   readonly container = this.containerState.asReadonly();
   readonly containerCount = this.containerCountState.asReadonly();

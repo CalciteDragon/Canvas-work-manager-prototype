@@ -145,7 +145,10 @@ projection and the canonical restores, and `ArchivedRegion` is the presentationa
 banner names the owner and restores it in place, and the canvas and its sections drop their write
 controls rather than offering writes the domain will refuse. Collapse stays, toggled locally and
 never saved, so a section stored collapsed stays readable; Task List rows are static, with no
-drawer ([decision](../../../decisions/2026-11-archived-pages-are-read-only.md)).
+drawer ([decision](../../../decisions/2026-11-archived-pages-are-read-only.md)). An archived
+root's Todos and Reflections pages say how much a restore brings back, "Restore to view N hidden
+todos.", instead of an empty sentence that is false under the banner; with nothing hidden the
+ordinary sentence stays, because it is true (the user's answer to Slice 79's Open question 7).
 
 **Arriving at a section is a DOM match, never a selector interpolation.** The canvas
 matches `#section-<id>` against the sections it loaded, focuses the frame heading, and

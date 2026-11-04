@@ -100,6 +100,8 @@ interface RenderOptions {
   receiptUndo?: ReceiptUndo;
   items?: ProjectTodoItem[];
   restoreBlocked?: boolean;
+  readOnly?: boolean;
+  hiddenItemCount?: number;
   failWith?: GatewayError;
   completeRejects?: GatewayError;
   gateComplete?: boolean;
@@ -115,7 +117,7 @@ const render = async (options: RenderOptions = {}) => {
   let releaseArchive: (() => void) | undefined;
   const todosGet = vi.fn(async (projectId: ProjectId) => {
     if (options.failWith !== undefined) throw options.failWith;
-    return { projectId, items };
+    return { projectId, items, ...(options.hiddenItemCount === undefined ? {} : { hiddenItemCount: options.hiddenItemCount }) };
   });
   const complete = vi.fn(async (id: string) => {
     if (options.gateComplete === true) await new Promise<void>((resolve) => (releaseCompletion = resolve));
@@ -168,6 +170,7 @@ const render = async (options: RenderOptions = {}) => {
   fixture.componentRef.setInput('shortcutsAllowed', false);
   fixture.componentRef.setInput('rootProjectId', ROOT);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
+  fixture.componentRef.setInput('readOnly', options.readOnly ?? false);
   fixture.componentRef.setInput('onProjectDataChange', dataChanged);
   fixture.componentRef.setInput('onProjectHierarchyChange', hierarchyChanged);
   fixture.componentRef.setInput('onOpenArchive', options.onOpenArchive ?? (() => {}));
@@ -403,14 +406,52 @@ describe('TodosPage (§34)', () => {
     (rowFor(inFlight.fixture, 'task-early').querySelector('[data-todo-toggle]') as HTMLInputElement).click();
     inFlight.fixture.detectChanges();
 
+    // Slice 79: pending controls stay focusable — `aria-disabled` with a guarded click, never
+    // `disabled`, so focus is not dropped from a row while another one settles.
     const controls = queryAll(inFlight.fixture, '[data-todo-complete], [data-todo-delete]') as HTMLButtonElement[];
-    expect(controls.every((control) => control.disabled)).toBe(true);
+    expect(controls.length).toBeGreaterThan(0);
+    expect(controls.every((control) => control.getAttribute('aria-disabled') === 'true' && !control.hasAttribute('disabled'))).toBe(true);
     expect(queryAll(inFlight.fixture, '[data-todo-toggle]').every((control) => control.getAttribute('aria-disabled') === 'true')).toBe(true);
+    (rowFor(inFlight.fixture, 'project-kitchen').querySelector('[data-todo-complete]') as HTMLButtonElement).click();
+    (rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-delete]') as HTMLButtonElement).click();
+    expect(inFlight.update).not.toHaveBeenCalled();
+    expect(inFlight.archive).not.toHaveBeenCalled();
     inFlight.release();
 
     const blocked = await render({ restoreBlocked: true });
-    expect((queryAll(blocked.fixture, '[data-todo-complete], [data-todo-delete]') as HTMLButtonElement[]).every((c) => c.disabled)).toBe(true);
+    expect(queryAll(blocked.fixture, '[data-todo-complete], [data-todo-delete]').every((c) => c.getAttribute('aria-disabled') === 'true' && !c.hasAttribute('disabled'))).toBe(true);
     expect(queryAll(blocked.fixture, '[data-todo-toggle]').every((control) => control.getAttribute('aria-disabled') === 'true')).toBe(true);
+  });
+
+  // Slice 79, §31: an archived root's page writes nothing, so its write controls are absent, not
+  // disabled. The domain answers no rows for an archived root; the rows here are supplied to
+  // prove the controls would not render if any arrived.
+  it('renders no checkbox, Complete or Delete when read-only, and keeps each row’s link', async () => {
+    const { fixture } = await render({ readOnly: true });
+
+    expect(queryAll(fixture, '[data-todo-row]').length).toBe(MIXED.length);
+    for (const selector of ['[data-todo-toggle]', '[data-todo-complete]', '[data-todo-delete]']) {
+      expect(query(fixture, selector), selector).toBeNull();
+    }
+    expect(queryAll(fixture, '[data-todo-link]').length).toBe(MIXED.length);
+  });
+
+  // Slice 79, Q7 (the user's wording): when work is hidden the page says how much; when none is,
+  // the ordinary sentence stays because it is true.
+  it('says how many todos a restore would show, singular and plural, else the ordinary empty sentence', async () => {
+    const empty = (fixture: Fixture) => query(fixture, '[data-todos-empty]')?.textContent?.trim();
+
+    const six = await render({ readOnly: true, items: [], hiddenItemCount: 6 });
+    expect(empty(six.fixture)).toBe('Restore to view 6 hidden todos.');
+    expect(query(six.fixture, '[data-todos-empty]')?.classList).toContain('state-message--empty');
+
+    const one = await render({ readOnly: true, items: [], hiddenItemCount: 1 });
+    expect(empty(one.fixture)).toBe('Restore to view 1 hidden todo.');
+
+    for (const hiddenItemCount of [0, undefined]) {
+      const none = await render({ readOnly: true, items: [], ...(hiddenItemCount === undefined ? {} : { hiddenItemCount }) });
+      expect(empty(none.fixture)).toBe('There is no work under this project yet — no tasks, and no workstreams.');
+    }
   });
 
   it('serializes Delete with Complete and reports a failed delete without removing the row', async () => {
@@ -422,7 +463,9 @@ describe('TodosPage (§34)', () => {
     // The target and its live descendants disappear optimistically. Remaining rows are frozen
     // until the reversible archive settles.
     expect(query(inFlight.fixture, '[data-todo-id="task-early"]')).toBeNull();
-    expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-delete]') as HTMLButtonElement).disabled).toBe(true);
+    const frozen = rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-delete]') as HTMLButtonElement;
+    expect(frozen.getAttribute('aria-disabled')).toBe('true');
+    expect(frozen.hasAttribute('disabled')).toBe(false);
     expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-toggle]') as HTMLInputElement).getAttribute('aria-disabled')).toBe('true');
     expect(document.activeElement).toBe(document.body);
     inFlight.releaseArchive();

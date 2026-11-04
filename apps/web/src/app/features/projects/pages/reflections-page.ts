@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, ViewChild, computed, effect, inject, input, signal } from '@angular/core';
+import { hiddenCountSentence } from './hidden-count';
 import { RouterLink } from '@angular/router';
 import type {
   ProjectId,
@@ -39,7 +40,9 @@ export class ReflectionsPage implements ProjectPageRenderer {
 
   readonly store = inject(ReflectionsPageStore);
   readonly selectedSubject = signal<ReflectionSubjectView | null>(null);
-  readonly pageWritesBlocked = computed(() => this.restoreBlocked());
+  readonly pageWritesBlocked = computed(() => this.restoreBlocked() || this.readOnly());
+  /** `data-reflections-empty`'s sentence: the hidden count on an archived root, else the ordinary one. */
+  readonly emptySentence = computed(() => hiddenCountSentence(this.store.hiddenCount(), 'reflection', 'No reflections yet.'));
 
   @ViewChild(ReflectionComposer) private composer?: ReflectionComposer;
 

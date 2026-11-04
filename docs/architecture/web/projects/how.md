@@ -548,7 +548,15 @@ and toggle a local `linkedSignal` view instead of emitting `collapseToggled`; a 
 and the section frame's local view overrides `transientlyExpanded`. The canonical Task List's
 read-only rows are static `TaskRow`s (`link` null: a plain title, no drawer, no drag) and its
 empty sentence is "No tasks."; a shortcut's rows keep their source link and "The source has no
-tasks yet." Todos and the Reflections page do not yet change with `readOnly` (Slice 79 step 6). Going read-only closes an open task drawer through
+tasks yet." Todos drops its task checkbox, workstream Complete and Delete under `readOnly`
+(links stay); while a write is pending, the other rows' Complete and Delete are `aria-disabled`
+with a guarded click, never `disabled`, so focus stays put. The Reflections page folds `readOnly`
+into `pageWritesBlocked`, so neither the composer nor Add reflections container renders. The domain
+answers an archived root's two reads with no rows and `hiddenItemCount`; each store exposes it as
+`hiddenCount()` (0 when absent, and after a failed read), and each page's empty element says
+`hiddenCountSentence` (`pages/hidden-count.ts`): "Restore to view N hidden todos." (or
+reflections, singular for one) above 0, else its ordinary sentence. One string helper rather than
+template branches, for the bundle ceiling. Going read-only closes an open task drawer through
 `TaskDrawerCoordinator.close()`. Rename and Parent (More › Edit details…) stay in the header. An
 archived root's Archive page says "Restore “X” above to bring its archived work back." instead of
 pointing at Settings, while `readOnly` holds, so the note leaves with the banner. Its choice keeps a

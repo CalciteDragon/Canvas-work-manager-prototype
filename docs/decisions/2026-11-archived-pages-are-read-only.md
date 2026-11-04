@@ -81,3 +81,12 @@ agents see the same count through `get_project_todos` and `get_project_journal`,
 say so. It reveals no more than §31 already shows, since an archived project's own page keeps
 rendering its sections, and one answer for every caller is simpler than an HTTP-only field.
 
+**Amended, 2026-11-04 — Slice 79 step 6: Todos and the Reflections page.** On a read-only root,
+Todos renders no task checkbox, workstream Complete or Delete (row links stay), and the Reflections
+page no composer or Add reflections container. While a Todos write is pending, the other rows'
+Complete and Delete are `aria-disabled` with a guarded click, never `disabled`, as the checkbox
+already was. Their empty elements say "Restore to view N hidden todos." / "Restore to view N hidden
+reflections." (singular for one) from the domain's `hiddenItemCount`, and the ordinary sentence when
+it is 0 or absent. Since the domain answers an archived root with no rows, the absent controls are
+proved by component tests with rows supplied, not by a capture.
+

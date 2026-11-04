@@ -373,6 +373,15 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
     expect(result.items[0]?.kind).toBe('task');
   });
 
+  // Slice 79, Q7: an archived root's Todos and journal answers carry how much is hidden.
+  it('passes an archived root’s hiddenItemCount through on the Todos and journal reads', async () => {
+    const subject = gateway();
+    fetchMock.mockImplementationOnce(jsonResponse({ projectId: 'project-1', items: [], hiddenItemCount: 6 }));
+    await expect(subject.todos.get('project-1' as ProjectId)).resolves.toEqual({ projectId: 'project-1', items: [], hiddenItemCount: 6 });
+    fetchMock.mockImplementationOnce(jsonResponse({ projectId: 'project-1', items: [], hiddenItemCount: 3 }));
+    await expect(subject.journal.get('project-1' as ProjectId)).resolves.toEqual({ projectId: 'project-1', items: [], hiddenItemCount: 3 });
+  });
+
   it('reads §31’s root-wide archive without depending on a page tab', async () => {
     fetchMock.mockImplementation(jsonResponse(archive));
 

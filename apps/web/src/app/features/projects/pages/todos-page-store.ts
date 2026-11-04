@@ -67,6 +67,7 @@ export class TodosPageStore {
   private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly itemsState = signal<readonly ProjectTodoItem[]>([]);
+  private readonly hiddenCountState = signal(0);
   // Starts true for the reason `ProjectPageStore` states: before the first read resolves the
   // page matches none of the template's branches and paints blank.
   private readonly loadingState = signal(true);
@@ -93,6 +94,12 @@ export class TodosPageStore {
   private destroyed = false;
 
   readonly items = this.itemsState.asReadonly();
+  /**
+   * How many rows a restore would bring back: the result's `hiddenItemCount`, which the domain
+   * sets only for an archived root (Slice 79, Q7), and 0 when it is absent. Cleared with the rows
+   * on a new root and on a failed load, so a count is never left over a failure.
+   */
+  readonly hiddenCount = this.hiddenCountState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   /** A first read that failed: the page has nothing to show and offers a retry. */
   readonly error = this.errorState.asReadonly();
@@ -131,6 +138,7 @@ export class TodosPageStore {
     // Cleared immediately: another root's chronology on screen under this root's heading would
     // be worse than an empty page for the length of a read.
     this.itemsState.set([]);
+    this.hiddenCountState.set(0);
     this.refreshErrorState.set(null);
     this.refreshPendingState.set(false);
     this.writeErrorState.set(null);
@@ -414,6 +422,7 @@ export class TodosPageStore {
           return;
         }
         this.itemsState.set(result.items);
+        this.hiddenCountState.set(result.hiddenItemCount ?? 0);
         // A row error for a row that has left the chronology has nothing left to describe.
         if ([...this.rowErrorsState().keys()].some((id) => !result.items.some((item) => todoIdOf(item) === id))) {
           this.rowErrorsState.update((errors) => new Map([...errors].filter(([id]) => result.items.some((item) => todoIdOf(item) === id))));
@@ -426,6 +435,7 @@ export class TodosPageStore {
         if (quiet) { if (this.errorState() === null) this.refreshErrorState.set(staleFailure(error)); }
         else {
           this.itemsState.set([]);
+          this.hiddenCountState.set(0);
           this.errorState.set(readFailure(error, 'this list'));
         }
       } finally {

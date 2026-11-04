@@ -1,4 +1,5 @@
 import { taskMeta } from '../../tasks/task-meta';
+import { hiddenCountSentence } from './hidden-count';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -93,9 +94,18 @@ export class TodosPage {
     owner: ReturnType<TodosPage['historyOwner']>;
   } | null>(null);
 
-  /** Task toggles remain focusable, but every write is refused while this is true. */
+  /** `data-todos-empty`'s sentence: the hidden count on an archived root, else the ordinary one. */
+  readonly emptySentence = computed(() =>
+    hiddenCountSentence(this.store.hiddenCount(), 'todo', 'There is no work under this project yet — no tasks, and no workstreams.'),
+  );
+
+  /**
+   * Every control stays focusable (`aria-disabled`, never `disabled`), but every write is refused
+   * while this is true. A read-only page renders no write control at all (Slice 79); it is
+   * included here too, so a stray call cannot write either.
+   */
   readonly writesBlocked = computed(() =>
-    this.restoreBlocked() || this.store.completing() !== null || this.store.deleting() !== null,
+    this.readOnly() || this.restoreBlocked() || this.store.completing() !== null || this.store.deleting() !== null,
   );
 
   constructor() {
@@ -291,7 +301,7 @@ export class TodosPage {
   private nextControl(index: number): HTMLElement | null {
     const rows = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')];
     const ordered = [...rows.slice(index), ...rows.slice(0, index).reverse()];
-    return ordered.map(row => row.querySelector<HTMLElement>('[data-todo-toggle]:not([aria-disabled="true"]), [data-todo-complete]:not([disabled])')).find(control => control !== null)
+    return ordered.map(row => row.querySelector<HTMLElement>('[data-todo-toggle]:not([aria-disabled="true"]), [data-todo-complete]:not([aria-disabled="true"])')).find(control => control !== null)
       ?? this.host.nativeElement.querySelector<HTMLElement>('#todos-heading');
   }
 
