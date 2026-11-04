@@ -94,7 +94,7 @@ sequenceDiagram
 | Part | Path | Role |
 |---|---|---|
 | `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header and `#history-controls` focus after render; page resolution and fallback notice; breadcrumbs for a subproject; creator recovery at a missing project's URL, with a generic Retry when the summary read is unavailable for any reason but `not_found` |
-| `ProjectWorkspaceStore`, `WorkTreeNode` | `project-workspace-store.ts` | Project-level state and writes; authoritative `missing` state after a not-found read |
+| `ProjectWorkspaceStore`, `WorkTreeNode`, `OwnerRestoreFailure` | `project-workspace-store.ts` | Project-level state and writes; authoritative `missing` state after a not-found read; the archived owner, `readOnly` and the owner's restore (Slice 79) |
 | `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows; `linkSelected` reports a plain link activation from a capture-phase listener |
 | `ProjectColumnFocusRequest` | `project-workspace-shell.ts` | Root-scoped: narrow column and explicit Archive URL requests until their rendered targets can take focus |
 | `ProjectHeader`, `ProjectMoreMenu`, `ProgressFact` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress (a `ProgressFact`: muted "Measuring…", the percentage, "No tasks to measure" or "Couldn’t load"), target date; a projection slot for the history controls; rename/status/date/archive (Archive not offered on an archived project). More is an auto-popover menu with immediate status radios, Edit details, Open archive set apart from the status radios by a separator, and a separated danger Archive item; deferred details and confirm dialogs return focus to More |

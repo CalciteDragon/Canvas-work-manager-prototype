@@ -504,6 +504,21 @@ it is open, each with the reason under Details (Slice 78). A page toggle's failu
 the toggle committed but navigation's read failed, "Turned on the Todos page, but navigation
 couldn’t refresh." with Retry refresh (`[data-recovery="retry-refresh"]`, which re-reads only).
 
+The store also says whether the project is read-only (Slice 79). `archivedOwner()` is the
+**outermost** archived project among the breadcrumbs and the project itself, `null` on live work,
+and `readOnly()` is its being set: an archived workstream, an archived root, and live work under an
+archived ancestor (Legacy shelving under Legacy attic) all count. Being computed from the context,
+it follows every context read, live frames included; a failed quiet refresh keeps the last one.
+`restoreOwner(ownerId, status)` restores that owner, which may be an ancestor, so it is not
+`writeProject`: it paints nothing, holds the project-write count (so `restoreBlocked` and the
+header hold still, and `restorePending()` is set), runs inside `whileWriting`, and on success
+replaces the owner's record in the breadcrumbs (or the project itself), moves the context epoch
+and re-reads the tree. It reports the owner's id and name, so an ancestor's restore is a
+cross-owner write. Its failure is `restoreFailure()`, an `OwnerRestoreFailure` naming the owner,
+never `writeError()`: "Couldn’t restore “X”. Try again.", or, without Try again (`retryable`
+false) and with a queued context refresh, "…Something above it may have been archived." for a
+`rule_violation` and "…It may have changed elsewhere." for a `not_found`.
+
 All surfaces register with shared LiftStack; custom work/section creation dialogs retain
 their existing CDK traps and adopt the lift paint. The canvas releases section creation's
 registration on page/context changes and destruction, without scheduling focus into the old

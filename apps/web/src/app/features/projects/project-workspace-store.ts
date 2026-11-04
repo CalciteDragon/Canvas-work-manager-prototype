@@ -9,6 +9,7 @@ import {
   type ProjectId,
   type ProjectPage,
   type ProjectPageKind,
+  type ProjectRestoreStatus,
   type ProjectStatus,
   type UpdateProjectInput,
 } from '@cwm/contracts';
@@ -16,7 +17,7 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { headedReadFailure, readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
+import { failureCode, headedReadFailure, readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 import type { ProgressFact } from './project-header';
 
 /** What a refused project write was for, by the fields it carried (Slice 78). */
@@ -30,6 +31,16 @@ const projectWriteSentence = (input: UpdateProjectInput, name: string): string =
     : 'change the date of';
   return `Couldn’t ${verb} “${name}”. Try again.`;
 };
+
+/**
+ * A failed restore of the archived owner, shown in the banner rather than the header (Slice 79).
+ * `retryable` is false when Try again could not help: a `rule_violation` or a `not_found`, after
+ * which a context refresh moves the banner to whatever owner is now true.
+ */
+export interface OwnerRestoreFailure extends Failure {
+  readonly ownerId: ProjectId;
+  readonly retryable: boolean;
+}
 
 /** Navigation, so archived projects have no business in it (§31) — as in `ShellStore`. */
 const NAVIGABLE_STATUSES = ProjectStatusSchema.options.filter((status) => status !== 'archived');
@@ -100,6 +111,8 @@ export class ProjectWorkspaceStore {
   private readonly pageWriteRetryKindState = signal<ConfigurablePageKind | null>(null);
   private readonly pageWriteRetryEnabledState = signal<boolean | null>(null);
   private readonly projectWritesState = signal(0);
+  private readonly restorePendingState = signal(false);
+  private readonly restoreFailureState = signal<OwnerRestoreFailure | null>(null);
 
   readonly project = this.projectState.asReadonly();
   /** Root first, immediate parent last, and the project itself never in it. */
@@ -123,6 +136,23 @@ export class ProjectWorkspaceStore {
     return result.percentage ?? 'empty';
   });
   readonly projectWritePending = computed(() => this.projectWritesState() > 0);
+
+  /**
+   * The project that makes this page read-only (Slice 79, §31): the **outermost** archived project
+   * among the breadcrumbs and the project itself, or `null` on live work. Outermost, because
+   * reactivating under an archived ancestor is refused, so only its restore can succeed; once it
+   * is restored this moves on to the next archived owner, if there is one.
+   */
+  readonly archivedOwner = computed<Project | null>(() => {
+    const project = this.projectState();
+    if (project === null) return null;
+    return [...this.ancestorsState(), project].find(({ status }) => status === 'archived') ?? null;
+  });
+  /** Nothing on this project's pages is writable but its header (Slice 79). */
+  readonly readOnly = computed(() => this.archivedOwner() !== null);
+  /** `restoreOwner` is in flight; it also holds `projectWritePending`. */
+  readonly restorePending = this.restorePendingState.asReadonly();
+  readonly restoreFailure = this.restoreFailureState.asReadonly();
 
   readonly subprojectTree = computed<WorkTreeNode[]>(() => {
     const rootId = this.root()?.id;
@@ -275,6 +305,7 @@ export class ProjectWorkspaceStore {
       // A failed write belongs to the project it was made on; one component instance serves
       // every project, so without this a failed rename follows the user to the next one.
       this.writeErrorState.set(null);
+      this.restoreFailureState.set(null);
       this.pageWriteErrorState.set(null);
       this.pageWriteRetryKindState.set(null);
       this.pageWriteRetryEnabledState.set(null);
@@ -685,6 +716,67 @@ export class ProjectWorkspaceStore {
           }
           return false;
         } finally {
+          this.projectWritesState.update((count) => count - 1);
+        }
+      }),
+    );
+  }
+
+  /**
+   * The banner's restore of the archived owner (Slice 79, §31), which may be an ancestor, so it is
+   * not `writeProject`: that paints the page's own record and words a failure with its name. Not
+   * optimistic and painting nothing; it holds the project-write count, so `restoreBlocked` and the
+   * header hold still, and runs inside `whileWriting`, so a frame meanwhile waits for it. On
+   * success the owner's record replaces its breadcrumb (or the project itself), the context epoch
+   * moves so an older read in flight cannot repaint it archived, and the tree is re-read. The
+   * write is reported with the owner's id and name: for an ancestor, the cross-owner toast.
+   * Resolves `false` for a stale owner, a second restore while one runs, or a failure, which is
+   * `restoreFailure`'s; a `rule_violation` or `not_found` also queues a context refresh.
+   */
+  restoreOwner(ownerId: ProjectId, status: ProjectRestoreStatus): Promise<boolean> {
+    const owner = this.archivedOwner();
+    const projectId = this.requestedProjectId;
+    if (this.destroyed || owner === null || owner.id !== ownerId || projectId === undefined || this.restorePendingState()) {
+      return Promise.resolve(false);
+    }
+    const generation = this.loadGeneration;
+    const current = () => !this.destroyed && generation === this.loadGeneration && this.requestedProjectId === projectId;
+
+    this.restoreFailureState.set(null);
+    this.restorePendingState.set(true);
+    this.projectWritesState.update((count) => count + 1);
+
+    return this.track(() =>
+      this.whileWriting(async () => {
+        try {
+          const { project: restored } = await reportedWrite(this.reporter, () => this.gateway.projects.update(owner.id, { status }),
+            ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
+          if (!current()) return true;
+          const epoch = ++this.contextWriteEpoch;
+          if (this.projectState()?.id === restored.id) this.projectState.set(restored);
+          else this.ancestorsState.update((ancestors) => ancestors.map((ancestor) => (ancestor.id === restored.id ? restored : ancestor)));
+          try {
+            const projects = await this.gateway.projects.list({ status: NAVIGABLE_STATUSES });
+            if (current() && epoch === this.contextWriteEpoch) this.descendantsState.set(projects);
+          } catch {
+            // Quiet, as a refresh is: the restore landed, and the next frame re-reads the tree.
+          }
+          return true;
+        } catch (error) {
+          if (current()) {
+            const code = failureCode(error);
+            const sentence =
+              code === 'rule_violation' ? `Couldn’t restore “${owner.name}”. Something above it may have been archived.`
+              : code === 'not_found' ? `Couldn’t restore “${owner.name}”. It may have changed elsewhere.`
+              : `Couldn’t restore “${owner.name}”. Try again.`;
+            const retryable = code !== 'rule_violation' && code !== 'not_found';
+            this.restoreFailureState.set({ ownerId: owner.id, ...writeFailure(error, sentence), retryable });
+            // Queued behind this write by `whileWriting`; nothing here waits on it.
+            if (!retryable) this.refreshContext();
+          }
+          return false;
+        } finally {
+          this.restorePendingState.set(false);
           this.projectWritesState.update((count) => count - 1);
         }
       }),

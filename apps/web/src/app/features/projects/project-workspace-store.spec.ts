@@ -1015,3 +1015,311 @@ describe('ProjectWorkspaceStore reports to the header’s history (Slice 41)', (
     ]);
   });
 });
+
+/** The rig's archived shapes: Legacy attic archived under a live Home renovation, Legacy shelving live under it. */
+const legacy = (rootOverrides: Record<string, unknown> = {}) => [
+  root('project-renovation', 'Home renovation', rootOverrides),
+  child('project-kitchen', 'Kitchen', 'project-renovation'),
+  child('project-attic', 'Legacy attic', 'project-renovation', { status: 'archived' }),
+  child('project-shelving', 'Legacy shelving', 'project-attic'),
+];
+
+/** A host that keeps what it was told: `projects.update` writes the record back, so a re-read sees it. */
+const persisting = (projects: Project[], options: FakeGatewayOptions = {}, live = new FakeLiveUpdates()) => {
+  const harness = storeWith({ projects, ...options }, live);
+  const update = harness.gateway.projects.update;
+  harness.gateway.projects.update = async (id, input) => {
+    const result = await update(id, input);
+    projects.splice(projects.findIndex((project) => project.id === id), 1, result.project);
+    return result;
+  };
+  return harness;
+};
+
+const set = (projects: Project[], id: string, overrides: Partial<Project>) =>
+  projects.splice(projects.findIndex((project) => project.id === id), 1, { ...projects.find((project) => project.id === id)!, ...overrides } as Project);
+
+const flush = async () => {
+  for (let turn = 0; turn < 30; turn += 1) await Promise.resolve();
+};
+
+const projectFrame = (type: string, entityId: string) => ({
+  type, entityType: 'project', entityId, projectId: entityId, rootProjectId: 'project-renovation',
+  actor: { kind: 'agent', id: 'agent-1', name: 'Claude' }, at: AT,
+}) as never;
+
+describe('ProjectWorkspaceStore — the archived owner (Slice 79, §31, L4-007)', () => {
+  it('is the project itself when it is archived, and the page is read-only', async () => {
+    const { store } = storeWith({ projects: legacy() });
+    await store.load('project-attic' as ProjectId);
+    expect(store.archivedOwner()?.id).toBe('project-attic');
+    expect(store.readOnly()).toBe(true);
+  });
+
+  it('is an archived root over its live child', async () => {
+    const { store } = storeWith({ projects: renovation().map((project) => project.id === 'project-renovation' ? { ...project, status: 'archived' as const } : project) });
+    await store.load('project-cabinets' as ProjectId);
+    expect(store.archivedOwner()?.id).toBe('project-renovation');
+    expect(store.readOnly()).toBe(true);
+  });
+
+  it('is the outermost of two archived levels, and the live ancestor above them never counts', async () => {
+    const projects = legacy();
+    set(projects, 'project-shelving', { status: 'archived' });
+    const { store } = storeWith({ projects });
+    await store.load('project-shelving' as ProjectId);
+    expect(store.archivedOwner()?.id).toBe('project-attic');
+  });
+
+  it('is null on live work, and the page is not read-only', async () => {
+    const { store } = storeWith({ projects: legacy() });
+    await store.load('project-kitchen' as ProjectId);
+    expect(store.archivedOwner()).toBeNull();
+    expect(store.readOnly()).toBe(false);
+  });
+});
+
+describe('ProjectWorkspaceStore — restoring the archived owner (Slice 79, §26, §31, L4-007)', () => {
+  it('restores an ancestor without painting or replacing the page’s project, then re-reads the tree and reports a cross-owner receipt', async () => {
+    const reporter = provideRecordingReporter();
+    const { store, gateway } = persisting(legacy());
+    await store.load('project-shelving' as ProjectId);
+    const shelving = store.project();
+    const lists = () => gateway.calls.filter(({ method }) => method === 'projects.list').length;
+    const before = lists();
+
+    const restoring = store.restoreOwner('project-attic' as ProjectId, 'on_hold');
+    expect(store.project()).toBe(shelving);
+    expect(await restoring).toBe(true);
+
+    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-attic', input: { status: 'on_hold' } });
+    expect(store.project()).toBe(shelving);
+    expect(store.breadcrumbs().map(({ id, status }) => [id, status])).toEqual([['project-renovation', 'active'], ['project-attic', 'on_hold']]);
+    expect(lists()).toBe(before + 1);
+    expect(store.archivedOwner()).toBeNull();
+    expect(store.readOnly()).toBe(false);
+    expect(store.writeError()).toBeNull();
+    expect(reporter.reports()).toEqual([
+      { projectId: 'project-attic', projectName: 'Legacy attic', receipt: expect.objectContaining({ operation: 'project.update' }) },
+    ]);
+  });
+
+  it('restores the page’s own project into its record', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = persisting(legacy());
+    await store.load('project-attic' as ProjectId);
+
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(true);
+
+    expect(store.project()?.status).toBe('active');
+    expect(store.readOnly()).toBe(false);
+    expect(reporter.reports()).toEqual([
+      { projectId: 'project-attic', projectName: 'Legacy attic', receipt: expect.objectContaining({ operation: 'project.update' }) },
+    ]);
+  });
+
+  it('refuses a stale owner without a request', async () => {
+    const { store, gateway } = persisting(legacy());
+    await store.load('project-shelving' as ProjectId);
+    expect(await store.restoreOwner('project-renovation' as ProjectId, 'active')).toBe(false);
+    expect(gateway.calls.some(({ method }) => method === 'projects.update')).toBe(false);
+  });
+
+  it('says an unreachable restore in the banner, naming the owner with Try again, never in the header', async () => {
+    const { store } = persisting(legacy(), { failOn: { 'projects.update': new GatewayError('unreachable', 0, 'host down') } });
+    await store.load('project-shelving' as ProjectId);
+
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(false);
+
+    expect(store.restoreFailure()).toEqual({ ownerId: 'project-attic', sentence: 'Couldn’t restore “Legacy attic”. Try again.', reason: 'host down', retryable: true });
+    expect(store.writeError()).toBeNull();
+    expect(store.project()?.name).toBe('Legacy shelving');
+    expect(store.archivedOwner()?.id).toBe('project-attic');
+  });
+
+  it('says a rule violation with its reason and queues a context refresh that moves the banner', async () => {
+    const projects = legacy();
+    const { store, gateway } = persisting(projects, { failOn: { 'projects.update': new GatewayError('rule_violation', 422, 'parent is archived') } });
+    await store.load('project-shelving' as ProjectId);
+    // Meanwhile, someone archived the root.
+    set(projects, 'project-renovation', { status: 'archived' });
+
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(false);
+    await flush();
+
+    expect(store.restoreFailure()).toEqual({
+      ownerId: 'project-attic', sentence: 'Couldn’t restore “Legacy attic”. Something above it may have been archived.', reason: 'parent is archived', retryable: false,
+    });
+    expect(gateway.calls.filter(({ method }) => method === 'projects.get').length).toBeGreaterThan(3);
+    expect(store.archivedOwner()?.id).toBe('project-renovation');
+  });
+
+  it('says a not-found restore with no Try again and queues the same refresh', async () => {
+    const projects = legacy();
+    const { store } = persisting(projects, { failOn: { 'projects.update': new GatewayError('not_found', 404, 'project was removed') } });
+    await store.load('project-shelving' as ProjectId);
+    // Meanwhile, the archive was undone elsewhere.
+    set(projects, 'project-attic', { status: 'active' });
+
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(false);
+    await flush();
+
+    expect(store.restoreFailure()).toEqual({
+      ownerId: 'project-attic', sentence: 'Couldn’t restore “Legacy attic”. It may have changed elsewhere.', reason: 'project was removed', retryable: false,
+    });
+    expect(store.archivedOwner()).toBeNull();
+  });
+
+  it('holds the write count, so restoreBlocked and the header hold still, and refuses a second restore while pending', async () => {
+    const { store, gateway } = persisting(legacy());
+    await store.load('project-shelving' as ProjectId);
+    const slow = deferred<ProjectWriteResult>();
+    const update = gateway.projects.update;
+    let sent = 0;
+    gateway.projects.update = (id, input) => {
+      sent += 1;
+      return slow.promise.then(() => update(id, input));
+    };
+
+    const restoring = store.restoreOwner('project-attic' as ProjectId, 'active');
+    expect(store.projectWritePending()).toBe(true);
+    expect(store.restorePending()).toBe(true);
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(false);
+    expect(sent).toBe(1);
+
+    slow.resolve(null as never);
+    expect(await restoring).toBe(true);
+    expect(store.projectWritePending()).toBe(false);
+    expect(store.restorePending()).toBe(false);
+  });
+
+  it('clears a restore failure when a later restore succeeds or another project loads', async () => {
+    const { store, gateway } = persisting(legacy());
+    await store.load('project-shelving' as ProjectId);
+    const update = gateway.projects.update;
+    gateway.projects.update = () => Promise.reject(new GatewayError('unreachable', 0, 'host down'));
+    await store.restoreOwner('project-attic' as ProjectId, 'active');
+    expect(store.restoreFailure()).not.toBeNull();
+    await store.load('project-attic' as ProjectId);
+    expect(store.restoreFailure()).toBeNull();
+
+    await store.restoreOwner('project-attic' as ProjectId, 'active');
+    expect(store.restoreFailure()).not.toBeNull();
+    gateway.projects.update = update;
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(true);
+    expect(store.restoreFailure()).toBeNull();
+  });
+});
+
+describe('ProjectWorkspaceStore — the archived owner, live and degraded (Slice 79, §62)', () => {
+  it('runs the restore inside whileWriting: a frame during it defers the context refresh until it lands', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = persisting(legacy(), {}, live);
+    await store.load('project-shelving' as ProjectId);
+    const slow = deferred<void>();
+    const update = gateway.projects.update;
+    gateway.projects.update = (id, input) => slow.promise.then(() => update(id, input));
+    const gets = () => gateway.calls.filter(({ method }) => method === 'projects.get').length;
+    const before = gets();
+
+    const restoring = store.restoreOwner('project-attic' as ProjectId, 'active');
+    live.emit(projectFrame('project.updated', 'project-attic'));
+    await flush();
+    expect(gets()).toBe(before);
+
+    slow.resolve();
+    await restoring;
+    await flush();
+    expect(gets()).toBeGreaterThan(before);
+    expect(store.archivedOwner()).toBeNull();
+  });
+
+  it('bumps the context epoch on success, so a read in flight from before cannot repaint the ancestor as archived', async () => {
+    const live = new FakeLiveUpdates();
+    const projects = legacy();
+    const { store, gateway } = persisting(projects, {}, live);
+    await store.load('project-shelving' as ProjectId);
+    const get = gateway.projects.get;
+    const gate = deferred<void>();
+    let hold = true;
+    gateway.projects.get = (id) => {
+      if (hold && id === 'project-attic') {
+        hold = false;
+        // The stale answer: read before the restore committed.
+        const stale = projects.find((project) => project.id === id)!;
+        return gate.promise.then(() => stale);
+      }
+      return get(id);
+    };
+    live.emit(projectFrame('project.updated', 'project-kitchen'));
+    await flush();
+
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(true);
+    gate.resolve();
+    await flush();
+
+    expect(store.breadcrumbs().find(({ id }) => id === 'project-attic')?.status).toBe('active');
+    expect(store.archivedOwner()).toBeNull();
+  });
+
+  it('becomes read-only when a live frame archives an ancestor, and a live restore clears it', async () => {
+    const live = new FakeLiveUpdates();
+    const projects = legacy();
+    const { store } = persisting(projects, {}, live);
+    await store.load('project-kitchen' as ProjectId);
+    expect(store.readOnly()).toBe(false);
+
+    set(projects, 'project-renovation', { status: 'archived' });
+    live.emit(projectFrame('project.archived', 'project-renovation'));
+    await flush();
+    expect(store.archivedOwner()?.id).toBe('project-renovation');
+
+    set(projects, 'project-renovation', { status: 'active' });
+    live.emit(projectFrame('project.updated', 'project-renovation'));
+    await flush();
+    expect(store.archivedOwner()).toBeNull();
+  });
+
+  it('becomes read-only when a live frame archives the project itself', async () => {
+    const live = new FakeLiveUpdates();
+    const projects = legacy();
+    const { store } = persisting(projects, {}, live);
+    await store.load('project-kitchen' as ProjectId);
+
+    set(projects, 'project-kitchen', { status: 'archived' });
+    live.emit(projectFrame('project.archived', 'project-kitchen'));
+    await flush();
+    expect(store.archivedOwner()?.id).toBe('project-kitchen');
+  });
+
+  it('keeps the last archived owner when a quiet refresh fails', async () => {
+    const live = new FakeLiveUpdates();
+    const projects = legacy();
+    const { store, gateway } = persisting(projects, {}, live);
+    await store.load('project-shelving' as ProjectId);
+
+    set(projects, 'project-attic', { status: 'active' });
+    gateway.projects.list = () => Promise.reject(new GatewayError('unreachable', 0, 'host down'));
+    live.emit(projectFrame('project.updated', 'project-attic'));
+    await flush();
+
+    expect(store.archivedOwner()?.id).toBe('project-attic');
+    expect(store.error()).toBeNull();
+  });
+
+  it('archived twice: offers the outer owner first, then the project itself once that is restored', async () => {
+    const projects = renovation();
+    set(projects, 'project-renovation', { status: 'archived' });
+    set(projects, 'project-kitchen', { status: 'archived' });
+    const { store } = persisting(projects);
+    await store.load('project-kitchen' as ProjectId);
+    expect(store.archivedOwner()?.id).toBe('project-renovation');
+
+    expect(await store.restoreOwner('project-renovation' as ProjectId, 'active')).toBe(true);
+    expect(store.archivedOwner()?.id).toBe('project-kitchen');
+    expect(store.readOnly()).toBe(true);
+
+    expect(await store.restoreOwner('project-kitchen' as ProjectId, 'active')).toBe(true);
+    expect(store.readOnly()).toBe(false);
+  });
+});
