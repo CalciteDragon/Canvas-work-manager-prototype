@@ -20,16 +20,20 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { failureCode, headedReadFailure, readFailure, writeFailure, type Failure } from '../../shared/feedback/failure';
 import type { ProgressFact } from './project-header';
 
-/** What a refused project write was for, by the fields it carried (Slice 78). */
-const projectWriteSentence = (input: UpdateProjectInput, name: string): string => {
+/**
+ * What a refused project write was for, by the fields it carried (Slice 78). An archive refused
+ * as a `rule_violation` says what to do instead (Slice 79): the only rule an archive can break is
+ * a live workstream under it, and retrying cannot help.
+ */
+const projectWriteSentence = (input: UpdateProjectInput, name: string, code: string | null): string => {
   const fields = Object.keys(input);
-  const verb = input.status === 'archived' ? 'archive'
+  const verb = input.status === 'archived' ? (code === 'rule_violation' ? null : 'archive')
     : fields.length !== 1 ? 'save the details of'
     : input.name !== undefined ? 'rename'
     : input.status !== undefined ? 'change the status of'
     : input.description !== undefined ? 'change the description of'
     : 'change the date of';
-  return `Couldn’t ${verb} “${name}”. Try again.`;
+  return verb === null ? `“${name}” still has live workstreams. Archive them first.` : `Couldn’t ${verb} “${name}”. Try again.`;
 };
 
 /**
@@ -712,7 +716,11 @@ export class ProjectWorkspaceStore {
         } catch (error) {
           if (current()) {
             if (paint !== null) this.projectState.set(before);
-            this.writeErrorState.set(writeFailure(error, projectWriteSentence(input, before.name)));
+            const code = failureCode(error);
+            this.writeErrorState.set(writeFailure(error, projectWriteSentence(input, before.name, code)));
+            // A rule refused it, so the context on screen was stale (for an archive, the tree):
+            // re-read it, so the next confirmation says so first. Queued by `whileWriting`.
+            if (code === 'rule_violation') this.refreshContext();
           }
           return false;
         } finally {

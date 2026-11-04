@@ -45,6 +45,7 @@ import {
   type ProjectPageResolution,
 } from './project-page-registry';
 import { ProjectWorkspaceStore, type WorkTreeNode } from './project-workspace-store';
+import { WORKSPACE_TREE } from './workspace-tree';
 import { WorkCreateDialog, type WorkCreateParent } from './work-create-dialog';
 import type { SettableProjectStatus } from './project-more-menu';
 
@@ -115,6 +116,7 @@ export class ProjectColumnFocusRequest {
     TaskDrawerCoordinator,
     { provide: OPERATION_HISTORY_REPORTER, useExisting: ProjectHistoryStore },
     { provide: RECEIPT_UNDO, useExisting: ProjectHistoryStore },
+    { provide: WORKSPACE_TREE, useExisting: ProjectWorkspaceStore },
   ],
   templateUrl: './project-workspace-shell.html',
   styleUrl: './project-workspace-shell.scss',

@@ -40,7 +40,7 @@ Archive-label revision; both entries record acceptance.
 
 | Entry | Settled | Status |
 |---|---|---|
-| [A failure speaks product words, keeps its reason under Details, and offers Try again for a read](2026-10-failures-speak-product-words.md) | One `Failure` shape and sentence by code; reason under Details; Try again repeats only the read, kept busy while it runs; read and write failures apart; no false empty; the polite sidebar; the digest fails alone | amended; Slice 79 adds the empty and archived variants |
+| [A failure speaks product words, keeps its reason under Details, and offers Try again for a read](2026-10-failures-speak-product-words.md) | One `Failure` shape and sentence by code; reason under Details; Try again repeats only the read, kept busy while it runs; read and write failures apart; no false empty; the polite sidebar; the digest fails alone | amended; Slice 79 adds the empty and archived variants and the late archive refusal's sentence |
 | [Connecting an agent becomes a product surface in Settings › AI & Agents](2026-10-agent-connections-are-a-product-surface.md) | The five S1 findings; its own cross-system slice within §80 | current (Slice 70 Gate 1) |
 | [Prototype scaffolding stays visible during the redesign](2026-10-prototype-scaffolding-stays-for-now.md) | TH12 is restyled, not removed; its findings stay open | current (Slice 70 Gate 1) |
 | [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | amended; Slice 66 |
@@ -70,7 +70,7 @@ Archive-label revision; both entries record acceptance.
 | Entry | Settled | Status |
 |---|---|---|
 | [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md) | Ready-only parent-first root Archive; workspace Settings recovers archived roots and live-ancestor subprojects | amended; Slice 47 keeps a stale list paused until a current read and moves Settings focus to a usable control |
-| [Project nesting rules and what archiving a parent does](2026-08-project-nesting-and-archive-rules.md) | Same workspace, no cycles, no depth limit; children archived first | extended |
+| [Project nesting rules and what archiving a parent does](2026-08-project-nesting-and-archive-rules.md) | Same workspace, no cycles, no depth limit; children archived first | extended; amended (Slice 79: the blocked confirmation says it first) |
 | [Task status transitions, `completedAt`, and how a task is archived](2026-08-task-status-transitions-and-archive.md) | Archive is `archivedAt`, not a status; `done` stamps `completedAt` | amended; Slice 49 applies the archived-completion rule to history; Slice 61 exposes checkbox reopen |
 | [Workspace scoping, and why a foreign id is 404 rather than 409](2026-08-workspace-scoping-and-not-found.md) | Every read and write is scoped by the actor's workspace | current |
 | [Where the agent permission model is enforced](2026-08-permissions-live-on-the-actor.md) | The domain asserts capability on the actor; no `agents.*` permission | current |

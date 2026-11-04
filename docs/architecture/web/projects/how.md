@@ -497,6 +497,21 @@ name field, a failed save describes Save and keeps its reason under Details).
 Discard clears that error before the header returns. Archive confirmation uses the existing
 archive callback, keeps header Undo and returns focus to More, including refusal.
 
+**The archive refusal comes first (Slice 79, L4-008).** `ProjectArchiveConfirm` computes its
+blocking workstreams itself, with `liveChildrenOf` (`live-children.ts`) over the shell's
+`WORKSPACE_TREE` (`workspace-tree.ts`, provided `useExisting: ProjectWorkspaceStore`), or from its
+`liveChildren` input when one is given (stories, tests). Non-empty, it renders the blocked form:
+the heading "“X” can’t be archived yet", each child an `a[data-project-archive-child]` to
+`/projects/<id>` followed by its status, a click on one closing the dialog, and Close
+(`data-project-archive-cancel`, focused on open) as the only button. Empty, the commit form is
+unchanged and the domain decides. The list is live: a frame that changes the tree while the
+dialog is open swaps the form, and focus moves to the new form's dismiss button. **The trap is the bundle:** the header and the store are
+initial code, so neither carries the list; the token has no runtime dependency, because importing
+the store class into the deferred chunk re-splits the store's dependencies into extra initial
+chunks (about 0.5 kB measured). The late refusal is the store's: `projectWriteSentence` takes the
+failure code, an archive's `rule_violation` reads "“X” still has live workstreams. Archive them
+first.", and any `rule_violation` on a project write queues `refreshContext`.
+
 A refused project write is the store's `writeError()`, a `Failure` named by what it was for
 ("Couldn’t rename “X”. Try again.", change the status, description or date of, archive, or save
 the details of): `[data-project-write-error]` in the header, or the details dialog's alert while
@@ -589,7 +604,7 @@ choice of the row now at the restored row's place) or the heading.
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | ProjectDetailsDialog | component | Single-commit project draft | [API](../../../api/components/ProjectDetailsDialog.html) |
-| ProjectArchiveConfirm | component | Modal archive confirmation | [API](../../../api/components/ProjectArchiveConfirm.html) |
+| ProjectArchiveConfirm | component | Modal archive confirmation; the blocked form over live workstreams | [API](../../../api/components/ProjectArchiveConfirm.html) |
 | ProjectColumnFocusRequest | injectable | Cross-shell column and Archive focus requests | [API](../../../api/injectables/ProjectColumnFocusRequest.html) |
 
 

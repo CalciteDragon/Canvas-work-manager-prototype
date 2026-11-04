@@ -150,6 +150,12 @@ root's Todos and Reflections pages say how much a restore brings back, "Restore 
 todos.", instead of an empty sentence that is false under the banner; with nothing hidden the
 ordinary sentence stays, because it is true (the user's answer to Slice 79's Open question 7).
 
+**An archive the domain will refuse is refused first.** Archiving over a live workstream is the
+domain's rule and stays so, with no cascade; the confirmation says it before the write, naming each
+live child as a link with its status, and offers only Close. A refusal that still arrives, on a
+stale tree, says what to do rather than "Try again", and the tree is re-read
+([decision](../../../decisions/2026-08-project-nesting-and-archive-rules.md)).
+
 **Arriving at a section is a DOM match, never a selector interpolation.** The canvas
 matches `#section-<id>` against the sections it loaded, focuses the frame heading, and
 opens a collapsed target through a transient input that leaves the record alone
@@ -190,6 +196,7 @@ undo its own receipt after checking that it remains next
 
 - [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — ready-only root rows and separate workspace Settings recovery.
 - [Archived pages are read-only, with a banner that restores in place](../../../decisions/2026-11-archived-pages-are-read-only.md) — outermost owner, absent write controls, local collapse, static Task List rows.
+- [Project nesting rules and what archiving a parent does](../../../decisions/2026-08-project-nesting-and-archive-rules.md) — children archived first; since Slice 79 the confirmation says so before the write.
 
 - [Direct canvas editing direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (implemented in Slice 27)
 - [Contextual insertion names its position](../../../decisions/2026-09-contextual-insertion-names-its-position.md)

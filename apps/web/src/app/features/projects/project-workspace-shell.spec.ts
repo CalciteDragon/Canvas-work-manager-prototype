@@ -1198,9 +1198,24 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
 });
 
 describe('ProjectWorkspaceShell — the header, the canvas and what crosses between them', () => {
+  // Slice 79, L4-008: what the tree knows is said first; Kitchen and Garden are live.
+  it('gives the confirmation the live workstreams, so archiving over them offers no commit', async () => {
+    const { harness, gateway } = await open('/projects/project-renovation');
+    query(harness, '[data-project-more]')!.click();
+    harness.fixture.detectChanges();
+    query(harness, '[data-project-archive]')!.click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-archive-confirm-yes]')).toBeNull();
+    expect([...harness.fixture.nativeElement.querySelectorAll('a[data-project-archive-child]')].map((link) => (link as HTMLAnchorElement).getAttribute('href')))
+      .toEqual(['/projects/project-kitchen', '/projects/project-garden']);
+    expect(gateway.calls.some(({ method }) => method === 'projects.update')).toBe(false);
+  });
+
   it('stays on the archived project with its Undo, and stays put with the reason when the domain refuses', async () => {
-    const refused = await open('/projects/project-renovation', {
-      failOn: { 'projects.update': new GatewayError('conflict', 409, 'archive its live sub-projects first') },
+    // A stale tree: Cabinets shows no live workstream, so the commit form lets the domain decide.
+    const refused = await open('/projects/project-cabinets', {
+      failOn: { 'projects.update': new GatewayError('rule_violation', 409, 'project "project-cabinets" still has active workstreams') },
     });
     query(refused.harness, '[data-project-more]')!.click();
     refused.harness.fixture.detectChanges();
@@ -1209,8 +1224,9 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     query(refused.harness, '[data-project-archive-confirm-yes]')!.click();
     await settle(refused.harness);
 
-    expect(refused.router.url).toBe('/projects/project-renovation');
-    expect(query(refused.harness, '[data-project-write-error]')?.textContent).toContain('live sub-projects');
+    expect(refused.router.url).toBe('/projects/project-cabinets');
+    expect(query(refused.harness, '[data-project-write-error] [role="alert"]')?.textContent?.trim()).toBe('“Cabinets” still has live workstreams. Archive them first.');
+    expect(query(refused.harness, '[data-project-write-error] details')?.textContent).toContain('still has active workstreams');
 
     // Slice 41: a successful archive no longer navigates to `/app`, where no header could offer
     // the one step the per-step blocker exists for.

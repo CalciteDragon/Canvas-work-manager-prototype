@@ -94,3 +94,10 @@ a banner. Neither takes a danger colour, because nothing went wrong. The shared
 `RestoreStatusChoice` (one option list in one casing, Active preselected and shown, Open question 2
 of the slice 79 plan, user decision 2026-11-04) is built; the Design Lab's State messages panel
 shows both variants, the archived one holding the choice. No product page uses them yet. §21 carries a *Slice 79* paragraph.
+
+**Amended, 2026-11-04 — Slice 79 (the late archive refusal).** A project write's sentence now
+takes the failure's code as well as its fields: an archive refused as `rule_violation` says what to
+do, "“X” still has live workstreams. Archive them first.", because retrying cannot help, while
+every other code keeps "Couldn’t archive “X”. Try again." (`unreachable` can succeed on retry). The
+reason stays under Details. Any `rule_violation` on a project write also re-reads the page's
+context, since a rule refusing it means the picture on screen was stale.

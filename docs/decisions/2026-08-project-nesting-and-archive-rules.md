@@ -66,3 +66,17 @@ plausible better answer once there is a UI to confirm in.
   used at all, and whether the missing depth limit ever bites.
 - Slice 22 (agent confirmations, §58), which is where a cascading archive would get the
   confirmation that makes it safe.
+
+**Amended, 2026-11-04 — Slice 79 (the refusal comes first, L4-008, user's choice).** The rule
+does not change and there is still no cascade; what changes is *when* the person hears it. The
+header's archive confirmation computes the project's direct children that are not archived, the
+same set `assertNoActiveChildren` checks (`liveChildrenOf`, over the workspace tree: a root's top
+level, a workstream's node's children). When there are any, the confirmation is the blocked form,
+"“Kitchen” can’t be archived yet" over "These workstreams aren’t archived. Archive them first:",
+each child a link to its page with its status ("Garden · Completed": completed still blocks),
+following one closing the dialog, and Close the only button. When the tree cannot say (a stale
+read, an agent's new workstream, or children hidden under an archived ancestor) the commit form
+stays and the domain decides; a `rule_violation` on that archive then reads "“X” still has live
+workstreams. Archive them first." with the reason under Details, never "Try again", and the page
+re-reads its context so the next confirmation shows the blocked form. Spec §31 carries a
+*Slice 79* note.

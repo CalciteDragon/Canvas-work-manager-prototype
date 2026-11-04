@@ -1904,7 +1904,14 @@ stays a recovery route ([decision](docs/decisions/2026-09-root-archive-recovery-
 None of this adds a cascade. Archiving a project with **live child subprojects is still
 refused**, exactly as it is today, and archiving a project never archives anything beneath it —
 an implicit cascade would archive work the caller never named. A whole-tree Archive page makes
-archived work *findable*; it does not make archiving *contagious*.
+archived work *findable*; it does not make archiving *contagious*. *Slice 79:* the refusal is said
+before the write when the page can know it: with live workstreams under the project, the header's
+archive confirmation reads "“X” can’t be archived yet", lists each live child as a link to its page
+with its status (a completed child still blocks), and offers only Close. When the tree cannot say
+(a stale read, or work hidden under an archived ancestor) the confirmation commits and the domain
+decides; its refusal then reads "“X” still has live workstreams. Archive them first.", with the
+reason under Details, and the page re-reads its tree
+([decision](docs/decisions/2026-08-project-nesting-and-archive-rules.md)).
 
 *Slice 74.* Archive is always visitable for a root, whether its record is missing, hidden or
 shown. **Open archive** in More and recovery toasts navigates directly and writes nothing. Its
