@@ -46,6 +46,12 @@ re-read (`retryDigest`), so the other widgets stay on screen
 the one read still fails Home as a whole — the price of the single-read design — and says so
 once, as "Couldn’t load Home." with Try again and the reason under Details.
 
+**First run sits above the widgets, not instead of them.** An empty workspace keeps the
+persona's layout and every widget's own empty sentence; the block above them says what projects
+are for and offers New project. Whether the workspace is empty is the shell's fact, read through
+`SHELL_COMMANDS`, and the form it opens is the sidebar's, so there is still one creation path
+([decision](../../../decisions/2026-11-empty-workspace-offers-the-first-project.md)).
+
 ## Consequences
 
 - The dashboard's content changes meaningfully with the simulated date and the loaded
@@ -62,6 +68,7 @@ once, as "Couldn’t load Home." with Try again and the reason under Details.
 - [Where dashboard widgets live](../../../decisions/2026-08-dashboard-widget-ownership.md)
 - [What counts as AI in the prototype](../../../decisions/2026-08-prototype-ai-scope-and-fun-fact.md)
 - [A failure speaks product words](../../../decisions/2026-10-failures-speak-product-words.md) — Home's one failure, and the digest failing alone
+- [An empty workspace offers the first project](../../../decisions/2026-11-empty-workspace-offers-the-first-project.md) — first run above the widgets, behind `@defer`
 - [The activity feed composes its line](../../../decisions/2026-08-activity-feed-composes-from-parts.md) — the agent-activity widget
 
 ## Spec sections

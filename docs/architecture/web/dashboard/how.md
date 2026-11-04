@@ -16,7 +16,13 @@
 5. On a live frame the store re-reads quietly; on `prototype.reloaded` the tab reloads. The Recent
    Agent Activity widget reuses `ActivityFeed`, so a removed row displays its captured historical
    label supplied by the host rather than disappearing.
-6. Switching persona reloads the page; the new persona's list and query produce a
+6. In an empty workspace (Slice 79) the page's optional `SHELL_COMMANDS` says
+   `workspaceEmpty()`, and its `@defer (when shell?.workspaceEmpty())` loads `FirstRunBlock` above
+   the widgets. New project calls `requestCreate()`: the shell opens its sidebar form, through the
+   Menu when narrow. A `when` trigger loads once and never unloads, so the block itself hides
+   when the first project arrives. Outside `AppShell` (stories, specs) the token is absent and
+   there is no first run.
+7. Switching persona reloads the page; the new persona's list and query produce a
    different dashboard with nothing in this feature knowing why.
 
 ## Key symbols
@@ -25,6 +31,7 @@
 |---|---|---|---|
 | `DashboardPage` | component | The page | [API](../../../api/components/DashboardPage.html) |
 | `DashboardStore` | injectable | Layout ⋈ content | [API](../../../api/injectables/DashboardStore.html) |
+| `FirstRunBlock` | component | Home's first run, deferred | [API](../../../api/components/FirstRunBlock.html) |
 | `DASHBOARD_WIDGET_REGISTRY` | const | Type → component, `queryFrom` and `failureOf` | [API](../../../api/miscellaneous/variables.html#DASHBOARD_WIDGET_REGISTRY) |
 | `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | interfaces | The widget contract | [API](../../../api/interfaces/DashboardWidgetDefinition.html) |
 | `DashboardWidgetFrame` | component | Chrome and sizes | [API](../../../api/components/DashboardWidgetFrame.html) |
@@ -35,7 +42,8 @@
 **Depends on**
 
 - [core](../core/overview.md) — `IDENTITY_PROVIDER` for the layout,
-  `WORK_MANAGER_GATEWAY.dashboard` for the content, `LIVE_UPDATES`.
+  `WORK_MANAGER_GATEWAY.dashboard` for the content, `LIVE_UPDATES`, and `SHELL_COMMANDS`
+  (optional) for first run.
 - `features/activity` — `ActivityFeed` inside the agent-activity widget; the page mounts tiles
   only once loaded, so a first load never fades and only later rows do (Slice 75).
 - [contracts](../../contracts/overview.md) — `dashboard.ts` and `DashboardWidgetType`.
@@ -53,6 +61,9 @@
 - **Widgets take data only**: a failed part of the dashboard is rendered by the frame from the
   definition's `failureOf` — `dashboard-widget-frame.spec.ts`, `daily-digest-widget.spec.ts`.
 - **Every widget has an empty state**, verified in the browser against `empty`.
+- **First run is markup in its own component**, never in `dashboard-page.html`: only a deferred
+  block's dependencies load lazily, so markup left in the page would stay in the initial
+  bundle — `dashboard-page.spec.ts`'s first-run cases.
 - **Overdue rows print the date, not the time** — a defect only the browser showed,
   now a test.
 

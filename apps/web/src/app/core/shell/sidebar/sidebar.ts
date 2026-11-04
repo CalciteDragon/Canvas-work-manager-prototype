@@ -47,6 +47,8 @@ export class Sidebar {
    * than the write's own message beside the form that produced it.
    */
   readonly createError = input<Failure | null>(null);
+  /** Archived projects exist (Slice 79): an empty tree says "No active projects." and links to them. */
+  readonly hasArchived = input(false);
 
   readonly createRequested = output<string>();
   /** Try again on a failed read; `AppShell` asks `ShellStore` to read again. */

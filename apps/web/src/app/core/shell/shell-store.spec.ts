@@ -1,6 +1,6 @@
 import { effect } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ProjectStatusSchema, type Identity, type Project, type ProjectQuery } from '@cwm/contracts';
+import { type Identity, type Project, type ProjectQuery } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { GatewayError } from '../gateway/gateway-error';
@@ -96,16 +96,80 @@ describe('ShellStore', () => {
     expect(store.projectTree().map((node) => node.project.name).sort()).toEqual(['A', 'B']);
   });
 
-  // The expected list is written out rather than recomputed from ProjectStatusSchema:
-  // restating the expression under test would pass however that expression drifts.
-  it('asks for every project status except archived', async () => {
-    const { store, gateway } = storeWith();
+  // Slice 79 (W4-034): one unfiltered read, split here. The domain already hides live work under
+  // an archived ancestor, so what comes back archived is archived in its own right.
+  it('reads every project in one unfiltered call, and keeps archived ones out of the tree', async () => {
+    const { store, gateway } = storeWith({
+      projects: [project('project-1', 'Live'), { ...project('project-2', 'Shelved'), status: 'archived' }],
+    });
 
     await store.load();
 
-    const query = gateway.argumentTo('projects.list') as ProjectQuery;
-    expect(query.status).toEqual(['planning', 'active', 'on_hold', 'completed']);
-    expect(query.status).toHaveLength(ProjectStatusSchema.options.length - 1);
+    expect(gateway.calls.filter((call) => call.method === 'projects.list')).toHaveLength(1);
+    expect((gateway.argumentTo('projects.list') as ProjectQuery).status).toBeUndefined();
+    expect(store.projectTree().map((node) => node.project.name)).toEqual(['Live']);
+    expect(store.hasArchived()).toBe(true);
+    expect(store.workspaceEmpty()).toBe(false);
+  });
+
+  it('keeps archived projects out of the flat tree too', async () => {
+    const { store } = storeWith({ projects: [{ ...project('project-2', 'Shelved'), status: 'archived' }] });
+    TestBed.inject(PrototypeSettings).setFlag('nestedProjects', false);
+
+    await store.load();
+
+    expect(store.projectTree()).toEqual([]);
+    expect(store.hasArchived()).toBe(true);
+    // Something exists, so this is not a first run.
+    expect(store.workspaceEmpty()).toBe(false);
+  });
+
+  // W1-001: `projects` starts as `[]`, so emptiness alone proves nothing.
+  it('is an empty workspace only after a read answers with nothing in it', async () => {
+    const held = deferred<Project[]>();
+    const { store, gateway } = storeWith();
+    vi.spyOn(gateway.projects, 'list').mockReturnValueOnce(held.promise);
+
+    const loading = store.load();
+    expect(store.answered()).toBe(false);
+    expect(store.workspaceEmpty()).toBe(false);
+    held.resolve([]);
+    await loading;
+
+    expect(store.answered()).toBe(true);
+    expect(store.hasArchived()).toBe(false);
+    expect(store.workspaceEmpty()).toBe(true);
+  });
+
+  it('is never an empty workspace after a failed read', async () => {
+    const { store } = storeWith({ failOn: { 'projects.list': new GatewayError('internal_error', 500, 'boom') } });
+
+    await store.load();
+
+    expect(store.projects()).toEqual([]);
+    expect(store.workspaceEmpty()).toBe(false);
+  });
+
+  it('is never an empty workspace when only the identity read fails', async () => {
+    const { store } = storeWith({ identity: new GatewayError('unreachable', 0, 'host is down') });
+
+    await store.load();
+
+    expect(store.answered()).toBe(false);
+    expect(store.workspaceEmpty()).toBe(false);
+  });
+
+  it('is not an empty workspace while Try again re-reads, nor after it fails again', async () => {
+    const { store, gateway } = storeWith();
+    await store.load();
+    expect(store.workspaceEmpty()).toBe(true);
+
+    gateway.options.failOn = { 'projects.list': new GatewayError('internal_error', 500, 'boom') };
+    const retried = store.load();
+    expect(store.workspaceEmpty()).toBe(false);
+    await retried;
+
+    expect(store.workspaceEmpty()).toBe(false);
   });
 
   it('settles into an error state when the projects call fails', async () => {

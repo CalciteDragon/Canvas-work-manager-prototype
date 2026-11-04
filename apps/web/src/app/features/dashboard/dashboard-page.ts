@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { SHELL_COMMANDS } from '../../core/shell/shell-commands';
 import { FailureMessage } from '../../shared/feedback/failure-message';
+import { FirstRunBlock } from './first-run-block';
 import { DashboardStore } from './dashboard-store';
 import { DashboardWidgetFrame } from './widgets/widget-frame/dashboard-widget-frame';
 
@@ -14,12 +16,14 @@ import { DashboardWidgetFrame } from './widgets/widget-frame/dashboard-widget-fr
   selector: 'app-dashboard-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [DashboardStore],
-  imports: [DashboardWidgetFrame, FailureMessage],
+  imports: [DashboardWidgetFrame, FailureMessage, FirstRunBlock],
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.scss',
 })
 export class DashboardPage {
   readonly store = inject(DashboardStore);
+  /** The shell's, for first run (Slice 79); absent outside `AppShell`, as in stories. */
+  protected readonly shell = inject(SHELL_COMMANDS, { optional: true });
 
   constructor() {
     void this.store.load();

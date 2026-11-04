@@ -49,7 +49,10 @@ can confirm a write and undo it without importing another feature's store.
   project tree; `ShellStore.createProject` is where a root is created. Below 48rem the same
   sidebar instance becomes a modal navigation drawer behind the top bar's **Menu**, whose
   open state is `AppShell`'s own signal, not the store's (Slice 58,
-  [decision](../../../decisions/2026-09-phone-navigation-drawer.md)).
+  [decision](../../../decisions/2026-09-phone-navigation-drawer.md)). `AppShell` provides
+  `SHELL_COMMANDS` as itself, so Home's first run reads `workspaceEmpty` and asks for the one
+  creation form without injecting `ShellStore` (Slice 79,
+  [decision](../../../decisions/2026-11-empty-workspace-offers-the-first-project.md)).
 
 ## Not responsible for
 

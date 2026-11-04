@@ -81,7 +81,13 @@
           }
         </div>
         @if (failure() === null && !loading() && projectTree().length === 0) {
-          <p class="notice" data-projects-empty>No projects yet</p>
+          <!-- Slice 79 (W4-034): with only archived projects, "No projects yet" would be false. -->
+          <p class="notice state-message state-message--empty" data-projects-empty>
+            {{ hasArchived() ? 'No active projects.' : 'No projects yet' }}
+            @if (hasArchived()) {
+              <a routerLink="/settings/archived-projects">Archived projects are in Settings.</a>
+            }
+          </p>
         } @else if (failure() === null && projectTree().length > 0) {
           <ul class="projects">
             @for (node of projectTree(); track node.project.id) {

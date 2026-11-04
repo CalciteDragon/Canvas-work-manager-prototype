@@ -1,4 +1,5 @@
 import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivityFeedEntrySchema, DashboardResultSchema, type DashboardResult, type DashboardWidget, type Identity } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,6 +7,7 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, dashboardWithoutDigest, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
+import { SHELL_COMMANDS, type ShellCommands } from '../../core/shell/shell-commands';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { DashboardPage } from './dashboard-page';
 
@@ -59,7 +61,7 @@ const render = async (...args: Parameters<typeof renderPage>) => (await renderPa
 
 const renderPage = async (
   widgets: DashboardWidget[],
-  options: { dashboard?: DashboardResult; failWith?: GatewayError; identity?: Identity | GatewayError } = {},
+  options: { dashboard?: DashboardResult; failWith?: GatewayError; identity?: Identity | GatewayError; commands?: ShellCommands } = {},
 ) => {
   const identity = options.identity ?? (() => {
     const base = testIdentity();
@@ -77,6 +79,7 @@ const renderPage = async (
         }),
       },
       { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(identity) },
+      ...(options.commands === undefined ? [] : [{ provide: SHELL_COMMANDS, useValue: options.commands }]),
     ],
   });
 
@@ -347,4 +350,68 @@ it('opens dashboard tasks at their canonical owner section and hides decorative 
   expect(row.querySelector('[data-project-icon]')?.getAttribute('aria-hidden')).toBe('true');
  }
  expect(rows[0]?.classList.contains('object-row--overdue')).toBe(true);
+});
+
+// Slice 79 (W1-001, W4-001, L4-020): an empty workspace's Home says what the product is for and
+// offers New project, above the widgets, which stay below with their own empty sentences (Q3 (a)).
+describe('DashboardPage — first run', () => {
+  const commands = (empty: boolean) => ({ workspaceEmpty: signal(empty), requestCreate: vi.fn() });
+  const settle = async (fixture: Awaited<ReturnType<typeof renderPage>>['fixture']) => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+  };
+
+  it('shows the block above the widgets in an empty workspace', async () => {
+    const shell = commands(true);
+    const { fixture, element } = await renderPage(everyWidget(), { dashboard: emptyDashboard(), commands: shell });
+    await settle(fixture);
+
+    const block = element.querySelector<HTMLElement>('[data-first-run]')!;
+    expect(block.querySelector('[data-first-run-sentence]')?.textContent?.trim()).not.toBe('');
+    expect(block.compareDocumentPosition(element.querySelector('.dashboard__grid')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(7);
+    // The sidebar's control keeps its own hook (web.spec.ts:30).
+    expect(element.querySelector('[data-new-project]')).toBeNull();
+  });
+
+  it('asks the shell for its one creation form on New project', async () => {
+    const shell = commands(true);
+    const { fixture, element } = await renderPage(everyWidget(), { dashboard: emptyDashboard(), commands: shell });
+    await settle(fixture);
+
+    const create = element.querySelector<HTMLButtonElement>('button[data-first-run-create]')!;
+    expect(create.textContent?.trim()).toBe('New project');
+    create.click();
+
+    expect(shell.requestCreate).toHaveBeenCalledTimes(1);
+  });
+
+  // Loading, a failed read and an archived-only workspace all reach Home as `workspaceEmpty`
+  // false (shell-store.spec.ts proves each); none of them is a first run.
+  it('is absent while the workspace is not known to be empty', async () => {
+    const { fixture, element } = await renderPage(everyWidget(), { dashboard: emptyDashboard(), commands: commands(false) });
+    await settle(fixture);
+
+    expect(element.querySelector('[data-first-run]')).toBeNull();
+  });
+
+  it('goes when the first project arrives', async () => {
+    const shell = commands(true);
+    const { fixture, element } = await renderPage(everyWidget(), { dashboard: emptyDashboard(), commands: shell });
+    await settle(fixture);
+    expect(element.querySelector('[data-first-run]')).not.toBeNull();
+
+    shell.workspaceEmpty.set(false);
+    await settle(fixture);
+
+    expect(element.querySelector('[data-first-run]')).toBeNull();
+  });
+
+  it('is absent outside the shell', async () => {
+    const { fixture, element } = await renderPage(everyWidget(), { dashboard: emptyDashboard() });
+    await settle(fixture);
+
+    expect(element.querySelector('[data-first-run]')).toBeNull();
+  });
 });

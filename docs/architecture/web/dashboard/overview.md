@@ -22,6 +22,9 @@ one line in `DASHBOARD_WIDGET_REGISTRY`, rendered in preset sizes inside a commo
   dashboard read is one alert with Try again; a `null` digest fails only the digest's place,
   "Couldn’t write today’s digest." with Try again, and the other widgets stay (Slice 78).
 - Re-read on live frames, so an agent's completion moves Today and Recent Progress.
+- `FirstRunBlock`: in a workspace with no projects at all, Home says what the product is for
+  and offers New project above the widgets, which stay below with their own empty sentences
+  (Slice 79). New project opens the shell's one creation form, the sidebar's.
 
 ## Not responsible for
 
@@ -29,6 +32,8 @@ one line in `DASHBOARD_WIDGET_REGISTRY`, rendered in preset sizes inside a commo
   computes today, upcoming, active projects, recent progress, the digest and the
   clock-keyed Fun Fact in one read, from one clock reading.
 - Configuring widgets from the UI — Slice 23, a planned candidate.
+- Knowing whether the workspace is empty, or creating the project: both are the
+  [shell's](../core/overview.md), read and asked through `SHELL_COMMANDS`.
 - The activity feed component the agent-activity widget reuses — `features/activity`.
 
 ## Read next

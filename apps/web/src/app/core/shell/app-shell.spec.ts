@@ -6,6 +6,7 @@ import { GatewayError } from '../gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
 import { AppShell } from './app-shell';
+import { SHELL_COMMANDS } from './shell-commands';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
 
 const render = async (options: Parameters<typeof shellTestProviders>[0] = {}) => {
@@ -129,6 +130,48 @@ describe('AppShell', () => {
  * kept, which lets a case flip it the way a real resize does. jsdom also does not enforce
  * `inert` or run a real focus trap: those halves are `apps/e2e/phone-layout.spec.ts`'s evidence.
  */
+// Slice 79 (W1-001): Home's first-run New project asks the shell, which opens the one creation
+// form, the sidebar's, rather than a second one of its own.
+describe('AppShell — ShellCommands', () => {
+  afterEach(() => document.body.replaceChildren());
+
+  it('provides SHELL_COMMANDS, whose workspaceEmpty follows the shell’s read', async () => {
+    const { fixture } = await renderShell({ projects: [] });
+
+    expect(fixture.debugElement.injector.get(SHELL_COMMANDS).workspaceEmpty()).toBe(true);
+  });
+
+  it('is not an empty workspace when the read finds a project', async () => {
+    const { fixture } = await renderShell({ projects: [ProjectSchema.parse({ id: 'project-1', workspaceId: 'workspace-demo', kind: 'root', name: 'One', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' })] });
+
+    expect(fixture.debugElement.injector.get(SHELL_COMMANDS).workspaceEmpty()).toBe(false);
+  });
+
+  it('reopens the one form on each request, never a second', async () => {
+    const { fixture, element } = await renderShell({ projects: [] });
+    const commands = fixture.debugElement.injector.get(SHELL_COMMANDS);
+
+    commands.requestCreate();
+    await fixture.whenStable();
+    commands.requestCreate();
+    await fixture.whenStable();
+
+    expect(element.querySelectorAll('[data-create-project-form]')).toHaveLength(1);
+  });
+
+  it('opens the sidebar’s form with focus in its name when a page requests a create', async () => {
+    const { fixture, element } = await renderShell({ projects: [] });
+    document.body.appendChild(element);
+
+    fixture.debugElement.injector.get(SHELL_COMMANDS).requestCreate();
+    await fixture.whenStable();
+    await fixture.whenStable();
+
+    expect(element.querySelectorAll('[data-create-project-form]')).toHaveLength(1);
+    expect(document.activeElement).toBe(element.querySelector('[data-create-project-name]'));
+  });
+});
+
 describe('AppShell — the phone navigation drawer (Slice 58)', () => {
   const stubMatchMedia = (matches: boolean) => {
     const listeners = new Set<(event: { matches: boolean }) => void>();
@@ -324,6 +367,20 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     await stable();
 
     expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
+  });
+
+  // Slice 79: the Menu first, then the name field, after the drawer's own focus move.
+  it('opens the drawer first for a page’s create request, and ends with focus in the name', async () => {
+    const { fixture, q, stable } = await renderAt(true, { projects: [] });
+    const focused: Array<Element | null> = [];
+    document.addEventListener('focusin', () => focused.push(document.activeElement));
+
+    fixture.debugElement.injector.get(SHELL_COMMANDS).requestCreate();
+    await stable();
+
+    expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
+    expect(document.activeElement).toBe(q('[data-create-project-name]'));
+    expect(focused.at(-1)).toBe(q('[data-create-project-name]'));
   });
 
   const submitCreate = async (q: Query, stable: () => Promise<void>) => {

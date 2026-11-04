@@ -10,6 +10,12 @@
     }
   </header>
 
+  <!-- Slice 79: first run, above the widgets (Q3 (a)), its chunk loaded only for an empty
+       workspace (Q6 (a)). -->
+  @defer (when shell?.workspaceEmpty()) {
+    <app-first-run-block />
+  }
+
   <!-- The failure first: Try again keeps it on screen, busy, until the read answers. -->
   @if (store.error(); as failure) {
     <app-failure-message

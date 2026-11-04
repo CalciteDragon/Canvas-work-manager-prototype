@@ -27,7 +27,8 @@ flowchart LR
   slot["shared/feedback<br/>ToastSlot + Toast"]
   subgraph shell["Shell"]
     as["AppShell"]
-    ss["ShellStore<br/>project tree, createProject"]
+    ss["ShellStore<br/>project tree, hasArchived, workspaceEmpty, createProject"]
+    sc["SHELL_COMMANDS<br/>workspaceEmpty, requestCreate"]
     sb["Sidebar → ProjectTreeItem<br/>inline, or the drawer below 48rem"]
     tb["TopBar<br/>Menu below 48rem"]
   end
@@ -39,6 +40,7 @@ flowchart LR
   as --> ss --> gw
   ss --> lu
   as --> sb & tb
+  as -. provides .-> sc
   th --> id
   toast --> undo & slot
 ```
@@ -101,4 +103,5 @@ sequenceDiagram
 | `RouteFocus` | `core/a11y/route-focus.ts` | Initializer-backed body-focus recovery after trusted-input navigation; page/header heading then bounded main fallback |
 | `ThemeService` | `core/theme/theme-service.ts` | §22 |
 | `AppShell`, `ShellStore`, `ProjectTreeNode`, `SHELL_NARROW_QUERY` | `core/shell/` | §23 layout and the project tree; the phone drawer's open state, focus moves and resize reset are `AppShell`'s |
-| `Sidebar`, `ProjectTreeItem`, `TopBar` | `core/shell/sidebar/`, `core/shell/top-bar/` | Presentational; `TopBar` renders the Menu and reports it, `Sidebar` says "Loading projects…" until a read answers, renders a failed read through `FailureMessage` politely with Try again (Slice 78), focuses its visibly labelled "Project name" field when New project opens the form and again after a failed create, whose `ShellStore.createError()` `Failure` ("Couldn’t create “X”. Try again.", the reason under Details) shows beside the form as an inline alert that describes the field (Slice 78); a blank name is refused in the `novalidate` form with "Enter a name." beside the field, which keeps focus |
+| `SHELL_COMMANDS`, `ShellCommands` | `core/shell/shell-commands.ts` | What a routed page may ask of the shell (Slice 79): `workspaceEmpty`, `requestCreate()`; `AppShell` provides it as itself |
+| `Sidebar`, `ProjectTreeItem`, `TopBar` | `core/shell/sidebar/`, `core/shell/top-bar/` | Presentational; `TopBar` renders the Menu and reports it, `Sidebar` says "Loading projects…" until a read answers, with an empty tree "No projects yet", or with `hasArchived` "No active projects." and a link to Settings › Archived projects (Slice 79), renders a failed read through `FailureMessage` politely with Try again (Slice 78), focuses its visibly labelled "Project name" field when New project opens the form and again after a failed create, whose `ShellStore.createError()` `Failure` ("Couldn’t create “X”. Try again.", the reason under Details) shows beside the form as an inline alert that describes the field (Slice 78); a blank name is refused in the `novalidate` form with "Enter a name." beside the field, which keeps focus |

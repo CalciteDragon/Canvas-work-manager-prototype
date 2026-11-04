@@ -46,7 +46,7 @@ Archive-label revision; both entries record acceptance.
 | [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | amended; Slice 66 |
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
-| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling; Slice 41 adds the eager header controls; Slice 58 fits the phone drawer at 1048.5 kB; Slice 62 deferred panel controls to reach 1,032,388 bytes; after Slice 73 (1,049,943 bytes) the user raised the hard ceiling to 1100 kB |
+| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling; Slice 41 adds the eager header controls; Slice 58 fits the phone drawer at 1048.5 kB; Slice 62 deferred panel controls to reach 1,032,388 bytes; after Slice 73 (1,049,943 bytes) the user raised the hard ceiling to 1100 kB; Slice 77 raised it to 1150 kB; Slice 79 lazy-loads Calendar and Settings › Agents to hold it |
 
 ## Contracts
 
@@ -160,6 +160,7 @@ Archive-label revision; both entries record acceptance.
 |---|---|---|
 | [Rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md) | Shared row anatomy; title navigation outside the owner, selection inside; Preview stays contained | Slice 77 |
 | [Archived pages are read-only, with a banner that restores in place](2026-11-archived-pages-are-read-only.md) | Outermost archived owner; absent canvas and section write controls; local, unsaved collapse (Q4 (a)); static Task List rows with no drawer (Q5 (a)); what stays in the header | current (Slice 79) |
+| [An empty workspace offers the first project](2026-11-empty-workspace-offers-the-first-project.md) | First run above the widgets (Q3 (a)), said only after a read answered; `SHELL_COMMANDS` and the one creation form; the sidebar's archived-only "No active projects." | current (Slice 79) |
 
 - [Lifts use the browser's top layer](2026-10-lifts-use-the-top-layer.md) — current; Slice 73 native modes and one transient lift.
 - [Route focus lands lost focus after user navigation](2026-10-route-focus-lands-lost-focus.md) — current; Slice 73 bounded heading/main landing.

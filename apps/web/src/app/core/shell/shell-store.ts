@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
-import { ProjectStatusSchema, type Identity, type LiveEvent, type Project, type ProjectId } from '@cwm/contracts';
+import { type Identity, type LiveEvent, type Project, type ProjectId } from '@cwm/contracts';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../history/operation-history-reporter';
@@ -17,15 +17,13 @@ export interface ProjectTreeNode {
   children: ProjectTreeNode[];
 }
 
-/** The sidebar is navigation, so archived projects have no business in it. */
-const SIDEBAR_STATUSES = ProjectStatusSchema.options.filter((status) => status !== 'archived');
-
 interface QueuedRead { quiet: boolean; promise: Promise<void>; resolve: () => void; reject: (error: unknown) => void; }
 
 /**
  * The shell's own store (§19, §20). It holds the shell's state and no one else's: the
  * dashboard, the project page and the rest bring their own, so any of them can be deleted
- * without unpicking a shared one.
+ * without unpicking a shared one. Home reads one fact from it, `workspaceEmpty`, and only through
+ * `SHELL_COMMANDS`, which `AppShell` provides (Slice 79).
  */
 @Injectable()
 export class ShellStore {
@@ -40,7 +38,14 @@ export class ShellStore {
   private queuedRead: QueuedRead | null = null;
 
   private readonly identityState = signal<Identity | null>(null);
+  /**
+   * Every project the read returned, archived ones included (Slice 79): one unfiltered read
+   * answers both the tree and whether anything archived exists. The domain already hides live
+   * work under an archived ancestor, so an archived row here is archived in its own right.
+   */
   private readonly projectsState = signal<Project[]>([]);
+  /** A project read has answered. `projectsState` starts as `[]`, so emptiness alone proves nothing. */
+  private readonly answeredState = signal(false);
   /** True while a non-quiet read runs: the sidebar says "Loading projects…" until one answers. */
   private readonly loadingState = signal(false);
   /**
@@ -56,7 +61,18 @@ export class ShellStore {
   private readonly createErrorState = signal<Failure | null>(null);
 
   readonly identity = this.identityState.asReadonly();
-  readonly projects = this.projectsState.asReadonly();
+  /** The sidebar is navigation, so archived projects have no business in it. */
+  readonly projects = computed(() => this.projectsState().filter((project) => project.status !== 'archived'));
+  readonly answered = this.answeredState.asReadonly();
+  /** Something is archived: an empty tree then says "No active projects.", not "No projects yet". */
+  readonly hasArchived = computed(() => this.projectsState().length > this.projects().length);
+  /**
+   * No projects at all, live or archived, said only by a read that answered (W1-001): never while
+   * loading, never after a failure. Home's first-run block reads it through `ShellCommands`.
+   */
+  readonly workspaceEmpty = computed(
+    () => this.answeredState() && !this.loadingState() && this.errorState() === null && this.projectsState().length === 0,
+  );
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly createError = this.createErrorState.asReadonly();
@@ -68,8 +84,8 @@ export class ShellStore {
    */
   readonly projectTree = computed(() =>
     this.settings.flags().nestedProjects
-      ? toTree(this.projectsState())
-      : this.projectsState().map((project) => ({ project, children: [] })),
+      ? toTree(this.projects())
+      : this.projects().map((project) => ({ project, children: [] })),
   );
 
   /**
@@ -172,11 +188,12 @@ export class ShellStore {
     const operation = (async () => {
       const [identity, projects] = await Promise.allSettled([
         this.identityProvider.getCurrentIdentity(),
-        this.gateway.projects.list({ status: SIDEBAR_STATUSES }),
+        this.gateway.projects.list({}),
       ]);
       if (identity.status === 'fulfilled') this.identityState.set(identity.value);
       if (projects.status === 'fulfilled' && (quiet || identity.status === 'fulfilled')) {
         this.projectsState.set(projects.value);
+        this.answeredState.set(true);
       }
       if (identity.status === 'fulfilled' && projects.status === 'fulfilled') {
         this.errorState.set(null);

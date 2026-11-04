@@ -24,7 +24,7 @@ const node = (id: string, name: string, children: ProjectTreeNode[] = []): Proje
 });
 
 const render = async (
-  inputs: { projectTree?: ProjectTreeNode[]; failure?: Failure | null; loading?: boolean; createError?: Failure | null } = {},
+  inputs: { projectTree?: ProjectTreeNode[]; failure?: Failure | null; loading?: boolean; createError?: Failure | null; hasArchived?: boolean } = {},
 ) => {
   TestBed.configureTestingModule({ imports: [Sidebar], providers: shellTestProviders() });
   const fixture: ComponentFixture<Sidebar> = TestBed.createComponent(Sidebar);
@@ -32,6 +32,7 @@ const render = async (
   fixture.componentRef.setInput('failure', inputs.failure ?? null);
   fixture.componentRef.setInput('loading', inputs.loading ?? false);
   fixture.componentRef.setInput('createError', inputs.createError ?? null);
+  if (inputs.hasArchived !== undefined) fixture.componentRef.setInput('hasArchived', inputs.hasArchived);
   const created: string[] = [];
   fixture.componentInstance.createRequested.subscribe((name) => created.push(name));
   let retries = 0;
@@ -114,7 +115,37 @@ describe('Sidebar', () => {
   it('says so when there are no projects, rather than leaving a gap', async () => {
     const { element } = await render({ projectTree: [] });
 
-    expect(element.querySelector('[data-projects-empty]')?.textContent).toContain('No projects');
+    expect(element.querySelector('[data-projects-empty]')?.textContent?.trim()).toBe('No projects yet');
+    expect(element.querySelector('[data-projects-empty] a')).toBeNull();
+  });
+
+  // Slice 79 (W4-034): only archived projects exist, so "No projects yet" would be false.
+  it('says No active projects. with a link to Settings › Archived projects when only archived ones exist', async () => {
+    const { element } = await render({ projectTree: [], hasArchived: true });
+    const empty = element.querySelector<HTMLElement>('[data-projects-empty]')!;
+
+    expect(empty.classList).toContain('state-message--empty');
+    expect(empty.textContent).toContain('No active projects.');
+    expect(empty.textContent).not.toContain('No projects yet');
+    const link = empty.querySelector<HTMLAnchorElement>('a')!;
+    expect(link.textContent?.trim()).toBe('Archived projects are in Settings.');
+    expect(link.getAttribute('href')).toBe('/settings/archived-projects');
+  });
+
+  it('says neither while loading or after a failure, with only archived projects', async () => {
+    const loading = await render({ projectTree: [], hasArchived: true, loading: true });
+    expect(loading.element.querySelector('[data-projects-empty]')).toBeNull();
+    TestBed.resetTestingModule();
+
+    const failed = await render({ projectTree: [], hasArchived: true, failure: { sentence: 'Couldn’t load your projects.', reason: null } });
+    expect(failed.element.querySelector('[data-projects-empty]')).toBeNull();
+  });
+
+  it('keeps the tree, with no archived wording, when live projects exist beside archived ones', async () => {
+    const { element } = await render({ projectTree: [node('project-1', 'Personal workspace')], hasArchived: true });
+
+    expect(textOf(element, '[data-project]')).toEqual(['Personal workspace']);
+    expect(element.querySelector('[data-projects-empty]')).toBeNull();
   });
 
   // Slice 78 (L4-001): loading is not empty.

@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SHELL_NARROW_BREAKPOINT } from '../layout/breakpoints';
+import { SHELL_COMMANDS, type ShellCommands } from './shell-commands';
 import { ShellStore } from './shell-store';
 import { Icon } from '../../shared/components/icon/icon';
 import { PinnedFailureSlot } from '../../shared/feedback/pinned-failure-slot';
@@ -50,7 +51,8 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
  *
  * It owns `ShellStore` and hands the pieces down as inputs, so §19's
  * `Page → Store → Gateway` holds and the sidebar and top bar stay presentational. Whether the
- * drawer is open is this component's own UI state, not the store's (§20).
+ * drawer is open is this component's own UI state, not the store's (§20). Routed pages reach the
+ * shell only through `SHELL_COMMANDS`, which it provides as itself (Slice 79).
  *
  * Every focus move runs after the render that follows its state change. This app is zoneless:
  * the Menu, the `inert` attributes and the reopened create form only exist once that render has
@@ -61,11 +63,11 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkTrapFocus, RouterOutlet, Sidebar, TopBar, Icon, PinnedFailureSlot],
-  providers: [ShellStore],
+  providers: [ShellStore, { provide: SHELL_COMMANDS, useExisting: AppShell }],
   styleUrl: './app-shell.scss',
   templateUrl: './app-shell.html',
 })
-export class AppShell {
+export class AppShell implements ShellCommands {
   protected readonly store = inject(ShellStore);
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
@@ -81,6 +83,8 @@ export class AppShell {
   protected readonly narrow = signal(false);
   /** The drawer is a dialog only while narrow *and* open; at desktop width it does not exist. */
   protected readonly drawerOpen = computed(() => this.narrow() && this.drawerOpenState());
+  /** `ShellCommands.workspaceEmpty`, for Home's first run. */
+  readonly workspaceEmpty = this.store.workspaceEmpty;
 
   /**
    * §19: the store decided, the page navigates. A failure has already been recorded on
@@ -130,6 +134,17 @@ export class AppShell {
     // Explicitly, as `DevPanel` does: `cdkTrapFocusAutoCapture` resolves on zone stability and
     // never fires zoneless. The trap still keeps Tab inside once focus is there.
     this.afterRender(() => this.drawer()?.nativeElement.focus());
+  }
+
+  /**
+   * `ShellCommands.requestCreate`, a page's New project (Slice 79): the sidebar's one form, with
+   * the Menu opened first when narrow. The form reopens only after the drawer's own focus move,
+   * so the name field, not the dialog container, ends with focus.
+   */
+  requestCreate(): void {
+    if (!this.narrow() || this.drawerOpen()) return this.sidebar()?.reopenCreate();
+    this.openDrawer();
+    this.afterRender(() => this.sidebar()?.reopenCreate());
   }
 
   /** Escape, Close and the backdrop: the drawer goes and focus returns to the Menu that opened it. */

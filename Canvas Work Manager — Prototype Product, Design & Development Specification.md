@@ -988,6 +988,8 @@ Settings
 
 Project hierarchy should optionally expand inline.
 
+*Slice 79.* The sidebar lists live projects only. With none, it says "No projects yet" only when the workspace has no projects at all; when only archived projects exist it says "No active projects." with the link "Archived projects are in Settings." to Settings › Archived projects ([decision](docs/decisions/2026-11-empty-workspace-offers-the-first-project.md)).
+
 ## The project navigation column
 
 *Corrected in Slice 60 (2026-09-30).* The gear beside the root name opens the same root-scoped
@@ -1130,6 +1132,8 @@ origin identity under workspace.read and omit tasks whose container cannot resol
 shows ancestor names. Task metadata shares status, high priority, date and Overdue ordering.
 
 *Slice 78 (§24, §44).* A failed dashboard read is one alert, "Couldn’t load Home.", with Try again. The Daily Digest can fail alone: the dashboard context's `dailyDigest` is `null` when the AI provider fails, the other widgets render, and the digest's place says "Couldn’t write today’s digest." with Try again and no Details. The provider's reason stays on the host's console; MCP's `get_dashboard_context` returns the same `null` ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
+
+*Slice 79 (§24).* A workspace with no projects at all, live or archived, opens on a first run: above the widgets, which stay below with their own empty sentences, Home says what projects are for and offers **New project**, which opens the sidebar's one creation form (the Menu first on a phone). It is said only after the project read answered, never while loading or after a failure, and it goes when the first project arrives ([decision](docs/decisions/2026-11-empty-workspace-offers-the-first-project.md)).
 
 # 25. Dashboard Widget Model
 

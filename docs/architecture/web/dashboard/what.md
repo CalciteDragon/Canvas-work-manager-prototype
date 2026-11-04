@@ -8,6 +8,8 @@ flowchart LR
   reg["DASHBOARD_WIDGET_REGISTRY<br/>type → component, queryFrom, failureOf"] --> store
   live["LIVE_UPDATES"] -->|frame| store
   store --> page["DashboardPage"]
+  shell["SHELL_COMMANDS<br/>workspaceEmpty, requestCreate"] -.->|"@defer (when empty)"| first["FirstRunBlock"]
+  page --> first
   page --> frame["DashboardWidgetFrame<br/>small · medium · wide · full"]
   subgraph widgets["One component per registered type"]
     w1["TodayWidget"]
@@ -36,6 +38,7 @@ flowchart LR
 | Part | Path | Role |
 |---|---|---|
 | `DashboardPage` | `dashboard-page.ts` | Renders each visible widget in its size; honest note for an unregistered type |
+| `FirstRunBlock` | `first-run-block.ts` | Home's first run (Slice 79): the sentence and New project (`data-first-run-create`, calling `requestCreate()`); behind `@defer (when shell?.workspaceEmpty())` above the widgets, and hides itself once the workspace stops being empty |
 | `DashboardStore` | `dashboard-store.ts` | Joins layout and content; re-reads on frames; its read failure is a `Failure`; `retryDigest` re-reads quietly with `digestPending` |
 | `DASHBOARD_WIDGET_REGISTRY`, `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | `widgets/registry.ts`, `widgets/widget-contract.ts` | The list and the contract every widget implements; each definition's `icon` is an `IconName` from the shared SVG set, rendered by the widget frame; an optional `failureOf` (the digest's `dailyDigestFailure`) makes the frame render a `FailureMessage` with Try again instead of the widget |
 | `DashboardWidgetFrame` | `widgets/widget-frame/` | The common chrome and size classes; renders a definition's failure in the widget's place, with `pending` and a `retry` output |

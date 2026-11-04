@@ -705,7 +705,8 @@ tests and the gate's selectors, since an archived root's Todos has no rows to ca
 1. Run `pnpm test`, then `pnpm lint` (with `docs:check`), one after the other.
 2. `pnpm e2e` passes in full, including the new `apps/e2e/empty-archived-editing.spec.ts`. Every
    other spec edit is listed under Behaviour vs. appearance.
-3. `pnpm --filter web build` reports an initial bundle under 1150 kB. Every route is eager, and
+3. `pnpm --filter web build` reports an initial bundle under 1150 kB. Every feature route but
+   Calendar and Settings › Agents is eager (those two went lazy at step 8, Q8 (a)), and
    slice 78 closed at 1,140.75 kB, leaving about 9 kB. Per Open question 6 (a), the banner (with
    `RestoreStatusChoice`) and the first-run block are behind `@defer`. Each step records the
    bundle. A step that would still cross the ceiling stops and asks; the ceiling is not raised.
@@ -1088,6 +1089,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | `core/shell/app-shell.ts` (+ spec) | modify | Provide `ShellCommands`, feed `workspaceEmpty`; on `requestCreate`, open the Menu when narrow and call `sidebar().reopenCreate()` after the drawer's focus move |
 | `core/shell/sidebar/sidebar.{ts,html}` (+ spec; `sidebar.stories.ts` create) | modify | Archived-only wording and link, `hasArchived` input, `.state-message--empty` |
 | `features/dashboard/dashboard-page.{ts,html,scss}` (+ spec; `dashboard-page.stories.ts` create) | modify | First-run block from `ShellCommands.workspaceEmpty()`; its New project (`data-first-run-create`) calls `requestCreate()`; above the widgets (Q3 (a)); mounted behind `@defer (when workspaceEmpty())` (Q6 (a)) |
+| `app.routes.ts` (+ spec) | modify | `calendar` and `settings/agents` load with `loadComponent` (Q8 (a)); the "eager on purpose" comment names them |
 | `features/dashboard/widgets/daily-digest/daily-digest-widget.{ts,html}` (+ spec), `widgets/widget-content.scss` | modify | Up to five overdue tasks listed under the prose, each linking to its owner section, then a muted "and N more overdue" (Q1 (a)) |
 | `features/dashboard/widgets/task-origin-link.ts` (+ spec) | create | The owner-section link Today's rows build inline (`today-widget.html:9-18`), extracted so the digest uses the same rule |
 | `features/dashboard/widgets/today/today-widget.{ts,html}` | modify | Use `task-origin-link.ts`; no visible change |
@@ -1152,7 +1154,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | `docs/decisions/2026-11-empty-workspace-offers-the-first-project.md` | create: first run, the sidebar's archived-only wording, and the block above the widgets, which stay below (Q3 (a)) |
 | `docs/decisions/2026-11-digest-overdue-line-leads-to-the-tasks.md` | create: up to five overdue tasks under the prose, each linking to its owner section, then a muted "and N more overdue" (Q1 (a)) |
 | `docs/decisions/2026-11-task-list-shows-its-count.md` | create: the header count and the hint overlay |
-| `docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md`, `2026-08-project-nesting-and-archive-rules.md`, `2026-09-actionable-archive-and-archived-projects.md` (Active preselected everywhere, Q2 (a); and the §31 hidden count, Q7), `2026-09-root-archive-recovery-guidance.md`, `2026-09-todos-chronology-and-canonical-navigation.md` and `2026-09-reflection-subjects-and-the-journal-feed.md` (the archived root's `hiddenItemCount`, Q7), `2026-08-initial-bundle-budget.md` (the ceiling held by `@defer`, Q6 (a)), `2026-10-failures-speak-product-words.md` (the variants, the late refusal's code-based sentence), `2026-10-markdown-source-and-rendering.md`, `2026-10-feedback-stays-on-the-object.md`, `2026-10-rows-open-their-canonical-owner.md` | append dated `**Amended, 2026-11-…**` paragraphs; nesting rules gains its first amendment below its existing "Extended since" note |
+| `docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md`, `2026-08-project-nesting-and-archive-rules.md`, `2026-09-actionable-archive-and-archived-projects.md` (Active preselected everywhere, Q2 (a); and the §31 hidden count, Q7), `2026-09-root-archive-recovery-guidance.md`, `2026-09-todos-chronology-and-canonical-navigation.md` and `2026-09-reflection-subjects-and-the-journal-feed.md` (the archived root's `hiddenItemCount`, Q7), `2026-08-initial-bundle-budget.md` (the ceiling held by `@defer`, Q6 (a); Calendar and Settings › Agents lazy, Q8 (a)), `2026-10-failures-speak-product-words.md` (the variants, the late refusal's code-based sentence), `2026-10-markdown-source-and-rendering.md`, `2026-10-feedback-stays-on-the-object.md`, `2026-10-rows-open-their-canonical-owner.md` | append dated `**Amended, 2026-11-…**` paragraphs; nesting rules gains its first amendment below its existing "Extended since" note |
 | `docs/decisions/README.md` | index the four new entries, mark the amended ones |
 | `docs/architecture/web/projects/{overview,why,what,how}.md` | read-only pages, banner, archive confirmation, restore choice, drafts, count, drag hint, the hidden-count sentences |
 | `docs/architecture/contracts/what.md` | the derived read models row: Todos and journal carry `hiddenItemCount` for an archived root |
@@ -1299,7 +1301,8 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 ## Open questions
 
 Each changed the shape of the work, so implementation waited for the user's answers. **All seven
-were answered by the user on 2026-11-04** (user decision). Each entry keeps its options as
+were answered by the user on 2026-11-04** (user decision). Question 8, raised during step 8, was answered by the user the same
+day: option (a). Each entry keeps its options as
 written, with the answer added under it. The Defaults taken were accepted as written.
 
 1. **Where does the digest's overdue line lead?** (W4-028)
@@ -1448,7 +1451,7 @@ written, with the answer added under it. The Defaults taken were accepted as wri
      more than an archived project's own page already renders (§31).
 
 8. **Step 8 crosses the bundle ceiling. What pays for it?** (raised by S79S8, 2026-11-04;
-   **blocks steps 8–11**)
+   blocked steps 8–11; **resolved 2026-11-04, see below**)
    - *Context.* Step 7 left 4 bytes under 1,150 kB. Step 8, written test first and green, measures **1,151.23 kB initial, 1.23 kB over**. The first-run block itself is already
      behind `@defer (when workspaceEmpty())` (its lazy chunk is 1.01 kB). What stays initial, measured
      one part at a time:
@@ -1482,6 +1485,10 @@ written, with the answer added under it. The Defaults taken were accepted as wri
      measures. It then adds what the patch does not have: the docs (web/core and web/dashboard
      folders, §23/§24 notes, the `2026-11-empty-workspace-offers-the-first-project.md` decision),
      `sidebar.stories.ts` and `dashboard-page.stories.ts`. Then it commits.
+   - **Resolved (user decision, 2026-11-04): (a), the recommendation.** Calendar and
+     Settings › Agents load lazily with `loadComponent`, as the two `prototype/*` routes do; every
+     other feature route stays eager, and **the 1,150 kB ceiling is kept** (never raised). The
+     budget decision and `app.routes.ts`'s comment are amended to name the two exceptions.
 
 **Defaults taken** (small and non-shape-changing; say if any is wrong):
 
@@ -1752,3 +1759,8 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   hides itself when the workspace stops being empty, because a `when` trigger loads once. Its
   sentence is a default: "Projects hold your tasks, notes and reflections, for you and the agents
   you connect. Start with your first."
+- **2026-11-04, Q8 answered (S79S8B).** The user chose Open question 8's option (a): Calendar and
+  Settings › Agents become lazy routes and the ceiling stays at 1,150 kB. The File-level change list
+  gains `app.routes.ts`, `app.routes.spec.ts` and an amendment to
+  `docs/decisions/2026-08-initial-bundle-budget.md`; step 8 lands with them. Acceptance check
+  item 3 no longer says every route is eager.

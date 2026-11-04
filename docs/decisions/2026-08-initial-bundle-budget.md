@@ -150,3 +150,12 @@ that the bundle is fine.
 **Amended, 2026-10-21 — Slice 77, user-approved ceiling.** The user raised the initial
 maximumError from 1100 kB to **1150 kB** for the object-row slice. The 850 kB warning stays.
 This records the accepted ceiling; the final production build supplies its measurement.
+
+**Amended, 2026-11-04 — Slice 79, two feature routes go lazy (user decision).** Slice 79's empty
+workspace measured **1,151.23 kB** initial, 1.23 kB over the 1,150 kB ceiling, with its first-run
+block already behind `@defer`; what stayed initial was shell state and the trigger. The user chose
+to keep the ceiling and lazy-load two rarely opened feature routes, `/calendar` and
+`/settings/agents`, with `loadComponent`, as the two `prototype/*` routes already are. Every other
+feature route stays eager. The build then measured **1,141.97 kB** initial, with Calendar and
+Agents in lazy chunks (0.43 kB and 9.35 kB). Calendar alone freed only 0.27 kB, because the shared
+chunks re-split. The ceiling stays at 1150 kB and the 850 kB warning keeps reporting.

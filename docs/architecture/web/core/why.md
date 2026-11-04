@@ -59,6 +59,14 @@ the override ([decision](../../../decisions/2026-10-theme-follows-device-and-per
 "expand inline" is a rendering concern; it has no counterpart in contracts and must not
 get one.
 
+**Pages ask the shell through a token, never its store.** Home's first run needs one shell fact,
+whether the workspace is empty, and one command, open the creation form. `SHELL_COMMANDS`, which
+`AppShell` provides as itself, gives exactly those, so `ShellStore` stays the shell's own (§20) and
+the drawer and form stay `AppShell`'s UI state. Emptiness is said only by a read that answered:
+an archived-only workspace is not empty, and the sidebar says "No active projects." rather than
+the false "No projects yet"
+([decision](../../../decisions/2026-11-empty-workspace-offers-the-first-project.md)).
+
 ## Consequences
 
 - Swapping in a real API is one adapter file per port and one edit in `app.config.ts`.
@@ -93,6 +101,7 @@ get one.
 - [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — the phone drawer, its focus rules and why its state is `AppShell`'s, not `ShellStore`'s
 - [Pending, saved and failed feedback stays on the object](../../../decisions/2026-10-feedback-stays-on-the-object.md) — the sidebar's New project refuses a blank name beside its field
 - [A failure speaks product words](../../../decisions/2026-10-failures-speak-product-words.md) — the sidebar's loading line, and its polite failure with Try again
+- [An empty workspace offers the first project](../../../decisions/2026-11-empty-workspace-offers-the-first-project.md) — `workspaceEmpty`, `SHELL_COMMANDS`, and the sidebar's archived-only wording
 
 ## Spec sections
 

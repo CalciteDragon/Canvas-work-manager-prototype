@@ -49,6 +49,7 @@
         [failure]="store.error()"
         [loading]="store.loading()"
         [createError]="store.createError()"
+        [hasArchived]="store.hasArchived()"
         (createRequested)="createProject($event)"
         (retryRequested)="store.load()"
       />

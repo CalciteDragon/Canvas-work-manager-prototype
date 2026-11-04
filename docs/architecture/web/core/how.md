@@ -40,6 +40,11 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    sidebar says "Loading projects…" (`aria-busy`), never "No projects yet". A failed read is a
    `Failure` by `readFailure`'s code rule ("Couldn’t load your projects.", or the unreachable sentence) in one polite `role="status"` region, with Try
    again, which calls `load()` again and keeps the failure, busy, until the read answers.
+   The read is unfiltered (Slice 79): `projects()` and the tree leave archived projects out,
+   `hasArchived()` says something archived exists, so an empty tree says "No active projects."
+   with a link, "Archived projects are in Settings.", to `/settings/archived-projects`, and
+   `workspaceEmpty()` is true only after a read answered (`answered()`) with no projects at all,
+   never while loading or after a failure.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
    (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
@@ -87,6 +92,7 @@ returns feedback to that same toast and shares the header's transition guard.
 | `SHELL_NARROW_QUERY` | constant | The drawer query, built from the shared breakpoint checked against Sass | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
 | `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and project navigation thresholds, equal to the CSS-free Sass partial by token-lint check | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
+| `SHELL_COMMANDS`, `ShellCommands` | token / interface | What a routed page may ask of the shell: `workspaceEmpty`, `requestCreate()`; `AppShell` provides it as itself | [API](../../../api/interfaces/ShellCommands.html) |
 
 ## Dependencies
 
@@ -123,6 +129,10 @@ returns feedback to that same toast and shares the header's transition guard.
   `cwm.theme`; Match device removes the key. Storage failure retains session behavior. Without
   `matchMedia` the fallback is dark; destruction removes the media listener. Flags, delay and
   failure rate use `sessionStorage`.
+- **Pages reach the shell only through `SHELL_COMMANDS`** (Slice 79), never `ShellStore`, which
+  stays `AppShell`'s. `requestCreate()` opens the Menu first when narrow and reopens the
+  sidebar's form only after the drawer's own focus move, or focus ends on the dialog, not the
+  name field. A token rather than a class with an emitter, which cost twice the initial bytes.
 - **The drawer's state is `AppShell`'s.** `ShellStore` never learns whether it is open (§20);
   `app-shell.spec.ts` stubs `matchMedia` and pins semantics, dismissal, route close, create
   and resize. `inert` blocking and the real focus trap are `apps/e2e/phone-layout.spec.ts`'s.
