@@ -1441,11 +1441,11 @@ const EA_HEADER = { box: { x: 480, y: 48, width: 960, height: 120 }, text: 'Kitc
 /** One page as the probe records it (the main capture or a named snapshot), for the rows it serves. */
 function eaPage(rows, e) {
   const banner = rows.some(r => r.kind === 'read-only' || r.kind === 'restore-failure')
-    ? { text: rows.some(r => r.kind === 'restore-failure') ? 'Couldn’t restore “Legacy attic”. Try again.\nDetails' : '“Legacy attic” is archived. Restore as Active', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore', { hooks: [] })] }
+    ? { text: rows.some(r => r.kind === 'restore-failure') ? 'Couldn’t restore “Legacy attic”. Try again.\nDetails' : (e.context === 'renovation-archived-kitchen' ? '“Kitchen” is archived, and so is “Home renovation”, which holds it. Restore as Active' : '“Legacy attic” is archived. Restore as Active'), box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore', { hooks: [] })] }
     : null;
   const kinds = rows.map(r => r.kind);
   const focus = kinds.includes('create-focused') ? { ...eaControl('Project name', { tag: 'input', hooks: ['data-create-project-name'] }), focusVisible: true, inRegion: 0 }
-    : kinds.includes('restored') ? { ...eaControl('Kitchen', { tag: 'h1' }), focusVisible: false, inRegion: 0 }
+    : kinds.includes('restored') ? { ...eaControl('Kitchen', { tag: 'h1', hooks: ['data-project-name', 'data-recovery-focus'] }), focusVisible: false, inRegion: 0 }
     : kinds.includes('todos-pending') ? { ...eaControl('Complete Kitchen', { hooks: ['data-todo-complete'], ariaDisabled: true }), focusVisible: true, inRegion: 0 } : null;
   const owner = kinds.includes('owner-section');
   return { url: owner ? '/projects/project-launch#section-section-project-launch-tasks' : '/app', regions: rows.map(r => eaRegion(r, e)), banner,
@@ -1495,8 +1495,10 @@ async function eaSheet(t, change = {}) {
     for (const entry of evidence[phase].entries) if (entry.screenshot) await writeFile(join(f.dirs[phase], entry.screenshot), 'empty-archived image');
   }
   if (change.missing !== undefined) await rm(join(f.dirs[change.missing], 'empty-archived-verification.json'));
-  await f.json(1, 'layout.json', { ...f.layout, planes: [{ ...f.layout.planes[0], y: change.move ?? 0 }], controls: change.controlsByPhase?.[1] ?? change.controls ?? [] });
+  if (change.planes) await f.json(0, 'layout.json', { ...f.layout, planes: [...f.layout.planes, ...change.planes], controls: change.controlsByPhase?.[0] ?? change.controls ?? [] });
+  await f.json(1, 'layout.json', { ...f.layout, planes: [{ ...f.layout.planes[0], y: change.move ?? 0 }, ...(change.planes ?? [])], controls: change.controlsByPhase?.[1] ?? change.controls ?? [] });
   if (change.axe) await f.json(1, 'axe.json', { violations: change.axe, incomplete: [] });
+  if (change.corrupt) await f.json(1, 'layout.json', { ...f.layout, planes: [{ ...f.layout.planes[0], y: null }] });
   change.layouts?.(f);
   const run = () => spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '79'], { encoding: 'utf8', env: { ...process.env, ...change.env } });
   const result = change.layouts ? null : run();
@@ -1543,6 +1545,7 @@ test('profile 79 holds the context table to the plan: a dropped, changed or extr
   await eaFails(t, { evidence: e => { e.rows.find(r => r.context === 'kitchen-archive-blocked').links = []; } }, 'links dropped', /context table row missing/);
   await eaFails(t, { evidence: e => { e.rows.push(eaRow('legacy-attic', 'main', 'preview')); } }, 'extra row', /row the plan does not list/);
   await eaFails(t, { evidence: e => { e.rows.find(r => r.context === 'legacy-attic').region = 42; } }, 'invalid region', /invalid context table row/);
+  await eaFails(t, { evidence: e => { e.rows.find(r => r.context === 'legacy-shelving').region = 'app-archived-banner'; } }, 'narrowed region', /context table row missing/);
   await eaFails(t, { evidence: e => { e.entries = e.entries.filter(x => !(x.context === 'legacy-attic' && x.theme === 'dark' && x.width === 375)); } }, 'missing view', /context not captured/);
   await eaFails(t, { before: e => { e.entries = e.entries.filter(x => !(x.context === 'drag-start' && x.theme === 'light')); } }, 'missing before view', /context not captured/);
   await eaFails(t, { evidence: e => editEa(e, 'count-dense', x => { x.error = 'Timeout'; }, 'light|375') }, 'errored view', /context not captured/);
@@ -1567,6 +1570,8 @@ test('profile 79 fails a read-only row that shows any write control, lacks the b
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.banner.box.y = 20; }, 'dark|1440') }, 'banner above the header', /banner not under the header/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.header.controls = x.header.controls.filter(c => !c.hooks.includes('data-project-edit-details')); }, 'dark|1440') }, 'rename and Parent gone', /rename and Parent/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.header = null; }, 'dark|1440') }, 'no header', /rename and Parent/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving', x => { x.banner.box.x = 0; }, 'light|1440') }, 'banner out of the workspace', /banner outside the workspace/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-kitchen', x => { x.banner.text = '“Kitchen” is archived.'; }, 'dark|375') }, 'archived twice named once', /archived-twice/);
   // A page with no section frames (Todos, Reflections) has no first frame to clear.
   const s = await eaSheet(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { x.firstFrame = null; }) });
   assert.equal(s.result.status, 0, s.report);
@@ -1578,9 +1583,10 @@ test('profile 79 gates the hidden-count sentence on read-only Todos and Reflecti
   await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { x.hiddenItemCount = null; }, 'dark|1440') }, 'count not recorded', /no recorded hiddenItemCount/);
   await eaFails(t, { evidence: e => editEa(e, 'archived-only-reflections', x => { delete x.hiddenItemCount; }) }, 'count absent is never 0', /no recorded hiddenItemCount/);
   await eaFails(t, { evidence: set('renovation-archived-todos', 'todos', 'Restore to view 5 hidden todos.') }, 'wrong N', /hidden-count sentence/);
+  await eaFails(t, { evidence: set('renovation-archived-todos', 'todos', 'Restore to view 15 hidden todos.', 15) }, 'host and page agree on a miscount', /Stage 0/);
   await eaFails(t, { evidence: set('renovation-archived-todos', 'todos', EA_ORDINARY.todos) }, 'ordinary sentence over hidden work', /hidden-count sentence/);
-  await eaFails(t, { evidence: set('renovation-archived-reflections', 'reflections', 'Restore to view 1 hidden reflections.', 1) }, 'plural for one', /hidden-count sentence/);
-  assert.equal((await eaSheet(t, { evidence: set('renovation-archived-reflections', 'reflections', 'Restore to view 1 hidden reflection.', 1) })).result.status, 0, 'singular for one');
+  await eaFails(t, { evidence: set('renovation-archived-reflections', 'reflections', 'Restore to view 1 hidden reflections.', 1) }, 'plural for one', /Stage 0/);
+  await eaFails(t, { evidence: set('renovation-archived-reflections', 'reflections', 'Restore to view 1 hidden reflection.', 1) }, 'singular sentence, but not the Stage 0 number', /Stage 0/);
   await eaFails(t, { evidence: set('archived-only-todos', 'todos', 'Restore to view 0 hidden todos.') }, 'restore sentence with nothing hidden', /hidden-count sentence/);
   await eaFails(t, { evidence: e => editEa(e, 'archived-only-reflections', x => { hook(x, 'reflections').length = 0; }) }, 'no empty hook at zero', /hidden-count sentence/);
   await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { eaRegionOf(x, 'app-todos-page').text += '\n' + EA_ORDINARY.todos; }, 'dark|375') }, 'ordinary sentence beside the count', /ordinary sentence/);
@@ -1601,9 +1607,11 @@ test('profile 79 gates the banner restore, the Undo refusal and a failing restor
   await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.focus = null; }, 'dark|1440') }, 'focus lost', /restored row/);
   await eaFails(t, { evidence: e => editEa(e, 'renovation-restore-undo', x => { delete x.restored; }, 'dark|1440') }, 'snapshot missing', /row region missing|snapshot/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.bannerPresent = false; }, 'dark|1440') }, 'no banner to restore from', /restored row/);
-  // In the archived-twice case focus lands on the next owner's restore choice inside the banner.
-  const next = await eaSheet(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.banner = { text: '“Kitchen” is archived.', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore', { box: { x: 900, y: 180, width: 96, height: 44 } })] }; x.focus = { ...eaControl('Restore', { box: { x: 900, y: 180, width: 96, height: 44 } }), focusVisible: true, inRegion: 0 }; }) });
-  assert.equal(next.result.status, 0, next.report);
+  // A Restore that did nothing keeps the banner, and focus stays on its own button.
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.banner = { text: '“Legacy attic” is archived.', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore')] }; x.focus = { ...eaControl('Restore'), focusVisible: true, inRegion: 0 }; }, 'dark|1440') }, 'no-op restore', /restored row/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-restore-undo', x => { x.restored.focus = { ...eaControl('Home renovation', { tag: 'h2' }), focusVisible: false, inRegion: 0 }; }, 'light|375') }, 'focus on another heading', /restored row/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.banner = { text: 'back', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [] }; }, 'dark|1440') }, 'banner back after a refused Undo', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.bannerPresent = false; }, 'dark|375') }, 'no banner to fail in', /restore failure/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.undoRefused = false; }, 'light|375') }, 'Undo not refused', /undo-refused/);
   await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.banner.text = '“Legacy attic” is archived.'; }, 'dark|1440') }, 'failure not in the banner', /restore failure/);
   await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.header = { ...x.header, text: 'Couldn’t restore “Legacy attic”. Try again.' }; }, 'dark|1440') }, 'failure in the header', /restore failure/);
@@ -1616,6 +1624,7 @@ test('profile 79 gates the blocked and commit confirmations and the late refusal
   await eaFails(t, { evidence: e => editEa(e, 'renovation-archive-blocked', x => { x.regions[0].controls.push(eaControl('Archive project')); }, 'light|375') }, 'unhooked commit', /commit button/);
   await eaFails(t, { evidence: e => editEa(e, 'renovation-archive-blocked', x => { x.regions[0].controls = x.regions[0].controls.filter(c => !c.name.startsWith('Garden')); }, 'dark|1440') }, 'child without a link', /child without a link/);
   await eaFails(t, { evidence: e => editEa(e, 'kitchen-archive-blocked', x => { x.regions[0].controls.find(c => c.name.startsWith('Cabinets')).tag = 'button'; }, 'dark|1440') }, 'child as a button', /child without a link/);
+  await eaFails(t, { evidence: e => editEa(e, 'kitchen-archive-blocked', x => { x.regions[0].controls.find(c => c.name.startsWith('Cabinets')).href = '/projects/project-kitchen'; }, 'light|375') }, 'link to the wrong page', /child without a link/);
   await eaFails(t, { evidence: e => editEa(e, 'cabinets-archive-commit', x => { x.regions[0].controls = []; }, 'dark|1440') }, 'no commit', /commit-confirm/);
   await eaFails(t, { evidence: e => editEa(e, 'cabinets-late-refusal', x => { x.regions[0].text = 'Couldn’t archive “Cabinets”. Try again.'; }, 'light|1440') }, 'old sentence', /late refusal/);
   await eaFails(t, { evidence: e => editEa(e, 'cabinets-late-refusal', x => { x.regions[0].text += ' ' + x.reason; }, 'light|1440') }, 'reason outside Details', /reason visible/);
@@ -1695,12 +1704,25 @@ test('profile 79 gates must-not-change cells at 1 px and exempts only its named 
   }
 });
 
+test('profile 79 still fails corrupt geometry in a changing cell', async t => {
+  await eaFails(t, { corrupt: true, cellId: 'kitchen-archived-dark-1440' }, 'corrupt exempt cell', /missing numeric geometry/);
+});
+
+test('profile 79 knows a rig-made project\'s before axe nodes on its Todos page, whose id sits mid-route', async t => {
+  const node = id => ({ target: [`li[data-project-id="${id}"]`], stableAnchor: `|data-project-id=${id}|LI|LI||` });
+  const state = (id, shown = id) => e => editEa(e, 'archived-only-todos', x => { x.route = `/projects/${id}/pages/todos`; x.axe = { violations: [{ id: 'listitem', nodes: [node(shown)] }], incomplete: [] }; });
+  assert.equal((await eaSheet(t, { before: state('project-d48ac000'), evidence: state('project-7e4757d5') })).result.status, 0, 'the same node under a regenerated id');
+  await eaFails(t, { before: state('project-d48ac000'), evidence: state('project-7e4757d5', 'project-0000beef') }, 'a node for an id the route does not show', /runtime new axe node/);
+});
+
 test('profile 79 lets a Task List cell change only its header count text', async t => {
   const title = (text, more = {}) => ({ tag: 'button', text, scope: 'product', class: 'section-frame__title-button', x: 500, y: 300, width: 200, height: 32, ...more });
-  const counted = await eaSheet(t, { controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks')]] });
+  const planes = [{ selector: 'app-project-section-frame', index: 0, x: 480, y: 280, width: 960, height: 400 }];
+  const counted = await eaSheet(t, { planes, controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks')]] });
   assert.equal(counted.result.status, 0, counted.report);
   assert.ok(JSON.parse(counted.report).intentionalLabChanges.some(c => /Task List header count/.test(c.reason)), 'the count is reported');
-  assert.equal((await eaSheet(t, { controlsByPhase: [[title('Tasks')], [title('Tasks1 task')]] })).result.status, 0, 'one task, no space');
+  assert.equal((await eaSheet(t, { planes, controlsByPhase: [[title('Tasks')], [title('Tasks1 task')]] })).result.status, 0, 'one task, no space');
+  await eaFails(t, { controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks')]] }, 'a count outside every frame', /control identity/);
   await eaFails(t, { controlsByPhase: [[title('Tasks')], [title('Tasks renamed')]] }, 'other text change', /control identity/);
   await eaFails(t, { controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks 3 tasks')]] }, 'two counts');
   await eaFails(t, { controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks', { width: 240 })]] }, 'count that resizes its control');

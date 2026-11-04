@@ -130,6 +130,8 @@ const countOnly = (was, now) => {
   const stripped = now.replace(/\s*\d+ tasks?\b/, '');
   return stripped === was || (now.length >= 80 && stripped.length < was.length && was.startsWith(stripped));
 };
+/** Whether a control sits inside a section or shortcut frame's box: where a Task List header is. */
+const inFrame = (c, planes) => (planes ?? []).some(p => ['app-project-section-frame', 'app-shortcut-frame'].includes(p.selector) && [c.x, c.y, c.width, c.height, p.x, p.y, p.width, p.height].every(Number.isFinite) && c.x >= p.x - 1 && c.y >= p.y - 1 && c.x + c.width <= p.x + p.width + 1 && c.y + c.height <= p.y + p.height + 1);
 /** Q5 raised `--toast-max-block-size` on touch from 12rem to 16rem; the shell's toast clearance follows it. */
 const TOUCH_TOAST_CLEARANCE_RISE = 64;
 await mkdir(output, { recursive: true });
@@ -268,7 +270,7 @@ for (const a of after.cells) {
       if (family === 'planes' && (box.selector !== other.selector || box.index !== other.index)) changes.push({ index, reason: 'plane identity' });
       if (profile==='76' && a.route==='/prototype/design' && family==='controls' && ['color','background','border'].some(field=>box[field]!==other[field])) changes.push({index,reason:'Lab control paint changed',text:box.text});
       if (family === 'controls' && box.text !== other.text) {
-        if (profile === '79' && !eaExempt(a) && countOnly(box.text, other.text)) exceptions.push({ cell: a.id, family, reason: 'Task List header count', before: box.text, after: other.text });
+        if (profile === '79' && !eaExempt(a) && countOnly(box.text, other.text) && inFrame(other, al.planes)) exceptions.push({ cell: a.id, family, reason: 'Task List header count', before: box.text, after: other.text });
         else changes.push({ index, reason: 'control identity', before: box.text, after: other.text });
       }
       for (const field of ['x', 'y', 'width', 'height', 'scrollWidth', 'scrollHeight']) {
@@ -713,14 +715,16 @@ function clearPort(frame) {
  * The full census and the new-axe-node rule on one runtime entry, as profile 77 runs them on its
  * runtime entries. `was` is the context's own before entry; `baseline` is the before evidence.
  */
-function runtimeGate(e, was, baseline, at, fail, label) {
+function runtimeGate(e, was, baseline, at, fail, label, { idAnywhere = false } = {}) {
   const { context, theme, width } = at, touch = width === 375;
   // A state's before often rendered the same route another way (a whole-page loading line, a false
   // empty), so a node is new only when no before state on this route, theme and width had it.
   // The state's own before is always known. When the rig created the project it shows, the two
   // routes differ only by that generated id, which the after's node keys are read back through.
   const view = (baseline?.entries ?? []).filter(x => x.theme === theme && x.width === width && (x.route === e.route || x === was));
-  const [nowId, wasId] = [e.route, was?.route].map(route => typeof route === 'string' ? route.split('/').at(-1) : null);
+  // Profile 79's rig-made project also shows under `/pages/…`, so its id is read from anywhere in the route.
+  const idOf = route => typeof route !== 'string' ? null : idAnywhere ? route.match(/project-[0-9a-f]{8}(?![\w-])/)?.[0] ?? route.split('/').at(-1) : route.split('/').at(-1);
+  const [nowId, wasId] = [e.route, was?.route].map(idOf);
   const regenerated = was && nowId && wasId && nowId !== wasId && /^project-[0-9a-f]{8}$/.test(nowId) && /^project-[0-9a-f]{8}$/.test(wasId);
   const asBefore = key => regenerated ? key.replaceAll(nowId, wasId) : key;
   // The full census and the new-axe-node rule, as profile 77 runs them on its runtime entries.
@@ -874,10 +878,22 @@ if (profile === '78') {
 }
 
 // Slice 79: every row of the plan's context table against its after entry, in every captured view.
-/** The plan's context table, without the rig's regions: the evidence's rows must be exactly these. */
+/** Each row's region, a selector both builds share; `main` unless listed. A narrowed region fails. */
+const eaSection = (project, id) => `[data-section-id="section-${project}-${id}"]`;
+const EA_REGIONS = {
+  'first-run-demo': 'app-dashboard-page', 'first-run-alex': 'app-dashboard-page', 'first-run-sam': 'app-dashboard-page', 'first-run-create': 'app-sidebar',
+  'archived-only-todos': 'app-todos-page', 'archived-only-reflections': 'app-reflections-page', 'renovation-archived-todos': 'app-todos-page', 'renovation-archived-reflections': 'app-reflections-page',
+  'kitchen-archive-blocked': '[data-project-archive-confirm]', 'renovation-archive-blocked': '[data-project-archive-confirm]', 'cabinets-archive-commit': '[data-project-archive-confirm]',
+  'cabinets-late-refusal': 'app-project-header', 'archive-restore-choice': '[data-archived-item][data-archived-id="project-legacy"]', 'settings-restore-choice': '[data-archived-project][data-project-id="project-legacy"]',
+  ...Object.fromEntries(['digest-overdue-chaos', 'digest-busy-week', 'digest-sam'].map(c => [c, '[data-dashboard-tile][data-widget-type="daily_digest"]'])),
+  ...Object.fromEntries(['markdown-draft', 'markdown-cancel-edit', 'markdown-navigate-back', 'markdown-discard', 'markdown-preview'].map(c => [c, eaSection('project-kitchen', 'brief')])),
+  'count-kitchen': eaSection('project-kitchen', 'tasks'), 'count-dense': eaSection('project-work-manager', 'tasks'), 'count-shortcut': '[data-shortcut-id="shortcut-renovation-kitchen-tasks"]',
+  'drag-start': eaSection('project-kitchen', 'tasks'), 'todos-pending': 'app-todos-page',
+};
+/** The plan's context table: the evidence's rows must be exactly these. `archived-only-home` has two regions, set below. */
 const EA_ROWS = [
   ['first-run-demo', 'first-run'], ['first-run-alex', 'first-run'], ['first-run-sam', 'first-run'], ['first-run-create', 'create-focused'],
-  ['archived-only-home', 'archived-only-sidebar'], ['archived-only-home', 'not-first-run'], ['archived-only-canvas', 'read-only'],
+  ['archived-only-home', 'archived-only-sidebar', { region: 'app-sidebar' }], ['archived-only-home', 'not-first-run', { region: 'app-dashboard-page' }], ['archived-only-canvas', 'read-only'],
   ['archived-only-todos', 'read-only', { hidden: 'todos' }], ['archived-only-reflections', 'read-only', { hidden: 'reflections' }],
   ['legacy-attic', 'read-only'], ['legacy-shelving', 'read-only'], ['renovation-archived-home', 'read-only'],
   ['renovation-archived-todos', 'read-only', { hidden: 'todos' }], ['renovation-archived-reflections', 'read-only', { hidden: 'reflections' }],
@@ -890,8 +906,8 @@ const EA_ROWS = [
   ['digest-overdue-chaos', 'digest'], ['digest-busy-week', 'digest'], ['digest-sam', 'digest'], ['digest-owner-section', 'owner-section'],
   ['markdown-draft', 'draft'], ['markdown-cancel-edit', 'draft'], ['markdown-navigate-back', 'draft'], ['markdown-discard', 'discarded'], ['markdown-preview', 'preview'],
   ['count-kitchen', 'count'], ['count-dense', 'count'], ['count-shortcut', 'count'], ['drag-start', 'drag'], ['todos-pending', 'todos-pending'],
-].map(([context, kind, more = {}]) => ({ context, kind, hidden: null, snapshot: null, links: null, ...more }));
-const eaRowKey = r => JSON.stringify([r.context, r.kind, r.hidden ?? null, r.snapshot ?? null, r.links ?? null]);
+].map(([context, kind, more = {}]) => ({ context, region: EA_REGIONS[context] ?? 'main', kind, hidden: null, snapshot: null, links: null, ...more }));
+const eaRowKey = r => JSON.stringify([r.context, r.region, r.kind, r.hidden ?? null, r.snapshot ?? null, r.links ?? null]);
 const EA_ALL_VIEWS = [['dark', 1440], ['dark', 375], ['light', 1440], ['light', 375]];
 /** Capture scope's narrower contexts; every other context, and the Lab, is captured in all four views. */
 const EA_VIEWS = { 'archived-only-todos': [['light', 1440]], 'archived-only-reflections': [['light', 1440]], 'todos-pending': [['light', 1440]], 'drag-start': [['dark', 1440], ['light', 1440]] };
@@ -914,7 +930,11 @@ const EA_WRITE_CONTROLS = [
   ['[data-todo-delete]', 'data-todo-delete'], ['app-task-row.cdk-drag', 'app-task-row', 'cdkDrag'], ['button[aria-label$=", open details"]', ', open details'],
 ];
 /** Hooks the rules read whose absence would otherwise pass: rename and Parent, the commit, the editor. */
-const EA_RULE_HOOKS = ['data-project-more', 'data-project-edit-details', 'data-project-archive-confirm-yes', 'data-markdown-source', 'data-create-project-name', 'data-todos-empty', 'data-reflections-empty'];
+const EA_RULE_HOOKS = ['data-project-name', 'data-project-more', 'data-project-edit-details', 'data-project-archive-confirm-yes', 'data-markdown-source', 'data-create-project-name', 'data-todos-empty', 'data-reflections-empty'];
+/** Stage 0's hidden numbers: what each archived root's Todos and journal must report (Q7). */
+const EA_HIDDEN_COUNTS = { 'archived-only-todos': 0, 'archived-only-reflections': 0, 'renovation-archived-todos': 6, 'renovation-archived-reflections': 3 };
+/** Each blocked confirmation's live child and the page its link must open. */
+const EA_CHILD_ROUTES = { Cabinets: '/projects/project-cabinets', Kitchen: '/projects/project-kitchen', Garden: '/projects/project-garden' };
 /** Stage 0: each digest context's `today.overdue` count at `SEED_NOW`. */
 const EA_DIGEST_OVERDUE = { 'digest-overdue-chaos': 4, 'digest-busy-week': 1, 'digest-sam': 1 };
 /** The contexts whose editor reopens an offered draft: "Your unsaved draft is back." and Discard draft. */
@@ -974,7 +994,7 @@ if (profile === '79') {
     const e = find(eaEvidence), was = find(eaBaseline);
     if (!e || e.error) { fail('context not captured', { ...at, phase: 'after', error: e?.error ?? null }); continue; }
     if (!was || was.error) { fail('context not captured', { ...at, phase: 'before', error: was?.error ?? null }); continue; }
-    runtimeGate(e, was, eaBaseline, at, fail, 'empty-archived');
+    runtimeGate(e, was, eaBaseline, at, fail, 'empty-archived', { idAnywhere: true });
     if (context === 'lab') {
       // The panel-relative Lab gate reads these boxes; an unchanged panel may move, never resize.
       const valid = panels => Array.isArray(panels) && panels.length > 0 && panels.every(p => p.id && isBox(p));
@@ -1015,6 +1035,9 @@ if (profile === '79') {
         else {
           if (!isBox(page.header?.box) || banner.box.y < page.header.box.y + page.header.box.height - 1) check(r, 'banner not under the header', { banner: banner.box, header: page.header?.box ?? null });
           if (isBox(page.firstFrame) && banner.box.y + banner.box.height > page.firstFrame.y + 1) check(r, 'banner over the first section', { banner: banner.box, firstFrame: page.firstFrame });
+          if (r.region === 'main' && (!isBox(reg.box) || banner.box.x < reg.box.x - 1 || banner.box.x + banner.box.width > reg.box.x + reg.box.width + 1)) check(r, 'banner outside the workspace', { banner: banner.box, main: reg.box ?? null });
+          // Archived twice: Kitchen under an archived Home renovation names both.
+          if (context === 'renovation-archived-kitchen' && !norm(banner.text).includes('archived, and so is')) check(r, 'archived-twice banner does not name both owners', { text: banner.text ?? null });
         }
         // Rename and Parent live in Edit details…, under More: both stay on a read-only project.
         const header = page.header?.controls ?? [];
@@ -1023,6 +1046,7 @@ if (profile === '79') {
           // Q7 as amended, on after rows only: a missing count fails; it is never read as 0.
           const n = e.hiddenItemCount, hook = `data-${r.hidden}-empty`;
           if (!Number.isInteger(n) || n < 0) check(r, 'read-only row with no recorded hiddenItemCount', { hiddenItemCount: n ?? null });
+          else if (n !== EA_HIDDEN_COUNTS[context]) check(r, 'hiddenItemCount differs from Stage 0\'s number', { hiddenItemCount: n, expected: EA_HIDDEN_COUNTS[context] ?? null });
           else {
             const noun = r.hidden === 'todos' ? 'todo' : 'reflection';
             const want = n > 0 ? `Restore to view ${n} hidden ${noun}${n === 1 ? '' : 's'}.` : EA_ORDINARY[r.hidden];
@@ -1033,10 +1057,10 @@ if (profile === '79') {
         }
       }
       if (r.kind === 'restored') {
-        // The banner is gone and focus is on the heading, or the next owner's banner holds focus on its choice.
-        const focus = page.focus, banner = page.banner;
-        const onChoice = banner && focus && (banner.controls ?? []).some(c => c.name === focus.name && isBox(c.box) && isBox(focus.box) && ['x', 'y', 'width', 'height'].every(k => Math.abs(c.box[k] - focus.box[k]) <= 1));
-        if (e.bannerPresent !== true || !('banner' in page) || (banner === null ? !/^h[1-6]$/.test(focus?.tag ?? '') : !onChoice)) check(r, 'restored row: banner left, or focus not on the heading or the next owner\'s choice', { bannerPresent: e.bannerPresent ?? null, banner: banner ?? null, focus: focus ?? null });
+        // None of the captured restores is the archived-twice case, so each ends with no banner and focus
+        // on the project name heading; a Restore that did nothing keeps the banner and its own focus.
+        const focus = page.focus;
+        if (e.bannerPresent !== true || page.banner !== null || focus?.tag !== 'h1' || !focus.hooks?.includes('data-project-name')) check(r, 'restored row: banner left, or focus not on the project name heading', { bannerPresent: e.bannerPresent ?? null, banner: page.banner ?? null, focus: focus ?? null });
       }
       if (r.kind === 'undo-refused' && (e.undoRefused !== true || page.banner !== null)) check(r, 'undo-refused row without the transition refusal, or with the banner back', { undoRefused: e.undoRefused ?? null });
       if (r.kind === 'restore-failure') {
@@ -1046,7 +1070,7 @@ if (profile === '79') {
       }
       if (r.kind === 'blocked-confirm') {
         if (hooked(reg.controls, 'data-project-archive-confirm-yes').length || visible(reg.controls).some(c => c.tag === 'button' && /^Archive\b/i.test(c.name ?? ''))) check(r, 'blocked confirmation with a commit button');
-        for (const child of r.links ?? []) if (!visible(reg.controls).some(c => c.tag === 'a' && c.href && (c.name ?? '').startsWith(child))) check(r, 'blocked confirmation child without a link', { child });
+        for (const child of r.links ?? []) if (!visible(reg.controls).some(c => c.tag === 'a' && c.href === EA_CHILD_ROUTES[child] && (c.name ?? '').startsWith(child))) check(r, 'blocked confirmation child without a link to its page', { child, route: EA_CHILD_ROUTES[child] ?? null });
       }
       if (r.kind === 'commit-confirm' && !hooked(reg.controls, 'data-project-archive-confirm-yes').length) check(r, 'commit-confirm row without its commit button');
       if (r.kind === 'late-refusal') {
