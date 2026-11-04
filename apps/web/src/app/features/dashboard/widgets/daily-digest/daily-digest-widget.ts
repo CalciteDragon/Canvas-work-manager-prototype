@@ -29,7 +29,7 @@ export const dailyDigestFailure = (dashboard: DashboardResult): Failure | null =
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './daily-digest-widget.html',
   imports: [RouterLink],
-  styleUrl: '../widget-content.scss',
+  styleUrls: ['../widget-content.scss', './daily-digest-widget.scss'],
 })
 export class DailyDigestWidget {
   readonly widget = input.required<DashboardWidget>();

@@ -1,0 +1,9 @@
+// The digest's overdue list (Slice 79, W4-028). The widget host is unstyled, so the block sets
+// itself apart from the prose above and the source line below. Here rather than in
+// `widget-content.scss`, which every widget compiles in. §21: tokens only.
+.digest-overdue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}

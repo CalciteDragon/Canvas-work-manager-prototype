@@ -6,23 +6,25 @@
   </div>
 
   @if (overdue().length > 0) {
-    <ul class="widget-list">
-      @for (task of overdue(); track task.id) {
-        <li data-digest-overdue class="widget-row widget-row--overdue object-row object-row--overdue" [class.object-row--high-priority]="task.priority === 'high'">
-          <a class="link object-row__title" [routerLink]="originRoute(task.origin)" [fragment]="originFragment(task.origin)">{{ task.title }}</a>
-          <span class="object-row__meta">
-            @for (item of taskMeta(task, { overdue: true, dueToday: false }); track item.kind) {
-              @if (item.datetime) { <time [attr.datetime]="item.datetime">{{ item.text }}</time> }
-              @else { <span>{{ item.text }}</span> }
-            }
-          </span>
-          <span class="object-row__context"><span data-project-icon aria-hidden="true">{{ task.projectIcon ?? '📁' }}</span> {{ task.projectName }}</span>
-        </li>
+    <div class="digest-overdue">
+      <ul class="widget-list" aria-label="Overdue tasks">
+        @for (task of overdue(); track task.id) {
+          <li data-digest-overdue class="widget-row object-row" [class.widget-row--overdue]="task.overdue" [class.object-row--overdue]="task.overdue" [class.object-row--high-priority]="task.priority === 'high'">
+            <a class="link object-row__title" [routerLink]="originRoute(task.origin)" [fragment]="originFragment(task.origin)">{{ task.title }}</a>
+            <span class="object-row__meta">
+              @for (item of taskMeta(task, { overdue: task.overdue, dueToday: false }); track item.kind) {
+                @if (item.datetime) { <time [attr.datetime]="item.datetime">{{ item.text }}</time> }
+                @else { <span>{{ item.text }}</span> }
+              }
+            </span>
+            <span class="object-row__context"><span data-project-icon aria-hidden="true">{{ task.projectIcon ?? '📁' }}</span> {{ task.projectName }}</span>
+          </li>
+        }
+      </ul>
+      @if (moreOverdue() > 0) {
+        <p data-digest-overdue-more class="widget-empty">and {{ moreOverdue() }} more overdue</p>
       }
-    </ul>
-    @if (moreOverdue() > 0) {
-      <p data-digest-overdue-more class="widget-empty">and {{ moreOverdue() }} more overdue</p>
-    }
+    </div>
   }
 
   <p data-widget-digest-source class="widget-source">

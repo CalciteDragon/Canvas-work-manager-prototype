@@ -23,11 +23,12 @@ The overdue tasks are already in the one dashboard read (`today.overdue`), with 
 origin, so the digest needs no new data and no knowledge of Today. The link rule Today's rows built
 inline is now `widgets/task-origin-link.ts` (`taskOriginRoute`, `taskOriginFragment`), and Today and
 the digest both use it. Upcoming and Recent Progress still build the same link inline. The list
-cost 1.90 kB of initial bundle (1,141.97 → 1,143.87 kB).
+cost 2.13 kB of initial bundle (1,141.97 → 1,144.10 kB).
 
 **Current decision**
 
-Under its prose, the digest lists up to five of `today.overdue`, in slice 77's row anatomy (title
+Under its prose, the digest lists up to five of `today.overdue` as a list labelled "Overdue tasks",
+set apart from the prose and the source line by the digest's own `.digest-overdue`, in slice 77's row anatomy (title
 link to the owner section, the overdue date, the project), each row `data-digest-overdue`. Beyond
 five, a muted "and N more overdue" (`data-digest-overdue-more`) with no link. With nothing overdue,
 nothing is listed. A `null` digest keeps Slice 78's failure, which replaces the widget body, so no
@@ -36,7 +37,8 @@ list shows. No contract changes, and the prose is untouched.
 **Confidence**
 
 High for the behaviour: `daily-digest-widget.spec.ts` covers the rows, their links, the cap, the
-remainder line, the empty case and the failed digest; `task-origin-link.spec.ts` the link rule.
+remainder line and the empty case, and that the widget lists nothing over a `null` digest (the
+frame's swap to the failure is `dashboard-page.spec.ts`'s); `task-origin-link.spec.ts` the link rule.
 Medium for the cap of five, a default no seed exceeds (overdue-chaos has four).
 
 **Revisit when**

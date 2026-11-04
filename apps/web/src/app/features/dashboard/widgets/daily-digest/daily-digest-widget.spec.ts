@@ -58,6 +58,8 @@ describe('DailyDigestWidget — the overdue line leads to the tasks (§24)', () 
     expect(links.map((link) => link.textContent?.trim())).toEqual(['Late task 1', 'Late task 2']);
     expect(links[0]!.getAttribute('href')).toBe('/projects/project-1#section-section-1');
     expect(links[1]!.getAttribute('href')).toBe('/projects/project-1/pages/home#section-section-2');
+    expect(rows[0]!.closest('ul')?.getAttribute('aria-label')).toBe('Overdue tasks');
+    expect(rows[0]!.closest('.digest-overdue')).not.toBeNull();
     expect(rows[0]!.classList).toContain('object-row');
     expect(rows[0]!.classList).toContain('object-row--overdue');
     expect(rows[0]!.textContent).toContain('2026-08-21');
@@ -74,6 +76,7 @@ describe('DailyDigestWidget — the overdue line leads to the tasks (§24)', () 
     expect(more.textContent?.trim()).toBe('and 3 more overdue');
     expect(more.querySelector('a')).toBeNull();
     expect(more.classList).toContain('widget-empty');
+    expect(more.closest('.digest-overdue')).not.toBeNull();
   });
 
   it('lists exactly five with no remainder line', async () => {
@@ -91,7 +94,9 @@ describe('DailyDigestWidget — the overdue line leads to the tasks (§24)', () 
     expect(element.querySelector('ul')).toBeNull();
   });
 
-  it('lists nothing for a failed digest, whose failure replaces the body', async () => {
+  // The frame's swap to the failure is `dailyDigestFailure` and `dashboard-page.spec.ts`; this
+  // proves the widget itself lists nothing if it is ever mounted over a `null` digest.
+  it('lists nothing over a null digest', async () => {
     const element = await render(withOverdue(2, dashboardWithoutDigest()));
 
     expect(element.querySelector('[data-digest-overdue]')).toBeNull();
