@@ -141,8 +141,13 @@ export class ProjectCanvas {
   readonly layoutMode = computed<ProjectLayoutMode>(() =>
     this.settings.flags().gridProjectLayout ? this.projectLayoutMode() : 'flow',
   );
+  /**
+   * Insertion, add, drag and resize need a complete order and a page that is not read-only
+   * (Slice 79: an archived project or ancestor shows its sections, never their layout writes).
+   */
+  readonly layoutEditable = computed(() => this.store.orderComplete() && !this.readOnly());
   readonly insertionGaps = computed<GridInsertionTarget[]>(() => {
-    if (!this.store.orderComplete() || this.layoutMode() !== 'grid') return [];
+    if (!this.layoutEditable() || this.layoutMode() !== 'grid') return [];
     const placements = this.store.placements();
     return gridInsertionGaps(placements.map((placement) => placementSpan(placement))).flatMap((gap) => {
       const hostPlacement = placements[gap.index - 1];
@@ -313,7 +318,7 @@ export class ProjectCanvas {
   }
 
   openCreate(intent: InsertionIntent): void {
-    if (!this.store.orderComplete() || this.sorting()) return;
+    if (!this.layoutEditable() || this.sorting()) return;
     this.releaseLift = this.lifts.open(() => this.closeCreate());
     this.pendingInsertion.set(intent);
     this.returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -366,7 +371,7 @@ export class ProjectCanvas {
   }
 
   async moveWithKeyboard(id: string, direction: 'previous' | 'next'): Promise<void> {
-    if (!this.store.orderComplete()) return;
+    if (!this.layoutEditable()) return;
     const placements = this.store.placements();
     const from = placements.findIndex((placement) => placementId(placement) === id);
     if (from < 0) return;

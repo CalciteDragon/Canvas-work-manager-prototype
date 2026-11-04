@@ -3,7 +3,7 @@
   class="shortcut-frame"
   [attr.aria-busy]="collapsePending()"
   [attr.data-shortcut-availability]="shortcut().availability"
-  [class.shortcut-frame--collapsed]="shortcut().collapsed"
+  [class.shortcut-frame--collapsed]="effectiveCollapsed()"
   [attr.aria-labelledby]="'shortcut-title-' + shortcut().id"
   [appPinnedFailure]="collapseError()"
   [pinnedFailureSubject]="name()"
@@ -29,15 +29,16 @@
       tabindex="0"
       [attr.aria-busy]="collapsePending()"
       [attr.aria-describedby]="collapseError() ? 'shortcut-collapse-error-' + shortcut().id : null"
-      [attr.aria-expanded]="!shortcut().collapsed"
-      [attr.aria-label]="(shortcut().collapsed ? 'Expand ' : 'Collapse ') + name()"
+      [attr.aria-expanded]="!effectiveCollapsed()"
+      [attr.aria-label]="(effectiveCollapsed() ? 'Expand ' : 'Collapse ') + name()"
       (click)="toggleCollapsed()"
     >
-      <span [class.shortcut-frame__chevron--collapsed]="shortcut().collapsed">
+      <span [class.shortcut-frame__chevron--collapsed]="effectiveCollapsed()">
         <app-icon name="chevron" />
       </span>
     </button>
 
+    @if (!readOnly()) {
     <button
       data-shortcut-drag-handle
       cdkDragHandle
@@ -63,6 +64,7 @@
       >
         <app-icon name="unlink" />
       </button>
+    }
     </div>
   </header>
 
@@ -81,7 +83,7 @@
       }
     </p>
   } @else if (sourceDefinition(); as definition) {
-    @if (!shortcut().collapsed) {
+    @if (!effectiveCollapsed()) {
       <div data-shortcut-content class="shortcut-frame__content">
         <ng-container
           [ngComponentOutlet]="definition.component"

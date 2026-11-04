@@ -159,6 +159,7 @@ Archive-label revision; both entries record acceptance.
 | Decision | What it decides | Status |
 |---|---|---|
 | [Rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md) | Shared row anatomy; title navigation outside the owner, selection inside; Preview stays contained | Slice 77 |
+| [Archived pages are read-only, with a banner that restores in place](2026-11-archived-pages-are-read-only.md) | Outermost archived owner; absent canvas and section write controls; local, unsaved collapse (Q4 (a)); static Task List rows with no drawer (Q5 (a)); what stays in the header | current (Slice 79) |
 
 - [Lifts use the browser's top layer](2026-10-lifts-use-the-top-layer.md) — current; Slice 73 native modes and one transient lift.
 - [Route focus lands lost focus after user navigation](2026-10-route-focus-lands-lost-focus.md) — current; Slice 73 bounded heading/main landing.

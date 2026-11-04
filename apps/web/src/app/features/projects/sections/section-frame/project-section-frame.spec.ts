@@ -511,4 +511,80 @@ describe('slice 76 named section chrome', () => {
     expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-busy')).toBe('true');
     expect(query(fixture, '[data-section-frame]')!.getAttribute('aria-busy')).toBe('true');
   });
+
+  describe('read-only (Slice 79, §26, §31)', () => {
+    const readOnly = (overrides: Record<string, unknown> = {}) => {
+      const fixture = render(overrides, { inspectorComponent: TestInspector });
+      fixture.componentRef.setInput('readOnly', true);
+      fixture.detectChanges();
+      return fixture;
+    };
+
+    it('has no rename, settings, remove or drag handle, and passes readOnly to its content', () => {
+      const fixture = readOnly();
+      for (const hook of ['[data-section-title-edit]', '[data-section-config]', '[data-section-remove]', '[data-section-drag-handle]']) {
+        expect(query(fixture, hook), hook).toBeNull();
+      }
+      expect(fixture.debugElement.query(By.directive(CdkDragHandle))).toBeNull();
+      expect(fixture.debugElement.query(By.directive(TestContent)).componentInstance.readOnly()).toBe(true);
+      // A pointer click on the title starts no rename.
+      const title = query(fixture, '[data-section-title]')!;
+      title.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'mouse' }));
+      title.click(); fixture.detectChanges();
+      expect(query(fixture, '[data-section-name]')).toBeNull();
+    });
+
+    it('keeps collapse, toggling the view locally without a section write (Q4 (a))', () => {
+      const fixture = readOnly();
+      const toggled = vi.fn();
+      fixture.componentInstance.collapseToggled.subscribe(toggled);
+      const collapse = query(fixture, '[data-section-collapse]')!;
+      expect(collapse.getAttribute('aria-expanded')).toBe('true');
+      collapse.click(); fixture.detectChanges();
+      expect(collapse.getAttribute('aria-expanded')).toBe('false');
+      expect(query(fixture, '[data-section-content]')).toBeNull();
+      collapse.click(); fixture.detectChanges();
+      expect(query(fixture, '[data-section-content]')).not.toBeNull();
+      expect(toggled).not.toHaveBeenCalled();
+    });
+
+    it('starts from the stored state and resets when a fresh read arrives', () => {
+      const fixture = readOnly({ collapsed: true });
+      const collapse = () => query(fixture, '[data-section-collapse]')!;
+      expect(collapse().getAttribute('aria-expanded')).toBe('false');
+      collapse().click(); fixture.detectChanges();
+      expect(query(fixture, '[data-section-content]')).not.toBeNull();
+      fixture.componentRef.setInput('section', section({ collapsed: true })); fixture.detectChanges();
+      expect(collapse().getAttribute('aria-expanded')).toBe('false');
+      expect(query(fixture, '[data-section-content]')).toBeNull();
+    });
+
+    it('lets a local collapse close a section the canvas opened for this visit', () => {
+      const fixture = readOnly({ collapsed: true });
+      fixture.componentRef.setInput('transientlyExpanded', true); fixture.detectChanges();
+      expect(query(fixture, '[data-section-content]')).not.toBeNull();
+      query(fixture, '[data-section-collapse]')!.click(); fixture.detectChanges();
+      expect(query(fixture, '[data-section-content]')).toBeNull();
+    });
+
+    it('closes an open settings panel and rename when the page turns read-only', () => {
+      const fixture = render({}, { inspectorComponent: TestInspector });
+      query(fixture, '[data-section-config]')!.click(); fixture.detectChanges();
+      query(fixture, '[data-section-title-edit]')!.click(); fixture.detectChanges();
+      expect(query(fixture, '[data-section-inspector]')).not.toBeNull();
+      expect(query(fixture, '[data-section-name]')).not.toBeNull();
+      fixture.componentRef.setInput('readOnly', true); fixture.detectChanges();
+      expect(query(fixture, '[data-section-inspector]')).toBeNull();
+      expect(query(fixture, '[data-section-name]')).toBeNull();
+    });
+
+    it('drops the local view when the page becomes editable again', () => {
+      const fixture = readOnly();
+      query(fixture, '[data-section-collapse]')!.click(); fixture.detectChanges();
+      fixture.componentRef.setInput('readOnly', false); fixture.detectChanges();
+      expect(query(fixture, '[data-section-content]')).not.toBeNull();
+      expect(query(fixture, '[data-section-title-edit]')).not.toBeNull();
+      expect(fixture.debugElement.query(By.directive(TestContent)).componentInstance.readOnly()).toBe(false);
+    });
+  });
 });

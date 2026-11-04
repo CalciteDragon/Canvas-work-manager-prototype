@@ -1,7 +1,7 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgComponentOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, output } from '@angular/core';
 import { SECTION_FRAME_NAME } from '../sections/section-frame-name';
 import {
   shortcutNameOf,
@@ -39,11 +39,24 @@ export class ShortcutFrame {
   readonly moveAllowed = input(true);
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
+  /**
+   * The page's project or an ancestor is archived (Slice 79): no drag or remove, and collapse
+   * toggles a local view that is never saved (Open question 4 (a)).
+   */
+  readonly readOnly = input(false);
 
   readonly collapseToggled = output<{ id: SectionShortcutId; collapsed: boolean }>();
   readonly moveRequested = output<'previous' | 'next'>();
   readonly removeRequested = output<SectionShortcutId>();
 
+  /** The read-only toggle's view; a fresh `shortcut` record resets it to the stored state. */
+  private readonly localCollapsed = linkedSignal<ResolvedSectionShortcut, boolean | null>({
+    source: this.shortcut,
+    computation: () => null,
+  });
+  readonly effectiveCollapsed = computed(
+    () => (this.readOnly() ? this.localCollapsed() : null) ?? this.shortcut().collapsed,
+  );
   readonly name = computed(() => shortcutNameOf(this.shortcut().source, this.shortcut().sourceProjectName));
   readonly sourceDefinition = computed(() => definitionFor(this.shortcut().source.type));
   readonly sourceRoute = computed(() => {
@@ -69,6 +82,10 @@ export class ShortcutFrame {
   }));
 
   toggleCollapsed(): void {
+    if (this.readOnly()) {
+      this.localCollapsed.set(!this.effectiveCollapsed());
+      return;
+    }
     const shortcut = this.shortcut();
     this.collapseToggled.emit({ id: shortcut.id, collapsed: !shortcut.collapsed });
   }

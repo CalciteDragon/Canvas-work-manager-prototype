@@ -51,7 +51,7 @@
     data-section-canvas
     tabindex="-1"
     cdkDropList
-    [cdkDropListDisabled]="!store.orderComplete()"
+    [cdkDropListDisabled]="!layoutEditable()"
     class="section-canvas"
     [class.section-canvas--flow]="layoutMode() === 'flow'"
     [class.section-canvas--grid]="layoutMode() === 'grid'"
@@ -60,8 +60,12 @@
   >
     @if (store.placements().length === 0) {
       <div data-empty-canvas class="project-canvas__empty">
-        <p class="project-canvas__muted">This canvas is empty.</p>
-        @if (store.orderComplete()) {
+        @if (readOnly()) {
+          <p class="project-canvas__muted">This page has no sections.</p>
+        } @else {
+          <p class="project-canvas__muted">This canvas is empty.</p>
+        }
+        @if (layoutEditable()) {
           <button
             data-empty-canvas-add
             type="button"
@@ -83,7 +87,7 @@
           [attr.data-section-item]="placement.kind === 'section' ? '' : null"
           [attr.data-shortcut-item]="placement.kind === 'shortcut' ? '' : null"
           cdkDrag
-          [cdkDragDisabled]="!store.orderComplete()"
+          [cdkDragDisabled]="!layoutEditable()"
           class="section-canvas__item"
           [attr.data-section-id]="placement.kind === 'section' ? placement.section.id : null"
           [attr.data-shortcut-id]="placement.kind === 'shortcut' ? placement.shortcut.id : null"
@@ -95,7 +99,7 @@
           [class.section-canvas__item--span-6]="displayedSpan(placement) === 6"
           [class.section-canvas__item--span-4]="displayedSpan(placement) === 4"
         >
-          @if (store.orderComplete()) {
+          @if (layoutEditable()) {
             <app-insertion-point
               kind="before"
               [beforeId]="placementId(placement)"
@@ -116,6 +120,7 @@
               [collapseError]="store.collapseErrors()[placement.shortcut.id] ?? null"
               [projectDataRevision]="store.projectDataRevision()"
               [projectHierarchyRevision]="store.projectHierarchyRevision()"
+              [readOnly]="readOnly()"
               (collapseToggled)="collapseShortcut($event)"
               (moveRequested)="moveWithKeyboard(placement.shortcut.id, $event)"
               (removeRequested)="removeShortcut($event)"
@@ -132,6 +137,7 @@
                 [collapseError]="store.collapseErrors()[placement.section.id] ?? null"
                 [removalPending]="store.removalPending()"
                 [transientlyExpanded]="transientTargetId() === placement.section.id"
+                [readOnly]="readOnly()"
                 [projectDataRevision]="store.projectDataRevision()"
                 [projectHierarchyRevision]="store.projectHierarchyRevision()"
                 (collapseToggled)="collapse($event)"
@@ -145,6 +151,7 @@
               <section data-unknown-section class="unknown-section">
                 <header>
                   <h2>Unrecognised section</h2>
+                  @if (!readOnly()) {
                   <div role="toolbar" [attr.aria-label]="'Unrecognised section ' + placement.section.type + ' tools'"
                     (keydown)="toolbarKeydown($event)" (focusin)="toolbarFocusin($event)">
                   <button
@@ -168,12 +175,14 @@
                     (click)="removeSectionFromCanvas(placement.section.id)"
                   ><app-icon name="remove-section" /></button>
                   </div>
+                  }
                 </header>
                 <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
               </section>
             }
           }
 
+          @if (!readOnly()) {
           <app-section-resize-handle
             edge="start"
             [mode]="layoutMode()"
@@ -194,6 +203,7 @@
             (commit)="commitResize(placement, $event)"
             (cancel)="cancelResize(placement)"
           />
+          }
 
           @for (gap of gapTargetsAfter(placement); track gap.index) {
             <app-insertion-point
@@ -212,7 +222,7 @@
       }
     }
   </div>
-  @if (store.placements().length > 0 && store.orderComplete()) {
+  @if (store.placements().length > 0 && layoutEditable()) {
     <app-insertion-point kind="end" [beforeId]="null" [columnSpan]="12" label="Add a section"
       [persistent]="true" [disabled]="sorting()" [attr.inert]="sorting() ? '' : null">
       <button data-canvas-add data-insertion-point-button type="button" class="button button--ghost"

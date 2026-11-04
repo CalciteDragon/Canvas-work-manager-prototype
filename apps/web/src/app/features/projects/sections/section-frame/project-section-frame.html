@@ -43,15 +43,17 @@
 
     <div class="section-frame__controls" role="toolbar" [attr.aria-label]="name() + ' tools'"
       (keydown)="toolbarKeydown($event)" (focusin)="toolbarFocusin($event)">
-      <button data-section-title-edit class="tool" type="button" tabindex="0"
-        [attr.aria-label]="'Rename ' + name()" (pointerdown)="editingName() && $event.preventDefault()" (click)="beginRename()">
-        <app-icon name="rename" />
-      </button>
+      @if (!readOnly()) {
+        <button data-section-title-edit class="tool" type="button" tabindex="0"
+          [attr.aria-label]="'Rename ' + name()" (pointerdown)="editingName() && $event.preventDefault()" (click)="beginRename()">
+          <app-icon name="rename" />
+        </button>
+      }
     <button
       data-section-collapse
       class="tool section-frame__collapse"
       type="button"
-      tabindex="-1"
+      [attr.tabindex]="readOnly() ? 0 : -1"
       [attr.aria-busy]="collapsePending()"
       [attr.aria-describedby]="collapseError() ? 'section-collapse-error-' + section().id : null"
       [attr.aria-expanded]="!effectiveCollapsed()"
@@ -63,6 +65,7 @@
       </span>
     </button>
 
+    @if (!readOnly()) {
     <button
       data-section-drag-handle
       cdkDragHandle
@@ -103,6 +106,7 @@
       >
         <app-icon name="remove-section" />
       </button>
+    }
     </div>
   </header>
 

@@ -106,7 +106,7 @@ sequenceDiagram
 | `historyControl`, `transitionResultFeedback`, `transitionRefusalFeedback`, `crossOwnerFeedback`, `archivedHereFeedback`, `nextStepCopy` | `history/history-feedback.ts` | Pure confirmation and transition copy, exhaustive over the contract unions |
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer, label and `IconName` mark |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
-| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion that reveals and focuses what it created, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
+| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion that reveals and focuses what it created, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>`; read-only (no layout writes) under an archived project or ancestor |
 | `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation that names the created placement, ID-only removal/retry, write reporting and recovery-notice state |
 | `ReceiptToast`, `Toast` | `core/history/receipt-toast.ts`, `shared/feedback/toast.ts` | One docked confirmation with receipt Undo, Open archive when listed, explicit removal retry or read-only refresh retry |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or shortcut creation at the selected canvas position |
@@ -116,7 +116,7 @@ sequenceDiagram
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29; each type's `icon` is an `IconName`, never shared with a page kind except Reflections |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
-| `ProjectSectionFrame` | `sections/section-frame/` | Plain named heading, roving Rename/Collapse/Move/Settings/Remove toolbar, inline name draft, frame collapse alert |
+| `ProjectSectionFrame` | `sections/section-frame/` | Plain named heading, roving Rename/Collapse/Move/Settings/Remove toolbar, inline name draft, frame collapse alert; read-only: collapse alone, toggled locally |
 | Six section types | `sections/{markdown,tasks,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's shortcuts, on Home or a workstream's Work canvas |
 

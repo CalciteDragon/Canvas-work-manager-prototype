@@ -128,6 +128,8 @@ const render = async (
     shortcutsAllowed?: boolean;
     rootProjectId?: ProjectId;
     restoreBlocked?: boolean;
+    /** The shell's `readOnly`: the project or an ancestor is archived (Slice 79). */
+    readOnly?: boolean;
     sections?: ProjectSection[];
     shortcuts?: ResolvedSectionShortcut[];
     shortcutSources?: ShortcutSource[];
@@ -180,6 +182,7 @@ const render = async (
   fixture.componentRef.setInput('shortcutsAllowed', options.shortcutsAllowed ?? false);
   fixture.componentRef.setInput('rootProjectId', options.rootProjectId ?? renderedProject.id);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
+  if (options.readOnly !== undefined) fixture.componentRef.setInput('readOnly', options.readOnly);
   fixture.detectChanges();
   // A gated read is deliberately still in flight, so waiting for stability here would hang:
   // that test resolves the gate itself and waits then.
@@ -1236,6 +1239,57 @@ describe('ProjectCanvas — the gridProjectLayout flag (§47)', () => {
     expect(canvas?.classList).toContain('section-canvas--flow');
     expect(canvas?.classList).not.toContain('section-canvas--grid');
     expect(query(fixture, '[data-layout-name]')?.textContent).toContain('Flow layout');
+  });
+});
+
+describe('ProjectCanvas — read-only (Slice 79, §26, §31)', () => {
+  it('renders no insertion points, end add, drag or resize, and passes readOnly to every frame', async () => {
+    const { fixture } = await render({
+      readOnly: true,
+      project: project({ projectLayoutMode: 'grid' }),
+      shortcutsAllowed: true,
+      shortcuts: [shortcut('shortcut-a', 2)],
+      sections: [
+        section('section-text', 'markdown', 0, { columnSpan: 6 }),
+        section('section-tasks', 'task-list', 1),
+        section('section-unknown', 'unknown-future-type', 3),
+      ],
+    });
+    await completeDeferredBlocks(fixture);
+
+    expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(2);
+    expect(queryAll(fixture, '[data-shortcut-frame]')).toHaveLength(1);
+    expect(queryAll(fixture, 'app-insertion-point')).toHaveLength(0);
+    expect(query(fixture, '[data-canvas-add]')).toBeNull();
+    expect(queryAll(fixture, 'app-section-resize-handle')).toHaveLength(0);
+    expect(fixture.debugElement.queryAll(By.directive(CdkDrag)).every((drag) => drag.injector.get(CdkDrag).disabled)).toBe(true);
+    for (const hook of ['[data-section-drag-handle]', '[data-section-remove]', '[data-section-title-edit]', '[data-shortcut-drag-handle]', '[data-shortcut-remove]', '[data-unknown-section-drag-handle]', '[data-unknown-section-remove]']) {
+      expect(queryAll(fixture, hook), hook).toHaveLength(0);
+    }
+    expect(fixture.debugElement.queryAll(By.directive(ProjectSectionFrame)).every((frame) => frame.componentInstance.readOnly())).toBe(true);
+    // The unknown section still says what it is.
+    expect(query(fixture, '[data-unknown-section]')?.textContent).toContain('unknown-future-type');
+    // Inside sections, the content's own readOnly hides quick-add.
+    expect(query(fixture, '[data-quick-create]')).toBeNull();
+  });
+
+  it('says "This page has no sections." on an archived empty canvas, with no add action', async () => {
+    const { fixture } = await render({ readOnly: true, sections: [] });
+
+    expect(query(fixture, '[data-empty-canvas]')?.textContent?.trim()).toBe('This page has no sections.');
+    expect(query(fixture, '[data-empty-canvas-add]')).toBeNull();
+    expect(query(fixture, '[data-canvas-add]')).toBeNull();
+  });
+
+  it('keeps every write affordance when live', async () => {
+    const { fixture } = await render({ readOnly: false });
+    await completeDeferredBlocks(fixture);
+
+    expect(queryAll(fixture, 'app-insertion-point').length).toBeGreaterThan(0);
+    expect(query(fixture, '[data-canvas-add]')).not.toBeNull();
+    expect(queryAll(fixture, 'app-section-resize-handle').length).toBeGreaterThan(0);
+    expect(fixture.debugElement.queryAll(By.directive(CdkDrag)).some((drag) => drag.injector.get(CdkDrag).disabled)).toBe(false);
+    expect(queryAll(fixture, '[data-section-drag-handle]')).toHaveLength(2);
   });
 });
 

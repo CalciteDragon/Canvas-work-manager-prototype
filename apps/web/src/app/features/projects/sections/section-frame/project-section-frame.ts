@@ -10,12 +10,14 @@ import {
   effect,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { nameOf, type ProjectSection, type SectionConfig, type SectionId } from '@cwm/contracts';
 import { SECTION_FRAME_NAME } from '../section-frame-name';
-import type { SectionContentInputs } from '../section-contract';
+import { READ_ONLY_CONFIG, type SectionContentInputs } from '../section-contract';
 import type { SectionDefinition } from '../registry';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { FailureMessage } from '../../../../shared/feedback/failure-message';
@@ -55,6 +57,11 @@ export class ProjectSectionFrame {
    * links land on a section that may be collapsed).
    */
   readonly transientlyExpanded = input<boolean>(false);
+  /**
+   * The project or an ancestor is archived (Slice 79): no rename, settings, remove or drag,
+   * and collapse toggles a local view that is never saved (Open question 4 (a)).
+   */
+  readonly readOnly = input(false);
   /** The promise result lets the frame retain its draft when a rename is refused. */
   readonly rename = input.required<(id: SectionId, title: string | null) => Promise<boolean>>();
 
@@ -71,13 +78,20 @@ export class ProjectSectionFrame {
   readonly nameDraft = signal('');
   readonly renamePending = signal(false);
   readonly name = computed(() => nameOf(this.section()));
-  readonly effectiveCollapsed = computed(() => this.section().collapsed && !this.transientlyExpanded());
+  /** The read-only toggle's view; a fresh `section` record resets it to the stored state. */
+  private readonly localCollapsed = linkedSignal<ProjectSection, boolean | null>({
+    source: this.section,
+    computation: () => null,
+  });
+  readonly effectiveCollapsed = computed(
+    () => (this.readOnly() ? this.localCollapsed() : null) ?? (this.section().collapsed && !this.transientlyExpanded()),
+  );
   readonly override = computed(() => this.section().title?.trim() ?? '');
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
 
   private readonly emitConfig = (config: SectionConfig): Promise<Failure | null> =>
-    this.saveConfig()(this.section().id, config);
+    this.readOnly() ? Promise.resolve(READ_ONLY_CONFIG) : this.saveConfig()(this.section().id, config);
   private readonly emitProjectDataChange = (): void => this.projectDataChanged.emit();
 
   readonly contentInputs = computed<SectionContentInputs>(() => ({
@@ -86,7 +100,7 @@ export class ProjectSectionFrame {
     onProjectDataChange: this.emitProjectDataChange,
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
-    readOnly: false,
+    readOnly: this.readOnly(),
     sourceLink: null,
     ...(this.section().type === 'task-list' ? { onOpenArchive: this.onOpenArchive() } : {}),
   }));
@@ -96,9 +110,21 @@ export class ProjectSectionFrame {
       const current = this.override();
       if (!this.editingName()) this.nameDraft.set(current);
     });
+    // Archiving underneath an open panel or rename takes its write surface away (Slice 79).
+    effect(() => {
+      if (!this.readOnly()) return;
+      untracked(() => {
+        this.configOpen.set(false);
+        if (!this.renamePending()) this.editingName.set(false);
+      });
+    });
   }
 
   toggleCollapsed(): void {
+    if (this.readOnly()) {
+      this.localCollapsed.set(!this.effectiveCollapsed());
+      return;
+    }
     this.collapseToggled.emit({ id: this.section().id, collapsed: !this.effectiveCollapsed() });
   }
 
@@ -117,7 +143,7 @@ export class ProjectSectionFrame {
   titleClick(event: MouseEvent): void {
     const pointer = this.titlePointerType;
     this.titlePointerType = '';
-    if (event.button === 0 && (pointer === 'mouse' || pointer === 'pen')) this.beginRename();
+    if (event.button === 0 && (pointer === 'mouse' || pointer === 'pen') && !this.readOnly()) this.beginRename();
   }
 
   beginRename(): void {

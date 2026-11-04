@@ -534,8 +534,20 @@ Details, and with Try again (repeating the last status) only when `retryable`. T
 `restoreFromBanner` calls `restoreOwner` and, once it resolves `true`, moves focus to
 `h1[data-project-name]` when no owner is left (the own project adds no toast, an ancestor gets the
 cross-owner toast with Open), or to the banner's status select when the next owner takes its place.
-`readOnly` is also a renderer input (`ProjectPageRendererInputs.readOnly`), declared by every page;
-the pages do not yet change with it. Going read-only closes an open task drawer through
+`readOnly` is also a renderer input (`ProjectPageRendererInputs.readOnly`), declared by every page.
+`ProjectCanvas` reads it as `layoutEditable()` (`orderComplete() && !readOnly()`): with it false
+there are no insertion marks, no end or empty-canvas add (an archived empty canvas says "This page
+has no sections."), no resize handles, drag is disabled, and the inline unknown-section frame drops
+its toolbar. It passes `readOnly` to `ProjectSectionFrame` and `ShortcutFrame`. The section frame
+drops Rename (and title-click rename), Move, Settings and Remove, closes an open settings panel and
+an idle rename when it turns read-only, and hands `readOnly: true` to its content, whose config
+writes answer `READ_ONLY_CONFIG`; the shortcut frame drops Move and Remove and keeps Open source.
+Both keep collapse as the toolbar's tab stop and toggle a local `linkedSignal` view instead of
+emitting `collapseToggled`; a fresh `section` or `shortcut` record resets it to the stored state,
+and the section frame's local view overrides `transientlyExpanded`. The canonical Task List's
+read-only rows are static `TaskRow`s (`link` null: a plain title, no drawer, no drag) and its
+empty sentence is "No tasks."; a shortcut's rows keep their source link and "The source has no
+tasks yet." Todos and the Reflections page do not yet change with `readOnly` (Slice 79 step 6). Going read-only closes an open task drawer through
 `TaskDrawerCoordinator.close()`. Rename and Parent (More › Edit details…) stay in the header. An
 archived root's Archive page says "Restore “X” above to bring its archived work back." instead of
 pointing at Settings, while `readOnly` holds, so the note leaves with the banner. Its choice keeps a

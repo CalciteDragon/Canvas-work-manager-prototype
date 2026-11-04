@@ -51,7 +51,8 @@
         @if (store.loading() && store.error() === null) {
           <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
         } @else if (store.tasks().length === 0 && store.error() === null) {
-          <p data-tasks-empty class="task-list-section__muted">The source has no tasks yet.</p>
+          <!-- A shortcut speaks of its source; an archived page's own list just has none (Slice 79). -->
+          <p data-tasks-empty class="task-list-section__muted">{{ sourceLink() ? 'The source has no tasks yet.' : 'No tasks.' }}</p>
         } @else {
           @for (task of store.tasks(); track task.id) {
             <app-task-row

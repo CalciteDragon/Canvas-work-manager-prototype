@@ -141,6 +141,12 @@ became wrong when the canvas became page-scoped; `ArchivePage` owns the whole-tr
 projection and the canonical restores, and `ArchivedRegion` is the presentational list
 ([decision](../../../decisions/2026-09-root-archive-recovery-guidance.md)).
 
+**An archived page reads, it does not refuse.** Under an archived project or ancestor the
+banner names the owner and restores it in place, and the canvas and its sections drop their write
+controls rather than offering writes the domain will refuse. Collapse stays, toggled locally and
+never saved, so a section stored collapsed stays readable; Task List rows are static, with no
+drawer ([decision](../../../decisions/2026-11-archived-pages-are-read-only.md)).
+
 **Arriving at a section is a DOM match, never a selector interpolation.** The canvas
 matches `#section-<id>` against the sections it loaded, focuses the frame heading, and
 opens a collapsed target through a transient input that leaves the record alone
@@ -180,6 +186,7 @@ undo its own receipt after checking that it remains next
 - [Descendant rows link to their owner's existing header history](../../../decisions/2026-09-descendant-history-discovery.md) — owner route and fragment focus without a merged cursor.
 
 - [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — ready-only root rows and separate workspace Settings recovery.
+- [Archived pages are read-only, with a banner that restores in place](../../../decisions/2026-11-archived-pages-are-read-only.md) — outermost owner, absent write controls, local collapse, static Task List rows.
 
 - [Direct canvas editing direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (implemented in Slice 27)
 - [Contextual insertion names its position](../../../decisions/2026-09-contextual-insertion-names-its-position.md)

@@ -124,3 +124,18 @@ export const AtRestLight: Story = {
   ...AtRestDark,
   globals: { theme: 'light' },
 };
+
+/**
+ * Slice 79: the project or an ancestor is archived. Sections show, read-only: no insertion,
+ * add, drag, resize, rename, settings or remove; task rows are static; collapse toggles locally.
+ */
+export const ReadOnly: Story = {
+  args: { projectLayoutMode: 'grid', readOnly: true },
+  decorators: canvas(GRID),
+};
+
+/** An archived page with no sections says so, and offers nothing to add. */
+export const ReadOnlyEmpty: Story = {
+  args: { readOnly: true },
+  decorators: canvas([]),
+};

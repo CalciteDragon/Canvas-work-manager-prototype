@@ -218,3 +218,59 @@ it('slice 78 pins a collapse failure by the frame, named by the shortcut and wat
   expect(pin.pinnedFailureSentence()).toBe(sentence.id);
   expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('aria-describedby')).toBe(sentence.id);
 });
+
+describe('ShortcutFrame read-only (Slice 79, §26, §31)', () => {
+  const readOnly = (value = shortcut()) => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = render(value);
+    fixture.componentRef.setInput('readOnly', true);
+    fixture.detectChanges();
+    return fixture;
+  };
+
+  it('has no drag handle or remove, keeps its source link, and its collapse is the toolbar stop', () => {
+    const fixture = readOnly();
+    expect(query(fixture, '[data-shortcut-drag-handle]')).toBeNull();
+    expect(query(fixture, '[data-shortcut-remove]')).toBeNull();
+    expect(fixture.debugElement.query(By.css('[cdkDragHandle]'))).toBeNull();
+    expect(query(fixture, '[data-shortcut-open-source]')).not.toBeNull();
+    expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('toggles collapse locally without a shortcut write (Q4 (a))', () => {
+    const fixture = readOnly();
+    const toggled: unknown[] = [];
+    fixture.componentInstance.collapseToggled.subscribe((event) => toggled.push(event));
+    const collapse = query(fixture, '[data-shortcut-collapse]')!;
+    collapse.click(); fixture.detectChanges();
+    expect(collapse.getAttribute('aria-expanded')).toBe('false');
+    expect(query(fixture, '[data-shortcut-content]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-shortcut-frame]').classList).toContain('shortcut-frame--collapsed');
+    collapse.click(); fixture.detectChanges();
+    expect(query(fixture, '[data-shortcut-content]')).not.toBeNull();
+    expect(toggled).toEqual([]);
+  });
+
+  it('starts from the stored state and resets when a fresh read arrives', () => {
+    const fixture = readOnly(shortcut({ collapsed: true }));
+    const collapse = () => query(fixture, '[data-shortcut-collapse]')!;
+    expect(collapse().getAttribute('aria-expanded')).toBe('false');
+    collapse().click(); fixture.detectChanges();
+    expect(query(fixture, '[data-shortcut-content]')).not.toBeNull();
+    fixture.componentRef.setInput('shortcut', shortcut({ collapsed: true })); fixture.detectChanges();
+    expect(collapse().getAttribute('aria-expanded')).toBe('false');
+    expect(query(fixture, '[data-shortcut-content]')).toBeNull();
+  });
+
+  it('is unchanged when live', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = render();
+    const toggled: unknown[] = [];
+    fixture.componentInstance.collapseToggled.subscribe((event) => toggled.push(event));
+    expect(query(fixture, '[data-shortcut-drag-handle]')).not.toBeNull();
+    expect(query(fixture, '[data-shortcut-remove]')).not.toBeNull();
+    query(fixture, '[data-shortcut-collapse]')!.click(); fixture.detectChanges();
+    expect(toggled).toEqual([{ id: 'shortcut-a', collapsed: true }]);
+    expect(query(fixture, '[data-shortcut-content]')).not.toBeNull();
+  });
+});

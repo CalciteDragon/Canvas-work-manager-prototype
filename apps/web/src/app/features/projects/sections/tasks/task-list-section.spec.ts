@@ -932,5 +932,39 @@ it('links a shortcut task to its source and distinguishes the empty source (slic
  expect(query(fixture,'a[data-task-title]')?.getAttribute('href')).toBe('/projects/project-a#section-section-tasks');
  TestBed.resetTestingModule();
  const empty=await render(new FakeWorkManagerGateway(),true);
+ empty.fixture.componentRef.setInput('sourceLink',{route:['/projects','project-a'],fragment:'section-section-tasks'}); empty.fixture.detectChanges();
  expect(query(empty.fixture,'[data-tasks-empty]')?.textContent).toBe('The source has no tasks yet.');
+});
+
+describe('TaskListSection on an archived page (Slice 79, Q5 (a), §31)', () => {
+  it('renders static rows: title and status, with no Complete, Delete, drag, drop list or drawer', async () => {
+    const done = TaskSchema.parse({ ...task('task-2'), status: 'done', completedAt: AT });
+    const { fixture, store } = await render(new FakeWorkManagerGateway({ tasks: [task('task-1'), done] }), true);
+
+    const rows = [...fixture.nativeElement.querySelectorAll('[data-task-row]')] as HTMLElement[];
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      const title = row.querySelector('[data-task-title]')!;
+      expect(title.tagName).toBe('SPAN');
+      expect(row.classList).toContain('object-row--static');
+    }
+    expect(rows[1]!.textContent).toContain('Done');
+    for (const hook of ['[data-task-complete]', '[data-task-delete]', '[data-quick-create]', 'a[data-task-title]']) {
+      expect(query(fixture, hook), hook).toBeNull();
+    }
+    expect(fixture.debugElement.query(By.directive(CdkDrag))).toBeNull();
+    expect(fixture.debugElement.query(By.directive(CdkDropList))).toBeNull();
+
+    // Neither the title nor the row background opens the drawer.
+    rows[0]!.querySelector<HTMLElement>('[data-task-title]')!.click();
+    rows[0]!.click();
+    fixture.detectChanges();
+    expect(store.selectedTaskId()).toBeNull();
+    expect(query(fixture, 'app-task-detail-drawer')).toBeNull();
+  });
+
+  it('says "No tasks." when the archived list is empty', async () => {
+    const { fixture } = await render(new FakeWorkManagerGateway(), true);
+    expect(query(fixture, '[data-tasks-empty]')?.textContent?.trim()).toBe('No tasks.');
+  });
 });
