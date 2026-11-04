@@ -18,8 +18,33 @@ bullet below. **Step 8 (empty workspace) is done (S79S8 wrote it, S79S8B landed 
 Open question 8 with (a): Calendar and Settings › Agents lazy, ceiling kept; see the Step 8 bullet
 below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 bullet below.
 **Step 10 (Markdown keeps the draft) is done (S79S10)**; see the Step 10 bullet below.
-**Next: step 11 (count and drag hint: `reportSummary`, both frames, the count, the hint
-overlay).**
+**Step 11 (count and drag hint) is done (S79S11)**; see the Step 11 bullet below.
+**Next: step 12 (end to end: `empty-archived-editing.spec.ts`, then full `pnpm e2e`, the
+Storybook build and the bundle).**
+- **Step 11 (count and drag hint):** `SectionDefinition.summary?: true`, set only on Task List;
+  `SectionContentInputs.reportSummary?`. Both frames hold a `summary` signal and add the stable
+  class-property `reportSummary` to the content inputs only for a marked definition (NG0303 is a
+  throw from `setInput`, so the registry spec pins marker and declared input together). The text
+  renders in `[data-section-summary]` / `[data-shortcut-summary]` after the heading, not inside it
+  (the section's accessible name is unchanged), and is hidden while collapsed (and, for a shortcut,
+  unavailable). Task List's `summary` is "N tasks" / "1 task", open and done, `null` while loading,
+  under `error()` or at zero, and destroy reports `null`; a pending quick-add is not counted until
+  it lands. Headers are `flex-wrap: nowrap`: a long name truncates (the shortcut name gained its
+  own `.shortcut-frame__name` span for the ellipsis); with a count the canonical heading stops
+  growing (`section-frame__title--fit`), so empty header space beside a Task List's count no longer
+  starts a rename. The drag hint is inside the quick-add form, absolutely positioned over it on
+  `--plane-sheet-solid` with the field radius. Lab: two counted frames in the `section-frame` panel
+  (the stub reports its config's `summary` under `stubSectionDefinition({ summary: true })`);
+  stories `HeaderCount`, `HeaderCountLongName`, the shortcut `ReadOnlyTaskList` play, and
+  `task-list-section.stories.ts` created (Live, ArchivedReadOnly, Empty). Decision
+  `2026-11-task-list-shows-its-count.md`, the rows decision amended, §29 and §34 notes.
+  **Initial bundle 1,146.15 kB, 3.85 kB under the ceiling** (+2.01 kB). Commits `bef50ad` (code,
+  docs) and `7f77797` (review fixes). Unit: web 1,536 green; `pnpm test` and `pnpm lint` green;
+  `objects.spec.ts` (the drag e2e) passed alone. One cold review: no substantive findings; minors
+  taken (shortcut ellipsis, collapsed-shortcut test, hint radius, two doc notes). **Left for later
+  steps:** the geometry (first row holds still, controls' offsets at 375) is unit-tested only as
+  computed styles, since jsdom has no layout; step 12's e2e and step 13's rig measure it. The hint's
+  opaque plate against a translucent sheet is to be looked at in step 13's after capture.
 - **Step 10 (Markdown keeps the draft):** `MarkdownDraftStore` (`markdown-draft-store.ts`, root,
   `keep`/`take`/`forget` of `{ draft, base }` by section id, cleared on `prototype.reloaded`).
   `take` removes, so the store holds a draft only while no editor has it open. "Changed" means
