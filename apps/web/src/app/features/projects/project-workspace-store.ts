@@ -33,9 +33,9 @@ const projectWriteSentence = (input: UpdateProjectInput, name: string): string =
 };
 
 /**
- * A failed restore of the archived owner, shown in the banner rather than the header (Slice 79).
+ * A failed restore of the archived owner, kept apart from the header's `writeError` (Slice 79).
  * `retryable` is false when Try again could not help: a `rule_violation` or a `not_found`, after
- * which a context refresh moves the banner to whatever owner is now true.
+ * which a context refresh moves `archivedOwner` to whatever owner is now true.
  */
 export interface OwnerRestoreFailure extends Failure {
   readonly ownerId: ProjectId;
@@ -723,20 +723,24 @@ export class ProjectWorkspaceStore {
   }
 
   /**
-   * The banner's restore of the archived owner (Slice 79, §31), which may be an ancestor, so it is
+   * Restores the archived owner (Slice 79, §31), which may be an ancestor, so it is
    * not `writeProject`: that paints the page's own record and words a failure with its name. Not
    * optimistic and painting nothing; it holds the project-write count, so `restoreBlocked` and the
    * header hold still, and runs inside `whileWriting`, so a frame meanwhile waits for it. On
    * success the owner's record replaces its breadcrumb (or the project itself), the context epoch
    * moves so an older read in flight cannot repaint it archived, and the tree is re-read. The
    * write is reported with the owner's id and name: for an ancestor, the cross-owner toast.
-   * Resolves `false` for a stale owner, a second restore while one runs, or a failure, which is
+   * Resolves `false` for a stale owner, while loading or while any project write runs (a header
+   * write's rollback would repaint the pre-restore record), or for a failure, which is
    * `restoreFailure`'s; a `rule_violation` or `not_found` also queues a context refresh.
    */
   restoreOwner(ownerId: ProjectId, status: ProjectRestoreStatus): Promise<boolean> {
     const owner = this.archivedOwner();
     const projectId = this.requestedProjectId;
-    if (this.destroyed || owner === null || owner.id !== ownerId || projectId === undefined || this.restorePendingState()) {
+    if (
+      this.destroyed || this.loading() || owner === null || owner.id !== ownerId ||
+      projectId === undefined || this.projectState()?.id !== projectId || this.projectWritePending()
+    ) {
       return Promise.resolve(false);
     }
     const generation = this.loadGeneration;

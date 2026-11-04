@@ -9,7 +9,36 @@ continuation)**: profile 79 in `build-sheet.mjs`, driven by 23 fixture tests in
 gate), f142b00 and 418c86f (fixes from the first cold review) and the closing commit (fixes from the
 second). **Step 2 (foundations) is done (S79S2, cloud session)**; see the Step 2 bullet below.
 Commits 83f6e13 (code and docs) and the handoff commit. **Step 3 (restore one way) is done
-(S79S3)**; see the Step 3 bullet below. **Next is step 4 (archived owner and banner).**
+(S79S3)**; see the Step 3 bullet below. **Step 4 part a (the store) is done (S79S4A)**; see the
+Step 4a bullet below. **Next is step 4 part b (S79S4B): the banner, its shell placement and the
+renderer input.**
+- **Step 4a (store only):** `ProjectWorkspaceStore` (`project-workspace-store.ts`) now exposes:
+  `archivedOwner()` (`Project | null`, outermost archived of breadcrumbs + project; ancestors are
+  root first), `readOnly()`, `restorePending()`, `restoreFailure()` (`OwnerRestoreFailure | null`:
+  `{ ownerId, sentence, reason, retryable }`; `retryable` is false for `rule_violation` and
+  `not_found`, which also queue a context refresh; cleared by a new restore and by `load`), and
+  `restoreOwner(ownerId, status: ProjectRestoreStatus): Promise<boolean>`. It refuses (no request,
+  `false`) a stale owner id, a load in progress and any project write in flight (header writes
+  included: a rename's rollback would repaint the pre-restore record; review finding). On success
+  the owner's record replaces its breadcrumb or `project()`, the context epoch moves, the tree
+  (`projects.list`) is re-read, and the promise resolves only then, so part b can move focus on
+  resolve. It reports `{ projectId: owner.id, projectName: owner.name, receipt }` with no
+  `feedback`, so an ancestor gets the existing cross-owner toast and the own project gets none
+  (the history store only announces when history ids differ; not re-tested here).
+  **Part b must wire:** the banner (`app-archived-banner`, behind `@defer`, Q6 (a)) reading
+  `archivedOwner()` and `project()` for its three sentences (own, ancestor, "archived, and so
+  is"); `RestoreStatusChoice` with `pending` = `restorePending()` and `disabled` while
+  `projectWritePending()` and not `restorePending()`; `restoreFailure()` rendered in the banner
+  (`FailureMessage`, Try again only when `retryable`, re-calling `restoreOwner` with the same
+  status); focus after resolve (heading `h1[data-project-name]`, or the banner's choice when
+  `archivedOwner()` is still set); `readOnly` as a renderer input on every typed renderer
+  (`project-page-contract.ts`) from `store.readOnly()`; closing an open drawer when `readOnly`
+  turns on. `restoreBlocked` is unchanged. Commits ee60b33 and the review-fix commit. 1,428 web
+  unit tests green; bundle **1,144.74 kB** initial (+1.86 kB: the store is in the initial bundle; 5.26 kB left
+  under the 1,150 ceiling for the deferred banner's shell hook, first run and later steps). Review: nothing
+  substantive; minors fixed (guard, tree assertion, neutral doc comments); not fixed: a page
+  toggle in flight loses its context re-read when a restore moves the epoch (the plan's rule;
+  its own frame heals it).
 - **Step 3:** Archive's workstream rows (`archived-region`) and Settings › Archived projects render
   `RestoreStatusChoice`; the duplicate option lists, Settings' "Choose status" and its "stays
   disabled" rule are gone (`ArchivedProjectsStore.statusFor` is Active until chosen). **Hooks
@@ -117,7 +146,7 @@ Commits 83f6e13 (code and docs) and the handoff commit. **Step 3 (restore one wa
   on the commit form, opened from the menu item `/^Archive (project|workstream)…$/`;
   `[data-todo-row]`, `[data-todo-link]` and `[data-todo-complete]`; `[data-create-project-name]`.
   The banner counts as shown when its host or any of its content has a box.
-- **Bundle:** 1,142.88 kB initial after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
+- **Bundle:** 1,144.74 kB initial after step 4a; 1,142.88 kB after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
   1,150 kB, not raised). Steps 4 and 8 put the banner and first-run block behind `@defer` (Q6 (a)).
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows

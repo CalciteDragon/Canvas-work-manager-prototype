@@ -514,7 +514,8 @@ it follows every context read, live frames included; a failed quiet refresh keep
 header hold still, and `restorePending()` is set), runs inside `whileWriting`, and on success
 replaces the owner's record in the breadcrumbs (or the project itself), moves the context epoch
 and re-reads the tree. It reports the owner's id and name, so an ancestor's restore is a
-cross-owner write. Its failure is `restoreFailure()`, an `OwnerRestoreFailure` naming the owner,
+cross-owner write. It refuses, without a request, a stale owner, a load in progress and any
+project write already running, header writes included. Its failure is `restoreFailure()`, an `OwnerRestoreFailure` naming the owner,
 never `writeError()`: "Couldn’t restore “X”. Try again.", or, without Try again (`retryable`
 false) and with a queued context refresh, "…Something above it may have been archived." for a
 `rule_violation` and "…It may have changed elsewhere." for a `not_found`.

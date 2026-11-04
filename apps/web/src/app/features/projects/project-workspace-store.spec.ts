@@ -1096,6 +1096,7 @@ describe('ProjectWorkspaceStore — restoring the archived owner (Slice 79, §26
     expect(store.project()).toBe(shelving);
     expect(store.breadcrumbs().map(({ id, status }) => [id, status])).toEqual([['project-renovation', 'active'], ['project-attic', 'on_hold']]);
     expect(lists()).toBe(before + 1);
+    expect(store.subprojectTree().find(({ project }) => project.id === 'project-attic')?.project.status).toBe('on_hold');
     expect(store.archivedOwner()).toBeNull();
     expect(store.readOnly()).toBe(false);
     expect(store.writeError()).toBeNull();
@@ -1118,11 +1119,18 @@ describe('ProjectWorkspaceStore — restoring the archived owner (Slice 79, §26
     ]);
   });
 
-  it('refuses a stale owner without a request', async () => {
+  it('refuses a stale owner, and any restore while a header write runs, without a request', async () => {
     const { store, gateway } = persisting(legacy());
-    await store.load('project-shelving' as ProjectId);
+    await store.load('project-attic' as ProjectId);
     expect(await store.restoreOwner('project-renovation' as ProjectId, 'active')).toBe(false);
-    expect(gateway.calls.some(({ method }) => method === 'projects.update')).toBe(false);
+    const slow = deferred<void>();
+    const update = gateway.projects.update;
+    gateway.projects.update = (id, input) => slow.promise.then(() => update(id, input));
+    const renaming = store.rename('Attic');
+    expect(await store.restoreOwner('project-attic' as ProjectId, 'active')).toBe(false);
+    slow.resolve();
+    await renaming;
+    expect(gateway.calls.filter(({ method }) => method === 'projects.update')).toHaveLength(1);
   });
 
   it('says an unreachable restore in the banner, naming the owner with Try again, never in the header', async () => {
