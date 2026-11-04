@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import type { Failure } from '../../../shared/feedback/failure';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
+import { RestoreStatusChoice } from '../../../shared/projects/restore-status-choice';
 import { dailyDigestFailure } from '../../../features/dashboard/widgets/daily-digest/daily-digest-widget';
 import { labDashboardWithoutDigest } from '../design-lab-fixtures';
 
@@ -10,7 +11,8 @@ import { labDashboardWithoutDigest } from '../design-lab-fixtures';
  * §67 lists buttons, inputs, cards, project cards and menus. Since slice 72, buttons and inputs
  * are **shared**: the global primitive classes in `styles/_controls.scss`, rendered here as they
  * are, and the Controls panel shows every variant and state. Since slice 78 the loading and
- * failed states are shared too: `.state-message` and `FailureMessage`. Cards, project cards and
+ * failed states are shared too: `.state-message` and `FailureMessage`; slice 79 adds its empty and
+ * archived variants, the archived one holding the shared `RestoreStatusChoice` as the banner does. Cards, project cards and
  * menus are still token-styled markup inside features, so their panels are *representative
  * markup* labelled **not yet a shared component**. That label is the useful output: a primitive
  * everybody keeps re-styling is evidence for extracting it, and §78 is where that evidence goes.
@@ -22,7 +24,7 @@ import { labDashboardWithoutDigest } from '../design-lab-fixtures';
 @Component({
   selector: 'app-design-lab-primitive-panels',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FailureMessage],
+  imports: [FailureMessage, RestoreStatusChoice],
   templateUrl: './primitive-panels.html',
   styleUrls: ['./panels.scss', './primitive-panels.scss'],
 })

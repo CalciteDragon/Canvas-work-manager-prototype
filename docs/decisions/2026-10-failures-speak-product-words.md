@@ -86,3 +86,11 @@ this keeps, with the reason moved under Details).
 refused restore, "Couldn’t reach your workspace, so “X” may not have been restored."). The spec
 is corrected in place to match this entry: §21, §23, §24, §34, §44, §63 and §68 each carry a
 *Slice 78* paragraph.
+
+**Amended, 2026-11-04 — Slice 79 (foundations).** The one form gains two variants that are not
+failures: `.state-message--empty`, a muted sentence with at most one action beside it, and
+`.state-message--archived`, a quiet band on the sunken surface with a hairline border, sized for
+a banner. Neither takes a danger colour, because nothing went wrong. The shared
+`RestoreStatusChoice` (one option list in one casing, Active preselected and shown, Open question 2
+of the slice 79 plan, user decision 2026-11-04) is built; the Design Lab's State messages panel
+shows both variants, the archived one holding the choice. No product page uses them yet. §21 carries a *Slice 79* paragraph.

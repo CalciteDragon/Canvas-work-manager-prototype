@@ -132,7 +132,15 @@
 <section class="panel" data-panel="state-messages" data-panel-kind="primitive">
   <h3 class="panel__title">Empty, loading and failed <span class="panel__badge">shared</span></h3>
   <div class="panel__body panel__body--stack">
-    <p class="lab-state">No projects yet</p>
+    <div class="state-message state-message--empty"><p class="state-message__sentence">No projects yet.</p></div>
+    <div class="state-message state-message--empty">
+      <p class="state-message__sentence">No projects yet.</p>
+      <button type="button" class="button button--sm button--primary">New project</button>
+    </div>
+    <div class="state-message state-message--archived" data-lab-archived-banner>
+      <p class="state-message__sentence">“Legacy attic” is archived.</p>
+      <app-restore-status-choice subjectLabel="Legacy attic" />
+    </div>
     <p class="state-message state-message--loading" aria-busy="true">Loading projects…</p>
     <app-failure-message [failure]="readFailure" live="alert" recovery="try-again" />
     <app-failure-message [failure]="staleFailure" live="status" recovery="try-again" />

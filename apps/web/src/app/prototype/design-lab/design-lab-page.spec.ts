@@ -110,7 +110,6 @@ describe('DesignLabPage (§22, §67)', () => {
     const { element } = await render();
 
     const panel = element.querySelector<HTMLElement>('[data-panel="state-messages"]')!;
-    expect(panel.textContent).toContain('No projects yet');
     const loading = panel.querySelector<HTMLElement>('.state-message--loading')!;
     expect(loading.getAttribute('aria-busy')).toBe('true');
     expect(loading.textContent).toContain('Loading projects…');
@@ -129,10 +128,32 @@ describe('DesignLabPage (§22, §67)', () => {
     }
     expect(failures[1]!.querySelector('[data-failure-sentence]')!.getAttribute('role')).toBe('status');
     expect(panel.querySelector('.lab-state--error')).toBeNull();
+    expect(panel.querySelector('.lab-state')).toBeNull();
 
     const stub = element.querySelector<HTMLElement>('[data-panel="section-states"] [data-stub-state="error"]')!;
     expect(stub.querySelector('app-failure-message [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t load this section.');
     expect(stub.querySelector('details')?.textContent).toContain('the prototype host is not running');
+  });
+
+  // Slice 79 (§21, §23, §31): the empty and archived variants, the shared restore choice inside the banner specimen.
+  it('shows the empty and archived specimens, the archived one with the shared restore choice', async () => {
+    const { element } = await render();
+
+    const panel = element.querySelector<HTMLElement>('[data-panel="state-messages"]')!;
+    const empties = [...panel.querySelectorAll<HTMLElement>('.state-message.state-message--empty')];
+    expect(empties.map((empty) => empty.querySelector('.state-message__sentence')?.textContent?.trim())).toEqual([
+      'No projects yet.',
+      'No projects yet.',
+    ]);
+    // A sentence alone, and a sentence with its one action.
+    expect(empties[0]!.querySelector('button, a')).toBeNull();
+    expect(empties[1]!.querySelector('button')?.textContent?.trim()).toBe('New project');
+
+    const archived = panel.querySelector<HTMLElement>('.state-message.state-message--archived')!;
+    expect(archived.querySelector('.state-message__sentence')?.textContent?.trim()).toBe('“Legacy attic” is archived.');
+    const choice = archived.querySelector<HTMLElement>('app-restore-status-choice')!;
+    expect(choice.querySelector('select')?.value).toBe('active');
+    expect(choice.querySelector('button')?.getAttribute('aria-label')).toBe('Restore Legacy attic');
   });
 
   it('writes a moved control through to the document element', async () => {

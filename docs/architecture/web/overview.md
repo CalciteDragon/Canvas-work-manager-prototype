@@ -75,6 +75,9 @@ Smaller features that do not earn a folder of their own:
 - `shared/feedback` — `Toast` and `ToastSlot`; slice 78's `Failure` (`failure.ts`, the one
   translation from an error to a product sentence, its raw reason kept apart) and `FailureMessage`,
   which renders it with an optional Try again and the reason under a collapsed Details.
+- `shared/projects` — slice 79's `RestoreStatusChoice`, the one "Restore as [status] · Restore"
+  control: options from `ProjectRestoreStatusSchema` in one casing, Active preselected and shown,
+  presentational (it emits the status; the caller writes). It imports only contracts.
 - `shared/lifts` — `LiftFocus`, `LiftStack` and `menuKeys`; top-layer behavior stays in the
   owning component. `_lifts.scss` paints side lifts, sheets, popovers, dialogs and menus.
 - `styles/_controls.scss` — slice 72's control primitives as global classes over native elements

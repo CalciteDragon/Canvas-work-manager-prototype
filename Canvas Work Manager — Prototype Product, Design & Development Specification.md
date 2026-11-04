@@ -905,6 +905,8 @@ marks are quiet but visible on pointer and touch, and interaction raises their e
 
 *Slice 78.* Failure, loading and stale states share one form, `.state-message`, in two weights: a *region* replaces a section body, page or widget, and an *inline* message keeps a row's, field's or card's place. A failure is a sentence in product words with its recovery control (Try again, Retry refresh, Go to Home or Reload page); the host's raw reason sits only under a collapsed native Details beside it. A loading line is muted, with `aria-busy` on its region. A write failure whose sentence is scrolled out of the workspace is pinned to the scroll port's edge with an arrow toward it, and only pressing it scrolls ([decision](docs/decisions/2026-10-failures-speak-product-words.md), [decision](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
 
+*Slice 79.* `.state-message` gains two variants that are not failures and are not coloured: *empty*, a muted sentence with at most one action beside it, and *archived*, a quiet band on the sunken surface with a hairline border, sized for a banner. A shared restore choice, “Restore as [status] · Restore”, offers the restore statuses in one casing with Active preselected and shown; the Design Lab shows it inside the archived band ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
+
 ---
 
 # 22. Prototype Themes

@@ -105,6 +105,7 @@ restore rows do not. The Task List's sticky quick-add carries `data-pin-clearanc
 
 | `Toast` | component | Presentational feedback, live regions and timer | [API](../../api/components/Toast.html) |
 | `FailureMessage` | component | One failure form: sentence, optional recovery, reason under Details | [API](../../api/components/FailureMessage.html) |
+| `RestoreStatusChoice` | component | The one restore control: "Restore as" over the restore statuses, Active preselected, `aria-disabled` while pending (`shared/projects`) | [API](../../api/components/RestoreStatusChoice.html) |
 | `Failure`, `readFailure`, `headedReadFailure`, `writeFailure` | interface / functions | The one error-to-sentence translation | [API](../../api/interfaces/Failure.html) |
 | `ToastSlot` | injectable | One visible toast, navigation dismissal and modal suppression | [API](../../api/injectables/ToastSlot.html) |
 | `PinnedFailures` | injectable | Registry of off-screen write failures: most recent per edge, occurrence dismissal, clearance | [API](../../api/injectables/PinnedFailures.html) |

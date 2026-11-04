@@ -27,8 +27,10 @@
    values. The catalogue renders live components over `design-lab-fixtures.ts`, the
    shared Buttons and Inputs primitives, the Object rows panel (six specimens of the global
    `.object-row` with independent controls and title links), the Controls panel (every primitive and state over a pane
-   and a sheet, with forced hover, focus and pressed through the shared state mixins), the other
-   primitive panels' markup, plus a busy-ground plane/lift panel and a transform-only motion demo.
+   and a sheet, with forced hover, focus and pressed through the shared state mixins), the State
+   messages panel (slice 78's loading and `FailureMessage` forms, and slice 79's empty variant,
+   alone and with its one action, and archived variant holding the real
+   `RestoreStatusChoice`), the other primitive panels' markup, plus a busy-ground plane/lift panel and a transform-only motion demo.
    The plane panel uses the shared `.lift` classes for the side drawer, dialog, menu and page
    popover; the live Drawer panel renders `TaskDetailDrawer` with `contained`, so it remains in
    the catalogue without opening a native top-layer surface. `shared/lifts/lifts.stories.ts`

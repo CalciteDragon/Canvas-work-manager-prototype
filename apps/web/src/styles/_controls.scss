@@ -554,6 +554,25 @@ textarea.field {
   font-size: var(--font-size-sm);
 }
 
+// Slice 79: the empty variant is a muted sentence with at most one action beside it; the archived
+// variant is a quiet band sized for a banner, room for a sentence and the shared restore choice.
+// Neither is a failure, so neither is coloured.
+.state-message--empty {
+  color: var(--color-text-muted);
+
+  > .state-message__sentence {
+    flex-grow: 0;
+  }
+}
+
+.state-message--archived {
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
 @media (hover: none), (any-pointer: coarse) {
   .state-message__details summary {
     min-block-size: var(--size-hit-target);
