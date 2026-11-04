@@ -14,26 +14,44 @@ part b (the banner, its placement and the renderer input, S79S4B); see the Step 
 below. **Step 5 (read-only canvas) is done (S79S5, cloud session)**; see the Step 5 bullet below.
 **Steps 6a (hidden count, Q7) and 6 (read-only pages) are done (S79S6, cloud session)**; see the
 Step 6a/6 bullet below. **Step 7 (refusal first) is done (S79S7, cloud session)**; see the Step 7
-bullet below. **Step 8 (empty workspace) is written but not landed (S79S8): it crosses the bundle
-ceiling. Blocked on Open question 8 (the user decides); see the Step 8 bullet below.**
-- **Step 8 (empty workspace), parked:** done test first and green, but **not committed**, because it
-  measures **1,151.23 kB initial (1.23 kB over 1,150)**. The diff is in
-  `.prototype/s79s8-step8-over-ceiling.patch` (local, git-ignored; `git apply --check` passes at
-  `409d674`). It contains:
+bullet below. **Step 8 (empty workspace) is done (S79S8 wrote it, S79S8B landed it)** after the user answered
+Open question 8 with (a): Calendar and Settings › Agents lazy, ceiling kept; see the Step 8 bullet
+below. **Next: step 9 (digest overdue line, Q1 (a)).**
+- **Step 8 (empty workspace):** S79S8 wrote it test first and green but measured **1,151.23 kB**
+  initial, so it was parked as a local patch (Open question 8). S79S8B applied the patch unchanged
+  at `e3aa69c` and made `calendar` and `settings/agents` `loadComponent` routes, test first
+  (`app.routes.spec.ts` pins the lazy and eager lists; the `resolves` cases still land on
+  `CalendarPage` and `AgentConnectionsPage`). **Initial bundle 1,141.97 kB, 8.03 kB under the
+  ceiling** (lazy chunks: Agents 9.35 kB, Calendar 0.43 kB). What landed:
   - `ShellStore`: one unfiltered `projects.list({})`, `projects()` live only, `answered()`,
-    `hasArchived()`, `workspaceEmpty()`;
-  - `core/shell/shell-commands.ts`: the `SHELL_COMMANDS` token, which `AppShell` provides as itself
-    (`requestCreate()` opens the Menu first when narrow, then reopens the sidebar's form after the
-    drawer's focus move);
-  - the sidebar's `hasArchived` input, with "No active projects." and its link to
-    `/settings/archived-projects`;
+    `hasArchived()`, `workspaceEmpty()` (never while loading or after a failure);
+  - `core/shell/shell-commands.ts`: the `ShellCommands` interface and `SHELL_COMMANDS` token, which
+    `AppShell` provides as itself (`requestCreate()` opens the Menu first when narrow, then reopens
+    the sidebar's form after the drawer's focus move);
+  - the sidebar's `hasArchived` input, with "No active projects." and its link "Archived projects
+    are in Settings." to `/settings/archived-projects`;
   - `features/dashboard/first-run-block.ts` behind `@defer (when shell?.workspaceEmpty())` above
-    the widgets.
+    the widgets; it hides itself when the first project arrives;
+  - stories `Shell/Sidebar` (`Projects`, `Empty`, `ArchivedOnly`) and `Dashboard/Home`
+    (`FirstRun`); Storybook builds;
+  - docs: web/core and web/dashboard overview/why/what/how, web what/why (the route table and the
+    lazy-route paragraph), §23 and §24 *Slice 79* notes, the new decision
+    `2026-11-empty-workspace-offers-the-first-project.md` and the budget decision's 2026-11-04
+    amendment, both indexed.
 
-  With the patch applied, the full web unit run is 1,500 green, plus the identity-failure case added after it, run in its own spec (28 green). The cold review
-  found nothing substantive. Its minor findings are fixed in the patch or listed under Open
-  question 8's Impact (docs, stories). Costs, the options and the measured lazy-route figure are
-  in Open question 8. **The tree at `409d674` is unchanged and within the ceiling (1,149.996 kB).**
+  Commits `b9e0e48` (code, docs, stories) and the closing docs commit (review fixes, this State).
+  Unit: web 1,503 green (six files timed out on the first cold run and passed on re-run). E2E: 259
+  passed in 24 of 25 specs, including `web`, `placement`, `archived-projects`, `archive`, `states`,
+  `phone-layout`, `work-navigation` and `mcp`, against the production build through a throwaway,
+  uncommitted config: host on 4357, static build on 4257, and a forwarding proxy on 4258 that maps
+  the browser's `localhost:4200`/`:4310` (Chromium `--host-resolver-rules` cannot remap loopback
+  ports; set `UX_STATIC_ORIGIN` too, or `ux/isolation.ts` reroutes to 4201). Not run:
+  `project-creation-history.spec.ts`, which fetches `127.0.0.1:4310` from Node directly. One cold
+  review: no code findings; it found this State and the stale `shell-commands.spec.ts` rows (fixed),
+  an overstated Confidence line in the decision (fixed) and an untested drawer-already-open
+  `requestCreate()` (case added). Left minor: no `@error` block on the first-run `@defer` (as the
+  banner's); Escape from a form opened by first run on a phone returns focus to Menu, per the
+  drawer rule.
 - **Step 7 (refusal first):** `ProjectArchiveConfirm` over live workstreams is the blocked form:
   "“X” can’t be archived yet" / "These workstreams aren’t archived. Archive them first:", each child
   an `a[data-project-archive-child]` to `/projects/<id>` then " · <Status>" (completed still
@@ -1085,7 +1103,7 @@ Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocate
 | File | Change | Responsibility |
 |---|---|---|
 | `core/shell/shell-store.ts` (+ spec) | modify | Unfiltered list split into tree and `hasArchived`; an `answered` flag; `workspaceEmpty` |
-| `core/shell/shell-commands.ts` (+ spec) | create | `workspaceEmpty` and `requestCreate()`, provided by `AppShell`, so pages never inject `ShellStore` |
+| `core/shell/shell-commands.ts` | create | The `ShellCommands` interface and `SHELL_COMMANDS` token: `workspaceEmpty` and `requestCreate()`, provided by `AppShell` as itself, so pages never inject `ShellStore` (its cases are in `app-shell.spec.ts`; Revisions, step 8) |
 | `core/shell/app-shell.ts` (+ spec) | modify | Provide `ShellCommands`, feed `workspaceEmpty`; on `requestCreate`, open the Menu when narrow and call `sidebar().reopenCreate()` after the drawer's focus move |
 | `core/shell/sidebar/sidebar.{ts,html}` (+ spec; `sidebar.stories.ts` create) | modify | Archived-only wording and link, `hasArchived` input, `.state-message--empty` |
 | `features/dashboard/dashboard-page.{ts,html,scss}` (+ spec; `dashboard-page.stories.ts` create) | modify | First-run block from `ShellCommands.workspaceEmpty()`; its New project (`data-first-run-create`) calls `requestCreate()`; above the widgets (Q3 (a)); mounted behind `@defer (when workspaceEmpty())` (Q6 (a)) |
@@ -1221,7 +1239,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 | `shell-store.spec.ts`: one unfiltered list read; archived projects never reach the tree; `hasArchived` true with only archived projects; `workspaceEmpty` false while loading or failed, true only after an empty answer | W4-034, W1-001 inputs |
 | `sidebar.spec.ts`: empty tree with `hasArchived` says "No active projects." with a link to `/settings/archived-projects` and never "No projects yet"; no archived and empty says "No projects yet"; loading and failure unchanged | W4-034; slice 78 kept |
 | `app-shell.spec.ts`: `requestCreate()` opens the creation form with its field focused; at narrow width it opens the Menu first, and the name field still holds focus after the drawer's own focus move | W1-001 |
-| `shell-commands.spec.ts`: `requestCreate()` emits once per call; `workspaceEmpty` follows what `AppShell` feeds it | W1-001 |
+| `app-shell.spec.ts` (*AppShell — ShellCommands*): each `requestCreate()` reopens the one form; `workspaceEmpty` follows the shell's read (was `shell-commands.spec.ts`; Revisions, step 8) | W1-001 |
 | `dashboard-page.spec.ts`: first-run block only when `workspaceEmpty()`; its New project calls `requestCreate()`; absent while loading, after a failure, and in an archived-only workspace | W1-001, W4-001, L4-020 |
 | `task-origin-link.spec.ts`: the owner link Today and the digest share (route and fragment) | One link rule |
 | `daily-digest-widget.spec.ts`: with overdue tasks, each is listed under the prose and links to its owner section, at most five plus "and N more overdue", each `data-digest-overdue`; with none, nothing is listed; a `null` digest keeps slice 78's failure and shows no overdue list, because the failure replaces the widget body | W4-028 |
@@ -1764,3 +1782,6 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   gains `app.routes.ts`, `app.routes.spec.ts` and an amendment to
   `docs/decisions/2026-08-initial-bundle-budget.md`; step 8 lands with them. Acceptance check
   item 3 no longer says every route is eager.
+- **2026-11-04, step 8 landed (S79S8B).** The cold review's findings changed the plan's rows, not
+  its content: the Shell table's `shell-commands.ts` row and the Test plan's `shell-commands.spec.ts`
+  row now name `app-shell.spec.ts`, which holds those cases since the parked patch.

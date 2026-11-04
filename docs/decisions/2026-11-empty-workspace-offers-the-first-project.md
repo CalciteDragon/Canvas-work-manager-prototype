@@ -48,8 +48,9 @@ yet".
 
 **Confidence**
 
-High for the conditions and the single form: unit specs on the store, shell, sidebar and Home
-cover loading, failure, archived-only and the first project arriving. Medium for the sentence,
+High for the conditions and the single form. `shell-store.spec.ts` covers loading, failure,
+archived-only and the first project arriving; the shell, sidebar and Home specs cover the token,
+the wording and the block. Medium for the sentence,
 which has not met real use.
 
 **Revisit when**

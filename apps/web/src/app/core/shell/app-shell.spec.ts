@@ -373,14 +373,28 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
   it('opens the drawer first for a page’s create request, and ends with focus in the name', async () => {
     const { fixture, q, stable } = await renderAt(true, { projects: [] });
     const focused: Array<Element | null> = [];
-    document.addEventListener('focusin', () => focused.push(document.activeElement));
+    const record = () => focused.push(document.activeElement);
+    document.addEventListener('focusin', record);
+
+    fixture.debugElement.injector.get(SHELL_COMMANDS).requestCreate();
+    await stable();
+    document.removeEventListener('focusin', record);
+
+    expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
+    expect(document.activeElement).toBe(q('[data-create-project-name]'));
+    expect(focused.at(-1)).toBe(q('[data-create-project-name]'));
+  });
+
+  it('reopens the form in a drawer already open, without moving the drawer', async () => {
+    const { fixture, q, stable, openDrawer } = await renderAt(true, { projects: [] });
+    await openDrawer();
 
     fixture.debugElement.injector.get(SHELL_COMMANDS).requestCreate();
     await stable();
 
     expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
+    expect(q('[data-create-project-name]')).not.toBeNull();
     expect(document.activeElement).toBe(q('[data-create-project-name]'));
-    expect(focused.at(-1)).toBe(q('[data-create-project-name]'));
   });
 
   const submitCreate = async (q: Query, stable: () => Promise<void>) => {
