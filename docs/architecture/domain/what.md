@@ -133,6 +133,6 @@ sequenceDiagram
 | `DashboardService` | `src/dashboard-service.ts` | §24's one derived read, including task origins, project ancestor paths, the digest and Fun Fact; unresolved task containers are excluded before counting; a provider rejection gives a `null` digest |
 | `ProgressService`, `TimelineService` | `src/progress-service.ts`, `src/timeline-service.ts` | §39 formulas; §38 derived ranges with canonical task-section and workstream links |
 | `WorkspaceService` | `src/workspace-service.ts` | `search_workspace`, `get_upcoming_work` under `workspace.read` |
-| `ProjectTodosService`, `ProjectArchiveService`, `ProjectJournalService` | `src/project-*-service.ts` | The three root-wide projections (§34, §31, §36) |
+| `ProjectTodosService`, `ProjectArchiveService`, `ProjectJournalService` | `src/project-*-service.ts` | The three root-wide projections (§34, §31, §36); for an archived root, Todos and journal answer no rows and `hiddenItemCount`, the rows a restore would bring back (`asRestored`, Slice 79) |
 | `sectionRecoveryOf` | `src/section-recovery-policy.ts` | Package-internal pure policy: which section entries Archive lists, with recovery metadata |
 | `AIProvider`, `PrototypeAIProvider` | `src/ai-provider.ts`, `src/prototype-ai-provider.ts` | §42's interface; §43's deterministic implementation |

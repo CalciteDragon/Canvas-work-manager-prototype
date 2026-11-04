@@ -146,3 +146,16 @@ export const findHighestWriteBlocker = async (
   }
   return blocker;
 };
+
+/**
+ * The workspace's projects **as if `rootId` were restored**: the same records, with that one
+ * project's status read as live, in memory only (Slice 79, Q7).
+ *
+ * An archived root's derived reads answer no rows (§31) but say how many a restore would bring
+ * back; running the ordinary derivation over this view is how they count them without a second
+ * copy of the visibility rule. Nothing is written, and work archived in its own right stays
+ * archived here, exactly as a restore would leave it.
+ */
+export function asRestored(projects: readonly Project[], rootId: ProjectId): Project[] {
+  return projects.map((project) => (project.id === rootId ? ({ ...project, status: 'active' } as Project) : project));
+}

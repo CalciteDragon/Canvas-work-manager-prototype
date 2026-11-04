@@ -101,3 +101,12 @@ adopt the same canonical navigation rule. Task links target the owning section, 
 transient expansion and heading focus. Todos keeps its own template and writes on the shared
 row anatomy; its title still navigates while a Task List title selects. See
 [rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md).
+
+**Amended, 2026-11-04 — Slice 79: an archived root's hidden count (user decision, Open question 7).**
+An archived root's Todos read still answers no rows (§31), and now carries `hiddenItemCount`: how
+many rows the same read would answer once the root is restored, counted over an in-memory view in
+which the root is live, with nothing written. Work archived in its own right, or under a workstream
+archived separately, is not counted, since a restore does not bring it back. A live root's answer
+has no such field. HTTP and `get_project_todos` return the same result, so agents read the count the page shows:
+"Restore to view N hidden todos." when it is above zero, the ordinary empty sentence when it is
+zero ([archived pages are read-only](2026-11-archived-pages-are-read-only.md)).

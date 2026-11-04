@@ -93,7 +93,7 @@ reference a section elsewhere in the same tree.
 | `AgentConnectionSchema`, `AgentPermissionSchema` | `src/agent.ts` | Connections and the seven grants |
 | `Create*Input`, `Update*Input`, `*Query` | `src/inputs.ts` | Write inputs and query shapes |
 | `LiveEventSchema`, `PROJECT_RECORD_EVENT_TYPES`, `isProjectRecordEvent` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId`; which frames announce a project record change |
-| Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata |
+| Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata; the Todos and journal results carry an optional `hiddenItemCount` for an archived root only (Slice 79) |
 | Prototype state and commands | `src/prototype.ts` | What the dev panel and `/prototype/*` agree on |
 | `UndoOperationSchema`, section operation schemas, `UndoResultSchema`, `RedoResultSchema`, `UndoConflictSchema` | `src/undo.ts` | The twenty-three-operation union, section payloads, discriminated transition results and typed conflicts including the `page` and `project` entity kinds |
 | `SectionRestoreOperationSchema` and its directional results | `src/section-restore-history.ts` | The exact footprint of one Archive Restore: markers, generation, old position, committed placement and the rows it revived |

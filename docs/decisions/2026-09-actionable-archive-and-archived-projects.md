@@ -69,6 +69,13 @@ at the restored row's place, the next row, a revealed child or the previous row,
 toast likewise, else the heading. The header's status choice in More is a status control, not a
 restore control, and keeps its own casing. §23 and §31 are corrected to say so.
 
+**Amended, 2026-11-04 — Slice 79: the hidden count (user decision, Open question 7).** Live work
+hidden by an archived root is still omitted from that root's reads, as above; its Todos and journal
+reads now say how much is hidden through an optional `hiddenItemCount` (the rows a restore would
+bring back, never the rows), so the pages can say "Restore to view N hidden todos." instead of a
+false empty sentence. Archive's own list is unchanged. See
+[archived pages are read-only](2026-11-archived-pages-are-read-only.md).
+
 ## Confidence
 
 High for the structural eligibility and no-cascade rule because the projection is based on

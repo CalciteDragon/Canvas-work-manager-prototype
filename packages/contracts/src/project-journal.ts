@@ -26,6 +26,13 @@ export type ProjectJournalItem = ProjectJournalEntry;
 export const ProjectJournalResultSchema = z.object({
   projectId: ProjectIdSchema,
   items: z.array(ProjectJournalEntrySchema),
+  /**
+   * Present **only for an archived root** (Slice 79, §31): how many entries this journal would
+   * show once the root is restored, never the entries. `items` is then empty; reflections under
+   * work archived in its own right, which a restore does not bring back, are not counted. A live
+   * root's answer has no such field.
+   */
+  hiddenItemCount: z.number().int().nonnegative().optional(),
 });
 export type ProjectJournalResult = z.infer<typeof ProjectJournalResultSchema>;
 

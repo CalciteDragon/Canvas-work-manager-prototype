@@ -144,12 +144,44 @@ describe('ProjectJournalService (§36)', () => {
     const { harness, child, grandchild } = await populated();
     await harness.projectService.archive(harness.actor, grandchild.id);
     await harness.projectService.archive(harness.actor, child.id);
+    const live = await harness.projectJournalService.journal(harness.actor, MINE);
+    expect(live).not.toHaveProperty('hiddenItemCount');
     await harness.projectService.archive(harness.actor, MINE);
-    expect((await harness.projectJournalService.journal(harness.actor, MINE)).items).toEqual([]);
+    // Slice 79, Q7: no entries (§31), only how many a restore would show. The grandchild's
+    // entry sits under workstreams archived in their own right, so a restore leaves it hidden.
+    expect(live.items).toHaveLength(3);
+    expect(await harness.projectJournalService.journal(harness.actor, MINE)).toEqual({ projectId: MINE, items: [], hiddenItemCount: 3 });
     expect((await harness.projectJournalService.completedWork(harness.actor, MINE)).candidates).toEqual([]);
     await expect(harness.projectJournalService.journal(harness.actor, 'project-missing' as never)).rejects.toBeInstanceOf(EntityNotFoundError);
     await expect(harness.projectJournalService.completedWork(harness.actor, child.id)).rejects.toThrow(`project "${child.id}" is a workstream; only a root project has a Reflections page`);
     await expect(harness.projectJournalService.completedWork(harness.actor, 'project-theirs' as never)).rejects.toBeInstanceOf(EntityNotFoundError);
+  });
+
+  it('answers a zero count for an archived root with no reflections', async () => {
+    const harness = buildHarness();
+    const empty = await harness.projectService.create(harness.actor, {
+      kind: 'root',
+      workspaceId: harness.actor.workspaceId,
+      name: 'Nothing here',
+    });
+    await harness.projectService.archive(harness.actor, empty.id);
+
+    expect(await harness.projectJournalService.journal(harness.actor, empty.id)).toEqual({
+      projectId: empty.id,
+      items: [],
+      hiddenItemCount: 0,
+    });
+  });
+
+  it('refuses an archived root before any read when a grant is missing', async () => {
+    const { harness, child, grandchild } = await populated();
+    await harness.projectService.archive(harness.actor, grandchild.id);
+    await harness.projectService.archive(harness.actor, child.id);
+    await harness.projectService.archive(harness.actor, MINE);
+    for (const missing of ['projects.read', 'tasks.read', 'reflections.read'] as const) {
+      const grants = (['projects.read', 'tasks.read', 'reflections.read'] as const).filter((grant) => grant !== missing);
+      await expect(harness.projectJournalService.journal(agentActorFor(0, [...grants]), MINE)).rejects.toBeInstanceOf(PermissionDeniedError);
+    }
   });
 
   it('asserts all combined-read grants before reading and keeps the refusal atomic', async () => {

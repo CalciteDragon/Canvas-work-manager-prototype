@@ -65,3 +65,19 @@ on reload" but also fires on any fresh read of the section during the visit.
 
 Real use finds a drawer-only detail people need on an archived page (then a read-only drawer,
 Open question 5 (b)), or the local collapse resetting under a live refresh is felt as lost state.
+
+**Amended, 2026-11-04 — Slice 79 step 6a: what an archived root's Todos and Reflections pages
+count (user decision, Open question 7; not the recommendation).** The recommendation was a web-only
+"Its todos come back when … is restored." The user chose instead: when work is hidden, the pages say
+"Restore to view N hidden todos." / "Restore to view N hidden reflections." (singular for one); when
+nothing is hidden, they keep the ordinary empty sentence, because it is true. The web cannot count
+what the domain does not answer, so `ProjectTodosResultSchema` and `ProjectJournalResultSchema`
+gain an optional `hiddenItemCount`, set by `ProjectTodosService.derive` and
+`ProjectJournalService.journal` only for an archived root: the rows the same derivation would answer
+once the root is restored, computed over an in-memory view in which the root is live, nothing
+written. Work archived in its own right, or under a workstream archived separately, is not counted.
+The items stay empty, so the count says how much is hidden, never what. *The plan's own choice:*
+agents see the same count through `get_project_todos` and `get_project_journal`, whose descriptions
+say so. It reveals no more than §31 already shows, since an archived project's own page keeps
+rendering its sections, and one answer for every caller is simpler than an HTTP-only field.
+

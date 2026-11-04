@@ -3,6 +3,7 @@
 // (Angular, the host, MCP tools, seeds) will import it.
 import { describe, expect, it } from 'vitest';
 import {
+  ProjectJournalResultSchema,
   ProjectTodosResultSchema,
   SCHEMA_VERSION,
   TaskSchema,
@@ -40,6 +41,17 @@ describe('@cwm/contracts entrypoint', () => {
     const empty: ProjectTodosResult = ProjectTodosResultSchema.parse({ projectId: 'project-a', items: [] });
 
     expect(empty.items).toEqual([]);
+  });
+
+  // Slice 79, Q7: an archived root's two derived reads say how much is hidden, never what.
+  it('takes an optional non-negative integer hiddenItemCount on the Todos and journal results', () => {
+    for (const schema of [ProjectTodosResultSchema, ProjectJournalResultSchema]) {
+      expect(schema.parse({ projectId: 'project-a', items: [] })).not.toHaveProperty('hiddenItemCount');
+      expect(schema.parse({ projectId: 'project-a', items: [], hiddenItemCount: 0 }).hiddenItemCount).toBe(0);
+      expect(schema.parse({ projectId: 'project-a', items: [], hiddenItemCount: 6 }).hiddenItemCount).toBe(6);
+      expect(schema.safeParse({ projectId: 'project-a', items: [], hiddenItemCount: -1 }).success).toBe(false);
+      expect(schema.safeParse({ projectId: 'project-a', items: [], hiddenItemCount: 1.5 }).success).toBe(false);
+    }
   });
 
   // The host, the MCP tools, the domain and the web gateway all name history's shapes; none of

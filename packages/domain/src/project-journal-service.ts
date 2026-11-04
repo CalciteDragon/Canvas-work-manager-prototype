@@ -23,7 +23,7 @@ import type {
 import { assertPermitted, type ActorContext } from './actor';
 import { compareInstants, compareText, instantOf, type Instant } from './instants';
 import { DomainRuleError, EntityNotFoundError } from './errors';
-import { archivedAncestry, type ArchivedAncestry } from './project-visibility';
+import { archivedAncestry, asRestored, type ArchivedAncestry } from './project-visibility';
 
 export interface ProjectJournalServiceDependencies {
   projects: ProjectRepository;
@@ -35,6 +35,8 @@ export interface ProjectJournalServiceDependencies {
 
 interface TreeContext {
   root: Project;
+  /** The complete workspace set the context was built from, archived projects included. */
+  allProjects: Project[];
   projects: Project[];
   projectById: Map<ProjectId, Project>;
   treeIds: Set<ProjectId>;
@@ -61,8 +63,17 @@ export class ProjectJournalService {
   async journal(actor: ActorContext, projectId: ProjectId) {
     this.assertJournalPermissions(actor);
     const context = await this.context(actor, projectId);
-    if (context.root.status === 'archived') return ProjectJournalResultSchema.parse({ projectId, items: [] });
+    if (context.root.status === 'archived') {
+      // §31 hides the entries; Slice 79 (Q7) says how many a restore would bring back, counted by
+      // the same derivation over an in-memory view in which the root is live.
+      const hidden = await this.entries(this.treeContext(asRestored(context.allProjects, projectId), projectId));
+      return ProjectJournalResultSchema.parse({ projectId, items: [], hiddenItemCount: hidden.length });
+    }
+    return ProjectJournalResultSchema.parse({ projectId, items: await this.entries(context) });
+  }
 
+  /** §36's entries for a live root, newest first. */
+  private async entries(context: TreeContext): Promise<ProjectJournalEntry[]> {
     const [pages, sections, reflections, tasks] = await Promise.all([
       this.dependencies.pages.list(),
       this.dependencies.sections.list(),
@@ -102,7 +113,7 @@ export class ProjectJournalService {
       const byCreated = compareInstants(b.createdAt, a.createdAt);
       return byCreated !== 0 ? byCreated : compareText(b.id, a.id);
     });
-    return ProjectJournalResultSchema.parse({ projectId, items: sortable.map(({ entry }) => entry) });
+    return sortable.map(({ entry }) => entry);
   }
 
   async completedWork(actor: ActorContext, projectId: ProjectId) {
@@ -169,6 +180,10 @@ export class ProjectJournalService {
 
   private async context(actor: ActorContext, projectId: ProjectId): Promise<TreeContext> {
     const projects = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
+    return this.treeContext(projects, projectId);
+  }
+
+  private treeContext(projects: Project[], projectId: ProjectId): TreeContext {
     const root = projects.find(({ id }) => id === projectId);
     if (root === undefined) throw new EntityNotFoundError('project', projectId);
     if (!isRootProject(root)) {
@@ -177,6 +192,7 @@ export class ProjectJournalService {
     const descendants = this.descendants(root.id, projects);
     return {
       root,
+      allProjects: projects,
       projects: [root, ...descendants],
       projectById: new Map(projects.map((project) => [project.id, project])),
       treeIds: new Set([root.id, ...descendants.map(({ id }) => id)]),

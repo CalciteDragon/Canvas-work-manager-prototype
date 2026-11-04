@@ -14,7 +14,7 @@ import type { ProjectPageRepository, ProjectRepository, SectionRepository, TaskR
 import { assertPermitted, type ActorContext } from './actor';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import { compareInstants, compareText, instantOf, type Instant } from './instants';
-import { archivedAncestry } from './project-visibility';
+import { archivedAncestry, asRestored } from './project-visibility';
 import { taskOrigin } from './task-origin';
 
 export interface ProjectTodosServiceDependencies {
@@ -66,9 +66,18 @@ export class ProjectTodosService {
       throw new DomainRuleError(`project "${projectId}" is a workstream; only a root project has a Todos page`);
     }
     // §31: an archived project hides its live contents from ordinary reads. Answering with its
-    // work would leak exactly what archiving put away.
-    if (root.status === 'archived') return ProjectTodosResultSchema.parse({ projectId, items: [] });
+    // work would leak exactly what archiving put away — so the answer is only how many rows a
+    // restore would bring back (Slice 79, Q7), counted by the same derivation over an in-memory
+    // view in which the root is live.
+    if (root.status === 'archived') {
+      const hidden = await this.items(root, asRestored(projects, root.id));
+      return ProjectTodosResultSchema.parse({ projectId, items: [], hiddenItemCount: hidden.length });
+    }
+    return ProjectTodosResultSchema.parse({ projectId, items: await this.items(root, projects) });
+  }
 
+  /** §34's rows for a live root, in order, over the complete workspace project set. */
+  private async items(root: Project, projects: readonly Project[]): Promise<ProjectTodoItem[]> {
     const ancestry = archivedAncestry(projects);
     const byId = new Map<ProjectId, Project>(projects.map((project) => [project.id, project]));
     const descendants = this.descendants(root.id, projects).filter(
@@ -128,7 +137,7 @@ export class ProjectTodosService {
     }
 
     sortable.sort(compareItems);
-    return ProjectTodosResultSchema.parse({ projectId, items: sortable.map(({ item }) => item) });
+    return sortable.map(({ item }) => item);
   }
 
   /**

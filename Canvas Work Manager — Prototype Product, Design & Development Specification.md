@@ -2029,6 +2029,14 @@ page, delegating every restore to the existing canonical domain operation. Slice
 rows to currently restorable archived items; blocked cascade members and effectively hidden live
 work wait behind their owner. Disabling the page does not block Settings recovery.*
 
+*Since Slice 79,* an archived root's Todos and Reflections reads still answer no rows, but they
+carry `hiddenItemCount`: how many rows a restore would bring back, never which. Work archived in
+its own right, which a restore leaves archived, is not counted. A live root's answer has no such
+field. The pages say "Restore to view N hidden todos." (or reflections) when the count is above
+zero and keep their ordinary empty sentence when it is zero; the count reveals no more than the
+archived project's own page already renders
+([why](docs/decisions/2026-11-archived-pages-are-read-only.md)).
+
 *The same slice made the rest of this section's visibility promise real, and the two halves of
 it are not the same rule. **Archived owners** are excluded by the `status` filter each aggregate
 read already had — the dashboard, workspace search and upcoming work — and by the unscoped task
@@ -2304,7 +2312,10 @@ task completion is reversible through a checkbox on Todos as well as the Task Li
 can be unchecked to reopen to `todo`; cancelled tasks have no toggle. Workstream completion
 remains one-way on Todos and reopening uses its header. Rows still link to their canonical canvas,
 at the owning container for a task
-([entry](docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
+([entry](docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md)). *Amended
+2026-11-04, Slice 79:* for an archived root the query answers `items: []` plus `hiddenItemCount`,
+the number of rows it would list once the root is restored, counted by the same derivation over an
+in-memory view in which the root is live (§31).
 
 *The 25.8 showcase deliberately inserted a dated work/task tie, completed and cancelled rows, and
 an undated work unit in scrambled order. The browser and MCP journeys observed the deterministic
@@ -2405,7 +2416,9 @@ whole-tree subject read.
 
 *Landed in Slice 25.7. The page, root journal projection and completed-work picker are backed by
 the same contracts and domain read rules over HTTP; the root journal is also available through
-MCP.*
+MCP.* *Amended 2026-11-04, Slice 79:* an archived root's journal answers no entries and
+`hiddenItemCount`, how many a restore would bring back (§31); the completed-work picker still
+answers no candidates.
 
 *The 25.8 showcase combined general, task-linked and subproject-linked entries, then reopened one
 subject. The root feed retained the entry and displayed the subject's current state, while the

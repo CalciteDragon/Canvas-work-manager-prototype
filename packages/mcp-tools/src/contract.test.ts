@@ -506,6 +506,39 @@ describe('get_dashboard_context under a failing AI provider (§24, §44)', () =>
   });
 });
 
+describe('an archived root’s derived reads over MCP (Slice 79, Q7)', () => {
+  it('answers no rows, only the hiddenItemCount a restore would show, on get_project_todos and get_project_journal', async () => {
+    const { registry, services } = buildHarness();
+    const reader = agent(['projects.read', 'tasks.read', 'reflections.read']);
+    const todos = (await registry.call('get_project_todos', { projectId: OPS_PROJECT }, reader)) as { items: unknown[] };
+    const journal = (await registry.call('get_project_journal', { projectId: OPS_PROJECT }, reader)) as { items: unknown[] };
+    expect(todos).not.toHaveProperty('hiddenItemCount');
+    expect(journal).not.toHaveProperty('hiddenItemCount');
+    expect(todos.items.length).toBeGreaterThan(0);
+    expect(journal.items.length).toBeGreaterThan(0);
+
+    await services.projects.archive(user(), OPS_PROJECT);
+
+    expect(await registry.call('get_project_todos', { projectId: OPS_PROJECT }, reader)).toEqual({
+      projectId: OPS_PROJECT,
+      items: [],
+      hiddenItemCount: todos.items.length,
+    });
+    expect(await registry.call('get_project_journal', { projectId: OPS_PROJECT }, reader)).toEqual({
+      projectId: OPS_PROJECT,
+      items: [],
+      hiddenItemCount: journal.items.length,
+    });
+  });
+
+  it('says so in both descriptions', () => {
+    const { registry } = buildHarness();
+    for (const name of ['get_project_todos', 'get_project_journal']) {
+      expect(registry.list().find((tool) => tool.name === name)?.description).toContain('hiddenItemCount');
+    }
+  });
+});
+
 describe('agent-facing workstream vocabulary (§26, §54)', () => {
   it('defines workstream with the unchanged subproject kind and avoids retired prose', () => {
     const { registry } = buildHarness();

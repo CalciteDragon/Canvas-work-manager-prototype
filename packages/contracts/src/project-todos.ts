@@ -65,5 +65,12 @@ export const ProjectTodosResultSchema = z.object({
   projectId: ProjectIdSchema,
   /** In §34's order: due date ascending, undated last, ties by kind then id. */
   items: z.array(ProjectTodoItemSchema),
+  /**
+   * Present **only for an archived root** (Slice 79, §31): how many rows this read would list
+   * once the root is restored, never the rows. `items` is then empty, because §31 hides an
+   * archived project's live contents; work archived in its own right, which a restore does not
+   * bring back, is not counted. A live root's answer has no such field.
+   */
+  hiddenItemCount: z.number().int().nonnegative().optional(),
 });
 export type ProjectTodosResult = z.infer<typeof ProjectTodosResultSchema>;

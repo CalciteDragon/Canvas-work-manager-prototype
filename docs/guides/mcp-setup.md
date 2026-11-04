@@ -295,6 +295,10 @@ canonical project, page and container that owns it, so an agent can complete wha
 `complete_task` or `update_project` — the same operation a person uses on the canvas. Reading the
 chronology neither creates the Todos page nor depends on it being switched on.
 
+For an archived root, Slice 79's `get_project_todos` answers `items: []` and `hiddenItemCount`: how
+many rows restoring the root would bring back, never the rows. Work archived in its own right is
+not counted. A live root's answer has no `hiddenItemCount`.
+
 ### Archive
 
 `get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`) returns the
@@ -420,6 +424,10 @@ workstream ID in the write; the journal resolves the current name, status, archi
 breadcrumb when the caller has the declared read grants. A subject can therefore remain visible
 after its work is reopened or archived. The separate completed-work picker is a page/API read,
 not another MCP tool, and the journal does not require the Reflections tab to be enabled.
+
+For an archived root the journal answers `items: []` and `hiddenItemCount`, how many entries a
+restore would bring back (reflections under work archived in its own right are not counted); a
+live root's answer has no `hiddenItemCount`.
 
 ### Shortcuts
 

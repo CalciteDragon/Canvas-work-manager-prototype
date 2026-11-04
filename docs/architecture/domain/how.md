@@ -257,6 +257,10 @@ under `projects.read`, while owned rows are read separately by the viewer's cont
   previous neighbour, else before the next, else the clamped original index.
 - **Reads drop archived ancestry the same way** — through `archivedAncestry` — and each
   query walks its own chain (a shared memo was wrong on cycles).
+- **An archived root's Todos and journal answer a count, not rows** (Slice 79). Each runs its
+  ordinary derivation over `asRestored(projects, rootId)` — the same records with the root read as
+  live, in memory — and answers `items: []` with `hiddenItemCount`. Do not count by hand: the view
+  is what keeps the count equal to what a restore would show.
 
 ## Commands
 

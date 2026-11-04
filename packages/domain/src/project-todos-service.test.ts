@@ -339,16 +339,46 @@ describe('ProjectTodosService.derive — scope (§31, §34)', () => {
     expect(sequence).toContainEqual(['task', 'task-b-midday']);
   });
 
-  it('answers an archived root with no content at all', async () => {
+  // Slice 79, Q7: no rows (§31 hides them), but how many a restore would bring back, so the
+  // page can say "Restore to view N hidden todos." rather than a false empty sentence.
+  it('answers an archived root with no rows, only the count a restore would show', async () => {
     const harness = buildHarness();
     await scenario(harness);
-    for (const id of ['project-tiling', 'project-kitchen', 'project-bathroom', MINE]) {
+    const service = todosServiceFor(harness);
+    // Archiving does not cascade (§31): the children go first, each in its own right.
+    for (const id of ['project-tiling', 'project-kitchen', 'project-bathroom']) {
       await harness.projectService.update(harness.actor, id as ProjectId, { status: 'archived' });
     }
+    const live = await service.derive(harness.actor, MINE);
+    expect(live).not.toHaveProperty('hiddenItemCount');
+    await harness.projectService.update(harness.actor, MINE, { status: 'archived' });
 
-    const result = await todosServiceFor(harness).derive(harness.actor, MINE);
+    const result = await service.derive(harness.actor, MINE);
 
-    expect(result).toEqual({ projectId: MINE, items: [] });
+    // Work archived in its own right (the three workstreams and what they hold) is not counted:
+    // restoring the root does not bring it back.
+    expect(result).toEqual({ projectId: MINE, items: [], hiddenItemCount: live.items.length });
+    expect(live.items.length).toBeGreaterThan(0);
+    expect(positionOf(sequenceOf(live), 'project-kitchen')).toBe(-1);
+    // Restoring answers exactly the rows the count promised, and no count.
+    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    expect(await service.derive(harness.actor, MINE)).toEqual(live);
+  });
+
+  it('answers a zero count for an archived root with nothing live beneath it', async () => {
+    const harness = buildHarness();
+    const empty = await harness.projectService.create(harness.actor, {
+      kind: 'root',
+      workspaceId: harness.actor.workspaceId,
+      name: 'Nothing here',
+    });
+    await harness.projectService.update(harness.actor, empty.id, { status: 'archived' });
+
+    expect(await todosServiceFor(harness).derive(harness.actor, empty.id)).toEqual({
+      projectId: empty.id,
+      items: [],
+      hiddenItemCount: 0,
+    });
   });
 
   it('counts a shortcut placement as layout, never as work', async () => {
@@ -434,6 +464,21 @@ describe('ProjectTodosService.derive — permission and addressing (§53, §54)'
     await expect(service.derive(agentActorFor(0, ['tasks.read']), MINE)).rejects.toBeInstanceOf(PermissionDeniedError);
     await expect(service.derive(agentActorFor(0, ['projects.read']), MINE)).rejects.toBeInstanceOf(PermissionDeniedError);
     expect(taskReads).toBe(0);
+
+    // The same before-any-read refusal on an archived root, whose answer is only a count.
+    await harness.store.runUnitOfWork(async () => {
+      const root = await harness.projects.find(MINE);
+      if (root === null) throw new Error('fixture root disappeared');
+      await harness.projects.update({ ...root, status: 'archived' });
+    });
+    await expect(service.derive(agentActorFor(0, ['tasks.read']), MINE)).rejects.toBeInstanceOf(PermissionDeniedError);
+    await expect(service.derive(agentActorFor(0, ['projects.read']), MINE)).rejects.toBeInstanceOf(PermissionDeniedError);
+    expect(taskReads).toBe(0);
+    await harness.store.runUnitOfWork(async () => {
+      const root = await harness.projects.find(MINE);
+      if (root === null) throw new Error('fixture root disappeared');
+      await harness.projects.update({ ...root, status: 'active' });
+    });
 
     expect(sequenceOf(await service.derive(agentActorFor(0, ['projects.read', 'tasks.read']), MINE))).toEqual(EXPECTED);
   });
