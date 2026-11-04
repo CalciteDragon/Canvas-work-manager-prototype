@@ -16,7 +16,8 @@ The gate holds the plan's tables itself: the context rows (the rig owns only eac
 each context's views, the write-control list with the source tokens that pin it (`UX_WEB_SRC`
 points the pin at another tree, for its tests), the visual pairs, the digest's overdue counts and
 the slice-78 after costs for T01–T09, T11 and T12. A row dropped from the rig, a renamed hook or a
-missing `hiddenItemCount` fails rather than passing. The matrix keeps profile 78's general rules
+missing `hiddenItemCount` fails rather than passing. Both evidence files must carry the commits the matrix's `index.json`
+files name. The matrix keeps profile 78's general rules
 (the full census with only the breadcrumb exception, new axe nodes, 1 px on must-not-change cells,
 the panel-relative Lab gate with `state-messages` and `section-frame` changing). Its one allowance
 outside the seven named changing cells is a control whose text gains exactly one "N tasks" count,

@@ -1423,7 +1423,7 @@ function eaRegion(r, e) {
   ({
     'first-run': () => reg.controls.push(eaControl('New project', { hooks: ['data-first-run-create'] })),
     'archived-only-sidebar': () => { reg.text = 'Home\nPROJECTS\nNo active projects.\nArchived projects are in Settings.'; reg.controls.push(eaControl('Archived projects are in Settings.', { tag: 'a', href: '/settings/archived-projects' })); },
-    'read-only': () => { if (r.hidden) { const s = eaHiddenSentence(r.hidden, EA_HIDDEN[r.context]); reg.text = s; reg.emptyHooks.push({ hook: `data-${r.hidden}-empty`, text: s }); } },
+    'read-only': () => { reg.text = { 'renovation-archived-archive': 'Archive\nRestore “Home renovation” above to bring its archived work back.', 'archived-only-canvas': 'This page has no sections.' }[r.context] ?? reg.text; if (r.hidden) { const s = eaHiddenSentence(r.hidden, EA_HIDDEN[r.context]); reg.text = s; reg.emptyHooks.push({ hook: `data-${r.hidden}-empty`, text: s }); } },
     'blocked-confirm': () => { reg.text = 'Archive them first.'; reg.controls.push(eaControl('Close'), ...r.links.map(name => eaControl(`${name} Active`, { tag: 'a', href: '/projects/project-' + name.toLowerCase() }))); },
     'commit-confirm': () => reg.controls.push(eaControl('Archive it', { hooks: ['data-project-archive-confirm-yes'] }), eaControl('Cancel', { hooks: ['data-project-archive-cancel'] })),
     'late-refusal': () => { reg.text = '“Cabinets” still has live workstreams. Archive them first.\nDetails'; reg.details.push({ open: false, summary: 'Details', text: 'Details ' + e.reason }); },
@@ -1437,11 +1437,18 @@ function eaRegion(r, e) {
   })[r.kind]?.();
   return reg;
 }
+/** Each read-only context's banner sentence, as the plan words it. */
+const EA_BANNER_FIXTURE = {
+  ...Object.fromEntries(['archived-only-canvas', 'archived-only-todos', 'archived-only-reflections'].map(c => [c, '“Archived only” is archived.'])),
+  ...Object.fromEntries(['renovation-archived-home', 'renovation-archived-todos', 'renovation-archived-reflections', 'renovation-archived-archive', 'renovation-restore-undo'].map(c => [c, '“Home renovation” is archived.'])),
+  'legacy-attic': '“Legacy attic” is archived.', 'legacy-shelving': '“Legacy shelving” is inside “Legacy attic”, which is archived.',
+  'renovation-archived-kitchen': '“Kitchen” is archived, and so is “Home renovation”, which holds it.',
+};
 const EA_HEADER = { box: { x: 480, y: 48, width: 960, height: 120 }, text: 'Kitchen', controls: [eaControl('More project actions', { hooks: ['data-project-more'] }), eaControl('Edit details…', { hooks: ['data-project-edit-details'], visible: false })] };
 /** One page as the probe records it (the main capture or a named snapshot), for the rows it serves. */
 function eaPage(rows, e) {
   const banner = rows.some(r => r.kind === 'read-only' || r.kind === 'restore-failure')
-    ? { text: rows.some(r => r.kind === 'restore-failure') ? 'Couldn’t restore “Legacy attic”. Try again.\nDetails' : (e.context === 'renovation-archived-kitchen' ? '“Kitchen” is archived, and so is “Home renovation”, which holds it. Restore as Active' : '“Legacy attic” is archived. Restore as Active'), box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore', { hooks: [] })] }
+    ? { text: rows.some(r => r.kind === 'restore-failure') ? 'Couldn’t restore “Legacy attic”. Try again.\nDetails' : EA_BANNER_FIXTURE[e.context] + ' Restore as Active Restore', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore', { hooks: [] })], selects: [eaSelect('active')] }
     : null;
   const kinds = rows.map(r => r.kind);
   const focus = kinds.includes('create-focused') ? { ...eaControl('Project name', { tag: 'input', hooks: ['data-create-project-name'] }), focusVisible: true, inRegion: 0 }
@@ -1576,6 +1583,15 @@ test('profile 79 fails a read-only row that shows any write control, lacks the b
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.header = null; }, 'dark|1440') }, 'no header', /rename and Parent/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving', x => { x.banner.box.x = 0; }, 'light|1440') }, 'banner out of the workspace', /banner outside the workspace/);
   await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-kitchen', x => { x.banner.text = '“Kitchen” is archived.'; }, 'dark|375') }, 'archived twice named once', /archived-twice/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-kitchen', x => { x.banner.text = '“Kitchen” is archived, and so is “Garden”, which holds it. Restore as Active Restore'; }, 'light|1440') }, 'archived twice naming the wrong owner', /banner sentence/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving', x => { x.banner.text = '“Legacy shelving” is archived. Restore as Active Restore'; }, 'dark|1440') }, 'live child under an archived owner said as archived', /banner sentence/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { x.banner.text = '“Kitchen” is archived.'; }) }, 'banner naming another project', /banner sentence/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.banner.selects = [{ ...eaSelect('active'), value: 'planning', selectedText: 'Planning' }]; }, 'light|375') }, 'banner choice not defaulting to Active', /banner restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving', x => { x.banner.selects[0].options = x.banner.selects[0].options.map(o => ({ ...o, text: o.text.toLowerCase() })); }, 'dark|1440') }, 'banner choice in another casing', /banner restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-home', x => { delete x.banner.selects; }, 'dark|1440') }, 'banner choice not recorded', /banner restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.header.controls.find(c => c.hooks.includes('data-project-edit-details')).ariaDisabled = true; }, 'dark|1440') }, 'Edit details disabled on a read-only project', /rename and Parent/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-archive', x => { x.regions[0].text = 'The root is archived. Open Settings → Archived projects…'; }, 'dark|1440') }, 'root Archive note not reworded', /Archive note/);
+  await eaFails(t, { evidence: e => editEa(e, 'archived-only-canvas', x => { x.regions[0].text = 'Add a section to start.'; }, 'light|375') }, 'archived empty canvas sentence', /no sections/);
   // A page with no section frames (Todos, Reflections) has no first frame to clear.
   const s = await eaSheet(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { x.firstFrame = null; }) });
   assert.equal(s.result.status, 0, s.report);
@@ -1652,6 +1668,7 @@ test('profile 79 holds both restore choices to one option list with a visible Ac
   await eaFails(t, { evidence: e => editEa(e, 'archive-restore-choice', x => { x.regions[0].selects[0].visible = false; }, 'dark|1440') }, 'invisible default', /restore choice/);
   await eaFails(t, { evidence: e => editEa(e, 'archive-restore-choice', x => { x.regions[0].selects = []; }, 'dark|1440') }, 'no choice', /restore choice/);
   await eaFails(t, { evidence: e => editEa(e, 'archive-restore-choice', x => { x.chosen.regions[0].selects[0] = eaSelect('active'); }, 'dark|1440') }, 'choosing changed nothing', /restore choice/);
+  await eaFails(t, { evidence: e => { for (const c of ['archive-restore-choice', 'settings-restore-choice']) editEa(e, c, x => { eaRegionOf(x, x.regions[0].region).selects[0].options.push({ value: 'archived', text: 'Archived' }); }); } }, 'both places offer Archived', /restore choice/);
   await eaFails(t, { evidence: e => editEa(e, 'settings-restore-choice', x => { x.regions[0].selects[0].options.splice(3, 1); x.chosen.regions[0].selects[0].options.splice(3, 1); }, 'light|1440') }, 'option lists differ', /restore choices differ/);
 });
 
@@ -1716,6 +1733,11 @@ test('profile 79 gates must-not-change cells at 1 px and exempts only its named 
     assert.equal(s.result.status, 0, id + ' ' + s.report);
     assert.ok(JSON.parse(s.report).geometryReport.some(r => r.cell === id), id + ' movement is reported');
   }
+});
+
+test('profile 79 fails evidence recorded from another build than the matrix', async t => {
+  await eaFails(t, { before: e => { e.commit = 'after'; } }, 'before evidence from the after build', /evidence commit/);
+  await eaFails(t, { evidence: e => { e.commit = 'stale'; } }, 'after evidence from another build', /evidence commit/);
 });
 
 test('profile 79 still fails corrupt geometry in a changing cell', async t => {

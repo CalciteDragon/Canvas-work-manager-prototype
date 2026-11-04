@@ -3,20 +3,50 @@
 
 **State (2026-11-04):** plan written (S79PLAN), reviewed in six rounds and **accepted by the user
 on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden counts, step 6a).
-`CURRENT_SLICE` is 79. **Step 0 is done (S79S0). Step 1 is done (S79S1)**: profile 79 in
-`build-sheet.mjs`, driven by 20 fixture tests in `build-sheet.test.mjs` (all 106 tooling tests
-green; profiles 71–78 unchanged). Next is step 2 (foundations).
-- **Profile 79:** the gate holds the plan's tables (context rows without regions, views per
+`CURRENT_SLICE` is 79. **Step 0 is done (S79S0). Step 1 is done (S79S1, finished in a cloud
+continuation)**: profile 79 in `build-sheet.mjs`, driven by 23 fixture tests in
+`build-sheet.test.mjs` (all tooling tests green; profiles 71–78 unchanged). Commits 3fdab1e (the
+gate), f142b00 and 418c86f (fixes from the first cold review) and the closing commit (fixes from the
+second). **Next is step 2 (foundations).**
+- **Profile 79:** the gate holds the plan's tables (context rows with each row's region, views per
   context, the 25 write controls with their source tokens plus the rule hooks, the 31 visual pairs,
-  the digest's Stage 0 overdue counts, the T01–T12 cost limits) and fails when the rig's differ.
-  Profile 78's census and axe rule is now the shared `runtimeGate`, unchanged. The only matrix
-  allowance outside the seven changing cells is a control text gaining one "N tasks" count.
-- **Before against before** (`build-sheet.mjs 44e7e9e 44e7e9e <out> 44e7e9e --profile 79`, out in
-  `apps/e2e/ux-output/slice79-sheet-before-before/`): 194 pairs; **zero** matrix geometry, census,
-  axe, Lab or core-task failures; 207 row-rule failures, every one an after-only rule the before
-  lacks (no banner, write controls on read-only pages, no first-run block, lowercase and
-  placeholder restore choices, no overdue links, no draft kept, no count, the drag drop, native
-  `disabled` on pending Todos, no `hiddenItemCount`). 0 of 31 pairs incomplete, 145 views checked.
+  the digest's Stage 0 overdue counts, Q7's hidden counts 6/3/0/0, each blocked form's child routes,
+  each read-only context's banner sentence, the restore choice's one option list, the T01–T12 cost
+  limits) and fails when the rig's differ. Both evidence files must carry the matrix's commits.
+  Profile 78's census and axe rule is now the shared `runtimeGate`, unchanged for 78; profile 79
+  reads a rig-made project's id anywhere in the route. The only matrix allowance outside the seven
+  changing cells is a control inside a section or shortcut frame whose text gains one "N tasks".
+- **What the review rounds closed** ("can this gate pass falsely?"): a no-op restore (restored rows
+  need no banner and focus on `h1[data-project-name]`; an own restore adds no toast, Legacy
+  shelving's ancestor restore shows Undo and "Open Legacy attic"); the Undo refusal must be the
+  `history_conflict` sentence naming Legacy shelving; blocked forms offer Close only; banners sit
+  inside `main` on x; Edit details must be usable; the banner's own restore choice (the rig now
+  records the banner's `selects`) defaults to Active in the shared list; the root Archive note and
+  the archived empty canvas sentences are pinned.
+- **Left as minor, not gated** (from the second review; a later step may tighten them): digest
+  links are checked for shape and count, not matched to the overdue tasks' sections; Discard is
+  checked by the editor showing the saved text, not by a later Cancel then Edit; the late refusal
+  needs the sentence, not its “Cabinets” subject; the axe known-node set is per route, as in profile
+  78; the source pins match a token anywhere in `apps/web/src`; `UX_STATES_MATCH` merges entries
+  under one commit label, so a final after run must be a full run.
+- **Before against before** (re-run 2026-11-04 in the cloud session after every rule change;
+  `build-sheet.mjs 44e7e9e 44e7e9e <out> 44e7e9e --profile 79`, out in
+  `apps/e2e/ux-output/slice79-sheet-before-before/`): 194 pairs; **zero** context-table,
+  provenance, matrix geometry, axe, Lab or core-task failures; 227 row-rule failures, every one an
+  after-only rule the before lacks (no banner, write controls on read-only pages, no first-run
+  block, no reworded Archive note or empty-canvas sentence, lowercase and placeholder restore
+  choices, no overdue links, no draft kept, no count, no cross-owner toast, the commit form where
+  the blocked form belongs, the drag drop, native `disabled` on pending Todos, no
+  `hiddenItemCount`). 0 of 31 pairs incomplete.
+- **Trap: capture in one environment.** The cloud container's capture of 44e7e9e has 2 census
+  failures the local one did not (`target under 24 px`: overdue-chaos dashboard at 1024, the
+  "Export legacy records" title link wrapped to a 22 px column, both themes), most likely fonts.
+  Capture before and after on the same machine; a before from elsewhere is a false failure source.
+  Also in the cloud: the repo pins a Playwright whose headless shell is not installed, so a
+  throwaway config adding `launchOptions.executablePath: '/opt/pw-browsers/chromium'` was used (not
+  committed); a full half runs longer than 10 minutes there, so split with `UX_MATCH` /
+  `UX_STATES_MATCH` (`^NONE$` runs only the tasks), and kill a timed-out run's leftover host,
+  static server and Playwright worker before the next.
 - **Inventory:** under Behaviour vs. appearance, "Stage 0 inventory" and "Stage 0 checks". What
   it changes for later steps: `lifts.spec.ts:158-163` archives Home renovation (live children), so
   step 7 changes it; `canvas-editing.spec.ts:150-157` and `markdown-section-body.spec.ts:63-67`
@@ -37,7 +67,7 @@ green; profiles 71–78 unchanged). Next is step 2 (foundations).
   merge into the existing JSON; `UX_STATES_SKIP_TASKS=1` skips the tasks. Each full half ran
   under 4 minutes.
 - **Hooks the rig expects from later steps** (the after run reads them; keep or update the rig):
-  the banner as `app-archived-banner` with a `button` named `Restore …`; `data-first-run-create`
+  the banner as `app-archived-banner` with a `button` named `Restore …` and its one restore `select`; `data-first-run-create`
   inside `app-dashboard-page`; `[data-digest-overdue] a` inside the digest tile; a "Discard draft"
   button in the Markdown frame; the Archive row `[data-archived-item][data-archived-id]` and the
   Settings row `[data-archived-project][data-project-id]`, each with a `select` taking the enum

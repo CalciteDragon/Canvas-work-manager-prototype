@@ -933,6 +933,17 @@ const EA_WRITE_CONTROLS = [
 const EA_RULE_HOOKS = ['data-project-name', 'data-project-more', 'data-project-edit-details', 'data-project-archive-confirm-yes', 'data-markdown-source', 'data-create-project-name', 'data-todos-empty', 'data-reflections-empty', 'data-toast-undo', 'data-toast-open'];
 /** Stage 0's hidden numbers: what each archived root's Todos and journal must report (Q7). */
 const EA_HIDDEN_COUNTS = { 'archived-only-todos': 0, 'archived-only-reflections': 0, 'renovation-archived-todos': 6, 'renovation-archived-reflections': 3 };
+/** The shared restore choice's one option list in one casing (L4-012), everywhere: Archive, Settings and the banner. */
+const EA_RESTORE_OPTIONS = JSON.stringify([['planning', 'Planning'], ['active', 'Active'], ['on_hold', 'On hold'], ['completed', 'Completed']].map(([value, text]) => ({ value, text })));
+/** Each read-only context's banner sentence, as the plan words it: archived, inside an archived owner, or archived twice. */
+const EA_BANNER = {
+  ...Object.fromEntries(['archived-only-canvas', 'archived-only-todos', 'archived-only-reflections'].map(c => [c, '“Archived only” is archived.'])),
+  ...Object.fromEntries(['renovation-archived-home', 'renovation-archived-todos', 'renovation-archived-reflections', 'renovation-archived-archive', 'renovation-restore-undo'].map(c => [c, '“Home renovation” is archived.'])),
+  'legacy-attic': '“Legacy attic” is archived.', 'legacy-shelving': '“Legacy shelving” is inside “Legacy attic”, which is archived.',
+  'renovation-archived-kitchen': '“Kitchen” is archived, and so is “Home renovation”, which holds it.',
+};
+/** Sentences a read-only region must show: the root Archive's reworded note and the archived empty canvas. */
+const EA_READ_ONLY_TEXT = { 'renovation-archived-archive': ['Archive note', 'Restore “Home renovation” above to bring its archived work back.'], 'archived-only-canvas': ['no sections sentence', 'This page has no sections.'] };
 /** Each blocked confirmation's live child and the page its link must open. */
 /** The restore contexts whose project is an ancestor of the page: the owner its toast must open. */
 const EA_ANCESTOR_RESTORE = { 'legacy-shelving-restore': { name: 'Legacy attic', href: '/projects/project-legacy' } };
@@ -970,6 +981,8 @@ const eaPairs = profile === '79' ? EA_VISUAL_PAIRS.map(([context, theme, width, 
 if (profile === '79') {
   const fail = (reason, detail = {}) => failures.push({ reason: 'empty-archived: ' + reason, ...detail });
   for (const [phase, evidence] of [['before', eaBaseline], ['after', eaEvidence]]) if (!evidence?.complete || !evidence.entries?.length) fail('empty-archived-verification.json missing or incomplete', { phase });
+  // The evidence must come from the builds the matrix compares, or a swapped or stale folder would pass.
+  for (const [phase, evidence, matrix] of [['before', eaBaseline, before], ['after', eaEvidence, after]]) if (evidence && evidence.commit !== matrix.commit) fail('evidence commit differs from the matrix\'s', { phase, evidence: evidence.commit ?? null, matrix: matrix.commit ?? null });
   for (const pair of eaPairs) if (pair.status !== 'paired') fail('visual acceptance pair missing', pair);
   // The rig's table must be the plan's, row for row; the rig owns only each row's region.
   const rows = Array.isArray(eaEvidence?.rows) ? eaEvidence.rows : [];
@@ -1040,10 +1053,17 @@ if (profile === '79') {
           if (r.region === 'main' && (!isBox(reg.box) || banner.box.x < reg.box.x - 1 || banner.box.x + banner.box.width > reg.box.x + reg.box.width + 1)) check(r, 'banner outside the workspace', { banner: banner.box, main: reg.box ?? null });
           // Archived twice: Kitchen under an archived Home renovation names both.
           if (context === 'renovation-archived-kitchen' && !norm(banner.text).includes('archived, and so is')) check(r, 'archived-twice banner does not name both owners', { text: banner.text ?? null });
+          if (!norm(banner.text).includes(EA_BANNER[context] ?? '\0')) check(r, 'banner sentence differs from the plan\'s', { expected: EA_BANNER[context] ?? null, text: banner.text ?? null });
+          // The shared choice, Active preselected and visible, in the one option list (Open question 2 (a)).
+          const [select, ...extra] = visible(banner.selects);
+          if (!select || extra.length || select.value !== 'active' || select.selectedText !== 'Active' || JSON.stringify(select.options ?? null) !== EA_RESTORE_OPTIONS) check(r, 'banner restore choice is not one visible choice defaulting to Active in the shared list', { selects: banner.selects ?? null });
         }
         // Rename and Parent live in Edit details…, under More: both stay on a read-only project.
         const header = page.header?.controls ?? [];
-        if (!header.some(c => c.hooks?.includes('data-project-more') && c.visible === true) || !header.some(c => c.hooks?.includes('data-project-edit-details'))) check(r, 'read-only row without header rename and Parent (More › Edit details…)');
+        const usable = c => c.disabled !== true && c.ariaDisabled !== true;
+        if (!header.some(c => c.hooks?.includes('data-project-more') && c.visible === true && usable(c)) || !header.some(c => c.hooks?.includes('data-project-edit-details') && usable(c))) check(r, 'read-only row without header rename and Parent (More › Edit details…)');
+        const [what, sentence] = EA_READ_ONLY_TEXT[context] ?? [];
+        if (sentence && !text.includes(sentence)) check(r, `read-only ${what} missing`, { expected: sentence, text: text.slice(0, 200) });
         if (r.hidden) {
           // Q7 as amended, on after rows only: a missing count fails; it is never read as 0.
           const n = e.hiddenItemCount, hook = `data-${r.hidden}-empty`;
@@ -1094,7 +1114,7 @@ if (profile === '79') {
         const [select, ...extra] = visible(reg.selects);
         const chosen = visible(e.chosen?.regions?.find(x => x.region === r.region)?.selects)[0];
         const options = select?.options ?? [];
-        if (!select || extra.length || select.value !== 'active' || select.selectedText !== 'Active' || !options.length || options.some(o => !o.value || !/^[A-Z][a-z ]*$/.test(o.text ?? '')) || chosen?.value !== 'on_hold')
+        if (!select || extra.length || select.value !== 'active' || select.selectedText !== 'Active' || !options.length || options.some(o => !o.value || !/^[A-Z][a-z ]*$/.test(o.text ?? '')) || JSON.stringify(options) !== EA_RESTORE_OPTIONS || chosen?.value !== 'on_hold')
           check(r, 'restore choice is not one visible choice defaulting to Active in one casing', { select: select ?? null, extra: extra.length, chosen: chosen?.value ?? null });
         const view = theme + '|' + width;
         choices.set(view, [...(choices.get(view) ?? []), { context, options: JSON.stringify(options) }]);

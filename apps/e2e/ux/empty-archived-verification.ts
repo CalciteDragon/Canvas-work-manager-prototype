@@ -394,6 +394,8 @@ function probe({ regions, writeControls }: { regions: string[]; writeControls: s
   const control = (e: Element) => ({ name: name(e).slice(0, 200), tag: e.tagName.toLowerCase(), hooks: hooks(e), visible: shown(e), box: box(e),
     href: e.getAttribute('href'), disabled: (e as HTMLButtonElement).disabled === true, ariaDisabled: e.getAttribute('aria-disabled') === 'true',
     primary: e.classList.contains('button--primary'), background: getComputedStyle(e).backgroundColor });
+  // A region's or the banner's restore choice: its value, its shown default and its option list.
+  const selectOf = (e: Element) => { const s = e as HTMLSelectElement; return { name: name(s) || (s.labels?.[0] ? text(s.labels[0]) : ''), hooks: hooks(s), visible: shown(s), value: s.value, selectedText: s.selectedOptions[0]?.text.trim() ?? null, options: [...s.options].map(o => ({ value: o.value, text: o.text.trim() })), disabled: s.disabled, box: box(s) }; };
   const isFailure = (e: Element) => (e.getAttribute('role') === 'alert' && !!e.textContent?.trim()) || hooks(e).some(n => /error/.test(n)) || (e.matches('[data-failure-sentence]') && !!e.textContent?.trim());
   const regionData = regions.map(region => {
     const el = document.querySelector(region);
@@ -403,7 +405,7 @@ function probe({ regions, writeControls }: { regions: string[]; writeControls: s
     return {
       region, present: true, box: box(el), text: text(el).slice(0, 3000),
       controls: all.filter(e => e.matches('button, a[href], [role=button], summary, input, textarea')).map(control),
-      selects: all.filter(e => e.tagName === 'SELECT').map(e => { const s = e as HTMLSelectElement; return { name: name(s) || (s.labels?.[0] ? text(s.labels[0]) : ''), hooks: hooks(s), visible: shown(s), value: s.value, selectedText: s.selectedOptions[0]?.text.trim() ?? null, options: [...s.options].map(o => ({ value: o.value, text: o.text.trim() })), disabled: s.disabled, box: box(s) }; }),
+      selects: all.filter(e => e.tagName === 'SELECT').map(selectOf),
       writeControls: writeControls.map(selector => ({ selector, visible: [...el.querySelectorAll(selector)].filter(shown).length })).filter(w => w.visible > 0),
       emptyHooks: [el, ...all].filter(shown).flatMap(e => [...e.attributes].map(a => a.name).filter(n => /^data-.*-empty$|^data-empty-canvas$/.test(n)).map(hook => ({ hook, text: text(e).slice(0, 300) }))),
       frames: frames.map(f => ({ section: f.getAttribute('data-section-id'), shortcut: f.getAttribute('data-shortcut-id'), type: f.getAttribute('data-section-type'),
@@ -421,7 +423,7 @@ function probe({ regions, writeControls }: { regions: string[]; writeControls: s
   const bannerEl = document.querySelector('app-archived-banner');
   // A host with no box of its own (`display: contents`) is shown when any of its content is.
   const bannerShown = bannerEl ? [bannerEl, ...bannerEl.querySelectorAll('*')].find(shown) : undefined;
-  const banner = bannerEl && bannerShown ? { text: text(bannerEl).slice(0, 600), box: box(bannerShown), controls: [...bannerEl.querySelectorAll('button, a[href], select')].map(control) } : null;
+  const banner = bannerEl && bannerShown ? { text: text(bannerEl).slice(0, 600), box: box(bannerShown), controls: [...bannerEl.querySelectorAll('button, a[href], select')].map(control), selects: [...bannerEl.querySelectorAll('select')].map(selectOf) } : null;
   const header = document.querySelector('app-project-header');
   const toastEl = document.querySelector('[data-toast]:popover-open');
   const active = document.activeElement;
