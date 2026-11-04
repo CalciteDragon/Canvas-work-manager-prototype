@@ -1460,3 +1460,163 @@ describe('ProjectWorkspaceShell — the header’s Undo/Redo (Slice 41)', () => 
     }
   });
 });
+
+describe('ProjectWorkspaceShell — read-only projects and the archived banner (Slice 79, §26, §31, L4-007)', () => {
+  const archived = (record: Project): Project => ({ ...record, status: 'archived' });
+  const ROOT_PAGES = [
+    page('page-renovation-home', 'project-renovation', 'home'),
+    page('page-renovation-todos', 'project-renovation', 'todos'),
+    page('page-renovation-archive', 'project-renovation', 'archive'),
+    page('page-renovation-reflections', 'project-renovation', 'reflections'),
+    page('page-kitchen-work', 'project-kitchen', 'work'),
+    page('page-cabinets-work', 'project-cabinets', 'work'),
+    page('page-garden-work', 'project-garden', 'work'),
+  ];
+  /** Writes land in the fake's records, so a re-read agrees with the write. */
+  const persisting = (gateway: FakeWorkManagerGateway) => {
+    const update = gateway.projects.update.bind(gateway.projects);
+    gateway.projects.update = async (id, input) => {
+      const result = await update(id, input);
+      gateway.options.projects = (gateway.options.projects ?? []).map((record) => (record.id === id ? result.project : record));
+      return result;
+    };
+  };
+  const shellOf = (harness: RouterTestingHarness) =>
+    harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell)).componentInstance as ProjectWorkspaceShell;
+  const banner = (harness: RouterTestingHarness) => query(harness, 'app-archived-banner');
+  const sentence = (harness: RouterTestingHarness) => query(harness, 'app-archived-banner [data-archived-sentence]')?.textContent?.trim();
+  const restoreButton = (harness: RouterTestingHarness) => query(harness, 'app-archived-banner [data-restore-action]') as HTMLButtonElement;
+
+  it('shows the banner on every page of a read-only project, under the header, and none on a live one', async () => {
+    const projects = [archived(RENOVATION), KITCHEN, CABINETS, GARDEN];
+    for (const url of [
+      '/projects/project-renovation',
+      '/projects/project-renovation/pages/todos',
+      '/projects/project-renovation/pages/archive',
+      '/projects/project-renovation/pages/reflections',
+    ]) {
+      const { harness } = await open(url, { projects, pages: ROOT_PAGES });
+      await settle(harness);
+      expect(sentence(harness), url).toBe('“Home renovation” is archived.');
+      const header = query(harness, 'app-project-header')!;
+      expect(header.compareDocumentPosition(banner(harness)!) & Node.DOCUMENT_POSITION_FOLLOWING, url).toBeTruthy();
+      expect(banner(harness)!.closest('.project-workspace__main'), url).not.toBeNull();
+      expect(shellOf(harness).rendererInputs()?.readOnly, url).toBe(true);
+    }
+
+    const cabinets = await open('/projects/project-cabinets', { projects, pages: ROOT_PAGES });
+    await settle(cabinets.harness);
+    expect(sentence(cabinets.harness)).toBe('“Cabinets” is inside “Home renovation”, which is archived.');
+    expect(shellOf(cabinets.harness).rendererInputs()?.readOnly).toBe(true);
+
+    for (const url of ['/projects/project-renovation', '/projects/project-renovation/pages/archive', '/projects/project-kitchen']) {
+      const { harness } = await open(url, { pages: ROOT_PAGES });
+      await settle(harness);
+      expect(banner(harness), url).toBeNull();
+      expect(shellOf(harness).rendererInputs()?.readOnly, url).toBe(false);
+    }
+  });
+
+  it('keeps the header’s More and Edit details… (rename and Parent) on a read-only project', async () => {
+    const { harness } = await open('/projects/project-cabinets', { projects: [RENOVATION, archived(KITCHEN), CABINETS, GARDEN] });
+    await settle(harness);
+    expect(banner(harness)).not.toBeNull();
+    query(harness, '[data-project-more]')!.click();
+    harness.fixture.detectChanges();
+    expect(query(harness, '[data-project-edit-details]')).not.toBeNull();
+  });
+
+  it('closes an open drawer when a live frame makes the project read-only', async () => {
+    const { harness, gateway, live } = await open('/projects/project-kitchen');
+    const shell = shellOf(harness);
+    let release: () => void = () => {};
+    const close = vi.fn(() => release());
+    release = shell.drawerCoordinator.select('section-kitchen' as never, close);
+
+    gateway.options.projects = [RENOVATION, archived(KITCHEN), CABINETS, GARDEN];
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: KITCHEN.id, projectId: KITCHEN.id, rootProjectId: RENOVATION.id,
+      actor: { kind: 'agent', id: 'agent-1', name: 'Claude' }, at: AT } as never);
+    await settle(harness);
+
+    expect(banner(harness)).not.toBeNull();
+    expect(close).toHaveBeenCalledOnce();
+    expect(shell.drawerCoordinator.open()).toBe(false);
+  });
+
+  it('restores its own project from the banner: busy meanwhile, then no banner, focus on the heading and no toast', async () => {
+    const { harness, gateway } = await open('/projects/project-kitchen', { projects: [RENOVATION, archived(KITCHEN), CABINETS, GARDEN] });
+    persisting(gateway);
+    await settle(harness);
+    expect(sentence(harness)).toBe('“Kitchen” is archived.');
+
+    let land: () => void = () => {};
+    const update = gateway.projects.update;
+    gateway.projects.update = (id, input) => new Promise((resolve) => { land = () => resolve(update(id, input)); });
+    restoreButton(harness).focus();
+    restoreButton(harness).click();
+    harness.fixture.detectChanges();
+    expect(banner(harness)!.getAttribute('aria-busy')).toBe('true');
+    expect(restoreButton(harness).getAttribute('aria-disabled')).toBe('true');
+
+    land();
+    await settle(harness);
+    expect(gateway.calls.filter(({ method }) => method === 'projects.update').map(({ argument }) => argument))
+      .toEqual([{ id: 'project-kitchen', input: { status: 'active' } }]);
+    expect(banner(harness)).toBeNull();
+    expect(shellOf(harness).rendererInputs()?.readOnly).toBe(false);
+    expect(document.activeElement).toBe(query(harness, 'h1[data-project-name]'));
+    expect(shellOf(harness).toast.state()).toBeNull();
+  });
+
+  it('restores an archived ancestor from the banner: focus on the heading and the cross-owner toast', async () => {
+    const { harness, gateway } = await open('/projects/project-cabinets', {
+      projects: [RENOVATION, archived(KITCHEN), CABINETS, GARDEN],
+      historySummaries: [{ projectId: 'project-cabinets', historyId: 'history-cabinets', revision: 1, undo: null, redo: null, blockedBy: null } as never],
+    });
+    persisting(gateway);
+    await settle(harness);
+    expect(sentence(harness)).toBe('“Cabinets” is inside “Kitchen”, which is archived.');
+
+    restoreButton(harness).click();
+    await settle(harness);
+
+    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-kitchen', input: { status: 'active' } });
+    expect(banner(harness)).toBeNull();
+    expect(query(harness, 'h1[data-project-name]')?.textContent?.trim()).toBe('Cabinets');
+    expect(document.activeElement).toBe(query(harness, 'h1[data-project-name]'));
+    expect(query(harness, 'app-project-workspace-shell > app-toast a[data-toast-open]')?.textContent?.trim()).toBe('Open Kitchen');
+  });
+
+  it('moves on to the next owner after restoring the outer one, with focus on its restore choice', async () => {
+    const { harness, gateway } = await open('/projects/project-kitchen', { projects: [archived(RENOVATION), archived(KITCHEN), CABINETS, GARDEN] });
+    persisting(gateway);
+    await settle(harness);
+    expect(sentence(harness)).toBe('“Kitchen” is archived, and so is “Home renovation”, which holds it.');
+
+    restoreButton(harness).click();
+    await settle(harness);
+
+    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-renovation', input: { status: 'active' } });
+    expect(sentence(harness)).toBe('“Kitchen” is archived.');
+    expect(restoreButton(harness).getAttribute('aria-label')).toBe('Restore Kitchen');
+    expect(document.activeElement).toBe(query(harness, 'app-archived-banner select[data-restore-status]'));
+  });
+
+  it('shows a failed restore in the banner, not the header, and Try again repeats it', async () => {
+    const { harness, gateway } = await open('/projects/project-kitchen', {
+      projects: [RENOVATION, archived(KITCHEN), CABINETS, GARDEN],
+      failOn: { 'projects.update': new GatewayError('unreachable', 0, 'Host unreachable') },
+    });
+    await settle(harness);
+
+    restoreButton(harness).click();
+    await settle(harness);
+
+    expect(query(harness, 'app-archived-banner [data-archived-restore-error] [data-failure-sentence]')?.textContent?.trim())
+      .toBe('Couldn’t restore “Kitchen”. Try again.');
+    expect(query(harness, '[data-project-write-error]')).toBeNull();
+    query(harness, 'app-archived-banner [data-recovery="try-again"]')!.click();
+    await settle(harness);
+    expect(gateway.calls.filter(({ method }) => method === 'projects.update')).toHaveLength(2);
+  });
+});

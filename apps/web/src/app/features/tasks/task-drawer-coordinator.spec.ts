@@ -24,4 +24,18 @@ describe('TaskDrawerCoordinator', () => {
     expect(close).not.toHaveBeenCalled();
     expect(coordinator.open()).toBe(true);
   });
+
+  // Slice 79: a project going read-only closes the open drawer, a write surface (Q5 (a)).
+  it('closes the open selection on request, and does nothing when none is open', () => {
+    const coordinator = new TaskDrawerCoordinator();
+    coordinator.close();
+    let release: () => void = () => {};
+    const close = vi.fn(() => release());
+    release = coordinator.select('section-a' as SectionId, close);
+    coordinator.close();
+    expect(close).toHaveBeenCalledOnce();
+    expect(coordinator.open()).toBe(false);
+    coordinator.close();
+    expect(close).toHaveBeenCalledOnce();
+  });
 });

@@ -16,6 +16,11 @@ export interface ProjectPageRendererInputs extends Record<string, unknown> {
   pageId: ProjectPageId | null;
   projectLayoutMode: ProjectLayoutMode;
   restoreBlocked: boolean;
+  /**
+   * Nothing on the page is writable but the header: the project or an ancestor is archived
+   * (Slice 79, §31). The shell's banner offers the restore; the page renders without its writes.
+   */
+  readOnly: boolean;
   /** Shortcut placement belongs to a project's canonical page: a root's Home or a workstream's Work (§27). */
   shortcutsAllowed: boolean;
   /**
@@ -41,6 +46,7 @@ export interface ProjectPageRenderer {
   readonly pageId: unknown;
   readonly projectLayoutMode: unknown;
   readonly restoreBlocked: unknown;
+  readonly readOnly: unknown;
   readonly shortcutsAllowed: unknown;
   readonly rootProjectId: unknown;
   readonly onProjectDataChange: unknown;

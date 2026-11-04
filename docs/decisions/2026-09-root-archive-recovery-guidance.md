@@ -72,3 +72,10 @@ choice; the optional root Archive and its More-menu entry remain. See
 [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md).
 
 **Amended, 2026-10-17 (Slice 74).** Open archive is navigation only. A root Archive renders regardless of its optional record or toggle; the toggle controls navigation visibility. Existing ready-only recovery rules remain. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).
+
+**Amended, 2026-11-04 (Slice 79).** An archived root's own pages now carry the archived banner,
+which restores the root in place through the shared restore choice (Active preselected). The root
+Archive's note, right under that banner, therefore says "Restore “X” above to bring its archived
+work back." instead of sending the person to Settings. Settings › Archived projects stays a
+recovery route; the banner is a second, in-place one. Archive's rows and their recovery rules are
+unchanged.

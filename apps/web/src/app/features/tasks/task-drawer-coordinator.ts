@@ -21,4 +21,13 @@ export class TaskDrawerCoordinator {
       this.openState.set(false);
     };
   }
+
+  /** Close the open selection, if any: its project just became read-only (Slice 79, Q5 (a)). */
+  close(): void {
+    const current = this.current;
+    current?.close();
+    if (this.current !== current) return;
+    this.current = null;
+    this.openState.set(false);
+  }
 }

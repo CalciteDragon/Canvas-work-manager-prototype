@@ -72,6 +72,8 @@ export class TodosPage {
   readonly rootProjectId = input<ProjectId | null>(null);
   /** The shell's write freeze. */
   readonly restoreBlocked = input<boolean>(false);
+  /** The shell's `readOnly`: the project or an ancestor is archived (Slice 79, §31). */
+  readonly readOnly = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
   readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});

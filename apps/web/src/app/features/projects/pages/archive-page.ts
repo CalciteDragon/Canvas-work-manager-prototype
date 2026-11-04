@@ -32,6 +32,8 @@ export class ArchivePage implements ProjectPageRenderer {
   readonly pageId = input.required<ProjectPageId | null>();
   readonly projectLayoutMode = input.required<ProjectLayoutMode>();
   readonly restoreBlocked = input.required<boolean>();
+  /** The shell's `readOnly`: the project or an ancestor is archived (Slice 79, §31). */
+  readonly readOnly = input<boolean>(false);
   readonly shortcutsAllowed = input.required<boolean>();
   /** Declared because the shell sets every renderer input; this page has no shortcuts to refresh. */
   readonly rootProjectId = input<ProjectId | null>(null);
@@ -45,8 +47,6 @@ export class ArchivePage implements ProjectPageRenderer {
   readonly restoredFragment = signal<string | undefined>(undefined);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly changeDetector = inject(ChangeDetectorRef);
-
-  readonly rootArchived = () => this.store.result()?.root.status === 'archived';
 
   constructor() {
     effect(() => {

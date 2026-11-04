@@ -28,6 +28,8 @@ export class ReflectionsPage implements ProjectPageRenderer {
   readonly pageId = input.required<ProjectPageId>();
   readonly projectLayoutMode = input<ProjectLayoutMode>('flow');
   readonly restoreBlocked = input<boolean>(false);
+  /** The shell's `readOnly`: the project or an ancestor is archived (Slice 79, §31). */
+  readonly readOnly = input<boolean>(false);
   readonly shortcutsAllowed = input<boolean>(false);
   /** Declared because the shell sets every renderer input; this page has no shortcuts to refresh. */
   readonly rootProjectId = input<ProjectId | null>(null);

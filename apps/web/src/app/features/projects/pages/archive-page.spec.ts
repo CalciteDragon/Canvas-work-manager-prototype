@@ -209,6 +209,17 @@ describe('ArchivePage (§31)', () => {
     await fixture.whenStable(); fixture.detectChanges();
     expect(document.activeElement).toBe(host.querySelector('[data-archived-restore]'));
   });
+  // Slice 79, §31 amended: the shell's banner restores an archived root in place, right above.
+  it('on an archived root, points at the banner above rather than at Settings, and declares readOnly', async () => {
+    const { fixture } = await render({ ...archive, root: { ...archive.root, status: 'archived' } });
+    fixture.componentRef.setInput('readOnly', true);
+    fixture.detectChanges();
+
+    const guidance = (fixture.nativeElement as HTMLElement).querySelector('[data-archive-root-guidance]');
+    expect(guidance?.textContent?.trim()).toBe('Restore “Website launch” above to bring its archived work back.');
+    expect(fixture.componentInstance.readOnly()).toBe(true);
+  });
+
   it('renders archive rows and their owning-page origin', async () => {
     const { fixture } = await render();
 

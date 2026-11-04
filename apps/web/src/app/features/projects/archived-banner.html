@@ -1,0 +1,20 @@
+<p class="state-message__sentence" data-archived-sentence>{{ sentence() }}</p>
+<app-restore-status-choice
+  [subjectLabel]="owner().name"
+  [(status)]="status"
+  [pending]="pending()"
+  [disabled]="disabled()"
+  (restore)="press($event)"
+/>
+@if (ownerFailure(); as failure) {
+  <app-failure-message
+    data-archived-restore-error
+    class="archived-banner__failure"
+    weight="inline"
+    live="alert"
+    [failure]="failure"
+    [recovery]="failure.retryable ? 'try-again' : null"
+    [pending]="pending()"
+    (retry)="retry()"
+  />
+}

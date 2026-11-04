@@ -60,7 +60,7 @@ sequenceDiagram
 | `TaskDetailDrawer` | `task-detail-drawer.ts`, `.html`, `.scss` | Native side lift or modal sheet editing, with contained Lab mode, dirty-title Escape protection, the autosave line and per-field save status |
 | Write state | `task-write-state.ts`, `task-overdue.ts` | `PendingTaskCreate`, `TaskCreateOutcome`, `TaskFieldSaves`; the shared overdue rule |
 | `TaskListStore` | `task-list-store.ts` | One container's rows; optimistic writes; quiet live re-reads; create preserves selection and refresh clears vanished selections |
-| `TaskDrawerCoordinator` | `task-drawer-coordinator.ts` | Shell-scoped optional selection ownership and drawer-open signal; stale releases cannot clear a newer owner |
+| `TaskDrawerCoordinator` | `task-drawer-coordinator.ts` | Shell-scoped optional selection ownership and drawer-open signal; stale releases cannot clear a newer owner; `close()` closes the open selection, which the shell calls when its project turns read-only (Slice 79) |
 | `LiftFocus`, `LiftStack` | `shared/lifts/` | Shared opener restoration and one-open-lift registration, used by the projects Task List section |
 
 

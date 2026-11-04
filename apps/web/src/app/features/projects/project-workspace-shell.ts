@@ -18,7 +18,7 @@ import {
 import { DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
-import { canonicalPageKindFor, type ProjectId, type ProjectPageKind, type UpdateProjectInput } from '@cwm/contracts';
+import { canonicalPageKindFor, type ProjectId, type ProjectPageKind, type ProjectRestoreStatus, type UpdateProjectInput } from '@cwm/contracts';
 import { TaskDrawerCoordinator } from '../tasks/task-drawer-coordinator';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
@@ -33,6 +33,7 @@ import { WORKSPACE_NARROW_BREAKPOINT } from '../../core/layout/breakpoints';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
 import { ProjectHistoryControls } from './history/project-history-controls';
 import { ProjectHistoryStore } from './history/project-history-store';
+import { ArchivedBanner } from './archived-banner';
 import { ProjectHeader } from './project-header';
 import { ProjectPageNavigation } from './project-page-navigation';
 import type { ProjectPageRendererInputs } from './project-page-contract';
@@ -104,7 +105,7 @@ export class ProjectColumnFocusRequest {
 @Component({
   selector: 'app-project-workspace-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, FailureMessage, UnavailablePage, ProjectHeader, ProjectHistoryControls, Toast, ProjectPageNavigation, WorkCreateDialog, RouterLink],
+  imports: [NgComponentOutlet, FailureMessage, UnavailablePage, ProjectHeader, ProjectHistoryControls, Toast, ProjectPageNavigation, WorkCreateDialog, RouterLink, ArchivedBanner],
   // `providers`, not `viewProviders`: the page renderers are mounted through `NgComponentOutlet`,
   // and every writer store inside them must resolve the header's history as its reporter
   // (Slice 41). The inert root default would otherwise hide a wiring mistake.
@@ -250,6 +251,7 @@ export class ProjectWorkspaceShell {
       // paints optimistically, so the loaded status alone would enable Restore during a
       // reactivation that has not landed.
       restoreBlocked: project.status === 'archived' || this.store.projectWritePending(),
+      readOnly: this.store.readOnly(),
       // The canonical page — Home for a root, the Work canvas for a workstream (Slice 65).
       shortcutsAllowed: rendered.kind === canonicalPageKindFor(project.kind),
       // `root()` falls back to the project itself, so this is never null once a project is.
@@ -260,7 +262,14 @@ export class ProjectWorkspaceShell {
     };
   });
 
+  /** The banner's restore cannot start while another project write runs (its own pending shows instead). */
+  readonly bannerRestoreDisabled = computed(() => this.store.projectWritePending() && !this.store.restorePending());
+
   constructor() {
+    // Slice 79: the drawer is a write surface, so a project going read-only closes it (Q5 (a)).
+    effect(() => {
+      if (this.store.readOnly()) untracked(() => this.drawerCoordinator.close());
+    });
     effect(() => {
       const feedback = this.history.feedback();
       untracked(() => {
@@ -560,6 +569,24 @@ export class ProjectWorkspaceShell {
         () => this.host.nativeElement.querySelector<HTMLElement>('[data-project-more]'));
     }, { injector: this.injector });
     return true;
+  }
+
+  /**
+   * The banner's Restore (Slice 79, §31): restores the archived owner, then moves focus once the
+   * store has resolved, as the banner leaves or moves on. With no owner left, to the project's
+   * heading (the own project adds no toast; an ancestor's cross-owner toast is polite); archived
+   * twice, to the banner's restore choice for the next owner. A refusal leaves focus where it was.
+   */
+  async restoreFromBanner(status: ProjectRestoreStatus): Promise<void> {
+    const owner = this.store.archivedOwner();
+    if (owner === null || !await this.store.restoreOwner(owner.id, status)) return;
+    afterNextRender(() => {
+      const host = this.host.nativeElement;
+      const target = this.store.archivedOwner() === null
+        ? host.querySelector<HTMLElement>('h1[data-project-name]')
+        : host.querySelector<HTMLElement>('app-archived-banner select[data-restore-status]');
+      target?.focus();
+    }, { injector: this.injector });
   }
 
   readonly undo = (): void => void this.history.undo();

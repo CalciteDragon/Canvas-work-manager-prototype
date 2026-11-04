@@ -7,10 +7,13 @@
         Restore a listed item to reveal any independently archived work inside it. Archived whole
         projects can be recovered from Settings.
       </p>
-      @if (rootArchived()) {
-        <p data-archive-root-guidance class="archive-page__description">
-          The root is archived. Open Settings → Archived projects to choose a status and restore it.
-        </p>
+      <!-- Slice 79: the shell's archived banner, right above, restores the root in place. -->
+      @if (store.result()?.root; as root) {
+        @if (root.status === 'archived') {
+          <p data-archive-root-guidance class="archive-page__description">
+            Restore “{{ root.name }}” above to bring its archived work back.
+          </p>
+        }
       }
     </div>
     @if (store.items().length > 0) {

@@ -347,6 +347,7 @@ clears it too. The frame's alert describes Collapse.
 | `WorkCreateDialog` | component | Workstream draft, explicit parent, pending/refusal and modal focus | [API](../../../api/components/WorkCreateDialog.html) |
 | `WorkCreateParent` | interface | Live parent option view state | [API](../../../api/interfaces/WorkCreateParent.html) |
 | `ProjectHeader`, `ProjectMoreMenu` | components | Header and its menu | [API](../../../api/components/ProjectHeader.html) |
+| `ArchivedBanner` | component | A read-only project's banner: the owner sentence, its restore choice and failure (Slice 79) | [API](../../../api/components/ArchivedBanner.html) |
 | `PROJECT_PAGE_REGISTRY` | const | Navigable kinds → renderers | [API](../../../api/miscellaneous/variables.html#PROJECT_PAGE_REGISTRY) |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | interfaces | Renderer contract | [API](../../../api/interfaces/ProjectPageRenderer.html) |
 | `ProjectCanvas` | component | One page's canvas, contextual editing and stable callback inputs | [API](../../../api/components/ProjectCanvas.html) |
@@ -519,6 +520,25 @@ project write already running, header writes included. Its failure is `restoreFa
 never `writeError()`: "Couldn’t restore “X”. Try again.", or, without Try again (`retryable`
 false) and with a queued context refresh, "…Something above it may have been archived." for a
 `rule_violation` and "…It may have changed elsewhere." for a `not_found`.
+
+The shell shows that state as `ArchivedBanner` (`app-archived-banner`), the archived variant of
+`.state-message`, at the top of the main track under the header, on every page of a read-only
+project and on none of a live one. It is mounted behind `@defer (when store.readOnly())` with an
+empty placeholder, so it and its chunk stay out of the initial bundle (Slice 79, Open question 6
+(a)); the canvas moves down once, when the chunk arrives. Its sentence names the owner: "“X” is
+archived.", "“X” is inside “Y”, which is archived." or, when both are archived, "“X” is archived,
+and so is “Y”, which holds it.". Its `RestoreStatusChoice` starts on Active for each owner, is
+pending with `restorePending()` (the banner is `aria-busy`) and natively disabled while another
+project write runs; `restoreFailure()` for the current owner renders inside it, inline, with
+Details, and with Try again (repeating the last status) only when `retryable`. The shell's
+`restoreFromBanner` calls `restoreOwner` and, once it resolves `true`, moves focus to
+`h1[data-project-name]` when no owner is left (the own project adds no toast, an ancestor gets the
+cross-owner toast with Open), or to the banner's status select when the next owner takes its place.
+`readOnly` is also a renderer input (`ProjectPageRendererInputs.readOnly`), declared by every page;
+the pages do not yet change with it. Going read-only closes an open task drawer through
+`TaskDrawerCoordinator.close()`. Rename and Parent (More › Edit details…) stay in the header. An
+archived root's Archive page says "Restore “X” above to bring its archived work back." instead of
+pointing at Settings.
 
 All surfaces register with shared LiftStack; custom work/section creation dialogs retain
 their existing CDK traps and adopt the lift paint. The canvas releases section creation's

@@ -87,6 +87,8 @@ export class ProjectCanvas {
   /** The project tree's root, for the store's live filter (Slice 65). */
   readonly rootProjectId = input.required<ProjectId>();
   readonly restoreBlocked = input<boolean>(false);
+  /** The shell's `readOnly`: the project or an ancestor is archived (Slice 79, §31). */
+  readonly readOnly = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   /** Page contract input; the canvas no longer writes the work hierarchy (Slice 66). */
   readonly onProjectHierarchyChange = input<() => void>(() => {});

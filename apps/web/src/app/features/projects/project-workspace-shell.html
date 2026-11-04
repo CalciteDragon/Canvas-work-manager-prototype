@@ -103,6 +103,22 @@
         />
       </app-project-header>
 
+      <!-- Slice 79: on every page of a read-only project, under the header. Deferred, so the banner
+           and its restore choice stay out of the initial bundle (Open question 6 (a)); the
+           placeholder is empty, as the banner's space cannot be known before the context read. -->
+      @defer (when store.readOnly()) {
+        @if (store.archivedOwner(); as owner) {
+          <app-archived-banner
+            [project]="project"
+            [owner]="owner"
+            [pending]="store.restorePending()"
+            [disabled]="bannerRestoreDisabled()"
+            [failure]="store.restoreFailure()"
+            (restore)="restoreFromBanner($event)"
+          />
+        }
+      }
+
       <!-- §68: an unknown, disabled or unbuilt page falls back "with an explanation". The URL
            was already replaced; this is the sentence that goes with it. -->
       @if (notice(); as notice) {

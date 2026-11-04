@@ -1886,7 +1886,10 @@ workspace **Settings → Archived projects**, not from their own root Archive. T
 also includes archived subprojects whose ancestors are live. Project reactivation requires an
 explicit non-archived status; the prototype does not guess a prior status. *Slice 79:* the status
 is explicit because it is shown: Archive and Settings preselect **Active**, visibly, in one shared
-restore choice, and the person can change it before Restore (§23).
+restore choice, and the person can change it before Restore (§23). *Slice 79:* an archived root
+is also restored in place, from the archived banner over each of its pages, so its root Archive
+says "Restore “X” above to bring its archived work back." rather than pointing at Settings, which
+stays a recovery route ([decision](docs/decisions/2026-09-root-archive-recovery-guidance.md)).
 
 None of this adds a cascade. Archiving a project with **live child subprojects is still
 refused**, exactly as it is today, and archiving a project never archives anything beneath it —
