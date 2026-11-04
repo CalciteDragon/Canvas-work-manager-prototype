@@ -7,7 +7,7 @@
       <ul class="widget-list">
         @for (task of group.tasks; track task.id) {
           <li data-widget-task class="widget-row object-row" [class.widget-row--overdue]="task.overdue" [class.object-row--overdue]="task.overdue" [class.object-row--high-priority]="task.priority === 'high'" [class.object-row--finished]="task.status === 'done'">
-        <a class="link object-row__title" [routerLink]="task.origin.pageKind === 'work' ? ['/projects', task.origin.projectId] : ['/projects', task.origin.projectId, 'pages', task.origin.pageKind]" [fragment]="'section-' + task.origin.sectionId">{{ task.title }}</a>
+        <a class="link object-row__title" [routerLink]="originRoute(task.origin)" [fragment]="originFragment(task.origin)">{{ task.title }}</a>
         <span class="object-row__meta">
           @for (item of taskMeta(task, { overdue: task.overdue, dueToday: group.label === 'Due today' }); track item.kind) {
             @if (item.datetime) { <time [attr.datetime]="item.datetime">{{ item.text }}</time> }

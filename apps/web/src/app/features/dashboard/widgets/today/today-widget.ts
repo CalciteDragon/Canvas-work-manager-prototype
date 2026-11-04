@@ -1,5 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { taskMeta } from '../../../tasks/task-meta';
+import { taskOriginFragment, taskOriginRoute } from '../task-origin-link';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { DashboardResult, DashboardWidget } from '@cwm/contracts';
 
@@ -13,6 +14,8 @@ import type { DashboardResult, DashboardWidget } from '@cwm/contracts';
 })
 export class TodayWidget {
   readonly taskMeta = taskMeta;
+  readonly originRoute = taskOriginRoute;
+  readonly originFragment = taskOriginFragment;
   readonly widget = input.required<DashboardWidget>();
   readonly dashboard = input.required<DashboardResult>();
 

@@ -21,6 +21,8 @@ one line in `DASHBOARD_WIDGET_REGISTRY`, rendered in preset sizes inside a commo
 - Every widget has a real empty state; the digest says it is prototype-composed. A failed
   dashboard read is one alert with Try again; a `null` digest fails only the digest's place,
   "Couldn’t write today’s digest." with Try again, and the other widgets stay (Slice 78).
+- The digest lists up to five overdue tasks under its prose, each linking to its owner section,
+  then a muted "and N more overdue" (Slice 79).
 - Re-read on live frames, so an agent's completion moves Today and Recent Progress.
 - `FirstRunBlock`: in a workspace with no projects at all, Home says what the product is for
   and offers New project above the widgets, which stay below with their own empty sentences

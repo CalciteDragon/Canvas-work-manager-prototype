@@ -22,7 +22,10 @@
    Menu when narrow. A `when` trigger loads once and never unloads, so the block itself hides
    when the first project arrives. Outside `AppShell` (stories, specs) the token is absent and
    there is no first run.
-7. Switching persona reloads the page; the new persona's list and query produce a
+7. The digest renders its prose, then up to five of `today.overdue` as `data-digest-overdue`
+   rows linking through `task-origin-link.ts`, then "and N more overdue" when there are more
+   (Slice 79). A `null` digest never mounts the widget, so the failure shows alone.
+8. Switching persona reloads the page; the new persona's list and query produce a
    different dashboard with nothing in this feature knowing why.
 
 ## Key symbols
@@ -34,6 +37,7 @@
 | `FirstRunBlock` | component | Home's first run, deferred | [API](../../../api/components/FirstRunBlock.html) |
 | `DASHBOARD_WIDGET_REGISTRY` | const | Type → component, `queryFrom` and `failureOf` | [API](../../../api/miscellaneous/variables.html#DASHBOARD_WIDGET_REGISTRY) |
 | `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | interfaces | The widget contract | [API](../../../api/interfaces/DashboardWidgetDefinition.html) |
+| `taskOriginRoute`, `taskOriginFragment` | consts | A task's owner link, shared by Today and the digest | [API](../../../api/miscellaneous/variables.html#taskOriginRoute) |
 | `DashboardWidgetFrame` | component | Chrome and sizes | [API](../../../api/components/DashboardWidgetFrame.html) |
 | `TodayWidget`, `UpcomingWidget`, `ActiveProjectsWidget`, `RecentProgressWidget`, `DailyDigestWidget`, `FunFactWidget`, `RecentAgentActivityWidget` | components | The seven widgets | [API](../../../api/components/TodayWidget.html) |
 
@@ -89,4 +93,4 @@ pnpm prototype:seed overdue-chaos && pnpm dev:host   # then move the date in the
 DashboardWidgetFrame uses --plane-sheet-background/filter, with solid fallbacks resolved centrally in the token stylesheet; its size and padding remain unchanged.
 
 
-Today, Upcoming and Recent Progress build owner URLs from DashboardTask.origin, using /projects/:id for work and /projects/:id/pages/:kind otherwise, plus section-:id. They render taskMeta from the tasks feature, passing the server's overdue flag, Today time-of-day and Recent Progress completed-date options. No browser clock derives the accent. Active Projects renders breadcrumb ancestors only; project emoji use aria-hidden.
+Today, Upcoming, Recent Progress and the digest's overdue list build owner URLs from DashboardTask.origin, using /projects/:id for work and /projects/:id/pages/:kind otherwise, plus section-:id; Today and the digest through `widgets/task-origin-link.ts`, Upcoming and Recent Progress still inline. They render taskMeta from the tasks feature, passing the server's overdue flag, Today time-of-day and Recent Progress completed-date options. No browser clock derives the accent. Active Projects renders breadcrumb ancestors only; project emoji use aria-hidden.

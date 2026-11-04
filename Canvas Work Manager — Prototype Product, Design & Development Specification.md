@@ -1135,6 +1135,8 @@ shows ancestor names. Task metadata shares status, high priority, date and Overd
 
 *Slice 79 (§24).* A workspace with no projects at all, live or archived, opens on a first run: above the widgets, which stay below with their own empty sentences, Home says what projects are for and offers **New project**, which opens the sidebar's one creation form (the Menu first on a phone). It is said only after the project read answered, never while loading or after a failure, and it goes when the first project arrives ([decision](docs/decisions/2026-11-empty-workspace-offers-the-first-project.md)).
 
+*Slice 79 (§24).* The Daily Digest's overdue line leads to the tasks: under its prose it lists up to five overdue tasks from the same dashboard context, each linking to its owner section as Today's rows do, then a muted "and N more overdue" with no link. A failed digest shows only its failure ([decision](docs/decisions/2026-11-digest-overdue-line-leads-to-the-tasks.md)).
+
 # 25. Dashboard Widget Model
 
 ```ts
