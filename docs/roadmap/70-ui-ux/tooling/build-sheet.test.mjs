@@ -1463,6 +1463,10 @@ function eaEntry(context, theme, width, rows) {
   if (context === 'first-run-create') e.pressed = 'main';
   if (['legacy-attic-restore', 'legacy-shelving-restore', 'renovation-restore-undo', 'banner-restore-failing'].includes(context)) e.bannerPresent = true;
   if (context === 'legacy-attic-restore') e.undoRefused = true;
+  // The header's Undo refused by the existing transition refusal, naming the live child.
+  if (context === 'legacy-attic-restore') e.header.text = 'Legacy attic\nCould not undo “Restored Legacy attic”: something it changed has changed since.\n“Legacy shelving”: restore or move it, then try again.';
+  // An ancestor's restore is a cross-owner write: the existing toast offers Undo and Open owner.
+  if (context === 'legacy-shelving-restore') e.toast = { text: 'Restored Legacy attic as Active.', controls: [eaControl('Undo', { hooks: ['data-toast-undo'] }), eaControl('Open Legacy attic', { tag: 'a', hooks: ['data-toast-open'], href: '/projects/project-legacy' }), eaControl('Dismiss', { hooks: ['data-toast-dismiss'] })] };
   if (context === 'renovation-restore-undo') e.bannerBack = true;
   if (context === 'digest-owner-section') { e.overdueLinkPresent = true; e.followed = { text: 'Overdue task 1', href: '/projects/project-launch#section-section-project-launch-tasks' }; }
   if (context.startsWith('markdown-')) { e.typedDraft = EA_DRAFT; e.savedSource = EA_SAVED; }
@@ -1596,6 +1600,8 @@ test('profile 79 gates first run, the creation focus and the archived-only sideb
   await eaFails(t, { evidence: e => editEa(e, 'first-run-sam', x => { eaRegionOf(x, 'app-dashboard-page').controls = []; }, 'dark|375') }, 'no main-column New project', /first-run row without/);
   await eaFails(t, { evidence: e => editEa(e, 'first-run-alex', x => { eaRegionOf(x, 'app-dashboard-page').controls[0].visible = false; }, 'light|1440') }, 'hidden main-column New project', /first-run row without/);
   await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-dashboard-page').controls.push(eaControl('New project', { hooks: ['data-first-run-create'] })); }, 'dark|1440') }, 'first run beside an archived project', /first-run block/);
+  // The absence rule on not-first-run reads the same hook as the presence rule, so a renamed hook fails there.
+  await eaFails(t, { evidence: e => { for (const c of ['first-run-demo', 'first-run-alex', 'first-run-sam']) editEa(e, c, x => { for (const k of eaRegionOf(x, 'app-dashboard-page').controls) k.hooks = ['data-first-run-new']; }); } }, 'renamed first-run hook', /first-run row without/);
   await eaFails(t, { evidence: e => editEa(e, 'first-run-create', x => { x.pressed = 'sidebar'; }, 'light|375') }, 'sidebar pressed', /pressed the sidebar/);
   await eaFails(t, { evidence: e => editEa(e, 'first-run-create', x => { x.focus = null; }, 'dark|1440') }, 'nothing focused', /name field not focused/);
   await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-sidebar').text = 'Home\nPROJECTS\nNo projects yet'; }, 'light|375') }, 'No projects yet', /archived-only sidebar/);
@@ -1613,6 +1619,12 @@ test('profile 79 gates the banner restore, the Undo refusal and a failing restor
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.banner = { text: 'back', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [] }; }, 'dark|1440') }, 'banner back after a refused Undo', /undo-refused/);
   await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.bannerPresent = false; }, 'dark|375') }, 'no banner to fail in', /restore failure/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.undoRefused = false; }, 'light|375') }, 'Undo not refused', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.header.text = 'Legacy attic\nUndo may not have completed. Check the page before trying again.'; }, 'dark|1440') }, 'a header failure that is not the refusal', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.header.text = 'Legacy attic\nCould not undo “Restored Legacy attic”: something it changed has changed since.'; }, 'dark|375') }, 'refusal that does not name the live child', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.toast = null; }, 'dark|1440') }, 'ancestor restore without its toast', /cross-owner toast/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.toast.controls = x.toast.controls.filter(c => c.name !== 'Undo'); }, 'light|375') }, 'toast without Undo', /cross-owner toast/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.toast.controls.find(c => c.tag === 'a').href = '/projects/project-legacy-child'; }, 'light|1440') }, 'Open owner to the wrong page', /cross-owner toast/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.restored.toast = { text: 'Restored Legacy attic as Active.', controls: [] }; }, 'dark|1440') }, 'own restore with a toast', /own restore with a toast/);
   await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.banner.text = '“Legacy attic” is archived.'; }, 'dark|1440') }, 'failure not in the banner', /restore failure/);
   await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.header = { ...x.header, text: 'Couldn’t restore “Legacy attic”. Try again.' }; }, 'dark|1440') }, 'failure in the header', /restore failure/);
   await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.banner.text += ' ' + x.reason; }, 'dark|1440') }, 'reason outside Details', /reason visible/);
@@ -1625,6 +1637,8 @@ test('profile 79 gates the blocked and commit confirmations and the late refusal
   await eaFails(t, { evidence: e => editEa(e, 'renovation-archive-blocked', x => { x.regions[0].controls = x.regions[0].controls.filter(c => !c.name.startsWith('Garden')); }, 'dark|1440') }, 'child without a link', /child without a link/);
   await eaFails(t, { evidence: e => editEa(e, 'kitchen-archive-blocked', x => { x.regions[0].controls.find(c => c.name.startsWith('Cabinets')).tag = 'button'; }, 'dark|1440') }, 'child as a button', /child without a link/);
   await eaFails(t, { evidence: e => editEa(e, 'kitchen-archive-blocked', x => { x.regions[0].controls.find(c => c.name.startsWith('Cabinets')).href = '/projects/project-kitchen'; }, 'light|375') }, 'link to the wrong page', /child without a link/);
+  await eaFails(t, { evidence: e => editEa(e, 'kitchen-archive-blocked', x => { x.regions[0].controls.push(eaControl('Cancel')); }, 'dark|375') }, 'a second button', /Close only/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archive-blocked', x => { x.regions[0].controls = x.regions[0].controls.filter(c => c.name !== 'Close'); }, 'light|1440') }, 'no Close', /Close only/);
   await eaFails(t, { evidence: e => editEa(e, 'cabinets-archive-commit', x => { x.regions[0].controls = []; }, 'dark|1440') }, 'no commit', /commit-confirm/);
   await eaFails(t, { evidence: e => editEa(e, 'cabinets-late-refusal', x => { x.regions[0].text = 'Couldn’t archive “Cabinets”. Try again.'; }, 'light|1440') }, 'old sentence', /late refusal/);
   await eaFails(t, { evidence: e => editEa(e, 'cabinets-late-refusal', x => { x.regions[0].text += ' ' + x.reason; }, 'light|1440') }, 'reason outside Details', /reason visible/);

@@ -929,11 +929,13 @@ const EA_WRITE_CONTROLS = [
   ['.progress-section__controls', 'progress-section__controls'], ['[data-todo-toggle]', 'data-todo-toggle'], ['[data-todo-complete]', 'data-todo-complete'],
   ['[data-todo-delete]', 'data-todo-delete'], ['app-task-row.cdk-drag', 'app-task-row', 'cdkDrag'], ['button[aria-label$=", open details"]', ', open details'],
 ];
-/** Hooks the rules read whose absence would otherwise pass: rename and Parent, the commit, the editor. */
-const EA_RULE_HOOKS = ['data-project-name', 'data-project-more', 'data-project-edit-details', 'data-project-archive-confirm-yes', 'data-markdown-source', 'data-create-project-name', 'data-todos-empty', 'data-reflections-empty'];
+/** Hooks the rules read whose absence would otherwise pass: rename and Parent, the commit, the editor, the toast. */
+const EA_RULE_HOOKS = ['data-project-name', 'data-project-more', 'data-project-edit-details', 'data-project-archive-confirm-yes', 'data-markdown-source', 'data-create-project-name', 'data-todos-empty', 'data-reflections-empty', 'data-toast-undo', 'data-toast-open'];
 /** Stage 0's hidden numbers: what each archived root's Todos and journal must report (Q7). */
 const EA_HIDDEN_COUNTS = { 'archived-only-todos': 0, 'archived-only-reflections': 0, 'renovation-archived-todos': 6, 'renovation-archived-reflections': 3 };
 /** Each blocked confirmation's live child and the page its link must open. */
+/** The restore contexts whose project is an ancestor of the page: the owner its toast must open. */
+const EA_ANCESTOR_RESTORE = { 'legacy-shelving-restore': { name: 'Legacy attic', href: '/projects/project-legacy' } };
 const EA_CHILD_ROUTES = { Cabinets: '/projects/project-cabinets', Kitchen: '/projects/project-kitchen', Garden: '/projects/project-garden' };
 /** Stage 0: each digest context's `today.overdue` count at `SEED_NOW`. */
 const EA_DIGEST_OVERDUE = { 'digest-overdue-chaos': 4, 'digest-busy-week': 1, 'digest-sam': 1 };
@@ -1061,8 +1063,16 @@ if (profile === '79') {
         // on the project name heading; a Restore that did nothing keeps the banner and its own focus.
         const focus = page.focus;
         if (e.bannerPresent !== true || page.banner !== null || focus?.tag !== 'h1' || !focus.hooks?.includes('data-project-name')) check(r, 'restored row: banner left, or focus not on the project name heading', { bannerPresent: e.bannerPresent ?? null, banner: page.banner ?? null, focus: focus ?? null });
+        // An own-project restore adds no toast; an ancestor's is a cross-owner write whose existing toast offers Undo and Open owner.
+        const owner = EA_ANCESTOR_RESTORE[context];
+        if (!owner && page.toast) check(r, 'own restore with a toast', { toast: page.toast });
+        const toast = visible(page.toast?.controls);
+        if (owner && !(toast.some(c => c.hooks?.includes('data-toast-undo') && c.name === 'Undo') && toast.some(c => c.tag === 'a' && c.hooks?.includes('data-toast-open') && c.name === `Open ${owner.name}` && c.href === owner.href)))
+          check(r, 'ancestor restore without its cross-owner toast (Undo and Open owner)', { toast: page.toast ?? null, owner });
       }
-      if (r.kind === 'undo-refused' && (e.undoRefused !== true || page.banner !== null)) check(r, 'undo-refused row without the transition refusal, or with the banner back', { undoRefused: e.undoRefused ?? null });
+      // The existing transition refusal (`history_conflict`) in the header, naming the live child; not any header failure.
+      if (r.kind === 'undo-refused' && (e.undoRefused !== true || page.banner !== null || !norm(page.header?.text).includes('Could not undo') || !norm(page.header?.text).includes('Legacy shelving')))
+        check(r, 'undo-refused row without the transition refusal naming Legacy shelving, or with the banner back', { undoRefused: e.undoRefused ?? null, header: norm(page.header?.text).slice(0, 300) });
       if (r.kind === 'restore-failure') {
         const banner = norm(page.banner?.text);
         if (e.bannerPresent !== true || !banner.includes('Couldn’t restore') || norm(page.header?.text).includes('Couldn’t restore')) check(r, 'restore failure not shown in the banner', { banner: banner || null });
@@ -1070,6 +1080,8 @@ if (profile === '79') {
       }
       if (r.kind === 'blocked-confirm') {
         if (hooked(reg.controls, 'data-project-archive-confirm-yes').length || visible(reg.controls).some(c => c.tag === 'button' && /^Archive\b/i.test(c.name ?? ''))) check(r, 'blocked confirmation with a commit button');
+        const buttons = visible(reg.controls).filter(c => c.tag === 'button').map(c => c.name);
+        if (JSON.stringify(buttons) !== '["Close"]') check(r, 'blocked confirmation does not offer Close only', { buttons });
         for (const child of r.links ?? []) if (!visible(reg.controls).some(c => c.tag === 'a' && c.href === EA_CHILD_ROUTES[child] && (c.name ?? '').startsWith(child))) check(r, 'blocked confirmation child without a link to its page', { child, route: EA_CHILD_ROUTES[child] ?? null });
       }
       if (r.kind === 'commit-confirm' && !hooked(reg.controls, 'data-project-archive-confirm-yes').length) check(r, 'commit-confirm row without its commit button');
