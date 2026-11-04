@@ -17,8 +17,29 @@ Step 6a/6 bullet below. **Step 7 (refusal first) is done (S79S7, cloud session)*
 bullet below. **Step 8 (empty workspace) is done (S79S8 wrote it, S79S8B landed it)** after the user answered
 Open question 8 with (a): Calendar and Settings › Agents lazy, ceiling kept; see the Step 8 bullet
 below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 bullet below.
-**Next: step 10 (Markdown: the draft store, the body and editor, Discard draft, the Preview
-caption).**
+**Step 10 (Markdown keeps the draft) is done (S79S10)**; see the Step 10 bullet below.
+**Next: step 11 (count and drag hint: `reportSummary`, both frames, the count, the hint
+overlay).**
+- **Step 10 (Markdown keeps the draft):** `MarkdownDraftStore` (`markdown-draft-store.ts`, root,
+  `keep`/`take`/`forget` of `{ draft, base }` by section id, cleared on `prototype.reloaded`).
+  `take` removes, so the store holds a draft only while no editor has it open. "Changed" means
+  unlike both `base` and the current source; a kept draft that now equals the source is dropped on
+  Edit rather than offered. The body keeps on Cancel (`cancelRequested` carries the draft) and on
+  destroy (a `viewChild` read in its `DestroyRef`), offers through the editor's `initialDraft` with
+  the stored `base`, forgets on Save success (also when destroyed mid-save, from the review), and
+  re-keys the editor on Discard draft with `@for (key of [editorKey()]; track 'editor-' + key)` (a
+  derived track expression: `track key` fires Angular's NG0956 dev warning on every Discard).
+  "Your unsaved draft is back." is a `role="status"` line with a ghost **Discard draft**; Preview
+  has the "Unsaved preview" caption above the rendered draft; Save stays the only
+  `button--primary` (pinned). `markdown-source-editor.stories.ts` created (Fresh, DraftBack,
+  UnsavedPreview). `canvas-editing.spec.ts`'s Cancel-then-Edit now expects the draft back and
+  Discards it (run alone: passed). **Initial bundle 1,144.14 kB, 5.86 kB under the ceiling**
+  (+0.04 kB: the Markdown body is already deferred). Commits `72f075d` (code, docs, the decision
+  amendment, §30 note, walkthrough) and `c829506` (review fix). Unit: web 1,526 green; `pnpm test`
+  and `pnpm lint` green. One cold review: one substantive finding (a Save succeeding after destroy
+  left the kept draft behind), fixed test first; a section shown twice shares one slot (noted in
+  how.md). Not looked at in a browser beyond the e2e run: the note's and caption's spacing are
+  checked at step 13's after capture.
 - **Step 9 (digest overdue line):** `DailyDigestWidget` lists up to five of `today.overdue` under
   its prose, in slice 77's row anatomy (title link, `taskMeta`, project context), each row
   `data-digest-overdue` (never `data-widget-task`) in a `ul` labelled "Overdue tasks", then a muted
