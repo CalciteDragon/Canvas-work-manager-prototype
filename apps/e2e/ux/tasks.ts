@@ -63,9 +63,13 @@ async function execute(page: Page, id: string, c: TaskCounter) {
   };
   const nav=async()=>{if(await button('Show project navigation').isVisible())await click(button('Show project navigation'),'Expand project navigation','Project navigation');};
   switch(id){
-    case 'T01':
-      await click(button('New project'),'New project','Sidebar'); await type(page.getByRole('textbox',{name:'Project name'}),'Baseline project','Create project');
-      await click(button('Create'),'Create','Create project'); await expect(page.getByRole('heading',{name:'Baseline project',exact:true})).toBeVisible(); break;
+    case 'T01': {
+      // Slice 79: the first-run block's New project in the main column where the build has one,
+      // else the sidebar's. Each is scoped, so two "New project" buttons never trip strict mode.
+      const main = page.locator('app-dashboard-page [data-first-run-create]');
+      const fromMain = await main.count() > 0;
+      await click(fromMain ? main.first() : page.locator('app-sidebar').getByRole('button',{name:'New project',exact:true}),'New project',fromMain ? 'Home' : 'Sidebar'); await type(page.getByRole('textbox',{name:'Project name'}),'Baseline project','Create project');
+      await click(button('Create'),'Create','Create project'); await expect(page.getByRole('heading',{name:'Baseline project',exact:true})).toBeVisible(); break; }
     case 'T02':
       await nav(); await click(button('Add workstream'),'Add workstream','Project navigation');
       await type(page.getByRole('dialog').getByRole('textbox',{name:'Name',exact:true}),'Baseline workstream','Workstream dialog');

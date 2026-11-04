@@ -1,16 +1,35 @@
 <!-- plan id="79" status="active" summary="Redesign slice 6b-2 (TH10): first-run dashboard, archived pages read-only with restore in place, archive refusal said before, Markdown drafts kept, digest overdue line, Task List count" -->
 # Slice 79 — States: empty, archived and editing
 
-**State (2026-11-04):** plan written (S79PLAN) and reviewed in six rounds, recorded under
-Revisions. **Accepted by the user on 2026-11-04**, with answers to Open questions 1–7 (S79ACCEPT):
-Q1–Q6 as recommended, and Q7 not as recommended. An archived root's Todos and Reflections pages
-say "Restore to view N hidden todos." (or reflections) when work is hidden, and keep their
-ordinary empty sentence when nothing is. The count comes from a new optional `hiddenItemCount` on
-the two read results, added as step 6a. One cold review round checked the amendment and
-found nothing substantive; its minor points were fixed (Revisions, Acceptance review round 1). Started with
-`roadmap.mjs start`; `CURRENT_SLICE` is 79. No implementation yet. Next is step 0 of the
-Implementation sequence (inventory and the "before" capture from `44e7e9e`). The initial bundle
-was 1,140.75 kB at slice 78's close (ceiling 1,150 kB, not raised).
+**State (2026-11-04):** plan written (S79PLAN), reviewed in six rounds and **accepted by the user
+on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden counts, step 6a).
+`CURRENT_SLICE` is 79. **Step 0 is done (S79S0)**; next is step 1 (profile 79, tests first).
+- **Inventory:** under Behaviour vs. appearance, "Stage 0 inventory" and "Stage 0 checks". What
+  it changes for later steps: `lifts.spec.ts:158-163` archives Home renovation (live children), so
+  step 7 changes it; `canvas-editing.spec.ts:150-157` and `markdown-section-body.spec.ts:63-67`
+  assert the saved text after Cancel, so step 10 changes them; the nested-projects `dev-panel`,
+  `new-project` and `phone-menu` cells do not change (that dashboard has no overdue task); the
+  changing overdue cells are busy-week's, overdue-chaos's and agent-heavy's dashboards (18 cells).
+- **Before:** built from `44e7e9e` in a detached worktree (since removed) with linked
+  `node_modules`, `ng build` into `apps/e2e/ux-output/slice79-baseline-web/` (served from
+  `browser/`). Captured with `UX_BEFORE=44e7e9e` into `apps/e2e/ux-output/44e7e9e/` (git-ignored):
+  `index.json`, 194 matrix cells, all captured; `empty-archived-verification.json`,
+  `complete: true`, 40 contexts (39 plus `lab`), 40 `ROWS`, 149 entries, no errors; `tasks/`, T01–T09,
+  T11, T12 at exactly the slice-78 after counts, no dead ends. After-only checks are recorded
+  absent: `bannerPresent: false`, `overdueLinkPresent: false`, `discardPresent: false`,
+  `hiddenItemCount: null`, `pressed: 'sidebar'`.
+- **Rig:** `apps/e2e/ux/slice79.config.ts` (ports 4257/4357, `.prototype/ux-slice79.json`) and
+  `ux/empty-archived-verification.ts` (`ROWS`, `CONTEXTS`, `WRITE_CONTROLS`, the probe); T01's
+  scoped locator in `ux/tasks.ts`. Subsets: `UX_MATCH` (matrix) and `UX_STATES_MATCH` (contexts)
+  merge into the existing JSON; `UX_STATES_SKIP_TASKS=1` skips the tasks. Each full half ran
+  under 4 minutes.
+- **Hooks the rig expects from later steps** (the after run reads them; keep or update the rig):
+  the banner as `app-archived-banner` with a `button` named `Restore …`; `data-first-run-create`
+  inside `app-dashboard-page`; `[data-digest-overdue] a` inside the digest tile; a "Discard draft"
+  button in the Markdown frame; the Archive row `[data-archived-item][data-archived-id]` and the
+  Settings row `[data-archived-project][data-project-id]`, each with a `select` taking the enum
+  values (`on_hold`); `[data-history-undo]`; `[data-markdown-edit|source|cancel|preview]`.
+- **Bundle:** 1,140.75 kB initial, unchanged (ceiling 1,150 kB, not raised).
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
 [Slice 78](../completed/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
@@ -704,6 +723,84 @@ every control it had.
   included), every domain and contracts test other than the two named under Hidden count, and
   every spec the Stage 0 grep does not list. Frozen evidence scripts of completed slices are not re-run.
 
+**Stage 0 inventory (2026-11-04, S79S0).** The grep above, run against `032cf84`, with every hit.
+"Known" lines that still hold are marked ✓; the rest are new or moved.
+
+- **Sidebar and first run.**
+  - unit: `sidebar.spec.ts:117,121,125,149` ✓, and `:309` (New project focuses the name field) and
+    `:337` (New project with the group collapsed), which stay; `app-shell.spec.ts:60,81` ✓ and
+    `:316` (the drawer stays open for New project); `shell-store.spec.ts:101-108` ("asks for every
+    project status except archived"), the list call step 8 replaces; `design-lab-page.spec.ts:109-130`
+    ✓ ("No projects yet" at `:113`); `dashboard-page.spec.ts:176,193` ✓ (`data-dashboard-empty`).
+    `dashboard-page.spec.ts:164` is `[data-widget-empty]` counting four, not the dashboard hook;
+    step 8 re-checks it, since the first-run block sits above the widgets.
+  - e2e: `web.spec.ts:30` ✓ (and its comment at `:23-24`), `project-creation-history.spec.ts:69` ✓
+    and `:78`, `states.spec.ts:170` ✓ and `:181`, and `primitives.spec.ts:20` (375 touch: the
+    sidebar's New project focuses a labelled name field), which stays.
+- **Archive confirmation and refusal.**
+  - unit: `project-archive-confirm.spec.ts:34,43` ✓, `project-header.spec.ts:100,134,238-250` ✓,
+    `project-workspace-shell.spec.ts:1201-1235` ✓ (the domain's refusal text at `:1203`), and
+    `project-workspace-store.spec.ts:971` ✓ ("Couldn’t archive “Home renovation”. Try again.").
+  - e2e, by what each archives: `lifts.spec.ts:91,158-163` archives **Home renovation, which has
+    live Kitchen and Garden**, so step 7's blocked form removes its commit and this spec changes;
+    `feedback.spec.ts:164-165` and `project-history.spec.ts:288-294` archive Garden (no children)
+    and `web.spec.ts:403-405` a fresh root, so all three stay. No e2e spec asserts
+    "Couldn’t archive".
+- **Restore.**
+  - unit: `archived-region.spec.ts:164-200,209,313`, `archive-page.spec.ts:198,248` ✓,
+    `archived-projects-page.spec.ts:52,65,85,125,139,161,192-208` ✓ (and `:203`).
+  - e2e: `archive.spec.ts:126-128,597` ✓, `archived-projects.spec.ts:51,66,112-115,138` ✓ and
+    `:167,175,181,210`. Every `selectOption` passes a lowercase enum value, so those stay green if
+    `RestoreStatusChoice` keeps the values and the row hooks (`data-archived-project-status`,
+    `data-archived-status`, `data-archived-restore`); only the labels and Settings' empty default
+    change. No spec says "Restore as" or "Choose status".
+- **Hidden count (Q7).** `project-todos-service.test.ts:342` ✓, `project-journal-service.test.ts:143`
+  ✓ (its neighbours `:108` and `:139`, on a live root's hidden-by-ancestor entries, stay), and
+  `reflections-page.stories.ts:91` ✓ (used at `:126`).
+- **Archived pages.**
+  - unit: `project-canvas.spec.ts:318,1243-1248`, `project-section-frame.spec.ts:48,73` (a
+    `readOnly` stub), `shortcut-frame.spec.ts:57,108-110,130,136,183-190`, `archive-page.spec.ts:198`
+    (the only archived-root note hit), `task-list-section.spec.ts:73,85,405,910`,
+    `todos-page.spec.ts:230,281-285,356,406-413,425-426,503,532`, `reflections-page.spec.ts:232-236`.
+  - e2e: `web.spec.ts:97` ✓, `:114-115` and the Legacy restore at `:211-224`;
+    `project-history.spec.ts:45-46` (visits both Legacy pages) and `:305-307` (renames Legacy
+    shelving through the API, then the page's Undo is refused). Steps 4–5 re-check these two; the
+    header and its history stay on read-only pages.
+- **Markdown.** Two specs assert the behaviour step 10 changes, so they change with it (§77):
+  `canvas-editing.spec.ts:150-157` (Cancel a draft, then Edit expects the saved source) and
+  `markdown-section-body.spec.ts:63-67` ("a reopened editor starts from stored source"). Also read:
+  `markdown-section-body.spec.ts:56-61,92-96,114-117,169-185` and `markdown-source-editor.spec.ts:15-51`.
+  `canvas-editing.spec.ts:266,845,951` and `section-edit-undo.spec.ts:181` only Save, and stay.
+- **Drag hint.** `objects.spec.ts:108` ✓, `:109` and `:114`.
+- **Digest.** `dashboard-page.spec.ts:54,144-148`; `objects.spec.ts:41` ✓ is title-filtered
+  `[data-widget-task]`. `data-digest-overdue` does not exist yet, as expected.
+- **Todos.** `todos-page.html:60,107` ✓ (`[disabled]="writesBlocked()"`); the toggle at `:51` is
+  already `aria-disabled`. `todos-page.spec.ts:407,412,425` assert `.disabled` and change in step 6.
+  No e2e spec asserts it.
+- **Write-control selectors.** All 25 in the gate's list exist in `apps/web/src`.
+
+**Stage 0 checks.**
+
+- **Save is primary** at L3-012's size (1440×900, both themes): in the before capture's
+  `markdown-draft` rows, Save alone has `button--primary` and the accent fill (`rgb(31, 79, 208)`
+  light, `rgb(255, 173, 127)` dark); Preview is ghost and Cancel secondary. Recorded as closed.
+- **Overdue cells (Q1 (a)).** The Demo dashboard's `today.overdue` at `SEED_NOW`: busy-week 1
+  ("Verify analytics events"), overdue-chaos 4, agent-heavy 1 ("Triage the overnight agent
+  errors"); empty, personal-workspace and nested-projects 0. So the changing cells are
+  `busy-week-dashboard`, `overdue-chaos-dashboard` and `agent-heavy-dashboard`, each at both themes
+  and 1440, 1024 and 375 (18 cells). The nested-projects `dev-panel`, `new-project` and
+  `phone-menu` cells do **not** change. No seed has more than five, so "and N more overdue" is
+  proved by `daily-digest-widget.spec.ts` only.
+- **Personas.** `empty` carries Demo, Alex and Sam, each with no project.
+- **Hidden numbers.** With Cabinets, Kitchen, Garden and Legacy shelving archived, live Home
+  renovation's Todos answer 6 items and its journal 3; archived, both answer `items: []`.
+- **T09.** `button(/^Restore /).first()` still restores Legacy attic ("Restored Legacy attic as
+  Active."), at 1 click.
+- **T01.** Scoped in `ux/tasks.ts`: `app-dashboard-page [data-first-run-create]` where the build has
+  it, else `app-sidebar`'s New project; the surface is recorded as Home or Sidebar.
+- **Bundle.** 1,140.75 kB initial (1.14 MB, budget warning 290.75 kB over 850 kB) for both
+  `44e7e9e` and the working tree.
+
 ## File-level change list
 
 Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocated spec, and
@@ -1306,3 +1403,9 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   - **Agents see the count.** This is recorded as the plan's choice in the decision row and in
     Q7's resolution, for the user to see. It does not block: it discloses no more than §31's
     archived page already renders.
+- **Stage 0 (2026-11-04, S79S0):** step 0 ran. Added the Stage 0 inventory and checks under
+  Behaviour vs. appearance. Three findings change later steps without changing their shape:
+  `lifts.spec.ts:158-163` joins step 7's edits, `canvas-editing.spec.ts:150-157` and
+  `markdown-section-body.spec.ts:63-67` join step 10's, and the nested-projects `dev-panel`,
+  `new-project` and `phone-menu` cells leave Acceptance item 4's overdue list, since that dashboard
+  has no overdue task.
