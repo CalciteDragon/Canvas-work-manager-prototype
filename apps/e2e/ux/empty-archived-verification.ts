@@ -47,24 +47,31 @@ export type Row = {
    * - `first-run`: the main-column New project (`data-first-run-create`); `not-first-run`: none.
    * - `create-focused`: focus is in the creation form's name field.
    * - `archived-only-sidebar`: "No active projects." with a link to Settings › Archived projects.
-   * - `read-only`: no `WRITE_CONTROLS` match, the banner present, header rename and Parent kept.
-   * - `live`: no banner. `restored`: no banner, focus on the heading or the next owner's choice.
+   * - `read-only`: no `WRITE_CONTROLS` match, the banner present under the header and above the
+   *   first frame, header rename and Parent kept.
+   * - `restored`: no banner, focus on the heading or the next owner's choice.
+   * - `undo-refused`: still no banner, and the header shows the transition refusal.
    * - `restore-failure`: the failure renders inside the banner, with Details.
-   * - `blocked-confirm`: no commit button, each live child a link. `commit-confirm`: the commit.
+   * - `blocked-confirm`: no commit button, each of `links` a link. `commit-confirm`: the commit.
    * - `late-refusal`: the refusal's sentence and Details in the header.
    * - `restore-choice`: one option list in one casing, Active preselected and visible.
-   * - `digest`: overdue rows (`data-digest-overdue`) link to their owners, five at most.
-   * - `owner-section`: a followed overdue link landed on its section.
+   * - `digest`: overdue rows (`data-digest-overdue`) link to their owners, five at most, as many as
+   *   the tile's overdue tasks allow.
+   * - `owner-section`: a followed overdue link landed on its section (`hashTarget`), as its href says.
    * - `draft`: the editor's source equals the typed draft. `discarded`: it equals the saved text.
    * - `preview`: the "Unsaved preview" caption. `count`: each Task List header's count equals
    *   its rendered rows. `drag`: the first row moved at most 1 px as the drag started.
    * - `todos-pending`: no other row's Complete or Delete has `disabled`; each has `aria-disabled`.
    */
-  kind: 'first-run' | 'not-first-run' | 'create-focused' | 'archived-only-sidebar' | 'read-only' | 'live' | 'restored'
+  kind: 'first-run' | 'not-first-run' | 'create-focused' | 'archived-only-sidebar' | 'read-only' | 'restored' | 'undo-refused'
     | 'restore-failure' | 'blocked-confirm' | 'commit-confirm' | 'late-refusal' | 'restore-choice' | 'digest'
     | 'owner-section' | 'draft' | 'discarded' | 'preview' | 'count' | 'drag' | 'todos-pending';
   /** A read-only Todos or Reflections page: which Q7 hidden-count sentence applies. */
   hidden: 'todos' | 'reflections' | null;
+  /** The named snapshot the rule reads (`entry[snapshot]`), or null for the context's main capture. */
+  snapshot: string | null;
+  /** A blocked confirmation's live children, each of which must be a link. */
+  links: string[] | null;
 };
 
 const ROOT = '/projects/project-renovation';
@@ -79,7 +86,8 @@ const DIGEST_R = '[data-dashboard-tile][data-widget-type="daily_digest"]';
 const CONFIRM_R = '[data-project-archive-confirm]';
 const ARCHIVE_ROW = '[data-archived-item][data-archived-id="project-legacy"]';
 const SETTINGS_ROW = '[data-archived-project][data-project-id="project-legacy"]';
-const row = (context: string, region: string, kind: Row['kind'], hidden: Row['hidden'] = null): Row => ({ context, region, kind, hidden });
+const row = (context: string, region: string, kind: Row['kind'], more: Partial<Pick<Row, 'hidden' | 'snapshot' | 'links'>> = {}): Row =>
+  ({ context, region, kind, hidden: null, snapshot: null, links: null, ...more });
 
 /**
  * The context table. **It is profile 79's only source of exemptions**: the gate checks each row's
@@ -94,21 +102,23 @@ export const ROWS: Row[] = [
   row('archived-only-home', 'app-sidebar', 'archived-only-sidebar'),
   row('archived-only-home', 'app-dashboard-page', 'not-first-run'),
   row('archived-only-canvas', 'main', 'read-only'),
-  row('archived-only-todos', 'app-todos-page', 'read-only', 'todos'),
-  row('archived-only-reflections', 'app-reflections-page', 'read-only', 'reflections'),
+  row('archived-only-todos', 'app-todos-page', 'read-only', { hidden: 'todos' }),
+  row('archived-only-reflections', 'app-reflections-page', 'read-only', { hidden: 'reflections' }),
   row('legacy-attic', 'main', 'read-only'),
   row('legacy-shelving', 'main', 'read-only'),
   row('renovation-archived-home', 'main', 'read-only'),
-  row('renovation-archived-todos', 'app-todos-page', 'read-only', 'todos'),
-  row('renovation-archived-reflections', 'app-reflections-page', 'read-only', 'reflections'),
+  row('renovation-archived-todos', 'app-todos-page', 'read-only', { hidden: 'todos' }),
+  row('renovation-archived-reflections', 'app-reflections-page', 'read-only', { hidden: 'reflections' }),
   row('renovation-archived-archive', 'main', 'read-only'),
   row('renovation-archived-kitchen', 'main', 'read-only'),
-  row('legacy-attic-restore', 'main', 'restored'),
+  row('legacy-attic-restore', 'main', 'restored', { snapshot: 'restored' }),
+  row('legacy-attic-restore', 'main', 'undo-refused'),
   row('legacy-shelving-restore', 'main', 'restored'),
+  row('renovation-restore-undo', 'main', 'restored', { snapshot: 'restored' }),
   row('renovation-restore-undo', 'main', 'read-only'),
   row('banner-restore-failing', 'main', 'restore-failure'),
-  row('kitchen-archive-blocked', CONFIRM_R, 'blocked-confirm'),
-  row('renovation-archive-blocked', CONFIRM_R, 'blocked-confirm'),
+  row('kitchen-archive-blocked', CONFIRM_R, 'blocked-confirm', { links: ['Cabinets'] }),
+  row('renovation-archive-blocked', CONFIRM_R, 'blocked-confirm', { links: ['Kitchen', 'Garden'] }),
   row('cabinets-archive-commit', CONFIRM_R, 'commit-confirm'),
   row('cabinets-late-refusal', 'app-project-header', 'late-refusal'),
   row('archive-restore-choice', ARCHIVE_ROW, 'restore-choice'),
@@ -257,7 +267,7 @@ export const CONTEXTS: Context[] = [
       if (!await bannerRestore(c)) return;
       await snapshot(c, 'restored');
       await c.page.locator('[data-history-undo]').click();
-      await waitForFailure(c.page, 'app-project-header').catch(() => { c.entry['undoRefusal'] = 'not rendered'; });
+      c.entry['undoRefused'] = await waitForFailure(c.page, 'app-project-header').then(() => true, () => false);
     } },
   // Restoring the ancestor from the live child's banner: the toast offers Undo and Open owner.
   { id: 'legacy-shelving-restore', seed: 'nested-projects', route: LEGACY_CHILD,
@@ -271,7 +281,7 @@ export const CONTEXTS: Context[] = [
       if (!await bannerRestore(c)) return;
       await snapshot(c, 'restored');
       await c.page.locator('[data-history-undo]').click();
-      await c.page.locator('app-archived-banner').waitFor().catch(() => { c.entry['bannerBack'] = false; });
+      c.entry['bannerBack'] = await c.page.locator('app-archived-banner').waitFor().then(() => true, () => false);
     } },
   { id: 'banner-restore-failing', seed: 'nested-projects', route: LEGACY, reason: 'Audit: restore failed',
     setup: c => refuse(c.page, /^\/api\/projects\/project-legacy$/, 500, 'internal_error', 'Audit: restore failed'),
@@ -305,7 +315,7 @@ export const CONTEXTS: Context[] = [
       const link = c.page.locator(`${DIGEST_R} [data-digest-overdue] a`).first();
       c.entry['overdueLinkPresent'] = await link.count() > 0;
       if (!await link.count()) return;
-      c.entry['followed'] = (await link.textContent())?.trim() ?? null;
+      c.entry['followed'] = { text: (await link.textContent())?.trim() ?? null, href: await link.getAttribute('href') };
       await link.click();
       await expect(c.page).toHaveURL(/#section-/);
     } },
@@ -379,7 +389,7 @@ function probe({ regions, writeControls }: { regions: string[]; writeControls: s
   const inClosedDetails = (e: Element) => { const d = e.closest('details:not([open])'); return !!d && !e.closest('summary'); };
   const shown = (e: Element) => { const r = e.getBoundingClientRect(); return r.width > 1 && r.height > 1 && e.checkVisibility({ visibilityProperty: true }) && !inClosedDetails(e); };
   const text = (e: Element) => ((e as HTMLElement).innerText ?? e.textContent ?? '').trim();
-  const name = (e: Element) => (e.getAttribute('aria-label') ?? text(e) ?? e.getAttribute('title') ?? '').trim();
+  const name = (e: Element) => (e.getAttribute('aria-label') || text(e) || ((e as HTMLInputElement).labels?.[0] ? text((e as HTMLInputElement).labels![0]!) : '') || e.getAttribute('title') || '').trim();
   const hooks = (e: Element) => [...e.attributes].map(a => a.name).filter(n => n.startsWith('data-'));
   const control = (e: Element) => ({ name: name(e).slice(0, 200), tag: e.tagName.toLowerCase(), hooks: hooks(e), visible: shown(e), box: box(e),
     href: e.getAttribute('href'), disabled: (e as HTMLButtonElement).disabled === true, ariaDisabled: e.getAttribute('aria-disabled') === 'true',
@@ -401,17 +411,27 @@ function probe({ regions, writeControls }: { regions: string[]; writeControls: s
       sources: all.filter(e => e.tagName === 'TEXTAREA').map(e => ({ hooks: hooks(e), name: name(e), value: (e as HTMLTextAreaElement).value })),
       failures: [el, ...all].filter(e => isFailure(e) && shown(e)).slice(0, 10).map(e => ({ hooks: hooks(e), text: text(e).slice(0, 300) })),
       details: all.filter(e => e.tagName === 'DETAILS').map(d => ({ open: (d as HTMLDetailsElement).open, summary: text(d.querySelector('summary') ?? d), text: (d.textContent ?? '').trim().slice(0, 1000) })),
+      digestOverdue: [...(el.matches('[data-digest-overdue]') ? [el] : []), ...el.querySelectorAll('[data-digest-overdue]')].filter(shown).map(e => {
+        const link = e.matches('a[href]') ? e : e.querySelector('a[href]');
+        return { text: text(e).slice(0, 200), href: link?.getAttribute('href') ?? null, linkBox: link ? box(link) : null };
+      }),
       ariaBusyWithin: [el, ...all].some(e => e.getAttribute('aria-busy') === 'true'),
     };
   });
   const bannerEl = document.querySelector('app-archived-banner');
-  const banner = bannerEl && shown(bannerEl) ? { text: text(bannerEl).slice(0, 600), box: box(bannerEl), controls: [...bannerEl.querySelectorAll('button, a[href], select')].map(control) } : null;
+  // A host with no box of its own (`display: contents`) is shown when any of its content is.
+  const bannerShown = bannerEl ? [bannerEl, ...bannerEl.querySelectorAll('*')].find(shown) : undefined;
+  const banner = bannerEl && bannerShown ? { text: text(bannerEl).slice(0, 600), box: box(bannerShown), controls: [...bannerEl.querySelectorAll('button, a[href], select')].map(control) } : null;
   const header = document.querySelector('app-project-header');
   const toastEl = document.querySelector('[data-toast]:popover-open');
   const active = document.activeElement;
   const focus = active && active !== document.body ? { ...control(active), focusVisible: active.matches(':focus-visible'), inRegion: regions.findIndex(r => document.querySelector(r)?.contains(active)) } : null;
+  const firstFrame = document.querySelector('main [data-section-frame], main [data-shortcut-id], main [data-empty-canvas]');
+  const hashTarget = location.hash.length > 1 ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
   return { url: location.pathname + location.hash, regions: regionData, banner,
-    header: header ? { text: text(header).slice(0, 600), controls: [...header.querySelectorAll('button, a[href], select, input')].map(control) } : null,
+    firstFrame: firstFrame ? box(firstFrame) : null,
+    hashTarget: hashTarget ? { id: hashTarget.id, box: box(hashTarget), visible: shown(hashTarget) } : null,
+    header: header ? { box: box(header), text: text(header).slice(0, 600), controls: [...header.querySelectorAll('button, a[href], select, input')].map(control) } : null,
     toast: toastEl ? { text: text(toastEl).slice(0, 300), controls: [...toastEl.querySelectorAll('button, a[href]')].map(control) } : null,
     dialogs: [...document.querySelectorAll('dialog[open]')].map(d => ({ hooks: hooks(d), text: text(d).slice(0, 600) })),
     focus };

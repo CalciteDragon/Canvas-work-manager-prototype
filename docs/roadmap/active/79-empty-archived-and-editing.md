@@ -14,7 +14,7 @@ on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden co
   `node_modules`, `ng build` into `apps/e2e/ux-output/slice79-baseline-web/` (served from
   `browser/`). Captured with `UX_BEFORE=44e7e9e` into `apps/e2e/ux-output/44e7e9e/` (git-ignored):
   `index.json`, 194 matrix cells, all captured; `empty-archived-verification.json`,
-  `complete: true`, 40 contexts (39 plus `lab`), 40 `ROWS`, 149 entries, no errors; `tasks/`, T01–T09,
+  `complete: true`, 40 contexts (39 plus `lab`), 42 `ROWS`, 149 entries, no errors; `tasks/`, T01–T09,
   T11, T12 at exactly the slice-78 after counts, no dead ends. After-only checks are recorded
   absent: `bannerPresent: false`, `overdueLinkPresent: false`, `discardPresent: false`,
   `hiddenItemCount: null`, `pressed: 'sidebar'`.
@@ -28,7 +28,11 @@ on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden co
   inside `app-dashboard-page`; `[data-digest-overdue] a` inside the digest tile; a "Discard draft"
   button in the Markdown frame; the Archive row `[data-archived-item][data-archived-id]` and the
   Settings row `[data-archived-project][data-project-id]`, each with a `select` taking the enum
-  values (`on_hold`); `[data-history-undo]`; `[data-markdown-edit|source|cancel|preview]`.
+  values (`on_hold`); `[data-history-undo]`; `[data-markdown-edit|source|cancel|preview]`;
+  `[data-project-archive-confirm]` on both confirmation forms and `[data-project-archive-confirm-yes]`
+  on the commit form, opened from the menu item `/^Archive (project|workstream)…$/`;
+  `[data-todo-row]`, `[data-todo-link]` and `[data-todo-complete]`; `[data-create-project-name]`.
+  The banner counts as shown when its host or any of its content has a box.
 - **Bundle:** 1,140.75 kB initial, unchanged (ceiling 1,150 kB, not raised).
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
@@ -505,7 +509,7 @@ tests and the gate's selectors, since an archived root's Todos has no rows to ca
    | 2 / 16 | 3 / 19 | 10 / 38 | 1 / 0 | 2 / 0 | 2 / 16 | 3 / 0 | 3 / 0 | 1 / 0 | 1 / 0 | 1 / 0 |
 
    Each cell is clicks / keystrokes, all with zero dead ends. T10 is excluded, as in profile 78.
-   Stage 0 confirms that T09's `button(/^Restore /).first()` (`tasks.ts:120`) still meets
+   Stage 0 confirms that T09's `button(/^Restore /).first()` (`tasks.ts:124`) still meets
    Legacy attic's row, since the seed also archives a section and a task (`seeds.ts:512-547`). T09 restores Legacy attic's archived
    item from Archive. Active is preselected (Open question 2 (a)), so T09 stays at 1 click.
 6. **MCP.** One additive output change, from Q7: for an **archived root**, `get_project_todos`
@@ -1409,3 +1413,10 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   `markdown-section-body.spec.ts:63-67` join step 10's, and the nested-projects `dev-panel`,
   `new-project` and `phone-menu` cells leave Acceptance item 4's overdue list, since that dashboard
   has no overdue task.
+  One review pass over the step's diff (`385df19`) found no blocker. Its evidence gaps were all
+  confirmed against the code and closed: the probe now records the banner's placement (the header
+  and first frame boxes), the digest's `data-digest-overdue` rows with their links, the landed
+  `hashTarget`, and input labels; `Row` gained `snapshot` (the restore contexts' `restored` rows)
+  and `links` (each blocked confirmation's live children); the Undo refusal and the banner's return
+  are recorded positively; the hook list in the State header is complete. The before contexts
+  were re-captured with the final rig.
