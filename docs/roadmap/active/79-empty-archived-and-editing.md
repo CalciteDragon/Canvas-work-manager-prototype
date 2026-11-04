@@ -16,7 +16,23 @@ below. **Step 5 (read-only canvas) is done (S79S5, cloud session)**; see the Ste
 Step 6a/6 bullet below. **Step 7 (refusal first) is done (S79S7, cloud session)**; see the Step 7
 bullet below. **Step 8 (empty workspace) is done (S79S8 wrote it, S79S8B landed it)** after the user answered
 Open question 8 with (a): Calendar and Settings › Agents lazy, ceiling kept; see the Step 8 bullet
-below. **Next: step 9 (digest overdue line, Q1 (a)).**
+below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 bullet below.
+**Next: step 10 (Markdown: the draft store, the body and editor, Discard draft, the Preview
+caption).**
+- **Step 9 (digest overdue line):** `DailyDigestWidget` lists up to five of `today.overdue` under
+  its prose, in slice 77's row anatomy (title link, `taskMeta`, project context), each row
+  `data-digest-overdue` (never `data-widget-task`) in a `ul` labelled "Overdue tasks", then a muted
+  `data-digest-overdue-more` "and N more overdue" with no link. The owner link is
+  `widgets/task-origin-link.ts` (`taskOriginRoute`, `taskOriginFragment`), now used by Today and the
+  digest; Upcoming and Recent Progress still build it inline (unchanged, outside this step's list).
+  A `null` digest still never mounts the widget. **Initial bundle 1,144.10 kB, 5.90 kB under the
+  ceiling** (+2.13 kB). Commits `88ce48b` (code, docs, the decision
+  `2026-11-digest-overdue-line-leads-to-the-tasks.md`, §24 note) and `fcbff67` (review fixes).
+  Unit: web 1,511 green; `pnpm test` and `pnpm lint` green. One cold review: no substantive
+  findings; its minor ones were taken (spacing, list label, `task.overdue` passed, a test renamed).
+  Not looked at in a browser: the spacing is checked at step 13's after capture (the 18 changing
+  overdue cells). **Trap:** `widget-content.scss` is compiled into all seven widgets, so a rule
+  added there costs about seven times its size; one widget's rule goes in its own folder.
 - **Step 8 (empty workspace):** S79S8 wrote it test first and green but measured **1,151.23 kB**
   initial, so it was parked as a local patch (Open question 8). S79S8B applied the patch unchanged
   at `e3aa69c` and made `calendar` and `settings/agents` `loadComponent` routes, test first
@@ -1785,3 +1801,7 @@ written, with the answer added under it. The Defaults taken were accepted as wri
 - **2026-11-04, step 8 landed (S79S8B).** The cold review's findings changed the plan's rows, not
   its content: the Shell table's `shell-commands.ts` row and the Test plan's `shell-commands.spec.ts`
   row now name `app-shell.spec.ts`, which holds those cases since the parked patch.
+- **2026-11-04, step 9 (S79S9).** The digest's spacing is its own `daily-digest-widget.scss`, not
+  `widget-content.scss` as the File-level change list says: the shared sheet is compiled into every
+  widget, and the same rule there cost 0.73 kB more. The list is labelled "Overdue tasks", from the
+  step's review.
