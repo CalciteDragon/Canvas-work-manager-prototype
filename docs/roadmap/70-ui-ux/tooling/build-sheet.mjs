@@ -1,6 +1,7 @@
 // Opt-in evidence report. Run with before/after capture directories and an output directory.
 import { readFile, writeFile, mkdir, copyFile, readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 // An optional fourth directory supplies the runtime verification run when it was re-run at a
 // later commit than the after matrix; its own commit is shown on the sheet.
 // `--profile 71` (the default) gates Depth's paint-only change on geometry; `--profile 72` lets
@@ -8,12 +9,12 @@ import { resolve, join } from 'node:path';
 const args = process.argv.slice(2);
 const flag = name => { const at = args.indexOf(name); return at === -1 ? null : args[at + 1]; };
 const profile = flag('--profile') ?? '71';
-if (!['71', '72', '73', '74', '75', '76', '77', '78'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+if (!['71', '72', '73', '74', '75', '76', '77', '78', '79'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
 // Profile 75's slice-73 pair has its own "before": the pre-73 build's placement run.
 const pre73Dir = flag('--pre73') === null ? null : resolve(flag('--pre73'));
 const positional = args.filter((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
 const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
-if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75|76|77|78] [--pre73 <dir>]');
+if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75|76|77|78|79] [--pre73 <dir>]');
 const liftCell = cell => ['more', 'project-details', 'archive-confirm', 'page-settings', 'task-drawer', 'task-drawer-scrolled', 'section-create', 'work-create'].includes(cell.state) || cell.route === '/prototype/design';
 /** Slice 74's one listed closed-state change: the project header exactly 12 px shorter at the same top. */
 const FEEDBACK_ROW = 12;
@@ -57,17 +58,17 @@ const CENSUS_EXCEPTIONS = [
   { owner: 'slice 7: project navigation breadcrumbs (listed after the after census; see the plan)', classes: ['project-nav__breadcrumb'], test: c => /\bproject-nav__breadcrumb\b/.test(c.class ?? '') },
   { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
 ];
-const activeExceptions = ['77', '78'].includes(profile) ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
+const activeExceptions = ['77', '78', '79'].includes(profile) ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
 const exceptionFor = c => activeExceptions.find(e => e.test(c));
 const objectCell = cell => cell.route === '/app' || cell.route?.startsWith('/projects/') || cell.route === '/settings/archived-projects';
 // A selector may stand in for an axe node only when its baseline predates the structural identity (`axeNodeIdentity`).
 const structuralAnchor = node => /^(drag-preview|dragging)?\|/.test(node.stableAnchor ?? '');
 /**
- * Profile 78 only: Slice 78 wrapped the sidebar's projects list in `div[data-projects-region]`, so
- * the list's pre-existing axe nodes gained a new structural anchor. Both forms name one identity;
- * every other anchor is compared as recorded.
+ * Profiles 78 and 79: Slice 78 wrapped the sidebar's projects list in `div[data-projects-region]`,
+ * so the list's pre-existing axe nodes gained a new structural anchor. Both forms name one
+ * identity; every other anchor is compared as recorded.
  */
-const anchorOf = node => profile === '78' && (/\|APP-SIDEBAR:\d+\|NAV:0\|DIV:1\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '') || /^\|data-projects-region=\|DIV\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '')) ? 'sidebar projects list' : node.stableAnchor;
+const anchorOf = node => ['78', '79'].includes(profile) && (/\|APP-SIDEBAR:\d+\|NAV:0\|DIV:1\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '') || /^\|data-projects-region=\|DIV\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '')) ? 'sidebar projects list' : node.stableAnchor;
 const objectPanels = new Set(['cards', 'object-rows', 'primitives', 'task-row', 'widget-frame', 'activity']);
 const chromeCell = cell => cell.route?.startsWith('/projects/') && !/\/(todos|archive|reflections)(?:$|\?)/.test(cell.route);
 const censusFailures = [], censusExceptions = [], intendedChanges = [], geometryReport = [];
@@ -87,8 +88,20 @@ const STATE_EXEMPT_CELLS = ['kitchen-error', 'kitchen-refused', 'kitchen-archive
 const stateExempt = cell => STATE_EXEMPT_CELLS.some(id => cell.id.startsWith(id + '-'));
 /** The new state specimens panel (which replaces `states`) and the three panels whose specimens change. */
 const STATE_LAB_PANELS = new Set(['state-messages', 'states', 'task-row', 'navigation', 'section-states']);
-const labPanels = profile === '78' ? STATE_LAB_PANELS : objectPanels;
-const [labAfter, labBefore] = profile === '78' ? [stateEvidence, stateBaseline] : [objectEvidence, objectBaseline];
+/**
+ * Slice 79's empty, archived and editing gate. The plan's tables below (rows, views, changing
+ * cells and panels, pairs, costs) are the gate's; the evidence's own table must match them, so a
+ * row or context dropped from the rig fails instead of passing.
+ */
+const eaEvidence=profile==='79'?await read(join(verificationDir,'empty-archived-verification.json')).catch(e=>{if(e.code==='ENOENT')return null;throw e;}):null;
+const eaBaseline=profile==='79'?await read(join(beforeDir,'empty-archived-verification.json')).catch(e=>{if(e.code==='ENOENT')return null;throw e;}):null;
+/** Acceptance item 4's changing matrix cells; the overdue dashboards are Stage 0's list. */
+const EA_EXEMPT_CELLS = ['empty-dashboard', 'kitchen-archived', 'kitchen-archive-confirm', 'archive', 'busy-week-dashboard', 'overdue-chaos-dashboard', 'agent-heavy-dashboard'];
+const eaExempt = cell => EA_EXEMPT_CELLS.some(id => new RegExp(`^${id}-(dark|light)-\\d+$`).test(cell.id));
+/** The empty and archived specimens, and the header count specimen. */
+const EA_LAB_PANELS = new Set(['state-messages', 'section-frame']);
+const labPanels = profile === '78' ? STATE_LAB_PANELS : profile === '79' ? EA_LAB_PANELS : objectPanels;
+const [labAfter, labBefore] = profile === '78' ? [stateEvidence, stateBaseline] : profile === '79' ? [eaEvidence, eaBaseline] : [objectEvidence, objectBaseline];
 const labEntry = (evidence, theme, width) => evidence?.entries?.find(e => (e.row === 'lab' || e.context === 'lab') && e.theme === theme && e.width === width);
 /**
  * Profile 78, Open question 9 (user decision, 2026-10-30): Q7 gave the reflection composer's body
@@ -107,6 +120,16 @@ const reflectionLabel = (bl, al) => {
   if (height <= 1 || Math.abs(promptAfter - promptBefore) > 0.5 || Math.abs(bodyAfter - promptAfter) > 0.5) return null;
   return { height, top: was.y };
 };
+/**
+ * Profile 79: a Task List frame header gains its "N tasks" count (L4-023). A control whose text
+ * differs only by one such count (the recorded text is cut at 80 characters) is the one allowance;
+ * its geometry is still compared.
+ */
+const countOnly = (was, now) => {
+  if (typeof was !== 'string' || typeof now !== 'string' || (now.match(/\d+ tasks?\b/g) ?? []).length !== 1 || /\d+ tasks?\b/.test(was)) return false;
+  const stripped = now.replace(/\s*\d+ tasks?\b/, '');
+  return stripped === was || (now.length >= 80 && stripped.length < was.length && was.startsWith(stripped));
+};
 /** Q5 raised `--toast-max-block-size` on touch from 12rem to 16rem; the shell's toast clearance follows it. */
 const TOUCH_TOAST_CLEARANCE_RISE = 64;
 await mkdir(output, { recursive: true });
@@ -121,7 +144,7 @@ for (const a of after.cells) {
   const b = before.cells.find(b => b.id === a.id);
   if (!b || a.status !== 'captured' || b.status !== 'captured') { failures.push({ cell: a.id, reason: 'missing or incomplete evidence' }); continue; }
   const [bl, al] = await Promise.all([read(join(beforeDir, b.artifacts.layout)), read(join(afterDir, a.artifacts.layout))]);
-  if((profile==='77' && objectCell(a)) || (profile==='78' && objectCell(a) && !stateExempt(a))) {
+  if((profile==='77' && objectCell(a)) || (profile==='78' && objectCell(a) && !stateExempt(a)) || (profile==='79' && objectCell(a) && !eaExempt(a))) {
     for(const box of bl.planes??[])if(['app-top-bar','app-sidebar','app-project-page-navigation','app-project-header'].includes(box.selector)) {
       const now=al.planes?.find(e=>e.selector===box.selector && e.index===box.index);
       if(!now || ['x','y','width','height'].some(field=>!Number.isFinite(box[field]) || !Number.isFinite(now[field]) || Math.abs(box[field]-now[field])>1))failures.push({cell:a.id,reason:'objects fixed shell plane missing or moved more than 1 px',before:box,after:now});
@@ -165,7 +188,7 @@ for (const a of after.cells) {
         next = next.map((box, i) => i >= headerEnd && i < insertion ? { ...box, y: box.y - shifts[0] } : box);
       }
     }
-    if (['77','78'].includes(profile) && a.route==='/prototype/design' && family==='controls') {
+    if (['77','78','79'].includes(profile) && a.route==='/prototype/design' && family==='controls') {
       old=old.filter(c=>!labPanels.has(c.panel));next=next.filter(c=>!labPanels.has(c.panel));
       const width=a.viewport?.width??Number(a.id.split('-').at(-1));
       const was=labEntry(labBefore,a.theme,width),now=labEntry(labAfter,a.theme,width);
@@ -174,7 +197,7 @@ for (const a of after.cells) {
         return b&&n?{...c,y:c.y-(n.y-b.y)}:c;
       });
     }
-    if(['77','78'].includes(profile) && a.route==='/prototype/design' && family==='planes') {
+    if(['77','78','79'].includes(profile) && a.route==='/prototype/design' && family==='planes') {
       const width=a.viewport?.width??Number(a.id.split('-').at(-1));
       const was=labEntry(labBefore,a.theme,width),now=labEntry(labAfter,a.theme,width);
       // A plane that names its panel belongs to it; older evidence is placed by where it starts.
@@ -244,7 +267,10 @@ for (const a of after.cells) {
       if (!other) return;
       if (family === 'planes' && (box.selector !== other.selector || box.index !== other.index)) changes.push({ index, reason: 'plane identity' });
       if (profile==='76' && a.route==='/prototype/design' && family==='controls' && ['color','background','border'].some(field=>box[field]!==other[field])) changes.push({index,reason:'Lab control paint changed',text:box.text});
-      if (family === 'controls' && box.text !== other.text) changes.push({ index, reason: 'control identity', before: box.text, after: other.text });
+      if (family === 'controls' && box.text !== other.text) {
+        if (profile === '79' && !eaExempt(a) && countOnly(box.text, other.text)) exceptions.push({ cell: a.id, family, reason: 'Task List header count', before: box.text, after: other.text });
+        else changes.push({ index, reason: 'control identity', before: box.text, after: other.text });
+      }
       for (const field of ['x', 'y', 'width', 'height', 'scrollWidth', 'scrollHeight']) {
         if (typeof box[field] !== 'number') continue;
         if (typeof other[field] !== 'number') { changes.push({ index,field,reason:'missing numeric geometry' }); continue; }
@@ -268,8 +294,8 @@ for (const a of after.cells) {
       const fixed=family==='planes' ? changes.filter(change=>fixedPlanes.has(old[change.index]?.selector) || change.reason==='missing numeric geometry') : [];
       if(fixed.length)failures.push({cell:a.id,family,changes:fixed});
       if(changes.length>fixed.length)geometryReport.push({cell:a.id,family,changes:changes.filter(c=>!fixed.includes(c))});
-    } else if (profile === '78' && stateExempt(a)) {
-      // The four matrix cells this slice changes on purpose: movement is reported; corrupt evidence still fails.
+    } else if ((profile === '78' && stateExempt(a)) || (profile === '79' && eaExempt(a))) {
+      // The matrix cells the slice changes on purpose: movement is reported; corrupt evidence still fails.
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
       if (changes.length) geometryReport.push({ cell: a.id, family, changes });
@@ -301,7 +327,7 @@ for (const a of after.cells) {
       }
     }
   }
-  if (['72', '76', '77', '78'].includes(profile)) {
+  if (['72', '76', '77', '78', '79'].includes(profile)) {
     const touch = (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
     const product = al.controls.filter(c => c.scope === 'product');
     for (const c of product) {
@@ -342,10 +368,10 @@ for (const a of after.cells) {
     }
     if (!Array.isArray(bl.sectionContents) || !Array.isArray(al.sectionContents)) failures.push({ cell: a.id, reason: 'section content collector missing' });
   }
-  if ((profile === '76' && chromeCell(a)) || ['77', '78'].includes(profile)) {
+  if ((profile === '76' && chromeCell(a)) || ['77', '78', '79'].includes(profile)) {
     const [was, now] = await Promise.all([read(join(beforeDir, b.artifacts.axe)), read(join(afterDir, a.artifacts.axe))]);
     const key = (v, n) => v.id + ':' + (anchorOf(n) ?? n.target?.join(' '));
-    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(!['77', '78'].includes(profile) || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
+    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(!['77', '78', '79'].includes(profile) || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
     for (const violation of now.violations ?? []) if (violation.id !== 'color-contrast') for (const node of violation.nodes) {
       if (!known.has(key(violation,node)) && !known.has(violation.id + ':' + node.target?.join(' '))) failures.push({ cell: a.id, reason: 'new axe node ' + violation.id, target: node.target });
     }
@@ -362,7 +388,7 @@ for (const a of after.cells) {
   pairs.push({ id: a.id, theme: a.theme });
 }
 // Section chrome owns its runtime evidence; the frozen Depth journey uses retired labels.
-const verification = ['76', '77', '78'].includes(profile) ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
+const verification = ['76', '77', '78', '79'].includes(profile) ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
 const optional = path => read(path).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
 const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-verification.json')) : null;
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
@@ -683,11 +709,42 @@ function clearPort(frame) {
   const toast = frame.toast && frame.toast.height > 0 && frame.toast.y < port.y + port.height && frame.toast.y + frame.toast.height > port.y ? frame.toast : null;
   return { port, track: frame.track, top, bottom: toast ? Math.min(port.y + port.height, toast.y) : port.y + port.height, stuck, toast };
 }
+/**
+ * The full census and the new-axe-node rule on one runtime entry, as profile 77 runs them on its
+ * runtime entries. `was` is the context's own before entry; `baseline` is the before evidence.
+ */
+function runtimeGate(e, was, baseline, at, fail, label) {
+  const { context, theme, width } = at, touch = width === 375;
+  // A state's before often rendered the same route another way (a whole-page loading line, a false
+  // empty), so a node is new only when no before state on this route, theme and width had it.
+  // The state's own before is always known. When the rig created the project it shows, the two
+  // routes differ only by that generated id, which the after's node keys are read back through.
+  const view = (baseline?.entries ?? []).filter(x => x.theme === theme && x.width === width && (x.route === e.route || x === was));
+  const [nowId, wasId] = [e.route, was?.route].map(route => typeof route === 'string' ? route.split('/').at(-1) : null);
+  const regenerated = was && nowId && wasId && nowId !== wasId && /^project-[0-9a-f]{8}$/.test(nowId) && /^project-[0-9a-f]{8}$/.test(wasId);
+  const asBefore = key => regenerated ? key.replaceAll(nowId, wasId) : key;
+  // The full census and the new-axe-node rule, as profile 77 runs them on its runtime entries.
+  if (!Array.isArray(e.controls) || !Array.isArray(e.axe?.violations) || !Array.isArray(was?.axe?.violations)) fail('runtime control or axe collector missing', at);
+  for (const c of (e.controls ?? []).filter(c => c.scope === 'product')) {
+    const box = c.target ?? c;
+    if (!(touch ? box.height < 44 || box.width < 24 : box.height < 24 || box.width < 24)) continue;
+    const detail = { cell: label + ':' + context, theme, width, reason: touch ? 'touch target under 44 px' : 'target under 24 px', text: c.text, class: c.class, targetWidth: box.width, targetHeight: box.height };
+    const exception = exceptionFor(c);
+    if (exception) censusExceptions.push({ ...detail, owner: exception.owner }); else censusFailures.push(detail);
+  }
+  const nodeKey = (v, n) => v.id + ':' + (anchorOf(n) ?? n.target?.join(' '));
+  const known = new Set(view.flatMap(x => x.axe?.violations ?? []).flatMap(v => v.nodes.flatMap(n => [nodeKey(v, n), ...(structuralAnchor(n) ? [] : [v.id + ':' + n.target?.join(' ')])])));
+  for (const violation of e.axe?.violations ?? []) {
+    if (['select-name', 'aria-progressbar-name', 'button-name'].includes(violation.id)) fail('runtime axe ' + violation.id, at);
+    if (violation.id !== 'color-contrast') for (const node of violation.nodes) if (!known.has(asBefore(nodeKey(violation, node))) && !known.has(asBefore(violation.id + ':' + node.target?.join(' ')))) fail('runtime new axe node ' + violation.id, { ...at, target: node.target });
+  }
+}
 const stateChecks = [];
 let stateHooks = null;
 async function webHook(hook) {
   if (!stateHooks) {
-    const root = new URL('../../../../apps/web/src/', import.meta.url);
+    // `UX_WEB_SRC` points the pin at another tree; the tests use it to prove a missing hook fails.
+    const root = process.env.UX_WEB_SRC ? pathToFileURL(resolve(process.env.UX_WEB_SRC) + '/') : new URL('../../../../apps/web/src/', import.meta.url);
     const files = (await readdir(root, { recursive: true })).filter(f => /\.(html|ts)$/.test(f) && !/\.(spec|stories)\.ts$/.test(f));
     stateHooks = (await Promise.all(files.map(f => readFile(new URL(f, root), 'utf8')))).join('\n');
   }
@@ -720,29 +777,7 @@ if (profile === '78') {
     const at = { context, theme, width }, touch = width === 375;
     if (!e || e.error) { fail('context not captured', { ...at, error: e?.error ?? null }); continue; }
     const was = stateBaseline?.entries?.find(x => x.context === context && x.theme === theme && x.width === width);
-    // A state's before often rendered the same route another way (a whole-page loading line, a false
-    // empty), so a node is new only when no before state on this route, theme and width had it.
-    // The state's own before is always known. When the rig created the project it shows, the two
-    // routes differ only by that generated id, which the after's node keys are read back through.
-    const view = (stateBaseline?.entries ?? []).filter(x => x.theme === theme && x.width === width && (x.route === e.route || x === was));
-    const [nowId, wasId] = [e.route, was?.route].map(route => typeof route === 'string' ? route.split('/').at(-1) : null);
-    const regenerated = was && nowId && wasId && nowId !== wasId && /^project-[0-9a-f]{8}$/.test(nowId) && /^project-[0-9a-f]{8}$/.test(wasId);
-    const asBefore = key => regenerated ? key.replaceAll(nowId, wasId) : key;
-    // The full census and the new-axe-node rule, as profile 77 runs them on its runtime entries.
-    if (!Array.isArray(e.controls) || !Array.isArray(e.axe?.violations) || !Array.isArray(was?.axe?.violations)) fail('runtime control or axe collector missing', at);
-    for (const c of (e.controls ?? []).filter(c => c.scope === 'product')) {
-      const box = c.target ?? c;
-      if (!(touch ? box.height < 44 || box.width < 24 : box.height < 24 || box.width < 24)) continue;
-      const detail = { cell: 'states:' + context, theme, width, reason: touch ? 'touch target under 44 px' : 'target under 24 px', text: c.text, class: c.class, targetWidth: box.width, targetHeight: box.height };
-      const exception = exceptionFor(c);
-      if (exception) censusExceptions.push({ ...detail, owner: exception.owner }); else censusFailures.push(detail);
-    }
-    const nodeKey = (v, n) => v.id + ':' + (anchorOf(n) ?? n.target?.join(' '));
-    const known = new Set(view.flatMap(x => x.axe?.violations ?? []).flatMap(v => v.nodes.flatMap(n => [nodeKey(v, n), ...(structuralAnchor(n) ? [] : [v.id + ':' + n.target?.join(' ')])])));
-    for (const violation of e.axe?.violations ?? []) {
-      if (['select-name', 'aria-progressbar-name', 'button-name'].includes(violation.id)) fail('runtime axe ' + violation.id, at);
-      if (violation.id !== 'color-contrast') for (const node of violation.nodes) if (!known.has(asBefore(nodeKey(violation, node))) && !known.has(asBefore(violation.id + ':' + node.target?.join(' ')))) fail('runtime new axe node ' + violation.id, { ...at, target: node.target });
-    }
+    runtimeGate(e, was, stateBaseline, at, fail, 'states');
     if (context === 'lab') {
       // The panel-relative Lab gate reads these boxes; an unchanged panel may move, never resize.
       const valid = panels => Array.isArray(panels) && panels.length > 0 && panels.every(p => p.id && isBox(p));
@@ -838,6 +873,242 @@ if (profile === '78') {
   if (!was12 || was12.status === 'completed' || !(was12.deadEnds > 0) || !complete(now12) || now12.clicks !== 1 || now12.keystrokes > 0) fail('T12 is not a dead end before and one click after', { before: was12 ?? null, after: now12 ?? null });
 }
 
+// Slice 79: every row of the plan's context table against its after entry, in every captured view.
+/** The plan's context table, without the rig's regions: the evidence's rows must be exactly these. */
+const EA_ROWS = [
+  ['first-run-demo', 'first-run'], ['first-run-alex', 'first-run'], ['first-run-sam', 'first-run'], ['first-run-create', 'create-focused'],
+  ['archived-only-home', 'archived-only-sidebar'], ['archived-only-home', 'not-first-run'], ['archived-only-canvas', 'read-only'],
+  ['archived-only-todos', 'read-only', { hidden: 'todos' }], ['archived-only-reflections', 'read-only', { hidden: 'reflections' }],
+  ['legacy-attic', 'read-only'], ['legacy-shelving', 'read-only'], ['renovation-archived-home', 'read-only'],
+  ['renovation-archived-todos', 'read-only', { hidden: 'todos' }], ['renovation-archived-reflections', 'read-only', { hidden: 'reflections' }],
+  ['renovation-archived-archive', 'read-only'], ['renovation-archived-kitchen', 'read-only'],
+  ['legacy-attic-restore', 'restored', { snapshot: 'restored' }], ['legacy-attic-restore', 'undo-refused'], ['legacy-shelving-restore', 'restored'],
+  ['renovation-restore-undo', 'restored', { snapshot: 'restored' }], ['renovation-restore-undo', 'read-only'], ['banner-restore-failing', 'restore-failure'],
+  ['kitchen-archive-blocked', 'blocked-confirm', { links: ['Cabinets'] }], ['renovation-archive-blocked', 'blocked-confirm', { links: ['Kitchen', 'Garden'] }],
+  ['cabinets-archive-commit', 'commit-confirm'], ['cabinets-late-refusal', 'late-refusal'],
+  ['archive-restore-choice', 'restore-choice'], ['settings-restore-choice', 'restore-choice'],
+  ['digest-overdue-chaos', 'digest'], ['digest-busy-week', 'digest'], ['digest-sam', 'digest'], ['digest-owner-section', 'owner-section'],
+  ['markdown-draft', 'draft'], ['markdown-cancel-edit', 'draft'], ['markdown-navigate-back', 'draft'], ['markdown-discard', 'discarded'], ['markdown-preview', 'preview'],
+  ['count-kitchen', 'count'], ['count-dense', 'count'], ['count-shortcut', 'count'], ['drag-start', 'drag'], ['todos-pending', 'todos-pending'],
+].map(([context, kind, more = {}]) => ({ context, kind, hidden: null, snapshot: null, links: null, ...more }));
+const eaRowKey = r => JSON.stringify([r.context, r.kind, r.hidden ?? null, r.snapshot ?? null, r.links ?? null]);
+const EA_ALL_VIEWS = [['dark', 1440], ['dark', 375], ['light', 1440], ['light', 375]];
+/** Capture scope's narrower contexts; every other context, and the Lab, is captured in all four views. */
+const EA_VIEWS = { 'archived-only-todos': [['light', 1440]], 'archived-only-reflections': [['light', 1440]], 'todos-pending': [['light', 1440]], 'drag-start': [['dark', 1440], ['light', 1440]] };
+const eaContexts = [...new Set(EA_ROWS.map(r => r.context)), 'lab'];
+/**
+ * The write controls a read-only region must not show (Test plan), each with the source tokens
+ * that pin it to the web source, so a renamed hook fails rather than passing silently. Collapse is
+ * not listed: it stays (Open question 4 (a)). The absence rules for hooks that later steps add (the
+ * first-run block, the banner) need no pin: the same evidence's presence rules read the same hook.
+ */
+const EA_WRITE_CONTROLS = [
+  ['[data-canvas-add]', 'data-canvas-add'], ['[data-empty-canvas-add]', 'data-empty-canvas-add'], ['app-insertion-point', 'app-insertion-point'],
+  ['[data-insertion-point-button]', 'data-insertion-point-button'], ['app-section-resize-handle', 'app-section-resize-handle'],
+  ['[data-section-drag-handle]', 'data-section-drag-handle'], ['[data-section-remove]', 'data-section-remove'], ['[data-section-config]', 'data-section-config'],
+  ['[data-section-title-edit]', 'data-section-title-edit'], ['[data-shortcut-drag-handle]', 'data-shortcut-drag-handle'], ['[data-shortcut-remove]', 'data-shortcut-remove'],
+  ['[data-unknown-section-drag-handle]', 'data-unknown-section-drag-handle'], ['[data-unknown-section-remove]', 'data-unknown-section-remove'],
+  ['[data-quick-create]', 'data-quick-create'], ['[data-task-complete]', 'data-task-complete'], ['[data-task-delete]', 'data-task-delete'],
+  ['[data-markdown-edit]', 'data-markdown-edit'], ['[data-reflection-create]', 'data-reflection-create'], ['[data-reflection-edit]', 'data-reflection-edit'],
+  ['.progress-section__controls', 'progress-section__controls'], ['[data-todo-toggle]', 'data-todo-toggle'], ['[data-todo-complete]', 'data-todo-complete'],
+  ['[data-todo-delete]', 'data-todo-delete'], ['app-task-row.cdk-drag', 'app-task-row', 'cdkDrag'], ['button[aria-label$=", open details"]', ', open details'],
+];
+/** Hooks the rules read whose absence would otherwise pass: rename and Parent, the commit, the editor. */
+const EA_RULE_HOOKS = ['data-project-more', 'data-project-edit-details', 'data-project-archive-confirm-yes', 'data-markdown-source', 'data-create-project-name', 'data-todos-empty', 'data-reflections-empty'];
+/** Stage 0: each digest context's `today.overdue` count at `SEED_NOW`. */
+const EA_DIGEST_OVERDUE = { 'digest-overdue-chaos': 4, 'digest-busy-week': 1, 'digest-sam': 1 };
+/** The contexts whose editor reopens an offered draft: "Your unsaved draft is back." and Discard draft. */
+const EA_DRAFT_BACK = new Set(['markdown-cancel-edit', 'markdown-navigate-back']);
+const EA_ORDINARY = { todos: 'There is no work under this project yet — no tasks, and no workstreams.', reflections: 'No reflections yet.' };
+/**
+ * The slice-78 after counts (Acceptance item 5), clicks / keystrokes, held here because the
+ * evidence they came from is git-ignored. T10 is excluded, as in profile 78.
+ */
+const EA_TASK_LIMITS = { T01: [2, 16], T02: [3, 19], T03: [10, 38], T04: [1, 0], T05: [2, 0], T06: [2, 16], T07: [3, 0], T08: [3, 0], T09: [1, 0], T11: [1, 0], T12: [1, 0] };
+/** The plan's Visual acceptance table, one pair per row and view. */
+const EA_VISUAL_PAIRS = [
+  ['first-run-demo', 'light', 1440, 'W1-001, W4-001, L4-020'], ['first-run-demo', 'dark', 375, 'W1-001, W4-001, L4-020'], ['first-run-alex', 'light', 1440, 'W1-001, W4-001, L4-020'], ['first-run-sam', 'dark', 375, 'W1-001, W4-001, L4-020'],
+  ['first-run-create', 'dark', 1440, 'W1-001'], ['first-run-create', 'light', 375, 'W1-001'], ['archived-only-home', 'dark', 1440, 'W4-034'], ['archived-only-home', 'light', 375, 'W4-034'],
+  ['legacy-attic', 'light', 1440, 'L1-028, L4-007'], ['legacy-attic', 'dark', 375, 'L1-028, L4-007'],
+  ['renovation-archived-home', 'dark', 1440, 'L4-007'], ['renovation-archived-todos', 'dark', 1440, 'L4-007 (Q7)'], ['renovation-archived-reflections', 'dark', 1440, 'L4-007 (Q7)'],
+  ['legacy-shelving', 'light', 1440, 'L4-007'], ['renovation-restore-undo', 'dark', 1440, 'L4-007'], ['legacy-attic-restore', 'dark', 1440, 'L4-007'],
+  ['todos-pending', 'light', 1440, 'carried (slice 75)'], ['kitchen-archive-blocked', 'dark', 1440, 'L4-008'], ['kitchen-archive-blocked', 'light', 375, 'L4-008'],
+  ['cabinets-late-refusal', 'light', 1440, 'L4-008'], ['archive-restore-choice', 'light', 1440, 'L4-012'], ['settings-restore-choice', 'light', 1440, 'L4-012'],
+  ['digest-sam', 'dark', 1440, 'W4-028'], ['digest-sam', 'light', 375, 'W4-028'], ['markdown-cancel-edit', 'light', 1440, 'L3-012'], ['markdown-navigate-back', 'dark', 1440, 'L3-012'],
+  ['markdown-preview', 'light', 1440, 'W4-031'], ['markdown-preview', 'dark', 375, 'W4-031'], ['count-dense', 'light', 1440, 'L4-023'], ['count-kitchen', 'dark', 375, 'L4-023'],
+  ['drag-start', 'dark', 1440, 'carried (note-2026-10-22-002)'],
+];
+const emptyArchivedChecks = [];
+const eaPairs = profile === '79' ? EA_VISUAL_PAIRS.map(([context, theme, width, findings]) => {
+  const find = evidence => evidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
+  const present = e => e && !e.error && e.screenshot;
+  const [was, now] = [find(eaBaseline), find(eaEvidence)];
+  return { context, theme, width, findings, before: was?.screenshot ?? null, after: now?.screenshot ?? null, status: present(was) && present(now) ? 'paired' : present(was) ? 'before only' : present(now) ? 'after only' : 'missing before and after' };
+}) : [];
+if (profile === '79') {
+  const fail = (reason, detail = {}) => failures.push({ reason: 'empty-archived: ' + reason, ...detail });
+  for (const [phase, evidence] of [['before', eaBaseline], ['after', eaEvidence]]) if (!evidence?.complete || !evidence.entries?.length) fail('empty-archived-verification.json missing or incomplete', { phase });
+  for (const pair of eaPairs) if (pair.status !== 'paired') fail('visual acceptance pair missing', pair);
+  // The rig's table must be the plan's, row for row; the rig owns only each row's region.
+  const rows = Array.isArray(eaEvidence?.rows) ? eaEvidence.rows : [];
+  const keys = rows.map(eaRowKey);
+  for (const r of EA_ROWS) if (!keys.includes(eaRowKey(r))) fail('context table row missing', { row: r });
+  for (const r of rows) {
+    if (!EA_ROWS.some(x => eaRowKey(x) === eaRowKey(r))) fail('context table row the plan does not list', { row: r });
+    if (typeof r.region !== 'string' || !r.region) fail('invalid context table row', { row: r });
+  }
+  if (new Set(keys).size !== keys.length) fail('duplicate context table rows');
+  // The probe looked for exactly the gate's list, and every entry of it still exists in the web source.
+  if (JSON.stringify(eaEvidence?.writeControls ?? null) !== JSON.stringify(EA_WRITE_CONTROLS.map(([selector]) => selector))) fail('write-control list differs from the plan\'s', { recorded: eaEvidence?.writeControls ?? null });
+  const missingHooks = [];
+  for (const [selector, ...tokens] of EA_WRITE_CONTROLS) for (const token of tokens) if (!await webHook(token)) missingHooks.push({ selector, token });
+  for (const token of EA_RULE_HOOKS) if (!await webHook(token)) missingHooks.push({ selector: null, token });
+  if (missingHooks.length) fail('write-control or rule hooks not found in the web source: ' + missingHooks.map(h => h.token).join(', '), { missing: missingHooks });
+  const visible = list => (list ?? []).filter(c => c.visible === true);
+  const hooked = (list, hook) => visible(list).filter(c => c.hooks?.includes(hook));
+  const norm = text => typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
+  const choices = new Map();
+  for (const context of eaContexts) for (const [theme, width] of EA_VIEWS[context] ?? EA_ALL_VIEWS) {
+    const at = { context, theme, width }, touch = width === 375;
+    const find = evidence => evidence?.entries?.find(x => x.context === context && x.theme === theme && x.width === width);
+    const e = find(eaEvidence), was = find(eaBaseline);
+    if (!e || e.error) { fail('context not captured', { ...at, phase: 'after', error: e?.error ?? null }); continue; }
+    if (!was || was.error) { fail('context not captured', { ...at, phase: 'before', error: was?.error ?? null }); continue; }
+    runtimeGate(e, was, eaBaseline, at, fail, 'empty-archived');
+    if (context === 'lab') {
+      // The panel-relative Lab gate reads these boxes; an unchanged panel may move, never resize.
+      const valid = panels => Array.isArray(panels) && panels.length > 0 && panels.every(p => p.id && isBox(p));
+      if (!valid(e.panels) || !valid(was.panels)) { fail('Lab panel evidence missing', at); continue; }
+      for (const panel of was.panels) if (!labPanels.has(panel.id)) {
+        const now = e.panels.find(p => p.id === panel.id);
+        if (!now || ['width', 'height'].some(k => Math.abs(now[k] - panel[k]) > 1)) fail('Lab unchanged specimen panel missing or resized', { ...at, panel: panel.id });
+      }
+      continue;
+    }
+    const checked = [];
+    const check = (r, reason, detail = {}) => { checked.push(reason); fail(reason, { ...at, kind: r?.kind ?? null, region: r?.region ?? null, ...detail }); };
+    // A failure's reason belongs inside a closed Details: never in the region's text, and revealed when opened.
+    const reasonHidden = (r, text) => {
+      if (!e.reason) { check(r, 'failure row with no injected reason'); return; }
+      if (norm(text).includes(e.reason)) check(r, 'injected reason visible outside a closed Details');
+      const scope = r.kind === 'restore-failure' ? 'app-archived-banner' : r.region;
+      if (!e.detailsOpen?.regions?.find(x => x.region === scope)?.details?.some(d => d.open === true && d.text?.includes(e.reason))) check(r, 'Details does not reveal the injected reason');
+    };
+    for (const r of rows.filter(x => x.context === context)) {
+      const page = r.snapshot ? e[r.snapshot] : e;
+      const reg = page?.regions?.find(x => x.region === r.region);
+      if (!reg?.present) { check(r, r.snapshot && !page ? 'snapshot missing: ' + r.snapshot : 'row region missing'); continue; }
+      const text = norm(reg.text);
+      if (r.kind === 'first-run' && !hooked(reg.controls, 'data-first-run-create').length) check(r, 'first-run row without the main-column New project');
+      if (r.kind === 'not-first-run' && hooked(reg.controls, 'data-first-run-create').length) check(r, 'first-run block on a workspace that has a project');
+      if (r.kind === 'create-focused') {
+        if (e.pressed !== 'main') check(r, 'first run pressed the sidebar\'s New project, not the main column\'s', { pressed: e.pressed ?? null });
+        if (!(page.focus?.visible === true && page.focus.hooks?.includes('data-create-project-name'))) check(r, 'creation form name field not focused', { focus: page.focus ?? null });
+      }
+      if (r.kind === 'archived-only-sidebar' && (!text.includes('No active projects.') || text.includes('No projects yet') || !visible(reg.controls).some(c => c.tag === 'a' && c.href === '/settings/archived-projects')))
+        check(r, 'archived-only sidebar without "No active projects." and its Settings link, or saying "No projects yet"', { text: text.slice(0, 200) });
+      if (r.kind === 'read-only') {
+        if (!Array.isArray(reg.writeControls)) check(r, 'write control evidence missing');
+        else if (reg.writeControls.length) check(r, 'write control visible in a read-only region', { controls: reg.writeControls });
+        const banner = page.banner;
+        if (!banner || !isBox(banner.box)) check(r, 'read-only row without the banner');
+        else {
+          if (!isBox(page.header?.box) || banner.box.y < page.header.box.y + page.header.box.height - 1) check(r, 'banner not under the header', { banner: banner.box, header: page.header?.box ?? null });
+          if (isBox(page.firstFrame) && banner.box.y + banner.box.height > page.firstFrame.y + 1) check(r, 'banner over the first section', { banner: banner.box, firstFrame: page.firstFrame });
+        }
+        // Rename and Parent live in Edit details…, under More: both stay on a read-only project.
+        const header = page.header?.controls ?? [];
+        if (!header.some(c => c.hooks?.includes('data-project-more') && c.visible === true) || !header.some(c => c.hooks?.includes('data-project-edit-details'))) check(r, 'read-only row without header rename and Parent (More › Edit details…)');
+        if (r.hidden) {
+          // Q7 as amended, on after rows only: a missing count fails; it is never read as 0.
+          const n = e.hiddenItemCount, hook = `data-${r.hidden}-empty`;
+          if (!Number.isInteger(n) || n < 0) check(r, 'read-only row with no recorded hiddenItemCount', { hiddenItemCount: n ?? null });
+          else {
+            const noun = r.hidden === 'todos' ? 'todo' : 'reflection';
+            const want = n > 0 ? `Restore to view ${n} hidden ${noun}${n === 1 ? '' : 's'}.` : EA_ORDINARY[r.hidden];
+            const shown = (reg.emptyHooks ?? []).filter(h => h.hook === hook);
+            if (shown.length !== 1 || norm(shown[0].text) !== want) check(r, 'hidden-count sentence wrong', { hiddenItemCount: n, expected: want, shown });
+            if (n > 0 && Object.values(EA_ORDINARY).some(s => text.includes(s))) check(r, 'ordinary sentence shown over hidden work', { hiddenItemCount: n });
+          }
+        }
+      }
+      if (r.kind === 'restored') {
+        // The banner is gone and focus is on the heading, or the next owner's banner holds focus on its choice.
+        const focus = page.focus, banner = page.banner;
+        const onChoice = banner && focus && (banner.controls ?? []).some(c => c.name === focus.name && isBox(c.box) && isBox(focus.box) && ['x', 'y', 'width', 'height'].every(k => Math.abs(c.box[k] - focus.box[k]) <= 1));
+        if (e.bannerPresent !== true || !('banner' in page) || (banner === null ? !/^h[1-6]$/.test(focus?.tag ?? '') : !onChoice)) check(r, 'restored row: banner left, or focus not on the heading or the next owner\'s choice', { bannerPresent: e.bannerPresent ?? null, banner: banner ?? null, focus: focus ?? null });
+      }
+      if (r.kind === 'undo-refused' && (e.undoRefused !== true || page.banner !== null)) check(r, 'undo-refused row without the transition refusal, or with the banner back', { undoRefused: e.undoRefused ?? null });
+      if (r.kind === 'restore-failure') {
+        const banner = norm(page.banner?.text);
+        if (e.bannerPresent !== true || !banner.includes('Couldn’t restore') || norm(page.header?.text).includes('Couldn’t restore')) check(r, 'restore failure not shown in the banner', { banner: banner || null });
+        reasonHidden(r, banner);
+      }
+      if (r.kind === 'blocked-confirm') {
+        if (hooked(reg.controls, 'data-project-archive-confirm-yes').length || visible(reg.controls).some(c => c.tag === 'button' && /^Archive\b/i.test(c.name ?? ''))) check(r, 'blocked confirmation with a commit button');
+        for (const child of r.links ?? []) if (!visible(reg.controls).some(c => c.tag === 'a' && c.href && (c.name ?? '').startsWith(child))) check(r, 'blocked confirmation child without a link', { child });
+      }
+      if (r.kind === 'commit-confirm' && !hooked(reg.controls, 'data-project-archive-confirm-yes').length) check(r, 'commit-confirm row without its commit button');
+      if (r.kind === 'late-refusal') {
+        if (!text.includes('still has live workstreams. Archive them first.')) check(r, 'late refusal does not say what to do', { text: text.slice(0, 200) });
+        reasonHidden(r, text);
+      }
+      if (r.kind === 'restore-choice') {
+        // One visible choice, Active preselected; choosing changes it; option labels in sentence case, no placeholder.
+        const [select, ...extra] = visible(reg.selects);
+        const chosen = visible(e.chosen?.regions?.find(x => x.region === r.region)?.selects)[0];
+        const options = select?.options ?? [];
+        if (!select || extra.length || select.value !== 'active' || select.selectedText !== 'Active' || !options.length || options.some(o => !o.value || !/^[A-Z][a-z ]*$/.test(o.text ?? '')) || chosen?.value !== 'on_hold')
+          check(r, 'restore choice is not one visible choice defaulting to Active in one casing', { select: select ?? null, extra: extra.length, chosen: chosen?.value ?? null });
+        const view = theme + '|' + width;
+        choices.set(view, [...(choices.get(view) ?? []), { context, options: JSON.stringify(options) }]);
+      }
+      if (r.kind === 'digest') {
+        const listed = reg.digestOverdue, expected = Math.min(EA_DIGEST_OVERDUE[context] ?? 0, 5);
+        if (!Array.isArray(listed) || listed.length !== expected || listed.some(x => !/^\/projects\/[^#]+#section-/.test(x.href ?? '') || !isBox(x.linkBox))) check(r, 'digest overdue rows do not each link to their owner section', { expected, listed: listed ?? null });
+      }
+      if (r.kind === 'owner-section') {
+        const href = e.followed?.href, hash = typeof href === 'string' ? href.slice(href.indexOf('#') + 1) : null;
+        if (e.overdueLinkPresent !== true || !href || page.url !== href || page.hashTarget?.visible !== true || page.hashTarget.id !== hash) check(r, 'overdue link did not land on its owner section', { followed: e.followed ?? null, url: page.url ?? null, hashTarget: page.hashTarget ?? null });
+      }
+      const source = (reg.sources ?? []).find(x => x.hooks?.includes('data-markdown-source'));
+      if (r.kind === 'draft') {
+        if (!e.typedDraft || source?.value !== e.typedDraft) check(r, 'draft row whose source is not the typed draft');
+        if (EA_DRAFT_BACK.has(context) && (!text.includes('Your unsaved draft is back.') || !visible(reg.controls).some(c => c.name === 'Discard draft'))) check(r, 'draft row without "Your unsaved draft is back." and Discard draft');
+      }
+      if (r.kind === 'discarded' && (e.discardPresent !== true || typeof e.savedSource !== 'string' || source?.value !== e.savedSource)) check(r, 'discarded row whose source is not the saved text', { discardPresent: e.discardPresent ?? null });
+      if (r.kind === 'preview' && !text.includes('Unsaved preview')) check(r, 'preview without the "Unsaved preview" caption');
+      if (r.kind === 'count') {
+        const frames = reg.frames ?? [];
+        if (!frames.length) check(r, 'count row without a Task List frame');
+        for (const f of frames) {
+          const counts = [...(f.header ?? '').matchAll(/(\d+) tasks?\b/g)];
+          const want = f.rows > 0 ? `${f.rows} task${f.rows === 1 ? '' : 's'}` : null;
+          if (!Number.isInteger(f.rows) || (want ? counts.length !== 1 || counts[0][0] !== want : counts.length)) check(r, 'Task List count differs from its rendered rows', { header: f.header ?? null, rows: f.rows ?? null });
+        }
+      }
+      if (r.kind === 'drag') {
+        const d = e.drag;
+        if (d?.dragging !== true || !Number.isFinite(d.firstRowTopBefore) || !Number.isFinite(d.firstRowTopDuring) || Math.abs(d.firstRowTopDuring - d.firstRowTopBefore) > 1) check(r, 'drag start moved the first row more than 1 px', { drag: d ?? null });
+      }
+      if (r.kind === 'todos-pending') {
+        // The pending row's own Complete is gone (optimistic); every other row's Complete and Delete stays focusable.
+        const writes = (reg.controls ?? []).filter(c => c.hooks?.some(h => h === 'data-todo-complete' || h === 'data-todo-delete'));
+        const bad = writes.filter(c => c.disabled || c.ariaDisabled !== true);
+        const focus = page.focus;
+        if (!writes.some(c => c.hooks.includes('data-todo-complete')) || bad.length || !(focus?.hooks?.includes('data-todo-complete') && focus.ariaDisabled === true && focus.focusVisible === true))
+          check(r, 'todos pending: a Complete or Delete is natively disabled, lacks aria-disabled, or focus skipped it', { bad: bad.map(c => c.name), focus: focus ?? null });
+      }
+    }
+    emptyArchivedChecks.push({ context, theme, width, failures: checked.length, checks: checked });
+  }
+  for (const [view, list] of choices) if (list.length !== 2 || list[0].options !== list[1].options) fail('restore choices differ between Archive and Settings', { view, choices: list });
+  const complete = t => t && t.status === 'completed' && t.deadEnds === 0 && Number.isFinite(t.clicks) && Number.isFinite(t.keystrokes);
+  for (const [id, [clicks, keystrokes]] of Object.entries(EA_TASK_LIMITS)) {
+    const now = Array.isArray(eaEvidence?.tasks) ? eaEvidence.tasks.find(t => t.id === id) : undefined;
+    if (!complete(now) || now.clicks > clicks || now.keystrokes > keystrokes) fail('core task above the slice-78 after count or missing', { id, limit: { clicks, keystrokes }, after: now ?? null });
+  }
+}
 const primitives = profile === '72' ? await optional(join(verificationDir, 'primitives-verification.json')) : null;
 const primitivesLab = profile === '72' ? await optional(join(verificationDir, 'primitives-lab.json')) : null;
 const baselinePrimitives = profile === '72' ? await optional(join(beforeDir, 'primitives-verification.json')) : null;
@@ -873,7 +1144,7 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
 failures.push(...censusFailures);
-const report = { objects, objectsBefore, objectVisualPairs, chrome, chromeBefore, placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs, statesVisualPairs: stateVisualPairs, stateChecks, statesTasks: profile === '78' ? { before: stateBaseline?.tasks ?? null, after: stateEvidence?.tasks ?? null } : null };
+const report = { objects, objectsBefore, objectVisualPairs, chrome, chromeBefore, placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs, statesVisualPairs: stateVisualPairs, stateChecks, statesTasks: profile === '78' ? { before: stateBaseline?.tasks ?? null, after: stateEvidence?.tasks ?? null } : null, emptyArchivedPairs: eaPairs, emptyArchivedChecks, emptyArchivedTasks: profile === '79' ? { limits: EA_TASK_LIMITS, before: eaBaseline?.tasks ?? null, after: eaEvidence?.tasks ?? null } : null };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
 // Profile 73's "Visual acceptance pairs" table: which findings each core cell demonstrates.
@@ -1083,4 +1354,34 @@ if (profile === '78') {
   await writeFile(join(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 78 · States · Gate 2</title><style>body{font:16px/1.5 system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain;object-position:top}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#ffad7f}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #394156}@media(max-width:700px){body{margin:12px}.pair{grid-template-columns:1fr}}</style><h1>States: failures and loading / Slice 78</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ' + esc(before.commit) + ' → after ' + esc(after.commit) + '. States evidence: before ' + esc(stateBaseline?.commit ?? 'unavailable') + ' → after ' + esc(stateEvidence?.commit ?? 'unavailable') + '.</p><p>' + pairs.length + ' paired matrix cells · ' + failures.length + ' gate failures · ' + gaps.length + ' of ' + stateVisualPairs.length + ' visual acceptance pairs incomplete. Zero gate failures does not mean user acceptance.</p><p><a href="report.json">Full gate report</a> · <a href="states-verification.json">States evidence, before and after</a></p><h2>Core task costs</h2>' + costs + '<h2>Visual acceptance before / after</h2>' + featured.join('') + '<h2>Context table</h2><p>Every exemption comes from this table. Each row is checked in both themes at 1440 and 375.</p>' + table + '<h2>Matrix before / after</h2><details><summary>All ' + pairs.length + ' matrix pairs</summary>' + pairs.map(card).join('') + '</details><h2>Checks and gate failures</h2><pre>' + esc(JSON.stringify(failures, null, 2)) + '</pre><details><summary>Reported movement in the four changing cells</summary><pre>' + esc(JSON.stringify(geometryReport, null, 2)) + '</pre></details><h2>Contrast (reported only)</h2>' + contrastTable + '</html>');
 }
 console.log(JSON.stringify({ pairs: pairs.length, geometryFailures: failures.length, intentionalLabChanges: exceptions.length, composites, output }));
+if (profile === '79') {
+  const copied = new Set();
+  const copy = async (phase, dir, file) => {
+    const name = phase + '-' + file;
+    if (!copied.has(name)) { await copyFile(join(dir, file), join(output, name)); copied.add(name); }
+    return name;
+  };
+  const find = (evidence, context, theme, width) => evidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
+  const extras = [['restoredScreenshot', 'after Restore'], ['chosenScreenshot', 'after choosing'], ['detailsOpenScreenshot', 'Details open']];
+  const featured = [];
+  for (const pair of eaPairs) {
+    const was = find(eaBaseline, pair.context, pair.theme, pair.width), now = find(eaEvidence, pair.context, pair.theme, pair.width);
+    const pictures = [];
+    for (const [phase, item, dir] of [['before', was, beforeDir], ['after', now, verificationDir]]) if (item?.screenshot && !item.error) pictures.push(figure(await copy(phase, dir, item.screenshot), phase));
+    const more = [];
+    for (const [field, caption] of extras) for (const [phase, item, dir] of [['before', was, beforeDir], ['after', now, verificationDir]]) if (item?.[field] && !item.error) more.push(figure(await copy(phase, dir, item[field]), phase + ' · ' + caption));
+    featured.push(`<article id="pair-${esc(pair.context)}-${pair.theme}-${pair.width}"><h3>${esc(`${pair.context} · ${pair.theme} · ${pair.width}`)}</h3><p>${esc(pair.findings)} · ${esc(pair.status)}</p><div class="pair">${pictures.join('')}</div>${more.length ? `<div class="pair">${more.join('')}</div>` : ''}</article>`);
+  }
+  const costs = '<table><tr><th>Task</th><th>Slice-78 after (limit)</th><th>Before clicks / keys</th><th>After clicks / keys</th><th>Before → after</th></tr>' + Object.entries(EA_TASK_LIMITS).map(([id, [clicks, keystrokes]]) => {
+    const was = eaBaseline?.tasks?.find?.(t => t.id === id), now = eaEvidence?.tasks?.find?.(t => t.id === id);
+    return `<tr><th>${esc(id)}</th><td>${clicks} / ${keystrokes}</td><td>${esc(was?.clicks ?? '—')} / ${esc(was?.keystrokes ?? '—')}</td><td>${esc(now?.clicks ?? '—')} / ${esc(now?.keystrokes ?? '—')}</td><td>${esc(was?.status ?? 'missing')} → ${esc(now?.status ?? 'missing')}</td></tr>`;
+  }).join('') + '</table>';
+  const table = '<table><tr><th>Context</th><th>Region</th><th>Kind</th><th>Hidden</th><th>Snapshot</th><th>Links</th><th>Failed checks (all views)</th></tr>' + (eaEvidence?.rows ?? []).map(r => {
+    const failed = emptyArchivedChecks.filter(c => c.context === r.context).reduce((n, c) => n + c.failures, 0);
+    return `<tr><td>${esc(r.context)}</td><td><code>${esc(r.region)}</code></td><td>${esc(r.kind)}</td><td>${esc(r.hidden ?? '—')}</td><td>${esc(r.snapshot ?? '—')}</td><td>${esc((r.links ?? []).join(', ') || '—')}</td><td>${failed}</td></tr>`;
+  }).join('') + '</table>';
+  const gaps = eaPairs.filter(pair => pair.status !== 'paired');
+  await writeFile(join(output, 'empty-archived-verification.json'), JSON.stringify({ after: eaEvidence, before: eaBaseline }, null, 2));
+  await writeFile(join(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 79 · Empty, archived and editing · Gate 2</title><style>body{font:16px/1.5 system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain;object-position:top}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#ffad7f}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #394156}@media(max-width:700px){body{margin:12px}.pair{grid-template-columns:1fr}}</style><h1>States: empty, archived and editing / Slice 79</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ' + esc(before.commit) + ' → after ' + esc(after.commit) + '. Evidence: before ' + esc(eaBaseline?.commit ?? 'unavailable') + ' → after ' + esc(eaEvidence?.commit ?? 'unavailable') + '.</p><p>' + pairs.length + ' paired matrix cells · ' + failures.length + ' gate failures · ' + gaps.length + ' of ' + eaPairs.length + ' visual acceptance pairs incomplete. Zero gate failures does not mean user acceptance.</p><p><a href="report.json">Full gate report</a> · <a href="empty-archived-verification.json">Evidence, before and after</a></p><h2>Core task costs</h2>' + costs + '<h2>Visual acceptance before / after</h2>' + featured.join('') + '<h2>Context table</h2><p>Each row is the plan\'s; the gate checks each in its captured views.</p>' + table + '<h2>Matrix before / after</h2><details><summary>All ' + pairs.length + ' matrix pairs</summary>' + pairs.map(card).join('') + '</details><h2>Checks and gate failures</h2><pre>' + esc(JSON.stringify(failures, null, 2)) + '</pre><details><summary>Reported movement in the changing cells</summary><pre>' + esc(JSON.stringify(geometryReport, null, 2)) + '</pre></details><h2>Contrast (reported only)</h2>' + contrastTable + '</html>');
+}
 if (failures.length) process.exitCode = 1;

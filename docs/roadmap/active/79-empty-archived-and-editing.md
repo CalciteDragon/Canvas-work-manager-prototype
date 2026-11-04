@@ -3,7 +3,20 @@
 
 **State (2026-11-04):** plan written (S79PLAN), reviewed in six rounds and **accepted by the user
 on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden counts, step 6a).
-`CURRENT_SLICE` is 79. **Step 0 is done (S79S0)**; next is step 1 (profile 79, tests first).
+`CURRENT_SLICE` is 79. **Step 0 is done (S79S0). Step 1 is done (S79S1)**: profile 79 in
+`build-sheet.mjs`, driven by 20 fixture tests in `build-sheet.test.mjs` (all 106 tooling tests
+green; profiles 71–78 unchanged). Next is step 2 (foundations).
+- **Profile 79:** the gate holds the plan's tables (context rows without regions, views per
+  context, the 25 write controls with their source tokens plus the rule hooks, the 31 visual pairs,
+  the digest's Stage 0 overdue counts, the T01–T12 cost limits) and fails when the rig's differ.
+  Profile 78's census and axe rule is now the shared `runtimeGate`, unchanged. The only matrix
+  allowance outside the seven changing cells is a control text gaining one "N tasks" count.
+- **Before against before** (`build-sheet.mjs 44e7e9e 44e7e9e <out> 44e7e9e --profile 79`, out in
+  `apps/e2e/ux-output/slice79-sheet-before-before/`): 194 pairs; **zero** matrix geometry, census,
+  axe, Lab or core-task failures; 207 row-rule failures, every one an after-only rule the before
+  lacks (no banner, write controls on read-only pages, no first-run block, lowercase and
+  placeholder restore choices, no overdue links, no draft kept, no count, the drag drop, native
+  `disabled` on pending Todos, no `hiddenItemCount`). 0 of 31 pairs incomplete, 145 views checked.
 - **Inventory:** under Behaviour vs. appearance, "Stage 0 inventory" and "Stage 0 checks". What
   it changes for later steps: `lifts.spec.ts:158-163` archives Home renovation (live children), so
   step 7 changes it; `canvas-editing.spec.ts:150-157` and `markdown-section-body.spec.ts:63-67`

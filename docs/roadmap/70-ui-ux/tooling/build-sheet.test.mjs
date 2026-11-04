@@ -1339,3 +1339,407 @@ test('profile 78 reads a state\'s known axe nodes only from before states on the
   await statesFails(t, { evidence: after, before: elsewhere('/projects/project-renovation/pages/todos') }, 'known only on another route');
   await statesFails(t, { evidence: e => { e.tasks.find(x => x.id === 'T12').clicks = 0; } }, 'T12 costs no clicks');
 });
+
+// Profile 79: slice 79's empty, archived and editing gate. The fixture table is the rig's ROWS
+// (pinned below); every fixture entry passes its rows' rules, so each test breaks exactly one.
+const eaSection = (project, id) => `[data-section-id="section-${project}-${id}"]`;
+const EA_KITCHEN_TASKS = eaSection('project-kitchen', 'tasks'), EA_KITCHEN_BRIEF = eaSection('project-kitchen', 'brief');
+const EA_DENSE_TASKS = eaSection('project-work-manager', 'tasks');
+const EA_SHORTCUT_R = '[data-shortcut-id="shortcut-renovation-kitchen-tasks"]';
+const EA_DIGEST_R = '[data-dashboard-tile][data-widget-type="daily_digest"]';
+const EA_CONFIRM_R = '[data-project-archive-confirm]';
+const EA_ARCHIVE_ROW = '[data-archived-item][data-archived-id="project-legacy"]';
+const EA_SETTINGS_ROW = '[data-archived-project][data-project-id="project-legacy"]';
+const eaRow = (context, region, kind, more = {}) => ({ context, region, kind, hidden: null, snapshot: null, links: null, ...more });
+const eaRows = () => [
+  eaRow('first-run-demo', 'app-dashboard-page', 'first-run'),
+  eaRow('first-run-alex', 'app-dashboard-page', 'first-run'),
+  eaRow('first-run-sam', 'app-dashboard-page', 'first-run'),
+  eaRow('first-run-create', 'app-sidebar', 'create-focused'),
+  eaRow('archived-only-home', 'app-sidebar', 'archived-only-sidebar'),
+  eaRow('archived-only-home', 'app-dashboard-page', 'not-first-run'),
+  eaRow('archived-only-canvas', 'main', 'read-only'),
+  eaRow('archived-only-todos', 'app-todos-page', 'read-only', { hidden: 'todos' }),
+  eaRow('archived-only-reflections', 'app-reflections-page', 'read-only', { hidden: 'reflections' }),
+  eaRow('legacy-attic', 'main', 'read-only'),
+  eaRow('legacy-shelving', 'main', 'read-only'),
+  eaRow('renovation-archived-home', 'main', 'read-only'),
+  eaRow('renovation-archived-todos', 'app-todos-page', 'read-only', { hidden: 'todos' }),
+  eaRow('renovation-archived-reflections', 'app-reflections-page', 'read-only', { hidden: 'reflections' }),
+  eaRow('renovation-archived-archive', 'main', 'read-only'),
+  eaRow('renovation-archived-kitchen', 'main', 'read-only'),
+  eaRow('legacy-attic-restore', 'main', 'restored', { snapshot: 'restored' }),
+  eaRow('legacy-attic-restore', 'main', 'undo-refused'),
+  eaRow('legacy-shelving-restore', 'main', 'restored'),
+  eaRow('renovation-restore-undo', 'main', 'restored', { snapshot: 'restored' }),
+  eaRow('renovation-restore-undo', 'main', 'read-only'),
+  eaRow('banner-restore-failing', 'main', 'restore-failure'),
+  eaRow('kitchen-archive-blocked', EA_CONFIRM_R, 'blocked-confirm', { links: ['Cabinets'] }),
+  eaRow('renovation-archive-blocked', EA_CONFIRM_R, 'blocked-confirm', { links: ['Kitchen', 'Garden'] }),
+  eaRow('cabinets-archive-commit', EA_CONFIRM_R, 'commit-confirm'),
+  eaRow('cabinets-late-refusal', 'app-project-header', 'late-refusal'),
+  eaRow('archive-restore-choice', EA_ARCHIVE_ROW, 'restore-choice'),
+  eaRow('settings-restore-choice', EA_SETTINGS_ROW, 'restore-choice'),
+  eaRow('digest-overdue-chaos', EA_DIGEST_R, 'digest'),
+  eaRow('digest-busy-week', EA_DIGEST_R, 'digest'),
+  eaRow('digest-sam', EA_DIGEST_R, 'digest'),
+  eaRow('digest-owner-section', 'main', 'owner-section'),
+  eaRow('markdown-draft', EA_KITCHEN_BRIEF, 'draft'),
+  eaRow('markdown-cancel-edit', EA_KITCHEN_BRIEF, 'draft'),
+  eaRow('markdown-navigate-back', EA_KITCHEN_BRIEF, 'draft'),
+  eaRow('markdown-discard', EA_KITCHEN_BRIEF, 'discarded'),
+  eaRow('markdown-preview', EA_KITCHEN_BRIEF, 'preview'),
+  eaRow('count-kitchen', EA_KITCHEN_TASKS, 'count'),
+  eaRow('count-dense', EA_DENSE_TASKS, 'count'),
+  eaRow('count-shortcut', EA_SHORTCUT_R, 'count'),
+  eaRow('drag-start', EA_KITCHEN_TASKS, 'drag'),
+  eaRow('todos-pending', 'app-todos-page', 'todos-pending'),
+];
+const EA_WRITE_CONTROLS = [
+  '[data-canvas-add]', '[data-empty-canvas-add]', 'app-insertion-point', '[data-insertion-point-button]',
+  'app-section-resize-handle', '[data-section-drag-handle]', '[data-section-remove]', '[data-section-config]',
+  '[data-section-title-edit]', '[data-shortcut-drag-handle]', '[data-shortcut-remove]',
+  '[data-unknown-section-drag-handle]', '[data-unknown-section-remove]', '[data-quick-create]',
+  '[data-task-complete]', '[data-task-delete]', '[data-markdown-edit]', '[data-reflection-create]',
+  '[data-reflection-edit]', '.progress-section__controls', '[data-todo-toggle]', '[data-todo-complete]',
+  '[data-todo-delete]', 'app-task-row.cdk-drag', 'button[aria-label$=", open details"]',
+];
+const EA_ALL_VIEWS = [['dark', 1440], ['dark', 375], ['light', 1440], ['light', 375]];
+const eaViews = context => ({ 'archived-only-todos': [['light', 1440]], 'archived-only-reflections': [['light', 1440]], 'todos-pending': [['light', 1440]], 'drag-start': [['dark', 1440], ['light', 1440]] })[context] ?? EA_ALL_VIEWS;
+/** The slice-78 after counts (Acceptance item 5), clicks / keystrokes. */
+const EA_LIMITS = { T01: [2, 16], T02: [3, 19], T03: [10, 38], T04: [1, 0], T05: [2, 0], T06: [2, 16], T07: [3, 0], T08: [3, 0], T09: [1, 0], T11: [1, 0], T12: [1, 0] };
+const EA_HIDDEN = { 'archived-only-todos': 0, 'archived-only-reflections': 0, 'renovation-archived-todos': 6, 'renovation-archived-reflections': 3 };
+const EA_ORDINARY = { todos: 'There is no work under this project yet — no tasks, and no workstreams.', reflections: 'No reflections yet.' };
+const EA_DIGEST = { 'digest-overdue-chaos': 4, 'digest-busy-week': 1, 'digest-sam': 1 };
+const EA_DRAFT = '# Audit draft\n\nTyped, then left unsaved.', EA_SAVED = '# Brief\n\nThe saved text.';
+const eaHiddenSentence = (hidden, n) => n ? `Restore to view ${n} hidden ${hidden === 'todos' ? 'todo' : 'reflection'}${n === 1 ? '' : 's'}.` : EA_ORDINARY[hidden];
+const eaControl = (name, more = {}) => ({ name, tag: 'button', hooks: [], visible: true, box: { x: 500, y: 300, width: 96, height: 44 }, href: null, disabled: false, ariaDisabled: false, primary: false, background: 'rgba(0, 0, 0, 0)', ...more });
+const eaSelect = value => ({ name: 'Restore as', hooks: ['data-archived-status'], visible: true, value, selectedText: { active: 'Active', on_hold: 'On hold' }[value], options: [['planning', 'Planning'], ['active', 'Active'], ['on_hold', 'On hold'], ['completed', 'Completed']].map(([value, text]) => ({ value, text })), disabled: false, box: { x: 600, y: 300, width: 146, height: 40 } });
+const eaFrame = (rows, more = {}) => ({ section: 'section-project-kitchen-tasks', shortcut: null, type: 'task-list', header: rows ? `Tasks ${rows} task${rows === 1 ? '' : 's'}` : 'Tasks', rows, ...more });
+/** One row's region as the probe records it, passing that row's rule. */
+function eaRegion(r, e) {
+  const reg = { region: r.region, present: true, box: { x: 480, y: 200, width: 960, height: 600 }, text: '', controls: [], selects: [], writeControls: [], emptyHooks: [], frames: [], sources: [], failures: [], details: [], digestOverdue: [], ariaBusyWithin: false };
+  const back = ['markdown-cancel-edit', 'markdown-navigate-back'].includes(r.context);
+  ({
+    'first-run': () => reg.controls.push(eaControl('New project', { hooks: ['data-first-run-create'] })),
+    'archived-only-sidebar': () => { reg.text = 'Home\nPROJECTS\nNo active projects.\nArchived projects are in Settings.'; reg.controls.push(eaControl('Archived projects are in Settings.', { tag: 'a', href: '/settings/archived-projects' })); },
+    'read-only': () => { if (r.hidden) { const s = eaHiddenSentence(r.hidden, EA_HIDDEN[r.context]); reg.text = s; reg.emptyHooks.push({ hook: `data-${r.hidden}-empty`, text: s }); } },
+    'blocked-confirm': () => { reg.text = 'Archive them first.'; reg.controls.push(eaControl('Close'), ...r.links.map(name => eaControl(`${name} Active`, { tag: 'a', href: '/projects/project-' + name.toLowerCase() }))); },
+    'commit-confirm': () => reg.controls.push(eaControl('Archive it', { hooks: ['data-project-archive-confirm-yes'] }), eaControl('Cancel', { hooks: ['data-project-archive-cancel'] })),
+    'late-refusal': () => { reg.text = '“Cabinets” still has live workstreams. Archive them first.\nDetails'; reg.details.push({ open: false, summary: 'Details', text: 'Details ' + e.reason }); },
+    'restore-choice': () => { reg.selects.push(eaSelect('active')); reg.controls.push(eaControl('Restore')); },
+    digest: () => { reg.digestOverdue = Array.from({ length: Math.min(EA_DIGEST[r.context], 5) }, (_, i) => ({ text: `Overdue task ${i + 1}`, href: `/projects/project-launch#section-section-project-launch-tasks`, linkBox: { x: 500, y: 300 + i * 40, width: 200, height: 24 } })); },
+    draft: () => { reg.sources.push({ hooks: ['data-markdown-source'], name: 'Markdown source for Brief', value: EA_DRAFT }); if (back) { reg.text = 'Your unsaved draft is back.'; reg.controls.push(eaControl('Discard draft')); } },
+    discarded: () => reg.sources.push({ hooks: ['data-markdown-source'], name: 'Markdown source for Brief', value: EA_SAVED }),
+    preview: () => { reg.text = 'Unsaved preview\n# Audit draft'; },
+    count: () => reg.frames.push(eaFrame(2)),
+    'todos-pending': () => reg.controls.push(eaControl('Complete Kitchen', { hooks: ['data-todo-complete'], ariaDisabled: true }), eaControl('Delete task Confirm tile samples', { hooks: ['data-todo-delete'], ariaDisabled: true })),
+  })[r.kind]?.();
+  return reg;
+}
+const EA_HEADER = { box: { x: 480, y: 48, width: 960, height: 120 }, text: 'Kitchen', controls: [eaControl('More project actions', { hooks: ['data-project-more'] }), eaControl('Edit details…', { hooks: ['data-project-edit-details'], visible: false })] };
+/** One page as the probe records it (the main capture or a named snapshot), for the rows it serves. */
+function eaPage(rows, e) {
+  const banner = rows.some(r => r.kind === 'read-only' || r.kind === 'restore-failure')
+    ? { text: rows.some(r => r.kind === 'restore-failure') ? 'Couldn’t restore “Legacy attic”. Try again.\nDetails' : '“Legacy attic” is archived. Restore as Active', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore', { hooks: [] })] }
+    : null;
+  const kinds = rows.map(r => r.kind);
+  const focus = kinds.includes('create-focused') ? { ...eaControl('Project name', { tag: 'input', hooks: ['data-create-project-name'] }), focusVisible: true, inRegion: 0 }
+    : kinds.includes('restored') ? { ...eaControl('Kitchen', { tag: 'h1' }), focusVisible: false, inRegion: 0 }
+    : kinds.includes('todos-pending') ? { ...eaControl('Complete Kitchen', { hooks: ['data-todo-complete'], ariaDisabled: true }), focusVisible: true, inRegion: 0 } : null;
+  const owner = kinds.includes('owner-section');
+  return { url: owner ? '/projects/project-launch#section-section-project-launch-tasks' : '/app', regions: rows.map(r => eaRegion(r, e)), banner,
+    firstFrame: { x: 480, y: 260, width: 960, height: 300 }, hashTarget: owner ? { id: 'section-section-project-launch-tasks', box: { x: 480, y: 200, width: 960, height: 300 }, visible: true } : null,
+    header: structuredClone(EA_HEADER), toast: null, dialogs: [], focus };
+}
+function eaEntry(context, theme, width, rows) {
+  const mine = rows.filter(r => r.context === context);
+  const e = { context, theme, width, route: '/projects/project-kitchen', screenshot: `empty-archived-${context}-${theme}-${width}.png`, reason: null, consoleErrors: [], controls: [], axe: { violations: [], incomplete: [] }, aria: '- main' };
+  if (context === 'lab') return { ...e, route: '/prototype/design', panels: stateLabPanels().map(p => p.id === 'states' ? { ...p, id: 'section-frame' } : p) };
+  if (['banner-restore-failing', 'cabinets-late-refusal'].includes(context)) e.reason = `Audit: ${context}`;
+  Object.assign(e, eaPage(mine.filter(r => !r.snapshot), e));
+  for (const r of mine.filter(r => r.snapshot)) e[r.snapshot] = eaPage(mine.filter(x => x.snapshot === r.snapshot), e);
+  if (context in EA_HIDDEN) e.hiddenItemCount = EA_HIDDEN[context];
+  if (context === 'first-run-create') e.pressed = 'main';
+  if (['legacy-attic-restore', 'legacy-shelving-restore', 'renovation-restore-undo', 'banner-restore-failing'].includes(context)) e.bannerPresent = true;
+  if (context === 'legacy-attic-restore') e.undoRefused = true;
+  if (context === 'renovation-restore-undo') e.bannerBack = true;
+  if (context === 'digest-owner-section') { e.overdueLinkPresent = true; e.followed = { text: 'Overdue task 1', href: '/projects/project-launch#section-section-project-launch-tasks' }; }
+  if (context.startsWith('markdown-')) { e.typedDraft = EA_DRAFT; e.savedSource = EA_SAVED; }
+  if (context === 'markdown-discard') e.discardPresent = true;
+  if (context === 'drag-start') e.drag = { firstRowTopBefore: 661, firstRowTopDuring: 661.5, dragging: true };
+  if (context.endsWith('-restore-choice')) e.chosen = { ...eaPage(mine, e), regions: mine.map(r => ({ ...eaRegion(r, e), selects: [eaSelect('on_hold')] })) };
+  if (e.reason) {
+    const scope = context === 'banner-restore-failing' ? 'app-archived-banner' : 'app-project-header';
+    e.detailsOpen = { ...eaPage(mine, e), regions: [{ ...eaRegion({ region: scope, kind: null }, e), details: [{ open: true, summary: 'Details', text: 'Details ' + e.reason }] }] };
+  }
+  return e;
+}
+const eaTasks = () => Object.entries(EA_LIMITS).map(([id, [clicks, keystrokes]]) => ({ id, status: 'completed', clicks, keystrokes, deadEnds: 0 }));
+const eaEvidence = phase => {
+  const rows = eaRows();
+  const contexts = [...new Set(rows.map(r => r.context)), 'lab'];
+  return { commit: phase ? 'after' : 'before', complete: true, writeControls: [...EA_WRITE_CONTROLS], rows, entries: contexts.flatMap(context => eaViews(context).map(([theme, width]) => eaEntry(context, theme, width, rows))), tasks: eaTasks() };
+};
+async function eaSheet(t, change = {}) {
+  const f = await fixture(t);
+  f.layout.immutable = [];
+  if (change.route) f.cell.route = change.route;
+  if (change.cellId) f.cell.id = change.cellId;
+  const evidence = [eaEvidence(0), eaEvidence(1)];
+  for (const phase of [0, 1]) {
+    await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [f.cell] });
+    await f.json(phase, 'layout.json', { ...f.layout, controls: change.controlsByPhase?.[phase] ?? change.controls ?? [] });
+    change[phase ? 'evidence' : 'before']?.(evidence[phase]);
+    await f.json(phase, 'empty-archived-verification.json', evidence[phase]);
+    for (const entry of evidence[phase].entries) if (entry.screenshot) await writeFile(join(f.dirs[phase], entry.screenshot), 'empty-archived image');
+  }
+  if (change.missing !== undefined) await rm(join(f.dirs[change.missing], 'empty-archived-verification.json'));
+  await f.json(1, 'layout.json', { ...f.layout, planes: [{ ...f.layout.planes[0], y: change.move ?? 0 }], controls: change.controlsByPhase?.[1] ?? change.controls ?? [] });
+  if (change.axe) await f.json(1, 'axe.json', { violations: change.axe, incomplete: [] });
+  change.layouts?.(f);
+  const run = () => spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '79'], { encoding: 'utf8', env: { ...process.env, ...change.env } });
+  const result = change.layouts ? null : run();
+  return { f, run, result, dirs: f.dirs, report: result ? await readFile(join(f.dirs[2], 'report.json'), 'utf8').catch(() => result.stderr) : null };
+}
+/** A refusal counts only when the gate ran to its report and listed a failure matching `reason`. */
+const eaFails = async (t, change, label, reason) => {
+  const s = await eaSheet(t, change);
+  assert.equal(s.result.status, 1, `${label} passed the gate`);
+  const report = JSON.parse(await readFile(join(s.dirs[2], 'report.json'), 'utf8').catch(() => 'null'));
+  assert.ok(report?.geometryFailures?.length, `${label}: the gate did not run to a report: ${s.result.stderr.slice(0, 400)}`);
+  if (reason) assert.ok(report.geometryFailures.some(f => reason.test(JSON.stringify(f))), `${label}: no failure matched ${reason}: ${JSON.stringify(report.geometryFailures).slice(0, 600)}`);
+  return s;
+};
+/** Applies `fn` to one context's entries: every view, or only `view` (`'dark|1440'`). */
+const editEa = (evidence, context, fn, view = null) => { for (const e of evidence.entries) if (e.context === context && (!view || view === `${e.theme}|${e.width}`)) fn(e); return evidence; };
+const eaRegionOf = (e, region, page = e) => page.regions.find(r => r.region === region);
+
+test('profile 79 accepts complete evidence and emits its Gate 2 sheet', async t => {
+  const s = await eaSheet(t);
+  assert.equal(s.result.status, 0, s.report);
+  const html = await readFile(join(s.dirs[2], 'index.html'), 'utf8');
+  assert.match(html, /<title>Slice 79 · Empty, archived and editing · Gate 2<\/title>/);
+  assert.match(html, /Core task costs/);
+  assert.match(html, /T12/);
+  const report = JSON.parse(s.report);
+  assert.equal(report.profile, '79');
+  assert.equal(report.emptyArchivedPairs.filter(p => p.status !== 'paired').length, 0);
+  assert.ok(report.emptyArchivedChecks.length > 140, 'every context view is checked');
+  assert.equal(await readFile(join(s.dirs[2], 'after-empty-archived-legacy-attic-light-1440.png'), 'utf8'), 'empty-archived image');
+  assert.ok(JSON.parse(await readFile(join(s.dirs[2], 'empty-archived-verification.json'), 'utf8')).after.entries.length);
+});
+
+test('profile 79 fails on missing or incomplete evidence', async t => {
+  await eaFails(t, { missing: 1 }, 'missing after evidence', /missing or incomplete/);
+  await eaFails(t, { missing: 0 }, 'missing before evidence', /missing or incomplete/);
+  await eaFails(t, { evidence: e => { e.complete = false; } }, 'incomplete after evidence', /missing or incomplete/);
+});
+
+test('profile 79 holds the context table to the plan: a dropped, changed or extra row fails, as does an uncaptured view', async t => {
+  await eaFails(t, { evidence: e => { e.rows = e.rows.filter(r => r.context !== 'legacy-shelving'); } }, 'dropped row', /context table row missing/);
+  await eaFails(t, { evidence: e => { e.rows = e.rows.filter(r => !(r.context === 'archived-only-home' && r.kind === 'not-first-run')); } }, 'one of two rows dropped', /context table row missing/);
+  await eaFails(t, { evidence: e => { e.rows.find(r => r.context === 'renovation-archived-todos').hidden = null; } }, 'hidden dropped', /context table row missing/);
+  await eaFails(t, { evidence: e => { e.rows.find(r => r.context === 'kitchen-archive-blocked').links = []; } }, 'links dropped', /context table row missing/);
+  await eaFails(t, { evidence: e => { e.rows.push(eaRow('legacy-attic', 'main', 'preview')); } }, 'extra row', /row the plan does not list/);
+  await eaFails(t, { evidence: e => { e.rows.find(r => r.context === 'legacy-attic').region = 42; } }, 'invalid region', /invalid context table row/);
+  await eaFails(t, { evidence: e => { e.entries = e.entries.filter(x => !(x.context === 'legacy-attic' && x.theme === 'dark' && x.width === 375)); } }, 'missing view', /context not captured/);
+  await eaFails(t, { before: e => { e.entries = e.entries.filter(x => !(x.context === 'drag-start' && x.theme === 'light')); } }, 'missing before view', /context not captured/);
+  await eaFails(t, { evidence: e => editEa(e, 'count-dense', x => { x.error = 'Timeout'; }, 'light|375') }, 'errored view', /context not captured/);
+});
+
+test('profile 79 pins the write-control list to the rig and to the web source', async t => {
+  await eaFails(t, { evidence: e => { e.writeControls = e.writeControls.filter(s => s !== '[data-section-remove]'); } }, 'list shortened in the rig', /write-control list/);
+  await eaFails(t, { evidence: e => { e.writeControls[0] = '[data-canvas-add-renamed]'; } }, 'list renamed in the rig', /write-control list/);
+  const web = await mkdtemp(join(tmpdir(), 'slice79-web-'));
+  t.after(() => rm(web, { recursive: true, force: true }));
+  await writeFile(join(web, 'a.html'), '<div data-canvas-add></div>');
+  await eaFails(t, { env: { UX_WEB_SRC: web } }, 'hooks missing from the web source', /not found in the web source.*data-empty-canvas-add/);
+});
+
+test('profile 79 fails a read-only row that shows any write control, lacks the banner or loses rename and Parent', async t => {
+  for (const selector of ['[data-empty-canvas-add]', 'app-task-row.cdk-drag', 'button[aria-label$=", open details"]', '[data-todo-toggle]'])
+    await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { eaRegionOf(x, 'main').writeControls = [{ selector, visible: 1 }]; }, 'light|375') }, selector, /write control visible/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving', x => { delete eaRegionOf(x, 'main').writeControls; }, 'dark|1440') }, 'write controls not recorded', /write control evidence missing/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-kitchen', x => { x.banner = null; }, 'dark|1440') }, 'no banner', /without the banner/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-restore-undo', x => { x.banner = null; }, 'dark|1440') }, 'no banner back after Undo', /without the banner/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.banner.box.y = 300; }, 'dark|1440') }, 'banner over the first section', /banner over the first section|banner not under the header/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.banner.box.y = 20; }, 'dark|1440') }, 'banner above the header', /banner not under the header/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.header.controls = x.header.controls.filter(c => !c.hooks.includes('data-project-edit-details')); }, 'dark|1440') }, 'rename and Parent gone', /rename and Parent/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.header = null; }, 'dark|1440') }, 'no header', /rename and Parent/);
+  // A page with no section frames (Todos, Reflections) has no first frame to clear.
+  const s = await eaSheet(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { x.firstFrame = null; }) });
+  assert.equal(s.result.status, 0, s.report);
+});
+
+test('profile 79 gates the hidden-count sentence on read-only Todos and Reflections rows (Q7, as amended)', async t => {
+  const hook = (x, hidden) => eaRegionOf(x, hidden === 'todos' ? 'app-todos-page' : 'app-reflections-page').emptyHooks;
+  const set = (context, hidden, text, n) => e => editEa(e, context, x => { if (n !== undefined) x.hiddenItemCount = n; hook(x, hidden)[0].text = text; eaRegionOf(x, hidden === 'todos' ? 'app-todos-page' : 'app-reflections-page').text = text; });
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { x.hiddenItemCount = null; }, 'dark|1440') }, 'count not recorded', /no recorded hiddenItemCount/);
+  await eaFails(t, { evidence: e => editEa(e, 'archived-only-reflections', x => { delete x.hiddenItemCount; }) }, 'count absent is never 0', /no recorded hiddenItemCount/);
+  await eaFails(t, { evidence: set('renovation-archived-todos', 'todos', 'Restore to view 5 hidden todos.') }, 'wrong N', /hidden-count sentence/);
+  await eaFails(t, { evidence: set('renovation-archived-todos', 'todos', EA_ORDINARY.todos) }, 'ordinary sentence over hidden work', /hidden-count sentence/);
+  await eaFails(t, { evidence: set('renovation-archived-reflections', 'reflections', 'Restore to view 1 hidden reflections.', 1) }, 'plural for one', /hidden-count sentence/);
+  assert.equal((await eaSheet(t, { evidence: set('renovation-archived-reflections', 'reflections', 'Restore to view 1 hidden reflection.', 1) })).result.status, 0, 'singular for one');
+  await eaFails(t, { evidence: set('archived-only-todos', 'todos', 'Restore to view 0 hidden todos.') }, 'restore sentence with nothing hidden', /hidden-count sentence/);
+  await eaFails(t, { evidence: e => editEa(e, 'archived-only-reflections', x => { hook(x, 'reflections').length = 0; }) }, 'no empty hook at zero', /hidden-count sentence/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archived-todos', x => { eaRegionOf(x, 'app-todos-page').text += '\n' + EA_ORDINARY.todos; }, 'dark|375') }, 'ordinary sentence beside the count', /ordinary sentence/);
+});
+
+test('profile 79 gates first run, the creation focus and the archived-only sidebar', async t => {
+  await eaFails(t, { evidence: e => editEa(e, 'first-run-sam', x => { eaRegionOf(x, 'app-dashboard-page').controls = []; }, 'dark|375') }, 'no main-column New project', /first-run row without/);
+  await eaFails(t, { evidence: e => editEa(e, 'first-run-alex', x => { eaRegionOf(x, 'app-dashboard-page').controls[0].visible = false; }, 'light|1440') }, 'hidden main-column New project', /first-run row without/);
+  await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-dashboard-page').controls.push(eaControl('New project', { hooks: ['data-first-run-create'] })); }, 'dark|1440') }, 'first run beside an archived project', /first-run block/);
+  await eaFails(t, { evidence: e => editEa(e, 'first-run-create', x => { x.pressed = 'sidebar'; }, 'light|375') }, 'sidebar pressed', /pressed the sidebar/);
+  await eaFails(t, { evidence: e => editEa(e, 'first-run-create', x => { x.focus = null; }, 'dark|1440') }, 'nothing focused', /name field not focused/);
+  await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-sidebar').text = 'Home\nPROJECTS\nNo projects yet'; }, 'light|375') }, 'No projects yet', /archived-only sidebar/);
+  await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-sidebar').controls = []; }, 'dark|1440') }, 'no Settings link', /archived-only sidebar/);
+});
+
+test('profile 79 gates the banner restore, the Undo refusal and a failing restore', async t => {
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.restored.banner = x.banner = { text: 'still', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [] }; }, 'dark|1440') }, 'banner still shown', /restored row/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.focus = null; }, 'dark|1440') }, 'focus lost', /restored row/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-restore-undo', x => { delete x.restored; }, 'dark|1440') }, 'snapshot missing', /row region missing|snapshot/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.bannerPresent = false; }, 'dark|1440') }, 'no banner to restore from', /restored row/);
+  // In the archived-twice case focus lands on the next owner's restore choice inside the banner.
+  const next = await eaSheet(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.banner = { text: '“Kitchen” is archived.', box: { x: 480, y: 176, width: 960, height: 56 }, controls: [eaControl('Restore', { box: { x: 900, y: 180, width: 96, height: 44 } })] }; x.focus = { ...eaControl('Restore', { box: { x: 900, y: 180, width: 96, height: 44 } }), focusVisible: true, inRegion: 0 }; }) });
+  assert.equal(next.result.status, 0, next.report);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.undoRefused = false; }, 'light|375') }, 'Undo not refused', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.banner.text = '“Legacy attic” is archived.'; }, 'dark|1440') }, 'failure not in the banner', /restore failure/);
+  await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.header = { ...x.header, text: 'Couldn’t restore “Legacy attic”. Try again.' }; }, 'dark|1440') }, 'failure in the header', /restore failure/);
+  await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.banner.text += ' ' + x.reason; }, 'dark|1440') }, 'reason outside Details', /reason visible/);
+  await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { delete x.detailsOpen; }, 'dark|1440') }, 'no Details', /Details does not reveal/);
+});
+
+test('profile 79 gates the blocked and commit confirmations and the late refusal', async t => {
+  await eaFails(t, { evidence: e => editEa(e, 'kitchen-archive-blocked', x => { x.regions[0].controls.push(eaControl('Archive it', { hooks: ['data-project-archive-confirm-yes'] })); }, 'dark|1440') }, 'commit beside live children', /commit button/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archive-blocked', x => { x.regions[0].controls.push(eaControl('Archive project')); }, 'light|375') }, 'unhooked commit', /commit button/);
+  await eaFails(t, { evidence: e => editEa(e, 'renovation-archive-blocked', x => { x.regions[0].controls = x.regions[0].controls.filter(c => !c.name.startsWith('Garden')); }, 'dark|1440') }, 'child without a link', /child without a link/);
+  await eaFails(t, { evidence: e => editEa(e, 'kitchen-archive-blocked', x => { x.regions[0].controls.find(c => c.name.startsWith('Cabinets')).tag = 'button'; }, 'dark|1440') }, 'child as a button', /child without a link/);
+  await eaFails(t, { evidence: e => editEa(e, 'cabinets-archive-commit', x => { x.regions[0].controls = []; }, 'dark|1440') }, 'no commit', /commit-confirm/);
+  await eaFails(t, { evidence: e => editEa(e, 'cabinets-late-refusal', x => { x.regions[0].text = 'Couldn’t archive “Cabinets”. Try again.'; }, 'light|1440') }, 'old sentence', /late refusal/);
+  await eaFails(t, { evidence: e => editEa(e, 'cabinets-late-refusal', x => { x.regions[0].text += ' ' + x.reason; }, 'light|1440') }, 'reason outside Details', /reason visible/);
+  await eaFails(t, { evidence: e => editEa(e, 'cabinets-late-refusal', x => { x.detailsOpen.regions[0].details = []; }, 'light|1440') }, 'no Details', /Details does not reveal/);
+});
+
+test('profile 79 holds both restore choices to one option list with a visible Active default', async t => {
+  await eaFails(t, { evidence: e => editEa(e, 'archive-restore-choice', x => { x.regions[0].selects[0].options = x.regions[0].selects[0].options.map(o => ({ ...o, text: o.text.toLowerCase() })); }, 'light|1440') }, 'lowercase labels', /restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'settings-restore-choice', x => { x.regions[0].selects[0].options.unshift({ value: '', text: 'Choose status' }); }, 'light|1440') }, 'placeholder option', /restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'settings-restore-choice', x => { Object.assign(x.regions[0].selects[0], { value: 'planning', selectedText: 'Planning' }); }, 'dark|375') }, 'default not Active', /restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'archive-restore-choice', x => { x.regions[0].selects[0].visible = false; }, 'dark|1440') }, 'invisible default', /restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'archive-restore-choice', x => { x.regions[0].selects = []; }, 'dark|1440') }, 'no choice', /restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'archive-restore-choice', x => { x.chosen.regions[0].selects[0] = eaSelect('active'); }, 'dark|1440') }, 'choosing changed nothing', /restore choice/);
+  await eaFails(t, { evidence: e => editEa(e, 'settings-restore-choice', x => { x.regions[0].selects[0].options.splice(3, 1); x.chosen.regions[0].selects[0].options.splice(3, 1); }, 'light|1440') }, 'option lists differ', /restore choices differ/);
+});
+
+test('profile 79 gates the digest overdue links and the section they reach', async t => {
+  await eaFails(t, { evidence: e => editEa(e, 'digest-overdue-chaos', x => { x.regions[0].digestOverdue.pop(); }, 'dark|1440') }, 'one overdue task unlisted', /digest/);
+  await eaFails(t, { evidence: e => editEa(e, 'digest-sam', x => { x.regions[0].digestOverdue = []; }, 'light|375') }, 'Sam sees no link', /digest/);
+  await eaFails(t, { evidence: e => editEa(e, 'digest-busy-week', x => { x.regions[0].digestOverdue[0].href = null; }, 'dark|1440') }, 'row without a link', /digest/);
+  await eaFails(t, { evidence: e => editEa(e, 'digest-busy-week', x => { x.regions[0].digestOverdue[0].href = '/projects/project-launch'; }, 'dark|1440') }, 'link without the section', /digest/);
+  await eaFails(t, { evidence: e => editEa(e, 'digest-owner-section', x => { x.overdueLinkPresent = false; }, 'dark|1440') }, 'no link followed', /owner section/);
+  await eaFails(t, { evidence: e => editEa(e, 'digest-owner-section', x => { x.url = '/app'; }, 'dark|1440') }, 'did not land', /owner section/);
+  await eaFails(t, { evidence: e => editEa(e, 'digest-owner-section', x => { x.hashTarget = null; }, 'dark|1440') }, 'no section at the hash', /owner section/);
+});
+
+test('profile 79 gates the Markdown draft, Discard draft and the Preview caption', async t => {
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-cancel-edit', x => { x.regions[0].sources[0].value = EA_SAVED; }, 'light|1440') }, 'saved text after Cancel', /draft row/);
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-navigate-back', x => { x.regions[0].controls = []; }, 'dark|1440') }, 'no Discard draft', /draft row/);
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-cancel-edit', x => { x.regions[0].text = ''; }, 'dark|1440') }, 'no draft-back note', /draft row/);
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-draft', x => { x.regions[0].sources = []; }, 'dark|1440') }, 'no editor', /draft row/);
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-discard', x => { x.regions[0].sources[0].value = EA_DRAFT; }, 'dark|1440') }, 'draft kept after Discard', /discarded row/);
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-discard', x => { x.discardPresent = false; }, 'dark|1440') }, 'Discard absent', /discarded row/);
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-preview', x => { x.regions[0].text = '# Audit draft'; }, 'dark|375') }, 'no caption', /Unsaved preview/);
+});
+
+test('profile 79 gates the Task List count, the drag start and the pending Todos controls', async t => {
+  await eaFails(t, { evidence: e => editEa(e, 'count-dense', x => { x.regions[0].frames[0].rows = 30; }, 'light|1440') }, 'count differs from rows', /count/);
+  await eaFails(t, { evidence: e => editEa(e, 'count-kitchen', x => { x.regions[0].frames[0].header = 'Tasks'; }, 'dark|375') }, 'no count', /count/);
+  await eaFails(t, { evidence: e => editEa(e, 'count-shortcut', x => { x.regions[0].frames[0] = eaFrame(1, { header: 'Task List (Kitchen) 1 tasks' }); }, 'dark|375') }, 'plural for one', /count/);
+  await eaFails(t, { evidence: e => editEa(e, 'count-shortcut', x => { x.regions[0].frames = []; }, 'dark|1440') }, 'no frame', /count/);
+  await eaFails(t, { evidence: e => editEa(e, 'count-kitchen', x => { x.regions[0].frames[0] = eaFrame(0, { header: 'Tasks 0 tasks' }); }, 'dark|1440') }, 'count at zero', /count/);
+  await eaFails(t, { evidence: e => editEa(e, 'drag-start', x => { x.drag.firstRowTopDuring = 699.5; }, 'dark|1440') }, 'first row dropped', /drag/);
+  await eaFails(t, { evidence: e => editEa(e, 'drag-start', x => { x.drag.dragging = false; }, 'light|1440') }, 'no drag', /drag/);
+  await eaFails(t, { evidence: e => editEa(e, 'todos-pending', x => { x.regions[0].controls[1].disabled = true; }) }, 'native disabled', /todos pending/);
+  await eaFails(t, { evidence: e => editEa(e, 'todos-pending', x => { x.regions[0].controls[0].ariaDisabled = false; }) }, 'no aria-disabled', /todos pending/);
+  await eaFails(t, { evidence: e => editEa(e, 'todos-pending', x => { x.regions[0].controls = []; }) }, 'no controls', /todos pending/);
+  await eaFails(t, { evidence: e => editEa(e, 'todos-pending', x => { x.focus = { ...eaControl('Confirm renovation budget', { tag: 'a', hooks: ['data-todo-link'] }), focusVisible: true, inRegion: 0 }; }) }, 'focus skipped Complete', /todos pending/);
+});
+
+test('profile 79 gates core task costs against the slice-78 after counts, T10 excluded', async t => {
+  assert.equal((await eaSheet(t, { evidence: e => { e.tasks.push({ id: 'T10', status: 'blocked', clicks: 99, keystrokes: 99, deadEnds: 3 }); } })).result.status, 0, 'T10 is not gated');
+  for (const [id, [clicks, keystrokes]] of Object.entries(EA_LIMITS)) {
+    await eaFails(t, { evidence: e => { e.tasks.find(x => x.id === id).clicks = clicks + 1; } }, id + ' clicks', new RegExp(`"id":"${id}"`));
+    await eaFails(t, { evidence: e => { e.tasks.find(x => x.id === id).keystrokes = keystrokes + 1; } }, id + ' keystrokes', new RegExp(`"id":"${id}"`));
+  }
+  await eaFails(t, { evidence: e => { e.tasks.find(x => x.id === 'T09').deadEnds = 1; } }, 'dead end', /core task/);
+  await eaFails(t, { evidence: e => { e.tasks = e.tasks.filter(x => x.id !== 'T12'); } }, 'T12 missing', /core task/);
+  await eaFails(t, { evidence: e => { e.tasks = null; } }, 'no tasks', /core task/);
+});
+
+test('profile 79 requires every visual acceptance pair', async t => {
+  await eaFails(t, { before: e => editEa(e, 'todos-pending', x => { delete x.screenshot; }) }, 'missing before pair', /visual acceptance pair missing/);
+  await eaFails(t, { evidence: e => editEa(e, 'digest-sam', x => { delete x.screenshot; }, 'light|375') }, 'missing after pair', /visual acceptance pair missing/);
+});
+
+test('profile 79 gates must-not-change cells at 1 px and exempts only its named matrix cells', async t => {
+  assert.equal((await eaSheet(t, { move: 1 })).result.status, 0);
+  await eaFails(t, { move: 2 }, 'populated project moved 2 px');
+  await eaFails(t, { move: 2, cellId: 'nested-projects-dashboard-dark-1440', route: '/app' }, 'nested-projects dashboard (no overdue task) moved');
+  await eaFails(t, { move: 2, cellId: 'settings-archived-projects-dark-1440', route: '/settings/archived-projects' }, 'agent-heavy Settings moved');
+  await eaFails(t, { move: 2, cellId: 'kitchen-archived-extra-dark-1440' }, 'a cell that only shares a prefix');
+  for (const id of ['empty-dashboard-dark-1024', 'kitchen-archived-light-375', 'kitchen-archive-confirm-dark-1440', 'archive-light-1440', 'busy-week-dashboard-dark-1024', 'overdue-chaos-dashboard-light-375', 'agent-heavy-dashboard-dark-1440']) {
+    const s = await eaSheet(t, { move: 20, cellId: id, route: id.startsWith('archive-') ? '/projects/project-renovation/pages/archive' : id.includes('dashboard') ? '/app' : '/projects/project-kitchen' });
+    assert.equal(s.result.status, 0, id + ' ' + s.report);
+    assert.ok(JSON.parse(s.report).geometryReport.some(r => r.cell === id), id + ' movement is reported');
+  }
+});
+
+test('profile 79 lets a Task List cell change only its header count text', async t => {
+  const title = (text, more = {}) => ({ tag: 'button', text, scope: 'product', class: 'section-frame__title-button', x: 500, y: 300, width: 200, height: 32, ...more });
+  const counted = await eaSheet(t, { controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks')]] });
+  assert.equal(counted.result.status, 0, counted.report);
+  assert.ok(JSON.parse(counted.report).intentionalLabChanges.some(c => /Task List header count/.test(c.reason)), 'the count is reported');
+  assert.equal((await eaSheet(t, { controlsByPhase: [[title('Tasks')], [title('Tasks1 task')]] })).result.status, 0, 'one task, no space');
+  await eaFails(t, { controlsByPhase: [[title('Tasks')], [title('Tasks renamed')]] }, 'other text change', /control identity/);
+  await eaFails(t, { controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks 3 tasks')]] }, 'two counts');
+  await eaFails(t, { controlsByPhase: [[title('Tasks')], [title('Tasks 12 tasks', { width: 240 })]] }, 'count that resizes its control');
+});
+
+test('profile 79 gates the Lab panel-relative, with only state-messages and section-frame changing', async t => {
+  for (const [panel, expected] of [['state-messages', 0], ['section-frame', 0], ['controls', 1], ['task-row', 1], ['navigation', 1]]) {
+    const s = await eaSheet(t, { route: '/prototype/design', cellId: 'prototype-design-dark-1440', layouts: () => {} });
+    const base = JSON.parse(await readFile(join(s.dirs[0], 'layout.json'), 'utf8'));
+    const control = { tag: 'button', text: 'Primary · Rest', panel, scope: 'prototype', class: 'button', x: 20, y: 100, width: 80, height: 32 };
+    await writeFile(join(s.dirs[0], 'layout.json'), JSON.stringify({ ...base, controls: [control] }));
+    await writeFile(join(s.dirs[1], 'layout.json'), JSON.stringify({ ...base, controls: [{ ...control, width: 82 }] }));
+    assert.equal(s.run().status, expected, panel);
+  }
+  await eaFails(t, { evidence: e => editEa(e, 'lab', x => { delete x.panels; }, 'dark|1440') }, 'missing after Lab panels', /Lab panel evidence missing/);
+  await eaFails(t, { evidence: e => editEa(e, 'lab', x => { x.panels = x.panels.map(p => p.id === 'controls' ? { ...p, height: p.height + 4 } : p); }, 'light|375') }, 'resized unchanged panel', /Lab unchanged specimen panel/);
+});
+
+test('profile 79 keeps only the breadcrumb census exception and gates runtime controls and new axe nodes', async t => {
+  await eaFails(t, { controls: [{ scope: 'product', class: 'task-row__title', text: 'Task', width: 80, height: 20 }] }, 'task row title exception');
+  assert.equal((await eaSheet(t, { controls: [{ scope: 'product', class: 'project-nav__breadcrumb', text: 'Home', width: 80, height: 16 }] })).result.status, 0);
+  await eaFails(t, { evidence: e => editEa(e, 'markdown-cancel-edit', x => { x.controls = [{ scope: 'product', class: 'button button--sm', text: 'Discard draft', width: 80, height: 20 }]; }, 'light|1440') }, 'small Discard draft');
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.controls = [{ scope: 'product', class: 'button', text: 'Restore', width: 96, height: 32 }]; }, 'dark|375') }, 'small touch banner Restore');
+  await eaFails(t, { axe: [{ id: 'nested-interactive', nodes: [{ target: ['.new'] }] }] }, 'new matrix axe node');
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic', x => { x.axe = { violations: [{ id: 'aria-allowed-role', nodes: [{ target: ['.banner'] }] }], incomplete: [] }; }, 'dark|1440') }, 'new runtime axe node', /runtime new axe node/);
+  const known = e => editEa(e, 'legacy-attic', x => { x.axe = { violations: [{ id: 'aria-allowed-role', nodes: [{ target: ['.banner'] }] }], incomplete: [] }; }, 'dark|1440');
+  assert.equal((await eaSheet(t, { before: known, evidence: known })).result.status, 0, 'a node the before had');
+});
+
+test('the profile 79 fixture tables are the rig\'s ROWS and WRITE_CONTROLS, so a changed row fails here first', async () => {
+  const source = await readFile(new URL('../../../../apps/e2e/ux/empty-archived-verification.ts', import.meta.url), 'utf8');
+  const starts = ['const section =', 'const KITCHEN_TASKS =', 'const DENSE_TASKS =', 'const SHORTCUT_R =', 'const DIGEST_R =', 'const CONFIRM_R =', 'const ARCHIVE_ROW =', 'const SETTINGS_ROW ='];
+  const constants = starts.map(start => source.split('\n').find(line => line.startsWith(start)));
+  assert.ok(constants.every(Boolean), 'the rig\'s region constants moved');
+  const body = source.match(/export const ROWS: Row\[\] = \[\n([\s\S]*?)\n\];/)?.[1];
+  assert.ok(body, 'the rig\'s ROWS table moved');
+  const rows = new Function('row', `${constants.join('\n').replace(/\((\w+): string, (\w+): string\)/g, '($1, $2)')}\nreturn [${body}];`)(eaRow);
+  assert.deepEqual(rows, eaRows());
+  const list = source.match(/export const WRITE_CONTROLS = \[\n([\s\S]*?)\n\] as const;/)?.[1];
+  assert.ok(list, 'the rig\'s WRITE_CONTROLS moved');
+  assert.deepEqual(new Function(`return [${list}];`)(), EA_WRITE_CONTROLS);
+});

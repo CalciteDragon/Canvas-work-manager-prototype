@@ -1,5 +1,10 @@
 # What the testing system is made of
 
+Slice 79's isolated `ux/slice79.config.ts` rig runs `ux/empty-archived-verification.ts`: its
+`ROWS`, `CONTEXTS` and `WRITE_CONTROLS` are the evidence for sheet profile 79, whose own copy of
+the plan's context table, views, write controls, pairs and cost limits `build-sheet.test.mjs` pins
+against the rig.
+
 Slice 78 adds `apps/e2e/states.spec.ts` for failures and loading: T12's lifted read recovering
 through Try again with no empty sentence, the real provider failing only the digest, Go to Home
 from an unavailable project, the sidebar's loading line, keyboard reach of Try again and Details,
