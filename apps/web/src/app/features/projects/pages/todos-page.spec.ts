@@ -142,6 +142,7 @@ const render = async (options: RenderOptions = {}) => {
     return { task: reopened, operation: null };
   });
   const update = vi.fn(async (id: ProjectId) => {
+    if (options.gateComplete === true) await new Promise<void>((resolve) => (releaseCompletion = resolve));
     if (options.completeRejects !== undefined) throw options.completeRejects;
     const row = items.find((item) => item.kind === 'subproject' && item.project.id === id);
     return { project: { ...(row as Extract<ProjectTodoItem, { kind: 'subproject' }>).project, status: 'completed' as const, completedAt: AT }, operation: null };
@@ -417,6 +418,25 @@ describe('TodosPage (§34)', () => {
     expect(inFlight.update).not.toHaveBeenCalled();
     expect(inFlight.archive).not.toHaveBeenCalled();
     inFlight.release();
+
+    // A workstream's completion pending: its own Complete is gone (optimistically completed), and
+    // every task row's Delete is aria-disabled with a guarded click.
+    const twoUnits = [subprojectItem('project-kitchen'), subprojectItem('project-bathroom'), taskItem('task-early')];
+    const unitPending = await render({ gateComplete: true, items: twoUnits });
+    (rowFor(unitPending.fixture, 'project-kitchen').querySelector('[data-todo-complete]') as HTMLButtonElement).click();
+    unitPending.fixture.detectChanges();
+    expect(rowFor(unitPending.fixture, 'project-kitchen').querySelector('[data-todo-complete]')).toBeNull();
+    const other = rowFor(unitPending.fixture, 'project-bathroom').querySelector('[data-todo-complete]') as HTMLButtonElement;
+    const remove = rowFor(unitPending.fixture, 'task-early').querySelector('[data-todo-delete]') as HTMLButtonElement;
+    for (const control of [other, remove]) {
+      expect(control.getAttribute('aria-disabled')).toBe('true');
+      expect(control.hasAttribute('disabled')).toBe(false);
+    }
+    other.click();
+    remove.click();
+    expect(unitPending.update).toHaveBeenCalledTimes(1);
+    expect(unitPending.archive).not.toHaveBeenCalled();
+    unitPending.release();
 
     const blocked = await render({ restoreBlocked: true });
     expect(queryAll(blocked.fixture, '[data-todo-complete], [data-todo-delete]').every((c) => c.getAttribute('aria-disabled') === 'true' && !c.hasAttribute('disabled'))).toBe(true);

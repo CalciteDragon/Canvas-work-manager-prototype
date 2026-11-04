@@ -12,7 +12,36 @@ Commits 83f6e13 (code and docs) and the handoff commit. **Step 3 (restore one wa
 (S79S3)**; see the Step 3 bullet below. **Step 4 is complete**: part a (the store, S79S4A) and
 part b (the banner, its placement and the renderer input, S79S4B); see the Step 4a and 4b bullets
 below. **Step 5 (read-only canvas) is done (S79S5, cloud session)**; see the Step 5 bullet below.
-**Next is step 6a (hidden count, Q7), then step 6 (read-only pages).**
+**Steps 6a (hidden count, Q7) and 6 (read-only pages) are done (S79S6, cloud session)**; see the
+Step 6a/6 bullet below. **Next is step 7 (refusal first).**
+- **Steps 6a and 6 (hidden count; read-only Todos and Reflections):** 6a: optional
+  `hiddenItemCount` (non-negative int) on `ProjectTodosResultSchema` and
+  `ProjectJournalResultSchema`; `ProjectTodosService.derive` and `ProjectJournalService.journal`
+  answer an archived root with `items: []` and the count their own derivation gives over
+  `asRestored(projects, rootId)` (`project-visibility.ts`: the root read as live, in memory,
+  nothing written), so work archived in its own right is not counted; a live root has no field;
+  grants still asserted first; `completedWork` unchanged. The two MCP descriptions say so (new
+  `contract.test.ts` case). 6: `TodosPage` renders no `data-todo-toggle`, `data-todo-complete` or
+  `data-todo-delete` when `readOnly` (links stay; `writesBlocked` includes `readOnly`); Complete and
+  Delete are now `aria-disabled` with a guarded click while a write is pending or the shell blocks,
+  never `disabled` (`nextControl` matches). `ReflectionsPage.pageWritesBlocked` adds `readOnly`
+  (no composer, no Add container). Stores expose `hiddenCount()` (0 when absent; 0 after a loud
+  failed read; a quiet failure keeps rows and count together). Both empty elements
+  (`.state-message--empty` added) show `hiddenCountSentence(...)` from `pages/hidden-count.ts`: one
+  string helper, not template branches, which saved ~0.23 kB. Stories `TodosPage/ArchivedRoot` and
+  `ReflectionsPage/ArchivedRoot`. Docs: spec §26/§31/§34/§36 notes; decision amendments (archived
+  pages ×2, actionable archive, todos chronology, reflection subjects); contracts, domain, mcp-tools,
+  web/projects docs; the MCP guide. Commits c525f06 (6a), 20b5fa3 (6) and the review/handoff commit
+  after them. `pnpm test` (web unit 1,473) and `pnpm lint` green. No e2e or captures (cloud).
+  Review: nothing substantive; a pending-workstream case added. Not done: the journal's archived-root
+  refusal test does not count reads the way Todos' does (the code checks grants first).
+  `70-ui-ux-overhaul.md:413`'s "pre-existing `[disabled]`" on Todos' Complete is now historical.
+  **Bundle 1,149.74 kB initial (0.26 kB left under 1,150)**: 6a's contracts cost ~0.10 kB and step 6's
+  web code ~0.69 kB. **Trap for steps 7–11:** there is almost no headroom left. Every Angular `@if`
+  branch compiles to its own template function (~0.1–0.2 kB), so prefer string helpers and
+  `@defer` for anything on demand (step 7's blocked confirmation is a candidate). Measure before
+  committing; a measuring copy of the build that lifts the budget must never be committed. If an
+  item cannot fit, stop and raise it (never raise the ceiling).
 - **Step 5 (read-only canvas):** `ProjectCanvas.layoutEditable()` (`orderComplete() &&
   !readOnly()`) gates insertion marks, the end and empty-canvas add, drag/drop, `openCreate`,
   `moveWithKeyboard` and the grid gaps; resize handles and the unknown frame's toolbar are absent
