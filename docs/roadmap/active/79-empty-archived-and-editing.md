@@ -14,7 +14,26 @@ part b (the banner, its placement and the renderer input, S79S4B); see the Step 
 below. **Step 5 (read-only canvas) is done (S79S5, cloud session)**; see the Step 5 bullet below.
 **Steps 6a (hidden count, Q7) and 6 (read-only pages) are done (S79S6, cloud session)**; see the
 Step 6a/6 bullet below. **Step 7 (refusal first) is done (S79S7, cloud session)**; see the Step 7
-bullet below. **Next is step 8 (empty workspace).**
+bullet below. **Step 8 (empty workspace) is written but not landed (S79S8): it crosses the bundle
+ceiling. Blocked on Open question 8 (the user decides); see the Step 8 bullet below.**
+- **Step 8 (empty workspace), parked:** done test first and green, but **not committed**, because it
+  measures **1,151.23 kB initial (1.23 kB over 1,150)**. The diff is in
+  `.prototype/s79s8-step8-over-ceiling.patch` (local, git-ignored; `git apply --check` passes at
+  `409d674`). It contains:
+  - `ShellStore`: one unfiltered `projects.list({})`, `projects()` live only, `answered()`,
+    `hasArchived()`, `workspaceEmpty()`;
+  - `core/shell/shell-commands.ts`: the `SHELL_COMMANDS` token, which `AppShell` provides as itself
+    (`requestCreate()` opens the Menu first when narrow, then reopens the sidebar's form after the
+    drawer's focus move);
+  - the sidebar's `hasArchived` input, with "No active projects." and its link to
+    `/settings/archived-projects`;
+  - `features/dashboard/first-run-block.ts` behind `@defer (when shell?.workspaceEmpty())` above
+    the widgets.
+
+  With the patch applied, the full web unit run is 1,500 green, plus the identity-failure case added after it, run in its own spec (28 green). The cold review
+  found nothing substantive. Its minor findings are fixed in the patch or listed under Open
+  question 8's Impact (docs, stories). Costs, the options and the measured lazy-route figure are
+  in Open question 8. **The tree at `409d674` is unchanged and within the ceiling (1,149.996 kB).**
 - **Step 7 (refusal first):** `ProjectArchiveConfirm` over live workstreams is the blocked form:
   "“X” can’t be archived yet" / "These workstreams aren’t archived. Archive them first:", each child
   an `a[data-project-archive-child]` to `/projects/<id>` then " · <Status>" (completed still
@@ -1428,6 +1447,42 @@ written, with the answer added under it. The Defaults taken were accepted as wri
      count. That is the plan's choice, recorded in the decision entry: the count reveals no
      more than an archived project's own page already renders (§31).
 
+8. **Step 8 crosses the bundle ceiling. What pays for it?** (raised by S79S8, 2026-11-04;
+   **blocks steps 8–11**)
+   - *Context.* Step 7 left 4 bytes under 1,150 kB. Step 8, written test first and green, measures **1,151.23 kB initial, 1.23 kB over**. The first-run block itself is already
+     behind `@defer (when workspaceEmpty())` (its lazy chunk is 1.01 kB). What stays initial, measured
+     one part at a time:
+     - the `ShellStore` split (one unfiltered read, `projects`, `answered`, `hasArchived`,
+       `workspaceEmpty`): +0.27 kB;
+     - `SHELL_COMMANDS` (a token `AppShell` provides as itself) with `requestCreate()`: +0.25 kB (the
+       planned `ShellCommands` class with a `Subject` was +0.49 kB);
+     - the sidebar's "No active projects." and its Settings link: +0.29 kB;
+     - Home's `@defer` trigger and its optional injection: +0.28 kB.
+
+     Nothing more can be deferred: what is left is the shell's state and the trigger. Steps 9 to 11
+     add web code too (the digest list, the draft store, the count and the hint), so the shortfall
+     only grows. The work is kept, uncommitted, as `.prototype/s79s8-step8-over-ceiling.patch`
+     (git-ignored and local; `git apply` it at `409d674` or later).
+   - *Options.*
+     - **(a)** Lazy-load two routes that are rarely opened, Calendar and Settings › Agents, with
+       `loadComponent`, as the two `prototype/*` routes already are. Measured with step 8 applied:
+       **1,141.97 kB**, which leaves about 8 kB for steps 9 to 11. This amends `app.routes.ts`'s
+       "eager on purpose" comment and
+       [the budget decision](../../decisions/2026-08-initial-bundle-budget.md). Calendar alone frees
+       only 0.27 kB, because the shared chunks re-split.
+     - **(b)** Raise the ceiling, to 1,160 or 1,200 kB for example, as an amendment to the budget
+       decision. The ceiling is the user's to move.
+     - **(c)** Cut scope: move the sidebar wording (W4-034) or first run (W1-001) to the §8 comb.
+       Either cut saves under 0.3 kB, and both need the store split, so (c) does not fit on its own.
+   - *Recommendation:* **(a)**. It keeps the ceiling, follows a lazy-route pattern the app already
+     uses, and makes room for steps 9 to 11 without another stop. Which routes go lazy is the
+     user's choice; Calendar and Agents are the ones measured.
+   - *Impact.* Until this is answered, step 8 cannot land and steps 9 to 11 cannot start.
+     With (a) or (b), the next session applies the patch, adds the change the user chose and
+     measures. It then adds what the patch does not have: the docs (web/core and web/dashboard
+     folders, §23/§24 notes, the `2026-11-empty-workspace-offers-the-first-project.md` decision),
+     `sidebar.stories.ts` and `dashboard-page.stories.ts`. Then it commits.
+
 **Defaults taken** (small and non-shape-changing; say if any is wrong):
 
 - **Drafts** live in memory until reload, reseed or a persona switch, and come back with "Your
@@ -1686,3 +1741,14 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   `project-workspace-store.spec.ts`); the shell spec proves the confirmation receives it, and
   `project-header.{ts,html}` and its spec do not change. The descendants re-read after a refusal is
   `refreshContext`, queued for any `rule_violation` on a project write, not only an archive.
+- **2026-11-04, step 8 (S79S8), not landed.** Open question 8 added. In the parked patch,
+  `ShellCommands` is an interface plus the `SHELL_COMMANDS` token, which `AppShell` provides as
+  itself (`useExisting`) and answers (`workspaceEmpty`, `requestCreate()`). It is not the planned
+  class with an emitter, which cost twice the bytes. So `shell-commands.spec.ts` is gone, and its
+  cases (each request reopens the one form, `workspaceEmpty` follows the read, focus ends in the
+  name after the drawer's own move) are in `app-shell.spec.ts`. The first-run markup is
+  `features/dashboard/first-run-block.ts`, mounted behind the `@defer`. Only a component's
+  dependencies load lazily, so markup left in `dashboard-page.html` would stay initial. The block
+  hides itself when the workspace stops being empty, because a `when` trigger loads once. Its
+  sentence is a default: "Projects hold your tasks, notes and reflections, for you and the agents
+  you connect. Start with your first."
