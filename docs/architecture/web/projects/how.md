@@ -310,9 +310,11 @@ a source an agent changed meanwhile still shows "changed elsewhere", and says "Y
 back." with **Discard draft**. A kept draft that now equals the source is dropped instead. The editor
 seeds once, in `ngOnInit`, and never injects the store: Discard draft emits `discardRequested`, and
 the body forgets the draft, resets `base` and re-keys the editor (`editorKey`) so a fresh one seeds
-from the source. Save success forgets the draft. The store clears on `prototype.reloaded`; a reload,
+from the source. Save success forgets the draft, even when the body was destroyed mid-save and kept
+it. The store clears on `prototype.reloaded`; a reload,
 reseed or persona switch empties it anyway ([decision](../../../decisions/2026-10-markdown-source-and-rendering.md)).
-The trap: `take` removes, so the store holds a draft only while no editor has it open.
+The trap: `take` removes, so the store holds a draft only while no editor has it open. A section
+shown twice (its canonical frame and a shortcut) shares one slot, so the last draft kept wins.
 
 **Accessible names and state.** Timeline uses `.object-row` over shared subgrid columns.
 Task titles link to their owning section and workstream titles to their project; project and

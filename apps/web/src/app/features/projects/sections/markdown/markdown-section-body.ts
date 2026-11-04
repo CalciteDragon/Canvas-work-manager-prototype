@@ -77,15 +77,18 @@ export class MarkdownSectionBody {
     if (this.destroyed || this.pending() || !this.editing() || !this.canEdit()) return;
     if (draft === this.source()) { this.closeEditor(); return; }
     this.pending.set(true); this.failure.set(null);
+    const sectionId = this.section().id;
     let failure: Failure | null;
     try { failure = await this.save()({ markdown: draft }); }
     // The canvas callback resolves its failure; an unexpected throw keeps the draft too.
     catch (error) { failure = writeFailure(error, `Couldn’t save “${this.name()}”. Try again.`); }
+    // Saved text is never offered back, even when a destroy mid-save already kept it.
+    if (failure === null) this.drafts.forget(sectionId);
     if (this.destroyed) return;
     if (failure === null) {
       // Source may already be patched by our own write. Close in this same turn, before
       // dropping pending, so no intermediate render announces a false external change.
-      this.drafts.forget(this.section().id); this.closeEditor(); this.pending.set(false);
+      this.closeEditor(); this.pending.set(false);
     } else { this.failure.set(failure); this.pending.set(false); }
   }
 

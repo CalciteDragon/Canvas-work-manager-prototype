@@ -212,6 +212,20 @@ describe('MarkdownSectionBody', () => {
     await expect(saving).resolves.toBeUndefined();
     expect(fixture.componentInstance.editing()).toBe(true); expect(fixture.componentInstance.pending()).toBe(true);
   });
+  it('a Save that succeeds after destroy forgets the draft the destroy kept', async () => {
+    let resolve!: (result: Failure | null) => void;
+    const result = new Promise<Failure | null>((done) => { resolve = done; });
+    const { fixture, click, type } = render(undefined, false, result);
+    await click('[data-markdown-edit]'); type('# Mine');
+    const saving = fixture.componentInstance.saveDraft('# Mine'); fixture.destroy(); resolve(null); await saving;
+    expect(TestBed.inject(MarkdownDraftStore).take('section-a')).toBeNull();
+  });
+  it('a Save refused after destroy leaves the draft kept', async () => {
+    const { fixture, click, type } = render(undefined, false, Promise.resolve(NOT_SAVED));
+    await click('[data-markdown-edit]'); type('# Mine');
+    const saving = fixture.componentInstance.saveDraft('# Mine'); fixture.destroy(); await saving;
+    expect(TestBed.inject(MarkdownDraftStore).take('section-a')).toEqual({ draft: '# Mine', base: '# Plan' });
+  });
   it('read-only renders without Edit', () => {
     const { query, save } = render(undefined, true);
     expect(query('h3').textContent).toBe('Plan'); expect(query('[data-markdown-edit]')).toBeNull();
