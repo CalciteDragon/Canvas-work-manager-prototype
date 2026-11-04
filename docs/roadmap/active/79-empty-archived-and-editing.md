@@ -7,7 +7,29 @@ on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden co
 continuation)**: profile 79 in `build-sheet.mjs`, driven by 23 fixture tests in
 `build-sheet.test.mjs` (all tooling tests green; profiles 71–78 unchanged). Commits 3fdab1e (the
 gate), f142b00 and 418c86f (fixes from the first cold review) and the closing commit (fixes from the
-second). **Next is step 2 (foundations).**
+second). **Step 2 (foundations) is done (S79S2, cloud session)**; see the Step 2 bullet below.
+Commits 83f6e13 (code and docs) and the handoff commit. **Next is step 3 (restore one way).**
+- **Step 2:** `.state-message--empty` and `.state-message--archived` in `_controls.scss` (tokens
+  only, no danger colour); `shared/projects/restore-status-choice.{ts,html,scss}` (+ spec, 6
+  tests; stories `Default`, `Pending`, `Disabled`, `InArchivedBanner`), and
+  `shared/feedback/state-message.stories.ts` (`Empty`, `Archived`); the Lab's `state-messages` panel replaces `.lab-state` with two empty
+  specimens (alone, and with New project) and the archived specimen holding the real choice
+  (`design-lab-page.spec.ts`); §21's *Slice 79* paragraph and the failures decision's amendment
+  (the variants). Bundle **1,141.59 kB** initial (baseline re-measured here at 1,140.75; the
+  choice's own layout is in its component stylesheet, so only the two variants and a shared-chunk
+  shift reach the initial bundle).
+- **Left for later steps on purpose:** the `section-frame` header count specimen goes with the
+  count (step 11), as the Lab renders the real frame; Q2's §23/§31 amendment and the
+  actionable-archive decision's amendment go with step 3, when Archive and Settings adopt the
+  choice and Settings starts on Active (the spec must not say that before it is true).
+- **Trap for step 3 (hooks):** `RestoreStatusChoice` renders `select[data-restore-status]` and
+  `button[data-restore-action]` with the accessible name `Restore <subjectLabel>`. The e2e and unit
+  specs still select the old row hooks (`data-archived-project-status` on Archive,
+  `data-archived-status` on Settings, `data-archived-restore` on both), so step 3 either moves those
+  locators to the row plus the new hooks or gives the choice a way to carry them; decide there.
+  `disabled` is native (blocked or paused), `pending` is `aria-disabled` on both controls and
+  refuses a change; Settings' "Restoring…" text has no place in the choice, so step 3 decides
+  whether pending alone carries it. The `status` is a `model`, so a store can bind it.
 - **Profile 79:** the gate holds the plan's tables (context rows with each row's region, views per
   context, the 25 write controls with their source tokens plus the rule hooks, the 31 visual pairs,
   the digest's Stage 0 overdue counts, Q7's hidden counts 6/3/0/0, each blocked form's child routes,
@@ -76,7 +98,7 @@ second). **Next is step 2 (foundations).**
   on the commit form, opened from the menu item `/^Archive (project|workstream)…$/`;
   `[data-todo-row]`, `[data-todo-link]` and `[data-todo-complete]`; `[data-create-project-name]`.
   The banner counts as shown when its host or any of its content has a box.
-- **Bundle:** 1,140.75 kB initial, unchanged (ceiling 1,150 kB, not raised).
+- **Bundle:** 1,141.59 kB initial after step 2 (1,140.75 before; ceiling 1,150 kB, not raised).
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
 [Slice 78](../completed/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
@@ -1043,7 +1065,8 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 - **Components depend on gateway interfaces.**
   - The dashboard injects `ShellCommands`, a `core/shell/` service provided by `AppShell`, never
     `ShellStore` or a concrete gateway.
-  - `RestoreStatusChoice` is presentational and imports only a contracts type.
+  - `RestoreStatusChoice` is presentational and imports only from contracts: the
+    `ProjectRestoreStatus` type and `ProjectRestoreStatusSchema` (its options and parse).
   - `MarkdownDraftStore` holds strings and touches no gateway.
 - **`shared/` imports nothing from `core/` or `features/`.** `shared/projects/` is new, and its
   one component takes inputs and emits outputs. The step 4 boundaries review pass checks it.
@@ -1463,3 +1486,8 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   and `links` (each blocked confirmation's live children); the Undo refusal and the banner's return
   are recorded positively; the hook list in the State header is complete. The before contexts
   were re-captured with the final rig.
+- **2026-11-04, step 2 (S79S2).** Boundaries touched: `RestoreStatusChoice` imports
+  `ProjectRestoreStatusSchema` as well as its type (the options and the parse come from the one
+  schema), so the row says "imports only from contracts". The step's cold review also had the
+  component, stories, §21 paragraph and decision amendment say only what is true now: no product
+  page renders the choice or the variants until steps 3 and 4.
