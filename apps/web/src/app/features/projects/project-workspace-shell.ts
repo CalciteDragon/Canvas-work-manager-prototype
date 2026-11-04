@@ -575,11 +575,15 @@ export class ProjectWorkspaceShell {
    * The banner's Restore (Slice 79, §31): restores the archived owner, then moves focus once the
    * store has resolved, as the banner leaves or moves on. With no owner left, to the project's
    * heading (the own project adds no toast; an ancestor's cross-owner toast is polite); archived
-   * twice, to the banner's restore choice for the next owner. A refusal leaves focus where it was.
+   * twice, to the banner's restore choice for the next owner. A refusal, or a restore landing after
+   * the route moved to another project, leaves focus where it is.
    */
   async restoreFromBanner(status: ProjectRestoreStatus): Promise<void> {
     const owner = this.store.archivedOwner();
+    const projectId = this.projectId();
     if (owner === null || !await this.store.restoreOwner(owner.id, status)) return;
+    // Landing after the person opened another project moves nothing on that one.
+    if (this.projectId() !== projectId) return;
     afterNextRender(() => {
       const host = this.host.nativeElement;
       const target = this.store.archivedOwner() === null

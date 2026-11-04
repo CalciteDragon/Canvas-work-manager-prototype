@@ -87,6 +87,11 @@ describe('ArchivedBanner (Slice 79, §26, §31, L4-007, L1-028)', () => {
     button().click();
     expect(host.restored).toHaveBeenLastCalledWith('on_hold');
 
+    // A context refresh replaces the record, not the owner: the choice stays.
+    host.owner.set({ ...RENOVATION });
+    fixture.detectChanges();
+    expect(select().value).toBe('on_hold');
+
     host.owner.set(KITCHEN);
     fixture.detectChanges();
     expect(select().value).toBe('active');

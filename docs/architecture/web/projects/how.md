@@ -538,7 +538,9 @@ cross-owner toast with Open), or to the banner's status select when the next own
 the pages do not yet change with it. Going read-only closes an open task drawer through
 `TaskDrawerCoordinator.close()`. Rename and Parent (More › Edit details…) stay in the header. An
 archived root's Archive page says "Restore “X” above to bring its archived work back." instead of
-pointing at Settings.
+pointing at Settings, while `readOnly` holds, so the note leaves with the banner. Its choice keeps a
+picked status through a refreshed record of the same owner; a restore that lands after the route
+moved to another project moves no focus.
 
 All surfaces register with shared LiftStack; custom work/section creation dialogs retain
 their existing CDK traps and adopt the lift paint. The canvas releases section creation's

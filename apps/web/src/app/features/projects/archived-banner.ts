@@ -39,8 +39,8 @@ export class ArchivedBanner {
   readonly failure = input<OwnerRestoreFailure | null>(null);
   readonly restore = output<ProjectRestoreStatus>();
 
-  /** Bound to the choice; back to Active for each new owner. */
-  protected readonly status = linkedSignal<Project, ProjectRestoreStatus>({ source: () => this.owner(), computation: () => 'active' });
+  /** Bound to the choice; back to Active for each new owner, kept through a refreshed record of the same one. */
+  protected readonly status = linkedSignal<string, ProjectRestoreStatus>({ source: computed(() => this.owner().id), computation: () => 'active' });
   private lastStatus: ProjectRestoreStatus | null = null;
 
   protected readonly sentence = computed(() => {

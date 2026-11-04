@@ -218,6 +218,11 @@ describe('ArchivePage (§31)', () => {
     const guidance = (fixture.nativeElement as HTMLElement).querySelector('[data-archive-root-guidance]');
     expect(guidance?.textContent?.trim()).toBe('Restore “Website launch” above to bring its archived work back.');
     expect(fixture.componentInstance.readOnly()).toBe(true);
+
+    // A banner restore lifts readOnly before Archive's own re-read: the note goes with the banner.
+    fixture.componentRef.setInput('readOnly', false);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-archive-root-guidance]')).toBeNull();
   });
 
   it('renders archive rows and their owning-page origin', async () => {

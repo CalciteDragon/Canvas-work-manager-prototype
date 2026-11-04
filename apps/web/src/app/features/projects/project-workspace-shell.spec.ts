@@ -1609,6 +1609,10 @@ describe('ProjectWorkspaceShell — read-only projects and the archived banner (
     });
     await settle(harness);
 
+    const select = query(harness, 'app-archived-banner select[data-restore-status]') as HTMLSelectElement;
+    select.value = 'on_hold';
+    select.dispatchEvent(new Event('change'));
+    harness.fixture.detectChanges();
     restoreButton(harness).click();
     await settle(harness);
 
@@ -1617,6 +1621,32 @@ describe('ProjectWorkspaceShell — read-only projects and the archived banner (
     expect(query(harness, '[data-project-write-error]')).toBeNull();
     query(harness, 'app-archived-banner [data-recovery="try-again"]')!.click();
     await settle(harness);
-    expect(gateway.calls.filter(({ method }) => method === 'projects.update')).toHaveLength(2);
+    expect(gateway.calls.filter(({ method }) => method === 'projects.update').map(({ argument }) => argument)).toEqual([
+      { id: 'project-kitchen', input: { status: 'on_hold' } },
+      { id: 'project-kitchen', input: { status: 'on_hold' } },
+    ]);
+  });
+
+  it('moves no focus when the restore lands after the person has opened another project', async () => {
+    const { harness, gateway, router } = await open('/projects/project-kitchen', { projects: [RENOVATION, archived(KITCHEN), CABINETS, GARDEN] });
+    await settle(harness);
+    let land: () => void = () => {};
+    const update = gateway.projects.update.bind(gateway.projects);
+    gateway.projects.update = (id, input) => new Promise((resolve) => { land = () => resolve(update(id, input)); });
+    restoreButton(harness).click();
+    harness.fixture.detectChanges();
+
+    // Not `settle`: the held restore is a pending task, so the fixture is not stable until it lands.
+    await router.navigateByUrl('/projects/project-garden');
+    for (let pass = 0; pass < 3; pass += 1) { await new Promise((resolve) => setTimeout(resolve, 0)); harness.fixture.detectChanges(); }
+    expect(query(harness, 'h1[data-project-name]')?.textContent?.trim()).toBe('Garden');
+    const elsewhere = document.createElement('button');
+    document.body.append(elsewhere);
+    elsewhere.focus();
+    land();
+    await settle(harness);
+
+    expect(document.activeElement).toBe(elsewhere);
+    elsewhere.remove();
   });
 });
