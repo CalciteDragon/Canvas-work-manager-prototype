@@ -13,7 +13,45 @@ Commits 83f6e13 (code and docs) and the handoff commit. **Step 3 (restore one wa
 part b (the banner, its placement and the renderer input, S79S4B); see the Step 4a and 4b bullets
 below. **Step 5 (read-only canvas) is done (S79S5, cloud session)**; see the Step 5 bullet below.
 **Steps 6a (hidden count, Q7) and 6 (read-only pages) are done (S79S6, cloud session)**; see the
-Step 6a/6 bullet below. **Next is step 7 (refusal first).**
+Step 6a/6 bullet below. **Step 7 (refusal first) is done (S79S7, cloud session)**; see the Step 7
+bullet below. **Next is step 8 (empty workspace).**
+- **Step 7 (refusal first):** `ProjectArchiveConfirm` over live workstreams is the blocked form:
+  "“X” can’t be archived yet" / "These workstreams aren’t archived. Archive them first:", each child
+  an `a[data-project-archive-child]` to `/projects/<id>` then " · <Status>" (completed still
+  blocks), a click closing the dialog, Close (`data-project-archive-cancel`, focused) the only
+  button; with none, the commit form unchanged. **Placement changed for the bundle (Revisions):**
+  the list is `liveChildrenOf(tree)` (`live-children.ts`: a root's are the top level of
+  `subprojectTree()`, a workstream's its node's children, archived left out, empty when unread),
+  computed inside the deferred confirmation from the shell's `WORKSPACE_TREE` token
+  (`workspace-tree.ts`, `useExisting: ProjectWorkspaceStore`; a `liveChildren` input overrides it
+  for stories and tests). No store signal and no header input. The late refusal:
+  `projectWriteSentence(input, name, code)` gives an archive's `rule_violation` "“X” still has live
+  workstreams. Archive them first." (reason under Details); other codes keep "Couldn’t archive “X”.
+  Try again."; any `rule_violation` on a project write queues `refreshContext` (the descendants
+  re-read). Stories `ProjectArchiveConfirm/Commit` and `/Blocked`. `lifts.spec.ts`'s archive test
+  now asserts the blocked form on Home renovation (Kitchen, Garden; Close returns to More, no write
+  error). Docs: §31 *Slice 79* note; nesting-rules decision's first amendment and the failures
+  decision's amendment (both indexed); web/projects overview/why/what/how. Unit (projects) 871
+  green; e2e `lifts`, `task-lifts`, `feedback`, `project-history`, `web` 84 passed in this cloud
+  container via a throwaway config with `launchOptions.executablePath: '/opt/pw-browsers/chromium'`
+  (not committed). No captures (cloud). Review (one cold pass): the confirm spec's link click
+  navigated to an unmatched route after teardown and turned `pnpm test` red with every test green
+  (fixed: a wildcard route and a navigation assertion); the re-read is now proven by the next read
+  finding an agent's new workstream; focus moves to the dismiss button if a live frame swaps the
+  form while open (`afterRenderEffect`). Left minor: Ctrl/Cmd-click on a child link also closes
+  the dialog; the failed-quiet-refresh row (L1173) for `liveChildren` follows from
+  `descendantsState` being kept and has no own test; the status label map is duplicated locally
+  (importing the shared one costs bytes there is no room for).
+  **Bundle 1,149.996 kB initial: 4 bytes left under 1,150.**
+  Measured costs: a store `computed` plus a header input and two bindings was +0.66 kB (over);
+  importing the store class (or `RESTORE_STATUS_LABELS`) into the deferred chunk re-split shared
+  initial chunks for about +0.5 kB; the token keeps the main-bundle cost to the sentence, the
+  refresh and the provider. **Trap for steps 8–11: there is no headroom at all.** Every byte added
+  to initial code must be paid for, by `@defer` or by removing something; a lazy chunk must not
+  import a value from a module the initial bundle shares (it re-splits chunks); measure with a
+  throwaway budget (`maximumError` lowered to 1149kB shows the exact total as "not met by N
+  bytes"), and never commit it. If step 8's first-run block and `ShellStore` split cannot fit
+  behind `@defer`, stop and raise it.
 - **Steps 6a and 6 (hidden count; read-only Todos and Reflections):** 6a: optional
   `hiddenItemCount` (non-negative int) on `ProjectTodosResultSchema` and
   `ProjectJournalResultSchema`; `ProjectTodosService.derive` and `ProjectJournalService.journal`
@@ -235,7 +273,7 @@ Step 6a/6 bullet below. **Next is step 7 (refusal first).**
   on the commit form, opened from the menu item `/^Archive (project|workstream)…$/`;
   `[data-todo-row]`, `[data-todo-link]` and `[data-todo-complete]`; `[data-create-project-name]`.
   The banner counts as shown when its host or any of its content has a box.
-- **Bundle:** 1,146.90 kB initial after step 4b; 1,144.74 kB after step 4a; 1,142.88 kB after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
+- **Bundle:** 1,149.996 kB initial after step 7 (4 bytes left); 1,149.74 kB after step 6; 1,148.95 kB after step 5; 1,146.90 kB initial after step 4b; 1,144.74 kB after step 4a; 1,142.88 kB after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
   1,150 kB, not raised). Steps 4 and 8 put the banner and first-run block behind `@defer` (Q6 (a)).
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
@@ -1640,3 +1678,11 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   step names it; it follows `readOnly`. The new archived-pages decision entry and §26's notes wait
   for step 5, when the pages actually become read-only. "Rename and Parent" in this step is More ›
   Edit details…, as profile 79's gate reads it.
+- **2026-11-04, step 7 (S79S7).** `liveChildren` is not a `ProjectWorkspaceStore` signal passed
+  through `ProjectHeader` as the Build bullet, File-level change list and Test plan say: with
+  0.26 kB left under the ceiling, that cost +0.66 kB. It is `liveChildrenOf` in `live-children.ts`,
+  computed by the deferred `ProjectArchiveConfirm` from the shell's `WORKSPACE_TREE` token, with
+  the same set and the same tests (written against `liveChildrenOf(store)` in
+  `project-workspace-store.spec.ts`); the shell spec proves the confirmation receives it, and
+  `project-header.{ts,html}` and its spec do not change. The descendants re-read after a refusal is
+  `refreshContext`, queued for any `rule_violation` on a project write, not only an archive.
