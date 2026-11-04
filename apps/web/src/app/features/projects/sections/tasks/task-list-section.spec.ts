@@ -969,3 +969,78 @@ describe('TaskListSection on an archived page (Slice 79, Q5 (a), §31)', () => {
     expect(query(fixture, '[data-tasks-empty]')?.textContent?.trim()).toBe('No tasks.');
   });
 });
+
+describe('TaskListSection header count and drag hint (Slice 79, L4-023)', () => {
+  const counted = async (gateway: FakeWorkManagerGateway, readOnly = false) => {
+    const reported: (string | null)[] = [];
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
+    });
+    const fixture = TestBed.createComponent(TaskListSection);
+    fixture.componentRef.setInput('section', section());
+    fixture.componentRef.setInput('onConfigChange', vi.fn());
+    fixture.componentRef.setInput('onProjectDataChange', vi.fn());
+    fixture.componentRef.setInput('projectDataRevision', 0);
+    fixture.componentRef.setInput('projectHierarchyRevision', 0);
+    fixture.componentRef.setInput('readOnly', readOnly);
+    fixture.componentRef.setInput('reportSummary', (text: string | null) => reported.push(text));
+    return { fixture, reported, last: () => reported.at(-1) };
+  };
+
+  it('reports "N tasks" after a read, counting open and done, and "1 task" for one', async () => {
+    const done = TaskSchema.parse({ ...task('task-3'), status: 'done', completedAt: AT });
+    const { fixture, last } = await counted(new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-2'), done] }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(last()).toBe('3 tasks');
+
+    TestBed.resetTestingModule();
+    const one = await counted(new FakeWorkManagerGateway({ tasks: [task('task-1')] }), true);
+    one.fixture.detectChanges();
+    await one.fixture.whenStable();
+    expect(one.last()).toBe('1 task');
+  });
+
+  it('reports null while loading, after a failed read, at zero, and when it goes away', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const reads: (() => void)[] = [];
+    gateway.tasks.list = () => new Promise((resolve) => reads.push(() => resolve([task('task-1'), task('task-2')])));
+    const { fixture, reported, last } = await counted(gateway);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(reads.length).toBeGreaterThan(0));
+    fixture.detectChanges();
+    expect(reported.every((text) => text === null)).toBe(true);
+    for (const read of reads) read();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(last()).toBe('2 tasks');
+    });
+    fixture.destroy();
+    expect(last()).toBeNull();
+
+    TestBed.resetTestingModule();
+    const failing = new FakeWorkManagerGateway();
+    failing.tasks.list = async () => { throw new GatewayError('unreachable', 0, 'Read failed'); };
+    const failed = await counted(failing);
+    failed.fixture.detectChanges();
+    await failed.fixture.whenStable();
+    expect(failed.fixture.nativeElement.querySelector('[data-tasks-error]')).not.toBeNull();
+    expect(failed.reported.every((text) => text === null)).toBe(true);
+
+    TestBed.resetTestingModule();
+    const empty = await counted(new FakeWorkManagerGateway());
+    empty.fixture.detectChanges();
+    await empty.fixture.whenStable();
+    expect(empty.reported.every((text) => text === null)).toBe(true);
+  });
+
+  it('overlays the drag hint on quick-add, out of flow, so the first row does not move', async () => {
+    const { fixture } = await render();
+    const drag = fixture.debugElement.query(By.directive(CdkDrag)).injector.get(CdkDrag);
+    drag.started.emit({ source: drag, event: new MouseEvent('mousedown') });
+    fixture.detectChanges();
+    const hint = query(fixture, '[data-task-drag-hint]')!;
+    expect(hint.closest('[data-quick-create]')).not.toBeNull();
+    expect(getComputedStyle(hint).position).toBe('absolute');
+  });
+});

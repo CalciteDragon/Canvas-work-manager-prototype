@@ -58,6 +58,18 @@
         [projectHierarchyRevision]="0"
       />
     </app-section-canvas-frame>
+    @for (section of [counted, countedLong]; track section.id) {
+      <app-section-canvas-frame [columnSpan]="section.columnSpan">
+        <app-project-section-frame
+          [section]="section"
+          [definition]="countedDefinition"
+          [rename]="renameSection"
+          [saveConfig]="saveSectionConfig"
+          [projectDataRevision]="0"
+          [projectHierarchyRevision]="0"
+        />
+      </app-section-canvas-frame>
+    }
   </div>
 </section>
 

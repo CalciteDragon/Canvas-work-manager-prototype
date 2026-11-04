@@ -428,7 +428,16 @@ clears it too. The frame's alert describes Collapse.
 - **Registry lists are pinned** — `sections/registry.spec.ts` and
   `project-page-registry.spec.ts`; `registry.spec.ts` also fails when a type incurs the
   display-name cost without a `SECTION_DISPLAY_NAMES` entry, or when a registered type has no
-  `SECTION_CAPABILITIES` declaration.
+  `SECTION_CAPABILITIES` declaration, or when `summary: true` and a declared `reportSummary`
+  input disagree.
+- **Only a `summary: true` type is given `reportSummary`** (Slice 79). `NgComponentOutlet` sets
+  every key of the content inputs, and an input the component does not declare raises NG0303, so
+  both frames add the callback (a stable class property) only for a marked definition. Task List
+  reports "N tasks" ("1 task"), open and done, and `null` while loading, after a failed read, at
+  zero and on destroy; the frames show nothing while collapsed. The text sits after the heading,
+  not in it, so the section's name is unchanged, and the header is one line (`flex-wrap: nowrap`)
+  in which a long name truncates
+  ([why](../../../decisions/2026-11-task-list-shows-its-count.md)).
 - **Archive lists what the domain projected.** `ArchivePageStore.items` passes the projection
   through unchanged; `ArchivedRegion` only words its `recovery` metadata, plus the one fact about
   the *operation* a row's button performs — that Restore appends to the end of the page.

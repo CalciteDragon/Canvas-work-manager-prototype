@@ -39,6 +39,13 @@ export interface SectionDefinition {
   component: Type<SectionContentComponent>;
 
   inspectorComponent?: Type<SectionContentComponent>;
+
+  /**
+   * The type reports a short summary for its frame's header (Slice 79: Task List's "12 tasks").
+   * Only a marked type is given `reportSummary`, because `NgComponentOutlet` sets every key of
+   * its inputs record and an input the component does not declare raises NG0303.
+   */
+  summary?: true;
 }
 
 /**
@@ -73,6 +80,7 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
     kind: sectionKindOf('task-list'),
     createDefaultConfig: () => ({}),
     component: TaskListSection,
+    summary: true,
   },
   { type: 'progress', kind: sectionKindOf('progress'), displayName: 'Progress', icon: 'progress', createDefaultConfig: () => ({}), component: ProgressSection },
   { type: 'reflections', kind: sectionKindOf('reflections'), displayName: 'Reflections', icon: 'reflections', createDefaultConfig: () => ({}), component: ReflectionsSection },

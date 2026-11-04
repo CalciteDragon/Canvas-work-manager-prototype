@@ -74,6 +74,23 @@ class TestInspector {
   readonly sourceLink = input(null);
 }
 
+/** A content type marked `summary: true`: the only kind that declares `reportSummary` (Slice 79). */
+@Component({
+  selector: 'app-test-summary-content',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<p>counted</p>`,
+})
+class TestSummaryContent {
+  readonly section = input.required<ProjectSection>();
+  readonly onConfigChange = input.required<(config: SectionConfig) => void>();
+  readonly onProjectDataChange = input.required<() => void>();
+  readonly projectDataRevision = input.required<number>();
+  readonly projectHierarchyRevision = input.required<number>();
+  readonly readOnly = input(false);
+  readonly sourceLink = input(null);
+  readonly reportSummary = input.required<(text: string | null) => void>();
+}
+
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
   type: 'test-content',
   kind: 'view',
@@ -613,5 +630,66 @@ describe('slice 76 named section chrome', () => {
       expect(query(fixture, '[data-section-title-edit]')).not.toBeNull();
       expect(fixture.debugElement.query(By.directive(TestContent)).componentInstance.readOnly()).toBe(false);
     });
+  });
+});
+
+describe('the header summary (Slice 79, L4-023)', () => {
+  const summaryContent = (fixture: ReturnType<typeof render>) =>
+    fixture.debugElement.query(By.directive(TestSummaryContent)).componentInstance as TestSummaryContent;
+
+  it('sets reportSummary only on a summary type, so an ordinary section logs no NG0303', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const fixture = render();
+      expect(fixture.componentInstance.contentInputs()).not.toHaveProperty('reportSummary');
+      expect(query(fixture, '[data-section-summary]')).toBeNull();
+      expect(error.mock.calls.flat().join(' ')).not.toContain('NG0303');
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('renders the reported text after the name, outside the heading, and clears it on null', () => {
+    const fixture = render({}, { summary: true, component: TestSummaryContent });
+    const inputs = fixture.componentInstance.contentInputs();
+    expect(query(fixture, '[data-section-summary]')).toBeNull();
+
+    summaryContent(fixture).reportSummary()('3 tasks');
+    fixture.detectChanges();
+    const summary = query(fixture, '[data-section-summary]')!;
+    expect(summary.textContent?.trim()).toBe('3 tasks');
+    expect(query(fixture, '[data-section-title]')!.nextElementSibling).toBe(summary);
+    // The heading, and so the section's accessible name, is still the name alone.
+    expect(query(fixture, '[data-section-title]')!.textContent?.trim()).toBe('Test Content');
+    // The callback is a stable class property: reporting does not rebuild the inputs record.
+    expect(fixture.componentInstance.contentInputs()).toBe(inputs);
+
+    summaryContent(fixture).reportSummary()(null);
+    fixture.detectChanges();
+    expect(query(fixture, '[data-section-summary]')).toBeNull();
+  });
+
+  it('forgets the count when the content goes away, so a collapsed section shows none', () => {
+    const fixture = render({}, { summary: true, component: TestSummaryContent });
+    summaryContent(fixture).reportSummary()('3 tasks');
+    fixture.detectChanges();
+    fixture.componentRef.setInput('section', section({ collapsed: true }));
+    fixture.detectChanges();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-section-summary]')).toBeNull();
+  });
+
+  it('truncates a long name rather than wrapping the header, so the controls hold their place at 375', () => {
+    const fixture = render({ title: 'A very long section name that cannot fit beside its tools at 375' }, { summary: true, component: TestSummaryContent });
+    summaryContent(fixture).reportSummary()('12 tasks');
+    fixture.detectChanges();
+    const header = getComputedStyle(query(fixture, '.section-frame__header')!);
+    const title = getComputedStyle(query(fixture, '[data-section-title]')!);
+    const summary = getComputedStyle(query(fixture, '[data-section-summary]')!);
+    const controls = getComputedStyle(query(fixture, '.section-frame__controls')!);
+    expect(header.flexWrap).toBe('nowrap');
+    expect([title.overflow, title.whiteSpace, title.minWidth]).toEqual(['hidden', 'nowrap', '0px']);
+    expect([summary.flexShrink, summary.whiteSpace]).toEqual(['0', 'nowrap']);
+    expect(controls.flexShrink).toBe('0');
   });
 });

@@ -115,9 +115,9 @@ sequenceDiagram
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with task complete/reopen checkboxes, one-way workstream Complete, serialized writes and Delete, canonical content links, descendant owner-history links and committed Delete/Complete toasts; read-only: no checkbox, Complete or Delete, and the hidden-count sentence (Slice 79) |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy, Restore toasts and descendant owner-history links; a workstream row restores through the shared `RestoreStatusChoice` |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history; read-only: no composer or Add container, and the hidden-count sentence (Slice 79) |
-| `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29; each type's `icon` is an `IconName`, never shared with a page kind except Reflections |
-| `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
-| `ProjectSectionFrame` | `sections/section-frame/` | Plain named heading, roving Rename/Collapse/Move/Settings/Remove toolbar, inline name draft, frame collapse alert; read-only: collapse alone, toggled locally |
+| `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29; each type's `icon` is an `IconName`, never shared with a page kind except Reflections; `summary: true` (Task List only) asks for `reportSummary` (Slice 79) |
+| `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives; `reportSummary` only a `summary: true` type does |
+| `ProjectSectionFrame` | `sections/section-frame/` | Plain named heading, the reported summary after it ("12 tasks", Slice 79), roving Rename/Collapse/Move/Settings/Remove toolbar on one line, inline name draft, frame collapse alert; read-only: collapse alone, toggled locally |
 | Six section types | `sections/{markdown,tasks,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's shortcuts, on Home or a workstream's Work canvas |
 

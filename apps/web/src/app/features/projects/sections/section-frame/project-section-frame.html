@@ -17,6 +17,7 @@
       tabindex="-1"
       [id]="'section-title-' + section().id"
       class="section-frame__title"
+      [class.section-frame__title--fit]="shownSummary() !== null && !editingName()"
       (pointerdown)="titlePointerdown($event)"
       (click)="titleClick($event)"
     >
@@ -40,6 +41,9 @@
         <span>{{ name() }}</span>
       }
     </h2>
+    @if (shownSummary(); as text) {
+      <span data-section-summary class="section-frame__summary">{{ text }}</span>
+    }
 
     <div class="section-frame__controls" role="toolbar" [attr.aria-label]="name() + ' tools'"
       (keydown)="toolbarKeydown($event)" (focusin)="toolbarFocusin($event)">

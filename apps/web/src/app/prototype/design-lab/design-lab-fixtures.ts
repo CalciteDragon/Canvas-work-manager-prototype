@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input } from '@angular/core';
 import {
   ActivityFeedEntrySchema,
   DashboardWidgetSchema,
@@ -158,6 +158,7 @@ export type StubSectionState = 'content' | 'empty' | 'loading' | 'error';
  * A *real* registry definition's content component injects a store which injects the
  * gateway, so rendering one here would make "the Design Lab injects no gateway" false. This
  * stub declares the seven members `SectionContentComponent` requires and injects nothing.
+ * Under a `summary: true` definition it reports its config's `summary` (Slice 79's header count).
  */
 @Component({
   selector: 'app-design-lab-stub-section',
@@ -200,7 +201,15 @@ export class StubSectionContent {
   readonly projectHierarchyRevision = input(0);
   readonly readOnly = input(false);
   readonly sourceLink = input(null);
+  readonly reportSummary = input<((text: string | null) => void) | null>(null);
   protected readonly failure: Failure = { sentence: 'Couldn’t load this section.', reason: 'the prototype host is not running' };
+
+  constructor() {
+    effect(() => {
+      const summary = (this.section().config as { summary?: string }).summary ?? null;
+      this.reportSummary()?.(summary);
+    });
+  }
 
   protected state(): StubSectionState {
     const config = this.section().config as { state?: StubSectionState };
@@ -209,7 +218,7 @@ export class StubSectionContent {
 }
 
 /** The definition the frame is handed. Shared by the Design Lab panel and the story set. */
-export const stubSectionDefinition = (): SectionDefinition => ({
+export const stubSectionDefinition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
   type: 'design-lab-stub',
   // Unregistered in `SECTION_OWNERSHIP`, so a view — a stub owns nothing.
   kind: 'view',
@@ -217,4 +226,5 @@ export const stubSectionDefinition = (): SectionDefinition => ({
   icon: 'markdown',
   createDefaultConfig: () => ({ state: 'content' }),
   component: StubSectionContent,
+  ...overrides,
 });

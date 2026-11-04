@@ -156,6 +156,21 @@ describe('DesignLabPage (§22, §67)', () => {
     expect(choice.querySelector('button')?.getAttribute('aria-label')).toBe('Restore Legacy attic');
   });
 
+  it('shows the header count beside a short and a truncating name (Slice 79, L4-023)', async () => {
+    const { element } = await render();
+
+    const panel = element.querySelector<HTMLElement>('[data-panel="section-frame"]')!;
+    const counted = [...panel.querySelectorAll<HTMLElement>('app-project-section-frame')]
+      .filter((frame) => frame.querySelector('[data-section-summary]') !== null);
+    expect(counted.map((frame) => [
+      frame.querySelector('[data-section-title]')?.textContent?.trim(),
+      frame.querySelector('[data-section-summary]')?.textContent?.trim(),
+    ])).toEqual([
+      ['Launch checklist', '12 tasks'],
+      ['Everything the venue, the caterer and the AV crew still need from us', '1 task'],
+    ]);
+  });
+
   it('writes a moved control through to the document element', async () => {
     const { fixture, element } = await render();
 

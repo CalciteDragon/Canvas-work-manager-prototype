@@ -1,8 +1,8 @@
 import { READ_ONLY_CONFIG } from '../sections/section-contract';
 import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ProjectSectionSchema, ResolvedSectionShortcutSchema, type ProjectId } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { ProjectSectionSchema, ResolvedSectionShortcutSchema, TaskSchema, type ProjectId } from '@cwm/contracts';
+import { describe, expect, it, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 import { ShortcutFrame } from './shortcut-frame';
 import { PinnedFailureDirective } from '../../../shared/feedback/pinned-failure.directive';
@@ -281,5 +281,44 @@ describe('ShortcutFrame read-only (Slice 79, §26, §31)', () => {
     query(fixture, '[data-shortcut-collapse]')!.click(); fixture.detectChanges();
     expect(toggled).toEqual([{ id: 'shortcut-a', collapsed: true }]);
     expect(query(fixture, '[data-shortcut-content]')).not.toBeNull();
+  });
+});
+
+describe('ShortcutFrame header count (Slice 79, L4-023)', () => {
+  const taskListShortcut = () => {
+    const value = shortcut();
+    return shortcut({ source: { ...value.source, type: 'task-list', config: {} } });
+  };
+  const sourceTask = (id: string, status = 'todo') =>
+    TaskSchema.parse({
+      id, projectId: 'project-a', sectionId: 'section-source', title: `Task ${id}`, status, priority: 'medium',
+      createdAt: AT, updatedAt: AT, ...(status === 'done' ? { completedAt: AT } : {}),
+    });
+
+  it('counts a Task List source after the name, and sets no reportSummary on other types', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [sourceTask('task-1'), sourceTask('task-2', 'done')] });
+    TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const fixture = render(taskListShortcut());
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const summary = query(fixture, '[data-shortcut-summary]')!;
+    expect(summary.textContent?.trim()).toBe('2 tasks');
+    expect(query(fixture, '[data-shortcut-title]')!.nextElementSibling).toBe(summary);
+    expect(query(fixture, '[data-shortcut-title]')!.textContent?.trim()).toBe('Task List (Website launch)');
+    expect(getComputedStyle(query(fixture, '.shortcut-frame__header')!).flexWrap).toBe('nowrap');
+    expect(getComputedStyle(summary).flexShrink).toBe('0');
+
+    TestBed.resetTestingModule();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      TestBed.configureTestingModule({ providers: [provideRouter([])] });
+      const markdown = render();
+      expect(markdown.componentInstance.contentInputs()).not.toHaveProperty('reportSummary');
+      expect(query(markdown, '[data-shortcut-summary]')).toBeNull();
+      expect(error.mock.calls.flat().join(' ')).not.toContain('NG0303');
+    } finally {
+      error.mockRestore();
+    }
   });
 });

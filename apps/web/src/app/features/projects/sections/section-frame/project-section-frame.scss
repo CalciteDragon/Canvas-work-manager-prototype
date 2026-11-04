@@ -19,9 +19,10 @@
   gap: 0;
 }
 
+// One line: a long name truncates rather than wrapping the tools onto a second (Slice 79).
 .section-frame__header {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -61,6 +62,18 @@
   white-space: nowrap;
 }
 
+// With a summary the name keeps its own width, so the count sits right after it.
+.section-frame__title--fit {
+  flex-grow: 0;
+}
+
+.section-frame__summary {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
 .section-frame__title .field {
   inline-size: 100%;
 }
@@ -68,6 +81,7 @@
 .section-frame__controls {
   display: flex;
   flex: 0 0 auto;
+  margin-inline-start: auto;
   align-items: center;
   gap: var(--space-2);
 }

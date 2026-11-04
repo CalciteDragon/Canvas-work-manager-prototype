@@ -1,3 +1,4 @@
+import { reflectComponentType } from '@angular/core';
 import { SECTION_CAPABILITIES, displayNameOf, sectionCapabilityOf, sectionConfigRefusal, sectionKindOf, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { SECTION_REGISTRY, definitionFor } from './registry';
@@ -75,6 +76,15 @@ describe('SECTION_REGISTRY (§29)', () => {
     // Retired at schema version 6 (Slice 63): no stored document holds one, and none can be created.
     expect(definitionFor('rich-text')).toBeUndefined();
     expect(definitionFor('sub-projects')).toBeUndefined();
+  });
+
+  it('marks only Task List as reporting a header summary, and every marked type declares the input (Slice 79, L4-023)', () => {
+    // A frame sets `reportSummary` only on a marked type; an undeclared input would be NG0303.
+    expect(SECTION_REGISTRY.filter((definition) => definition.summary).map(({ type }) => type)).toEqual(['task-list']);
+    for (const definition of SECTION_REGISTRY) {
+      const inputs = reflectComponentType(definition.component)!.inputs.map(({ propName }) => propName);
+      expect(inputs.includes('reportSummary'), definition.type).toBe(definition.summary === true);
+    }
   });
 });
 

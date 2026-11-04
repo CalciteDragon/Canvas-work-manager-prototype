@@ -1,7 +1,7 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgComponentOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, linkedSignal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { SECTION_FRAME_NAME } from '../sections/section-frame-name';
 import {
   shortcutNameOf,
@@ -74,6 +74,13 @@ export class ShortcutFrame {
 
   private readonly noopConfig = async (_config: SectionConfig): Promise<Failure | null> => READ_ONLY_CONFIG;
   private readonly noopProjectData = (): void => {};
+  /** What a `summary: true` source type reported for the header, such as "12 tasks" (Slice 79). */
+  readonly summary = signal<string | null>(null);
+  private readonly reportSummary = (text: string | null): void => this.summary.set(text);
+  /** Unmounted content (collapsed or unavailable) keeps no count current. */
+  readonly shownSummary = computed(() =>
+    this.effectiveCollapsed() || this.shortcut().availability !== 'available' ? null : this.summary(),
+  );
 
   readonly contentInputs = computed<SectionContentInputs>(() => ({
     section: this.shortcut().source,
@@ -83,6 +90,7 @@ export class ShortcutFrame {
     projectHierarchyRevision: this.projectHierarchyRevision(),
     readOnly: true,
     sourceLink: this.sourceLink(),
+    ...(this.sourceDefinition()?.summary ? { reportSummary: this.reportSummary } : {}),
   }));
 
   constructor() {

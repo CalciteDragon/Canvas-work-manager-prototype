@@ -43,3 +43,7 @@ Real use shows a section landing is insufficient, or task reordering reaches Sli
 **Amended, 2026-10-25 — Gate 2 accepted.** The user accepted Slice 77's before/after sheet. The
 visual treatment and the real-use findings above stand as current; the drag explanation's layout
 shift (`note-2026-10-22-002`) is a known follow-up, not a reversal.
+
+**Amended, 2026-11-04 — Slice 79.** The drag explanation no longer takes a line above the list: it
+covers the quick-add row while a drag lasts, so the rows hold still under the pointer. Its wording
+is unchanged ([decision](2026-11-task-list-shows-its-count.md)).

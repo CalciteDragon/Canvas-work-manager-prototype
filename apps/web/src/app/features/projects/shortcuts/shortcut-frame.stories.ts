@@ -116,6 +116,10 @@ export const SourceHidden: Story = {
 };
 export const ReadOnlyTaskList: Story = {
   args: { shortcut: taskShortcut() },
+  // The source's count shows in the header, after the name (Slice 79).
+  play: async ({ canvasElement }) => {
+    await expect(await within(canvasElement).findByText('1 task')).toBeVisible();
+  },
 };
 
 export const NestedSource: Story = {

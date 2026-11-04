@@ -40,6 +40,9 @@ projection, completion lock and project-scoped receipts have different state.
   banner is for load and drag-receive failures only. The add form is sticky while the list is
   on screen (transparent at rest; a solid sheet plate appears only when stuck, through a
   `scroll-state(stuck: top)` query), and a landed add is announced and scrolled into view (Slice 75, [feedback stays on the object](../../../decisions/2026-10-feedback-stays-on-the-object.md)).
+  It reports its count ("N tasks") to its frame's header through `reportSummary`, and its drag
+  hint covers the add form while a drag lasts, so the rows hold still (Slice 79,
+  [decision](../../../decisions/2026-11-task-list-shows-its-count.md)).
   It owns native-mode selection, lift registration and focus entry/return for the drawer.
 
 ## Not responsible for

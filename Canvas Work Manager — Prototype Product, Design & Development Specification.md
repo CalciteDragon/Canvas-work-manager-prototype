@@ -1751,6 +1751,12 @@ stale or hand-edited `type` — has *unknown* recovery, never "nothing to recove
 every caller. Only Markdown declares one; a type without one stays opaque
 ([decision](docs/decisions/2026-10-section-config-validated-on-write.md)).
 
+*Amended in Slice 79:* a definition may also say `summary: true`. Only such a type is given
+`reportSummary(text: string | null)`, through which it reports a short summary its frame shows
+after the name; Task List is the one type that does. The marker exists because the frame renders
+content through `NgComponentOutlet`, which sets every key it is given, and an input the component
+does not declare is an error (NG0303) ([decision](docs/decisions/2026-11-task-list-shows-its-count.md)).
+
 ---
 
 # 30. Initial Section Types
@@ -2347,6 +2353,13 @@ the source rows remained singly owned.*
 independent checkbox, title, metadata, context and tools. Todos retains its own write behavior;
 its title opens the owner while a Task List title selects. Sorting within a Task List is disabled
 and the drag hint explains cross-list movement; reordering remains Slice 20.
+
+*Slice 79 (§34).* A Task List's frame header says how many tasks it holds, "12 tasks", open and
+done, as muted text after the name, on canonical and shortcut frames alike. It says nothing while
+loading, after a failed read, at zero or while collapsed; the list's own sentence speaks there. A
+long name truncates before the header wraps. The drag hint covers the quick-add row while a drag
+lasts, instead of taking a line above the list, so the rows do not move
+([decision](docs/decisions/2026-11-task-list-shows-its-count.md)).
 
 # 35. Milestones
 

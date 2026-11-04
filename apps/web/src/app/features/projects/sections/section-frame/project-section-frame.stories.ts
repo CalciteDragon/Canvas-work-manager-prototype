@@ -65,6 +65,25 @@ export const LoadingContent: Story = {
   args: { section: labSection({ title: 'Reflections', config: { state: 'loading' } }) },
 };
 
+/** The header count (Slice 79, L4-023): muted, right after the name, never wrapping the tools. */
+export const HeaderCount: Story = {
+  args: {
+    definition: stubSectionDefinition({ summary: true }),
+    section: labSection({ title: 'Launch checklist', config: { state: 'content', summary: '12 tasks' } }),
+  },
+};
+/** A long name truncates before the header wraps, so the tools hold their place. */
+export const HeaderCountLongName: Story = {
+  args: {
+    definition: stubSectionDefinition({ summary: true }),
+    section: labSection({
+      title: 'Everything the venue, the caterer and the AV crew still need from us',
+      columnSpan: 6,
+      config: { state: 'content', summary: '1 task' },
+    }),
+  },
+};
+
 export const Rest: Story = {};
 export const Hover: Story = {
   play: async ({ canvasElement }) => { await userEvent.hover(canvasElement.querySelector('[data-section-frame]')!); },

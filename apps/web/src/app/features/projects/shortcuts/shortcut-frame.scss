@@ -19,9 +19,10 @@
   gap: 0;
 }
 
+// One line: a long name truncates rather than wrapping the tools onto a second (Slice 79).
 .shortcut-frame__header {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -53,6 +54,20 @@
 .shortcut-frame__heading {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.shortcut-frame__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.shortcut-frame__summary {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
 }
 
 .shortcut-frame__title {

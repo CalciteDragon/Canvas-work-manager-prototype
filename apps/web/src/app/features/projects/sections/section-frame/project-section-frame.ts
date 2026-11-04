@@ -78,6 +78,10 @@ export class ProjectSectionFrame {
   readonly nameDraft = signal('');
   readonly renamePending = signal(false);
   readonly name = computed(() => nameOf(this.section()));
+  /** What a `summary: true` content reported for the header, such as "12 tasks" (Slice 79). */
+  readonly summary = signal<string | null>(null);
+  /** A collapsed section's content is not mounted, so nothing keeps its count current. */
+  readonly shownSummary = computed(() => (this.effectiveCollapsed() ? null : this.summary()));
   /**
    * The read-only toggle's view. A fresh `section` record, or `readOnly` changing either way,
    * resets it to the stored state.
@@ -96,6 +100,7 @@ export class ProjectSectionFrame {
   private readonly emitConfig = (config: SectionConfig): Promise<Failure | null> =>
     this.readOnly() ? Promise.resolve(READ_ONLY_CONFIG) : this.saveConfig()(this.section().id, config);
   private readonly emitProjectDataChange = (): void => this.projectDataChanged.emit();
+  private readonly reportSummary = (text: string | null): void => this.summary.set(text);
 
   readonly contentInputs = computed<SectionContentInputs>(() => ({
     section: this.section(),
@@ -106,6 +111,7 @@ export class ProjectSectionFrame {
     readOnly: this.readOnly(),
     sourceLink: null,
     ...(this.section().type === 'task-list' ? { onOpenArchive: this.onOpenArchive() } : {}),
+    ...(this.definition().summary ? { reportSummary: this.reportSummary } : {}),
   }));
 
   constructor() {

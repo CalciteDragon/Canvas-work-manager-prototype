@@ -33,6 +33,11 @@ export interface SectionContentInputs extends Record<string, unknown> {
   readOnly: boolean;
   /** Canonical source navigation for shortcut rows; null in owners and picker previews. */
   sourceLink: { route: string[]; fragment: string } | null;
+  /**
+   * Set only for a type its definition marks `summary: true` (Slice 79): the frame shows the
+   * text after its name, and `null` shows nothing. A stable class-property callback, as above.
+   */
+  reportSummary?: (text: string | null) => void;
 }
 
 /** A shortcut's content is read-only (§27), so a config write from it is refused before sending. */

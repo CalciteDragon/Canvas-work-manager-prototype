@@ -39,8 +39,10 @@
    reduced motion caps duration tokens at 80 ms. Sheet blur is an opt-in experiment through
    an intermediate property, so real fallback media retain control of the final filter.
    The section-chrome rest-opacity knob exports with Copy CSS; the live section-frame panel
-   shows rest and focus specimens. Its wrapper follows the canvas's quiet defaults on pointer
-   and touch. `CURRENT_SLICE` is 78 for captured friction notes.
+   shows rest and focus specimens, and the header count beside a short and a truncating name
+   (Slice 79; the stub content reports its config's `summary` under a `summary: true` definition).
+   Its wrapper follows the canvas's quiet defaults on pointer
+   and touch. `CURRENT_SLICE` is 79 for captured friction notes.
 
 ## Key symbols
 

@@ -11,10 +11,15 @@
 >
   <header class="shortcut-frame__header">
     <div class="shortcut-frame__heading">
-      <h2 data-shortcut-title data-recovery-focus tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
-        <span class="shortcut-frame__icon" aria-hidden="true"><app-icon name="open" /></span>
-        {{ name() }}
-      </h2>
+      <div class="shortcut-frame__title-row">
+        <h2 data-shortcut-title data-recovery-focus tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
+          <span class="shortcut-frame__icon" aria-hidden="true"><app-icon name="open" /></span>
+          {{ name() }}
+        </h2>
+        @if (shownSummary(); as text) {
+          <span data-shortcut-summary class="shortcut-frame__summary">{{ text }}</span>
+        }
+      </div>
       <p data-shortcut-source class="shortcut-frame__source">
         <span class="shortcut-frame__origin">{{ shortcut().breadcrumb.join(' / ') }} · {{ pageLabel() }}</span>
       </p>

@@ -65,6 +65,8 @@ export class TaskListSection {
   readonly dragging = signal(false);
   readonly sourceLink = input<SectionContentInputs['sourceLink']>(null);
   readonly onOpenArchive = input<(returnTo: HTMLElement) => void>(() => {});
+  /** The frame's header count; given because the registry marks Task List `summary: true` (Slice 79). */
+  readonly reportSummary = input<((text: string | null) => void) | null>(null);
 
   readonly store = inject(TaskListStore);
   readonly toast = new ReceiptToast();
@@ -99,6 +101,15 @@ export class TaskListSection {
   readonly receiveErrorId = computed(() => `tasks-receive-error-${this.section().id}`);
   /** What a pinned drag-receive failure is called: the list it failed to land in. */
   readonly name = computed(() => nameOf(this.section()));
+  /**
+   * "12 tasks", open and done, once a read has answered. While loading, after a failed read and
+   * at zero there is none: the loading line, the banner or the empty sentence speaks (Slice 79).
+   */
+  readonly summary = computed(() => {
+    if (this.store.loading() || this.store.error() !== null) return null;
+    const count = this.store.tasks().length;
+    return count === 0 ? null : count === 1 ? '1 task' : `${count} tasks`;
+  });
   /** The polite line that says a quick-add landed; the row itself is the visible confirmation. */
   readonly announcement = signal('');
 
@@ -130,6 +141,8 @@ export class TaskListSection {
     }
     destroy.onDestroy(() => {
       this.destroyed = true;
+      // A collapsed or removed list's count would go stale in the header, so it goes with it.
+      this.reportSummary()?.(null);
       this.openedDrawer?.hide();
       this.releaseStack?.();
       this.releaseCoordinator?.();
@@ -170,6 +183,11 @@ export class TaskListSection {
         // Its own Undo can publish the returning row before the transition response arrives.
         if (this.toast.report() !== null && !this.toast.pendingUndo()) this.toast.close();
       }
+    });
+    effect(() => {
+      const text = this.summary();
+      const report = this.reportSummary();
+      untracked(() => report?.(text));
     });
     // The same rule `ReflectionsSection` follows: load on mount, quietly re-read whenever
     // the page says the project's data moved underneath it.

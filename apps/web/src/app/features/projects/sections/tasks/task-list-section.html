@@ -29,6 +29,10 @@
       @if (store.createError(); as failure) {
         <app-failure-message data-quick-create-error class="quick-create__error" weight="inline" [failure]="failure" live="alert" [sentenceId]="createErrorId()" />
       }
+      <!-- Over quick-add, which a drag cannot use, so the list never moves (Slice 79). -->
+      @if (dragging()) {
+        <p data-task-drag-hint class="task-list-section__muted quick-create__drag-hint" role="status">Drop on another Task List to move it. Order within a list can't be changed yet.</p>
+      }
     </form>
     <p data-quick-create-status class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
   }
@@ -41,9 +45,6 @@
     <app-failure-message data-tasks-error data-tasks-receive-error [failure]="failure" live="alert" [sentenceId]="receiveErrorId()" />
   }
 
-  @if (dragging()) {
-    <p data-task-drag-hint class="task-list-section__muted" role="status">Drop on another Task List to move it. Order within a list can't be changed yet.</p>
-  }
   <div class="task-workspace">
     @if (readOnly()) {
       <div class="task-list" [attr.aria-busy]="store.loading()">

@@ -70,6 +70,15 @@ export class LivePanels {
   protected readonly fullWidth = labSection({ id: 'section-full', title: 'Tools at rest', columnSpan: 12 });
   protected readonly halfWidth = labSection({ id: 'section-half', title: 'Focus within', columnSpan: 6 });
   protected readonly collapsed = labSection({ id: 'section-collapsed', title: 'Collapsed', collapsed: true });
+  /** The header count (Slice 79): a short name, and one long enough to truncate beside it. */
+  protected readonly countedDefinition = stubSectionDefinition({ summary: true });
+  protected readonly counted = labSection({ id: 'section-counted', title: 'Launch checklist', config: { state: 'content', summary: '12 tasks' } });
+  protected readonly countedLong = labSection({
+    id: 'section-counted-long',
+    title: 'Everything the venue, the caterer and the AV crew still need from us',
+    columnSpan: 6,
+    config: { state: 'content', summary: '1 task' },
+  });
   protected readonly sectionStates = [
     labSection({ id: 'section-empty', title: 'Empty state', config: { state: 'empty' } }),
     labSection({ id: 'section-loading', title: 'Loading state', config: { state: 'loading' } }),

@@ -161,6 +161,7 @@ Archive-label revision; both entries record acceptance.
 | [Rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md) | Shared row anatomy; title navigation outside the owner, selection inside; Preview stays contained | Slice 77 |
 | [Archived pages are read-only, with a banner that restores in place](2026-11-archived-pages-are-read-only.md) | Outermost archived owner; absent canvas and section write controls; local, unsaved collapse (Q4 (a)); static Task List rows with no drawer (Q5 (a)); what stays in the header | current (Slice 79) |
 | [The digest's overdue line leads to the tasks](2026-11-digest-overdue-line-leads-to-the-tasks.md) | Up to five overdue tasks under the digest's prose, each linking to its owner section through `task-origin-link.ts`, then a muted "and N more overdue" (Q1 (a)); web only | current (Slice 79) |
+| [A Task List shows its count in the frame header](2026-11-task-list-shows-its-count.md) | "N tasks" after the frame's name, reported only by `summary: true` types (NG0303); none while loading, failed, empty or collapsed; the drag hint covers quick-add | current (Slice 79) |
 | [An empty workspace offers the first project](2026-11-empty-workspace-offers-the-first-project.md) | First run above the widgets (Q3 (a)), said only after a read answered; `SHELL_COMMANDS` and the one creation form; the sidebar's archived-only "No active projects." | current (Slice 79) |
 
 - [Lifts use the browser's top layer](2026-10-lifts-use-the-top-layer.md) — current; Slice 73 native modes and one transient lift.
