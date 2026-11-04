@@ -9,9 +9,39 @@ continuation)**: profile 79 in `build-sheet.mjs`, driven by 23 fixture tests in
 gate), f142b00 and 418c86f (fixes from the first cold review) and the closing commit (fixes from the
 second). **Step 2 (foundations) is done (S79S2, cloud session)**; see the Step 2 bullet below.
 Commits 83f6e13 (code and docs) and the handoff commit. **Step 3 (restore one way) is done
-(S79S3)**; see the Step 3 bullet below. **Step 4 part a (the store) is done (S79S4A)**; see the
-Step 4a bullet below. **Next is step 4 part b (S79S4B): the banner, its shell placement and the
-renderer input.**
+(S79S3)**; see the Step 3 bullet below. **Step 4 is complete**: part a (the store, S79S4A) and
+part b (the banner, its placement and the renderer input, S79S4B); see the Step 4a and 4b bullets
+below. **Next is step 5 (read-only canvas).**
+- **Step 4b (banner, placement, renderer input):** `features/projects/archived-banner.{ts,html,scss}`
+  (+ spec, 8 tests; stories `Own`, `Ancestor`, `ArchivedTwice`, `Pending`, `Failure`, `Refused`):
+  host `app-archived-banner.state-message.state-message--archived`, `aria-busy` while pending;
+  `[data-archived-sentence]` holds the own / ancestor / "archived, and so is" sentence;
+  `RestoreStatusChoice` on the owner, its status a `linkedSignal` on a `computed` owner id (Active
+  per owner, kept through a refreshed record); the owner's `restoreFailure()` inline inside it
+  (`[data-archived-restore-error]`, `live="alert"`, Details, Try again only when `retryable`,
+  repeating the last pressed status). The shell mounts it in `.project-workspace__main` right after
+  `app-project-header`, `@defer (when store.readOnly())` with no placeholder content;
+  `restoreFromBanner` focuses `h1[data-project-name]` or `app-archived-banner
+  select[data-restore-status]` after resolve, and nothing if the route moved to another project
+  meanwhile; `bannerRestoreDisabled` = `projectWritePending() && !restorePending()`.
+  `ProjectPageRendererInputs.readOnly` / `ProjectPageRenderer.readOnly` are set from
+  `store.readOnly()` and declared (`input(false)`) by `ProjectCanvas`, `TodosPage`, `ArchivePage` and
+  `ReflectionsPage`; **no page changes with it yet** (steps 5 and 6). `TaskDrawerCoordinator.close()`
+  is new; a shell effect calls it when `readOnly()` turns true. **Pulled in from the archive-page
+  row:** the archived root's Archive note is now "Restore “X” above to bring its archived work
+  back." while `readOnly` holds (`ArchivePage.rootArchived` removed), with the §31 *Slice 79*
+  sentence and the root-archive-recovery decision's amendment (index row updated). **Rename and
+  Parent:** both live in More › Edit details…, which the header keeps (asserted). **Left for step 5
+  on purpose:** the new `2026-11-archived-pages-are-read-only.md` decision entry and §26's archived
+  notes, since pages are not yet read-only (no aspirational docs). Commits 914207f (code and docs)
+  and 8251427 (review fixes). Web unit 1,446 green; `pnpm test`, `pnpm lint` green; e2e `web`,
+  `project-history`, `archive`, `archived-projects`, `feedback` 63 passed (**one worker**: the
+  config's `workers: 1` is required, `--workers=2` races the shared host and fails 9 tests falsely).
+  Bundle **1,146.90 kB** initial (+2.16 kB; the banner chunk is 2.75 kB lazy). **Trap: only
+  3.10 kB is left under the 1,150 ceiling for steps 5–11**; steps 8 (first run) and 10 (draft
+  store) should defer what they can and measure early. Review: nothing substantive; four minors,
+  all fixed (status reset on a refreshed owner record, focus after navigating away, the Archive
+  note outliving the banner, Try again's status asserted).
 - **Step 4a (store only):** `ProjectWorkspaceStore` (`project-workspace-store.ts`) now exposes:
   `archivedOwner()` (`Project | null`, outermost archived of breadcrumbs + project; ancestors are
   root first), `readOnly()`, `restorePending()`, `restoreFailure()` (`OwnerRestoreFailure | null`:
@@ -146,7 +176,7 @@ renderer input.**
   on the commit form, opened from the menu item `/^Archive (project|workstream)…$/`;
   `[data-todo-row]`, `[data-todo-link]` and `[data-todo-complete]`; `[data-create-project-name]`.
   The banner counts as shown when its host or any of its content has a box.
-- **Bundle:** 1,144.74 kB initial after step 4a; 1,142.88 kB after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
+- **Bundle:** 1,146.90 kB initial after step 4b; 1,144.74 kB after step 4a; 1,142.88 kB after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
   1,150 kB, not raised). Steps 4 and 8 put the banner and first-run block behind `@defer` (Q6 (a)).
 
 Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
@@ -1546,3 +1576,8 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   and `feedback.spec.ts` moved, and `archived-projects.spec.ts`'s dismissal-to-heading assertion
   became index-based (§77: the next row's choice is now a valid target). The choice gained
   "Restoring…" text while pending, as Archive and Settings already said.
+- **2026-11-04, step 4b (S79S4B).** The archived root's Archive note (the `archive-page` row) landed
+  with the banner rather than in a later step, since the note sits right under it and no later
+  step names it; it follows `readOnly`. The new archived-pages decision entry and §26's notes wait
+  for step 5, when the pages actually become read-only. "Rename and Parent" in this step is More ›
+  Edit details…, as profile 79's gate reads it.
