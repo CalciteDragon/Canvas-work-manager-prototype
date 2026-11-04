@@ -1,7 +1,7 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgComponentOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, linkedSignal, output } from '@angular/core';
 import { SECTION_FRAME_NAME } from '../sections/section-frame-name';
 import {
   shortcutNameOf,
@@ -49,11 +49,15 @@ export class ShortcutFrame {
   readonly moveRequested = output<'previous' | 'next'>();
   readonly removeRequested = output<SectionShortcutId>();
 
-  /** The read-only toggle's view; a fresh `shortcut` record resets it to the stored state. */
-  private readonly localCollapsed = linkedSignal<ResolvedSectionShortcut, boolean | null>({
-    source: this.shortcut,
+  /**
+   * The read-only toggle's view. A fresh `shortcut` record, or `readOnly` changing either way,
+   * resets it to the stored state.
+   */
+  private readonly localCollapsed = linkedSignal<{ shortcut: ResolvedSectionShortcut; readOnly: boolean }, boolean | null>({
+    source: () => ({ shortcut: this.shortcut(), readOnly: this.readOnly() }),
     computation: () => null,
   });
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly effectiveCollapsed = computed(
     () => (this.readOnly() ? this.localCollapsed() : null) ?? this.shortcut().collapsed,
   );
@@ -80,6 +84,14 @@ export class ShortcutFrame {
     readOnly: true,
     sourceLink: this.sourceLink(),
   }));
+
+  constructor() {
+    // Roving focus may have left Collapse at -1 while Move or Remove held the stop; those go now.
+    effect(() => {
+      if (!this.readOnly()) return;
+      this.host.nativeElement.querySelector<HTMLElement>('[data-shortcut-collapse]')?.setAttribute('tabindex', '0');
+    });
+  }
 
   toggleCollapsed(): void {
     if (this.readOnly()) {

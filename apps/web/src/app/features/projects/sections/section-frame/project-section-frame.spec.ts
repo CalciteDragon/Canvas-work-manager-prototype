@@ -578,6 +578,33 @@ describe('slice 76 named section chrome', () => {
       expect(query(fixture, '[data-section-name]')).toBeNull();
     });
 
+    it('makes collapse the toolbar\'s one tab stop', () => {
+      const fixture = readOnly();
+      expect(query(fixture, '[data-section-collapse]')!.getAttribute('tabindex')).toBe('0');
+      expect(fixture.nativeElement.querySelectorAll('.section-frame__controls [tabindex="0"]')).toHaveLength(1);
+    });
+
+    it('closes a rename that was saving when the page turned read-only, once the save settles', async () => {
+      let settle!: (saved: boolean) => void;
+      const fixture = render({}, {}, () => new Promise<boolean>((resolve) => { settle = resolve; }));
+      query(fixture, '[data-section-title-edit]')!.click(); fixture.detectChanges();
+      const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+      input.value = 'Renamed';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); fixture.detectChanges();
+      fixture.componentRef.setInput('readOnly', true); fixture.detectChanges();
+      expect(query(fixture, '[data-section-name]')).not.toBeNull();
+      settle(false); await fixture.whenStable(); fixture.detectChanges();
+      expect(query(fixture, '[data-section-name]')).toBeNull();
+    });
+
+    it('starts from the stored state again after a read-only, live, read-only round trip', () => {
+      const fixture = readOnly();
+      query(fixture, '[data-section-collapse]')!.click(); fixture.detectChanges();
+      fixture.componentRef.setInput('readOnly', false); fixture.detectChanges();
+      fixture.componentRef.setInput('readOnly', true); fixture.detectChanges();
+      expect(query(fixture, '[data-section-content]')).not.toBeNull();
+    });
+
     it('drops the local view when the page becomes editable again', () => {
       const fixture = readOnly();
       query(fixture, '[data-section-collapse]')!.click(); fixture.detectChanges();

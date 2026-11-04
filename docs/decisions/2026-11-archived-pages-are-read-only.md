@@ -46,7 +46,7 @@ Two questions needed the user:
 - On the canvas, insertion marks, the end and empty-canvas "Add a section", drag, resize, section
   rename, section settings and remove are absent, on section, shortcut and unknown-section frames.
   An archived empty canvas says "This page has no sections." Going read-only closes an open
-  section settings panel and an idle rename.
+  section settings panel and a rename (one already saving closes when its answer arrives).
 - Inside sections, the existing `readOnly` content input hides quick-add, Complete, Delete,
   Markdown Edit and the other content writes. The canonical Task List's rows are static with no
   drawer and say "No tasks." when empty; a shortcut's rows still link to their source.

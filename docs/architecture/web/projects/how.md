@@ -540,10 +540,11 @@ there are no insertion marks, no end or empty-canvas add (an archived empty canv
 has no sections."), no resize handles, drag is disabled, and the inline unknown-section frame drops
 its toolbar. It passes `readOnly` to `ProjectSectionFrame` and `ShortcutFrame`. The section frame
 drops Rename (and title-click rename), Move, Settings and Remove, closes an open settings panel and
-an idle rename when it turns read-only, and hands `readOnly: true` to its content, whose config
+a rename when it turns read-only (a rename already saving closes when its answer arrives), and hands `readOnly: true` to its content, whose config
 writes answer `READ_ONLY_CONFIG`; the shortcut frame drops Move and Remove and keeps Open source.
-Both keep collapse as the toolbar's tab stop and toggle a local `linkedSignal` view instead of
-emitting `collapseToggled`; a fresh `section` or `shortcut` record resets it to the stored state,
+Both keep collapse as the toolbar's tab stop (the shortcut frame resets a roved-away `tabindex`)
+and toggle a local `linkedSignal` view instead of emitting `collapseToggled`; a fresh `section` or
+`shortcut` record, or `readOnly` changing, resets it to the stored state,
 and the section frame's local view overrides `transientlyExpanded`. The canonical Task List's
 read-only rows are static `TaskRow`s (`link` null: a plain title, no drawer, no drag) and its
 empty sentence is "No tasks."; a shortcut's rows keep their source link and "The source has no

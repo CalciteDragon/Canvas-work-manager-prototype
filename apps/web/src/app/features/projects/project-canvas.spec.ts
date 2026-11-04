@@ -27,6 +27,7 @@ import { LiftStack } from '../../shared/lifts/lift-stack';
 import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
 import { ProjectCanvas } from './project-canvas';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
+import { ShortcutFrame } from './shortcuts/shortcut-frame';
 import { ProjectPageStore } from './project-page-store';
 import { SECTION_REGISTRY } from './sections/registry';
 
@@ -1263,14 +1264,27 @@ describe('ProjectCanvas — read-only (Slice 79, §26, §31)', () => {
     expect(query(fixture, '[data-canvas-add]')).toBeNull();
     expect(queryAll(fixture, 'app-section-resize-handle')).toHaveLength(0);
     expect(fixture.debugElement.queryAll(By.directive(CdkDrag)).every((drag) => drag.injector.get(CdkDrag).disabled)).toBe(true);
-    for (const hook of ['[data-section-drag-handle]', '[data-section-remove]', '[data-section-title-edit]', '[data-shortcut-drag-handle]', '[data-shortcut-remove]', '[data-unknown-section-drag-handle]', '[data-unknown-section-remove]']) {
+    for (const hook of ['[data-section-drag-handle]', '[data-section-remove]', '[data-section-title-edit]', '[data-section-config]', '[data-shortcut-drag-handle]', '[data-shortcut-remove]', '[data-unknown-section-drag-handle]', '[data-unknown-section-remove]']) {
       expect(queryAll(fixture, hook), hook).toHaveLength(0);
     }
     expect(fixture.debugElement.queryAll(By.directive(ProjectSectionFrame)).every((frame) => frame.componentInstance.readOnly())).toBe(true);
+    expect(fixture.debugElement.query(By.directive(ShortcutFrame)).componentInstance.readOnly()).toBe(true);
     // The unknown section still says what it is.
     expect(query(fixture, '[data-unknown-section]')?.textContent).toContain('unknown-future-type');
     // Inside sections, the content's own readOnly hides quick-add.
     expect(query(fixture, '[data-quick-create]')).toBeNull();
+  });
+
+  it('makes no move and opens no creation from the keyboard paths', async () => {
+    const { fixture, gateway } = await render({ readOnly: true });
+    const before = gateway.calls.length;
+
+    await fixture.componentInstance.moveWithKeyboard('section-text', 'next');
+    fixture.componentInstance.openCreate({ kind: 'end', beforeId: null, columnSpan: 12 });
+    fixture.detectChanges();
+
+    expect(gateway.calls.slice(before)).toEqual([]);
+    expect(fixture.componentInstance.createDialogOpen()).toBe(false);
   });
 
   it('says "This page has no sections." on an archived empty canvas, with no add action', async () => {

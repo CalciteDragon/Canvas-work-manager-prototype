@@ -949,6 +949,7 @@ describe('TaskListSection on an archived page (Slice 79, Q5 (a), §31)', () => {
       expect(row.classList).toContain('object-row--static');
     }
     expect(rows[1]!.textContent).toContain('Done');
+    expect(rows[1]!.querySelector('time')?.getAttribute('datetime')).toBe(AT);
     for (const hook of ['[data-task-complete]', '[data-task-delete]', '[data-quick-create]', 'a[data-task-title]']) {
       expect(query(fixture, hook), hook).toBeNull();
     }

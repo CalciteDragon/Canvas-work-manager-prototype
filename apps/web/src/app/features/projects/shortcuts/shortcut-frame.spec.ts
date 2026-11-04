@@ -262,6 +262,15 @@ describe('ShortcutFrame read-only (Slice 79, §26, §31)', () => {
     expect(query(fixture, '[data-shortcut-content]')).toBeNull();
   });
 
+  it('gives collapse back the tab stop when the page turns read-only after roving to Remove', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = render();
+    query(fixture, '[data-shortcut-remove]')!.focus(); fixture.detectChanges();
+    expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('tabindex')).toBe('-1');
+    fixture.componentRef.setInput('readOnly', true); fixture.detectChanges();
+    expect(query(fixture, '[data-shortcut-collapse]')!.getAttribute('tabindex')).toBe('0');
+  });
+
   it('is unchanged when live', () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     const fixture = render();

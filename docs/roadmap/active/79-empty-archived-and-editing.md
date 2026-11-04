@@ -11,7 +11,37 @@ second). **Step 2 (foundations) is done (S79S2, cloud session)**; see the Step 2
 Commits 83f6e13 (code and docs) and the handoff commit. **Step 3 (restore one way) is done
 (S79S3)**; see the Step 3 bullet below. **Step 4 is complete**: part a (the store, S79S4A) and
 part b (the banner, its placement and the renderer input, S79S4B); see the Step 4a and 4b bullets
-below. **Next is step 5 (read-only canvas).**
+below. **Step 5 (read-only canvas) is done (S79S5, cloud session)**; see the Step 5 bullet below.
+**Next is step 6a (hidden count, Q7), then step 6 (read-only pages).**
+- **Step 5 (read-only canvas):** `ProjectCanvas.layoutEditable()` (`orderComplete() &&
+  !readOnly()`) gates insertion marks, the end and empty-canvas add, drag/drop, `openCreate`,
+  `moveWithKeyboard` and the grid gaps; resize handles and the unknown frame's toolbar are absent
+  when read-only; an archived empty canvas says "This page has no sections." `ProjectSectionFrame`
+  and `ShortcutFrame` declare `readOnly` (`input(false)`): no Rename (nor title-click rename),
+  Move, Settings or Remove on sections; no Move or Remove on shortcuts (Open source stays);
+  collapse is the toolbar's one tab stop and toggles a local `linkedSignal` view (reset by a fresh
+  record or by `readOnly` changing; it overrides `transientlyExpanded`), never emitting
+  `collapseToggled` (Q4 (a)). The section frame passes `readOnly` to its content (config writes
+  answer `READ_ONLY_CONFIG`) and closes an open settings panel and a rename on going read-only (a
+  rename already saving closes when its answer arrives). The Task List's archived rows were
+  already static `TaskRow`s (`link` null: plain title, status when not To do, due/completed date,
+  no drawer, drag or drop list), now pinned by tests; its empty sentence is "No tasks." when
+  `sourceLink` is null, and the shortcut flavour keeps "The source has no tasks yet." and its link
+  (Q5 (a)). Stories `ProjectCanvas` `ReadOnly` and `ReadOnlyEmpty`. Docs: the new decision
+  `2026-11-archived-pages-are-read-only.md` (indexed; step 6/6a append dated amendments for Todos,
+  Reflections and Q7, not rewrites), §26's *Since Slice 79* paragraph, web/projects why/what/how.
+  Commits e10d6b0 (code and docs) and the review-fix commit after it. Web unit 1,466 green;
+  `pnpm test`, `pnpm lint` green. No e2e or captures run (cloud session; captures stay local).
+  Bundle **1,148.95 kB** initial (+2.05 kB over step 4). **Trap: only 1.05 kB is left under the
+  1,150 ceiling for steps 6–11**: step 6 (Todos/Reflections) must be near-zero, and steps 8 (first
+  run) and 10 (draft store) must defer what they can and measure early; if one cannot fit, stop and
+  raise it (never raise the ceiling). Review: nothing substantive; minors fixed (shortcut collapse
+  tab stop after roving, a saving rename closing when it settles, local collapse reset on a
+  `readOnly` round trip, test gaps). **Left as is (domain refuses each):** a section creation
+  dialog, a resize preview or the removal toast's Retry remove already open when the page turns
+  read-only are not closed by the canvas; a candidate for real use if it is felt. **Branch note:**
+  this cloud session's harness named `claude/step-5-read-only-canvas-d221jy`; work was pushed to
+  `codex/ui-ux-overhaul` as the brief requires.
 - **Step 4b (banner, placement, renderer input):** `features/projects/archived-banner.{ts,html,scss}`
   (+ spec, 8 tests; stories `Own`, `Ancestor`, `ArchivedTwice`, `Pending`, `Failure`, `Refused`):
   host `app-archived-banner.state-message.state-message--archived`, `aria-busy` while pending;

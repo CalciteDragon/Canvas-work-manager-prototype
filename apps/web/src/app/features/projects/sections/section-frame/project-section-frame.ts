@@ -78,9 +78,12 @@ export class ProjectSectionFrame {
   readonly nameDraft = signal('');
   readonly renamePending = signal(false);
   readonly name = computed(() => nameOf(this.section()));
-  /** The read-only toggle's view; a fresh `section` record resets it to the stored state. */
-  private readonly localCollapsed = linkedSignal<ProjectSection, boolean | null>({
-    source: this.section,
+  /**
+   * The read-only toggle's view. A fresh `section` record, or `readOnly` changing either way,
+   * resets it to the stored state.
+   */
+  private readonly localCollapsed = linkedSignal<{ section: ProjectSection; readOnly: boolean }, boolean | null>({
+    source: () => ({ section: this.section(), readOnly: this.readOnly() }),
     computation: () => null,
   });
   readonly effectiveCollapsed = computed(
@@ -111,11 +114,12 @@ export class ProjectSectionFrame {
       if (!this.editingName()) this.nameDraft.set(current);
     });
     // Archiving underneath an open panel or rename takes its write surface away (Slice 79).
+    // A rename already saving closes once its answer arrives.
     effect(() => {
-      if (!this.readOnly()) return;
+      if (!this.readOnly() || this.renamePending()) return;
       untracked(() => {
         this.configOpen.set(false);
-        if (!this.renamePending()) this.editingName.set(false);
+        this.editingName.set(false);
       });
     });
   }
