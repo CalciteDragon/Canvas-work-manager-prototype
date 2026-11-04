@@ -2,7 +2,8 @@
 
 Workspace Settings now links to `/settings/archived-projects`. Its page reads the actor's
 archived roots and currently restorable subprojects through `projects.archived()` and restores
-with an explicit status through the existing project gateway write. Root Archive shows the
+through the shared `RestoreStatusChoice` (Active preselected and shown) with the existing project
+gateway write. Root Archive shows the
 domain's ready-only, parent-first list.
 
 `apps/web` is the Angular 22 application on `http://localhost:4200` (§4, §19): the shell
@@ -77,7 +78,8 @@ Smaller features that do not earn a folder of their own:
   which renders it with an optional Try again and the reason under a collapsed Details.
 - `shared/projects` — slice 79's `RestoreStatusChoice`, the one "Restore as [status] · Restore"
   control: options from `ProjectRestoreStatusSchema` in one casing, Active preselected and shown,
-  presentational (it emits the status; the caller writes). It imports only contracts.
+  presentational (it emits the status; the caller writes). It imports only contracts. Archive's
+  workstream rows and Settings › Archived projects render it.
 - `shared/lifts` — `LiftFocus`, `LiftStack` and `menuKeys`; top-layer behavior stays in the
   owning component. `_lifts.scss` paints side lifts, sheets, popovers, dialogs and menus.
 - `styles/_controls.scss` — slice 72's control primitives as global classes over native elements

@@ -55,15 +55,11 @@ export class ArchivedProjectsStore {
     });
   }
 
-  statusFor(id: ProjectId): ProjectRestoreStatus | '' { return this.statusState().get(id) ?? ''; }
+  /** The status a row's Restore will send: Active until chosen otherwise (Slice 79, Q2 (a)). */
+  statusFor(id: ProjectId): ProjectRestoreStatus { return this.statusState().get(id) ?? 'active'; }
 
-  chooseStatus(id: ProjectId, status: ProjectRestoreStatus | ''): void {
-    this.statusState.update((previous) => {
-      const next = new Map(previous);
-      if (status === '') next.delete(id);
-      else next.set(id, status);
-      return next;
-    });
+  chooseStatus(id: ProjectId, status: ProjectRestoreStatus): void {
+    this.statusState.update((previous) => new Map(previous).set(id, status));
   }
 
   /**
@@ -112,7 +108,7 @@ export class ArchivedProjectsStore {
   async restore(id: ProjectId): Promise<boolean> {
     const status = this.statusFor(id);
     const name = this.items().find(({ project }) => project.id === id)?.project.name ?? '';
-    if (status === '' || this.errorState() !== null || this.loadingState() || this.busyState() !== null || !this.items().some(({ project }) => project.id === id) || this.destroyed) return false;
+    if (this.errorState() !== null || this.loadingState() || this.busyState() !== null || !this.items().some(({ project }) => project.id === id) || this.destroyed) return false;
     this.busyState.set(id);
     this.restoreReportState.set(null);
     this.errorState.set(null);

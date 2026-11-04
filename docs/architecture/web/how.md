@@ -1,8 +1,8 @@
 # How the web app works
 
 Settings routes `/settings/archived-projects` to `ArchivedProjectsPage` outside project
-navigation. Its store reads `projects.archived()` via the gateway, keeps an explicit status per
-row, reports the existing project write to history and refreshes after success or refusal. Its
+navigation. Its store reads `projects.archived()` via the gateway, keeps each row's status
+(`statusFor`, Active until chosen otherwise, Slice 79; each row renders `RestoreStatusChoice`), reports the existing project write to history and refreshes after success or refusal. Its
 `error()` holds Archive's four failure states in Archive's precedence (Slice 78), said of "this
 list": a committed restore whose refresh failed ("Restored “X”, but this list couldn’t refresh.",
 Retry refresh), a refused restore ("Couldn’t restore “X”. The list may have changed.", or the
@@ -13,7 +13,9 @@ re-read before a refusal ends in the refusal, and Try again hands a refusal over
 Project frames and reconnects refresh the workspace list. Committed Restore opens one toast
 naming the project and resulting status, with Open it and no Undo outside a workspace. Focus
 moves to its first action only when the removed Restore control or body still owns focus;
-dismissal falls back to a surviving Restore or the heading. Failed Restore, Try again and Retry
+dismissal falls back to the restore choice (its status) of the row now at the restored row's
+place, or the heading. While a restore runs its row's Restore reads "Restoring…", is
+`aria-disabled` and keeps focus; the other rows are disabled. Failed Restore, Try again and Retry
 refresh retain the existing bounded list-focus recovery, and a person who moved focus elsewhere keeps it. A later
 failed read keeps the committed-unrefreshed state so the committed write stays acknowledged.
 
@@ -105,7 +107,7 @@ restore rows do not. The Task List's sticky quick-add carries `data-pin-clearanc
 
 | `Toast` | component | Presentational feedback, live regions and timer | [API](../../api/components/Toast.html) |
 | `FailureMessage` | component | One failure form: sentence, optional recovery, reason under Details | [API](../../api/components/FailureMessage.html) |
-| `RestoreStatusChoice` | component | The one restore control: "Restore as" over the restore statuses, Active preselected, `aria-disabled` while pending (`shared/projects`) | [API](../../api/components/RestoreStatusChoice.html) |
+| `RestoreStatusChoice` | component | The one restore control: "Restore as" over the restore statuses, Active preselected, `aria-disabled` and "Restoring…" while pending (`shared/projects`); Archive's workstream rows and Settings render it | [API](../../api/components/RestoreStatusChoice.html) |
 | `Failure`, `readFailure`, `headedReadFailure`, `writeFailure` | interface / functions | The one error-to-sentence translation | [API](../../api/interfaces/Failure.html) |
 | `ToastSlot` | injectable | One visible toast, navigation dismissal and modal suppression | [API](../../api/injectables/ToastSlot.html) |
 | `PinnedFailures` | injectable | Registry of off-screen write failures: most recent per edge, occurrence dismissal, clearance | [API](../../api/injectables/PinnedFailures.html) |

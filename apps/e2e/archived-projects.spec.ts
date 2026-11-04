@@ -47,9 +47,10 @@ test('Settings restores the highest project owner first while Archive reveals se
   await expect(row(page, rootId)).toBeVisible();
   await expect(row(page, childId)).toHaveCount(0);
   await expect(row(page, rootId).locator('[data-archived-open]')).toHaveAttribute('href', `/projects/${rootId}`);
-  await expect(row(page, rootId).locator('[data-archived-restore]')).toBeDisabled();
-  await row(page, rootId).locator('[data-archived-status]').selectOption('active');
-  await row(page, rootId).locator('[data-archived-restore]').click();
+  // Slice 79, Q2 (a): Restore starts on a visible Active, so it needs no choice first.
+  await expect(row(page, rootId).locator('[data-restore-status]')).toHaveValue('active');
+  await expect(row(page, rootId).locator('[data-restore-action]')).toBeEnabled();
+  await row(page, rootId).locator('[data-restore-action]').click();
   await expect(row(page, rootId)).toHaveCount(0);
   await expect(row(page, childId)).toBeVisible();
   expect((await api.get<{ status: string }>(`/api/projects/${rootId}`)).status).toBe('active');
@@ -63,8 +64,8 @@ test('Settings restores the highest project owner first while Archive reveals se
 
   await page.reload();
   await expect(row(page, childId)).toBeVisible();
-  await row(page, childId).locator('[data-archived-status]').selectOption('on_hold');
-  await row(page, childId).locator('[data-archived-restore]').click();
+  await row(page, childId).locator('[data-restore-status]').selectOption('on_hold');
+  await row(page, childId).locator('[data-restore-action]').click();
   await expect(row(page, childId)).toHaveCount(0);
   await expect(row(page, childId)).toHaveCount(0);
   expect((await api.get<{ status: string }>(`/api/projects/${childId}`)).status).toBe('on_hold');
@@ -109,11 +110,11 @@ test.describe('narrow touch recovery', () => {
       const project = await createProject({ workspaceId: workspace.id, kind: 'root', name: `${theme} recovery` });
       await api.patch(`/api/projects/${project.id}`, { status: 'archived' });
       await expect(row(page, project.id)).toBeVisible();
-      const status = row(page, project.id).locator('[data-archived-status]');
+      const status = row(page, project.id).locator('[data-restore-status]');
       await status.focus();
       await expect(status).toBeFocused();
       await status.selectOption('planning');
-      const restore = row(page, project.id).locator('[data-archived-restore]');
+      const restore = row(page, project.id).locator('[data-restore-action]');
       await expect(restore).toBeEnabled();
       await restore.focus();
       if (theme === 'dark') await restore.press('Enter');
@@ -126,17 +127,17 @@ test.describe('narrow touch recovery', () => {
     }
   });
 
-  // Slice 47: a later row's Restore is disabled until its status is chosen, so focus moves to
-  // the next enabled status selector — or Retry refresh, or the heading — and never away from where
-  // the person deliberately put it.
+  // Slice 47, amended by Slice 79: focus moves to the next row's restore choice, its status
+  // first — or Retry refresh, or the heading — and never away from where the person deliberately
+  // put it.
   test('focus lands on the remaining row, a revealed child, Retry refresh, or stays where it was moved, in both themes', async ({ page }) => {
     await seed('personal-workspace');
     await setClock(NOW);
     const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
     await page.goto('/settings/archived-projects');
     await expect(page.locator('[data-identity-name]')).toBeVisible();
-    const status = (id: ProjectId) => row(page, id).locator('[data-archived-status]');
-    const restore = (id: ProjectId) => row(page, id).locator('[data-archived-restore]');
+    const status = (id: ProjectId) => row(page, id).locator('[data-restore-status]');
+    const restore = (id: ProjectId) => row(page, id).locator('[data-restore-action]');
     // Each theme uses both methods, alternating by step. A tap is not pre-focused: the rescue
     // depends on the tap itself giving the control focus.
     let step = 0;
@@ -163,13 +164,18 @@ test.describe('narrow touch recovery', () => {
       await expect(row(page, sibling.id)).toBeVisible();
       await expect(row(page, child.id)).toHaveCount(0);
 
-      // A successful Restore focuses Open it; dismissal falls back to the heading when the next Restore is disabled.
+      // A successful Restore focuses Open it; dismissal moves to the restore choice of the row that
+      // took its place (Slice 79), or the heading when none did. Earlier rows may be listed, so the
+      // index is read rather than assumed.
+      const rows = page.locator('[data-archived-project]');
+      const index = await rows.evaluateAll((all, id) => all.findIndex((element) => element.getAttribute('data-project-id') === id), sibling.id);
       await status(sibling.id).selectOption('planning');
       await activate(restore(sibling.id), theme);
       await expect(row(page, sibling.id)).toHaveCount(0);
       await expect(page.locator('[data-toast]:popover-open [data-restore-open]')).toBeFocused();
       await page.locator('[data-toast]:popover-open [data-toast-dismiss]').click();
-      await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();
+      if (await rows.count() > index) await expect(rows.nth(index).locator('[data-restore-status]')).toBeFocused();
+      else await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();
 
       // Restoring the parent reveals its child while the toast owns focus.
       await status(parent.id).selectOption('active');

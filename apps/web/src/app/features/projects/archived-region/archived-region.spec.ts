@@ -107,7 +107,7 @@ describe('ArchivedRegion', () => {
     expect(child.querySelector('[data-archived-history-link]')?.getAttribute('href'))
       .toBe('/projects/project-subproject#history-controls');
     expect(child.querySelector('[data-archived-origin-link]')).not.toBeNull();
-    expect(child.querySelector('[data-archived-restore]')).not.toBeNull();
+    expect(child.querySelector('[data-restore-action]')).not.toBeNull();
   });
 
   it('uses the same descendant owner for section, task and reflection rows', async () => {
@@ -149,7 +149,7 @@ describe('ArchivedRegion', () => {
   it('labels archived sections as saved content and leaves other restore labels intact', async () => {
     const fixture = await render();
     const sectionRestore = fixture.nativeElement.querySelector('[data-archived-kind="section"] [data-archived-restore]') as HTMLButtonElement;
-    const projectRestore = fixture.nativeElement.querySelector('[data-archived-kind="subproject"] [data-archived-restore]') as HTMLButtonElement;
+    const projectRestore = fixture.nativeElement.querySelector('[data-archived-kind="subproject"] [data-restore-action]') as HTMLButtonElement;
 
     expect(sectionRestore.textContent?.trim()).toBe('Restore saved content');
     expect(sectionRestore.getAttribute('aria-label')).toBe('Restore saved content for Backlog');
@@ -161,11 +161,11 @@ describe('ArchivedRegion', () => {
     const fixture = await render();
     const restored = vi.fn();
     fixture.componentInstance.restoreRequested.subscribe(restored);
-    const select = all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement;
+    const select = all(fixture, '[data-archived-kind="subproject"] [data-restore-status]')[0] as HTMLSelectElement;
     select.value = 'on_hold';
     select.dispatchEvent(new Event('change'));
     fixture.detectChanges();
-    (all(fixture, '[data-archived-kind="subproject"] [data-archived-restore]')[0] as HTMLButtonElement).click();
+    (all(fixture, '[data-archived-kind="subproject"] [data-restore-action]')[0] as HTMLButtonElement).click();
 
     expect(restored).toHaveBeenCalledWith({ item: items[1], status: 'on_hold' });
   });
@@ -176,8 +176,8 @@ describe('ArchivedRegion', () => {
     const restored = vi.fn();
     fixture.componentInstance.restoreRequested.subscribe(restored);
 
-    expect((all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement).value).toBe('active');
-    (all(fixture, '[data-archived-kind="subproject"] [data-archived-restore]')[0] as HTMLButtonElement).click();
+    expect((all(fixture, '[data-archived-kind="subproject"] [data-restore-status]')[0] as HTMLSelectElement).value).toBe('active');
+    (all(fixture, '[data-archived-kind="subproject"] [data-restore-action]')[0] as HTMLButtonElement).click();
     expect(restored).toHaveBeenCalledWith({ item: items[1], status: 'active' });
   });
 
@@ -186,7 +186,7 @@ describe('ArchivedRegion', () => {
     const fixture = await render();
     const restored = vi.fn();
     fixture.componentInstance.restoreRequested.subscribe(restored);
-    const select = all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement;
+    const select = all(fixture, '[data-archived-kind="subproject"] [data-restore-status]')[0] as HTMLSelectElement;
     select.value = 'completed';
     select.dispatchEvent(new Event('change'));
     fixture.detectChanges();
@@ -195,9 +195,35 @@ describe('ArchivedRegion', () => {
     fixture.componentRef.setInput('items', refreshed);
     fixture.detectChanges();
 
-    expect((all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement).value).toBe('completed');
-    (all(fixture, '[data-archived-kind="subproject"] [data-archived-restore]')[0] as HTMLButtonElement).click();
+    expect((all(fixture, '[data-archived-kind="subproject"] [data-restore-status]')[0] as HTMLSelectElement).value).toBe('completed');
+    (all(fixture, '[data-archived-kind="subproject"] [data-restore-action]')[0] as HTMLButtonElement).click();
     expect(restored).toHaveBeenCalledWith({ item: refreshed[1], status: 'completed' });
+  });
+
+  // Slice 79, L4-012: Archive, Settings and the banner restore a project through one control.
+  it('restores a workstream through the shared RestoreStatusChoice, with its options and default', async () => {
+    const fixture = await render();
+    const row = all(fixture, '[data-archived-kind="subproject"]')[0]!;
+    const choice = row.querySelector('app-restore-status-choice')!;
+    const select = choice.querySelector<HTMLSelectElement>('[data-restore-status]')!;
+
+    expect([...select.options].map((option) => option.textContent?.trim())).toEqual(['Planning', 'Active', 'On hold', 'Completed']);
+    expect(select.selectedOptions[0]?.textContent?.trim()).toBe('Active');
+    expect(choice.querySelector('label')?.textContent).toContain('Restore as');
+    expect(row.querySelector('[data-archived-project-status], [data-archived-restore]')).toBeNull();
+    expect(all(fixture, '[data-archived-kind="section"] app-restore-status-choice')).toHaveLength(0);
+  });
+
+  it('keeps the restoring workstream’s choice focusable and aria-disabled, and the other rows disabled', async () => {
+    const fixture = await render();
+    fixture.componentRef.setInput('restoring', new Set([subproject.id]));
+    fixture.detectChanges();
+
+    const action = all(fixture, '[data-archived-kind="subproject"] [data-restore-action]')[0] as HTMLButtonElement;
+    expect(action.disabled).toBe(false);
+    expect(action.getAttribute('aria-disabled')).toBe('true');
+    expect(action.textContent?.trim()).toBe('Restoring…');
+    expect((all(fixture, '[data-archived-kind="section"] [data-archived-restore]')[0] as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('disables a paused list without calling it an archived project', async () => {
@@ -205,8 +231,8 @@ describe('ArchivedRegion', () => {
     fixture.componentRef.setInput('restorePaused', true);
     fixture.detectChanges();
 
-    expect((all(fixture, '[data-archived-restore]') as HTMLButtonElement[]).every(({ disabled }) => disabled)).toBe(true);
-    expect((all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement).disabled).toBe(true);
+    expect((all(fixture, '[data-archived-restore], [data-restore-action]') as HTMLButtonElement[]).every(({ disabled }) => disabled)).toBe(true);
+    expect((all(fixture, '[data-archived-kind="subproject"] [data-restore-status]')[0] as HTMLSelectElement).disabled).toBe(true);
     expect(all(fixture, '[data-archived-blocked]')).toHaveLength(0);
   });
 

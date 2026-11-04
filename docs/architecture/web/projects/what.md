@@ -111,7 +111,7 @@ sequenceDiagram
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or shortcut creation at the selected canvas position |
 | `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor`, `ScrollHold` | `canvas-chrome/` | Insertion overlays, snapped resize, sparse-grid gap targets, grip move keys, and the hold that keeps the working placement still while placements above it grow |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with task complete/reopen checkboxes, one-way workstream Complete, serialized writes and Delete, canonical content links, descendant owner-history links and committed Delete/Complete toasts |
-| `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy, Restore toasts and descendant owner-history links |
+| `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy, Restore toasts and descendant owner-history links; a workstream row restores through the shared `RestoreStatusChoice` |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29; each type's `icon` is an `IconName`, never shared with a page kind except Reflections |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |

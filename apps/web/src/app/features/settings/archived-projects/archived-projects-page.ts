@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, PendingTasks, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { ProjectId, ProjectRestoreStatus } from '@cwm/contracts';
+import type { ProjectId } from '@cwm/contracts';
 import { ArchivedProjectsStore } from './archived-projects-store';
 import { Toast } from '../../../shared/feedback/toast';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
+import { RestoreStatusChoice } from '../../../shared/projects/restore-status-choice';
 import { ReceiptToast } from '../../../core/history/receipt-toast';
 import { restoredProjectFeedback } from '../../projects/history/history-feedback';
 
@@ -11,7 +12,7 @@ import { restoredProjectFeedback } from '../../projects/history/history-feedback
 @Component({
   selector: 'app-archived-projects-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Toast, FailureMessage],
+  imports: [RouterLink, Toast, FailureMessage, RestoreStatusChoice],
   providers: [ArchivedProjectsStore],
   templateUrl: './archived-projects-page.html',
   styleUrl: './archived-projects-page.scss',
@@ -36,10 +37,6 @@ export class ArchivedProjectsPage {
     inject(DestroyRef).onDestroy(() => this.cancelFocusHandoff?.());
   }
 
-  protected choose(id: ProjectId, event: Event): void {
-    this.store.chooseStatus(id, (event.target as HTMLSelectElement).value as ProjectRestoreStatus | '');
-  }
-
   /** Stability waits for the focus move too, not only for the store's write and re-read. */
   protected restore(id: ProjectId): Promise<void> {
     this.cancelFocusHandoff?.();
@@ -47,14 +44,14 @@ export class ArchivedProjectsPage {
     const project = this.store.items()[index]?.project;
     const status = this.store.statusFor(id);
     const owner = document.activeElement;
-    const owned = owner === document.body || owner instanceof HTMLElement && this.host.nativeElement.contains(owner) && owner.hasAttribute('data-archived-restore');
+    const owned = owner === document.body || owner instanceof HTMLElement && this.host.nativeElement.contains(owner) && owner.hasAttribute('data-restore-action');
     return (async () => {
       const restored = await this.store.restore(id);
-      if (restored && project && status !== '') {
+      if (restored && project) {
         this.restoredProjectId.set(this.store.restoreReport()?.projectId ?? id);
         this.toast.show(restoredProjectFeedback(project.name, status), undefined, () => {
           const rows = this.host.nativeElement.querySelectorAll<HTMLElement>('[data-archived-project]');
-          return rows[index]?.querySelector<HTMLElement>('[data-archived-restore]:not(:disabled)') ?? this.heading()?.nativeElement ?? null;
+          return rows[index]?.querySelector<HTMLElement>('[data-restore-status]:not(:disabled)') ?? this.heading()?.nativeElement ?? null;
         });
         this.changeDetector.detectChanges();
         if (owned) await this.focusRenderedToast(owner);
@@ -110,9 +107,9 @@ export class ArchivedProjectsPage {
 
   /**
    * The next usable control: Try again (or Retry refresh) while the retained list is blocked by an error; otherwise the
-   * enabled status selector now at `index` — the row that took a restored row's place, a child it
-   * revealed, or the previous row when it was last; otherwise the heading. A later row's Restore
-   * is disabled until a status is chosen, so it is never the target.
+   * enabled restore choice now at `index`, its status first — the row that took a restored row's
+   * place, a child it revealed, or the previous row when it was last; otherwise the heading. Every
+   * row starts on Active (Slice 79), so its status is where the next restore begins.
    */
   private focusNext(index: number): void {
     const host = this.host.nativeElement;
@@ -121,7 +118,7 @@ export class ArchivedProjectsPage {
       retry.focus();
       return;
     }
-    const statuses = [...host.querySelectorAll<HTMLElement>('[data-archived-status]:not(:disabled)')];
+    const statuses = [...host.querySelectorAll<HTMLElement>('[data-restore-status]:not(:disabled)')];
     (statuses[Math.min(Math.max(index, 0), statuses.length - 1)] ?? this.heading()?.nativeElement)?.focus();
   }
 }

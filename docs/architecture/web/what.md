@@ -104,7 +104,7 @@ header's history (Slice 41).
 | Icons | `src/app/shared/components/icon/` | `Icon` and `ICON_NAMES`: the one monochrome SVG set for app-owned marks; the owning control or text carries the accessible name |
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |
 | Control primitives | `src/styles/_controls.scss`, `_control-states.scss` | Slice 72's global control classes and their shared state mixins; `.state-message` in its loading, failed, empty and archived variants (slices 78, 79) |
-| Restore choice | `src/app/shared/projects/` | `RestoreStatusChoice` (slice 79): one option list in one casing, Active preselected and visible, emits the status |
+| Restore choice | `src/app/shared/projects/` | `RestoreStatusChoice` (slice 79): one option list in one casing, Active preselected and visible, emits the status; Archive's workstream rows and Settings › Archived projects render it |
 | Lift primitives | `src/styles/_lifts.scss`, `src/app/shared/lifts/` | Native lift paint, opener/fallback focus, single transient owner and menu keys |
 | Storybook | `.storybook/` | `@storybook/angular-vite`; stories beside components |
 | Lints | `scripts/check-design-tokens.mjs`, `scripts/expect-failure.mjs` | The token lint and its self-test |

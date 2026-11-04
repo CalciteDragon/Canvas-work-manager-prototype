@@ -15,6 +15,9 @@ import type { ArchiveRestoreRequest } from '../archived-region/archived-region';
 import { ArchivePageStore } from './archive-page-store';
 import type { ProjectPageRenderer } from '../project-page-contract';
 
+/** Each row's Restore: an item's own button, or a workstream's `RestoreStatusChoice` (Slice 79). */
+const RESTORE_CONTROLS = '[data-archived-restore]:not(:disabled), [data-restore-action]:not(:disabled)';
+
 /** §31's root-wide Archive page. It is a projection, not a page-owned canvas. */
 @Component({
   selector: 'app-archive-page',
@@ -56,7 +59,7 @@ export class ArchivePage implements ProjectPageRenderer {
 
   async restore(request: ArchiveRestoreRequest): Promise<void> {
     const owner = document.activeElement;
-    const owned = owner === document.body || owner instanceof HTMLElement && this.host.nativeElement.contains(owner) && owner.hasAttribute('data-archived-restore');
+    const owned = owner === document.body || owner instanceof HTMLElement && this.host.nativeElement.contains(owner) && (owner.hasAttribute('data-archived-restore') || owner.hasAttribute('data-restore-action'));
     const index = this.store.items().indexOf(request.item);
     const item = request.item;
     if (await this.store.restore(request.item, request.status)) {
@@ -72,7 +75,7 @@ export class ArchivePage implements ProjectPageRenderer {
         : restoredItemFeedback(this.titleOf(item), item.origin.breadcrumb.map(step => step.name).join(' › '),
           ({ home: 'Home', work: 'Work', todos: 'Todos', archive: 'Archive', reflections: 'Reflections' })[item.origin.pageKind], item.origin.pageEnabled);
       this.toast.show(feedback, this.store.restoreReport() ?? undefined, () => {
-        const controls = this.host.nativeElement.querySelectorAll<HTMLElement>('[data-archived-restore]:not(:disabled)');
+        const controls = this.host.nativeElement.querySelectorAll<HTMLElement>(RESTORE_CONTROLS);
         return controls[index] ?? this.host.nativeElement.querySelector('#archive-page-title');
       });
       this.changeDetector.detectChanges();

@@ -23,5 +23,5 @@
   [attr.aria-label]="'Restore ' + subjectLabel()"
   (click)="press()"
 >
-  Restore
+  {{ pending() ? 'Restoring…' : 'Restore' }}
 </button>

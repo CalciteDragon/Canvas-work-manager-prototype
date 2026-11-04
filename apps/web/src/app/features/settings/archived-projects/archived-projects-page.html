@@ -30,19 +30,14 @@
           </p>
         </div>
         <div class="archived-projects__actions">
-          <label class="control-label">
-            Restore as
-            <select class="select" data-archived-status [value]="store.statusFor(item.project.id)" [disabled]="store.busy() !== null" (change)="choose(item.project.id, $event)">
-              <option value="">Choose status</option>
-              <option value="planning">Planning</option>
-              <option value="active">Active</option>
-              <option value="on_hold">On hold</option>
-              <option value="completed">Completed</option>
-            </select>
-          </label>
-          <button data-archived-restore type="button" class="button" [disabled]="store.statusFor(item.project.id) === '' || store.error() !== null || store.loading() || store.busy() !== null" (click)="restore(item.project.id)">
-            {{ store.busy() === item.project.id ? 'Restoring…' : 'Restore' }}
-          </button>
+          <app-restore-status-choice
+            [subjectLabel]="item.project.name"
+            [status]="store.statusFor(item.project.id)"
+            (statusChange)="store.chooseStatus(item.project.id, $event)"
+            [pending]="store.busy() === item.project.id"
+            [disabled]="store.busy() !== item.project.id && (store.error() !== null || store.loading() || store.busy() !== null)"
+            (restore)="restore(item.project.id)"
+          />
           <a class="link" data-archived-open [routerLink]="['/projects', item.project.id]">Open project</a>
         </div>
       </li>

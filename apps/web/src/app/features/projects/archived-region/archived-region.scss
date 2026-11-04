@@ -43,9 +43,3 @@
   gap: var(--space-1);
 }
 .archived-region__name { overflow-wrap: anywhere; }
-
-.archived-region__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}

@@ -21,8 +21,11 @@ fails. One `FailureMessage` renders all four, so its button keeps focus as the s
 busy (`retryPending()`) while Try again reads. A quiet live re-read and Try again (quiet when a
 list is on screen) keep the message visible; a reconnect reads non-quietly and
 shows "Loading archive…" while Restore stays paused; a prototype reload clears the list and error, even
-with a Restore pending, and its read supersedes that Restore's refresh. A subproject's chosen status is keyed by id and survives the replacement projection;
-each option binds `[selected]`, because a `[value]` on the select runs before its `@for` options exist.
+with a Restore pending, and its read supersedes that Restore's refresh. A workstream row restores through the shared
+`RestoreStatusChoice` (Slice 79: one option list, Active preselected; its hooks are
+`data-restore-status` and `data-restore-action`, while other rows keep `data-archived-restore`); its
+chosen status is keyed by id and survives the replacement projection. The restoring row's choice is
+`aria-disabled` and keeps focus, and dismissal focus looks for either Restore hook.
 
 ## Runtime flow
 

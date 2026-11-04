@@ -60,32 +60,27 @@
             }
           </div>
           @if (item.kind === 'subproject') {
-            <label class="control-label archived-region__status object-row__meta">
-              Restore as
-              <!-- Options come from @for, which renders after the select's own bindings: a
-                   [value] on the select would find no option and show the first one. -->
-              <select
-                class="select"
-                data-archived-project-status
-                [disabled]="!canRestore(item)"
-                (change)="selectProjectStatus(item, $event)"
-              >
-                @for (status of projectStatuses; track status) {
-                  <option [value]="status" [selected]="status === projectStatus(item)">{{ status.replace('_', ' ') }}</option>
-                }
-              </select>
-            </label>
+            <app-restore-status-choice
+              class="object-row__meta"
+              [subjectLabel]="label(item)"
+              [status]="projectStatus(item)"
+              (statusChange)="selectProjectStatus(item, $event)"
+              [pending]="isRestoring(item)"
+              [disabled]="!canRestore(item) && !isRestoring(item)"
+              (restore)="restore(item, $event)"
+            />
+          } @else {
+            <button
+              data-archived-restore
+              type="button"
+              class="button button--sm object-row__tools"
+              [disabled]="!canRestore(item)"
+              [attr.aria-label]="restoreActionAriaLabel(item)"
+              (click)="restore(item)"
+            >
+              {{ restoreActionLabel(item) }}
+            </button>
           }
-          <button
-            data-archived-restore
-            type="button"
-            class="button button--sm object-row__tools"
-            [disabled]="!canRestore(item)"
-            [attr.aria-label]="restoreActionAriaLabel(item)"
-            (click)="restore(item)"
-          >
-            {{ restoreActionLabel(item) }}
-          </button>
         </li>
       }
     </ul>

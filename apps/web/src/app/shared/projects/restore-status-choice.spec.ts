@@ -79,6 +79,9 @@ describe('RestoreStatusChoice (Slice 79, §23, §31, L4-012)', () => {
     expect(button().disabled).toBe(false);
     expect(select().getAttribute('aria-disabled')).toBe('true');
     expect(select().disabled).toBe(false);
+    // Slice 79 step 3: the press says it is running, as Archive's other rows and Settings did; the name holds.
+    expect(button().textContent?.trim()).toBe('Restoring…');
+    expect(button().getAttribute('aria-label')).toBe('Restore Legacy attic');
     button().click();
     expect(host.restored).not.toHaveBeenCalled();
 
@@ -91,6 +94,7 @@ describe('RestoreStatusChoice (Slice 79, §23, §31, L4-012)', () => {
     host.pending.set(false);
     fixture.detectChanges();
     expect(button().hasAttribute('aria-disabled')).toBe(false);
+    expect(button().textContent?.trim()).toBe('Restore');
     button().click();
     expect(host.restored).toHaveBeenLastCalledWith('active');
   });

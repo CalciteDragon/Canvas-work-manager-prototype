@@ -175,10 +175,27 @@ describe('ArchivePage (§31)', () => {
     const { fixture, gateway, hierarchyChanged } = await render({ ...archive, items: [item] });
     gateway.options.projects = [root, child];
     gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
-    fixture.nativeElement.querySelector('[data-archived-restore]').click();
+    fixture.nativeElement.querySelector('[data-restore-action]').click();
     await fixture.whenStable(); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-restore-go]')?.getAttribute('href')).toBe('/projects/project-kitchen');
     expect(hierarchyChanged).toHaveBeenCalledTimes(1);
+  });
+
+  // Slice 79: a workstream's Restore is its RestoreStatusChoice's, and focus finds it the same way.
+  it('dismissal focuses a workstream’s Restore when it is the next surviving one', async () => {
+    const child = ProjectSchema.parse({ ...root, id: 'project-kitchen', kind: 'subproject', parentProjectId: PROJECT, name: 'Kitchen', status: 'archived' });
+    const item = ProjectArchiveItemSchema.parse({ kind: 'subproject', project: child,
+      origin: { ...archive.items[0]!.origin, projectId: child.id, pageKind: 'work', breadcrumb: [{ projectId: PROJECT, name: root.name }, { projectId: child.id, name: child.name }] },
+      cause: { kind: 'own' }, restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' } });
+    const { fixture, gateway } = await render({ ...archive, items: [archive.items[0]!, item] });
+    gateway.options.projects = [root, child];
+    gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [item] });
+    const host = fixture.nativeElement as HTMLElement;
+    const restore = host.querySelector<HTMLButtonElement>('[data-archived-restore]')!;
+    restore.focus(); restore.click(); await fixture.whenStable(); fixture.detectChanges();
+    host.querySelector<HTMLButtonElement>('[data-toast-dismiss]')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(document.activeElement).toBe(host.querySelector('[data-archived-kind="subproject"] [data-restore-action]'));
   });
 
   it('dismissal focuses the next surviving Restore', async () => {

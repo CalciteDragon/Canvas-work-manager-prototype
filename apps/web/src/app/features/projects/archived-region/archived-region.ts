@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { RestoreStatusChoice } from '../../../shared/projects/restore-status-choice';
 import { nameOf, ownedKindOf, type ProjectArchiveItem, type ProjectId, type ProjectRestoreStatus } from '@cwm/contracts';
 
 export interface ArchiveRestoreRequest {
@@ -16,7 +17,7 @@ export interface ArchiveRestoreRequest {
 @Component({
   selector: 'app-archived-region',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, RestoreStatusChoice],
   templateUrl: './archived-region.html',
   styleUrl: './archived-region.scss',
 })
@@ -34,8 +35,6 @@ export class ArchivedRegion {
 
   readonly restoreRequested = output<ArchiveRestoreRequest>();
   private readonly selectedProjectStatuses = signal<Record<string, ProjectRestoreStatus>>({});
-
-  protected readonly projectStatuses: ProjectRestoreStatus[] = ['planning', 'active', 'on_hold', 'completed'];
 
   readonly hidden = computed(() => this.items().length === 0);
 
@@ -203,16 +202,15 @@ export class ArchivedRegion {
     return this.selectedProjectStatuses()[this.idOf(item)] ?? 'active';
   }
 
-  selectProjectStatus(item: ProjectArchiveItem, event: Event): void {
+  /** A workstream row's `RestoreStatusChoice` reports its status here, so a re-read keeps it. */
+  selectProjectStatus(item: ProjectArchiveItem, status: ProjectRestoreStatus): void {
     if (item.kind !== 'subproject') return;
-    const status = (event.target as HTMLSelectElement).value as ProjectRestoreStatus;
-    if (!this.projectStatuses.includes(status)) return;
     this.selectedProjectStatuses.update((statuses) => ({ ...statuses, [item.project.id]: status }));
   }
 
-  restore(item: ProjectArchiveItem): void {
+  restore(item: ProjectArchiveItem, status = this.projectStatus(item)): void {
     if (!this.canRestore(item)) return;
-    this.restoreRequested.emit({ item, status: this.projectStatus(item) });
+    this.restoreRequested.emit({ item, status });
   }
 
   private rows(ownedData: 'tasks' | 'reflections', count: number): string {

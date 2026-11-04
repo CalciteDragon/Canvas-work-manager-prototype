@@ -123,9 +123,9 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   await expect(page.locator(`[data-archived-item][data-archived-id="${child.id}"]`)).toHaveCount(0);
   expect(await archiveKeys(root.id)).not.toEqual(expect.arrayContaining([`task:${parent.id}`, `task:${child.id}`]));
 
-  const projectStatus = page.locator(`[data-archived-item][data-archived-id="${leaf.id}"] [data-archived-project-status]`);
+  const projectStatus = page.locator(`[data-archived-item][data-archived-id="${leaf.id}"] [data-restore-status]`);
   await projectStatus.selectOption('on_hold');
-  await page.locator(`[data-archived-item][data-archived-id="${leaf.id}"] [data-archived-restore]`).click();
+  await page.locator(`[data-archived-item][data-archived-id="${leaf.id}"] [data-restore-action]`).click();
   await expect(page.locator(`[data-archived-item][data-archived-id="${leaf.id}"]`)).toHaveCount(0);
   await expect.poll(async () => (await api<{ status: string }>('GET', `/api/projects/${leaf.id}`)).status).toBe('on_hold');
 

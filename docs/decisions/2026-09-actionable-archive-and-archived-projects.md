@@ -56,6 +56,19 @@ status selector; otherwise to the page heading. A later row's Restore is not a t
 stays disabled until a status is chosen. Focus the person moved elsewhere during the request is
 left alone.
 
+**Amended, 2026-11-04 — Slice 79: one restore choice, Active preselected (user decision, Open
+question 2 (a)).** Archive's workstream rows and Settings › Archived projects now restore through
+one shared `RestoreStatusChoice`: "Restore as" over the restore statuses in one casing (Planning,
+Active, On hold, Completed), then Restore, named `Restore <project>`. Every row preselects
+**Active** and shows it before the press, so the status is still explicit, not guessed; Settings'
+"Choose status" is gone and a later row's Restore is enabled too, which retires the rule above that
+it "stays disabled until a status is chosen". While its restore runs, the row's Restore reads
+"Restoring…", is `aria-disabled` and keeps focus; the other rows are disabled. Settings' focus after
+a restore, Restore's or a successful Retry's, now lands on the restore choice (its status) of the row
+at the restored row's place, the next row, a revealed child or the previous row, and on dismissing the
+toast likewise, else the heading. The header's status choice in More is a status control, not a
+restore control, and keeps its own casing. §23 and §31 are corrected to say so.
+
 ## Confidence
 
 High for the structural eligibility and no-cascade rule because the projection is based on

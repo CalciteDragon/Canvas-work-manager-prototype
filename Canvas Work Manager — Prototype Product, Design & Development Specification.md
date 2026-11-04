@@ -1050,6 +1050,8 @@ and subprojects whose ancestors are live across the actor's workspace, even if a
 Archive page is disabled. Restore requires a deliberate non-archived status and uses the existing
 project write; Open project goes to the canonical project route.
 
+*Slice 79.* "Deliberate" means visible and changeable, not unchosen: Settings and Archive restore a project through one shared choice, "Restore as [status] · Restore", with the restore statuses in one casing (Planning, Active, On hold, Completed) and **Active** preselected and shown before the press, so Restore is enabled at once. After a restore, focus moves to the restore choice of the row that took its place ([decision](docs/decisions/2026-09-actionable-archive-and-archived-projects.md)).
+
 *Landed in Slice 27.* The column fills the available workspace height below the top bar and
 keeps its own long navigation list scrollable while the canvas scrolls independently. The
 column has no **Open archive** action. The project's **More** menu opens Archive from root
@@ -1882,7 +1884,9 @@ Live content merely hidden by an archived project and archived descendants whose
 structure blocks their own Restore do not appear as rows. Archived roots are recovered from
 workspace **Settings → Archived projects**, not from their own root Archive. That Settings list
 also includes archived subprojects whose ancestors are live. Project reactivation requires an
-explicit non-archived status; the prototype does not guess a prior status.
+explicit non-archived status; the prototype does not guess a prior status. *Slice 79:* the status
+is explicit because it is shown: Archive and Settings preselect **Active**, visibly, in one shared
+restore choice, and the person can change it before Restore (§23).
 
 None of this adds a cascade. Archiving a project with **live child subprojects is still
 refused**, exactly as it is today, and archiving a project never archives anything beneath it —

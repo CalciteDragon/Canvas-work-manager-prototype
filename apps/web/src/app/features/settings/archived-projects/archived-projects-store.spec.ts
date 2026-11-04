@@ -20,12 +20,11 @@ const setup = (options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] 
 };
 
 describe('ArchivedProjectsStore (Slice 44)', () => {
-  it('requires an explicit non-archived status before Restore and refreshes the workspace result', async () => {
+  // Slice 79, Q2 (a): every row starts on Active, as Archive's does.
+  it('restores as Active unless another status is chosen, and refreshes the workspace result', async () => {
     const { store, gateway } = setup();
     await store.load();
-    expect(await store.restore(project.id)).toBe(false);
-    expect(gateway.calls.some((call) => call.method === 'projects.update')).toBe(false);
-    store.chooseStatus(project.id, 'active');
+    expect(store.statusFor(project.id)).toBe('active');
     expect(await store.restore(project.id)).toBe(true);
     expect(gateway.calls).toContainEqual({ method: 'projects.update', argument: { id: project.id, input: { status: 'active' } } });
     expect(gateway.calls.at(-1)?.method).toBe('projects.archived');

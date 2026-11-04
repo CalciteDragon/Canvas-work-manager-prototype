@@ -12,8 +12,8 @@ const RESTORE_STATUS_LABELS: Record<ProjectRestoreStatus, string> = {
 /**
  * The one way an archived project is restored (Slice 79, §23, §31, L4-012): a **Restore as**
  * select over the restore statuses, then **Restore**: one option list, one casing and one label,
- * for every place that restores a project. Today only the Design Lab's archived specimen renders
- * it.
+ * for every place that restores a project: Archive's workstream rows, Settings › Archived projects
+ * and the Design Lab's archived specimen.
  *
  * Presentational: it takes inputs and emits `restore` with the shown status; the caller writes.
  * The options are `ProjectRestoreStatusSchema`'s, in its order. `status` starts on **Active**,
@@ -22,7 +22,7 @@ const RESTORE_STATUS_LABELS: Record<ProjectRestoreStatus, string> = {
  *
  * `subjectLabel` names Restore for a screen reader, `Restore <label>`, as the Archive row always
  * has. While `pending` (the caller's restore runs) both controls are `aria-disabled` and keep
- * focus, and neither a press nor a change takes effect; `disabled` is for a caller that cannot
+ * focus, Restore reads "Restoring…" under the same name, and neither a press nor a change takes effect; `disabled` is for a caller that cannot
  * restore at all (blocked or paused).
  */
 @Component({
