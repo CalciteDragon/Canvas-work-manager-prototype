@@ -298,7 +298,21 @@ and shows only the guidance note. `MarkdownConfigSchema` comes from contracts, w
 enforces it on every write, so only a hand edit, or Undo/Redo replaying state recorded before Slice 64,
 can store an unreadable config
 ([decision](../../../decisions/2026-10-section-config-validated-on-write.md)).
-Successful Save and Cancel restore focus to Edit. Preview renders only the local draft.
+Successful Save and Cancel restore focus to Edit. Preview renders only the local draft, under a
+visible "Unsaved preview" caption as well as `aria-pressed` (Slice 79, W4-031).
+
+Since Slice 79 (L3-012) a changed draft outlives its editor for the app session.
+`MarkdownDraftStore` holds `{ draft, base }` by section id, in memory; `cancelRequested` carries
+the draft, and the body keeps it on Cancel and, through a `viewChild` read in its `DestroyRef`, when
+navigation or a removed host destroys it mid-edit. "Changed" means unlike both `base` and the
+current source. Edit `take`s it: the editor opens through `initialDraft` with the stored `base`, so
+a source an agent changed meanwhile still shows "changed elsewhere", and says "Your unsaved draft is
+back." with **Discard draft**. A kept draft that now equals the source is dropped instead. The editor
+seeds once, in `ngOnInit`, and never injects the store: Discard draft emits `discardRequested`, and
+the body forgets the draft, resets `base` and re-keys the editor (`editorKey`) so a fresh one seeds
+from the source. Save success forgets the draft. The store clears on `prototype.reloaded`; a reload,
+reseed or persona switch empties it anyway ([decision](../../../decisions/2026-10-markdown-source-and-rendering.md)).
+The trap: `take` removes, so the store holds a draft only while no editor has it open.
 
 **Accessible names and state.** Timeline uses `.object-row` over shared subgrid columns.
 Task titles link to their owning section and workstream titles to their project; project and
@@ -368,6 +382,7 @@ clears it too. The frame's alert describes Collapse.
 | `MarkdownSection`, `MarkdownSectionBody` | components | Eager shell, deferred source rendering and awaited authoring | [API](../../../api/components/MarkdownSection.html) |
 | `placeholderTextOf` | function | Display-only simplification of escaped source for the eager placeholder | [API](../../../api/miscellaneous/variables.html#placeholderTextOf) |
 | `MarkdownSourceEditor` | component | Presentational draft, Preview and Save/Cancel requests | [API](../../../api/components/MarkdownSourceEditor.html) |
+| `MarkdownDraftStore`, `MarkdownDraft` | injectable, interface | Session-only kept drafts by section id: `keep`, `take`, `forget` | [API](../../../api/injectables/MarkdownDraftStore.html) |
 | `ProgressStore`, `ReflectionsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |

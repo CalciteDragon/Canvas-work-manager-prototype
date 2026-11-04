@@ -1802,7 +1802,11 @@ Sub-Projects is retired too, with workstream creation under the project as its r
 The retired-type record supplies each type's replacement guidance, while unreadable local files
 are reset or reseeded. Schema version stays 6
 ([decision](docs/decisions/2026-10-retiring-the-sub-projects-section.md)). The type stays an open
-string; retired types are the narrow exception.
+string; retired types are the narrow exception. *Amended in Slice 79:* Cancel and navigation keep
+a changed draft for the app session (never across a reload, reseed or persona switch); the next Edit
+offers it back with "Your unsaved draft is back." and Discard draft, keeping the source it started
+from so the replacement notice still shows. Preview is captioned "Unsaved preview"
+([decision](docs/decisions/2026-10-markdown-source-and-rendering.md)).
 
 | Page | Sections |
 |---|---|

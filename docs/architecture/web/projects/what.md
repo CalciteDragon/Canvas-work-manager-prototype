@@ -34,7 +34,7 @@ flowchart TB
   frame["ProjectSectionFrame<br/>chrome: drag, inline title, collapse, settings, remove"]
   sreg["SECTION_REGISTRY"]
   subgraph sections["Section contents (SectionContentComponent)"]
-    md["MarkdownSection → deferred MarkdownSectionBody<br/>MarkdownSourceEditor + shared MarkdownRenderer"]
+    md["MarkdownSection → deferred MarkdownSectionBody<br/>MarkdownSourceEditor + shared MarkdownRenderer<br/>MarkdownDraftStore (root, session drafts)"]
     tl["TaskListSection → TaskListStore (tasks)"]
     pg["ProgressSection → ProgressStore"]
     rf["ReflectionsSection → ReflectionsStore, ReflectionComposer"]

@@ -50,3 +50,14 @@ keeps the draft available to copy or Cancel.
 an extra key. Every write refuses such a config and the converter drops extras, so only a hand edit
 or history replaying pre-Slice-64 state reaches it, and it shows the guidance note alone
 ([decision](2026-10-section-config-validated-on-write.md)). Save stays blocked.
+
+**Amended, 2026-11-04 — Slice 79 step 10: the draft is kept (L3-012, W4-031).** The user chose to
+keep drafts. Navigation, frame collapse and removal no longer destroy an unsaved session, and
+Cancel no longer drops a changed draft: an in-memory store keeps `{ draft, base }` per section for
+the app session, and the next Edit opens with it, saying "Your unsaved draft is back." with
+**Discard draft**, which returns the editor to the saved text. `base` is the source the draft
+started from, so a draft reopened over an agent's change still shows the "changed elsewhere"
+notice. A successful Save forgets the draft. A reload, reseed or persona switch forgets every
+draft; there is no `sessionStorage`, no autosave and no navigation guard. A read-only change
+mid-session still blocks Save, and its Cancel now keeps the draft. Preview gains a visible
+"Unsaved preview" caption. §30 is corrected to match.

@@ -20,7 +20,8 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 [web](../overview.md)
 
 Markdown renders and edits source through a deferred body and presentational source editor, and
-is the first type in the picker. Rich Text is retired and absent from the registry. Live and
+is the first type in the picker. A changed draft left by Cancel or navigation comes back on the
+next Edit, for the app session, with Discard draft (Slice 79). Rich Text is retired and absent from the registry. Live and
 recreating history copies are refused on load with reset or reseed guidance; the historical
 schema-version-6 converter was removed in Slice 66.
 

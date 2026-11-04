@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ProjectSectionSchema, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
+import { MarkdownDraftStore } from './markdown-draft-store';
 import { MarkdownSectionBody } from './markdown-section-body';
 import type { Failure } from '../../../../shared/feedback/failure';
 
@@ -60,11 +61,73 @@ describe('MarkdownSectionBody', () => {
     await click('[data-markdown-edit]'); type('# Cancelled'); await click('[data-markdown-cancel]');
     expect(save).not.toHaveBeenCalled(); expect(document.activeElement).toBe(query('[data-markdown-edit]'));
   });
-  it('a reopened editor starts from stored source', async () => {
-    const { query, click, type, update } = render();
-    await click('[data-markdown-edit]'); type('# Cancelled'); await click('[data-markdown-cancel]');
+  it('a reopened editor starts from stored source when nothing was kept', async () => {
+    const { query, click, update } = render();
+    await click('[data-markdown-edit]'); await click('[data-markdown-cancel]');
     update({ markdown: '# Current' }); await click('[data-markdown-edit]');
     expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Current');
+    expect(query('[data-markdown-restored]')).toBeNull();
+    expect(TestBed.inject(MarkdownDraftStore).take('section-a')).toBeNull();
+  });
+  // Slice 79 (L3-012): Cancel and leaving keep a changed draft for the session; Edit offers it back.
+  it('Cancel keeps a changed draft and the next Edit opens with it', async () => {
+    const { query, click, type, save } = render();
+    await click('[data-markdown-edit]'); type('# Cancelled'); await click('[data-markdown-cancel]');
+    expect(query('app-markdown-source-editor')).toBeNull();
+    expect(query('h3').textContent).toBe('Plan');
+    await click('[data-markdown-edit]');
+    expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Cancelled');
+    expect(query('[data-markdown-restored]').textContent).toContain('Your unsaved draft is back.');
+    expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('destroy while editing keeps a changed draft for the next body', async () => {
+    const { fixture, click, type } = render();
+    await click('[data-markdown-edit]'); type('# Left behind'); fixture.destroy();
+    const next = render();
+    await next.click('[data-markdown-edit]');
+    expect(next.query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Left behind');
+    expect(next.query('[data-markdown-restored]')).not.toBeNull();
+  });
+  it('destroy with an unchanged editor keeps nothing', async () => {
+    const { fixture, click } = render();
+    await click('[data-markdown-edit]'); fixture.destroy();
+    expect(TestBed.inject(MarkdownDraftStore).take('section-a')).toBeNull();
+  });
+  it('Save success forgets a reopened draft', async () => {
+    const { query, click, type, update, save } = render();
+    await click('[data-markdown-edit]'); type('# Kept'); await click('[data-markdown-cancel]');
+    await click('[data-markdown-edit]'); type('# Kept and saved'); await click('[data-markdown-save]');
+    expect(save).toHaveBeenCalledExactlyOnceWith({ markdown: '# Kept and saved' });
+    update({ markdown: '# Kept and saved' }); await click('[data-markdown-edit]');
+    expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Kept and saved');
+    expect(query('[data-markdown-restored]')).toBeNull();
+  });
+  it('a draft reopened over a source changed elsewhere keeps its old base and says so', async () => {
+    const { query, click, type, update } = render();
+    await click('[data-markdown-edit]'); type('# Mine'); await click('[data-markdown-cancel]');
+    update({ markdown: '# Agent' }); await click('[data-markdown-edit]');
+    expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Mine');
+    expect(query('[data-markdown-changed-elsewhere]')).not.toBeNull();
+  });
+  it('a kept draft that now equals the stored source is not offered', async () => {
+    const { query, click, type, update } = render();
+    await click('[data-markdown-edit]'); type('# Same'); await click('[data-markdown-cancel]');
+    update({ markdown: '# Same' }); await click('[data-markdown-edit]');
+    expect(query('[data-markdown-restored]')).toBeNull();
+    expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
+  });
+  it('Discard draft returns to the current source and forgets the draft', async () => {
+    const { query, click, type, update } = render();
+    await click('[data-markdown-edit]'); type('# Mine'); await click('[data-markdown-cancel]');
+    update({ markdown: '# Agent' }); await click('[data-markdown-edit]');
+    await click('[data-markdown-discard]');
+    const source = query<HTMLTextAreaElement>('[data-markdown-source]');
+    expect(source.value).toBe('# Agent'); expect(document.activeElement).toBe(source);
+    expect(query('[data-markdown-restored]')).toBeNull();
+    expect(query('[data-markdown-changed-elsewhere]')).toBeNull();
+    await click('[data-markdown-cancel]'); await click('[data-markdown-edit]');
+    expect(query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Agent');
   });
   // Slice 78 (L4-018): one message, on the editor — the save's sentence as an inline alert, the
   // reason under a closed Details, the source described by the sentence alone.
@@ -176,13 +239,14 @@ describe('MarkdownSectionBody', () => {
     expect(save).not.toHaveBeenCalled(); await click('[data-markdown-cancel]');
     expect(query('app-markdown-source-editor')).toBeNull();
   });
-  it('read-only arriving mid-draft blocks Save and permits Cancel', async () => {
+  it('read-only arriving mid-draft blocks Save and permits Cancel, which keeps the draft', async () => {
     const { fixture, query, save, click, type } = render();
     await click('[data-markdown-edit]'); type('# My draft');
     fixture.componentRef.setInput('readOnly', true); fixture.detectChanges();
     expect(query('[data-markdown-save]').getAttribute('aria-disabled')).toBe('true');
     await click('[data-markdown-save]'); expect(save).not.toHaveBeenCalled();
     await click('[data-markdown-cancel]'); expect(query('app-markdown-source-editor')).toBeNull();
+    expect(TestBed.inject(MarkdownDraftStore).take('section-a')).toEqual({ draft: '# My draft', base: '# Plan' });
   });
   it('empty source keeps Edit available and Escape does not discard a draft', async () => {
     const { fixture, query, click, type, save } = render({});

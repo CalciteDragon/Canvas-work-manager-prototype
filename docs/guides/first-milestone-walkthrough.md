@@ -125,7 +125,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     to see its source, then **Cancel**. Add a Markdown section, choose **Edit**, and type a heading,
     a list, a link and fenced code.
     Choose **Preview**, then **Save**; reload and confirm the rendered notes survive. Edit a
-    second draft and **Cancel**: the saved source stays. Edit and Save without a change: nothing
+    second draft and **Cancel**: the saved source stays, and the next **Edit** brings the draft
+    back with "Your unsaved draft is back."; **Discard draft** returns to the saved source. Edit and Save without a change: nothing
     is written. Save a real change, then use the header's **Undo: Edited Markdown in the Markdown
     section** and **Redo** to restore and reapply it. Non-blank Markdown removed from the canvas
     appears in Archive; Restore returns the same source.

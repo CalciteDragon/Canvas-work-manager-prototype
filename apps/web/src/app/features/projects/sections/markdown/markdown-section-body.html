@@ -8,9 +8,13 @@
     @if (readOnly()) {
       <p class="markdown-section-body__note">This section is read-only. Your draft is kept; you can copy it or Cancel.</p>
     }
-    <app-markdown-source-editor #editor [initialSource]="base()" [name]="name()"
-      [pending]="pending()" [failure]="failure()" [changedElsewhere]="changedElsewhere()" [saveBlocked]="!canEdit()"
-      (ready)="editor.focusSource()" (saveRequested)="saveDraft($event)" (cancelRequested)="cancel()" />
+    <!-- Discard draft re-keys a fresh editor; a derived key keeps NG0956's identity-track warning quiet. -->
+    @for (key of [editorKey()]; track 'editor-' + key) {
+      <app-markdown-source-editor #editor [initialSource]="base()" [initialDraft]="offered()" [name]="name()"
+        [pending]="pending()" [failure]="failure()" [changedElsewhere]="changedElsewhere()" [saveBlocked]="!canEdit()"
+        (ready)="editor.focusSource()" (saveRequested)="saveDraft($event)" (cancelRequested)="cancel($event)"
+        (discardRequested)="discard()" />
+    }
   } @else if (content().state !== 'unreadable') {
     <app-markdown-renderer [source]="source()" />
     @if (canEdit()) {

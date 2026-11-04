@@ -18,6 +18,8 @@ let nextEditor = 0;
 })
 export class MarkdownSourceEditor implements OnInit {
   readonly initialSource = input.required<string>();
+  /** Slice 79 (L3-012): a kept draft the body offers back, seeded instead of `initialSource`. */
+  readonly initialDraft = input<string | null>(null);
   readonly name = input.required<string>();
   readonly pending = input(false);
   /** The refused save's failure: one inline alert here, the reason under Details (Slice 78, L4-018). */
@@ -26,7 +28,10 @@ export class MarkdownSourceEditor implements OnInit {
   readonly changedElsewhere = input(false);
   readonly saveBlocked = input(false);
   readonly saveRequested = output<string>();
-  readonly cancelRequested = output<void>();
+  /** Carries the draft, which the body keeps when it changed (Slice 79). */
+  readonly cancelRequested = output<string>();
+  /** The body forgets the kept draft and re-creates this editor from the saved text. */
+  readonly discardRequested = output<void>();
   readonly ready = output<void>();
   readonly draft = signal('');
   readonly preview = signal(false);
@@ -38,7 +43,7 @@ export class MarkdownSourceEditor implements OnInit {
   }
 
   /** Seed once: a live section update never replaces a draft already being written. */
-  ngOnInit(): void { this.draft.set(this.initialSource()); }
+  ngOnInit(): void { this.draft.set(this.initialDraft() ?? this.initialSource()); }
 
   /** The owning body invokes this when the new editor reports that its view is ready. */
   focusSource(): void { this.source()?.nativeElement.focus(); }
@@ -59,6 +64,10 @@ export class MarkdownSourceEditor implements OnInit {
   }
 
   requestCancel(): void {
-    if (!this.pending()) this.cancelRequested.emit();
+    if (!this.pending()) this.cancelRequested.emit(this.draft());
+  }
+
+  requestDiscard(): void {
+    if (!this.pending()) this.discardRequested.emit();
   }
 }

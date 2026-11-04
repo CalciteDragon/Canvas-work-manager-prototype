@@ -153,8 +153,14 @@ test('markdown section saves source, renders safely and undoes', async ({ page }
   await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
   expect(await savedConfig()).toEqual({ markdown: source });
 
+  // Slice 79 (L3-012): Cancel kept the draft; the next Edit offers it back, and Discard draft drops it.
   await frame.locator('[data-markdown-edit]').click();
+  await expect(frame.locator('[data-markdown-source]')).toHaveValue('A draft that must be discarded.');
+  await expect(frame.locator('[data-markdown-restored]')).toContainText('Your unsaved draft is back.');
+  await frame.locator('[data-markdown-discard]').click();
   await expect(frame.locator('[data-markdown-source]')).toHaveValue(source);
+  await expect(frame.locator('[data-markdown-source]')).toBeFocused();
+  await expect(frame.locator('[data-markdown-restored]')).toHaveCount(0);
   await frame.locator('[data-markdown-save]').click();
   await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
   expect(await savedConfig()).toEqual({ markdown: source });

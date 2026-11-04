@@ -1,5 +1,13 @@
 <div class="markdown-source-editor" [attr.aria-busy]="pending()">
+  @if (initialDraft() !== null) {
+    <p data-markdown-restored class="markdown-source-editor__restored" role="status">
+      <span class="markdown-source-editor__note">Your unsaved draft is back.</span>
+      <button data-markdown-discard type="button" class="button button--ghost" [attr.aria-disabled]="pending()"
+        (click)="requestDiscard()">Discard draft</button>
+    </p>
+  }
   @if (preview()) {
+    <p data-markdown-preview-caption class="markdown-source-editor__note">Unsaved preview</p>
     <app-markdown-renderer [source]="draft()" />
   } @else {
     <textarea #source data-markdown-source class="field markdown-source-editor__source" rows="10" [value]="draft()" [readOnly]="pending()"

@@ -187,7 +187,7 @@ undo its own receipt after checking that it remains next
 
 - [The Sub-Projects section is retired; Work is the hierarchy surface](../../../decisions/2026-10-retiring-the-sub-projects-section.md)
 
-- [Markdown source and rendering](../../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling.
+- [Markdown source and rendering](../../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling; since Slice 79 a changed draft is kept for the app session and offered back with Discard draft.
 - [Schema version 6 converts Rich Text to Markdown and retires it](../../../decisions/2026-10-schema-version-6-markdown-conversion.md) — historical cutover; the registry omits Rich Text and Slice 66 removed the converter. Unreadable local files require reset or reseed.
 - [A Markdown section's config is validated on every write](../../../decisions/2026-10-section-config-validated-on-write.md) — the schema comes from contracts; unreadable config shows only the guidance note.
 

@@ -1,11 +1,12 @@
 import {
   ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender,
-  computed, inject, input, signal,
+  computed, inject, input, signal, viewChild,
 } from '@angular/core';
 import { nameOf, type ProjectSection, type SectionConfig } from '@cwm/contracts';
 import { MarkdownRenderer } from '../../../../shared/components/markdown-renderer/markdown-renderer';
 import { writeFailure, type Failure } from '../../../../shared/feedback/failure';
 import { readMarkdownConfig } from './markdown-config';
+import { MarkdownDraftStore } from './markdown-draft-store';
 import { MarkdownSourceEditor } from './markdown-source-editor';
 
 /** Lazy rendering and explicit authoring; the canvas supplies the awaited config write. */
@@ -25,6 +26,10 @@ export class MarkdownSectionBody {
   readonly pending = signal(false);
   readonly failure = signal<Failure | null>(null);
   readonly base = signal('');
+  /** A kept draft offered back by this editing session (Slice 79, L3-012), or `null`. */
+  readonly offered = signal<string | null>(null);
+  /** Bumped by Discard draft: the editor seeds once, so a fresh one is keyed in. */
+  readonly editorKey = signal(0);
   readonly content = computed(() => readMarkdownConfig(this.section().config));
   readonly source = computed(() => {
     const content = this.content();
@@ -35,14 +40,36 @@ export class MarkdownSectionBody {
   readonly changedElsewhere = computed(() => this.editing() && !this.pending() && this.canEdit() && this.source() !== this.base());
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
+  private readonly drafts = inject(MarkdownDraftStore);
+  private readonly editor = viewChild(MarkdownSourceEditor);
   private destroyed = false;
 
-  constructor() { inject(DestroyRef).onDestroy(() => { this.destroyed = true; }); }
+  constructor() {
+    // Navigation or removal of the host keeps a changed draft, read before the editor goes.
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      const editor = this.editor();
+      if (this.editing() && editor) this.keep(editor.draft());
+    });
+  }
 
-  /** Each Edit creates a new editor seeded from the current stored source. */
+  /**
+   * Each Edit creates a new editor seeded from the kept draft, with the base it started from so
+   * §30's "changed elsewhere" note still guards an agent's edit, or else from the stored source.
+   */
   edit(): void {
     if (this.destroyed || this.pending() || !this.canEdit()) return;
-    this.base.set(this.source()); this.failure.set(null); this.editing.set(true);
+    const kept = this.drafts.take(this.section().id);
+    const offered = kept !== null && kept.draft !== this.source() ? kept : null;
+    this.base.set(offered?.base ?? this.source()); this.offered.set(offered?.draft ?? null);
+    this.failure.set(null); this.editing.set(true);
+  }
+
+  /** Discard draft: forget it and start a fresh editor from the current stored source. */
+  discard(): void {
+    if (this.destroyed || this.pending()) return;
+    this.drafts.forget(this.section().id);
+    this.base.set(this.source()); this.offered.set(null); this.editorKey.update((key) => key + 1);
   }
 
   /** Replace config once; a refused write leaves the editor and its draft mounted. */
@@ -58,13 +85,18 @@ export class MarkdownSectionBody {
     if (failure === null) {
       // Source may already be patched by our own write. Close in this same turn, before
       // dropping pending, so no intermediate render announces a false external change.
-      this.closeEditor(); this.pending.set(false);
+      this.drafts.forget(this.section().id); this.closeEditor(); this.pending.set(false);
     } else { this.failure.set(failure); this.pending.set(false); }
   }
 
-  cancel(): void {
+  /** Cancel keeps a changed draft for the next Edit (Slice 79); an unchanged one is let go. */
+  cancel(draft: string): void {
     if (this.destroyed || this.pending()) return;
-    this.closeEditor();
+    this.keep(draft); this.closeEditor();
+  }
+
+  private keep(draft: string): void {
+    if (draft !== this.base() && draft !== this.source()) this.drafts.keep(this.section().id, { draft, base: this.base() });
   }
 
   private closeEditor(): void {
