@@ -19,8 +19,47 @@ Open question 8 with (a): Calendar and Settings › Agents lazy, ceiling kept; s
 below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 bullet below.
 **Step 10 (Markdown keeps the draft) is done (S79S10)**; see the Step 10 bullet below.
 **Step 11 (count and drag hint) is done (S79S11)**; see the Step 11 bullet below.
-**Next: step 12 (end to end: `empty-archived-editing.spec.ts`, then full `pnpm e2e`, the
-Storybook build and the bundle).**
+**Step 12 (end to end) is done (S79S12, cloud session)**; see the Step 12 bullet below.
+**Next: step 13 (after capture, sheet, reviews, then Gate 2 by the user).**
+- **Step 12 (end to end):** `apps/e2e/empty-archived-editing.spec.ts`, 13 tests, every clause of
+  its Test plan row: first run at 1440 and 375 touch then archiving that project (archived-only
+  sidebar, no first-run block); Legacy attic / Legacy shelving / Home renovation (canvas, Todos,
+  Reflections) / Kitchen read only by the rig's `WRITE_CONTROLS` with each banner sentence and Edit
+  details kept; the attic's banner restore (focus on the heading) and its header Undo refused as
+  `history_conflict` naming Legacy shelving; the ancestor restore's toast (Undo, Open Legacy attic);
+  archived twice by keyboard only (Tab to Restore, focus on the next owner's choice, then the
+  heading); Home renovation's restore (no toast) and the header's Undo bringing the banner back; a
+  500 inside the banner with Details and Try again; Kitchen's blocked form (Close the only button,
+  Cabinets a link landing on Cabinets); an injected late `rule_violation` sentence with Details; one
+  control and option list on Archive and Settings, each restoring; the digest's overdue link
+  landing on its section; a Markdown draft through Preview, Cancel and Back, Discard draft by
+  Shift+Tab; the Task List count and a drag start that moves no row. No other spec was edited, so
+  nothing is added under Behaviour vs. appearance. Docs: testing how/what.
+  **Results (this cloud container):** `pnpm e2e`'s 27 specs, 287 tests, all passed: 167 + 119 in
+  two halves plus `project-creation-history.spec.ts:14`, whose Node-side `fetch` hard-codes
+  `127.0.0.1:4310`, passed only with that URL swapped to 4357 in an uncommitted copy (restored
+  after). `removal-undo.spec.ts:654` (section read count 4 for 3) failed once in a full half and
+  passed 4/4 alone and in the re-run half: flaky, not touched. The new spec passed 26/26 on
+  `--repeat-each 2`. **Storybook build:** succeeded. **Initial bundle 1,146.16 kB** (unchanged, no
+  web code; 3.84 kB under the ceiling). **MCP (Acceptance item 6):** `contract.test.ts` 151 and
+  `handler.test.ts` + `stdio.test.ts` 28 green; since `44e7e9e` those files changed only by the one
+  added archived-root case. `mcp.spec.ts` passed in the full run. One cold review: five findings,
+  all held and fixed (Undo clicked before the restore's own step was offered, so it now waits on
+  the `Reactivated "…"` label; two count-of-0 checks moved behind a landed read; the phone Menu
+  awaited; read-only checks wait for section reads; blocked form asserts Close only).
+  **How e2e ran here (never 4200/4310):** a throwaway config (not committed) extending
+  `playwright.config.ts`: host on 4357 (`CWM_HOST_PORT`, `CWM_E2E_HOST`), `ux/walk/static.mjs`
+  serving `apps/web/dist/web/browser` on 4257, `UX_STATIC_ORIGIN=http://localhost:4257` (else
+  `configureContext` reroutes to 4201 and `section-chrome.spec.ts` fails), `executablePath`
+  `/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`, and a context-level `proxy` on 4258
+  (`bypass: '<-loopback>'`) forwarding `:4200`→4257 and `:4310`→4357, including CONNECT, which
+  `route.fetch()` uses. A timed-out run leaves the host and static server up: kill them and rerun
+  `prepare-data.ts` before the next.
+  **Trap for step 13:** grabbed by its title, Kitchen's completed row ("Approve the cabinet
+  measurements") showed no drag preview while the open row did (no code disables it; not
+  explained). The rig's `drag-start` grabs `rows.last()`, which is that completed row, so its
+  after capture may record `dragging: false`, which profile 79 fails. If so, grab the open row
+  by its title as the e2e does (the plan's rig row, not a product change), or raise it.
 - **Step 11 (count and drag hint):** `SectionDefinition.summary?: true`, set only on Task List;
   `SectionContentInputs.reportSummary?`. Both frames hold a `summary` signal and add the stable
   class-property `reportSummary` to the content inputs only for a marked definition (NG0303 is a

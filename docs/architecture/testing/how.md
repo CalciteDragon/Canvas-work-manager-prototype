@@ -24,6 +24,20 @@ outside the seven named changing cells is a control whose text gains exactly one
 with its geometry still compared. Rules read only the after evidence, so a before-against-before run
 fails every after-only rule and nothing in the matrix: that is how its wiring is proved.
 
+Slice 79's journeys are `apps/e2e/empty-archived-editing.spec.ts`, on the ordinary suite's
+servers and fixtures made through the host API: first run on `empty` at 1440 and 375 touch, then
+archiving that project to reach the archived-only sidebar; Legacy attic, Legacy shelving and
+Home renovation archived with nothing live (canvas, Todos, Reflections, Kitchen) read only, each by the rig's
+`WRITE_CONTROLS` list, the banner sentence and Edit details still in More; a banner restore with
+focus on the heading, Undo refused as `history_conflict` naming Legacy shelving, an ancestor's
+restore toast, an archived-twice page whose next owner's choice takes focus (keyboard only), the
+header's Undo bringing the banner back and an injected 500 shown inside the banner; Kitchen's
+blocked confirmation and its Cabinets link, an injected late `rule_violation`, one restore control
+on Archive and Settings; the digest's overdue link landing on its section; a Markdown draft
+through Preview, Cancel and Back, then Discard draft by Shift+Tab; and the Task List count and a
+drag start that moves no row. The drag grabs Kitchen's open task by its title: grabbed the same
+way, the completed row showed no drag preview (observed in Slice 79's step 12, not explained).
+
 Slice 78 uses `ux/slice78.config.ts` on web 4256, host 4356 and `.prototype/ux-slice78.json`, with
 the `0c19170` baseline in `apps/e2e/ux-output/slice78-baseline-web/browser` (`UX_BEFORE` for the
 before). `UX_STATES_MATCH` selects `context|theme|width` entries of `states-verification.ts` and
