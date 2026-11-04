@@ -33,7 +33,8 @@
    guarded by the load generation, so a late answer cannot paint another section.
    `TaskListSection.summary` is the frame header's count (Slice 79): `tasks().length`, open and
    done, as "N tasks" or "1 task", and `null` while `loading()`, under `error()` or at zero, so the
-   loading line, the banner or the empty sentence speaks instead. An effect hands it to
+   loading line, the banner or the empty sentence speaks instead. A pending quick-add is not
+   counted until it lands. An effect hands it to
    `reportSummary`, and destroy reports `null`. The drag hint (`[data-task-drag-hint]`) is inside
    the quick-add form, absolutely positioned over it on the solid sheet: it takes no flow space,
    so the first row holds still when a drag starts.

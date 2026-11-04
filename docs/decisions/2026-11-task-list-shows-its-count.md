@@ -28,7 +28,11 @@ is one more such callback: the canonical and shortcut frames hold a `summary` si
 counts what it loaded and reports `null` while loading, after a failed read, at zero and when it is
 destroyed; a collapsed frame shows no count, since nothing keeps it current. The header's
 `flex-wrap: wrap` let a long name push the tools onto a second line; it is now one line in which
-the name truncates. The step cost 1.85 kB of initial bundle (1,144.14 → 1,145.99 kB).
+the name truncates. With a count showing, the canonical heading keeps its own width so the count
+sits right after it, which means a pointer on the empty header space beside a Task List's count no
+longer starts a rename (the name, and Rename, still do); every other type is unchanged. The count
+is of loaded tasks, so a quick-add in flight shows its pending row before the count includes it.
+The shortcut name now has its own span, so it ends in an ellipsis like the canonical one. The step cost 2.01 kB of initial bundle (1,144.14 → 1,146.15 kB).
 
 **Current decision**
 

@@ -309,6 +309,16 @@ describe('ShortcutFrame header count (Slice 79, L4-023)', () => {
     expect(getComputedStyle(query(fixture, '.shortcut-frame__header')!).flexWrap).toBe('nowrap');
     expect(getComputedStyle(summary).flexShrink).toBe('0');
 
+    // The name truncates with an ellipsis in its own span, before the count gives way.
+    const name = query(fixture, '[data-shortcut-title] .shortcut-frame__name')!;
+    expect(name.textContent?.trim()).toBe('Task List (Website launch)');
+    expect([getComputedStyle(name).overflow, getComputedStyle(name).textOverflow]).toEqual(['hidden', 'ellipsis']);
+
+    // Collapsed content is unmounted, so no count is kept current or shown.
+    fixture.componentRef.setInput('shortcut', { ...taskListShortcut(), collapsed: true });
+    fixture.detectChanges();
+    expect(query(fixture, '[data-shortcut-summary]')).toBeNull();
+
     TestBed.resetTestingModule();
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {

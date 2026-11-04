@@ -14,7 +14,7 @@
       <div class="shortcut-frame__title-row">
         <h2 data-shortcut-title data-recovery-focus tabindex="-1" [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
           <span class="shortcut-frame__icon" aria-hidden="true"><app-icon name="open" /></span>
-          {{ name() }}
+          <span class="shortcut-frame__name">{{ name() }}</span>
         </h2>
         @if (shownSummary(); as text) {
           <span data-shortcut-summary class="shortcut-frame__summary">{{ text }}</span>

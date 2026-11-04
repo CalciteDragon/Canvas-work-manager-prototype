@@ -63,6 +63,12 @@
   min-width: 0;
 }
 
+.shortcut-frame__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .shortcut-frame__summary {
   flex: none;
   color: var(--color-text-muted);
