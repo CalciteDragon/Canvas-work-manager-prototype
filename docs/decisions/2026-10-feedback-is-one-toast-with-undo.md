@@ -79,3 +79,10 @@ per quick-add would close the previous write's toast and cover a phone list. Sam
 completion on Todos keeps no toast, and its failure is said on its row; the checked row is
 completion's confirmation on both surfaces. Cross-owner completion keeps its toast, because that
 write lands in another project's history. The asymmetry is accepted. See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).
+
+**Amended, 2026-11-04 (Slice 79 Open question 9, user decision)**
+
+The toast carries only a short message. A longer reason, repair lines or a raw failure reason open
+from its **View details** in a modal view
+([decision](2026-11-toasts-say-it-short-with-view-details.md)); the timer rules here are
+unchanged, and the open view holds the toast.

@@ -21,8 +21,9 @@ below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 
 **Step 11 (count and drag hint) is done (S79S11)**; see the Step 11 bullet below.
 **Step 12 (end to end) is done (S79S12, cloud session)**; see the Step 12 bullet below.
 **Step 13 part a (acceptance check and sheet) is done (S79S13A), with one stop: Open question 9.**
-See the Step 13a bullet below. **Next: the user answers Open question 9; then S79S13B reviews, then
-Gate 2 (user).**
+See the Step 13a bullet below. **Open question 9 was answered by the user on 2026-11-04 (toasts say one short message; a
+longer reason opens from View details); S79S13Q9 is implementing it.** Then S79S13B reviews, then
+Gate 2 (user).
 - **Step 13a (acceptance check and sheet):** `pnpm test` and `pnpm lint` green at the start and
   after the fixes (web 1,538; tooling 110). The first after sheet (716cc41) had 1,168 failures from
   six causes, fixed in `baa78a2` (product: section headers wrap again with the name and count as
@@ -1646,7 +1647,7 @@ written, with the answer added under it. The Defaults taken were accepted as wri
      budget decision and `app.routes.ts`'s comment are amended to name the two exceptions.
 
 9. **The undo-refusal toast's message scrolls with no keyboard way in.** (raised by S79S13A,
-   2026-11-04; **blocks Gate 2's zero-failure sheet**)
+   2026-11-04; blocked Gate 2's zero-failure sheet; **resolved 2026-11-04, see below**)
    - *Context.* The after sheet's only failures (4 of them): axe `scrollable-region-focusable` on
      `.toast__message` and `.toast__lines`, Legacy attic's refused Undo, 1440 dark and light. The
      refusal ("Could not undo “Reactivated “Legacy attic””: something it changed has changed
@@ -1675,6 +1676,16 @@ written, with the answer added under it. The Defaults taken were accepted as wri
      chooses. With (a) or (c), one more step fixes it, re-captures and rebuilds the sheet
      (about 20 minutes) before the S79S13B reviews; or the user may accept the 4 at Gate 2 and
      leave the pattern to the §8 comb.
+   - **Resolved (user decision, 2026-11-04): none of the offered options; the user's own rule.** In their
+     words: "i think it would be more user friendly to show a simple undo failure on the toast,
+     with a clickable view details option to open a view with the full reason. i think toasts
+     should only contain short simple messages". **Toasts carry only short, simple messages;
+     when there is a longer reason, the toast offers a "View details" action that opens a view
+     with the full text.** The shared `Toast` shows the message, its owner's actions, View
+     details and Dismiss; a modal view holds the reason, the repair lines and a failure's raw
+     reason (Slice 78's in-toast Details moves there too). Recorded in
+     [the toast decision](../../decisions/2026-11-toasts-say-it-short-with-view-details.md),
+     with amendments to the one-toast and failure-words entries. Implemented by S79S13Q9.
 
 **Defaults taken** (small and non-shape-changing; say if any is wrong):
 
@@ -1977,4 +1988,10 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   - **Lab evidence:** panel boxes recorded scroll-free and after a reload (frame shots taller than
     the viewport left frames 12 px shorter at 375); the before's Lab row re-recorded.
   - **Left open:** the undo-refusal toast's 4 axe nodes, Open question 9.
-
+- **2026-11-04, Q9 answered (S79S13Q9).** The user's own rule (none of the offered options):
+  toasts say one short message, and a longer reason opens from "View details". The File-level
+  change list gains the shared toast (`toast.ts`, `toast.html`, its spec and stories,
+  `_lifts.scss`), `receipt-undo.ts`'s `reason`, `history-feedback.ts`'s conflict wording, the six
+  toast hosts' `[reason]`/`[detail]` bindings, the e2e that read `.toast__lines` or "Could not
+  undo", the rig's refusal state, and a new decision entry; the after capture of the affected
+  states is re-run.

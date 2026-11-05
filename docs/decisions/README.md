@@ -40,7 +40,7 @@ Archive-label revision; both entries record acceptance.
 
 | Entry | Settled | Status |
 |---|---|---|
-| [A failure speaks product words, keeps its reason under Details, and offers Try again for a read](2026-10-failures-speak-product-words.md) | One `Failure` shape and sentence by code; reason under Details; Try again repeats only the read, kept busy while it runs; read and write failures apart; no false empty; the polite sidebar; the digest fails alone | amended; Slice 79 adds the empty and archived variants and the late archive refusal's sentence |
+| [A failure speaks product words, keeps its reason under Details, and offers Try again for a read](2026-10-failures-speak-product-words.md) | One `Failure` shape and sentence by code; reason under Details; Try again repeats only the read, kept busy while it runs; read and write failures apart; no false empty; the polite sidebar; the digest fails alone | amended; Slice 79 adds the empty and archived variants and the late archive refusal's sentence, and moves a toast's Details behind View details |
 | [Connecting an agent becomes a product surface in Settings › AI & Agents](2026-10-agent-connections-are-a-product-surface.md) | The five S1 findings; its own cross-system slice within §80 | current (Slice 70 Gate 1) |
 | [Prototype scaffolding stays visible during the redesign](2026-10-prototype-scaffolding-stays-for-now.md) | TH12 is restyled, not removed; its findings stay open | current (Slice 70 Gate 1) |
 | [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | amended; Slice 66 |
@@ -163,6 +163,7 @@ Archive-label revision; both entries record acceptance.
 | [The digest's overdue line leads to the tasks](2026-11-digest-overdue-line-leads-to-the-tasks.md) | Up to five overdue tasks under the digest's prose, each linking to its owner section through `task-origin-link.ts`, then a muted "and N more overdue" (Q1 (a)); web only | current (Slice 79) |
 | [A Task List shows its count in the frame header](2026-11-task-list-shows-its-count.md) | "N tasks" after the frame's name, reported only by `summary: true` types (NG0303); none while loading, failed, empty or collapsed; the drag hint covers quick-add | current (Slice 79) |
 | [An empty workspace offers the first project](2026-11-empty-workspace-offers-the-first-project.md) | First run above the widgets (Q3 (a)), said only after a read answered; `SHELL_COMMANDS` and the one creation form; the sidebar's archived-only "No active projects." | current (Slice 79) |
+| [A toast says one short message; a longer reason opens from "View details"](2026-11-toasts-say-it-short-with-view-details.md) | Short message only; `reason`, `lines` and a raw `detail` open in a modal view from View details, focus in and back, Escape closes the view; "Couldn’t undo." refusals; announcement keeps the full text (Slice 79 Q9, user decision) | current (Slice 79) |
 
 - [Lifts use the browser's top layer](2026-10-lifts-use-the-top-layer.md) — current; Slice 73 native modes and one transient lift.
 - [Route focus lands lost focus after user navigation](2026-10-route-focus-lands-lost-focus.md) — current; Slice 73 bounded heading/main landing.

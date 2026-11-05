@@ -101,3 +101,10 @@ do, "“X” still has live workstreams. Archive them first.", because retrying 
 every other code keeps "Couldn’t archive “X”. Try again." (`unreachable` can succeed on retry). The
 reason stays under Details. Any `rule_violation` on a project write also re-reads the page's
 context, since a rule refusing it means the picture on screen was stale.
+
+**Amended, 2026-11-04 (Slice 79 Open question 9, user decision)**
+
+A toast no longer holds a collapsed Details. Its raw reason opens from the toast's **View
+details**, in a modal view, under
+[a toast says one short message](2026-11-toasts-say-it-short-with-view-details.md). Details
+beside a sentence elsewhere (inline, region and banner failures) is unchanged.
