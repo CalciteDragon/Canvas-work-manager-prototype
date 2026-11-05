@@ -565,12 +565,16 @@ describe('slice 76 named section chrome', () => {
       expect(toggled).not.toHaveBeenCalled();
     });
 
-    it('starts from the stored state and resets when a fresh read arrives', () => {
+    it('starts from the stored state, keeps the local view across a re-read, and resets when the stored state changes', () => {
       const fixture = readOnly({ collapsed: true });
       const collapse = () => query(fixture, '[data-section-collapse]')!;
       expect(collapse().getAttribute('aria-expanded')).toBe('false');
       collapse().click(); fixture.detectChanges();
       expect(query(fixture, '[data-section-content]')).not.toBeNull();
+      // A quiet re-read hands a fresh record with the same stored state: the local view stays.
+      fixture.componentRef.setInput('section', section({ collapsed: true })); fixture.detectChanges();
+      expect(query(fixture, '[data-section-content]')).not.toBeNull();
+      fixture.componentRef.setInput('section', section({ collapsed: false })); fixture.detectChanges();
       fixture.componentRef.setInput('section', section({ collapsed: true })); fixture.detectChanges();
       expect(collapse().getAttribute('aria-expanded')).toBe('false');
       expect(query(fixture, '[data-section-content]')).toBeNull();

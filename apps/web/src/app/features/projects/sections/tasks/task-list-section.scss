@@ -48,6 +48,11 @@
   background: var(--plane-sheet-solid);
 }
 
+// The hint's rounded corners would show the field and Add task beneath; they keep their space.
+.quick-create:has(> .quick-create__drag-hint) > :not(.quick-create__drag-hint, .quick-create__plate) {
+  visibility: hidden;
+}
+
 .quick-create__error {
   grid-column: 1 / -1;
   margin: 0;

@@ -82,6 +82,12 @@ High for the structural eligibility and no-cascade rule because the projection i
 canonical records and the write still validates current state. UI discoverability depends on
 continued browser use.
 
+**Amended, 2026-11-04 — Slice 79 review: Settings' focus after a restore, corrected.** The Open
+question 2 amendment above says a restore moves focus to the next row's restore choice. That holds
+for a failed restore and for dismissing the toast. A successful restore, from Restore or Retry,
+first focuses the toast's **Open it**, as since Slice 74; dismissing the toast then moves focus to
+the restore choice of the row at the restored row's place, else the heading. §23 says the same.
+
 ## Revisit when
 
 Real use shows a ready action missing from either surface, recovery steps remaining unclear after

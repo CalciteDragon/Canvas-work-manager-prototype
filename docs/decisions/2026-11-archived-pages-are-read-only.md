@@ -90,3 +90,8 @@ reflections." (singular for one) from the domain's `hiddenItemCount`, and the or
 it is 0 or absent. Since the domain answers an archived root with no rows, the absent controls are
 proved by component tests with rows supplied, not by a capture.
 
+
+**Amended, 2026-11-04 — Slice 79 review: the Reflections page's writing regions.** The sheet showed
+an archived root's Reflections page still holding an empty "Write a reflection" region and the
+completed-work subject picker, which only feeds the composer. A read-only Reflections page now
+renders neither region, only its header and the journal with its hidden-count sentence.

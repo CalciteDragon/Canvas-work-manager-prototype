@@ -22,7 +22,8 @@ busy (`retryPending()`) while Try again reads. A quiet live re-read and Try agai
 list is on screen) keep the message visible; a reconnect reads non-quietly and
 shows "Loading archive…" while Restore stays paused; a prototype reload clears the list and error, even
 with a Restore pending, and its read supersedes that Restore's refresh. A workstream row restores through the shared
-`RestoreStatusChoice` (Slice 79: one option list, Active preselected; its hooks are
+`RestoreStatusChoice` (Slice 79: one option list, Active preselected, Restore at the select's height
+on its bottom edge; its hooks are
 `data-restore-status` and `data-restore-action`, while other rows keep `data-archived-restore`); its
 chosen status is keyed by id and survives the replacement projection. The restoring row's choice is
 `aria-disabled` and keeps focus, and dismissal focus looks for either Restore hook.
@@ -187,7 +188,8 @@ focus, and dismissal falls back to a surviving row control or the heading.
    guard and return feedback to the acting toast without setting shell feedback. Cross-owner
    failures distinguish stale/blocked, denied permission, missing action and uncertain response.
    Public `writeSequence` and `generation` signals withdraw stale toasts; Retry remove's exempt
-   handle leaves the sequence unchanged.
+   handle leaves the sequence unchanged. The canvas withdraws Retry remove, and refuses a removal,
+   once `readOnly` is true, since a failed removal's toast can outlive an archive made elsewhere.
 6. Live frames: progress re-reads on any frame naming the project; the record on
    `project.*`; sections through `refreshSections()` unless a write is in flight. A page action or
    transition frame is a `project.*` frame, so it reaches project-context refresh and page
@@ -313,8 +315,10 @@ back." with **Discard draft**. A kept draft that now equals the source is droppe
 seeds once, in `ngOnInit`, and never injects the store: Discard draft emits `discardRequested`, and
 the body forgets the draft, resets `base` and re-keys the editor (`editorKey`) so a fresh one seeds
 from the source. Save success forgets the draft, even when the body was destroyed mid-save and kept
-it. The store clears on `prototype.reloaded`; a reload,
-reseed or persona switch empties it anyway ([decision](../../../decisions/2026-10-markdown-source-and-rendering.md)).
+it. The store clears on `prototype.reloaded` and bumps its `generation`; the body records the
+generation when an editor opens, and a Cancel or destroy from an editor opened before the clear keeps
+nothing, since a reseed elsewhere clears the store before the canvas unmounts. A reload,
+reseed or persona switch in this tab empties it anyway ([decision](../../../decisions/2026-10-markdown-source-and-rendering.md)).
 The trap: `take` removes, so the store holds a draft only while no editor has it open. A section
 shown twice (its canonical frame and a shortcut) shares one slot, so the last draft kept wins.
 
@@ -587,15 +591,17 @@ drops Rename (and title-click rename), Move, Settings and Remove, closes an open
 a rename when it turns read-only (a rename already saving closes when its answer arrives), and hands `readOnly: true` to its content, whose config
 writes answer `READ_ONLY_CONFIG`; the shortcut frame drops Move and Remove and keeps Open source.
 Both keep collapse as the toolbar's tab stop (the shortcut frame resets a roved-away `tabindex`)
-and toggle a local `linkedSignal` view instead of emitting `collapseToggled`; a fresh `section` or
-`shortcut` record, or `readOnly` changing, resets it to the stored state,
+and toggle a local `linkedSignal` view instead of emitting `collapseToggled`. Its source is a `computed` key
+(id, stored `collapsed`, `readOnly`), so another record, a changed stored state or `readOnly`
+changing resets it to the stored state while a quiet re-read of the same state keeps it,
 and the section frame's local view overrides `transientlyExpanded`. The canonical Task List's
 read-only rows are static `TaskRow`s (`link` null: a plain title, no drawer, no drag) and its
 empty sentence is "No tasks."; a shortcut's rows keep their source link and "The source has no
 tasks yet." Todos drops its task checkbox, workstream Complete and Delete under `readOnly`
 (links stay); while a write is pending, the other rows' Complete and Delete are `aria-disabled`
 with a guarded click, never `disabled`, so focus stays put. The Reflections page folds `readOnly`
-into `pageWritesBlocked`, so neither the composer nor Add reflections container renders. The domain
+into `pageWritesBlocked`, so neither writing region (the composer with Add reflections container,
+and the completed-work subject picker) renders; the journal stays. The domain
 answers an archived root's two reads with no rows and `hiddenItemCount`; each store exposes it as
 `hiddenCount()` (0 when absent, and after a failed read), and each page's empty element says
 `hiddenCountSentence` (`pages/hidden-count.ts`): "Restore to view N hidden todos." (or

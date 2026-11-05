@@ -43,6 +43,8 @@ export class MarkdownSectionBody {
   private readonly drafts = inject(MarkdownDraftStore);
   private readonly editor = viewChild(MarkdownSourceEditor);
   private destroyed = false;
+  /** The draft store's generation when this editing session opened. */
+  private openedIn = 0;
 
   constructor() {
     // Navigation or removal of the host keeps a changed draft, read before the editor goes.
@@ -59,6 +61,7 @@ export class MarkdownSectionBody {
    */
   edit(): void {
     if (this.destroyed || this.pending() || !this.canEdit()) return;
+    this.openedIn = this.drafts.generation;
     const kept = this.drafts.take(this.section().id);
     const offered = kept !== null && kept.draft !== this.source() ? kept : null;
     this.base.set(offered?.base ?? this.source()); this.offered.set(offered?.draft ?? null);
@@ -69,7 +72,7 @@ export class MarkdownSectionBody {
   discard(): void {
     if (this.destroyed || this.pending()) return;
     this.drafts.forget(this.section().id);
-    this.base.set(this.source()); this.offered.set(null); this.editorKey.update((key) => key + 1);
+    this.openedIn = this.drafts.generation; this.base.set(this.source()); this.offered.set(null); this.editorKey.update((key) => key + 1);
   }
 
   /** Replace config once; a refused write leaves the editor and its draft mounted. */
@@ -99,7 +102,7 @@ export class MarkdownSectionBody {
   }
 
   private keep(draft: string): void {
-    if (draft !== this.base() && draft !== this.source()) this.drafts.keep(this.section().id, { draft, base: this.base() });
+    if (draft !== this.base() && draft !== this.source()) this.drafts.keep(this.section().id, { draft, base: this.base() }, this.openedIn);
   }
 
   private closeEditor(): void {

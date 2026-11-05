@@ -1042,5 +1042,10 @@ describe('TaskListSection header count and drag hint (Slice 79, L4-023)', () => 
     const hint = query(fixture, '[data-task-drag-hint]')!;
     expect(hint.closest('[data-quick-create]')).not.toBeNull();
     expect(getComputedStyle(hint).position).toBe('absolute');
+    // Nothing of quick-add shows round the hint's corners (S79S13B: the field and Add task did).
+    const form = hint.closest<HTMLElement>('[data-quick-create]')!;
+    const covered = [...form.children].filter((child) => child !== hint && !child.classList.contains('quick-create__plate'));
+    expect(covered.length).toBeGreaterThan(0);
+    for (const child of covered) expect(getComputedStyle(child).visibility).toBe('hidden');
   });
 });

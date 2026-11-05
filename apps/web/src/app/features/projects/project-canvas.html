@@ -242,7 +242,7 @@
     <button data-toast-undo type="button" class="button" [attr.aria-disabled]="toast.offer() !== 'ready' || toast.pendingUndo() ? 'true' : null"
       [attr.aria-label]="toast.offer() === 'saving' ? 'Undo (saving…)' : 'Undo'" (click)="undoRemoval()">Undo</button>
   }
-  @if (toast.state() !== null && store.failedRemoval() !== null) {
+  @if (toast.state() !== null && store.failedRemoval() !== null && !readOnly()) {
     <button data-retry-remove type="button" class="button" [attr.aria-disabled]="store.recoveryBusy()" (click)="retryFailedRemoval()">Retry remove</button>
   } @else if (toast.state() !== null && store.recoveryNotice()?.refreshFailed) {
     <button data-retry-refresh type="button" class="button" [attr.aria-disabled]="store.recoveryBusy()" (click)="retryRefresh()">Retry refresh</button>

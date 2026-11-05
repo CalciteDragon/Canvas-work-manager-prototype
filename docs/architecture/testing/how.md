@@ -116,7 +116,9 @@ complete `chrome-verification.json`. Earlier slices' runtime scripts remain froz
    to 1.01 MB, so the watched hard ceiling became 1050 kB while the 850 kB warning remains reported.
    Slice 41's eager header controls measured 1024.97 kB.
    After Slice 73 closed at 1,049,943 bytes, the user raised the hard ceiling to 1100 kB.
-   Slice 77 raises it to 1150 kB; its production initial bundle measures 1101.98 kB.
+   Slice 77 raises it to 1150 kB; its production initial bundle measures 1101.98 kB. Slice 79
+   makes Calendar and Settings › Agents lazy routes (every other feature route stays eager) and
+   defers its archived banner and first-run block, measuring 1,149.35 kB at its review.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through

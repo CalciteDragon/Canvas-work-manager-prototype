@@ -37,7 +37,11 @@
    counted until it lands. An effect hands it to
    `reportSummary`, and destroy reports `null`. The drag hint (`[data-task-drag-hint]`) is inside
    the quick-add form, absolutely positioned over it on the solid sheet: it takes no flow space,
-   so the first row holds still when a drag starts.
+   so the first row holds still when a drag starts, and the form's own controls turn
+   `visibility: hidden` beneath it so nothing shows round its corners. Under `readOnly` (an
+   archived project or ancestor, Slice 79) the section has no quick-add, its rows are static
+   `TaskRow`s with no drawer or drag, and its empty sentence is "No tasks."; see
+   [projects / how](../projects/how.md).
    Field edits (`updateFields`) claim, paint and raise `pendingMutations` at call time, and a
    failure restores `confirmedFields`, never an older optimistic value.
    The drawer's Title commits on Enter/blur, refuses blank text and keeps dirty drafts through

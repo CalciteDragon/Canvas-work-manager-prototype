@@ -407,6 +407,8 @@ export class ProjectCanvas {
   }
 
   async removeSectionFromCanvas(id: SectionId): Promise<boolean> {
+    // A failed removal's toast can outlive an archive made elsewhere (Slice 79, §31).
+    if (this.readOnly()) return false;
     const projectId = this.projectId();
     const pageId = this.pageId();
     this.pendingRemovalFocus = null;

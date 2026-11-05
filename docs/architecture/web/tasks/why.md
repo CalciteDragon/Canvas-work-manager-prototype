@@ -99,3 +99,5 @@ optimistic UI · §69 component tests.
 
 
 Slice 77 follows [rows open their canonical owner](../../../decisions/2026-10-rows-open-their-canonical-owner.md): shared anatomy, title-only navigation and independent write controls.
+
+Slice 79 follows [archived pages are read-only](../../../decisions/2026-11-archived-pages-are-read-only.md): an archived Task List shows static rows with no quick-add, drawer or drag (Open question 5), and [the Task List shows its count](../../../decisions/2026-11-task-list-shows-its-count.md).

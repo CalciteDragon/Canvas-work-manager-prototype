@@ -1288,6 +1288,24 @@ describe('ProjectCanvas — read-only (Slice 79, §26, §31)', () => {
     expect(fixture.componentInstance.createDialogOpen()).toBe(false);
   });
 
+  it('withdraws a failed removal’s Retry remove when the page turns read-only, and retrying writes nothing', async () => {
+    const { fixture, gateway } = await render();
+    gateway.sections.remove = async () => { throw new GatewayError('unreachable', 0, 'Task removal response was lost'); };
+    query(fixture, '[data-section-id="section-tasks"] [data-section-remove]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
+
+    // Archived elsewhere: the shell turns the page read-only while the toast is still open.
+    fixture.componentRef.setInput('readOnly', true);
+    fixture.detectChanges();
+    const before = gateway.calls.length;
+    expect(query(fixture, '[data-retry-remove]')).toBeNull();
+    fixture.componentInstance.retryFailedRemoval();
+    await fixture.whenStable();
+    expect(gateway.calls.slice(before)).toEqual([]);
+  });
+
   it('says "This page has no sections." on an archived empty canvas, with no add action', async () => {
     const { fixture } = await render({ readOnly: true, sections: [] });
 

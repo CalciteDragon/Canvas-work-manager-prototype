@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ProjectSectionSchema, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
+import { LIVE_UPDATES } from '../../../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../../../core/live/testing/fake-live-updates';
 import { MarkdownDraftStore } from './markdown-draft-store';
 import { MarkdownSectionBody } from './markdown-section-body';
 import type { Failure } from '../../../../shared/feedback/failure';
@@ -88,6 +90,23 @@ describe('MarkdownSectionBody', () => {
     await next.click('[data-markdown-edit]');
     expect(next.query<HTMLTextAreaElement>('[data-markdown-source]').value).toBe('# Left behind');
     expect(next.query('[data-markdown-restored]')).not.toBeNull();
+  });
+  // A reseed elsewhere (another tab or an MCP client) clears the store before the canvas unmounts;
+  // the editor opened over the old data must not keep its draft after the clear.
+  it('a draft opened before prototype.reloaded is not kept on destroy or Cancel', async () => {
+    const live = new FakeLiveUpdates();
+    TestBed.configureTestingModule({ providers: [{ provide: LIVE_UPDATES, useValue: live }] });
+    const first = render();
+    await first.click('[data-markdown-edit]'); first.type('# Old world');
+    live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+    first.fixture.destroy();
+    expect(TestBed.inject(MarkdownDraftStore).take('section-a')).toBeNull();
+
+    const second = render();
+    await second.click('[data-markdown-edit]'); second.type('# Old too');
+    live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+    second.query<HTMLButtonElement>('[data-markdown-cancel]').click(); await second.settle();
+    expect(TestBed.inject(MarkdownDraftStore).take('section-a')).toBeNull();
   });
   it('destroy with an unchanged editor keeps nothing', async () => {
     const { fixture, click } = render();

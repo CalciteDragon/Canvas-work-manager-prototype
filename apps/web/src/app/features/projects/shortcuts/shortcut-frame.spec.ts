@@ -251,12 +251,16 @@ describe('ShortcutFrame read-only (Slice 79, §26, §31)', () => {
     expect(toggled).toEqual([]);
   });
 
-  it('starts from the stored state and resets when a fresh read arrives', () => {
+  it('starts from the stored state, keeps the local view across a re-read, and resets when the stored state changes', () => {
     const fixture = readOnly(shortcut({ collapsed: true }));
     const collapse = () => query(fixture, '[data-shortcut-collapse]')!;
     expect(collapse().getAttribute('aria-expanded')).toBe('false');
     collapse().click(); fixture.detectChanges();
     expect(query(fixture, '[data-shortcut-content]')).not.toBeNull();
+    // A quiet re-read hands a fresh record with the same stored state: the local view stays.
+    fixture.componentRef.setInput('shortcut', shortcut({ collapsed: true })); fixture.detectChanges();
+    expect(query(fixture, '[data-shortcut-content]')).not.toBeNull();
+    fixture.componentRef.setInput('shortcut', shortcut({ collapsed: false })); fixture.detectChanges();
     fixture.componentRef.setInput('shortcut', shortcut({ collapsed: true })); fixture.detectChanges();
     expect(collapse().getAttribute('aria-expanded')).toBe('false');
     expect(query(fixture, '[data-shortcut-content]')).toBeNull();

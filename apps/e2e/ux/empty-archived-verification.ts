@@ -183,8 +183,14 @@ async function holdWrite(c: Ctx, pattern: RegExp, maxMs: number) {
 }
 const openPhoneMenu = async (page: Page) => {
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
-  if (await menu.isVisible()) await menu.click();
+  if (!await menu.isVisible()) return;
+  await menu.click();
+  // The full-page shot follows at once; it must show the open sidebar (S79S13B review).
+  await page.locator('app-sidebar').first().waitFor({ state: 'visible' });
+  await settleFrames(page);
 };
+/** Two animation frames, so a just-rendered state is painted before a screenshot. */
+const settleFrames = (page: Page) => page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
 const archive = (id: string) => api.patch(`/api/projects/${id}`, { status: 'archived' });
 /** Home renovation archived as a root, with nothing live under it: every workstream archived first. */
 const archiveRenovation = async () => {
@@ -255,9 +261,14 @@ export const CONTEXTS: Context[] = [
     act: async c => {
       const main = c.page.locator('app-dashboard-page [data-first-run-create]');
       c.entry['pressed'] = await main.count() ? 'main' : 'sidebar';
-      if (await main.count()) { await main.first().click(); return; }
-      await openPhoneMenu(c.page);
-      await c.page.locator('app-sidebar').getByRole('button', { name: 'New project', exact: true }).click();
+      if (await main.count()) await main.first().click();
+      else {
+        await openPhoneMenu(c.page);
+        await c.page.locator('app-sidebar').getByRole('button', { name: 'New project', exact: true }).click();
+      }
+      // The creation form is deferred: the full-page shot must wait for it (S79S13B review).
+      await c.page.locator('[data-create-project-name]').first().waitFor({ state: 'visible' });
+      await settleFrames(c.page);
     } },
   { id: 'archived-only-home', ...ARCHIVED_ONLY, route: '/app', act: c => openPhoneMenu(c.page) },
   { id: 'archived-only-canvas', ...ARCHIVED_ONLY, route: archivedOnlyRoute() },

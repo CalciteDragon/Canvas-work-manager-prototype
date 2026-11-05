@@ -1,7 +1,8 @@
-// "Restore as [status]" then Restore, on one line while it fits (Slice 79, L4-012).
+// "Restore as [status]" then Restore, on one line while it fits (Slice 79, L4-012). Restore is
+// the select's height and sits on its bottom edge, not centred on the label above it.
 :host {
   display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-2);
 }

@@ -237,14 +237,19 @@ describe('ReflectionsPage (§36)', () => {
     expect(query(fixture, '[data-reflection-create]')).toBeNull();
   });
 
-  // Slice 79: the renderer's `readOnly` (the shell's archived state) alone hides the composer and
-  // the container add, without relying on `restoreBlocked`.
-  it('hides writing controls when the shell says read-only', async () => {
+  // Slice 79: the renderer's `readOnly` (the shell's archived state) alone hides the writing
+  // regions, without relying on `restoreBlocked`: no empty composer, no subject picker, no
+  // container add (L4-007). The journal stays.
+  it('hides the writing regions when the shell says read-only', async () => {
     const { fixture } = await render({ readOnly: true });
     expect(query(fixture, '[data-reflection-create]')).toBeNull();
+    expect(query(fixture, '[data-reflections-composer-region]')).toBeNull();
+    expect(query(fixture, '[data-reflections-picker]')).toBeNull();
+    expect(query(fixture, '[data-reflections-subject-picker]')).toBeNull();
+    expect(query(fixture, '[data-reflections-feed]')).not.toBeNull();
 
     const bare = await render({ readOnly: true, withSection: false });
-    expect(query(bare.fixture, '[data-reflections-no-container]')).not.toBeNull();
+    expect(query(bare.fixture, '[data-reflections-composer-region]')).toBeNull();
     expect(query(bare.fixture, '[data-reflections-add-container]')).toBeNull();
   });
 

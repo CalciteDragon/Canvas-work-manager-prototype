@@ -63,6 +63,13 @@ describe('RestoreStatusChoice (Slice 79, §23, §31, L4-012)', () => {
   });
 
   // T09's `button(/^Restore /)` and its exact-label check still hold.
+  // Sheet review (S79S13B): Restore sat higher and shorter than the select beside it.
+  it('lines Restore up with the select: the same control height, bottoms aligned', () => {
+    const { choice, button } = setup();
+    expect(button().classList).toContain('button');
+    expect(button().classList).not.toContain('button--sm');
+    expect(getComputedStyle(choice()).alignItems).toBe('flex-end');
+  });
   it('names Restore after its subject', () => {
     const { button } = setup();
 

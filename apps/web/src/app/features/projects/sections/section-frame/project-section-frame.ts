@@ -83,15 +83,20 @@ export class ProjectSectionFrame {
   /** A collapsed section's content is not mounted, so nothing keeps its count current. */
   readonly shownSummary = computed(() => (this.effectiveCollapsed() ? null : this.summary()));
   /**
-   * The read-only toggle's view. A fresh `section` record, or `readOnly` changing either way,
-   * resets it to the stored state.
+   * The read-only toggle's view. Another section, a changed stored state or `readOnly` changing
+   * either way resets it to the stored state; a quiet re-read of the same state keeps it.
    */
-  private readonly localCollapsed = linkedSignal<{ section: ProjectSection; readOnly: boolean }, boolean | null>({
-    source: () => ({ section: this.section(), readOnly: this.readOnly() }),
+  private readonly localCollapsed = linkedSignal<string, boolean | null>({
+    // A computed, so an equal key stops here: `linkedSignal` reruns on any change to its source's reads.
+    source: computed(() => `${this.section().id}|${this.section().collapsed}|${this.readOnly()}`),
     computation: () => null,
   });
   readonly effectiveCollapsed = computed(
-    () => (this.readOnly() ? this.localCollapsed() : null) ?? (this.section().collapsed && !this.transientlyExpanded()),
+    () => {
+      // Read even when live, so the key sees the live phase and a later read-only view starts fresh.
+      const local = this.localCollapsed();
+      return (this.readOnly() ? local : null) ?? (this.section().collapsed && !this.transientlyExpanded());
+    },
   );
   readonly override = computed(() => this.section().title?.trim() ?? '');
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);

@@ -16,15 +16,25 @@ export interface MarkdownDraft {
 @Injectable({ providedIn: 'root' })
 export class MarkdownDraftStore {
   private readonly drafts = new Map<string, MarkdownDraft>();
+  private era = 0;
 
   constructor() {
     const unsubscribe = inject(LIVE_UPDATES).subscribe((event) => {
-      if (event.type === 'prototype.reloaded') this.drafts.clear();
+      if (event.type === 'prototype.reloaded') { this.drafts.clear(); this.era += 1; }
     });
     inject(DestroyRef).onDestroy(unsubscribe);
   }
 
-  keep(sectionId: string, draft: MarkdownDraft): void { this.drafts.set(sectionId, draft); }
+  /** Changes on each `prototype.reloaded`; an editor records it when it opens. */
+  get generation(): number { return this.era; }
+
+  /**
+   * Keeps a draft, unless the data was reloaded since its editor opened (`generation`): a reseed
+   * elsewhere clears the store before the canvas unmounts, and that editor's draft is old data.
+   */
+  keep(sectionId: string, draft: MarkdownDraft, generation = this.era): void {
+    if (generation === this.era) this.drafts.set(sectionId, draft);
+  }
 
   /** Hands the kept draft to the editor that reopens it; the store holds it only while no editor does. */
   take(sectionId: string): MarkdownDraft | null {

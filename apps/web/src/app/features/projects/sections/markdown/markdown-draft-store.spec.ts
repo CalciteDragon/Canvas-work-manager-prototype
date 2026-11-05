@@ -34,4 +34,13 @@ describe('MarkdownDraftStore', () => {
     live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
     expect(store.take('section-a')).toBeNull();
   });
+  it('a keep from before prototype.reloaded is dropped; one from after is kept', () => {
+    const { live, store } = setup();
+    const opened = store.generation;
+    live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+    store.keep('section-a', { draft: '# Old', base: '# Plan' }, opened);
+    expect(store.take('section-a')).toBeNull();
+    store.keep('section-a', { draft: '# New', base: '# Plan' }, store.generation);
+    expect(store.take('section-a')).toEqual({ draft: '# New', base: '# Plan' });
+  });
 });

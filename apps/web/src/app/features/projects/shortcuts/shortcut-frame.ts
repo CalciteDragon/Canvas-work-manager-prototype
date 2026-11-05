@@ -50,16 +50,21 @@ export class ShortcutFrame {
   readonly removeRequested = output<SectionShortcutId>();
 
   /**
-   * The read-only toggle's view. A fresh `shortcut` record, or `readOnly` changing either way,
-   * resets it to the stored state.
+   * The read-only toggle's view. Another shortcut, a changed stored state or `readOnly` changing
+   * either way resets it to the stored state; a quiet re-read of the same state keeps it.
    */
-  private readonly localCollapsed = linkedSignal<{ shortcut: ResolvedSectionShortcut; readOnly: boolean }, boolean | null>({
-    source: () => ({ shortcut: this.shortcut(), readOnly: this.readOnly() }),
+  private readonly localCollapsed = linkedSignal<string, boolean | null>({
+    // A computed, so an equal key stops here: `linkedSignal` reruns on any change to its source's reads.
+    source: computed(() => `${this.shortcut().id}|${this.shortcut().collapsed}|${this.readOnly()}`),
     computation: () => null,
   });
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly effectiveCollapsed = computed(
-    () => (this.readOnly() ? this.localCollapsed() : null) ?? this.shortcut().collapsed,
+    () => {
+      // Read even when live, so the key sees the live phase and a later read-only view starts fresh.
+      const local = this.localCollapsed();
+      return (this.readOnly() ? local : null) ?? this.shortcut().collapsed;
+    },
   );
   readonly name = computed(() => shortcutNameOf(this.shortcut().source, this.shortcut().sourceProjectName));
   readonly sourceDefinition = computed(() => definitionFor(this.shortcut().source.type));
