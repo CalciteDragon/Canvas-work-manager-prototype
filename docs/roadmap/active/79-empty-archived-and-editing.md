@@ -24,8 +24,15 @@ below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 
 See the Step 13a bullet below. **Open question 9 is resolved and implemented (S79S13Q9,
 2026-11-04)**; see the Step 13 Q9 bullet below. **Step 13 part b (the reviews) is done (S79S13B)**; see the
 Step 13b bullet below. **Gate 2 follow-up S79S13W (2026-11-05) is done**: the user's
-"View archives" wording; see the Gate 2 follow-up bullet below. **Awaiting Gate 2 (user review of the sheet).** Not passed by any session;
-real use (Acceptance item 7), the Outcome and closing wait for it.
+"View archives" wording; see the Gate 2 follow-up bullet below. **Gate 2 passed (user decision,
+2026-11-05, at `d0bd706`)**: the user passed it once the only change since the sheet was the
+"View archives" wording. **Real use (Acceptance item 7) is done (S79USE, 2026-11-05)**:
+every flow in item 7 passed on nested-projects, empty and overdue-chaos at 1440 mouse, 1440
+keyboard only and 375 touch, with no Slice 79 defect found and no code changed; eight notes are in
+`.prototype/notes.json`, and four wording points went to **Open question 10** (recommendation (b):
+leave them to the §8 comb). See "Verification and real use (2026-11-05)" at the end of Revisions.
+**Initial bundle 1,149.69 kB** (re-measured at `d0bd706`). **Next:** the user answers Q10, then
+the Outcome and `roadmap.mjs complete`. No session has written either; they wait for the user.
 - **Gate 2 follow-up (S79S13W, 2026-11-05).** The user's decision at Gate 2 (2026-11-04): the
   archived-only sidebar's link "Archived projects are in Settings." becomes **"View archives"**
   (same `/settings/archived-projects`, link style and 24/44 px target; "No active projects." kept).
@@ -1794,6 +1801,33 @@ written, with the answer added under it. The Defaults taken were accepted as wri
      [the toast decision](../../decisions/2026-11-toasts-say-it-short-with-view-details.md),
      with amendments to the one-toast and failure-words entries. Implemented by S79S13Q9.
 
+10. **Real-use friction: fix in Slice 79, or leave for later?** (raised by S79USE, 2026-11-05;
+    does not block anything already built)
+    - *Context.* Real use (Acceptance item 7) found nothing broken in Slice 79's scope. It found
+      four wording or consistency points that each need a product call
+      (`.prototype/notes.json`, `note-2026-11-05-002`, `-003`, `-004`, `-005`):
+      - **(i)** An archived root's project navigation says "No workstreams yet" over its archived
+        workstreams (`project-page-navigation.html`, not in this slice's change list). It is a false
+        empty state on an archived page, the kind TH10 is about.
+      - **(ii)** The undo refusal's repair line, "Legacy shelving [project-legacy-child]: Restore
+        or move the new dependent, then try Undo again.", reads wrong for a dependent that was
+        always there and is live. "Restore" can't apply, and "new" is untrue.
+      - **(iii)** Preview after Discard draft still says "Unsaved preview" over the saved text.
+      - **(iv)** A restore toast says "Go to it" with Undo from Archive, but "Open it" with no Undo
+        from Settings › Archived projects.
+    - *Options.*
+      - **(a)** Fix (i) and (iii) in Slice 79. Both are small and within this slice's themes: say
+        that the workstreams are archived (or hide the row), and caption only a changed draft.
+        Leave (ii) and (iv) to the §8 comb with the refusal view's quotes and ids.
+      - **(b)** Leave all four to the §8 comb, and close Slice 79 as built.
+      - **(c)** Fix all four in Slice 79.
+    - *Recommendation:* **(b)**. Each point is wording, none is a defect in what Slice 79
+      promised, and (iv) touches Slice 76's toasts. (a) is the alternative if (i) should not wait.
+      Wording for (i) and (ii) would be the user's.
+    - *Impact.* (a) or (c) adds a short step before closing: test first, a bundle re-measure (the
+      initial bundle is 1,149.69 kB, 0.31 kB under the ceiling) and spot re-captures of the
+      affected cells. (b) adds nothing.
+
 **Defaults taken** (small and non-shape-changing; say if any is wrong):
 
 - **Drafts** live in memory until reload, reseed or a persona switch, and come back with "Your
@@ -2118,3 +2152,66 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   `sidebar.{html,spec.ts,stories.ts}`, `empty-archived-editing.spec.ts`, the rig's row comment,
   `build-sheet.{mjs,test.mjs}`, the spec §23 line, web core `how.md` and a dated amendment to the
   empty-workspace decision.
+- **2026-11-05, real use (S79USE).** Gate 2 is recorded as passed (user, at `d0bd706`). Open
+  question 10 is added from real use. No other plan content changed.
+
+**Verification and real use (2026-11-05).**
+
+- **Setup.** An isolated host on 4320, with `CWM_DATA_FILE` set to `.prototype/realuse-79.json`.
+  The production build of `d0bd706` was served on 4201, and the browser's 4200 and 4310 were routed
+  to those two, as Slice 78's real use did. Headless Chromium was driven by scripts in
+  `apps/e2e/ux-output/realuse79/` (git-ignored; `drive.mjs` with one action layer per mode, and
+  `flow-empty`, `flow-nested`, `flow-overdue`), and every screenshot was read. No server or
+  browser was left running.
+- **Modes.** 1440 mouse (dark), 1440 keyboard only (Tab, Shift+Tab, Enter and arrows in menus and
+  selects; dark) and 375 touch (light, `iPhone 13` emulation at 375 × 812, taps; the drag is a CDP
+  touch hold-and-move).
+- **empty.**
+  - Home showed the first-run sentence and New project above the widgets. New project opened the
+    sidebar's form with focus in Project name. The keyboard reached it in 8 Tabs; at 375 it opened
+    in the Menu drawer.
+  - Name and Enter landed on the new project. More › Archive project… › Archive it showed the
+    banner "“Garage clear-out” is archived." with Restore as Active.
+  - The sidebar then read "No active projects." and "View archives", and Home lost the first-run
+    block. View archives opened Settings › Archived projects, whose Restore said "Restored Garage
+    clear-out as Active." with Open it focused.
+- **nested-projects.**
+  - **Read-only pages.**
+    - Legacy shelving read "“Legacy shelving” is inside “Legacy attic”, which is archived." and
+      Legacy attic read "“Legacy attic” is archived.", each with zero write controls.
+    - Both are empty canvases in the seed, so trying to edit only reached the header.
+    - With Home renovation archived (its five workstreams first, six confirmations by hand), its
+      Markdown and its "6 tasks" list had no controls, and clicks did nothing. Todos said "Restore
+      to view 6 hidden todos." and Reflections "Restore to view 3 hidden reflections.".
+  - **Banner restores and Undo.**
+    - Legacy attic's Restore left no banner, with focus on the heading. The header's Undo
+      ("Undo: Reactivated "Legacy attic"") gave "Couldn’t undo." with View details and Dismiss.
+    - View details named Legacy shelving, with Close focused; Close returned focus to View details.
+    - Home renovation's Restore, then the header's Undo, put the banner back with "Undone:
+      Reactivated “Home renovation”.".
+  - **Kitchen.** Archive workstream… showed "“Kitchen” can’t be archived yet" with Cabinets as a
+    link and Close only; the link landed on Cabinets.
+  - **Restores.**
+    - From Archive, Legacy attic restored as Active: "Go to it", Undo, Dismiss.
+    - From Settings, it restored as On hold (checked through the API): "Open it", Dismiss.
+  - **Markdown draft (Kitchen).**
+    - Preview showed "Unsaved preview". Cancel, then Edit, brought the draft back with "Your
+      unsaved draft is back." and Discard draft.
+    - Cabinets and back through the sidebar kept it. Discard draft (1 Shift+Tab from the source)
+      restored the saved text.
+  - **Task List (Kitchen).** It said "2 tasks". A drag showed the preview and the hint over
+    quick-add with no row jump, by mouse and by touch.
+  - **Keyboard reach.** The banner's Restore was 27 to 35 Tabs from the top; the header's More was
+    17 to 27.
+- **overdue-chaos.** The digest listed 5 overdue rows under "5 tasks are overdue.". Following
+  "Export legacy records" (15 Tabs) landed on Client migration's Task List, focused on its heading,
+  with the task in view, at 1440 and 375.
+- **Found.** Nothing broken in Slice 79's scope, so no fix and no code change.
+  - Four wording or consistency points, Open question 10: (i) "No workstreams yet" on an archived
+    root's navigation; (ii) the refusal's "Restore or move the new dependent"; (iii) "Unsaved
+    preview" after Discard; (iv) "Go to it" with Undo vs "Open it" without.
+  - Seed friction: the archived workstream has nothing to try to edit.
+  - Outside Slice 79: no keyboard way to move a task between lists.
+  - Eight notes in `.prototype/notes.json` (`note-2026-11-05-001` to `-008`, slice 79).
+- **Checks.** `pnpm test` and `pnpm lint` (see the S79USE commit). The initial bundle is
+  1,149.69 kB, under the 1,150 kB ceiling and unchanged.

@@ -1381,6 +1381,70 @@
       "projectId": null,
       "slice": 78,
       "note": "Slice 78 real use (nested-projects as Alex, 1440 mouse dark and 375 touch light): Demo's /projects/project-renovation and /projects/project-kitchen/pages/todos both read \"This project isn’t available / It may have been removed, or it isn’t shared with you.\" with Go to Home, and no id, Details or Try again. /no/such/place read \"This page doesn’t exist / Check the address, or go to Home.\". Go to Home landed on /app with Alex's Home. No friction."
+    },
+    {
+      "id": "note-2026-11-05-001",
+      "createdAt": "2026-11-05T23:40:00.000Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 79,
+      "note": "Slice 79 real use (empty, 1440 mouse dark, 1440 keyboard dark, 375 touch light): Home showed the first-run sentence \"Projects hold your tasks, notes and reflections, for you and the agents you connect. Start with your first.\" with New project above the widgets. New project opened the sidebar's creation form with focus in Project name (keyboard: 8 Tabs from the top; touch: in the Menu drawer). Typing a name and Enter landed on the new project. Archiving it through More › Archive project… › Archive it showed \"“Garage clear-out” is archived.\" with Restore as Active. The sidebar then read \"No active projects.\" and \"View archives\", and Home lost the first-run block. View archives opened Settings › Archived projects, and Restore there said \"Restored Garage clear-out as Active.\" with Open it focused. No friction."
+    },
+    {
+      "id": "note-2026-11-05-002",
+      "createdAt": "2026-11-05T23:40:01.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 79,
+      "note": "Slice 79 real use (nested-projects, all three modes): with Home renovation archived and all its workstreams archived first, its project navigation reads \"WORK\" with a disabled Add workstream and \"No workstreams yet\", over five archived workstreams. That is a false empty state on an archived page: \"yet\" says there never were any. Not in Slice 79's change list; raised as a follow-up in the plan."
+    },
+    {
+      "id": "note-2026-11-05-003",
+      "createdAt": "2026-11-05T23:40:02.000Z",
+      "route": "/projects/project-legacy",
+      "projectId": "project-legacy",
+      "slice": 79,
+      "note": "Slice 79 real use (nested-projects, all three modes): restoring Legacy attic from its banner, then pressing the header's Undo, gave \"Couldn’t undo.\" with View details and Dismiss. View details read \"“Reactivated “Legacy attic”” can’t be undone: something it changed has changed since.\" and \"Legacy shelving [project-legacy-child]: Restore or move the new dependent, then try Undo again.\" Legacy shelving is neither new nor archived: it was always there, live. So \"Restore\" doesn't apply to it and \"new dependent\" is wrong, and the reader is left to work out that the attic can't go back to archived while the shelving inside it is live. Close returned focus to View details, Escape too. The nested quotes and the [id] are already left for the §8 comb; the repair sentence is a follow-up."
+    },
+    {
+      "id": "note-2026-11-05-004",
+      "createdAt": "2026-11-05T23:40:03.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 79,
+      "note": "Slice 79 real use (nested-projects, all three modes): Kitchen's Markdown. A typed draft showed \"Unsaved preview\" on Preview; Cancel, then Edit, brought it back with \"Your unsaved draft is back.\" and Discard draft. Moving to Cabinets and back to Kitchen through the sidebar kept it too. Discard draft restored the saved text with focus in the source (keyboard: 1 Shift+Tab from the source). Friction: Preview after Discard still says \"Unsaved preview\" over the saved text, with nothing unsaved."
+    },
+    {
+      "id": "note-2026-11-05-005",
+      "createdAt": "2026-11-05T23:40:04.000Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 79,
+      "note": "Slice 79 real use (nested-projects, all three modes): restoring Legacy attic gives two different toasts depending on where. From Home renovation › Archive: \"Restored Legacy attic as Active.\" with Go to it, Undo and Dismiss. From Settings › Archived projects: \"Restored Legacy attic as On hold.\" with Open it and Dismiss, and no Undo. Both choices started on Active and kept the status picked (On hold checked through the API). The two names for the same link, and Undo on only one of them, read as two features."
+    },
+    {
+      "id": "note-2026-11-05-006",
+      "createdAt": "2026-11-05T23:40:05.000Z",
+      "route": "/projects/project-legacy-child",
+      "projectId": "project-legacy-child",
+      "slice": 79,
+      "note": "Slice 79 real use (nested-projects): Legacy attic and Legacy shelving are empty canvases in the seed (\"This page has no sections.\"), so \"try to edit\" on them only exercises the header: zero write controls, More still offers the details. Read-only sections could only be felt on the archived root (Home renovation: Markdown and the 6-task list without controls; clicks did nothing). The banner's sentences were right: \"“Legacy shelving” is inside “Legacy attic”, which is archived.\" Seed friction: the archived workstream holds nothing to try to edit."
+    },
+    {
+      "id": "note-2026-11-05-007",
+      "createdAt": "2026-11-05T23:40:06.000Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 79,
+      "note": "Slice 79 real use (overdue-chaos, all three modes): the Daily Digest listed 5 overdue tasks under its prose (\"5 tasks are overdue.\"), each as a row with status, priority, due date, Overdue and its project. Following the first, \"Export legacy records\" (keyboard: 15 Tabs from the top), landed on Client migration's Task List (#section-…-tasks) with focus on the section's heading and the task visible in it, at 1440 and 375. No friction."
+    },
+    {
+      "id": "note-2026-11-05-008",
+      "createdAt": "2026-11-05T23:40:07.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 79,
+      "note": "Slice 79 real use (nested-projects): Kitchen's Task List header says \"2 tasks\" for its 2 rows. Starting a drag on the open task (mouse, and a CDP touch hold-and-move at 375) showed the preview and \"Drop on another Task List to move it. Order within a list can't be changed yet.\" over quick-add, with no row jump. Keyboard only: a row's Tab stops are Complete, the title's open details and Delete, so there is no way to start a drag. No task row or details view has a move control (none in the markup), so a keyboard user cannot move a task between lists. That predates Slice 79 and is outside it. Archiving Home renovation by hand took six archive confirmations, leaves first; cascading archive is the next slice, already decided."
     }
   ]
 }
