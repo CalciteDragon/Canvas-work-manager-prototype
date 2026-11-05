@@ -1778,6 +1778,22 @@ test('profile 79 gates the Lab panel-relative, with only state-messages and sect
   await eaFails(t, { evidence: e => editEa(e, 'lab', x => { x.panels = x.panels.map(p => p.id === 'controls' ? { ...p, height: p.height + 4 } : p); }, 'light|375') }, 'resized unchanged panel', /Lab unchanged specimen panel/);
 });
 
+test('profile 79 numbers a Lab plane within its own panel, so frames added to section-frame renumber nothing below', async t => {
+  const frame = (panel, index, y) => ({ selector: 'app-project-section-frame', index, panel, x: 40, y, width: 500, height: 120 });
+  const controls = [{ tag: 'button', text: 'Primary · Rest', panel: 'controls', scope: 'prototype', class: 'button', x: 20, y: 100, width: 80, height: 32 }];
+  const lab = async after => {
+    const s = await eaSheet(t, { route: '/prototype/design', cellId: 'prototype-design-dark-1440', layouts: () => {} });
+    const base = JSON.parse(await readFile(join(s.dirs[0], 'layout.json'), 'utf8'));
+    await writeFile(join(s.dirs[0], 'layout.json'), JSON.stringify({ ...base, planes: [frame('section-frame', 0, 920), frame('section-states', 1, 2120)], controls }));
+    await writeFile(join(s.dirs[1], 'layout.json'), JSON.stringify({ ...base, planes: after, controls }));
+    return s.run().status;
+  };
+  // Section-frame's added specimen takes document index 1; section-states' frame becomes index 2.
+  assert.equal(await lab([frame('section-frame', 0, 920), frame('section-frame', 1, 1060), frame('section-states', 2, 2120)]), 0, 'renumbered below an added specimen');
+  assert.equal(await lab([frame('section-frame', 0, 920), frame('section-frame', 1, 1060)]), 1, 'an unchanged panel\'s frame removed');
+  assert.equal(await lab([frame('section-frame', 0, 920), frame('section-frame', 1, 1060), { ...frame('section-states', 2, 2120), selector: 'app-shortcut-frame' }]), 1, 'an unchanged panel\'s frame replaced');
+});
+
 test('profile 79 keeps only the breadcrumb census exception and gates runtime controls and new axe nodes', async t => {
   await eaFails(t, { controls: [{ scope: 'product', class: 'task-row__title', text: 'Task', width: 80, height: 20 }] }, 'task row title exception');
   assert.equal((await eaSheet(t, { controls: [{ scope: 'product', class: 'project-nav__breadcrumb', text: 'Home', width: 80, height: 16 }] })).result.status, 0);

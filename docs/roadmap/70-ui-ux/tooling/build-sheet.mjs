@@ -216,6 +216,12 @@ for (const a of after.cells) {
         if(!current || ['x','y','width','height'].some(field=>!Number.isFinite(current[field])) || ['width','height'].some(field=>Math.abs(current[field]-panel[field])>1))failures.push({cell:a.id,reason:'Lab unchanged specimen panel missing or resized',panel:panel.id});
       }
       old=local(old,was);next=local(next,now);
+      // Profile 79 adds specimens to section-frame, so a plane's identity is its place in its own
+      // panel; a document-wide index would renumber every unchanged panel below it.
+      if(profile==='79'){
+        const own=boxes=>{const seen=new Map();return boxes.map(box=>{const key=box.selector+'|'+(box.panel??'');const index=seen.get(key)??0;seen.set(key,index+1);return {...box,index};});};
+        old=own(old);next=own(next);
+      }
     }
     if (profile==='76' && a.route==='/prototype/design' && family==='controls') {
       const isFrame=c=>/^(Move |Collapse |Expand |Rename |Remove section )/.test(c.text??'') || c.panel==='section-frame';

@@ -330,9 +330,13 @@ export const CONTEXTS: Context[] = [
       const link = c.page.locator(`${DIGEST_R} [data-digest-overdue] a`).first();
       c.entry['overdueLinkPresent'] = await link.count() > 0;
       if (!await link.count()) return;
-      c.entry['followed'] = { text: (await link.textContent())?.trim() ?? null, href: await link.getAttribute('href') };
+      const href = await link.getAttribute('href');
+      c.entry['followed'] = { text: (await link.textContent())?.trim() ?? null, href };
       await link.click();
       await expect(c.page).toHaveURL(/#section-/);
+      // The owner's canvas reads its sections after the route lands; wait for the target, not just the URL.
+      const hash = String(href).split('#')[1];
+      await c.page.locator(`[id="${hash}"]`).waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
     } },
   { id: 'markdown-draft', seed: 'nested-projects', route: KITCHEN, act: typeDraft },
   { id: 'markdown-cancel-edit', seed: 'nested-projects', route: KITCHEN,
@@ -390,14 +394,20 @@ export const CONTEXTS: Context[] = [
       await c.page.keyboard.press('Shift+Tab');
     } },
   { id: 'lab', seed: 'nested-projects', route: '/prototype/design', frames: ['[data-panel="state-messages"]', '[data-panel="section-frame"]'],
-    // In the matrix's coordinates (the page unscrolled): the frame shots leave the Lab scrolled to a
-    // panel, and how far depends on that panel's height, which this slice changes.
-    after: async c => { c.entry['panels'] = await c.page.locator('[data-panel]').evaluateAll(panels => panels.map(panel => {
-      const r = panel.getBoundingClientRect();
-      let x = r.x, y = r.y;
-      for (let ancestor = panel.parentElement; ancestor; ancestor = ancestor.parentElement) { x += ancestor.scrollLeft; y += ancestor.scrollTop; }
-      return { id: panel.getAttribute('data-panel'), x, y, width: r.width, height: r.height };
-    })); } },
+    // In the matrix's coordinates (the page unscrolled, freshly laid out): the frame shots leave the
+    // Lab scrolled to a panel, and a shot taller than the viewport leaves every frame 12 px shorter
+    // at 375, so the panels are measured after a reload.
+    after: async c => {
+      await c.page.reload();
+      await c.page.waitForLoadState('networkidle').catch(() => undefined);
+      await c.page.evaluate(() => document.fonts.ready);
+      c.entry['panels'] = await c.page.locator('[data-panel]').evaluateAll(panels => panels.map(panel => {
+        const r = panel.getBoundingClientRect();
+        let x = r.x, y = r.y;
+        for (let ancestor = panel.parentElement; ancestor; ancestor = ancestor.parentElement) { x += ancestor.scrollLeft; y += ancestor.scrollTop; }
+        return { id: panel.getAttribute('data-panel'), x, y, width: r.width, height: r.height };
+      }));
+    } },
 ];
 
 /**
