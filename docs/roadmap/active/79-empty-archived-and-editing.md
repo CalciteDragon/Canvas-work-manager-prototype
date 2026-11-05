@@ -23,8 +23,25 @@ below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 
 **Step 13 part a (acceptance check and sheet) is done (S79S13A), with one stop: Open question 9.**
 See the Step 13a bullet below. **Open question 9 is resolved and implemented (S79S13Q9,
 2026-11-04)**; see the Step 13 Q9 bullet below. **Step 13 part b (the reviews) is done (S79S13B)**; see the
-Step 13b bullet below. **Awaiting Gate 2 (user review of the sheet).** Not passed by any session;
+Step 13b bullet below. **Gate 2 follow-up S79S13W (2026-11-05) is done**: the user's
+"View archives" wording; see the Gate 2 follow-up bullet below. **Awaiting Gate 2 (user review of the sheet).** Not passed by any session;
 real use (Acceptance item 7), the Outcome and closing wait for it.
+- **Gate 2 follow-up (S79S13W, 2026-11-05).** The user's decision at Gate 2 (2026-11-04): the
+  archived-only sidebar's link "Archived projects are in Settings." becomes **"View archives"**
+  (same `/settings/archived-projects`, link style and 24/44 px target; "No active projects." kept).
+  Test first (`sidebar.spec.ts` failed on the old text, then `sidebar.html`); the story, the e2e,
+  the rig's row comment and the sheet gate (which now also requires the link's name, with a
+  fixture test for the old wording; tooling 110 green) follow, and the spec §23 line, web core
+  `how.md` and the decision (dated amendment) say it. Commit `7d498ed`. **Initial bundle
+  1,149.69 kB.** After evidence at `7d498ed` (`apps/e2e/ux-output/7d498ed…/`): a copy of the
+  `a564638` run with only the affected cells re-captured on the rig (4257/4357, a throwaway
+  one-worker config, deleted): every `archived-only-*` context (`UX_STATES_MATCH='^archived-only-'`,
+  `UX_STATES_SKIP_TASKS=1`, tasks kept from `a564638`), plus one unaffected matrix cell,
+  `empty-dashboard-light-1440`, so the index records the new commit (the gate requires the
+  evidence's commit to equal the matrix's). Sheet rebuilt: **194 pairs, 34 visual pairs, zero gate
+  failures**, all 145 context checks 0, T01–T12 at their limits. Lite copy
+  `/workspace/out/slice79-gate2-sheet-lite.zip` (webp q70, 12.2 MB). The Todos intro sentence is
+  untouched (not decided yet). `pnpm test`, `pnpm lint`, docs check green.
 - **Gate 2 — for the user (S79S13B, 2026-11-05).** **Sheet:**
   `apps/e2e/ux-output/slice79-sheet/index.html` (git-ignored); before `44e7e9e`, after a full run
   at `a564638` (`apps/e2e/ux-output/a56463834060cc2026de78ac8f2889cbacc17ee8/`). **194 pairs, 34
@@ -41,7 +58,8 @@ real use (Acceptance item 7), the Outcome and closing wait for it.
     oddly over no rows) and Reflections "Restore to view 3 hidden reflections." (the page now shows
     only its journal there, a review fix);
   - the blocked Archive form on Kitchen (Cabinets a link, Close only) and the late refusal;
-  - the archived-only sidebar ("No active projects." and the Settings link, 1440 and phone menu);
+  - the archived-only sidebar ("No active projects." and "View archives", 1440 and phone menu;
+    re-captured at `7d498ed`, S79S13W);
   - the digest's overdue list (Sam), the Markdown draft back after Cancel and navigation, the
     "Unsaved preview" caption, the Task List's "N tasks" and the drag hint over quick-add;
   - the undo refusal's "Couldn’t undo." toast and its View details view (Q9).
@@ -2091,3 +2109,12 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   read-only guard, both frames' collapse key, `reflections-page.html`, `restore-status-choice.{html,scss}`,
   `task-list-section.scss` and the rig's two waits, plus the spec (§21, §23, §26), the walkthrough
   and two decision amendments.
+- **2026-11-04, Gate 2: the user's sidebar wording (recorded by S79S13W, 2026-11-05).** A user
+  decision: in the archived-only sidebar the sentence link "Archived projects are in Settings."
+  becomes the simple link **"View archives"**, same target, style and 24/44 px target; "No active
+  projects." stays. Build's wording (step 8's file list and the archived-only bullet) and the
+  Defaults taken's sidebar line now say so. The sheet gate's archived-only rule also requires the
+  link's name (same strictness otherwise). The File-level change list in effect gains
+  `sidebar.{html,spec.ts,stories.ts}`, `empty-archived-editing.spec.ts`, the rig's row comment,
+  `build-sheet.{mjs,test.mjs}`, the spec §23 line, web core `how.md` and a dated amendment to the
+  empty-workspace decision.
