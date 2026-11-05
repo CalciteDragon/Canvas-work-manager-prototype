@@ -21,9 +21,44 @@ below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 
 **Step 11 (count and drag hint) is done (S79S11)**; see the Step 11 bullet below.
 **Step 12 (end to end) is done (S79S12, cloud session)**; see the Step 12 bullet below.
 **Step 13 part a (acceptance check and sheet) is done (S79S13A), with one stop: Open question 9.**
-See the Step 13a bullet below. **Open question 9 was answered by the user on 2026-11-04 (toasts say one short message; a
-longer reason opens from View details); S79S13Q9 is implementing it.** Then S79S13B reviews, then
-Gate 2 (user).
+See the Step 13a bullet below. **Open question 9 is resolved and implemented (S79S13Q9,
+2026-11-04)**; see the Step 13 Q9 bullet below. **Next: S79S13B (the step 4 reviews), then Gate 2
+(user).** The sheet now has zero gate failures.
+- **Step 13 Q9 (S79S13Q9, 2026-11-04):** the user answered Open question 9 with their own rule
+  (none of the offered options): **toasts carry only short, simple messages; a longer reason opens
+  from "View details".** Recorded in `9e81325` (the plan, the
+  [decision](../../decisions/2026-11-toasts-say-it-short-with-view-details.md), amendments to the
+  one-toast and failure-words entries). **Implemented in the shared toast** (`e601239`):
+  `Toast` takes `reason`, `lines` and `detail`, and with any of them shows only its message, the
+  owner's actions, View details and Dismiss; a modal `dialog.lift--dialog[data-toast-details]`
+  beside the popover holds them under the message as its heading, focus on Close and back to
+  View details, Escape closing only the view, the toast held open while it is open; the live
+  region still announces message, reason and lines (never `detail`). Conflict refusals say
+  "Couldn’t undo." / "Couldn’t redo." with the full sentence as `reason`; Slice 78's in-toast
+  Details (a failed removal's raw reason) moved behind View details too; every toast host binds
+  `reason`. No internal scroll region is left in the refusal toast. The gate and rig (`15b408e`):
+  the undo-refused row needs the short toast, View details and a recorded open view naming
+  Legacy shelving (focus on Close, Escape returning it with the toast open, zero axe
+  violations); the refused Undo pairs at 375 and 1440 in both themes with the open view on the
+  sheet (34 visual pairs). Review fixes (`84608c6`): a receipt toast closing while focus is in its
+  view restores focus; a toast losing its reason while its view is open focuses Dismiss.
+  **Initial bundle 1,149.35 kB** (0.65 kB under the ceiling). **Sheet:**
+  `apps/e2e/ux-output/slice79-sheet/index.html`, before `44e7e9e`, after a full run at `84608c6`
+  (matrix, contexts with `UX_STATES_SKIP_TASKS=1`, tasks with `UX_STATES_MATCH='^NONE$'`; one
+  matrix cell, `agent-heavy-dashboard-light-1024`, timed out on `networkidle` and was re-captured
+  alone with `UX_MATCH`): **194 pairs, 34 visual pairs, zero gate failures**; T01–T12 at their limits, no dead ends.
+  **e2e** (throwaway config on 4357/4257 plus a forward proxy on 4258, deleted after):
+  `empty-archived-editing`, `feedback`, `project-history`, `section-edit-undo`, `removal-undo`,
+  `task-interaction`, `archive`, `archived-projects` and `lifts` specs, 121 passed.
+  **For the §8 comb (left as they are):** other toast messages that can run long are messages, not
+  reasons, so they have no View details: `history_blocked` ("Undo is blocked while X is
+  archived. Reactivate it, then try again."), `history_expired` and `history_retired` (each quotes
+  the full step label), `history_unavailable` (two clauses), `restoredItemFeedback` (title,
+  breadcrumb and page) and any status naming a long user title (`Updated “…”.`, `Archived “…”.`),
+  which still shrinks and scrolls inside the cap by slice 74's rule. Shortening them to a headline
+  plus `reason` is a wording change per toast. Conflict lines keep their `[id]` (now only in the
+  view), as `conflictSubject` says on purpose; direction §8 says no record ids, so the comb
+  should decide that too.
 - **Step 13a (acceptance check and sheet):** `pnpm test` and `pnpm lint` green at the start and
   after the fixes (web 1,538; tooling 110). The first after sheet (716cc41) had 1,168 failures from
   six causes, fixed in `baa78a2` (product: section headers wrap again with the name and count as
