@@ -390,7 +390,14 @@ export const CONTEXTS: Context[] = [
       await c.page.keyboard.press('Shift+Tab');
     } },
   { id: 'lab', seed: 'nested-projects', route: '/prototype/design', frames: ['[data-panel="state-messages"]', '[data-panel="section-frame"]'],
-    after: async c => { c.entry['panels'] = await c.page.locator('[data-panel]').evaluateAll(panels => panels.map(panel => { const r = panel.getBoundingClientRect(); return { id: panel.getAttribute('data-panel'), x: r.x, y: r.y, width: r.width, height: r.height }; })); } },
+    // In the matrix's coordinates (the page unscrolled): the frame shots leave the Lab scrolled to a
+    // panel, and how far depends on that panel's height, which this slice changes.
+    after: async c => { c.entry['panels'] = await c.page.locator('[data-panel]').evaluateAll(panels => panels.map(panel => {
+      const r = panel.getBoundingClientRect();
+      let x = r.x, y = r.y;
+      for (let ancestor = panel.parentElement; ancestor; ancestor = ancestor.parentElement) { x += ancestor.scrollLeft; y += ancestor.scrollTop; }
+      return { id: panel.getAttribute('data-panel'), x, y, width: r.width, height: r.height };
+    })); } },
 ];
 
 /**
