@@ -42,7 +42,7 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    again, which calls `load()` again and keeps the failure, busy, until the read answers.
    The read is unfiltered (Slice 79): `projects()` and the tree leave archived projects out,
    `hasArchived()` says something archived exists, so an empty tree says "No active projects."
-   with a link, "Archived projects are in Settings.", to `/settings/archived-projects`, and
+   with a link, "View archives", to `/settings/archived-projects`, and
    `workspaceEmpty()` is true only after a read answered (`answered()`) with no projects at all,
    never while loading or after a failure.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes

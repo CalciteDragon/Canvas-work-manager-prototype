@@ -1047,8 +1047,8 @@ if (profile === '79') {
         if (e.pressed !== 'main') check(r, 'first run pressed the sidebar\'s New project, not the main column\'s', { pressed: e.pressed ?? null });
         if (!(page.focus?.visible === true && page.focus.hooks?.includes('data-create-project-name'))) check(r, 'creation form name field not focused', { focus: page.focus ?? null });
       }
-      if (r.kind === 'archived-only-sidebar' && (!text.includes('No active projects.') || text.includes('No projects yet') || !visible(reg.controls).some(c => c.tag === 'a' && c.href === '/settings/archived-projects')))
-        check(r, 'archived-only sidebar without "No active projects." and its Settings link, or saying "No projects yet"', { text: text.slice(0, 200) });
+      if (r.kind === 'archived-only-sidebar' && (!text.includes('No active projects.') || text.includes('No projects yet') || !visible(reg.controls).some(c => c.tag === 'a' && c.name === 'View archives' && c.href === '/settings/archived-projects')))
+        check(r, 'archived-only sidebar without "No active projects." and its View archives link, or saying "No projects yet"', { text: text.slice(0, 200) });
       if (r.kind === 'read-only') {
         if (!Array.isArray(reg.writeControls)) check(r, 'write control evidence missing');
         else if (reg.writeControls.length) check(r, 'write control visible in a read-only region', { controls: reg.writeControls });

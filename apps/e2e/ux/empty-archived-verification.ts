@@ -46,7 +46,7 @@ export type Row = {
    * What the after build must show in the region; profile 79 has one rule per kind:
    * - `first-run`: the main-column New project (`data-first-run-create`); `not-first-run`: none.
    * - `create-focused`: focus is in the creation form's name field.
-   * - `archived-only-sidebar`: "No active projects." with a link to Settings › Archived projects.
+   * - `archived-only-sidebar`: "No active projects." with the link "View archives" to Settings › Archived projects.
    * - `read-only`: no `WRITE_CONTROLS` match, the banner present under the header and above the
    *   first frame, header rename and Parent kept.
    * - `restored`: no banner, focus on the heading or the next owner's choice.

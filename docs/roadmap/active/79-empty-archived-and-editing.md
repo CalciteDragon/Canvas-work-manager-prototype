@@ -251,8 +251,8 @@ real use (Acceptance item 7), the Outcome and closing wait for it.
   - `core/shell/shell-commands.ts`: the `ShellCommands` interface and `SHELL_COMMANDS` token, which
     `AppShell` provides as itself (`requestCreate()` opens the Menu first when narrow, then reopens
     the sidebar's form after the drawer's focus move);
-  - the sidebar's `hasArchived` input, with "No active projects." and its link "Archived projects
-    are in Settings." to `/settings/archived-projects`;
+  - the sidebar's `hasArchived` input, with "No active projects." and its link "View archives" to
+    `/settings/archived-projects` (the user's wording at Gate 2, 2026-11-04);
   - `features/dashboard/first-run-block.ts` behind `@defer (when shell?.workspaceEmpty())` above
     the widgets; it hides itself when the first project arrives;
   - stories `Shell/Sidebar` (`Projects`, `Empty`, `ArchivedOnly`) and `Dashboard/Home`
@@ -605,7 +605,7 @@ answered on 2026-10-29 and are not re-opened here.
     right; the domain already hides live work under an archived ancestor. Archived projects
     never reach the tree, and `hasArchived` comes from the same read. It is one request, as today.
   - **The wording.** With an empty tree and `hasArchived`, the sidebar says "No active projects."
-    and links to Settings › Archived projects ("Archived projects are in Settings."). It says "No
+    and links to Settings › Archived projects ("View archives", the user's wording at Gate 2). It says "No
     projects yet" only when nothing exists at all, never while loading or after a failure, as
     slice 78 left it.
 - **Archived pages are read-only, with a banner** (L4-007, L1-028). *User's choice.*
@@ -1786,6 +1786,7 @@ written, with the answer added under it. The Defaults taken were accepted as wri
 - **The drag hint** overlays quick-add.
 - **The first-run New project** opens the sidebar's existing form.
 - **Sidebar wording:** "No active projects." plus "Archived projects are in Settings." as a link.
+  *Amended by the user at Gate 2, 2026-11-04:* the link is "View archives" (see Revisions).
 - **The banner** restores the outermost archived owner, and a failure shows in the banner.
 - **The blocked confirmation** lists each child with its status.
 - **The digest** lists at most five overdue tasks (Q1 (a)).

@@ -1422,7 +1422,7 @@ function eaRegion(r, e) {
   const back = ['markdown-cancel-edit', 'markdown-navigate-back'].includes(r.context);
   ({
     'first-run': () => reg.controls.push(eaControl('New project', { hooks: ['data-first-run-create'] })),
-    'archived-only-sidebar': () => { reg.text = 'Home\nPROJECTS\nNo active projects.\nArchived projects are in Settings.'; reg.controls.push(eaControl('Archived projects are in Settings.', { tag: 'a', href: '/settings/archived-projects' })); },
+    'archived-only-sidebar': () => { reg.text = 'Home\nPROJECTS\nNo active projects.\nView archives'; reg.controls.push(eaControl('View archives', { tag: 'a', href: '/settings/archived-projects' })); },
     'read-only': () => { reg.text = { 'renovation-archived-archive': 'Archive\nRestore “Home renovation” above to bring its archived work back.', 'archived-only-canvas': 'This page has no sections.' }[r.context] ?? reg.text; if (r.hidden) { const s = eaHiddenSentence(r.hidden, EA_HIDDEN[r.context]); reg.text = s; reg.emptyHooks.push({ hook: `data-${r.hidden}-empty`, text: s }); } },
     'blocked-confirm': () => { reg.text = 'Archive them first.'; reg.controls.push(eaControl('Close'), ...r.links.map(name => eaControl(`${name} Active`, { tag: 'a', href: '/projects/project-' + name.toLowerCase() }))); },
     'commit-confirm': () => reg.controls.push(eaControl('Archive it', { hooks: ['data-project-archive-confirm-yes'] }), eaControl('Cancel', { hooks: ['data-project-archive-cancel'] })),
@@ -1631,6 +1631,7 @@ test('profile 79 gates first run, the creation focus and the archived-only sideb
   await eaFails(t, { evidence: e => editEa(e, 'first-run-create', x => { x.focus = null; }, 'dark|1440') }, 'nothing focused', /name field not focused/);
   await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-sidebar').text = 'Home\nPROJECTS\nNo projects yet'; }, 'light|375') }, 'No projects yet', /archived-only sidebar/);
   await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-sidebar').controls = []; }, 'dark|1440') }, 'no Settings link', /archived-only sidebar/);
+  await eaFails(t, { evidence: e => editEa(e, 'archived-only-home', x => { eaRegionOf(x, 'app-sidebar').controls[0].name = 'Archived projects are in Settings.'; }, 'light|1440') }, 'the old link wording', /archived-only sidebar/);
 });
 
 test('profile 79 gates the banner restore, the Undo refusal and a failing restore', async t => {

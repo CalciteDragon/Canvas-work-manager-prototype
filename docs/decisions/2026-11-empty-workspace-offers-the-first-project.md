@@ -57,3 +57,10 @@ which has not met real use.
 
 Onboarding grows beyond one action (a seed to explore, an agent to connect), or real use shows that
 people miss the block because the widgets below it look the same as a filled Home.
+
+**Amended, 2026-11-04 — the link says "View archives".** At Gate 2 the user replaced the
+sentence link "Archived projects are in Settings." with a simple link, **"View archives"**, to the
+same `/settings/archived-projects`. "No active projects." stays as it was, and so do the link's
+style and its 24/44 px target. A user decision, not a default. `sidebar.spec.ts`, the sidebar
+story, the e2e and the slice 79 sheet gate expect the new wording; the spec §23 line and the web
+core `how.md` say it.

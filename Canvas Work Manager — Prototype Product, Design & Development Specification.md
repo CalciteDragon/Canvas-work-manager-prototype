@@ -988,7 +988,7 @@ Settings
 
 Project hierarchy should optionally expand inline.
 
-*Slice 79.* The sidebar lists live projects only. With none, it says "No projects yet" only when the workspace has no projects at all; when only archived projects exist it says "No active projects." with the link "Archived projects are in Settings." to Settings › Archived projects ([decision](docs/decisions/2026-11-empty-workspace-offers-the-first-project.md)).
+*Slice 79.* The sidebar lists live projects only. With none, it says "No projects yet" only when the workspace has no projects at all; when only archived projects exist it says "No active projects." with the link "View archives" to Settings › Archived projects ([decision](docs/decisions/2026-11-empty-workspace-offers-the-first-project.md)).
 
 ## The project navigation column
 

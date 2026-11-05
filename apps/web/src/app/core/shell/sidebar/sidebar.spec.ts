@@ -139,7 +139,7 @@ describe('Sidebar', () => {
     expect(empty.textContent).toContain('No active projects.');
     expect(empty.textContent).not.toContain('No projects yet');
     const link = empty.querySelector<HTMLAnchorElement>('a')!;
-    expect(link.textContent?.trim()).toBe('Archived projects are in Settings.');
+    expect(link.textContent?.trim()).toBe('View archives');
     expect(link.getAttribute('href')).toBe('/settings/archived-projects');
     // The link primitive's 24 px target; the sidebar grows it to 44 px under a coarse pointer.
     expect([link.classList.contains('link'), link.hasAttribute('data-projects-archived-link')]).toEqual([true, true]);

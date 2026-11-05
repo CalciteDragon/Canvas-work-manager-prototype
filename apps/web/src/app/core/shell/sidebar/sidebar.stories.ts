@@ -31,6 +31,6 @@ export const ArchivedOnly: Story = {
   play: async ({ canvasElement }) => {
     const empty = within(canvasElement.querySelector<HTMLElement>('[data-projects-empty]')!);
     await expect(empty.getByText('No active projects.', { exact: false })).toBeVisible();
-    await expect(empty.getByRole('link', { name: 'Archived projects are in Settings.' })).toHaveAttribute('href', '/settings/archived-projects');
+    await expect(empty.getByRole('link', { name: 'View archives' })).toHaveAttribute('href', '/settings/archived-projects');
   },
 };

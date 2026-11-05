@@ -114,7 +114,7 @@ for (const width of [1440, 375]) {
       await expect(sidebar).not.toContainText('No projects yet');
       // The shell's read has landed, so a first-run block would be showing by now.
       await expect(page.locator('app-dashboard-page [data-first-run-create]')).toHaveCount(0);
-      await expect(sidebar.getByRole('link', { name: 'Archived projects are in Settings.' })).toHaveAttribute('href', '/settings/archived-projects');
+      await expect(sidebar.getByRole('link', { name: 'View archives' })).toHaveAttribute('href', '/settings/archived-projects');
     });
   });
 }
