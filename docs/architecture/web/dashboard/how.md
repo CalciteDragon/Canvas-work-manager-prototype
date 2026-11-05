@@ -24,7 +24,8 @@
    there is no first run.
 7. The digest renders its prose, then up to five of `today.overdue` as `data-digest-overdue`
    rows linking through `task-origin-link.ts`, then "and N more overdue" when there are more
-   (Slice 79). A `null` digest never mounts the widget, so the failure shows alone.
+   (Slice 79). The tile is narrow, so a row's meta always takes its own line under the title, as
+   it does in every row below the compact breakpoint. A `null` digest never mounts the widget, so the failure shows alone.
 8. Switching persona reloads the page; the new persona's list and query produce a
    different dashboard with nothing in this feature knowing why.
 

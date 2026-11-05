@@ -11,39 +11,41 @@
   [pinnedFailureSentence]="'section-collapse-error-' + section().id"
 >
   <header class="section-frame__header">
-    <h2
-      data-section-title
-      data-recovery-focus
-      tabindex="-1"
-      [id]="'section-title-' + section().id"
-      class="section-frame__title"
-      [class.section-frame__title--fit]="shownSummary() !== null && !editingName()"
-      (pointerdown)="titlePointerdown($event)"
-      (click)="titleClick($event)"
-    >
-      <span class="section-frame__icon" aria-hidden="true"><app-icon [name]="definition().icon" /></span>
-      @if (editingName()) {
-        <input
-          class="field"
-          data-section-name
-          type="text"
-          autocomplete="off"
-          [value]="nameDraft()"
-          [placeholder]="definition().displayName"
-          [disabled]="renamePending()"
-          [attr.aria-label]="'Name of ' + name()"
-          (input)="nameDraft.set($any($event.target).value)"
-          (keydown.enter)="$event.preventDefault(); saveRename($event)"
-          (keydown.escape)="$event.preventDefault(); cancelRename()"
-          (blur)="saveRename($event)"
-        />
-      } @else {
-        <span>{{ name() }}</span>
+    <div class="section-frame__name-row">
+      <h2
+        data-section-title
+        data-recovery-focus
+        tabindex="-1"
+        [id]="'section-title-' + section().id"
+        class="section-frame__title"
+        [class.section-frame__title--fit]="shownSummary() !== null && !editingName()"
+        (pointerdown)="titlePointerdown($event)"
+        (click)="titleClick($event)"
+      >
+        <span class="section-frame__icon" aria-hidden="true"><app-icon [name]="definition().icon" /></span>
+        @if (editingName()) {
+          <input
+            class="field"
+            data-section-name
+            type="text"
+            autocomplete="off"
+            [value]="nameDraft()"
+            [placeholder]="definition().displayName"
+            [disabled]="renamePending()"
+            [attr.aria-label]="'Name of ' + name()"
+            (input)="nameDraft.set($any($event.target).value)"
+            (keydown.enter)="$event.preventDefault(); saveRename($event)"
+            (keydown.escape)="$event.preventDefault(); cancelRename()"
+            (blur)="saveRename($event)"
+          />
+        } @else {
+          <span>{{ name() }}</span>
+        }
+      </h2>
+      @if (shownSummary(); as text) {
+        <span data-section-summary class="section-frame__summary">{{ text }}</span>
       }
-    </h2>
-    @if (shownSummary(); as text) {
-      <span data-section-summary class="section-frame__summary">{{ text }}</span>
-    }
+    </div>
 
     <div class="section-frame__controls" role="toolbar" [attr.aria-label]="name() + ' tools'"
       (keydown)="toolbarKeydown($event)" (focusin)="toolbarFocusin($event)">

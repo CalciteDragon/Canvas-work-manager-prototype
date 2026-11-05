@@ -19,10 +19,19 @@
   gap: 0;
 }
 
-// One line: a long name truncates rather than wrapping the tools onto a second (Slice 79).
 .section-frame__header {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+// The name and its count wrap as one item, as the name alone did, so where the tools took a second
+// line before the count they still do, and a long name truncates before the count (Slice 79).
+.section-frame__name-row {
+  display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -81,7 +90,6 @@
 .section-frame__controls {
   display: flex;
   flex: 0 0 auto;
-  margin-inline-start: auto;
   align-items: center;
   gap: var(--space-2);
 }

@@ -99,8 +99,11 @@
 }
 .lift--toast:popover-open { display: flex; }
 .lift--toast.lift--contained { display: flex; max-inline-size: 100%; translate: none; }
-.toast__message { flex: 0 1 auto; min-block-size: 0; margin: 0; overflow-wrap: anywhere; overflow-y: auto; }
-.toast__lines { min-block-size: 0; margin: 0; padding-inline-start: var(--space-5); overflow-y: auto; }
+// Past the height cap the toast itself scrolls, since it holds the focusable actions; a message
+// that scrolled on its own was a region no keyboard could reach, and clipped its last line
+// (axe `scrollable-region-focusable`, Slice 79).
+.toast__message { flex: 0 0 auto; margin: 0; overflow-wrap: anywhere; }
+.toast__lines { flex: 0 0 auto; margin: 0; padding-inline-start: var(--space-5); }
 // The shared Details sits in the toast's column, so it takes no row-sized basis there.
 .toast__details { flex: 0 1 auto; min-block-size: 0; overflow-y: auto; }
 .toast__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }

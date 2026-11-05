@@ -120,7 +120,7 @@
   } @else {
     <ul class="project-nav__work">
       @for (node of workTree(); track node.project.id) {
-        <app-project-work-item [node]="node" [currentProjectId]="currentProjectId()" />
+        <li app-project-work-item [node]="node" [currentProjectId]="currentProjectId()"></li>
       }
     </ul>
   }

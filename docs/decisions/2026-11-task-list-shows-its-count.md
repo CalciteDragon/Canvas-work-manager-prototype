@@ -50,6 +50,15 @@ rendering, its absence for other types (no NG0303), the collapsed case and the o
 `task-list-section.spec.ts` the count's states and the hint's placement. Medium for the look: the
 header and the hint are checked in a browser by the slice's after capture (step 13).
 
+**Amendment (2026-11-04, step 13's after capture):** the one-line header was wrong. Before the
+count, the header already wrapped at 375 (the tools on a second line), so `nowrap` shrank every
+375 frame header from 79 to 44 px, moved everything under it, and truncated short names ("Prog…",
+a Task List's "T…" beside "2 tasks"). The header wraps again, and the canonical heading and its
+count sit in one `.section-frame__name-row` (as the shortcut's title row already did), which wraps
+as the name alone did: where the tools took a second line they still do, and a name too long for
+its line truncates beside the count. The controls lose the `margin-inline-start: auto` the fitted
+heading needed. Pinned by `project-section-frame.spec.ts` and `shortcut-frame.spec.ts`.
+
 **Revisit when**
 
 Another section type has a summary worth showing (mark it and declare the input), or task

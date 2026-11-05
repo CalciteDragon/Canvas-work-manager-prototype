@@ -679,15 +679,19 @@ describe('the header summary (Slice 79, L4-023)', () => {
     expect(query(fixture, '[data-section-summary]')).toBeNull();
   });
 
-  it('truncates a long name rather than wrapping the header, so the controls hold their place at 375', () => {
+  it('keeps the name and its count on one row that wraps the tools below at 375 as before, the name truncating beside the count', () => {
     const fixture = render({ title: 'A very long section name that cannot fit beside its tools at 375' }, { summary: true, component: TestSummaryContent });
     summaryContent(fixture).reportSummary()('12 tasks');
     fixture.detectChanges();
+    const row = query(fixture, '.section-frame__name-row')!;
     const header = getComputedStyle(query(fixture, '.section-frame__header')!);
     const title = getComputedStyle(query(fixture, '[data-section-title]')!);
     const summary = getComputedStyle(query(fixture, '[data-section-summary]')!);
     const controls = getComputedStyle(query(fixture, '.section-frame__controls')!);
-    expect(header.flexWrap).toBe('nowrap');
+    expect(header.flexWrap).toBe('wrap');
+    expect(query(fixture, '[data-section-title]')!.parentElement).toBe(row);
+    expect(query(fixture, '[data-section-title]')!.nextElementSibling).toBe(query(fixture, '[data-section-summary]'));
+    expect([getComputedStyle(row).flexGrow, getComputedStyle(row).minWidth]).toEqual(['1', '0px']);
     expect([title.overflow, title.whiteSpace, title.minWidth]).toEqual(['hidden', 'nowrap', '0px']);
     expect([summary.flexShrink, summary.whiteSpace]).toEqual(['0', 'nowrap']);
     expect(controls.flexShrink).toBe('0');

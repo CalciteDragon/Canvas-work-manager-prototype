@@ -5,7 +5,7 @@
     <p>These workstreams aren’t archived. Archive them first:</p>
     <ul>
       @for (child of blockedBy(); track child.id) {
-        <li><a data-project-archive-child [routerLink]="['/projects', child.id]" (click)="close()">{{ child.name }}</a> · {{ statusLabel(child) }}</li>
+        <li><a class="link" data-project-archive-child [routerLink]="['/projects', child.id]" (click)="close()">{{ child.name }}</a> · {{ statusLabel(child) }}</li>
       }
     </ul>
     <button type="button" class="button" data-project-archive-cancel (click)="close()">Close</button>

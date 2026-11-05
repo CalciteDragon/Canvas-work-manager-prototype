@@ -76,6 +76,8 @@ describe('ProjectArchiveConfirm (§26)', () => {
     expect(element.querySelector('p')?.textContent).toBe('These workstreams aren’t archived. Archive them first:');
     expect(element.querySelector('[data-project-archive-confirm-yes]')).toBeNull();
     const links = [...element.querySelectorAll<HTMLAnchorElement>('a[data-project-archive-child]')];
+    // Each is a target, not bare running text: the link primitive's 24 px, 44 px under a coarse pointer.
+    for (const link of links) expect(link.classList).toContain('link');
     expect(links.map((link) => [link.getAttribute('href'), link.closest('li')?.textContent?.trim()])).toEqual([
       ['/projects/project-c', 'Cabinets · Active'],
       ['/projects/project-g', 'Garden · Completed'],

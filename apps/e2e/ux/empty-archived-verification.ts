@@ -207,6 +207,17 @@ async function bannerRestore(c: Ctx): Promise<boolean> {
   await banner.getByRole('button', { name: /^Restore\b/ }).first().click();
   return true;
 }
+/** Waits as the e2e does for a banner restore to land: the banner gone, focus on the project's name. */
+async function restoreLanded(c: Ctx) {
+  await c.page.locator('app-archived-banner').waitFor({ state: 'detached', timeout: 15_000 }).catch(() => undefined);
+  await c.page.waitForFunction(() => document.activeElement?.matches('h1[data-project-name]') === true, null, { timeout: 5_000 }).catch(() => undefined);
+}
+/** Presses the header's Undo once it names the restore, so an earlier step is never the one undone. */
+async function undoRestore(c: Ctx, name: string) {
+  const undo = c.page.locator('[data-history-undo]');
+  await expect(undo).toHaveAttribute('aria-label', new RegExp(`Reactivated "${name}"`), { timeout: 15_000 }).catch(() => undefined);
+  await undo.click();
+}
 /** Records the page state after a step as named evidence, with its own screenshot. */
 async function snapshot(c: Ctx, name: string) {
   await c.page.waitForLoadState('networkidle').catch(() => undefined);
@@ -265,9 +276,12 @@ export const CONTEXTS: Context[] = [
   { id: 'legacy-attic-restore', seed: 'nested-projects', route: LEGACY,
     act: async c => {
       if (!await bannerRestore(c)) return;
+      await restoreLanded(c);
       await snapshot(c, 'restored');
-      await c.page.locator('[data-history-undo]').click();
-      c.entry['undoRefused'] = await waitForFailure(c.page, 'app-project-header').then(() => true, () => false);
+      await undoRestore(c, 'Legacy attic');
+      // The refusal is the toast the header's Undo raises, as in the e2e.
+      c.entry['undoRefused'] = await c.page.locator('[data-toast]:popover-open').filter({ hasText: 'Could not undo' })
+        .waitFor({ timeout: 8_000 }).then(() => true, () => false);
     } },
   // Restoring the ancestor from the live child's banner: the toast offers Undo and Open owner.
   { id: 'legacy-shelving-restore', seed: 'nested-projects', route: LEGACY_CHILD,
@@ -279,8 +293,9 @@ export const CONTEXTS: Context[] = [
   { id: 'renovation-restore-undo', ...RENOVATION_ARCHIVED, route: ROOT,
     act: async c => {
       if (!await bannerRestore(c)) return;
+      await restoreLanded(c);
       await snapshot(c, 'restored');
-      await c.page.locator('[data-history-undo]').click();
+      await undoRestore(c, 'Home renovation');
       c.entry['bannerBack'] = await c.page.locator('app-archived-banner').waitFor().then(() => true, () => false);
     } },
   { id: 'banner-restore-failing', seed: 'nested-projects', route: LEGACY, reason: 'Audit: restore failed',
@@ -337,8 +352,9 @@ export const CONTEXTS: Context[] = [
     act: async c => {
       await typeDraft(c); await cancelEdit(c); await editAgain(c);
       const discard = c.page.locator(KITCHEN_BRIEF).getByRole('button', { name: 'Discard draft', exact: true });
-      c.entry['discardPresent'] = await discard.count() > 0;
-      if (await discard.count()) await discard.click();
+      // Waited for, not counted: the editor renders the kept draft a frame after Edit.
+      c.entry['discardPresent'] = await discard.waitFor({ timeout: 5_000 }).then(() => true, () => false);
+      if (c.entry['discardPresent']) await discard.click();
     } },
   { id: 'markdown-preview', seed: 'nested-projects', route: KITCHEN,
     act: async c => { await typeDraft(c); await c.page.locator(KITCHEN_BRIEF).locator('[data-markdown-preview]').click(); } },

@@ -10,31 +10,31 @@ import type { WorkTreeNode } from './project-workspace-store';
  * and the `nested-projects` seed is already three levels deep.
  */
 @Component({
-  selector: 'app-project-work-item',
+  // The host is the list item, so each `ul` holds `li`s directly (axe `list`/`listitem`).
+  selector: 'li[app-project-work-item]',
+  host: { '[attr.data-work-project-id]': 'node().project.id' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, Icon],
   styleUrl: './project-work-item.scss',
   template: `
-    <li [attr.data-work-project-id]="node().project.id">
-      <a
-        data-work-project
-        [routerLink]="['/projects', node().project.id]"
-        [attr.aria-current]="node().project.id === currentProjectId() ? 'page' : null"
-      >
-        <span class="icon" aria-hidden="true">{{ node().project.icon ?? '🧩' }}</span>
-        <span class="name">{{ node().project.name }}</span>
-        @if (node().project.completedAt) {
-          <span class="done" role="img" aria-label="Completed"><app-icon name="check" /></span>
-        }
-      </a>
-      @if (node().children.length > 0) {
-        <ul class="children">
-          @for (child of node().children; track child.project.id) {
-            <app-project-work-item [node]="child" [currentProjectId]="currentProjectId()" />
-          }
-        </ul>
+    <a
+      data-work-project
+      [routerLink]="['/projects', node().project.id]"
+      [attr.aria-current]="node().project.id === currentProjectId() ? 'page' : null"
+    >
+      <span class="icon" aria-hidden="true">{{ node().project.icon ?? '🧩' }}</span>
+      <span class="name">{{ node().project.name }}</span>
+      @if (node().project.completedAt) {
+        <span class="done" role="img" aria-label="Completed"><app-icon name="check" /></span>
       }
-    </li>
+    </a>
+    @if (node().children.length > 0) {
+      <ul class="children">
+        @for (child of node().children; track child.project.id) {
+          <li app-project-work-item [node]="child" [currentProjectId]="currentProjectId()"></li>
+        }
+      </ul>
+    }
   `,
 })
 export class ProjectWorkItem {

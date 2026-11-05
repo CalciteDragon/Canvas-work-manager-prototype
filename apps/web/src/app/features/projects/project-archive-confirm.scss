@@ -1,0 +1,7 @@
+// Each blocking workstream is a link in running text: `.link` gives it the 24 px target, and a
+// coarse pointer the 44 px one, as the other touch destinations (Slice 79, §21). Tokens only.
+@media (hover: none), (any-pointer: coarse) {
+  [data-project-archive-child] {
+    min-block-size: var(--size-hit-target);
+  }
+}

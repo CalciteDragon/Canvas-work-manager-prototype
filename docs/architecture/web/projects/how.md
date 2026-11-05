@@ -435,9 +435,10 @@ clears it too. The frame's alert describes Collapse.
   both frames add the callback (a stable class property) only for a marked definition. Task List
   reports "N tasks" ("1 task"), open and done, and `null` while loading, after a failed read, at
   zero and on destroy; the frames show nothing while collapsed. The text sits after the heading,
-  not in it, so the section's name is unchanged, and the header is one line (`flex-wrap: nowrap`)
-  in which a long name truncates
-  ([why](../../../decisions/2026-11-task-list-shows-its-count.md)).
+  not in it, so the section's name is unchanged. The canonical heading and its count wrap as one
+  `.section-frame__name-row`, as the shortcut's title row does, so the header still wraps where it
+  did before the count (the tools on their own line at 375) and a long name truncates beside the
+  count ([why](../../../decisions/2026-11-task-list-shows-its-count.md)).
 - **Archive lists what the domain projected.** `ArchivePageStore.items` passes the projection
   through unchanged; `ArchivedRegion` only words its `recovery` metadata, plus the one fact about
   the *operation* a row's button performs — that Restore appends to the end of the page.
@@ -527,8 +528,8 @@ archive callback, keeps header Undo and returns focus to More, including refusal
 blocking workstreams itself, with `liveChildrenOf` (`live-children.ts`) over the shell's
 `WORKSPACE_TREE` (`workspace-tree.ts`, provided `useExisting: ProjectWorkspaceStore`), or from its
 `liveChildren` input when one is given (stories, tests). Non-empty, it renders the blocked form:
-the heading "“X” can’t be archived yet", each child an `a[data-project-archive-child]` to
-`/projects/<id>` followed by its status, a click on one closing the dialog, and Close
+the heading "“X” can’t be archived yet", each child an `a.link[data-project-archive-child]` to
+`/projects/<id>` followed by its status (44 px tall under a coarse pointer), a click on one closing the dialog, and Close
 (`data-project-archive-cancel`, focused on open) as the only button. Empty, the commit form is
 unchanged and the domain decides. The list is live: a frame that changes the tree while the
 dialog is open swaps the form, and focus moves to the new form's dismiss button. **The trap is the bundle:** the header and the store are

@@ -204,6 +204,15 @@ describe('ProjectPageNavigation (§23)', () => {
       .toEqual(['Kitchen', 'Cabinets', 'Garden']);
   });
 
+  it('nests the work hierarchy\'s list items directly in each list (axe list, listitem)', async () => {
+    const fixture = await render();
+
+    const lists = queryAll(fixture, 'ul.project-nav__work, ul.children');
+    expect(lists).toHaveLength(2);
+    for (const list of lists) expect([...list.children].every((child) => child.tagName === 'LI')).toBe(true);
+    expect(query(fixture, '[data-work-project-id="project-cabinets"]')?.tagName).toBe('LI');
+  });
+
   it('advertises enabled optional pages and filters disabled ones', async () => {
     // Parsed rather than cast, so the fixture cannot outlive the contract's shape.
     const enabled = ['home', 'reflections'].map((kind) =>

@@ -109,7 +109,8 @@ hr {
 
 // Touch-sized destinations, at every width a coarse pointer is used (Slice 58).
 @media (hover: none), (any-pointer: coarse) {
-  [data-nav-item] {
+  [data-nav-item],
+  [data-projects-archived-link] {
     min-height: var(--size-hit-target);
   }
 }

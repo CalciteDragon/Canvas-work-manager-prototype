@@ -20,6 +20,7 @@ import { LiftStack } from '../../shared/lifts/lift-stack';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink],
   templateUrl: './project-archive-confirm.html',
+  styleUrl: './project-archive-confirm.scss',
 })
 export class ProjectArchiveConfirm {
   readonly project = input.required<Project>();

@@ -112,6 +112,17 @@ describe('Sidebar', () => {
     expect(cabinets?.closest('[data-project-id="project-kitchen"]')).not.toBeNull();
   });
 
+  it('nests list items directly in each list, with no element between them (axe list, listitem)', async () => {
+    const { element } = await render({
+      projectTree: [node('project-renovation', 'Home renovation', [node('project-kitchen', 'Kitchen', [node('project-cabinets', 'Cabinets')])])],
+    });
+
+    const lists = [...element.querySelectorAll('ul.projects, ul.children')];
+    expect(lists).toHaveLength(3);
+    for (const list of lists) expect([...list.children].map((child) => child.tagName)).toEqual(['LI']);
+    expect(element.querySelector('[data-project-id="project-cabinets"]')?.tagName).toBe('LI');
+  });
+
   it('says so when there are no projects, rather than leaving a gap', async () => {
     const { element } = await render({ projectTree: [] });
 
@@ -130,6 +141,8 @@ describe('Sidebar', () => {
     const link = empty.querySelector<HTMLAnchorElement>('a')!;
     expect(link.textContent?.trim()).toBe('Archived projects are in Settings.');
     expect(link.getAttribute('href')).toBe('/settings/archived-projects');
+    // The link primitive's 24 px target; the sidebar grows it to 44 px under a coarse pointer.
+    expect([link.classList.contains('link'), link.hasAttribute('data-projects-archived-link')]).toEqual([true, true]);
   });
 
   it('says neither while loading or after a failure, with only archived projects', async () => {

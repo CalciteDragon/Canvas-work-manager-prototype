@@ -7,3 +7,10 @@
   gap: var(--space-2);
   margin-block: var(--space-3);
 }
+
+// The tile is narrower than the compact breakpoint's rows, so the meta takes its own line here at
+// every width; on one line its `auto` column left the title a letter wide at 1024.
+.digest-overdue .object-row__meta {
+  grid-column: 2 / -1;
+  grid-row: 2;
+}

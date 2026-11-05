@@ -1090,9 +1090,9 @@ if (profile === '79') {
         if (owner && !(toast.some(c => c.hooks?.includes('data-toast-undo') && c.name === 'Undo') && toast.some(c => c.tag === 'a' && c.hooks?.includes('data-toast-open') && c.name === `Open ${owner.name}` && c.href === owner.href)))
           check(r, 'ancestor restore without its cross-owner toast (Undo and Open owner)', { toast: page.toast ?? null, owner });
       }
-      // The existing transition refusal (`history_conflict`) in the header, naming the live child; not any header failure.
-      if (r.kind === 'undo-refused' && (e.undoRefused !== true || page.banner !== null || !norm(page.header?.text).includes('Could not undo') || !norm(page.header?.text).includes('Legacy shelving')))
-        check(r, 'undo-refused row without the transition refusal naming Legacy shelving, or with the banner back', { undoRefused: e.undoRefused ?? null, header: norm(page.header?.text).slice(0, 300) });
+      // The existing transition refusal (`history_conflict`), in the toast the header's Undo raises, naming the live child; not any failure.
+      if (r.kind === 'undo-refused' && (e.undoRefused !== true || page.banner !== null || !norm(page.toast?.text).includes('Could not undo') || !norm(page.toast?.text).includes('Legacy shelving')))
+        check(r, 'undo-refused row without the transition refusal naming Legacy shelving, or with the banner back', { undoRefused: e.undoRefused ?? null, toast: norm(page.toast?.text).slice(0, 300) || null });
       if (r.kind === 'restore-failure') {
         const banner = norm(page.banner?.text);
         if (e.bannerPresent !== true || !banner.includes('Couldn’t restore') || norm(page.header?.text).includes('Couldn’t restore')) check(r, 'restore failure not shown in the banner', { banner: banner || null });

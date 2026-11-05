@@ -306,7 +306,8 @@ describe('ShortcutFrame header count (Slice 79, L4-023)', () => {
     expect(summary.textContent?.trim()).toBe('2 tasks');
     expect(query(fixture, '[data-shortcut-title]')!.nextElementSibling).toBe(summary);
     expect(query(fixture, '[data-shortcut-title]')!.textContent?.trim()).toBe('Task List (Website launch)');
-    expect(getComputedStyle(query(fixture, '.shortcut-frame__header')!).flexWrap).toBe('nowrap');
+    // The tools wrap below a long heading at 375, as before the count; the name truncates instead of the count.
+    expect(getComputedStyle(query(fixture, '.shortcut-frame__header')!).flexWrap).toBe('wrap');
     expect(getComputedStyle(summary).flexShrink).toBe('0');
 
     // The name truncates with an ellipsis in its own span, before the count gives way.

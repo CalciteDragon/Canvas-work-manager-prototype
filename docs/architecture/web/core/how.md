@@ -88,7 +88,7 @@ returns feedback to that same toast and shares the header's transition guard.
 | `PrototypeLiveUpdates` | injectable | `EventSource` client with reconnect | [API](../../../api/injectables/PrototypeLiveUpdates.html) |
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |
 | `ThemeService` | injectable | `data-theme` | [API](../../../api/injectables/ThemeService.html) |
-| `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer | [API](../../../api/components/AppShell.html) |
+| `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer; `ProjectTreeItem`'s host is its `li` (`li[app-project-tree-item]`), so each list holds list items directly | [API](../../../api/components/AppShell.html) |
 | `SHELL_NARROW_QUERY` | constant | The drawer query, built from the shared breakpoint checked against Sass | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
 | `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and project navigation thresholds, equal to the CSS-free Sass partial by token-lint check | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
