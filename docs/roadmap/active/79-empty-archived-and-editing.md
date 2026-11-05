@@ -1,7 +1,7 @@
 <!-- plan id="79" status="active" summary="Redesign slice 6b-2 (TH10): first-run dashboard, archived pages read-only with restore in place, archive refusal said before, Markdown drafts kept, digest overdue line, Task List count" -->
 # Slice 79 — States: empty, archived and editing
 
-**State (2026-11-04):** plan written (S79PLAN), reviewed in six rounds and **accepted by the user
+**State (2026-11-05):** plan written (S79PLAN), reviewed in six rounds and **accepted by the user
 on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden counts, step 6a).
 `CURRENT_SLICE` is 79. **Step 0 is done (S79S0). Step 1 is done (S79S1, finished in a cloud
 continuation)**: profile 79 in `build-sheet.mjs`, driven by 23 fixture tests in
@@ -22,8 +22,62 @@ below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 
 **Step 12 (end to end) is done (S79S12, cloud session)**; see the Step 12 bullet below.
 **Step 13 part a (acceptance check and sheet) is done (S79S13A), with one stop: Open question 9.**
 See the Step 13a bullet below. **Open question 9 is resolved and implemented (S79S13Q9,
-2026-11-04)**; see the Step 13 Q9 bullet below. **Next: S79S13B (the step 4 reviews), then Gate 2
-(user).** The sheet now has zero gate failures.
+2026-11-04)**; see the Step 13 Q9 bullet below. **Step 13 part b (the reviews) is done (S79S13B)**; see the
+Step 13b bullet below. **Awaiting Gate 2 (user review of the sheet).** Not passed by any session;
+real use (Acceptance item 7), the Outcome and closing wait for it.
+- **Gate 2 — for the user (S79S13B, 2026-11-05).** **Sheet:**
+  `apps/e2e/ux-output/slice79-sheet/index.html` (git-ignored); before `44e7e9e`, after a full run
+  at `a564638` (`apps/e2e/ux-output/a56463834060cc2026de78ac8f2889cbacc17ee8/`). **194 pairs, 34
+  visual pairs, zero gate failures**, census 0, all 145 context checks 0; T01–T12 each at its
+  slice-78 limit with zero dead ends. **Initial bundle 1,149.71 kB** (0.29 kB under the ceiling).
+  **Worth looking at:**
+  - the first-run block (Demo light 1440, Alex, Sam dark 375) and its New project, which opens the
+    one creation form in the sidebar (`first-run-create`);
+  - the archived banner on Legacy attic, Legacy shelving ("is inside “Legacy attic”, which is
+    archived") and archived Home renovation, with "Restore as Active · Restore" (Restore now at the
+    select's height on its edge, a review fix);
+  - **the Q7 hidden-count sentences** on archived Home renovation: Todos "Restore to view 6 hidden
+    todos." (after the page's own intro "…Open a row to work on it where it lives.", which reads
+    oddly over no rows) and Reflections "Restore to view 3 hidden reflections." (the page now shows
+    only its journal there, a review fix);
+  - the blocked Archive form on Kitchen (Cabinets a link, Close only) and the late refusal;
+  - the archived-only sidebar ("No active projects." and the Settings link, 1440 and phone menu);
+  - the digest's overdue list (Sam), the Markdown draft back after Cancel and navigation, the
+    "Unsaved preview" caption, the Task List's "N tasks" and the drag hint over quick-add;
+  - the undo refusal's "Couldn’t undo." toast and its View details view (Q9).
+  **Left for the §8 comb, not changed here:** the refusal view's nested quotes and `[id]`s; the
+  long toast messages listed under Step 13 Q9; the dashboard rows' empty control gutter (every
+  widget's object row has it; the digest's overdue row reuses that row).
+- **Step 13b (S79S13B, the reviews):** five fresh-context passes against `git diff 850dd2e..HEAD`,
+  the plan, the findings, `direction.md` and the sheet: correctness, spec conformance, boundaries,
+  acceptance (the gate re-run offline, identical report) and living documentation. No blockers;
+  boundaries found none (domain, mcp-tools and contracts lints, token check and selftest,
+  docs check all green). Each finding was checked against the code; those that held were fixed
+  test-first in `2972022` (code, rig, docs) and `a564638` (spec, walkthrough):
+  - a Markdown draft opened before a `prototype.reloaded` from another tab or client was kept
+    again on unmount, after the clear: `MarkdownDraftStore.generation`, recorded by the body on Edit;
+  - a failed removal's Retry remove stayed offered (and wrote) after the page turned read-only:
+    withdrawn, and `removeSectionFromCanvas` refuses under `readOnly`;
+  - read-only collapse reset on any fresh record: keyed by a `computed` of id, stored state and
+    `readOnly` (a `linkedSignal` source reruns on its reads, so the key is a `computed`, read even
+    when live);
+  - the archived Reflections page kept an empty "Write a reflection" region and the subject
+    picker: neither writing region renders (decision amended);
+  - the banner's Restore sat 8 px high and was 32 px beside a 40 px select: `button` height,
+    `align-items: flex-end`;
+  - the drag hint's rounded corners showed the field and Add task: they turn `visibility: hidden`;
+  - rig: `first-run-create` (1440) and `archived-only-home` (375) were shot before the form or
+    menu rendered; both now wait;
+  - docs: §26 gains Q9's paragraph and §21's raw-reason line points to View details; §23 and the
+    actionable-archive decision corrected (Settings' restore focuses the toast's Open it, then the
+    next row's choice on dismissal); the walkthrough (first run, restore choice and banner, digest
+    list); tasks how/why; testing how's bundle line.
+  **Did not hold / left:** the digest row indent (the shared widget row); toasts covering content
+  (their designed dock); the li-host and Q9 toast changes "outside scope" (recorded under
+  Revisions at 13a and Q9); `project-archive-confirm.ts`'s local `statusLabel` (view text kept out
+  of the initial bundle, noted). After capture re-run in full at `a564638` (one matrix cell,
+  `todos-light-1440`, and one context, `archived-only-home|dark|1440`, timed out on a wait and
+  were re-captured alone). `pnpm test` (web 1,550) and `pnpm lint` green; tooling 110 green.
 - **Step 13 Q9 (S79S13Q9, 2026-11-04):** the user answered Open question 9 with their own rule
   (none of the offered options): **toasts carry only short, simple messages; a longer reason opens
   from "View details".** Recorded in `9e81325` (the plan, the
@@ -2030,3 +2084,9 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   toast hosts' `[reason]`/`[detail]` bindings, the e2e that read `.toast__lines` or "Could not
   undo", the rig's refusal state, and a new decision entry; the after capture of the affected
   states is re-run.
+- **2026-11-05, the step 4 reviews (S79S13B).** Five review passes; seven findings held and were
+  fixed (State header, Step 13b). Plan content changes: none to Build or the gate. The File-level
+  change list in effect gains `markdown-draft-store.ts`'s generation, `project-canvas.{ts,html}`'s
+  read-only guard, both frames' collapse key, `reflections-page.html`, `restore-status-choice.{html,scss}`,
+  `task-list-section.scss` and the rig's two waits, plus the spec (§21, §23, §26), the walkthrough
+  and two decision amendments.
