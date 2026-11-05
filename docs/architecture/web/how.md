@@ -53,9 +53,7 @@ pending Undo never time out. `ReceiptToast` in core composes this presentational
 workspace's inert-default receipt port. The toast docks in the content track with a matching
 reserve and becomes solid whenever another lift is open. Its height cap,
 `--toast-max-block-size`, is 12rem, and 16rem on touch, where the 44 px actions and a failure's
-Details row would otherwise clip the message; the shell's clearance follows the token. Past the
-cap the toast scrolls as one region, which holds its focusable actions; the message and its lines
-never scroll on their own (axe `scrollable-region-focusable`, Slice 79). A toast given a `detail` (a failure's raw
+Details row would otherwise clip the message; the shell's clearance follows the token. A toast given a `detail` (a failure's raw
 reason) shows it under a collapsed Details and never announces it.
 
 Failures are a `Failure { sentence, reason }` from `readFailure(error, subject)`,
