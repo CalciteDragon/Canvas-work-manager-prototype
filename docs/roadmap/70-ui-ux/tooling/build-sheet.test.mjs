@@ -1471,7 +1471,13 @@ function eaEntry(context, theme, width, rows) {
   if (['legacy-attic-restore', 'legacy-shelving-restore', 'renovation-restore-undo', 'banner-restore-failing'].includes(context)) e.bannerPresent = true;
   if (context === 'legacy-attic-restore') e.undoRefused = true;
   // The header's Undo refused by the existing transition refusal, in the toast, naming the live child.
-  if (context === 'legacy-attic-restore') e.toast = { text: 'Could not undo “Reactivated “Legacy attic””: something it changed has changed since.\nLegacy shelving [project-legacy-child]: Restore or move the new dependent, then try Undo again.', controls: [eaControl('Dismiss', { hooks: ['data-toast-dismiss'] })] };
+  // Slice 79 Q9: the toast says it short, and its View details opens the reason naming the child.
+  if (context === 'legacy-attic-restore') {
+    e.toast = { text: 'Couldn’t undo.\n\nView details\nDismiss', controls: [eaControl('View details', { hooks: ['data-toast-details-open'] }), eaControl('Dismiss', { hooks: ['data-toast-dismiss'] })] };
+    e.refusalDetails = { heading: 'Couldn’t undo.', text: 'Couldn’t undo. “Reactivated “Legacy attic”” can’t be undone: something it changed has changed since. Legacy shelving [project-legacy-child]: Restore or move the new dependent, then try Undo again. Close',
+      focus: ['data-toast-details-close'], closedFocus: ['data-toast-details-open'], toastOpenAfterClose: true, axe: { violations: [] } };
+    e.refusalDetailsScreenshot = `empty-archived-${context}-${theme}-${width}-refusal-details.png`;
+  }
   // An ancestor's restore is a cross-owner write: the existing toast offers Undo and Open owner.
   if (context === 'legacy-shelving-restore') e.toast = { text: 'Restored Legacy attic as Active.', controls: [eaControl('Undo', { hooks: ['data-toast-undo'] }), eaControl('Open Legacy attic', { tag: 'a', hooks: ['data-toast-open'], href: '/projects/project-legacy' }), eaControl('Dismiss', { hooks: ['data-toast-dismiss'] })] };
   if (context === 'renovation-restore-undo') e.bannerBack = true;
@@ -1503,7 +1509,7 @@ async function eaSheet(t, change = {}) {
     await f.json(phase, 'layout.json', { ...f.layout, controls: change.controlsByPhase?.[phase] ?? change.controls ?? [] });
     change[phase ? 'evidence' : 'before']?.(evidence[phase]);
     await f.json(phase, 'empty-archived-verification.json', evidence[phase]);
-    for (const entry of evidence[phase].entries) if (entry.screenshot) await writeFile(join(f.dirs[phase], entry.screenshot), 'empty-archived image');
+    for (const entry of evidence[phase].entries) for (const field of ['screenshot', 'refusalDetailsScreenshot']) if (entry[field]) await writeFile(join(f.dirs[phase], entry[field]), 'empty-archived image');
   }
   if (change.missing !== undefined) await rm(join(f.dirs[change.missing], 'empty-archived-verification.json'));
   if (change.planes) await f.json(0, 'layout.json', { ...f.layout, planes: [...f.layout.planes, ...change.planes], controls: change.controlsByPhase?.[0] ?? change.controls ?? [] });
@@ -1533,6 +1539,9 @@ test('profile 79 accepts complete evidence and emits its Gate 2 sheet', async t 
   assert.equal(s.result.status, 0, s.report);
   const html = await readFile(join(s.dirs[2], 'index.html'), 'utf8');
   assert.match(html, /<title>Slice 79 · Empty, archived and editing · Gate 2<\/title>/);
+  // The refused Undo's open View details is on the sheet beside its toast, at both widths and themes (Q9).
+  for (const view of ['dark-1440', 'light-1440', 'dark-375', 'light-375']) assert.match(html, new RegExp(`after-empty-archived-legacy-attic-restore-${view}-refusal-details\\.png`));
+  assert.match(html, /after · View details open/);
   assert.match(html, /Core task costs/);
   assert.match(html, /T12/);
   const report = JSON.parse(s.report);
@@ -1636,7 +1645,15 @@ test('profile 79 gates the banner restore, the Undo refusal and a failing restor
   await eaFails(t, { evidence: e => editEa(e, 'banner-restore-failing', x => { x.bannerPresent = false; }, 'dark|375') }, 'no banner to fail in', /restore failure/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.undoRefused = false; }, 'light|375') }, 'Undo not refused', /undo-refused/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.toast.text = 'Undo may not have completed. Check the page before trying again.'; }, 'dark|1440') }, 'a failure that is not the refusal', /undo-refused/);
-  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.toast.text = 'Could not undo “Reactivated “Legacy attic””: something it changed has changed since.'; }, 'dark|375') }, 'refusal that does not name the live child', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.refusalDetails.text = 'Couldn’t undo. “Reactivated “Legacy attic”” can’t be undone: something it changed has changed since. Close'; }, 'dark|375') }, 'refusal that does not name the live child', /undo-refused/);
+  // Slice 79 Q9 (user decision): a toast says one short message; the reason is in its View details view.
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.toast.text = 'Couldn’t undo. Legacy shelving [project-legacy-child]: Restore or move the new dependent, then try Undo again.'; }, 'light|1440') }, 'the reason inside the toast', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.toast.controls = x.toast.controls.filter(c => c.name !== 'View details'); }, 'dark|1440') }, 'no View details', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { delete x.refusalDetails; }, 'light|375') }, 'details view not recorded', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.refusalDetails.focus = ['data-toast-dismiss']; }, 'dark|375') }, 'focus not moved into the view', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.refusalDetails.closedFocus = []; }, 'dark|1440') }, 'focus not returned to View details', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.refusalDetails.toastOpenAfterClose = false; }, 'light|1440') }, 'Escape closed the toast too', /undo-refused/);
+  await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.refusalDetails.axe.violations = [{ id: 'color-contrast', impact: 'serious', nodes: [{ target: ['dialog p'] }] }]; }, 'light|375') }, 'an axe violation in the open view', /undo-refused/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-attic-restore', x => { x.header.text = `Legacy attic\n${x.toast.text}`; x.toast = null; }, 'dark|1440') }, 'the refusal only in the header, with no toast', /undo-refused/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.toast = null; }, 'dark|1440') }, 'ancestor restore without its toast', /cross-owner toast/);
   await eaFails(t, { evidence: e => editEa(e, 'legacy-shelving-restore', x => { x.toast.controls = x.toast.controls.filter(c => c.name !== 'Undo'); }, 'light|375') }, 'toast without Undo', /cross-owner toast/);

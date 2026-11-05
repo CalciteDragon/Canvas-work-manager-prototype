@@ -970,7 +970,8 @@ const EA_VISUAL_PAIRS = [
   ['first-run-create', 'dark', 1440, 'W1-001'], ['first-run-create', 'light', 375, 'W1-001'], ['archived-only-home', 'dark', 1440, 'W4-034'], ['archived-only-home', 'light', 375, 'W4-034'],
   ['legacy-attic', 'light', 1440, 'L1-028, L4-007'], ['legacy-attic', 'dark', 375, 'L1-028, L4-007'],
   ['renovation-archived-home', 'dark', 1440, 'L4-007'], ['renovation-archived-todos', 'dark', 1440, 'L4-007 (Q7)'], ['renovation-archived-reflections', 'dark', 1440, 'L4-007 (Q7)'],
-  ['legacy-shelving', 'light', 1440, 'L4-007'], ['renovation-restore-undo', 'dark', 1440, 'L4-007'], ['legacy-attic-restore', 'dark', 1440, 'L4-007'],
+  ['legacy-shelving', 'light', 1440, 'L4-007'], ['renovation-restore-undo', 'dark', 1440, 'L4-007'], ['legacy-attic-restore', 'dark', 1440, 'L4-007, Q9'],
+  ['legacy-attic-restore', 'light', 1440, 'Q9'], ['legacy-attic-restore', 'dark', 375, 'Q9'], ['legacy-attic-restore', 'light', 375, 'Q9'],
   ['todos-pending', 'light', 1440, 'carried (slice 75)'], ['kitchen-archive-blocked', 'dark', 1440, 'L4-008'], ['kitchen-archive-blocked', 'light', 375, 'L4-008'],
   ['cabinets-late-refusal', 'light', 1440, 'L4-008'], ['archive-restore-choice', 'light', 1440, 'L4-012'], ['settings-restore-choice', 'light', 1440, 'L4-012'],
   ['digest-sam', 'dark', 1440, 'W4-028'], ['digest-sam', 'light', 375, 'W4-028'], ['markdown-cancel-edit', 'light', 1440, 'L3-012'], ['markdown-navigate-back', 'dark', 1440, 'L3-012'],
@@ -1097,8 +1098,16 @@ if (profile === '79') {
           check(r, 'ancestor restore without its cross-owner toast (Undo and Open owner)', { toast: page.toast ?? null, owner });
       }
       // The existing transition refusal (`history_conflict`), in the toast the header's Undo raises, naming the live child; not any failure.
-      if (r.kind === 'undo-refused' && (e.undoRefused !== true || page.banner !== null || !norm(page.toast?.text).includes('Could not undo') || !norm(page.toast?.text).includes('Legacy shelving')))
-        check(r, 'undo-refused row without the transition refusal naming Legacy shelving, or with the banner back', { undoRefused: e.undoRefused ?? null, toast: norm(page.toast?.text).slice(0, 300) || null });
+      // Slice 79 Q9 (user decision): the toast says only "Couldn’t undo."; its View details opens a view naming the
+      // child, focus on Close, Escape giving focus back to View details with the toast still open, and no axe violation.
+      if (r.kind === 'undo-refused') {
+        const details = e.refusalDetails ?? null, dt = norm(details?.text);
+        const viewDetails = visible(page.toast?.controls).some(c => c.name === 'View details' && c.hooks?.includes('data-toast-details-open'));
+        if (e.undoRefused !== true || page.banner !== null || !norm(page.toast?.text).startsWith('Couldn’t undo.') || /Legacy shelving|changed since/.test(norm(page.toast?.text)) || !viewDetails || !details || details.heading !== 'Couldn’t undo.'
+          || !dt.includes('something it changed has changed since') || !dt.includes('Legacy shelving') || !details.focus?.includes('data-toast-details-close')
+          || !details.closedFocus?.includes('data-toast-details-open') || details.toastOpenAfterClose !== true || (details.axe?.violations ?? [null]).length !== 0)
+          check(r, 'undo-refused row without the short refusal toast and its View details naming Legacy shelving, or with the banner back', { undoRefused: e.undoRefused ?? null, toast: norm(page.toast?.text).slice(0, 300) || null, viewDetails, details: details ? { ...details, text: dt.slice(0, 300) } : null });
+      }
       if (r.kind === 'restore-failure') {
         const banner = norm(page.banner?.text);
         if (e.bannerPresent !== true || !banner.includes('Couldn’t restore') || norm(page.header?.text).includes('Couldn’t restore')) check(r, 'restore failure not shown in the banner', { banner: banner || null });
@@ -1424,7 +1433,7 @@ if (profile === '79') {
     return name;
   };
   const find = (evidence, context, theme, width) => evidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
-  const extras = [['restoredScreenshot', 'after Restore'], ['chosenScreenshot', 'after choosing'], ['detailsOpenScreenshot', 'Details open']];
+  const extras = [['restoredScreenshot', 'after Restore'], ['chosenScreenshot', 'after choosing'], ['detailsOpenScreenshot', 'Details open'], ['refusalDetailsScreenshot', 'View details open']];
   const featured = [];
   for (const pair of eaPairs) {
     const was = find(eaBaseline, pair.context, pair.theme, pair.width), now = find(eaEvidence, pair.context, pair.theme, pair.width);

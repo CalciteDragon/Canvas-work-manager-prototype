@@ -282,6 +282,24 @@ export const CONTEXTS: Context[] = [
       // The refusal is the toast the header's Undo raises, as in the e2e.
       c.entry['undoRefused'] = await c.page.locator('[data-toast]:popover-open').filter({ hasText: 'Couldn’t undo.' })
         .waitFor({ timeout: 8_000 }).then(() => true, () => false);
+    },
+    // Slice 79 Q9: the toast says it short; its View details opens the reason. Record the open view
+    // (text, focus, axe, a screenshot), then Escape: focus back on View details, the toast still open.
+    after: async c => {
+      const open = c.page.locator('[data-toast]:popover-open [data-toast-details-open]');
+      if (!await open.count()) return;
+      await open.click();
+      const view = c.page.locator('dialog[data-toast-details][open]');
+      await view.waitFor();
+      const hooksOfFocus = () => c.page.evaluate(() => [...(document.activeElement?.attributes ?? [])].map(a => a.name).filter(n => n.startsWith('data-')));
+      const focus = await hooksOfFocus();
+      const axe = await new AxeBuilder({ page: c.page }).include('dialog[data-toast-details][open]').options({ rules: { 'target-size': { enabled: true } } }).analyze();
+      const details = { heading: (await view.locator('h2').innerText()).trim(), text: await view.innerText(), box: await view.boundingBox(), focus, axe: { violations: axe.violations, incomplete: axe.incomplete } };
+      c.entry['refusalDetailsScreenshot'] = await c.shot('refusal-details');
+      await c.page.keyboard.press('Escape');
+      await view.waitFor({ state: 'detached', timeout: 5_000 }).catch(() => undefined);
+      await c.page.locator('dialog[data-toast-details][open]').waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => undefined);
+      c.entry['refusalDetails'] = { ...details, closedFocus: await hooksOfFocus(), toastOpenAfterClose: await c.page.locator('[data-toast]:popover-open').count() > 0 };
     } },
   // Restoring the ancestor from the live child's banner: the toast offers Undo and Open owner.
   { id: 'legacy-shelving-restore', seed: 'nested-projects', route: LEGACY_CHILD,
