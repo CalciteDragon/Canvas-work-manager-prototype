@@ -20,7 +20,39 @@ below. **Step 9 (digest overdue line, Q1 (a)) is done (S79S9)**; see the Step 9 
 **Step 10 (Markdown keeps the draft) is done (S79S10)**; see the Step 10 bullet below.
 **Step 11 (count and drag hint) is done (S79S11)**; see the Step 11 bullet below.
 **Step 12 (end to end) is done (S79S12, cloud session)**; see the Step 12 bullet below.
-**Next: step 13 (after capture, sheet, reviews, then Gate 2 by the user).**
+**Step 13 part a (acceptance check and sheet) is done (S79S13A), with one stop: Open question 9.**
+See the Step 13a bullet below. **Next: the user answers Open question 9; then S79S13B reviews, then
+Gate 2 (user).**
+- **Step 13a (acceptance check and sheet):** `pnpm test` and `pnpm lint` green at the start and
+  after the fixes (web 1,538; tooling 110). The first after sheet (716cc41) had 1,168 failures from
+  six causes, fixed in `baa78a2` (product: section headers wrap again with the name and count as
+  one row, the plan's 375 premise having been wrong; tree hosts are their `li`s; the digest's
+  overdue meta on its own line; 24/44 px links on the blocked form and the archived-only sidebar;
+  rig waits; the gate reads the Undo refusal from its toast), `d5fa998` and `bd62dbb` (Lab evidence
+  scroll-free and after a reload; a Lab plane's identity is its place in its panel; the digest's
+  target waited for) and `f1eb835` (the toast change reverted, see Open question 9). Details under
+  Revisions. **Sheet:**
+  `/workspace/projects/Canvas-work-manager-prototype/apps/e2e/ux-output/slice79-sheet/index.html`
+  (git-ignored), before `apps/e2e/ux-output/44e7e9e/` (its Lab row re-recorded twice with the
+  fixed rig; nothing else re-captured), after `apps/e2e/ux-output/f1eb835311053944fe1b6372e3b7e7d001d95287/`
+  (a full run: matrix, then contexts with `UX_STATES_SKIP_TASKS=1`, then tasks with
+  `UX_STATES_MATCH='^NONE$'`). **194 pairs, 31 visual pairs; gate result: 4 failures, all Open
+  question 9** (axe `scrollable-region-focusable` on the undo-refusal toast's `.toast__message` and
+  `.toast__lines`, 1440 dark and light); everything else zero. **T01–T12:** T01 2/16, T02 3/19,
+  T03 10/38, T04 1/0, T05 2/0, T06 2/16, T07 3/0, T08 3/0, T09 1/0, T11 1/0, T12 1/0, all
+  completed with zero dead ends, each at its slice-78 limit. **Initial bundle 1,146.48 kB**, 3.52 kB
+  under the ceiling. **e2e on HEAD (`f1eb835`):** all 27 specs, every test passed except
+  `feedback.spec.ts:196` (keyboard "Project archive from More", waiting for
+  `[data-project-archive-confirm-yes]`). It failed in 2 of 4 grouped runs and passed alone 3/3 and
+  in `feedback.spec.ts` alone 78/78 (repeat 2): flaky, not touched. `--list` counts 268 tests in
+  27 files (step 12's 287 counted its halves differently). How it ran here: step 12's throwaway
+  config rebuilt (host 4357, static 4257, a forward proxy on 4258 mapping `:4200`→4257 and
+  `:4310`→4357 incl. CONNECT; the proxy must resolve `localhost` itself, since the static server
+  binds `[::1]`), and `project-creation-history.spec.ts`'s Node `fetch` swapped to 4357 in an
+  uncommitted copy. **Traps:** a Playwright element screenshot taller than the viewport leaves the
+  page laid out differently afterwards (frames 12 px shorter at 375); `UX_STATES_MATCH` matches
+  `context|theme|width`, so `^lab\|`, not `^lab$`. Step 12's drag-start trap did not occur (the
+  `drag-start` rows passed).
 - **Step 12 (end to end):** `apps/e2e/empty-archived-editing.spec.ts`, 13 tests, every clause of
   its Test plan row: first run at 1440 and 375 touch then archiving that project (archived-only
   sidebar, no first-run block); Legacy attic / Legacy shelving / Home renovation (canvas, Todos,
@@ -1185,6 +1217,10 @@ every control it had.
 - **Bundle.** 1,140.75 kB initial (1.14 MB, budget warning 290.75 kB over 850 kB) for both
   `44e7e9e` and the working tree.
 
+**Step 13 spec edit (2026-11-04, S79S13A).** `states.spec.ts:138` looked for the sidebar's
+`app-project-tree-item` element; the tree item's host is now its `li` (axe `list`/`listitem` on the
+after capture), so it looks for `li[app-project-tree-item]`. Same assertion, new selector.
+
 ## File-level change list
 
 Paths are under `apps/web/src/app/` unless stated. "(+ spec)" means the colocated spec, and
@@ -1609,6 +1645,37 @@ written, with the answer added under it. The Defaults taken were accepted as wri
      other feature route stays eager, and **the 1,150 kB ceiling is kept** (never raised). The
      budget decision and `app.routes.ts`'s comment are amended to name the two exceptions.
 
+9. **The undo-refusal toast's message scrolls with no keyboard way in.** (raised by S79S13A,
+   2026-11-04; **blocks Gate 2's zero-failure sheet**)
+   - *Context.* The after sheet's only failures (4 of them): axe `scrollable-region-focusable` on
+     `.toast__message` and `.toast__lines`, Legacy attic's refused Undo, 1440 dark and light. The
+     refusal ("Could not undo “Reactivated “Legacy attic””: something it changed has changed
+     since." plus the line "Legacy shelving [project-legacy-child]: Restore or move the new
+     dependent, then try Undo again.") is taller than the 12rem toast cap, so slice 74's rule
+     shrinks the message and the line and each scrolls by itself, holding nothing focusable; the
+     last line's descenders show clipped. The before had no such toast, so the nodes are new. The
+     pattern is slice 74's and applies to any toast past the cap (the 16rem touch cap fits this
+     one at 375). Tried and reverted (`baa78a2` → `f1eb835`): letting the toast scroll as one
+     region removes the nodes but breaks `feedback.spec.ts:101`, which pins Undo and Dismiss inside
+     the phone toast under a long title.
+   - *Options.*
+     - **(a)** An overflowing message (and lines) becomes focusable: `tabindex="0"` only while it
+       overflows (a `ResizeObserver` in `Toast`), so a keyboard user can scroll it; no tab stop in
+       a toast that fits. WCAG's own fix for this rule. Looks unchanged.
+     - **(b)** The toast scrolls as one and the actions stick to its bottom on the solid lift
+       plane, so they stay inside the box. A visible band under long messages; text scrolls under
+       it.
+     - **(c)** Make this toast fit: drop the `[id]` from conflict lines (`conflictSubject`, which
+       says "its current name and id" on purpose) or raise `--toast-max-block-size` at desktop.
+       Fixes this case only; any longer toast still fails.
+   - *Recommendation:* **(a)**. It fixes the pattern, not this toast, keeps slice 74's look and
+     `feedback.spec.ts`'s pinned behaviour, and adds a tab stop only where content is otherwise
+     unreachable. Small: `toast.ts` and its spec, about 0.2 kB.
+   - *Impact.* Profile 79 is not loosened, so the sheet shows these 4 failures until the user
+     chooses. With (a) or (c), one more step fixes it, re-captures and rebuilds the sheet
+     (about 20 minutes) before the S79S13B reviews; or the user may accept the 4 at Gate 2 and
+     leave the pattern to the §8 comb.
+
 **Defaults taken** (small and non-shape-changing; say if any is wrong):
 
 - **Drafts** live in memory until reload, reseed or a persona switch, and come back with "Your
@@ -1890,3 +1957,24 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   `widget-content.scss` as the File-level change list says: the shared sheet is compiled into every
   widget, and the same rule there cost 0.73 kB more. The list is labelled "Overdue tasks", from the
   step's review.
+- **2026-11-04, step 13 part a (S79S13A).** The first after sheet had 1,168 failures; six causes,
+  fixed without loosening profile 79:
+  - **The plan's header premise was wrong.** Build said "At 375 the name truncates before the
+    header wraps, so the frame's controls hold their place", but the header already wrapped at 375
+    (tools on a second line). Step 11's `nowrap` shrank every 375 frame header (79 → 44 px),
+    moved everything under it (36 cells) and cut names to "Prog…" and a Task List's "T…". Headers
+    wrap again, the name and count as one `.section-frame__name-row` (decision amended).
+  - **Product defects the census and axe found:** the digest's overdue row title squeezed to 14 px
+    at 1024 (its meta now takes a second line); the blocked form's child links and the archived-only
+    "Archived projects are in Settings." link under the 24/44 px target (`.link`, plus touch
+    sizing); sidebar and work-tree `li`s inside custom hosts (axe `list`/`listitem`, an old defect
+    on new nodes; the hosts are now the `li`s).
+  - **Rig races:** restores recorded before they landed, Undo pressed before it named the restore,
+    Discard draft counted before it rendered, the digest's target section read before it loaded.
+  - **Gate rule fixes, same strictness:** the Undo refusal is read from the toast where the product
+    and the e2e put it, not the header; a Lab plane's identity is its place within its panel
+    (section-frame's added specimens renumbered section-states' frames).
+  - **Lab evidence:** panel boxes recorded scroll-free and after a reload (frame shots taller than
+    the viewport left frames 12 px shorter at 375); the before's Lab row re-recorded.
+  - **Left open:** the undo-refusal toast's 4 axe nodes, Open question 9.
+
