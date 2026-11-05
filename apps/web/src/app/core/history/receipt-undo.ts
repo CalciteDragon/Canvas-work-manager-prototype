@@ -8,9 +8,12 @@ export type ReceiptUndoOffer = 'saving' | 'ready' | 'unavailable';
 /** Feedback returned to the acting toast, without announcing a second toast. */
 export interface ReceiptUndoResult {
   tone: 'status' | 'alert';
+  /** One short message: the toast says only this (Slice 79 Q9). */
   message: string;
+  /** The full sentence behind the message, opened from the toast's View details. */
+  reason?: string;
   lines?: readonly string[];
-  /** A failure's raw reason, which the toast keeps under a collapsed Details (Slice 78). */
+  /** A failure's raw reason, opened from the toast's View details and never announced (Slice 78). */
   detail?: string;
   link?: { projectId: ProjectId; label: string };
 }

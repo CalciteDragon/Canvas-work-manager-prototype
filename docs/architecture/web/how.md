@@ -48,13 +48,24 @@ title, links get safe new-tab attributes, and table alignment uses classes.
 
 Shared feedback uses `Toast` and root `ToastSlot`. A second claim closes the first; navigation
 closes feedback, and modal suppression hides it without dropping it. Status toasts dismiss after
-eight unattended seconds; hover, focus and suppression pause and restart that timer. Alerts and
-pending Undo never time out. `ReceiptToast` in core composes this presentational layer with the
+eight unattended seconds; hover, focus, suppression and an open details view pause and restart
+that timer. Alerts and pending Undo never time out. `ReceiptToast` in core composes this presentational layer with the
 workspace's inert-default receipt port. The toast docks in the content track with a matching
 reserve and becomes solid whenever another lift is open. Its height cap,
-`--toast-max-block-size`, is 12rem, and 16rem on touch, where the 44 px actions and a failure's
-Details row would otherwise clip the message; the shell's clearance follows the token. A toast given a `detail` (a failure's raw
-reason) shows it under a collapsed Details and never announces it.
+`--toast-max-block-size`, is 12rem, and 16rem on touch, where the 44 px actions would otherwise
+clip the message; the shell's clearance follows the token.
+**A toast says one short `message`**
+([decision](../../decisions/2026-11-toasts-say-it-short-with-view-details.md), Slice 79 Q9). Its
+longer `reason` (the full sentence), `lines` (one per repair) and `detail` (a failure's raw
+reason) never render inside it: with any of them the toast adds **View details**
+(`[data-toast-details-open]`, `aria-haspopup="dialog"`) before Dismiss, which opens a modal
+`dialog.lift--dialog[data-toast-details]` beside the popover, labelled by the message as its
+heading, with one Close. Focus goes to Close and comes back to View details; Escape closes the view
+only (stopped there, so neither the toast nor a document handler sees it); a toast that closes,
+is suppressed or loses its reason closes its view. The live regions announce the message, the
+reason and the lines; the `detail` is never announced. Every toast host binds `reason`, `lines`
+and (the canvas) `detail` from its `ReceiptUndoResult`. A long `message` itself (a status naming
+a long user title) still shrinks and scrolls inside the cap, slice 74's rule.
 
 Failures are a `Failure { sentence, reason }` from `readFailure(error, subject)`,
 `headedReadFailure(error)` (for a read whose heading already says "Couldn’t load …") or

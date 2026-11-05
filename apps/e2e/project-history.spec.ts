@@ -4,7 +4,7 @@
  */
 import type { OperationHistorySummary, ProjectPage, ProjectSection, Task } from '@cwm/contracts';
 import { expect, test, type Page } from '@playwright/test';
-import { historyControl, historyFeedback, redoFromHeader, stepFromHeader, undoFromHeader } from './history-controls';
+import { historyControl, historyFeedback, redoFromHeader, toastDetails, stepFromHeader, undoFromHeader } from './history-controls';
 import { api, connectMcp, seed, setClock, setPageEnabled } from './seed';
 
 const NOW = '2026-09-15T12:00:00.000Z';
@@ -407,9 +407,11 @@ test('7. a conflicting later edit refuses with its subject and next step, and ex
   await expect(list.locator('[data-task-row]', { hasText: 'Call the yard (agent)' })).toBeVisible();
 
   await undoFromHeader(page, label);
-  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toHaveCount(1);
-  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toContainText('Call the yard (agent)');
-  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toContainText('Make the change again by hand.');
+  const details = await toastDetails(page);
+  await expect(details.locator('li')).toHaveCount(1);
+  await expect(details.locator('li')).toContainText('Call the yard (agent)');
+  await expect(details.locator('li')).toContainText('Make the change again by hand.');
+  await details.getByRole('button', { name: 'Close' }).click();
 
   // Twenty-five hours on: the clock change reloads the host, and nothing is offered any more.
   await setClock('2026-09-16T13:00:00.000Z');

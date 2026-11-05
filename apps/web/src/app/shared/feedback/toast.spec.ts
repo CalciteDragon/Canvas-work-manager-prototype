@@ -4,10 +4,14 @@ import { Toast, TOAST_DISMISS_MS } from './toast';
 
 const nativeMethods = ['showPopover', 'hidePopover'] as const;
 const nativeDescriptors = nativeMethods.map(name => Object.getOwnPropertyDescriptor(HTMLElement.prototype, name));
+const dialogMethods = ['showModal', 'close'] as const;
+const dialogDescriptors = dialogMethods.map(name => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));
 
 describe('Toast', () => {
   beforeEach(() => {
     nativeMethods.forEach(name => Object.defineProperty(HTMLElement.prototype, name, { configurable: true, writable: true, value: vi.fn() }));
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, writable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, writable: true, value(this: HTMLDialogElement) { this.removeAttribute('open'); } });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -16,6 +20,12 @@ describe('Toast', () => {
       if (descriptor) Object.defineProperty(HTMLElement.prototype, name, descriptor);
       else Reflect.deleteProperty(HTMLElement.prototype, name);
     });
+    dialogMethods.forEach((name, index) => {
+      const descriptor = dialogDescriptors[index];
+      if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+      else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+    });
+    document.body.innerHTML = '';
   });
 
   function setup() {
@@ -53,22 +63,101 @@ describe('Toast', () => {
     expect(status.isConnected).toBe(true);
   });
 
-  it('renders a failure detail as a closed Details in the toast, never in its announcement', () => {
-    const { fixture, element, popover } = setup();
-    expect(popover.querySelector('details')).toBeNull();
+  // Slice 79 Q9 (user decision): a toast says one short message; the longer reason opens from View details.
+  function withDetails(fixture: ReturnType<typeof setup>['fixture']) {
     fixture.componentRef.setInput('tone', 'alert');
-    fixture.componentRef.setInput('message', 'Couldn’t remove the section. Try again.');
-    fixture.componentRef.setInput('detail', 'Section "section-notes" is locked.');
+    fixture.componentRef.setInput('message', 'Couldn’t undo.');
+    fixture.componentRef.setInput('reason', '“Reactivated “Legacy attic”” can’t be undone: something it changed has changed since.');
+    fixture.componentRef.setInput('lines', ['Legacy shelving [project-legacy-child]: Restore or move the new dependent, then try Undo again.']);
+    fixture.componentRef.setInput('detail', 'Project "project-legacy-child" is active.');
     fixture.detectChanges();
-    const details = popover.querySelector('details')!;
-    expect(details.open).toBe(false);
-    expect(details.querySelector('summary')?.textContent?.trim()).toBe('Details');
-    expect(details.textContent).toContain('Section "section-notes" is locked.');
-    expect(element.querySelector('[role=alert]')!.textContent).not.toContain('locked');
+  }
+  const viewDetails = (popover: HTMLElement) => popover.querySelector<HTMLButtonElement>('[data-toast-details-open]');
+
+  it('offers no View details for a short message alone', () => {
+    const { popover } = setup();
+    expect(viewDetails(popover)).toBeNull();
+    expect(popover.querySelector('dialog, details')).toBeNull();
+  });
+
+  it('shows only the short message, its actions, View details and Dismiss; the announcement keeps the full text', () => {
+    const { fixture, element, popover } = setup();
+    withDetails(fixture);
+    expect(popover.querySelector('.toast__message')?.textContent?.trim()).toBe('Couldn’t undo.');
+    expect(popover.textContent).not.toContain('Legacy shelving');
+    expect(popover.textContent).not.toContain('something it changed');
+    expect(popover.querySelector('details, ul')).toBeNull();
+    const buttons = [...popover.querySelectorAll('button')].map(button => button.textContent?.trim());
+    expect(buttons).toEqual(['View details', 'Dismiss']);
+    expect(viewDetails(popover)?.getAttribute('aria-haspopup')).toBe('dialog');
+    const announced = element.querySelector('[role=alert]')!.textContent!;
+    expect(announced).toContain('Couldn’t undo.');
+    expect(announced).toContain('something it changed has changed since');
+    expect(announced).toContain('Legacy shelving');
+    // Slice 78: a raw reason is never announced.
+    expect(announced).not.toContain('is active');
+  });
+
+  it('View details opens a modal view of the full reason with focus on Close, and Close returns focus', () => {
+    const { fixture, element, popover, dismissed } = setup();
+    document.body.append(element);
+    withDetails(fixture);
+    const open = viewDetails(popover)!;
+    open.focus();
+    open.click();
+    fixture.detectChanges();
+    const dialog = element.querySelector<HTMLDialogElement>('dialog[data-toast-details]')!;
+    expect(popover.contains(dialog)).toBe(false);
+    expect(dialog.hasAttribute('open')).toBe(true);
+    expect(dialog.classList).toContain('lift--dialog');
+    const heading = dialog.querySelector('h2')!;
+    expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
+    expect(heading.textContent?.trim()).toBe('Couldn’t undo.');
+    expect(dialog.textContent).toContain('something it changed has changed since');
+    expect(dialog.querySelector('li')?.textContent).toContain('Legacy shelving [project-legacy-child]');
+    expect(dialog.textContent).toContain('Project "project-legacy-child" is active.');
+    const close = dialog.querySelector<HTMLButtonElement>('[data-toast-details-close]')!;
+    expect(document.activeElement).toBe(close);
+    close.click();
+    fixture.detectChanges();
+    expect(dialog.hasAttribute('open')).toBe(false);
+    expect(document.activeElement).toBe(open);
+    expect(dismissed).not.toHaveBeenCalled();
+  });
+
+  it('Escape closes the view only: the toast stays and document handlers never see it', () => {
+    const { fixture, element, popover, dismissed } = setup();
+    document.body.append(element);
+    withDetails(fixture);
+    viewDetails(popover)!.click();
+    fixture.detectChanges();
+    const dialog = element.querySelector<HTMLDialogElement>('dialog[data-toast-details]')!;
+    const outside = vi.fn();
+    document.addEventListener('keydown', outside);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    dialog.querySelector('button')!.dispatchEvent(event);
+    fixture.detectChanges();
+    document.removeEventListener('keydown', outside);
+    expect(dialog.hasAttribute('open')).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(outside).not.toHaveBeenCalled();
+    expect(dismissed).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(viewDetails(popover));
+  });
+
+  it('holds a status toast while its view is open, and closing the toast closes the view', () => {
+    vi.useFakeTimers();
+    const { fixture, element, popover, dismissed } = setup();
+    withDetails(fixture);
     fixture.componentRef.setInput('tone', 'status');
     fixture.detectChanges();
-    expect(element.querySelector('[role=status]')!.textContent).toContain('Couldn’t remove');
-    expect(element.querySelector('[role=status]')!.textContent).not.toContain('locked');
+    viewDetails(popover)!.click();
+    fixture.detectChanges();
+    vi.advanceTimersByTime(TOAST_DISMISS_MS * 2);
+    expect(dismissed).not.toHaveBeenCalled();
+    fixture.componentRef.setInput('open', false);
+    fixture.detectChanges();
+    expect(element.querySelector('dialog[data-toast-details]')?.hasAttribute('open') ?? false).toBe(false);
   });
 
   it('dismisses Escape inside and stops it reaching document handlers', () => {

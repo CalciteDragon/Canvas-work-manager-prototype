@@ -1,15 +1,26 @@
-<div class="toast__announcement" role="status">@if (open() && !suppressed() && tone() === 'status') { {{ message() }} @for (line of lines(); track $index) { {{ line }} } }</div>
-<div class="toast__announcement" role="alert">@if (open() && !suppressed() && tone() === 'alert') { {{ message() }} @for (line of lines(); track $index) { {{ line }} } }</div>
+<div class="toast__announcement" role="status">@if (open() && !suppressed() && tone() === 'status') { {{ message() }} {{ reason() }} @for (line of lines(); track $index) { {{ line }} } }</div>
+<div class="toast__announcement" role="alert">@if (open() && !suppressed() && tone() === 'alert') { {{ message() }} {{ reason() }} @for (line of lines(); track $index) { {{ line }} } }</div>
 <section #popover class="lift lift--toast" popover="manual" data-toast
   [attr.data-toast-open]="open() && !suppressed() ? '' : null"
   (keydown.escape)="escape($event)" (mouseenter)="hovered.set(true)" (mouseleave)="hovered.set(false)"
   (focusin)="focused.set(true)" (focusout)="focusOut($event)">
   <p class="toast__message">{{ message() }}</p>
-  @if (lines().length) {
-    <ul class="toast__lines">@for (line of lines(); track $index) { <li>{{ line }}</li> }</ul>
-  }
-  @if (detail(); as detail) {
-    <details class="state-message__details toast__details"><summary>Details</summary><p>{{ detail }}</p></details>
-  }
-  <div class="toast__actions"><ng-content /><button type="button" class="button button--ghost" data-toast-dismiss (click)="dismissed.emit()">Dismiss</button></div>
+  <div class="toast__actions"><ng-content />
+    @if (hasDetails()) {
+      <button #opener type="button" class="button button--ghost" data-toast-details-open aria-haspopup="dialog" (click)="openDetails()">View details</button>
+    }
+    <button type="button" class="button button--ghost" data-toast-dismiss (click)="dismissed.emit()">Dismiss</button>
+  </div>
 </section>
+@if (hasDetails()) {
+  <dialog #details class="lift lift--dialog toast-details" data-toast-details closedby="none" [attr.aria-labelledby]="headingId"
+    (keydown)="detailsKeydown($event)" (cancel)="$event.preventDefault()">
+    <h2 class="toast-details__title" [id]="headingId">{{ message() }}</h2>
+    @if (reason(); as reason) { <p>{{ reason }}</p> }
+    @if (lines().length) {
+      <ul class="toast-details__lines">@for (line of lines(); track $index) { <li>{{ line }}</li> }</ul>
+    }
+    @if (detail(); as detail) { <p class="toast-details__detail">{{ detail }}</p> }
+    <div class="toast-details__actions"><button type="button" class="button" data-toast-details-close (click)="closeDetails()">Close</button></div>
+  </dialog>
+}

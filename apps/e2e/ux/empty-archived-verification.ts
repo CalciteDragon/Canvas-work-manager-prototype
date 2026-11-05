@@ -280,7 +280,7 @@ export const CONTEXTS: Context[] = [
       await snapshot(c, 'restored');
       await undoRestore(c, 'Legacy attic');
       // The refusal is the toast the header's Undo raises, as in the e2e.
-      c.entry['undoRefused'] = await c.page.locator('[data-toast]:popover-open').filter({ hasText: 'Could not undo' })
+      c.entry['undoRefused'] = await c.page.locator('[data-toast]:popover-open').filter({ hasText: 'Couldn’t undo.' })
         .waitFor({ timeout: 8_000 }).then(() => true, () => false);
     } },
   // Restoring the ancestor from the live child's banner: the toast offers Undo and Open owner.

@@ -14,7 +14,7 @@ import { Toast } from './toast';
     <button class="button" data-toast-menu-opener popovertarget="toast-story-menu">Open menu</button>
     <button class="button" (click)="modal.showModal()">Open modal</button>
     <div id="toast-story-menu" class="lift lift--popover menu" popover="auto"><button class="menu__item">Menu action</button></div>
-    <app-toast [open]="open()" [tone]="tone()" [message]="tone() === 'alert' ? 'Couldn’t remove the Notes section. Try again.' : 'Removed the Notes section.'" [detail]="detail()" (dismissed)="dismiss()">
+    <app-toast [open]="open()" [tone]="tone()" [message]="reason() ? 'Couldn’t undo.' : tone() === 'alert' ? 'Couldn’t remove the Notes section. Try again.' : 'Removed the Notes section.'" [reason]="reason()" [lines]="lines()" [detail]="detail()" (dismissed)="dismiss()">
       @if (withUndo()) { <button class="button" type="button">Undo</button> }
     </app-toast>
     <dialog #modal class="lift lift--dialog"><h2>Confirm change</h2><button class="button" (click)="modal.close()">Close modal</button></dialog>
@@ -25,6 +25,8 @@ class ToastStory {
   readonly tone = input<'status' | 'alert'>('status');
   readonly withUndo = input(false);
   readonly detail = input<string | null>(null);
+  readonly reason = input<string | null>(null);
+  readonly lines = input<readonly string[]>([]);
   protected readonly open = signal(false);
   protected readonly dismissals = signal(0);
   private readonly opener = viewChild<ElementRef<HTMLButtonElement>>('opener');
@@ -75,17 +77,36 @@ export const Alert: Story = { args: { tone: 'alert' }, play: ({ canvasElement })
 export const WithUndo: Story = { args: { withUndo: true }, play: ({ canvasElement }) => openAndEscape(canvasElement) };
 export const OverOpenMenu: Story = { args: { withUndo: true }, play: ({ canvasElement }) => openAndEscape(canvasElement, 'menu') };
 export const UnderModal: Story = { args: { withUndo: true }, play: ({ canvasElement }) => openAndEscape(canvasElement, 'modal') };
-// Slice 78: a failure's raw reason waits under a collapsed Details inside the toast.
+// Slice 79 Q9: a toast says it short; the reason, the repairs and a raw failure reason open from
+// View details in a modal view, with focus on Close, Escape closing only the view, and focus back.
+const viewDetails = async (canvasElement: HTMLElement, text: string) => {
+  const canvas = within(canvasElement);
+  await userEvent.click(canvas.getByRole('button', { name: 'Show feedback' }));
+  const toast = canvasElement.querySelector<HTMLElement>('[data-toast]')!;
+  await waitFor(() => expect(toast.matches(':popover-open')).toBe(true));
+  await expect(toast).not.toHaveTextContent(text);
+  await expect(toast.querySelector('details, ul')).toBeNull();
+  const open = canvas.getByRole('button', { name: 'View details' });
+  await userEvent.click(open);
+  const dialog = canvas.getByRole('dialog');
+  await waitFor(() => expect(dialog).toBeVisible());
+  await expect(dialog).toHaveTextContent(text);
+  await expect(canvas.getByRole('button', { name: 'Close' })).toHaveFocus();
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(dialog).not.toBeVisible());
+  await expect(toast.matches(':popover-open')).toBe(true);
+  await expect(open).toHaveFocus();
+  await openAndEscape(canvasElement);
+};
 export const AlertWithDetails: Story = {
   args: { tone: 'alert', detail: 'Section "section-notes" is locked by another change.' },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Show feedback' }));
-    const details = canvasElement.querySelector<HTMLDetailsElement>('[data-toast] details')!;
-    await waitFor(() => expect(details).toBeVisible());
-    await expect(details.open).toBe(false);
-    await userEvent.click(canvas.getByText('Details'));
-    await expect(details).toHaveTextContent('locked by another change');
-    await openAndEscape(canvasElement);
+  play: ({ canvasElement }) => viewDetails(canvasElement, 'locked by another change'),
+};
+export const RefusalWithViewDetails: Story = {
+  args: {
+    tone: 'alert', withUndo: false,
+    reason: '“Reactivated “Legacy attic”” can’t be undone: something it changed has changed since.',
+    lines: ['Legacy shelving [project-legacy-child]: Restore or move the new dependent, then try Undo again.'],
   },
+  play: ({ canvasElement }) => viewDetails(canvasElement, 'Restore or move the new dependent'),
 };

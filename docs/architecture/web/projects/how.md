@@ -250,7 +250,9 @@ drag stay gated by `orderComplete()`. Each `sectionError()` write names its plac
 for shortcuts, and the section removal's own sentence — with the reason under Details; the
 removal guard ("Retry or dismiss the unresolved removal…") is a sentence alone. "Loading canvas…" is a `.state-message--loading` line with
 `aria-busy`; nothing else says the order is incomplete. A failed removal's `FailedSectionRemoval`
-carries a `Failure`, and the canvas toast binds its reason as `detail`, the toast's Details.
+carries a `Failure`, and the canvas toast binds its reason as `detail`, opened from the toast's View details (slice 79).
+A history refusal over conflicts says "Couldn’t undo." / "Couldn’t redo."; `transitionRefusalFeedback`
+puts the full sentence in `reason` and each conflict's repair in `lines`, both in that view.
 
 Section bodies say their own read failures the same way, in place of their empty sentence, with
 Try again kept busy while the same section re-reads, and cleared by the next successful read,

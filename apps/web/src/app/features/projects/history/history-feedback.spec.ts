@@ -57,6 +57,9 @@ describe('history feedback (Slice 41)', () => {
       expect(said['history_not_next']!.message).toBe(`Someone changed this project since. Try ${verb} again.`);
       expect(said['history_expired']!.message).toBe(`“Renamed “A” to “B”” is too old to ${direction}.`);
       expect(said['history_blocked']!.message).toBe(`${verb} is blocked while Legacy attic is archived. Reactivate it, then try again.`);
+      // Slice 79 Q9: the toast says it short; the reason and the repairs open from View details.
+      expect(said['history_conflict']!.message).toBe(`Couldn’t ${direction}.`);
+      expect(said['history_conflict']!.reason).toBe(`“Renamed “A” to “B”” can’t be ${direction === 'undo' ? 'undone' : 'redone'}: something it changed has changed since.`);
       expect(said['history_conflict']!.lines).toEqual([`Notes [section-1]: Someone else changed it since. Make the change again by hand.`]);
       expect(said['history_unavailable']!.message).toMatch(new RegExp(`try ${verb} again`));
       expect(said['history_retired']!.message).toBe(`“Renamed “A” to “B”” can no longer be ${direction === 'undo' ? 'undone' : 'redone'}, so it was skipped.`);

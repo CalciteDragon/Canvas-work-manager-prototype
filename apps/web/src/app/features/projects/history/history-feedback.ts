@@ -31,7 +31,7 @@ const curly = (text: string): string => text.replace(/"([^"]*)"/g, '“$1”');
 export const sectionRemovedFeedback = (name: string, already = false): HistoryFeedback => ({
   tone: 'status', message: already ? `The ${name} section was already removed.` : `Removed the ${name} section.`,
 });
-/** A failed removal keeps its explicit retry in the acting toast; its reason is the toast's Details (Slice 78). */
+/** A failed removal keeps its explicit retry in the acting toast; its reason opens from the toast's View details (Slices 78, 79). */
 export const sectionRemoveFailedFeedback = (failure: Failure): HistoryFeedback => ({
   tone: 'alert', message: failure.sentence, ...(failure.reason === null ? {} : { detail: failure.reason }),
 });
@@ -151,7 +151,9 @@ export const transitionRefusalFeedback = (
     case 'history_conflict':
       return {
         tone: 'alert',
-        message: `Could not ${direction} “${curly(label)}”: something it changed has changed since.`,
+        // A toast says it short (Slice 79 Q9); the reason and each repair open from View details.
+        message: `Couldn’t ${direction}.`,
+        reason: `“${curly(label)}” can’t be ${PAST[direction]}: something it changed has changed since.`,
         lines: conflictLines(refusal.conflicts, direction),
       };
     case 'history_unavailable':

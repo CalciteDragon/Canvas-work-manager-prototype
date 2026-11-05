@@ -38,3 +38,14 @@ export const redoFromHeader = (page: Page, label: string | RegExp) => stepFromHe
 
 /** The active toast message after a header transition. */
 export const historyFeedback = (page: Page): Locator => page.locator('[data-toast]:popover-open .toast__message');
+
+/**
+ * Opens the active toast's View details and returns its modal view (Slice 79 Q9): a toast says one
+ * short message, and the reason and each repair line are in this view.
+ */
+export const toastDetails = async (page: Page): Promise<Locator> => {
+  await page.locator('[data-toast]:popover-open [data-toast-details-open]').click();
+  const view = page.locator('dialog[data-toast-details][open]');
+  await view.waitFor();
+  return view;
+};

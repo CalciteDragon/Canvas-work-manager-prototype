@@ -29,7 +29,8 @@ servers and fixtures made through the host API: first run on `empty` at 1440 and
 archiving that project to reach the archived-only sidebar; Legacy attic, Legacy shelving and
 Home renovation archived with nothing live (canvas, Todos, Reflections, Kitchen) read only, each by the rig's
 `WRITE_CONTROLS` list, the banner sentence and Edit details still in More; a banner restore with
-focus on the heading, Undo refused as `history_conflict` naming Legacy shelving, an ancestor's
+focus on the heading, Undo refused as `history_conflict`: a toast saying only "Couldn’t undo." whose View details opens
+the reason naming Legacy shelving, focus on Close, Escape and Close returning it (Slice 79 Q9), an ancestor's
 restore toast, an archived-twice page whose next owner's choice takes focus (keyboard only), the
 header's Undo bringing the banner back and an injected 500 shown inside the banner; Kitchen's
 blocked confirmation and its Cabinets link, an injected late `rule_violation`, one restore control

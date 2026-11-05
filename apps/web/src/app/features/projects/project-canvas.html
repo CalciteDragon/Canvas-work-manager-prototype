@@ -235,7 +235,7 @@
 }
 
 <app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'"
-  [message]="toast.state()?.message ?? ''" [lines]="toast.state()?.lines ?? []" [detail]="toast.state()?.detail ?? null"
+  [message]="toast.state()?.message ?? ''" [reason]="toast.state()?.reason ?? null" [lines]="toast.state()?.lines ?? []" [detail]="toast.state()?.detail ?? null"
   [suppressed]="toast.slot.suppressed()" [pendingUndo]="toast.pendingUndo()"
   (dismissed)="dismissToast()">
   @if (toast.offer() !== 'unavailable') {

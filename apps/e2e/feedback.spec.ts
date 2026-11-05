@@ -123,7 +123,8 @@ test('a long task title keeps Undo and Dismiss inside the phone toast when focus
 test.describe('A failed write toast at 375 touch', () => {
   test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
 
-  // Slice 78, Open question 5: the 44 px actions and the Details row fit under the touch cap.
+  // Slice 78, Open question 5: the 44 px actions fit under the touch cap; since Slice 79 Q9 the
+  // reason opens from View details, in a view that fits the phone and gives focus back.
   test('shows its whole message, Try again included, without scrolling it', async ({ page }) => {
     await page.route(url => /^\/api\/sections\/[^/]+$/.test(url.pathname), route => route.request().method() === 'DELETE'
       ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message: 'Section removal failed' }) })
@@ -135,10 +136,24 @@ test.describe('A failed write toast at 375 touch', () => {
     const fit = await message.evaluate(e => ({ scroll: e.scrollHeight, client: e.clientHeight }));
     expect(fit.scroll).toBeLessThanOrEqual(fit.client);
     const box = (await toast(page).boundingBox())!;
-    for (const control of [toast(page).getByRole('button', { name: 'Dismiss', exact: true }), toast(page).locator('summary')]) {
+    const viewDetails = toast(page).getByRole('button', { name: 'View details', exact: true });
+    for (const control of [toast(page).getByRole('button', { name: 'Dismiss', exact: true }), viewDetails]) {
       const b = (await control.boundingBox())!;
       expect(b.y + b.height).toBeLessThanOrEqual(box.y + box.height);
     }
+    await expect(toast(page).locator('details')).toHaveCount(0);
+    await viewDetails.tap();
+    const view = page.locator('dialog[data-toast-details][open]');
+    await expect(view).toContainText('Section removal failed');
+    const close = view.getByRole('button', { name: 'Close', exact: true });
+    await expect(close).toBeFocused();
+    const v = (await view.boundingBox())!;
+    expect(v.x).toBeGreaterThanOrEqual(0);
+    expect(v.x + v.width).toBeLessThanOrEqual(375);
+    expect((await close.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await close.tap();
+    await expect(view).toHaveCount(0);
+    await expect(viewDetails).toBeFocused();
   });
 });
 

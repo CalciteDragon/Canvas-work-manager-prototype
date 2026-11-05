@@ -73,7 +73,8 @@ Smaller features that do not earn a folder of their own:
 - `shared/components/icon` — `Icon`, the one monochrome SVG set for app-owned marks (chrome glyphs,
   page kinds, section types, widgets, activity actors), listed in `ICON_NAMES`. User-chosen
   project emoji are content and never pass through it.
-- `shared/feedback` — `Toast` and `ToastSlot`; slice 78's `Failure` (`failure.ts`, the one
+- `shared/feedback` — `Toast` (one short message; a longer reason opens from its View details,
+  slice 79) and `ToastSlot`; slice 78's `Failure` (`failure.ts`, the one
   translation from an error to a product sentence, its raw reason kept apart) and `FailureMessage`,
   which renders it with an optional Try again and the reason under a collapsed Details.
 - `shared/projects` — slice 79's `RestoreStatusChoice`, the one "Restore as [status] · Restore"

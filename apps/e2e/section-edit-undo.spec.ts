@@ -8,7 +8,7 @@ import type {
   SectionWriteResult,
 } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
-import { historyControl, historyFeedback, redoFromHeader, undoFromHeader } from './history-controls';
+import { historyControl, historyFeedback, redoFromHeader, toastDetails, undoFromHeader } from './history-controls';
 import { PROTOTYPE_HOST, addSection, api, connectMcp, createRoot, seed, setClock, setLayout } from './seed';
 
 const NOW = '2026-09-15T12:00:00.000Z';
@@ -404,10 +404,12 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   await expect(frame.getByRole('button', { name: 'Rename Agent heading', exact: true })).toBeVisible();
 
   await undoFromHeader(page, label);
-  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toHaveCount(1);
+  const details = await toastDetails(page);
+  await expect(details.locator('li')).toHaveCount(1);
   // The agent's edit is in the agent connection's own history, never this person's, so the repair
   // is to make the change by hand — never a receipt this person cannot use (note-2026-09-15-005).
-  await expect(page.locator('[data-toast]:popover-open .toast__lines li')).toContainText('Someone else changed it since. Make the change again by hand.');
+  await expect(details.locator('li')).toContainText('Someone else changed it since. Make the change again by hand.');
+  await details.getByRole('button', { name: 'Close' }).click();
   // A changed field can be changed back, so the refusal is repairable and Undo stays enabled.
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', label);
   await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-disabled', 'true');

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { undoFromHeader } from './history-controls';
+import { toastDetails, undoFromHeader } from './history-controls';
 import { api, seed, setClock } from './seed';
 
 /**
@@ -140,10 +140,26 @@ test.describe('archived pages', () => {
     const { response, body } = await undoFromHeader(page, 'Reactivated "Legacy attic"');
     expect(response.ok()).toBe(false);
     expect((body as unknown as { details: { reason: string } }).details.reason).toBe('history_conflict');
+    // The toast says it short; the reason and the repair open from View details (Slice 79 Q9).
     const refusal = page.locator('[data-toast]:popover-open');
-    await expect(refusal).toContainText('Could not undo');
-    await expect(refusal).toContainText('something it changed has changed since');
-    await expect(refusal).toContainText('Legacy shelving');
+    await expect(refusal.locator('.toast__message')).toHaveText('Couldn’t undo.');
+    await expect(refusal).not.toContainText('Legacy shelving');
+    await expect(refusal.getByRole('button')).toHaveText(['View details', 'Dismiss']);
+    await expect(page.locator('[role=alert]').filter({ hasText: 'Couldn’t undo.' })).toContainText('Legacy shelving');
+    const opener = refusal.getByRole('button', { name: 'View details' });
+    const details = await toastDetails(page);
+    await expect(details.getByRole('heading', { name: 'Couldn’t undo.' })).toBeVisible();
+    await expect(details).toContainText('“Reactivated “Legacy attic”” can’t be undone: something it changed has changed since.');
+    await expect(details.locator('li')).toContainText('Legacy shelving');
+    await expect(details.getByRole('button', { name: 'Close' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(details).toBeHidden();
+    await expect(refusal).toBeVisible();
+    await expect(opener).toBeFocused();
+    await opener.press('Enter');
+    await details.getByRole('button', { name: 'Close' }).click();
+    await expect(details).toBeHidden();
+    await expect(opener).toBeFocused();
     await expect(banner(page)).toHaveCount(0);
   });
 

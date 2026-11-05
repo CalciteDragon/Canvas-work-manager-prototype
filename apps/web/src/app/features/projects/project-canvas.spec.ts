@@ -842,11 +842,12 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(query(fixture, '[data-open-archive]')).toBeNull();
     expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
     expect(queryAll(fixture, '[data-toast]')).toHaveLength(1);
-    // Slice 78: the sentence alone, the reason under a closed Details.
-    expect(query(fixture, '[data-toast] .toast__message')?.textContent).not.toContain('response was lost');
+    // Slice 78: the sentence alone; Slice 79 Q9: the reason opens from View details, not inside the toast.
+    expect(query(fixture, '[data-toast]')?.textContent).not.toContain('response was lost');
     expect(query(fixture, '[data-toast] .toast__message')?.textContent).toMatch(/^Couldn’t remove the .+ section\. Try again\.$/);
-    expect((query(fixture, '[data-toast] details') as HTMLDetailsElement | null)?.open).toBe(false);
-    expect(query(fixture, '[data-toast] details')?.textContent).toContain('Task removal response was lost');
+    expect(query(fixture, '[data-toast] details')).toBeNull();
+    expect(query(fixture, '[data-toast] [data-toast-details-open]')?.textContent?.trim()).toBe('View details');
+    expect(query(fixture, 'app-toast [data-toast-details]')?.textContent).toContain('Task removal response was lost');
     query(fixture, '[data-toast-dismiss]')!.focus();
     query(fixture, '[data-toast-dismiss]')!.click();
     await fixture.whenStable();
