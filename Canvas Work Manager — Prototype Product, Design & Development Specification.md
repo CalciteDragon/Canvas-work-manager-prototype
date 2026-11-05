@@ -903,7 +903,7 @@ marks are quiet but visible on pointer and touch, and interaction raises their e
 
 *Corrected at slice 72 (2026-10-15).* Control primitives are global classes in `_controls.scss` over native elements, applied in templates: buttons in four ranks (primary, secondary, ghost, danger) and two heights, where ghost is unfilled but keeps a faint edge at rest (amended at slice 72.1), icon buttons, tools, one field and select treatment, checkbox and radio, pill, link, a visible control label and a separated danger zone. Every interactive primitive is at least 24 px with a pointer and 44 px on touch, and heights follow the density knob while targets never do. Components position a primitive and never paint one. App-owned marks are one monochrome SVG set; user-chosen project emoji stay content ([decision](docs/decisions/2026-10-control-primitives-are-global-classes.md), [decision](docs/decisions/2026-10-app-icons-are-one-svg-set.md)).
 
-*Slice 78.* Failure, loading and stale states share one form, `.state-message`, in two weights: a *region* replaces a section body, page or widget, and an *inline* message keeps a row's, field's or card's place. A failure is a sentence in product words with its recovery control (Try again, Retry refresh, Go to Home or Reload page); the host's raw reason sits only under a collapsed native Details beside it. A loading line is muted, with `aria-busy` on its region. A write failure whose sentence is scrolled out of the workspace is pinned to the scroll port's edge with an arrow toward it, and only pressing it scrolls ([decision](docs/decisions/2026-10-failures-speak-product-words.md), [decision](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
+*Slice 78.* Failure, loading and stale states share one form, `.state-message`, in two weights: a *region* replaces a section body, page or widget, and an *inline* message keeps a row's, field's or card's place. A failure is a sentence in product words with its recovery control (Try again, Retry refresh, Go to Home or Reload page); the host's raw reason sits only under a collapsed native Details beside it (in a toast, behind View details since Slice 79). A loading line is muted, with `aria-busy` on its region. A write failure whose sentence is scrolled out of the workspace is pinned to the scroll port's edge with an arrow toward it, and only pressing it scrolls ([decision](docs/decisions/2026-10-failures-speak-product-words.md), [decision](docs/decisions/2026-10-feedback-stays-on-the-object.md)).
 
 *Slice 79.* `.state-message` gains two variants that are not failures and are not coloured: *empty*, a muted sentence with at most one action beside it, and *archived*, a quiet band on the sunken surface with a hairline border, sized for a banner. A shared restore choice, “Restore as [status] · Restore”, offers the restore statuses in one casing with Active preselected and shown; the Design Lab shows it inside the archived band ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
 
@@ -1052,7 +1052,7 @@ and subprojects whose ancestors are live across the actor's workspace, even if a
 Archive page is disabled. Restore requires a deliberate non-archived status and uses the existing
 project write; Open project goes to the canonical project route.
 
-*Slice 79.* "Deliberate" means visible and changeable, not unchosen: Settings and Archive restore a project through one shared choice, "Restore as [status] · Restore", with the restore statuses in one casing (Planning, Active, On hold, Completed) and **Active** preselected and shown before the press, so Restore is enabled at once. After a restore, focus moves to the restore choice of the row that took its place ([decision](docs/decisions/2026-09-actionable-archive-and-archived-projects.md)).
+*Slice 79.* "Deliberate" means visible and changeable, not unchosen: Settings and Archive restore a project through one shared choice, "Restore as [status] · Restore", with the restore statuses in one casing (Planning, Active, On hold, Completed) and **Active** preselected and shown before the press, so Restore is enabled at once. After a restore from Settings, focus moves to the toast's Open it; dismissing the toast moves it to the restore choice of the row that took the restored row's place, else the heading ([decision](docs/decisions/2026-09-actionable-archive-and-archived-projects.md)).
 
 *Landed in Slice 27.* The column fills the available workspace height below the top bar and
 keeps its own long navigation list scrollable while the canvas scrolls independently. The
@@ -1264,6 +1264,13 @@ dismissal falls back to a surviving action or heading. Receipt Undo morphs the s
 Dismiss, and may hand focus to a restored section heading with a bounded wait. Restore toasts name
 the actual title, breadcrumb and page and offer Go to it when that origin page is enabled.
 Settings project recovery instead names the resulting status and offers Open it without Undo.
+
+*Slice 79 (Open question 9, user decision).* A toast says one short message. A longer reason, a
+refusal's repair lines or a failure's raw reason open from **View details** in a modal view titled by
+the message: focus goes to its Close and back to View details, Escape closes only the view, and the
+toast stays open while the view is. An undo refused by a conflict says "Couldn’t undo." (or
+"Couldn’t redo.") with the full sentence in the view. The live region still announces the message,
+reason and lines ([decision](docs/decisions/2026-11-toasts-say-it-short-with-view-details.md)).
 
 *Slice 75 placement.* A section or shortcut created from the canvas dialog is scrolled to its top
 and its heading (`tabindex="-1"`) takes focus, for every type, instead of focus returning to the

@@ -59,7 +59,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 *Seeds: `empty`, then `nested-projects`.*
 
 4. **Create a root workspace.** Switch to the `empty` seed. The sidebar reads **No projects
-   yet**. Click the **+** beside *Projects*, type `Prototype review`, and press **Create**. The
+   yet**, and Home opens with a sentence on what projects are for and a **New project** button
+   above the widgets. Press it (or the **+** beside *Projects*), type `Prototype review`, and press **Create**. The
    new root opens with exactly one page: required **Home**. The other page kinds are not merely
    empty tabs — they have not been enabled yet.
 5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. Its project
@@ -83,8 +84,10 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    archived permit task and notes section, then the archived **Legacy attic**. Its live
    **Legacy shelving** descendant is omitted until the owner returns. Restore the ready rows,
    then restore Legacy attic with an explicit status; the child returns, while independently
-   archived rows remain archived. For an archived root, open **Settings → Archived projects**,
-   choose a non-archived status and Restore. This works with the optional Archive tab disabled.
+   archived rows remain archived. Each Restore sits beside **Restore as**, with Active preselected.
+   An archived project's own pages are read-only, with a banner whose Restore brings it back in
+   place. For an archived root, open **Settings → Archived projects** and Restore, or use the
+   root's banner. This works with the optional Archive tab disabled.
 
 ---
 
@@ -211,7 +214,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 30. **Projects.** The **Active Projects** widget lists projects with their progress. Clicking one
     opens it.
 31. **AI digest.** The **Daily Digest** widget shows the generated lines and says which provider
-    produced them. Switch **AI provider** in the development panel to **real** and reload: the
+    produced them. Under the overdue line it links up to five overdue tasks to their sections,
+    then "and N more overdue". Switch **AI provider** in the development panel to **real** and reload: the
     real provider is a stub that fails, so the digest's place says "Couldn’t write today’s
     digest." with Try again while the other widgets stay, and the host's console logs why.
     Switch back to **mock** and press Try again.
