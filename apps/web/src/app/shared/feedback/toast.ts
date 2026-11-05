@@ -51,9 +51,12 @@ export class Toast {
         this.focused.set(false);
       }
     });
-    // A toast that closes, is suppressed or loses its reason takes its view with it.
+    // A toast that closes, is suppressed or loses its reason takes its view with it; one that stays
+    // gives the view's focus to its Dismiss, since View details goes too.
     effect(() => {
-      if (this.detailsOpen() && (!this.open() || this.suppressed() || !this.hasDetails())) this.closeDetails(false);
+      if (!this.detailsOpen() || (this.open() && !this.suppressed() && this.hasDetails())) return;
+      this.closeDetails(false);
+      if (this.open() && !this.suppressed()) this.popover()?.nativeElement.querySelector<HTMLElement>('[data-toast-dismiss]')?.focus();
     });
     inject(DestroyRef).onDestroy(() => this.details()?.nativeElement.close?.());
     effect((onCleanup) => {

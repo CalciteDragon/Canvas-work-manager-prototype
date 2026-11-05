@@ -46,7 +46,8 @@ export class ReceiptToast {
   }
 
   close(reason: ToastCloseReason = 'dismissed'): void {
-    const focused = this.element()?.contains(document.activeElement) === true;
+    // The toast's details view is the popover's sibling (Slice 79 Q9), so focus there counts too.
+    const focused = this.host?.nativeElement.querySelector(':scope > app-toast')?.contains(document.activeElement) === true;
     this.version++;
     this.release?.(); this.release = null;
     this.state.set(null);

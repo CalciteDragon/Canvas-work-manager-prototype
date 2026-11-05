@@ -160,6 +160,45 @@ describe('Toast', () => {
     expect(element.querySelector('dialog[data-toast-details]')?.hasAttribute('open') ?? false).toBe(false);
   });
 
+  it('closes its open view when suppressed or destroyed', () => {
+    const { fixture, element, popover } = setup();
+    withDetails(fixture);
+    viewDetails(popover)!.click();
+    fixture.detectChanges();
+    const dialog = element.querySelector<HTMLDialogElement>('dialog[data-toast-details]')!;
+    fixture.componentRef.setInput('suppressed', true);
+    fixture.detectChanges();
+    expect(dialog.hasAttribute('open')).toBe(false);
+    fixture.componentRef.setInput('suppressed', false);
+    fixture.detectChanges();
+    viewDetails(popover)!.click();
+    fixture.detectChanges();
+    expect(dialog.hasAttribute('open')).toBe(true);
+    fixture.destroy();
+    expect(dialog.hasAttribute('open')).toBe(false);
+  });
+
+  it('gives focus to Dismiss when the reason goes while its view is open', () => {
+    const { fixture, element, popover } = setup();
+    document.body.append(element);
+    withDetails(fixture);
+    viewDetails(popover)!.click();
+    fixture.detectChanges();
+    for (const name of ['reason', 'detail'] as const) fixture.componentRef.setInput(name, null);
+    fixture.componentRef.setInput('lines', []);
+    fixture.detectChanges();
+    expect(element.querySelector('dialog')).toBeNull();
+    expect(document.activeElement).toBe(popover.querySelector('[data-toast-dismiss]'));
+  });
+
+  it('labels each toast’s view by its own heading', () => {
+    const [first, second] = [setup(), setup()];
+    for (const { fixture } of [first, second]) withDetails(fixture);
+    const ids = [first, second].map(({ element }) => element.querySelector('dialog')!.getAttribute('aria-labelledby'));
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(first.element.querySelector(`#${ids[0]}`)?.tagName).toBe('H2');
+  });
+
   it('dismisses Escape inside and stops it reaching document handlers', () => {
     const { popover, dismissed } = setup();
     const outside = vi.fn();

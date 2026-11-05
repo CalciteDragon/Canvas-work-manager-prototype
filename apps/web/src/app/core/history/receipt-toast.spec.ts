@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { ElementRef, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
 import { RECEIPT_UNDO, type ReceiptUndo } from './receipt-undo';
@@ -66,5 +66,22 @@ describe('ReceiptToast (Slice 74)', () => {
     slot.claim(close);
     toast.close();
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('restores focus when it closes while focus is in the toast’s open details view (Slice 79 Q9)', () => {
+    const host = document.createElement('div');
+    host.innerHTML = '<app-toast><section data-toast><button>View details</button></section><dialog open><button data-close>Close</button></dialog></app-toast><button data-fallback>Fallback</button>';
+    document.body.append(host);
+    const undo = { offer: () => 'unavailable' as const, undo: vi.fn(async () => null), writeSequence: signal(0), generation: signal(0) } satisfies ReceiptUndo;
+    TestBed.configureTestingModule({ providers: [{ provide: RECEIPT_UNDO, useValue: undo }, { provide: ElementRef, useValue: new ElementRef(host) }] });
+    const toast = TestBed.runInInjectionContext(() => new ReceiptToast());
+    const fallback = host.querySelector<HTMLElement>('[data-fallback]')!;
+    toast.show({ tone: 'alert', message: 'Couldn’t undo.', reason: 'Something changed since.' }, undefined, () => fallback);
+    host.querySelector<HTMLElement>('[data-close]')!.focus();
+    undo.generation.set(1);
+    TestBed.tick();
+    expect(toast.state()).toBeNull();
+    expect(document.activeElement).toBe(fallback);
+    host.remove();
   });
 });
