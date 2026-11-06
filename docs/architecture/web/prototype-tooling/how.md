@@ -42,7 +42,7 @@
    shows rest and focus specimens, and the header count beside a short and a truncating name
    (Slice 79; the stub content reports its config's `summary` under a `summary: true` definition).
    Its wrapper follows the canvas's quiet defaults on pointer
-   and touch. `CURRENT_SLICE` is 79 for captured friction notes.
+   and touch. `CURRENT_SLICE` is 80 for captured friction notes.
 
 ## Key symbols
 
