@@ -1,7 +1,7 @@
 <!-- plan id="80" status="active" summary="An explicit, confirmed “Archive X and its N workstreams”, with a matching restore that brings back only what was archived with it" -->
 # Slice 80 — Cascading project archive
 
-**State (2026-11-05):** plan written (session S80PLAN); review round 1 applied, round 2 next. No
+**State (2026-11-05):** plan written (session S80PLAN); review rounds 1–2 applied, round 3 next. No
 implementation has started. **Next** is cold review (AGENTS.md step 2), then the user's acceptance
 and answers to the Open questions, then step 0.
 
@@ -70,6 +70,9 @@ names it.
 - A foreign or nonexistent id gets the same text (`is not a live workstream under it`), so the
   refusal does not confirm a project in another workspace exists.
 - `assertNoActiveChildren` becomes `assertNamedWorkstreams`. Grant: `projects.write` alone, as today.
+  `archiveWorkstreamIds: []` parses, and equals naming nothing.
+- `liveSubtree`, the walk behind R1, carries a visited set, as every existing tree walk does, because a
+  hand-edited document can contain a cycle.
 
 ### R3 — The marker
 
@@ -149,20 +152,31 @@ once it returns.
   `Archived "Kitchen" and 1 workstream` / `Reactivated "Kitchen" and 3 workstreams`. The Undo or Redo
   Activity line follows the same form.
 
+**Capture and the result.** `ProjectService.commit` gains a group parameter of `{ before, after }` pairs,
+computed before anything is written and written after its no-op check, in one unit with the owner.
+`captureProjectWrite(before, after, workstreams?)` records them: for an archive, each workstream's
+pre-write status and `completedAt`; for a reactivation, the same values read from its marker before it
+is cleared. `writeProject` returns `{ project, cascaded }`, so the executor's result can carry them.
+
 **The two directions.** Each is an all-or-nothing preflight in `writeProject`, after its existing
-checks, and refuses with the existing typed conflicts. None is permanent; each describes a state
-someone can put back.
+checks, and refuses with the existing typed conflicts. None is marked permanent, as no project conflict
+is today, so a step that stays refused waits out the action's expiry. The words each conflict produces
+are the repair it can honestly offer: `field-changed` says "Someone else changed it since. Make the
+change again by hand."; `archive-state-changed` says "Restore its previous state…", so it is kept for a
+state a person can actually restore.
 
 | Direction | Which | Refuses when (conflict) |
 |---|---|---|
-| **Bring back** | Undo of archive, Redo of reactivate | A recorded workstream is not archived or not marked with this owner (`archive-state-changed`); or its marker's status or `completedAt` differ from the record, or **any project is marked with this owner and is not recorded** (`field-changed`): someone re-archived a different group, and the repair is the banner's Restore by hand, which "Make the change again by hand" says. Leaving a marked project under a live owner would break R3 |
-| **Take down** | Redo of archive, Undo of reactivate | A recorded workstream's status or `completedAt` no longer match the record, or it carries a marker (`archive-state-changed`); or it is no longer in the subject's subtree (`reparented`); or **any live project in R1's walk is not recorded** (`new-dependent`) |
+| **Bring back** | Undo of archive, Redo of reactivate | A recorded workstream is live (`archive-state-changed`); or it is archived but not marked with this owner, or its marker's status or `completedAt` differ from the record, or **any project is marked with this owner and is not recorded** (`field-changed`). In each of those, someone re-archived a different group, restoring the workstream itself is refused by R5 or its parent, and the repair is the owner's Restore by hand. Leaving a marked project under a live owner would break R3 |
+| **Take down** | Redo of archive, Undo of reactivate | A recorded workstream's status differs, or it carries a marker (`archive-state-changed`); or only its `completedAt` differs (`field-changed`, as `driftProblem` already says, and no input can set a completion time); or it is no longer in the subject's subtree (`reparented`); or **any live project in R1's walk is not recorded** (`new-dependent`) |
 
 **A recorded workstream that no longer exists is skipped in both directions**, never a conflict. It
 can happen: create Cabinets, archive Kitchen with it, restore, then undo Cabinets's creation, whose
 preflight looks only at Cabinets's own history (`project-history.ts:171`). Refusing would strand every
 step below this one for up to a day, for a project with nothing left to do. If its creation is redone
-while the owner is archived, that Redo is already blocked by the archived parent.
+while the owner is archived, that Redo is already blocked by the archived parent. The stored label
+stays as recorded, so in this rare case a header can still say "and 1 workstream"; the Activity line's
+count comes from `result.cascaded`, which is what actually moved.
 
 So a history step never sweeps in a workstream added since, as `section.remove`'s Redo already refuses
 a task added since. A plain archive's Redo with a new live child keeps today's refusal exactly (the
@@ -263,7 +277,7 @@ null the sentence is `Restore “Owner” first.` instead. The comment at `proje
   (`archiveReport`, `restoreReport`), set from `cascaded?.length ?? 0`, which the shell, `archive-page.ts`
   and `archived-projects-page.ts` read when they build the toast. So an `operation: null` retry invents no
   count. `core/`'s `OperationWriteReport` does not change. An own-page banner restore shows no toast, as
-  today (`project-workspace-shell.ts:578`), so its count appears only in the sentence that goes away; an
+  today (`project-workspace-shell.ts:579`), so its count appears only in the sentence that goes away; an
   ancestor's restore shows `crossOwnerFeedback`, whose text is the domain's label.
 - More's status buttons are absent on a marked project (R5).
 - `liveChildrenOf`'s file is renamed; `WORKSPACE_TREE` stays.
@@ -279,7 +293,7 @@ null the sentence is `Restore “Owner” first.` instead. The comment at `proje
 | Confirmation rows | `Cabinets · Active`, `Garden · Completed`, indented by depth |
 | Confirm button, N | `Archive all` / `Archiving…` (no workstreams: `Archive it`, unchanged) |
 | Archive toast | `Archived Kitchen and 1 workstream.` (no workstreams: `Archived Garden.`, unchanged) |
-| Late refusal | `The workstreams under “X” changed. Open Archive again to confirm the current list.` |
+| Late refusal | `The workstreams under “X” changed. Choose Archive again to confirm the current list.` |
 | Banner, owner with a group | `“Kitchen” is archived. Restoring it brings back 1 workstream.` (no group, or count unknown: unchanged) |
 | Banner, marked project | `“Cabinets” was archived with “Kitchen”. Restoring “Kitchen” brings it back.` |
 | Archive and Settings row | `Comes back with 1 workstream` / `Comes back with 3 workstreams` |
@@ -319,7 +333,7 @@ The initial bundle is **1,149.69 kB of 1,150 kB**, 0.31 kB of headroom. **The ce
   **1,149.69 → 1,138.63 kB initial (−11.06 kB)**, with a 11.96 kB lazy chunk. That leaves roughly 9–10 kB
   under the ceiling after this slice.
 - This overturns the wording of the user's Slice 79 Q8 (a), "every other feature route stays eager", so
-  it is **Open question 1**. It lands first (step 0), so every later step measures against it. Any step
+  it is **Open question 1**. It lands in step 1, straight after the baseline, so every later step measures against it. Any step
   that adds web code runs `pnpm --filter web build` and records the figure in the State header. Crossing
   the ceiling stops the step.
 
@@ -369,8 +383,9 @@ here.**
    passes, on the journeys below. (Also run the full `pnpm e2e` once, and say in the Outcome if any part
    was not re-run after a later fix.)
 4. **`apps/e2e/cascading-archive.spec.ts`, on `nested-projects`.** All journeys at 1440 with a mouse;
-   journeys 1, 3, 6, 8 and 10 again at 375 by touch, and journeys 1, 3 and 8 by keyboard alone, following
-   the width loop in `lifts.spec.ts`:
+   journeys 1, 3–6, 8 and 10 again at 375 by touch, and journeys 1, 3 and 8 by keyboard alone, following
+   the width loop in `lifts.spec.ts`. **State:** journeys 3–6 are one chained test, because each starts where
+   the last ended; every other journey, and each repeat, reseeds `nested-projects` first:
    1. Kitchen → More → Archive: the dialog says "Archive “Kitchen” and its 1 workstream?" and lists
       Cabinets · Active. Cancel writes nothing.
    2. Home renovation → Archive: "its 3 workstreams", lists Kitchen, Cabinets (indented) and Garden ·
@@ -383,7 +398,8 @@ here.**
       original `completedAt`; Legacy attic still archived.
    5. Redo from the header: same state as (3), same ids in the markers.
    6. Restore from the banner as On hold: Home renovation On hold; the three at their recorded statuses,
-      with no markers; Legacy attic still archived and now listed; Home's Undo re-archives the group.
+      with no markers; Legacy attic still archived and now listed; Home's Undo re-archives the group. This ends
+      the chain.
    7. **From each other entry point:** archive Kitchen with Cabinets, then restore it from root Archive
       (row says "Comes back with 1 workstream"), archive again and restore from Settings › Archived
       projects (lazy route, same line). Cabinets returns each time.
@@ -449,8 +465,8 @@ row); `settings-archived-row` (Settings row); `archive-toast-group`; `restore-to
 
 **Tests that change with intent:**
 - `project-archive-confirm.spec.ts` (the blocked cases become list cases) and its `Blocked` story
-- `project-workspace-store.spec.ts:1347-1363` (`liveChildrenOf`'s cases move to `live-descendants.spec.ts`) and
-  `:1366-1379` (the late-refusal sentence)
+- `project-workspace-store.spec.ts:1347-1363` and `:1385-1397` (`liveChildrenOf`'s cases move to
+  `live-descendants.spec.ts`) and `:1366-1379` (the late-refusal sentence)
 - `archived-banner.spec.ts` (its host gains a gateway provider)
 - `project-workspace-shell.spec.ts:1202-1228`
 - `apps/e2e/lifts.spec.ts:158` (`blocked archive returns to More…`, which must keep its focus and page-toggle
@@ -468,7 +484,7 @@ not in `pnpm test` or `pnpm e2e`, and stays as the frozen record's tool with a o
 
 ## File-level change list
 
-### Step 0 — bundle (subject to Open question 1)
+### Step 1 — bundle (subject to Open question 1)
 
 | File | Change | Responsibility |
 |---|---|---|
@@ -486,6 +502,9 @@ not in `pnpm test` or `pnpm e2e`, and stays as the frozen record's tool with a o
 | `packages/contracts/src/project-history.ts` | modify | Optional `workstreams` on archive and reactivate; optional `cascaded` on their results (R6) |
 | `packages/contracts/src/project-write-result.ts` | modify | Optional `cascaded` |
 | `packages/contracts/src/project-archive.ts`, `archived-projects.ts` | modify | `cascadeCount` (R8); the restore-status schema leaves |
+| `packages/contracts/src/project.test.ts`, `project-archive.test.ts` (its import of `ProjectRestoreStatusSchema`, `:8`), `project-history` and `archived-projects` tests | modify | R3, R6, R8 |
+| `packages/contracts/src/project-write-result.test.ts` | create | `cascaded` |
+| `packages/repositories/src/data-store.test.ts` | modify | R9 |
 | `packages/contracts/src/tool-permissions.ts` | modify | The "touch only its own fields" comment |
 | `packages/repositories/src/data-store.ts` | modify | Marker integrity (R9) |
 
@@ -498,6 +517,7 @@ not in `pnpm test` or `pnpm e2e`, and stays as the frozen record's tool with a o
 | `packages/domain/src/project-history.ts` | modify | Capture and both directions (R6), label, doc comment |
 | `packages/domain/src/operation-history-service.ts` | modify | Activity summary with the count |
 | `packages/domain/src/project-archive-service.ts`, `archived-projects-service.ts` | modify | `cascadeCount` |
+| `packages/domain/src/project-service.test.ts`, `project-history.test.ts`, `operation-history-service.test.ts`, `project-todos-service.test.ts`, `project-journal-service.test.ts`, `project-archive-service.test.ts`, `archived-projects-service.test.ts` | modify | Test plan |
 | `packages/domain/src/dashboard-service.ts`, `section-service.ts`, `task-service.ts` (`:724`), `workspace-service.ts` (`:157`) | modify | Stale "does not cascade" comments only |
 
 ### MCP
@@ -506,6 +526,7 @@ not in `pnpm test` or `pnpm e2e`, and stays as the frozen record's tool with a o
 |---|---|---|
 | `packages/mcp-tools/src/tools/projects.ts`, `tools/undo.ts`, `tools/project-pages.ts` | modify | R11 input and descriptions |
 | `apps/prototype-host/scripts/mcp-acceptance.mjs` | modify | The one cascade journey |
+| `packages/mcp-tools/src/contract.test.ts`, `apps/prototype-host/mcp/handler.test.ts` | modify | Test plan |
 
 ### Web
 
@@ -514,7 +535,8 @@ not in `pnpm test` or `pnpm e2e`, and stays as the frozen record's tool with a o
 | `apps/web/src/app/features/projects/live-children.ts` → `live-descendants.ts`, with `live-descendants.spec.ts` | rename, modify, create | The walk, as tree nodes |
 | `apps/web/src/app/features/projects/project-archive-confirm.{ts,html,scss,spec.ts,stories.ts}` | modify | One form, the list, ids at the press |
 | `apps/web/src/app/features/projects/project-header.{ts,html}`, `project-workspace-shell.{ts,html}` | modify | The confirm callback takes ids; toast with the count |
-| `apps/web/src/app/features/projects/project-workspace-store.ts` | modify | `archive(ids)`, the late-refusal sentence, `restoreOwner` patches `cascaded` |
+| `apps/web/src/app/features/projects/project-workspace-store.ts`, its spec | modify | `archive(ids = [])`, so no-argument callers stay valid; the late-refusal sentence; `restoreOwner` patches `cascaded` |
+| `apps/web/src/app/features/projects/project-workspace-shell.spec.ts`, `project-header.spec.ts` | modify | Named cases and the callback's new argument |
 | `apps/web/src/app/features/projects/project-more-menu.{ts,html}`, `project-more-menu.spec.ts` | modify, create | Status buttons absent on a marked project |
 | `apps/web/src/app/features/projects/archived-banner.{ts,html,spec.ts,stories.ts}` | modify | Reads the count; the two sentences |
 | `apps/web/src/app/features/projects/archived-region/archived-region.{html,ts}`, `pages/archive-page.ts`, `pages/archive-page-store.ts` | modify | Row line; toast count |
@@ -565,7 +587,8 @@ the same commit as the code. Bundle figure after any step that adds web code.
 - **Step 2 — Contracts and integrity.** R3, R6's and R8's schemas, R2's input, R9, with tests. Nothing emits the new
   fields yet. New decision entry opened. Bundle.
 - **Step 3 — Forward archive.** `liveSubtree`, `assertNamedWorkstreams`, marking, label, Activity, `cascaded`, in
-  `ProjectService`. Amend the nesting decision and spec §31.
+  `ProjectService`. Amend the nesting decision and spec §31. Until step 5, a group's restore or reversal is
+  incomplete, so no test or web path names ids outside `project-service.test.ts`; the web names none until step 8.
 - **Step 4 — Forward restore and R5.** Revive by marker; the marked-project refusals. Amend the reactivating decision.
 - **Step 5 — History.** Capture and R6's two directions, with its conflict tests. Amend the history decision,
   `domain/how.md`.
@@ -600,6 +623,7 @@ the same commit as the code. Bundle figure after any step that adds web code.
 | `…: a foreign-workspace id and a nonexistent id named refuse with identical text` | The not-found rule |
 | `…: an already archived project with a list and a rename ignores the list and renames` | R2's edge |
 | `…: an actor without projects.write is forbidden, and with it alone cascades with no read grant` | Permission path |
+| `…: a cycle in a hand-built project list terminates liveSubtree; archiveWorkstreamIds: [] equals naming nothing` | R2's edges |
 | **Restore** `…: restore revives exactly the marked, each to its recorded status and completedAt, clearing markers; a separately archived one stays` | R4 |
 | `…: restore under an archived ancestor refuses and keeps every marker` | R4's failure path |
 | `…: a marked project refuses a status change, a reparent, and both in one call, naming the owner; rename succeeds; sending its current parent or status again is no refusal` | R5 |
@@ -612,17 +636,18 @@ the same commit as the code. Bundle figure after any step that adds web code.
 | `…: a rename of a workstream survives Undo and Redo` | R6, unrelated edits |
 | `…: bring back refuses, moving nothing, on one no longer marked, a marker with a different status or completedAt, and an unrecorded project marked with the owner, the last two with change-by-hand` | R6, bring back |
 | `…: take down refuses, moving nothing, on a status drift, one moved out, and a new live workstream` | R6, take down |
-| `…: a recorded workstream removed by project.add Undo is skipped in both directions; a Redo of its creation stays blocked under the archived owner` | R6, no wedge |
+| `…: a recorded workstream removed by project.add Undo is skipped in both directions, and the Activity count is what moved; a Redo of its creation stays blocked under the archived owner` | R6, no wedge |
+| `…: take down with only completedAt changed refuses with change-by-hand; bring back with a workstream archived alone since refuses with change-by-hand` | R6's wording |
 | `…: a plain archive or reactivate action recorded before a group existed, with a group now marked` | R6 against older actions |
 | `…: moving the owner while archived, then Undo and Redo of its archive` | R3 with R6 |
 | `…: a marked project's rename is blocked for Undo, then runs after the group returns, with archivedThroughout true` | R5 with R6 |
 | `…: nested owners: Kitchen owns Cabinets, then Home archives with Garden; restoring Home leaves Kitchen listed, and Kitchen's Undo is blocked by Home first and runs afterwards` | R1, R4, R6 |
 | `…: a workstream's own older step is blocked while the owner is archived, and runs after its return` | R6, verbatim restore |
-| `operation-history-service.test.ts: another actor's restore refuses my Undo and retires nothing; a repeat cycle by a second actor refuses the first's Undo; per-actor cursors stay separate` | Actor isolation |
+| `operation-history-service.test.ts: another actor's restore refuses my Undo and retires nothing; after a second actor's identical restore and re-archive, the first's Undo succeeds, state-based, as a plain archive's does, and with a workstream's status changed in between it refuses with change-by-hand; per-actor cursors stay separate` | Actor isolation |
 | `…: a tasks.write-only actor is forbidden on Undo and Redo of a group, before any detail is disclosed` | Permission path |
 | `…: Undo and Redo publish one record frame and one Activity line naming the count` | R7 |
 | **Read models** `project-todos-service.test.ts`, `project-journal-service.test.ts: hiddenItemCount includes rows under the group and excludes rows under a separately archived workstream, and equals the rows after restore` | R8 |
-| `project-archive-service.test.ts`, `archived-projects-service.test.ts: cascadeCount counts the marked; a marked project is never listed while its owner is archived; it is 0 when none` | R8 |
+| `project-archive-service.test.ts`, `archived-projects-service.test.ts: cascadeCount counts the marked; a marked project is never listed while its owner is archived; it is absent when none` | R8 |
 | **MCP** `contract.test.ts`: `archive_project` with and without ids; `restore_project`'s `cascaded`; `registry.test.ts` unchanged at 38 | R11 |
 | `handler.test.ts`: a text-only client's refusal names the workstreams and their ids | R2's repair in words |
 | **Web** `live-descendants.spec.ts: depth-first with depth; empty when the tree cannot say; a root's and a workstream's` | R10 |
@@ -719,7 +744,7 @@ otherwise, and the implementation does not start before these are answered.
 **5. Do you accept this wording, and should the confirmation mention what is already archived?**
 - *Context.* R10's copy table is a proposal. Separately, the confirmation lists only what will come down, so Legacy
   attic is not mentioned on Home renovation. Saying so needs one more read, in the deferred chunk.
-- *Options.* (a) Accept the table; say nothing about separately archived work, since nothing happens to it, and Archive
+- *Options.* (a) Accept the table (note its late refusal says "Choose Archive", because More's "Open archive" goes to a different place); say nothing about separately archived work, since nothing happens to it, and Archive
   and Settings already say "Its separately archived contents remain in Archive." (b) Add one line: "Legacy attic is
   already archived and stays archived." (c) Change any row in the table.
 - *Recommendation.* (a), for the confirmation's job being what will change. The sheet at Gate 2 is a second chance.
@@ -772,6 +797,15 @@ otherwise, and the implementation does not start before these are answered.
   - *Evidence and docs:* the rig moves to step 0, because the "before" capture needs it. Profile 80 declares its own exemption.
     The old step 10 is split into sheet and review, and steps renumbered. The sheet's count is stated. Missing docs added.
   - *Not changed:* the reviewer's option of a separate next-step code for bring back, since `field-changed` already words it.
+- **Round 2 (2026-11-05, one cold reviewer over the whole plan; no blockers, 4 substantive, 6 minor; each checked against the
+  code):**
+  - *History:* a named test wanted a refusal R6 does not produce (an identical second cycle), so it now asserts the state-based
+    success. Two conflicts offered a repair that does not exist (only `completedAt` differs; a workstream archived alone since),
+    so both are `field-changed`, and "None is permanent" now says what that costs. Capture, `commit`'s group and `writeProject`'s
+    result are specified. A skipped workstream's stale label is accepted, with the Activity count taken from what moved.
+  - *Acceptance:* journeys 3–6 are one chained test and the rest reseed, because journey 7 could not start from where 6 ended.
+  - *Smaller:* step references after round 1's renumbering; `cascadeCount` "0" → absent; tests and fixtures that the move and
+    `archive(ids)` touch; `liveSubtree`'s cycle guard; `[]` defined; "Open Archive" in the late refusal collided with More's item.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
