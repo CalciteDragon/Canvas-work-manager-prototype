@@ -1,9 +1,10 @@
 <!-- plan id="80" status="active" summary="An explicit, confirmed “Archive X and its N workstreams”, with a matching restore that brings back only what was archived with it" -->
 # Slice 80 — Cascading project archive
 
-**State (2026-11-05):** plan written (session S80PLAN); review rounds 1–4 applied, round 5 next. No
-implementation has started. **Next** is cold review (AGENTS.md step 2), then the user's acceptance
-and answers to the Open questions, then step 0.
+**State (2026-11-06):** plan written and reviewed in 5 rounds (session S80PLAN); round 5 returned no
+substantive findings. **Awaiting the user's acceptance and answers to Open questions 1–7.** No
+implementation has started. Initial bundle 1,149.69 kB, ceiling unchanged at 1,150 kB. **Next** is step 0,
+once the plan is accepted.
 
 ## Goal
 
@@ -640,7 +641,7 @@ the same commit as the code. Bundle figure after any step that adds web code.
 | `task-service.test.ts: a content write on a marked project names the owner to restore; an unmarked archived project keeps today's message` | R5's freeze message |
 | `…: a marked project refuses a status change, a reparent, and both in one call, naming the owner; rename succeeds; sending its current parent or status again is no refusal` | R5 |
 | `…: a forward restore with a group writes one Activity line naming the count, with action project.updated` | R7 |
-| `…: archive and a move in one call, with its Undo and Redo` | R2 with R6 |
+| `…: archive and a move in one call` (step 3), and `project-history.test.ts: its Undo and Redo` (step 5, which brings R6's directions) | R2 with R6 |
 | `…: an unmarked archived project can still reactivate and move in one call` | R5 is narrow |
 | `…: moving the owner carries its group and the invariant holds` | R3 |
 | **History** `project-history.test.ts: Undo of a cascaded archive restores the group exactly; Redo re-marks it` | R6 |
@@ -849,6 +850,9 @@ otherwise, and the implementation does not start before these are answered.
     an own-page restore having no toast, which had been stated as a fact.
   - *Smaller:* Q1 (c) said third raise, when it would be the fourth. Capture's halves moved into steps 3 and 4, since the label reads
     the captured operation. `[]` and a partial list defined in R2. The freeze message added to the file list and step 4.
+- **Round 5 (2026-11-06, one cold reviewer, closing round; no substantive findings, 1 minor, checked against the code):** the
+  Undo and Redo half of "archive and a move in one call" could not pass in step 3, because R6's directions arrive in step 5, so
+  that half moves to step 5. Step 2's review closes here.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

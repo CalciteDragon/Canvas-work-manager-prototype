@@ -387,17 +387,18 @@ it the patterns layer (TH07–TH10).
 - **Not current:** the full `pnpm e2e` and the Storybook build were not re-run after Q9, the review
   fixes and the sidebar wording; the slice's Outcome says exactly what ran.
 
-**Next: a cascading project archive (user decision, 2026-11-05).** An explicit, confirmed "Archive X
-and its N workstreams", with a matching restore that brings back only what was archived with it. It
-starts when the user gives the go-ahead. It has no plan or roadmap id yet.
+**Active: [Slice 80, cascading project archive](80-cascading-project-archive.md) (user decision,
+2026-11-05).** An explicit, confirmed "Archive X and its N workstreams", with a matching restore that
+brings back only what was archived with it. Its plan was reviewed in five rounds and is **awaiting the
+user's acceptance and answers to its seven Open questions** (2026-11-06). No implementation has started.
 - **It reverses a standing rule.** Slice 25.0 and §31 say archiving never cascades, and Slice 79's
   blocked confirmation is built on that. It needs its own plan and decision records. No decision or
   spec text has changed yet.
 - **Decisions it revisits:** [project nesting and archive rules](../../decisions/2026-08-project-nesting-and-archive-rules.md),
   [reactivating under an archived ancestor](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
   and [archived pages are read-only](../../decisions/2026-11-archived-pages-are-read-only.md).
-- **It will hit the bundle ceiling.** With 0.31 kB of headroom, its plan must say what pays for any
-  web code, or put the ceiling to the user.
+- **It will hit the bundle ceiling.** With 0.31 kB of headroom, its plan proposes a lazy
+  `/settings/archived-projects` route (measured −11.06 kB) and puts that to the user as Open question 1.
 
 The §8 comb has not run. It was due next after 6b; the user's decision puts the cascading archive
 ahead of it, and the comb's order after that is the user's to confirm.
