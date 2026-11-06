@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign: evidence and direction through Gate 1 (done), then the redesign slices in layer order until the protocol's stop rule | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 79 | Slice 79 — States: empty, archived and editing | Redesign slice 6b-2 (TH10): first-run dashboard, archived pages read-only with restore in place, archive refusal said before, Markdown drafts kept, digest overdue line, Task List count | [79-empty-archived-and-editing.md](active/79-empty-archived-and-editing.md) |
 
 ### Planned
 
@@ -118,4 +117,5 @@ verification follow-ups rather than feature slices.
 | 76 | Slice 76 — Section chrome | 2026-10-21 | Redesign slice 5: quiet visible tools, plain section headings, fewer Tab stops, full insertion targets, persistent Add and immediate collapse; Gate 2 accepted | [76-section-chrome.md](completed/76-section-chrome.md) |
 | 77 | Slice 77 — Objects: one row shape, openable rows | 2026-10-25 | Redesign slice 6a (TH09): one task-row anatomy across surfaces; rows outside their owner open its section, Timeline and shortcut rows link or stay static, grouped picker with Preview; Gate 2 accepted | [77-objects-one-row-shape.md](completed/77-objects-one-row-shape.md) |
 | 78 | Slice 78 — States: failures and loading | 2026-11-01 | Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back, off-screen failures pin, focus returns to the recovered heading; Gate 2 accepted | [78-failures-and-loading.md](completed/78-failures-and-loading.md) |
+| 79 | Slice 79 — States: empty, archived and editing | 2026-11-05 | Redesign slice 6b-2 (TH10): first-run block on an empty workspace, archived pages read-only with restore in place and hidden counts, archive refusal said first, the digest's overdue tasks, Markdown drafts kept, Task List count, short toasts with View details; Gate 2 accepted | [79-empty-archived-and-editing.md](completed/79-empty-archived-and-editing.md) |
 <!-- roadmap:end -->

@@ -374,27 +374,64 @@ redesign slice 6b-1 (TH10), closes ten findings (9 S2, 1 S3).
 - **Deferred:** Slice 79 takes the header archive refusal's sentence. The §8 comb takes the
   history Retry left by a write that failed while the workspace was unreachable.
 
-**Slice 79 active — plan accepted, implementing (2026-11-04).** [States: empty, archived and
-editing](79-empty-archived-and-editing.md), redesign slice 6b-2 (TH10). The user said to start it on
-2026-11-02. The plan closes twelve items (11 S2, 1 S3) on seventeen visual pairs and a profile-79
-gate, and was reviewed in six rounds. The user accepted it on 2026-11-04 and answered Open
-questions 1–7:
-- Q1–Q6 as recommended: the digest lists up to five overdue tasks; Restore preselects Active
-  everywhere; first run sits above the widgets; collapse toggles locally on read-only pages;
-  archived Task Lists show static rows; the banner and first-run block go behind `@defer`, and
-  the ceiling is not raised.
-- Q7 differently: an archived root's Todos and Reflections pages say "Restore to view N hidden
-  todos." (or reflections) when work is hidden, and keep the ordinary empty sentence when none is.
-  The plan adds step 6a, an optional `hiddenItemCount` on the two read results. So contracts, the
-  domain and two MCP tool descriptions change additively, for archived roots only.
+**Slice 79 completed — Gate 2 accepted (2026-11-05).** [States: empty, archived and editing](../completed/79-empty-archived-and-editing.md),
+redesign slice 6b-2 (TH10), closes twelve findings (11 S2, 1 S3). Redesign slice 6b is done, and with
+it the patterns layer (TH07–TH10).
+- **Gate 2:** the user accepted the sheet (194 pairs, 34 visual pairs, zero gate failures), with the
+  archived-only sidebar's link reworded to "View archives".
+- **Real use** found nothing broken in the slice's scope and changed no code. It raised four wording
+  or consistency points.
+- **The user's answers (2026-11-05):** Open question 10, option (b): those four go to the §8 comb and
+  the slice closes as built. Open question 11: the Todos intro sentence goes to the comb too.
+- **Bundle:** the initial bundle is 1,149.69 kB, only 0.31 kB under the 1,150 kB ceiling.
+- **Not current:** the full `pnpm e2e` and the Storybook build were not re-run after Q9, the review
+  fixes and the sidebar wording; the slice's Outcome says exactly what ran.
 
-No implementation yet. Next is step 0 (inventory and the "before" capture from `44e7e9e`). The §8
-comb follows 6b.
+**Next: a cascading project archive (user decision, 2026-11-05).** An explicit, confirmed "Archive X
+and its N workstreams", with a matching restore that brings back only what was archived with it. It
+starts when the user gives the go-ahead. It has no plan or roadmap id yet.
+- **It reverses a standing rule.** Slice 25.0 and §31 say archiving never cascades, and Slice 79's
+  blocked confirmation is built on that. It needs its own plan and decision records. No decision or
+  spec text has changed yet.
+- **Decisions it revisits:** [project nesting and archive rules](../../decisions/2026-08-project-nesting-and-archive-rules.md),
+  [reactivating under an archived ancestor](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
+  and [archived pages are read-only](../../decisions/2026-11-archived-pages-are-read-only.md).
+- **It will hit the bundle ceiling.** With 0.31 kB of headroom, its plan must say what pays for any
+  web code, or put the ceiling to the user.
+
+The §8 comb has not run. It was due next after 6b; the user's decision puts the cascading archive
+ahead of it, and the comb's order after that is the user's to confirm.
+
+### §8 comb list
+
+Follow-up items waiting for the protocol §8 comb. The first five are the user's decisions of
+2026-11-05 (Slice 79, Open questions 10 and 11). The notes are in `.prototype/notes.json`.
+
+1. An archived root's project navigation says "No workstreams yet" over its archived workstreams
+   (`note-2026-11-05-002`).
+2. The undo refusal's line for Legacy shelving, "Restore or move the new dependent, then try Undo
+   again.", is wrong for a dependent that was always there and is live (`note-2026-11-05-003`).
+3. Preview still says "Unsaved preview" after Discard draft, over the saved text
+   (`note-2026-11-05-004`).
+4. Restore toasts differ: Archive gives "Go to it" with Undo, and Settings gives "Open it" with no Undo
+   (`note-2026-11-05-005`).
+5. The Todos intro sentence, "Open a row to work on it where it lives.", sits over "Restore to view N
+   hidden todos." on archived Home renovation.
+
+Carried from the slices' records:
+
+6. Slice 78: whether the history should re-read itself after a write failed while the workspace was
+   unreachable. Today the header keeps a bare Retry.
+7. Slice 79: the refusal view's nested quotes and `[id]`s (direction §8 says no record ids).
+8. Slice 79: long toast messages that are not yet a headline plus a reason (`history_blocked`,
+   `history_expired`, `history_retired`, `history_unavailable`, `restoredItemFeedback`, and statuses
+   naming a long title), listed under its Step 13 Q9.
+9. Slice 79: the dashboard rows' empty control gutter.
 
 ### Redesign slice 6b (States) — planning brief
 
 Historical brief: 6b was created as [slice 78](../completed/78-failures-and-loading.md), completed as 6b-1;
-slice 79 is 6b-2. The plan carries the protocol §6 extras: findings closed, capture scope, visual acceptance, and
+[slice 79](../completed/79-empty-archived-and-editing.md), completed, is 6b-2. The plan carries the protocol §6 extras: findings closed, capture scope, visual acceptance, and
 behaviour versus appearance.
 
 - **Scope: TH10**, "Empty, loading, error and archived states are accidental" (patterns layer), in

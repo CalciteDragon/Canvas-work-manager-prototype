@@ -133,9 +133,21 @@ redesign slice 6b-1 (TH10). A failed read now shows one failure message, in prod
 Try again, and never claims the content is empty. When the read recovers, focus moves to the
 section's heading. The digest can fail without taking the rest of Home with it, and not-found and
 no-access pages lead back to Home. The accepted sheet has 194 pairs and zero gate failures.
-Redesign slice 6b-2, [Slice 79](active/79-empty-archived-and-editing.md) (empty, archived and
-editing states), is active. The user accepted its plan on 2026-11-04 and answered its seven Open
-questions. Implementation starts at step 0 of its sequence.
+
+**Slice 79 completed — Gate 2 accepted (2026-11-05).** [States: empty, archived and editing](completed/79-empty-archived-and-editing.md),
+redesign slice 6b-2 (TH10). An empty workspace's Home offers the first project. Archived pages are
+read-only, with Restore in place, and an archived root counts what it hides. An archive that would be
+refused says so before the commit. The digest lists overdue tasks, Markdown drafts survive Cancel and
+navigation, and a long reason in a toast opens from View details. The accepted sheet has 194 pairs and
+zero gate failures. The initial bundle is 1,149.69 kB, 0.31 kB under the ceiling. Redesign slice 6b is
+done. Five wording points the user left for later are on the umbrella's
+[§8 comb list](active/70-ui-ux-overhaul.md#8-comb-list).
+
+**Next — a cascading project archive (user decision, 2026-11-05).** An explicit, confirmed "Archive X
+and its N workstreams", with a matching restore that brings back only what was archived with it. This
+reverses the no-cascade rule of Slice 25.0 and §31, so it needs its own plan and decision records, and
+it starts when the user gives the go-ahead. The §8 comb has not run. See the umbrella's
+[handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:

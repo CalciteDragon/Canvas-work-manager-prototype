@@ -638,7 +638,7 @@ Redesign slice 6b-1 under the [UI/UX overhaul umbrella](../active/70-ui-ux-overh
 ("States", theme **TH10** "Empty, loading, error and archived states are accidental" in
 [themes.json](../70-ui-ux/themes.json)) is **split** by the user's choice on 2026-10-29, as slices
 4 and 6 were. This slice, **6b-1**, takes the failure and loading half. **6b-2** is
-[Slice 79](../active/79-empty-archived-and-editing.md): first-run and empty states, archived
+[Slice 79](79-empty-archived-and-editing.md): first-run and empty states, archived
 pages, the archive refusal, restore, the digest's overdue line, the Markdown editor's Cancel and
 Preview, and L4-023's count. The protocol §8 comb runs after 79 closes, not after this slice.
 
@@ -714,7 +714,7 @@ At close:
 - WebKit is unverified.
 
 Deferred:
-- To [Slice 79](../active/79-empty-archived-and-editing.md): first-run and empty content,
+- To [Slice 79](79-empty-archived-and-editing.md): first-run and empty content,
   archived pages and refusals (including the header archive refusal's sentence), the Markdown
   editor's Cancel and Preview, and the Task List count.
 - To slice 8: Revoke's failure text.
@@ -1109,7 +1109,7 @@ digest leaves the rest of Home standing, and a missing project or page leads bac
 
 - Touch first-run or empty-workspace content, the sidebar's archived-only wording, archived pages,
   the archive refusal, restore controls, the digest's text, the Markdown editor's Cancel or Preview,
-  or a Task List count. All of those belong to [Slice 79](../active/79-empty-archived-and-editing.md).
+  or a Task List count. All of those belong to [Slice 79](79-empty-archived-and-editing.md).
 - Reword domain or host messages. Agents read them over MCP, and they stay as they are. The UI stops
   *printing* them as the sentence.
 - Add a structured rule code to `DomainRuleError`. 67 of its 68 call sites carry no details, and the

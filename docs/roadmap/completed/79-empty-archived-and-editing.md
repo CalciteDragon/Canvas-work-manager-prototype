@@ -1,7 +1,9 @@
-<!-- plan id="79" status="active" summary="Redesign slice 6b-2 (TH10): first-run dashboard, archived pages read-only with restore in place, archive refusal said before, Markdown drafts kept, digest overdue line, Task List count" -->
+<!-- completed-record id="79" closed="2026-11-05" summary="Redesign slice 6b-2 (TH10): first-run block on an empty workspace, archived pages read-only with restore in place and hidden counts, archive refusal said first, the digest's overdue tasks, Markdown drafts kept, Task List count, short toasts with View details; Gate 2 accepted" -->
 # Slice 79 — States: empty, archived and editing
 
-**State (2026-11-05):** plan written (S79PLAN), reviewed in six rounds and **accepted by the user
+**State (2026-11-05):** **complete; see the Outcome.** The user answered Open question 10 and
+the Todos intro sentence on 2026-11-05 (Open questions 10 and 11) and gave the go-ahead to close
+(S79CLOSE). The history of the slice follows: plan written (S79PLAN), reviewed in six rounds and **accepted by the user
 on 2026-11-04** with answers to Open questions 1–7 (S79ACCEPT; Q7 as hidden counts, step 6a).
 `CURRENT_SLICE` is 79. **Step 0 is done (S79S0). Step 1 is done (S79S1, finished in a cloud
 continuation)**: profile 79 in `build-sheet.mjs`, driven by 23 fixture tests in
@@ -31,8 +33,8 @@ every flow in item 7 passed on nested-projects, empty and overdue-chaos at 1440 
 keyboard only and 375 touch, with no Slice 79 defect found and no code changed; eight notes are in
 `.prototype/notes.json`, and four wording points went to **Open question 10** (recommendation (b):
 leave them to the §8 comb). See "Verification and real use (2026-11-05)" at the end of Revisions.
-**Initial bundle 1,149.69 kB** (re-measured at `d0bd706`). **Next:** the user answers Q10, then
-the Outcome and `roadmap.mjs complete`. No session has written either; they wait for the user.
+**Initial bundle 1,149.69 kB** (re-measured at `d0bd706`). **Next** is in the umbrella's
+Next-chat handoff.
 - **Gate 2 follow-up (S79S13W, 2026-11-05).** The user's decision at Gate 2 (2026-11-04): the
   archived-only sidebar's link "Archived projects are in Settings." becomes **"View archives"**
   (same `/settings/archived-projects`, link style and 24/44 px target; "No active projects." kept).
@@ -561,10 +563,101 @@ the Outcome and `roadmap.mjs complete`. No session has written either; they wait
 - **Bundle:** 1,149.996 kB initial after step 7 (4 bytes left); 1,149.74 kB after step 6; 1,148.95 kB after step 5; 1,146.90 kB initial after step 4b; 1,144.74 kB after step 4a; 1,142.88 kB after step 3 (1,141.59 after step 2, 1,140.75 before; ceiling
   1,150 kB, not raised). Steps 4 and 8 put the banner and first-run block behind `@defer` (Q6 (a)).
 
-Redesign slice 6b-2 under the [UI/UX overhaul umbrella](70-ui-ux-overhaul.md). It follows
+Redesign slice 6b-2 under the [UI/UX overhaul umbrella](../active/70-ui-ux-overhaul.md). It follows
 [Slice 78](../completed/78-failures-and-loading.md) (6b-1, failures and loading). The user split 6b
 on 2026-10-29 and answered the shape questions under Build the same day. The protocol §8 comb
 runs after this slice closes; it is the umbrella's next step, not part of this slice.
+
+## Outcome
+
+The user accepted Gate 2 on 2026-11-05, and Slice 79 closes as built. Twelve findings close
+(11 S2, 1 S3; Findings closed). These are the states the product used to reach by accident:
+- **First run.** An empty workspace's Home says what the product is for, above the widgets, in
+  [FirstRunBlock](../../../apps/web/src/app/features/dashboard/first-run-block.ts). Its New project
+  opens the sidebar's one creation form. With only archived projects, the sidebar says "No active
+  projects." and "View archives".
+- **Archived pages are read-only.** [ArchivedBanner](../../../apps/web/src/app/features/projects/archived-banner.ts)
+  sits on every page of an archived project or workstream, or one under an archived ancestor, with
+  Restore in place. No add, edit, drag or delete control remains there.
+- **Hidden work is counted.** An archived root's Todos and Reflections say "Restore to view N hidden
+  todos." or "reflections" through an additive `hiddenItemCount`, so contracts, the domain and two
+  MCP tool descriptions change for archived roots only.
+- **One restore control.** [RestoreStatusChoice](../../../apps/web/src/app/shared/projects/restore-status-choice.ts)
+  serves Archive, Settings and the banner, and preselects Active.
+- **Archive refusal first.** [The confirmation](../../../apps/web/src/app/features/projects/project-archive-confirm.ts)
+  names live workstreams as links, with their statuses, and offers only Close. A late refusal says
+  what to do, not "Try again". There is still no cascade; what changed is when the person hears it.
+- **The digest's overdue line** lists up to five overdue tasks, each leading to its section.
+- **Markdown keeps the draft.** Drafts in [MarkdownDraftStore](../../../apps/web/src/app/features/projects/sections/markdown/markdown-draft-store.ts)
+  survive Cancel and navigation until reload, reseed or a persona switch, and come back with Discard
+  draft. Preview says "Unsaved preview".
+- **Task List.** The frame header says "N tasks", and the drag hint overlays quick-add, so no row
+  jumps.
+
+The decisions record the main choices:
+- [Archived pages are read-only](../../decisions/2026-11-archived-pages-are-read-only.md), with
+  amendments to [the nesting and archive rules](../../decisions/2026-08-project-nesting-and-archive-rules.md).
+- [The empty workspace offers the first project](../../decisions/2026-11-empty-workspace-offers-the-first-project.md).
+- [The digest's overdue line leads to the tasks](../../decisions/2026-11-digest-overdue-line-leads-to-the-tasks.md).
+- [The Task List shows its count](../../decisions/2026-11-task-list-shows-its-count.md).
+- [Toasts say it short, with View details](../../decisions/2026-11-toasts-say-it-short-with-view-details.md).
+- The ceiling held at 1,150 kB (Q6, Q8): the banner and first-run block sit behind `@defer`, and
+  Calendar and Settings › Agents became lazy to pay for step 8.
+
+Deviations, all recorded under Revisions and the State header:
+- Step 6a was added for Q7's hidden counts, which is the user's wording, not an offered option.
+- Step 8 crossed the ceiling, which produced Q8.
+- The sheet's refused Undo failed axe, which produced Q9. The user's rule replaced all the offered
+  options, so the shared toast changed well beyond the plan's file list, and Slice 78's in-toast
+  Details moved behind View details.
+- The first after sheet had 1,168 failures from six causes, including product defects: a squeezed
+  digest row, small link targets and tree hosts that were not their `li`s.
+- Five review passes found seven findings that held, fixed in `2972022` and `a564638`.
+- At Gate 2 the user reworded the archived-only sidebar's link to "View archives" (`7d498ed`).
+
+Real use (S79USE) ran nested-projects, empty and overdue-chaos at 1440 mouse, 1440 keyboard and 375
+touch. Every item 7 flow passed, and no code changed. The record is at the end of Revisions, with
+eight friction notes.
+
+The accepted evidence is `apps/e2e/ux-output/slice79-sheet/` (git-ignored): 194 pairs, 34 visual
+pairs, zero gate failures, with T01–T12 each at its slice-78 limit and no dead ends. It compares
+`44e7e9e` with a full run at `a564638`, plus the `archived-only-*` contexts re-captured at `7d498ed`.
+
+At close:
+- `pnpm test` (web 1,550) and `pnpm lint` are green.
+- The initial bundle is 1,149.69 kB, **0.31 kB under the 1,150 kB ceiling**. The next slice with any
+  web code will hit it.
+- **The full `pnpm e2e` is not current, so this Done when item is not fully met at HEAD.** The last
+  full run was at `f1eb835`: all 27 specs passed except `feedback.spec.ts:196`, which failed in 2 of
+  4 grouped runs and passed alone, so it was treated as flaky and not touched. The nine nearest
+  specs passed after Q9 (121, at `84608c6`). No full run followed Q9, the review fixes or the
+  sidebar wording. `removal-undo.spec.ts:654` also failed once at step 12 and passed on re-run.
+- The last recorded Storybook build is step 12's, before Q9's toast stories and the sidebar story
+  changed. WebKit is unverified.
+- `project-creation-history.spec.ts:14` hard-codes `127.0.0.1:4310`, so it passed on the isolated
+  rig only with an uncommitted copy using the rig's port.
+
+Deferred:
+- To the [§8 comb](../active/70-ui-ux-overhaul.md#8-comb-list): the four real-use points (Q10), the
+  Todos intro sentence (Q11), the refusal view's nested quotes and `[id]`s, the long toast messages
+  listed under Step 13 Q9, and the dashboard rows' empty control gutter.
+- To slice 9: status casing outside the restore choice.
+- To a seed change, if wanted: the seed's archived workstreams are empty canvases, so there is
+  nothing on them to try to edit (`note-2026-11-05-006`).
+- Outside Slice 79: there is no keyboard way to move a task between lists.
+
+Open: the user decided on 2026-11-05 that the next slice is a cascading project archive, which
+reverses this slice's "no cascade" premise. It needs its own plan and decision records; see the
+[umbrella's handoff](../active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan). No
+screen-reader pass is recorded for the banner or the hidden-count sentences.
+
+Documentation updated:
+- The spec (§21, §23, §26, §29, §31, §34).
+- The web folders (core, dashboard, projects, tasks, prototype-tooling), and the contracts, domain,
+  mcp-tools and testing folders.
+- The first-milestone walkthrough and the MCP setup guide.
+- Five new decisions, amendments to the existing entries they touch, and the index.
+- Eight friction notes.
 
 ## Goal
 
@@ -1572,7 +1665,7 @@ Each step is sized for one fresh session and ends green with its docs in the sam
 
 Each changed the shape of the work, so implementation waited for the user's answers. **All seven
 were answered by the user on 2026-11-04** (user decision). Question 8, raised during step 8, was answered by the user the same
-day: option (a). Each entry keeps its options as
+day: option (a). Questions 9, 10 and 11 were answered by the user too. Each entry keeps its options as
 written, with the answer added under it. The Defaults taken were accepted as written.
 
 1. **Where does the digest's overdue line lead?** (W4-028)
@@ -1827,6 +1920,16 @@ written, with the answer added under it. The Defaults taken were accepted as wri
     - *Impact.* (a) or (c) adds a short step before closing: test first, a bundle re-measure (the
       initial bundle is 1,149.69 kB, 0.31 kB under the ceiling) and spot re-captures of the
       affected cells. (b) adds nothing.
+    - **Resolved (user decision, 2026-11-05): (b).** All four are left for the §8 comb, and Slice 79
+      closes as built. They are on the
+      [umbrella's §8 comb list](../active/70-ui-ux-overhaul.md#8-comb-list).
+
+11. **The Todos intro sentence on an archived root.** (raised at Gate 2 by S79S13B; not decided at
+    S79S13W or S79USE)
+    - *Context.* On archived Home renovation, the page's own intro, "Open a row to work on it where
+      it lives.", sits over "Restore to view N hidden todos.", where there are no rows to open.
+    - **Resolved (user decision, 2026-11-05):** leave it for the §8 comb. It is on the
+      [umbrella's §8 comb list](../active/70-ui-ux-overhaul.md#8-comb-list).
 
 **Defaults taken** (small and non-shape-changing; say if any is wrong):
 
@@ -2154,6 +2257,12 @@ written, with the answer added under it. The Defaults taken were accepted as wri
   empty-workspace decision.
 - **2026-11-05, real use (S79USE).** Gate 2 is recorded as passed (user, at `d0bd706`). Open
   question 10 is added from real use. No other plan content changed.
+- **2026-11-05, the user's wrap-up answers (S79CLOSE).** User decisions: Open question 10 is (b),
+  leaving all four real-use points for the §8 comb and closing as built; the Todos intro sentence
+  (Open question 11) is left for the §8 comb too. All five are on the umbrella's §8 comb list. The
+  user also decided that the next slice is a cascading project archive, which is recorded in the
+  umbrella's handoff, not here. No plan content changed beyond the answers, the Outcome and the
+  State header, and no code changed.
 
 **Verification and real use (2026-11-05).**
 
