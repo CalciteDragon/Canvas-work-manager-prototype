@@ -1,7 +1,7 @@
 <!-- plan id="80" status="active" summary="An explicit, confirmed “Archive X and its N workstreams”, with a matching restore that brings back only what was archived with it" -->
 # Slice 80 — Cascading project archive
 
-**State (2026-11-05):** plan written (session S80PLAN); review rounds 1–3 applied, round 4 next. No
+**State (2026-11-05):** plan written (session S80PLAN); review rounds 1–4 applied, round 5 next. No
 implementation has started. **Next** is cold review (AGENTS.md step 2), then the user's acceptance
 and answers to the Open questions, then step 0.
 
@@ -70,7 +70,9 @@ names it.
 - A foreign or nonexistent id gets the same text (`is not a live workstream under it`), so the
   refusal does not confirm a project in another workspace exists.
 - `assertNoActiveChildren` becomes `assertNamedWorkstreams`. Grant: `projects.write` alone, as today.
-  `archiveWorkstreamIds: []` parses, and equals naming nothing.
+  `archiveWorkstreamIds: []` parses and counts as absent **everywhere**, so `{ name: 'x',
+  archiveWorkstreamIds: [] }` is an ordinary rename. A partial list gets the same prefixed refusal, naming
+  every live workstream with its id, so one retry can succeed.
 - `liveSubtree`, the walk behind R1, carries a visited set, as every existing tree walk does, because a
   hand-edited document can contain a cycle.
 
@@ -299,10 +301,10 @@ null the sentence is `Restore “Owner” first.` instead. The comment at `proje
 | Confirm button, N | `Archive all` / `Archiving…` (no workstreams: `Archive it`, unchanged) |
 | Archive toast | `Archived Kitchen and 1 workstream.` (no workstreams: `Archived Garden.`, unchanged) |
 | Late refusal | `The workstreams under “X” changed. Choose Archive again to confirm the current list.` |
-| Banner, owner with a group | `“Kitchen” is archived. Restoring it brings back 1 workstream.` (no group, or count unknown: unchanged) |
+| Banner, owner with a group | `“Kitchen” is archived. Restoring it brings back 1 workstream as it was.` / `…3 workstreams as they were.` (no group, or count unknown: unchanged) |
 | Banner, marked project | `“Cabinets” was archived with “Kitchen”. Restoring “Kitchen” brings it back.` |
 | Archive and Settings row | `Comes back with 1 workstream` / `Comes back with 3 workstreams` |
-| Restore toast, Archive and Settings | `Restored Kitchen as Active, with 1 workstream.` (no group: unchanged) |
+| Restore toast, Archive and Settings | `Restored Kitchen as Active. 1 workstream came back as it was.` / `Restored Home renovation as On hold. 3 workstreams came back as they were.` (no group: unchanged) |
 | Cross-owner toast, banner on a descendant's page | `Reactivated “Kitchen” and 1 workstream.` (the domain's label) |
 | Undo and Redo toasts, the header's Undo and Redo names | Follow the label: `Undone: Archived “Kitchen” and 1 workstream.` |
 | Late refusal, project under an archived owner | `Restore “Owner” first.` |
@@ -520,7 +522,7 @@ not in `pnpm test` or `pnpm e2e`, and stays as the frozen record's tool with a o
 | File | Change | Responsibility |
 |---|---|---|
 | `packages/domain/src/project-service.ts` | modify | R1, R2, R4, R5, R7, inside the existing `update`/`archive`/`commit`; stale comments |
-| `packages/domain/src/project-visibility.ts` | modify | `liveSubtree` (pure, R1, shared with history), `asRestored` (R8), module comment |
+| `packages/domain/src/project-visibility.ts` | modify | `liveSubtree` (pure, R1, shared with history), `asRestored` (R8), the freeze's message on a marked project (R5), module comment |
 | `packages/domain/src/project-history.ts` | modify | Capture and both directions (R6), label, doc comment |
 | `packages/domain/src/operation-history-service.ts` | modify | Activity summary with the count |
 | `packages/domain/src/project-archive-service.ts`, `archived-projects-service.ts` | modify | `cascadeCount` |
@@ -594,11 +596,12 @@ the same commit as the code. Bundle figure after any step that adds web code.
 - **Step 1 — Payment.** Land R12, record the figure.
 - **Step 2 — Contracts and integrity.** R3, R6's and R8's schemas, R2's input, R9, with tests. Nothing emits the new
   fields yet. New decision entry opened. Bundle.
-- **Step 3 — Forward archive.** `liveSubtree`, `assertNamedWorkstreams`, marking, label, Activity, `cascaded`, in
-  `ProjectService`. Amend the nesting decision and spec §31. Until step 5, a group's restore or reversal is
+- **Step 3 — Forward archive.** `liveSubtree`, `assertNamedWorkstreams`, marking, `commit`'s group, the archive half
+  of capture (the label reads it), Activity, `cascaded`, in `ProjectService`. Amend the nesting decision and spec §31. Until step 5, a group's restore or reversal is
   incomplete, so no test or web path names ids outside `project-service.test.ts`; the web names none until step 8.
-- **Step 4 — Forward restore and R5.** Revive by marker; the marked-project refusals. Amend the reactivating decision.
-- **Step 5 — History.** Capture and R6's two directions, with its conflict tests. Amend the history decision,
+- **Step 4 — Forward restore and R5.** Revive by marker; the reactivate half of capture; the marked-project refusals and
+  the freeze's message. Amend the reactivating decision.
+- **Step 5 — History.** R6's two directions in `writeProject`, with its conflict tests. Amend the history decision,
   `domain/how.md`.
 - **Step 6 — Read models.** `asRestored`, `cascadeCount`, stale comments.
 - **Step 7 — MCP.** R11, the acceptance journey, `mcp-setup.md`, §54.
@@ -631,7 +634,7 @@ the same commit as the code. Bundle figure after any step that adds web code.
 | `…: a foreign-workspace id and a nonexistent id named refuse with identical text` | The not-found rule |
 | `…: an already archived project with a list and a rename ignores the list and renames` | R2's edge |
 | `…: an actor without projects.write is forbidden, and with it alone cascades with no read grant` | Permission path |
-| `…: a cycle in a hand-built project list terminates liveSubtree; archiveWorkstreamIds: [] equals naming nothing` | R2's edges |
+| `…: a cycle in a hand-built project list terminates liveSubtree; archiveWorkstreamIds: [] counts as absent, on an archive and on a rename; a partial list's refusal names every live workstream and its id` | R2's edges |
 | **Restore** `…: restore revives exactly the marked, each to its recorded status and completedAt, clearing markers; a separately archived one stays` | R4 |
 | `…: restore under an archived ancestor refuses and keeps every marker` | R4's failure path |
 | `task-service.test.ts: a content write on a marked project names the owner to restore; an unmarked archived project keeps today's message` | R5's freeze message |
@@ -666,7 +669,7 @@ the same commit as the code. Bundle figure after any step that adds web code.
 | `project-workspace-shell.spec.ts: after a banner restore on a marked project, focus reaches the h1 and no restore choice was focused first` | R10 |
 | `archived-banner.spec.ts: owner with a count; marked project; marker naming a different owner keeps Slice 79's sentence; a failed count read keeps it too; no read while the owner is an ancestor; after Home returns, Kitchen reads and shows its own count; a slow answer for the old owner is ignored` | R10's failure paths |
 | `project-more-menu.spec.ts: status buttons absent on a marked project; present on an unmarked archived one` | R5 |
-| `archived-region` and `archived-projects-page.spec.ts: the line appears when a count is present and is absent otherwise; the toast counts the response, not the row` | R10 |
+| `archived-region` and `archived-projects-page.spec.ts: the line appears when a count is present and is absent otherwise; the toast counts the response, not the row, and says the workstreams came back as they were, not as the chosen status` | R10 |
 | `app.routes.spec.ts: the lazy list has settings/archived-projects, and the route still resolves to the page` | R12 |
 | **E2E** `cascading-archive.spec.ts`, Acceptance item 4's twelve journeys, plus Undo from the Archive restore toast (take down) | End to end, with keyboard and touch as item 4 names them |
 
@@ -710,7 +713,7 @@ otherwise, and the implementation does not start before these are answered.
   alone; the plan never does this.
 - *Recommendation.* (a). It is a recovery route, opened rarely, and it pays for this and leaves 9–10 kB.
 - *Impact.* (a): the first open of Archived projects loads a 11.96 kB chunk, with no change to what it shows. (b): a
-  fresh measurement, possibly a slower search. (c): the ceiling moves for the third time.
+  fresh measurement, possibly a slower search. (c): the ceiling moves a fourth time (it has gone 1,000 → 1,050 → 1,100 → 1,150 kB).
 
 **2. What status does each workstream come back to?**
 - *Context.* A restore makes the person choose a status for the owner, and the prototype "does not guess a prior
@@ -720,7 +723,8 @@ otherwise, and the implementation does not start before these are answered.
 - *Recommendation.* (a). It is a record, not a guess, a Completed workstream does not silently reopen, and older
   history steps stay valid (R6).
 - *Impact.* (a): needs R3's recorded fields, which are designed in. The owner and its workstreams can differ after a
-  restore (Home On hold, Kitchen Active). (b): the marker shrinks to an id, but completion times are lost, older
+  restore (Home On hold, Kitchen Active), and the one status choice on screen is the owner's only, so the copy says the
+  workstreams come back as they were. (b): the marker shrinks to an id, but completion times are lost, older
   Undo steps on those workstreams start refusing, and §26's "comes back exactly as recorded" doesn't hold.
 
 **3. Can an API caller take a workstream out of its group while the owner stays archived?**
@@ -752,15 +756,21 @@ otherwise, and the implementation does not start before these are answered.
   an agent's `restore_project` would still bring back a group a person archived.
 
 **5. Do you accept this wording, and should the confirmation mention what is already archived?**
-- *Context.* R10's copy table is a proposal. Separately, the confirmation lists only what will come down, so Legacy
-  attic is not mentioned on Home renovation. Saying so needs one more read, in the deferred chunk.
+- *Context.* R10's copy table is a proposal, and its restore lines assume Q2 (a); under (b) they would say the chosen status.
+  **A banner or More restore on the owner's own page gives no toast**, as today, so it never counts the group afterwards:
+  the banner's sentence says it beforehand, and the page's workstreams reappear. Archive and Settings do count. Separately,
+  the confirmation lists only what will come down, so Legacy attic is not mentioned on Home renovation. Saying so needs one
+  more read, in the deferred chunk.
 - *Options.* (a) Accept the table (note its late refusal says "Choose Archive", because More's "Open archive" goes to a different place); say nothing about separately archived work, since nothing happens to it. Settings already
   says "Its separately archived contents remain in Archive." and Archive "Restore a listed item to reveal any
   independently archived work inside it." (b) Add one line: "Legacy attic is
-  already archived and stays archived." (c) Change any row in the table.
-- *Recommendation.* (a), for the confirmation's job being what will change. The sheet at Gate 2 is a second chance.
+  already archived and stays archived." (c) Add a toast to an own-page restore, when it brought back a group. (d) Change any
+  row in the table.
+- *Recommendation.* (a). The confirmation's job is what will change, and the banner has already said what a restore
+  brings back. The sheet at Gate 2 is a second chance.
 - *Impact.* (a): none beyond the table. (b): one read and a few hundred bytes in the deferred chunk, with no initial
-  cost, plus a failed-read state. (c): per row.
+  cost, plus a failed-read state. (c): a new toast path through the shell, about 0.1–0.2 kB initial, and its focus rule next to
+  the `h1`. (d): per row.
 
 **6. Should this slice take two §8 comb items it makes worse?**
 - *Context.* Comb item 1: an archived root's navigation says "No workstreams yet" over its archived workstreams. Today
@@ -833,6 +843,12 @@ otherwise, and the implementation does not start before these are answered.
     project.
   - *Docs:* spec lines `:1253` and `:1919`, two contract comments, two more tool descriptions and five existing specs added. Q5's
     quotation corrected.
+- **Round 4 (2026-11-05, one cold reviewer judging readiness; no blockers, 1 substantive, 4 minor; each checked against the code):**
+  - *A false toast.* "Restored Home renovation as On hold, with 3 workstreams." implied all took On hold, which Q2 (a) denies. The
+    copy now says they came back as they were, in the toast and the banner, and Q2 and Q5 say so. Q5 also asks the owner about
+    an own-page restore having no toast, which had been stated as a fact.
+  - *Smaller:* Q1 (c) said third raise, when it would be the fourth. Capture's halves moved into steps 3 and 4, since the label reads
+    the captured operation. `[]` and a partial list defined in R2. The freeze message added to the file list and step 4.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
