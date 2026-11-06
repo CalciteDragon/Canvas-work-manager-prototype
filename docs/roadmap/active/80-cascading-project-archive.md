@@ -524,7 +524,7 @@ not in `pnpm test` or `pnpm e2e`, and stays as the frozen record's tool with a o
 | `packages/domain/src/project-history.ts` | modify | Capture and both directions (R6), label, doc comment |
 | `packages/domain/src/operation-history-service.ts` | modify | Activity summary with the count |
 | `packages/domain/src/project-archive-service.ts`, `archived-projects-service.ts` | modify | `cascadeCount` |
-| `packages/domain/src/project-service.test.ts`, `project-history.test.ts`, `operation-history-service.test.ts`, `project-todos-service.test.ts`, `project-journal-service.test.ts`, `project-archive-service.test.ts`, `archived-projects-service.test.ts` | modify | Test plan |
+| `packages/domain/src/project-service.test.ts`, `project-history.test.ts`, `operation-history-service.test.ts`, `task-service.test.ts`, `project-todos-service.test.ts`, `project-journal-service.test.ts`, `project-archive-service.test.ts`, `archived-projects-service.test.ts` | modify | Test plan |
 | `packages/domain/src/dashboard-service.ts`, `section-service.ts`, `task-service.ts` (`:724`), `workspace-service.ts` (`:157`) | modify | Stale "does not cascade" comments only |
 
 ### MCP
@@ -754,8 +754,8 @@ otherwise, and the implementation does not start before these are answered.
 **5. Do you accept this wording, and should the confirmation mention what is already archived?**
 - *Context.* R10's copy table is a proposal. Separately, the confirmation lists only what will come down, so Legacy
   attic is not mentioned on Home renovation. Saying so needs one more read, in the deferred chunk.
-- *Options.* (a) Accept the table (note its late refusal says "Choose Archive", because More's "Open archive" goes to a different place); say nothing about separately archived work, since nothing happens to it, and Archive
-  and Settings says "Its separately archived contents remain in Archive." and Archive "Restore a listed item to reveal any
+- *Options.* (a) Accept the table (note its late refusal says "Choose Archive", because More's "Open archive" goes to a different place); say nothing about separately archived work, since nothing happens to it. Settings already
+  says "Its separately archived contents remain in Archive." and Archive "Restore a listed item to reveal any
   independently archived work inside it." (b) Add one line: "Legacy attic is
   already archived and stays archived." (c) Change any row in the table.
 - *Recommendation.* (a), for the confirmation's job being what will change. The sheet at Gate 2 is a second chance.
@@ -811,6 +811,15 @@ otherwise, and the implementation does not start before these are answered.
   - *Evidence and docs:* the rig moves to step 0, because the "before" capture needs it. Profile 80 declares its own exemption.
     The old step 10 is split into sheet and review, and steps renumbered. The sheet's count is stated. Missing docs added.
   - *Not changed:* the reviewer's option of a separate next-step code for bring back, since `field-changed` already words it.
+- **Round 2 (2026-11-05, one cold reviewer over the whole plan; no blockers, 4 substantive, 6 minor; each checked against the
+  code):**
+  - *History:* a named test wanted a refusal R6 does not produce (an identical second cycle), so it now asserts the state-based
+    success. Two conflicts offered a repair that does not exist (only `completedAt` differs; a workstream archived alone since),
+    so both are `field-changed`, and "None is permanent" now says what that costs. Capture, `commit`'s group and `writeProject`'s
+    result are specified. A skipped workstream's stale label is accepted, with the Activity count taken from what moved.
+  - *Acceptance:* journeys 3–6 are one chained test and the rest reseed, because journey 7 could not start from where 6 ended.
+  - *Smaller:* step references after round 1's renumbering; `cascadeCount` "0" → absent; tests and fixtures that the move and
+    `archive(ids)` touch; `liveSubtree`'s cycle guard; `[]` defined; "Open Archive" in the late refusal collided with More's item.
 - **Round 3 (2026-11-05, one cold reviewer over the whole plan; no blockers, 1 substantive, 6 minor; each checked against the
   code):**
   - *Q3 had wrong facts.* It described a person restoring and moving a workstream, but the web has no move control. It is
@@ -824,15 +833,6 @@ otherwise, and the implementation does not start before these are answered.
     project.
   - *Docs:* spec lines `:1253` and `:1919`, two contract comments, two more tool descriptions and five existing specs added. Q5's
     quotation corrected.
-- **Round 2 (2026-11-05, one cold reviewer over the whole plan; no blockers, 4 substantive, 6 minor; each checked against the
-  code):**
-  - *History:* a named test wanted a refusal R6 does not produce (an identical second cycle), so it now asserts the state-based
-    success. Two conflicts offered a repair that does not exist (only `completedAt` differs; a workstream archived alone since),
-    so both are `field-changed`, and "None is permanent" now says what that costs. Capture, `commit`'s group and `writeProject`'s
-    result are specified. A skipped workstream's stale label is accepted, with the Activity count taken from what moved.
-  - *Acceptance:* journeys 3–6 are one chained test and the rest reseed, because journey 7 could not start from where 6 ended.
-  - *Smaller:* step references after round 1's renumbering; `cascadeCount` "0" → absent; tests and fixtures that the move and
-    `archive(ids)` touch; `liveSubtree`'s cycle guard; `[]` defined; "Open Archive" in the late refusal collided with More's item.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
