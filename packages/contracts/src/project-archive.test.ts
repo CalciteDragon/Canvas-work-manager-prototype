@@ -5,9 +5,9 @@ import {
   ProjectArchiveRestorationSchema,
   ProjectArchiveSectionItemSchema,
   ProjectArchiveSectionRecoverySchema,
-  ProjectRestoreStatusSchema,
   RestoreProjectInputSchema,
 } from './project-archive';
+import { ProjectRestoreStatusSchema } from './project';
 
 const AT = '2026-09-01T00:00:00.000Z';
 

@@ -205,6 +205,22 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     }
   }
 
+  // A group archive's marker (Slice 80, §31), as the task rules below treat `archivedWithTaskId`: a
+  // marked project is archived, its parent is the owner or carries the same owner, and the owner is
+  // archived and unmarked. Otherwise a restore could leave one behind or bring back a stranger.
+  for (const project of document.projects) {
+    const marker = project.archivedWithProject;
+    if (marker === undefined) continue;
+    if (project.status !== 'archived') fail(`project "${project.id}" has an archived-with marker but is not archived`);
+    const owner = projects.get(marker.projectId) ?? fail(`project "${project.id}" was archived with missing project "${marker.projectId}"`);
+    if (owner.status !== 'archived') fail(`project "${project.id}" was archived with live project "${owner.id}"`);
+    if (owner.archivedWithProject !== undefined) fail(`project "${project.id}" was archived with "${owner.id}", which is itself marked`);
+    const parent = project.parentProjectId === undefined ? undefined : projects.get(project.parentProjectId);
+    if (parent?.id !== owner.id && parent?.archivedWithProject?.projectId !== owner.id) {
+      fail(`project "${project.id}" was archived with "${owner.id}", but its parent is neither that project nor marked with it`);
+    }
+  }
+
   const projectFor = (collection: string, id: string, projectId: string) => {
     const project = projects.get(projectId);
     if (project === undefined) fail(`${collection} "${id}" has missing project "${projectId}"`);

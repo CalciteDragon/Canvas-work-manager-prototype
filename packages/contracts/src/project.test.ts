@@ -12,6 +12,31 @@ const project = {
   updatedAt: '2026-08-26T10:00:00.000Z',
 };
 
+describe('archivedWithProject (Slice 80, R3)', () => {
+  const marker = { projectId: 'project-a', status: 'active' };
+  const child = { ...project, id: 'project-b', kind: 'subproject', parentProjectId: 'project-a', status: 'archived' };
+
+  it('a root cannot carry it: a root has no ancestor to come down with', () => {
+    expect(ProjectSchema.safeParse({ ...project, archivedWithProject: marker }).success).toBe(false);
+  });
+
+  it('a subproject can, with its recorded status and completion time', () => {
+    const completedAt = '2026-08-27T10:00:00.000Z';
+    expect(ProjectSchema.parse({ ...child, archivedWithProject: marker }).archivedWithProject).toEqual(marker);
+    const parsed = ProjectSchema.parse({ ...child, archivedWithProject: { projectId: 'project-a', status: 'completed', completedAt } });
+    expect(parsed.archivedWithProject).toEqual({ projectId: 'project-a', status: 'completed', completedAt });
+  });
+
+  it('a marker’s status cannot be archived, and takes no other field', () => {
+    expect(ProjectSchema.safeParse({ ...child, archivedWithProject: { ...marker, status: 'archived' } }).success).toBe(false);
+    expect(ProjectSchema.safeParse({ ...child, archivedWithProject: { ...marker, extra: true } }).success).toBe(false);
+  });
+
+  it('is optional, so a document from before it still reads', () => {
+    expect(ProjectSchema.parse(child).archivedWithProject).toBeUndefined();
+  });
+});
+
 describe('ProjectSchema', () => {
   it('accepts a root project', () => {
     expect(ProjectSchema.parse(project).parentProjectId).toBeUndefined();

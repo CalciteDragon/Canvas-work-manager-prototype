@@ -9,6 +9,23 @@ import { ProjectIdSchema, WorkspaceIdSchema } from './ids';
 export const ProjectStatusSchema = z.enum(['planning', 'active', 'on_hold', 'completed', 'archived']);
 export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
 
+/** Explicit status selection is required; Archive never guesses a prior project status. */
+export const ProjectRestoreStatusSchema = ProjectStatusSchema.exclude(['archived']);
+export type ProjectRestoreStatus = z.infer<typeof ProjectRestoreStatusSchema>;
+
+/**
+ * **A project and the state it was in before a group archive** (Slice 80). One shape for two
+ * records that read the same way: the marker on a workstream that came down names its **owner**
+ * here, and an archive's history entry names the **workstream**. The status and completion time are
+ * stored because history is per actor and can expire, while a restore needs no receipt.
+ */
+export const ProjectStateRecordSchema = z.strictObject({
+  projectId: ProjectIdSchema,
+  status: ProjectRestoreStatusSchema,
+  completedAt: IsoDateTimeSchema.optional(),
+});
+export type ProjectStateRecord = z.infer<typeof ProjectStateRecordSchema>;
+
 /** The two layouts the prototype compares (§27, §28). Not a third. */
 export const ProjectLayoutModeSchema = z.enum(['flow', 'grid']);
 export type ProjectLayoutMode = z.infer<typeof ProjectLayoutModeSchema>;
@@ -74,6 +91,8 @@ export const RootProjectSchema = z.object({
   ...projectFields,
   kind: z.literal('root'),
   parentProjectId: z.undefined().optional(),
+  /** Explicitly absent for the same reason: a root has no ancestor to come down with. */
+  archivedWithProject: z.undefined().optional(),
 });
 export type RootProject = z.infer<typeof RootProjectSchema>;
 
@@ -82,6 +101,12 @@ export const SubprojectSchema = z.object({
   kind: z.literal('subproject'),
   /** Required, and to any depth: a unit of work always belongs to something (§26). */
   parentProjectId: ProjectIdSchema,
+  /**
+   * Set while this workstream is archived **because its owner was** (Slice 80, §31): `projectId` is
+   * the project the caller archived, never the intermediate parent, so a restore is one lookup, as
+   * `archivedWithTaskId` is for rows. A workstream archived in its own right has none.
+   */
+  archivedWithProject: ProjectStateRecordSchema.optional(),
 });
 export type Subproject = z.infer<typeof SubprojectSchema>;
 

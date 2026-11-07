@@ -12,9 +12,13 @@ import { ProjectSchema } from './project';
  * The receipt is `null` for a normalized no-op — archiving an archived project, or a PATCH that sets
  * what is already there — because that write did not happen and must not look like one that did.
  * Creation always has a receipt; an existing-project write has `null` only for a normalized no-op.
+ *
+ * `cascaded` is the workstreams this write changed, as final records, and is absent when none did
+ * (Slice 80): what came down with an archive, or what came back with its restore.
  */
 export const ProjectWriteResultSchema = z.strictObject({
   project: ProjectSchema,
   operation: OperationReceiptSchema.nullable(),
+  cascaded: z.array(ProjectSchema).min(1).optional(),
 });
 export type ProjectWriteResult = z.infer<typeof ProjectWriteResultSchema>;

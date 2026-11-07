@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AgentPermissionSchema } from './agent';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema } from './ids';
 import { ProjectPageKindSchema } from './project-page';
-import { ProjectStatusSchema, RootProjectSchema, SubprojectSchema } from './project';
+import { ProjectRestoreStatusSchema, RootProjectSchema, SubprojectSchema } from './project';
 import { OwnedDataKindSchema, ProjectSectionSchema } from './section';
 import { ReflectionSchema } from './reflection';
 import { TaskSchema } from './task';
@@ -75,6 +75,8 @@ const archiveItemFields = {
 export const ProjectArchiveSubprojectItemSchema = z.object({
   kind: z.literal('subproject'),
   project: SubprojectSchema,
+  /** The workstreams marked with this owner, which its restore brings back. Absent when none. */
+  cascadeCount: z.number().int().positive().optional(),
   ...archiveItemFields,
 });
 export type ProjectArchiveSubprojectItem = z.infer<typeof ProjectArchiveSubprojectItemSchema>;
@@ -156,10 +158,6 @@ export const ProjectArchiveResultSchema = z.object({
   path: ['items'],
 });
 export type ProjectArchiveResult = z.infer<typeof ProjectArchiveResultSchema>;
-
-/** Explicit status selection is required; Archive never guesses a prior project status. */
-export const ProjectRestoreStatusSchema = ProjectStatusSchema.exclude(['archived']);
-export type ProjectRestoreStatus = z.infer<typeof ProjectRestoreStatusSchema>;
 
 export const RestoreProjectInputSchema = z.object({ status: ProjectRestoreStatusSchema });
 export type RestoreProjectInput = z.infer<typeof RestoreProjectInputSchema>;

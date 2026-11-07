@@ -50,6 +50,39 @@ const project = {
   updatedAt: LATER,
 };
 
+describe('a recorded group (Slice 80, R6)', () => {
+  const workstreams = [
+    { projectId: 'project-cabinets', status: 'active' },
+    { projectId: 'project-garden', status: 'completed', completedAt: AT },
+  ];
+
+  it('an archive and a reactivation may carry one; omitted still parses, so an old action stays valid', () => {
+    expect(ProjectArchiveOperationSchema.parse(archive({ workstreams })).workstreams).toEqual(workstreams);
+    expect(ProjectReactivateOperationSchema.parse(reactivate({ workstreams })).workstreams).toEqual(workstreams);
+    expect(ProjectArchiveOperationSchema.parse(archive())).not.toHaveProperty('workstreams');
+    expect(ProjectReactivateOperationSchema.parse(reactivate())).not.toHaveProperty('workstreams');
+  });
+
+  it('present is non-empty, and an entry cannot record archived', () => {
+    expect(ProjectArchiveOperationSchema.safeParse(archive({ workstreams: [] })).success).toBe(false);
+    expect(ProjectArchiveOperationSchema.safeParse(archive({ workstreams: [{ projectId: 'project-cabinets', status: 'archived' }] })).success).toBe(false);
+  });
+
+  it('project.update has none', () => {
+    expect(ProjectUpdateOperationSchema.safeParse(update({ workstreams })).success).toBe(false);
+  });
+
+  it('archive and reactivate results may answer cascaded; an update result strips it', () => {
+    const cascaded = [{ ...project, id: 'project-cabinets', kind: 'subproject', parentProjectId: 'project-kitchen' }];
+    const undo = UndoResultSchema.parse({ operation: 'project.archive', outcome: 'restored', project, cascaded });
+    expect(undo).toMatchObject({ cascaded: [{ id: 'project-cabinets' }] });
+    const redo = RedoResultSchema.parse({ operation: 'project.reactivate', outcome: 'reapplied', project, cascaded });
+    expect(redo).toMatchObject({ cascaded: [{ id: 'project-cabinets' }] });
+    expect(UndoResultSchema.parse({ operation: 'project.archive', outcome: 'restored', project })).not.toHaveProperty('cascaded');
+    expect(UndoResultSchema.parse({ operation: 'project.update', outcome: 'restored', project, cascaded })).not.toHaveProperty('cascaded');
+  });
+});
+
 describe('project.update payloads (§§26, 31, 39)', () => {
   it('accept every recordable field, with null standing for an absent optional value', () => {
     const parsed = ProjectUpdateOperationSchema.parse(

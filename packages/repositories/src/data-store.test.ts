@@ -1112,6 +1112,51 @@ describe('unitOfWorkFor', () => {
   });
 });
 
+describe('archived-with marker integrity (Slice 80, R9)', () => {
+  type Stored = PrototypeDocument['projects'][number];
+  const id = (value: string) => value as unknown as Stored['id'];
+  const marker = (owner: string) => ({ projectId: id(owner), status: 'active' as const });
+  /** Root (live) → Owner (archived) → Mid → Leaf, the last two marked with Owner; Other is archived beside Owner. */
+  const group = () => {
+    const document = validDocument();
+    const first = document.projects[0]!;
+    const sub = (name: string, parent: string, more: Partial<Stored> = {}) =>
+      ({ ...first, id: id(name), kind: 'subproject' as const, parentProjectId: id(parent), status: 'archived' as const, ...more }) as Stored;
+    document.projects = [first,
+      sub('project-owner', first.id),
+      sub('project-mid', 'project-owner', { archivedWithProject: marker('project-owner') } as Partial<Stored>),
+      sub('project-leaf', 'project-mid', { archivedWithProject: marker('project-owner') } as Partial<Stored>),
+      sub('project-other', first.id),
+    ];
+    document.projectPages.push(...['project-owner', 'project-mid', 'project-leaf', 'project-other'].map((projectId) =>
+      PrototypeDocumentSchema.shape.projectPages.element.parse({ id: `page-${projectId}`, projectId, kind: 'work', enabled: true, createdAt: at, updatedAt: at })));
+    const named = (name: string) => document.projects.find((project) => project.id === id(name))! as Stored & { archivedWithProject?: ReturnType<typeof marker>; status: string };
+    return { document, named };
+  };
+
+  it('accepts a marked group, and an unmarked archive with a live child: the old shape needs no migration', () => {
+    const { document, named } = group();
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+    delete named('project-mid').archivedWithProject;
+    delete named('project-leaf').archivedWithProject;
+    named('project-leaf').status = 'active';
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+
+  it.each([
+    ['the marked project is live', (named: ReturnType<typeof group>['named']) => { named('project-leaf').status = 'active'; }],
+    ['the owner is live', (named: ReturnType<typeof group>['named']) => { named('project-owner').status = 'active'; }],
+    ['the owner is absent', (named: ReturnType<typeof group>['named']) => { named('project-leaf').archivedWithProject = marker('project-gone'); named('project-mid').archivedWithProject = marker('project-gone'); }],
+    ['the owner is not an ancestor', (named: ReturnType<typeof group>['named']) => { named('project-leaf').archivedWithProject = marker('project-other'); named('project-mid').archivedWithProject = marker('project-other'); }],
+    ['the owner is itself marked', (named: ReturnType<typeof group>['named']) => { named('project-owner').archivedWithProject = marker('project-other'); }],
+    ['an intermediate parent lacks it', (named: ReturnType<typeof group>['named']) => { delete named('project-mid').archivedWithProject; }],
+  ])('rejects a document where %s', (_name, mutate) => {
+    const { document, named } = group();
+    mutate(named);
+    expect(() => new InMemoryDataStore(document)).toThrow(DocumentIntegrityError);
+  });
+});
+
 describe('parent-chain integrity', () => {
   /** Ids are branded, and these fixtures deliberately build documents the schema allows. */
   const asProjectId = (id: string) => id as unknown as PrototypeDocument['projects'][number]['id'];

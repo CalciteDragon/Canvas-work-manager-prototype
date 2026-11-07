@@ -12,6 +12,13 @@ describe('ArchivedProjectsResultSchema', () => {
     expect(ArchivedProjectsResultSchema.safeParse({ items: [{ project, breadcrumb: [{ projectId: project.id, name: project.name }] }] }).success).toBe(true);
   });
 
+  it('carries cascadeCount when there is a group, and parses without it (Slice 80, R8)', () => {
+    const breadcrumb = [{ projectId: project.id, name: project.name }];
+    expect(ArchivedProjectsResultSchema.parse({ items: [{ project, breadcrumb, cascadeCount: 3 }] }).items[0]?.cascadeCount).toBe(3);
+    expect(ArchivedProjectsResultSchema.parse({ items: [{ project, breadcrumb }] }).items[0]).not.toHaveProperty('cascadeCount');
+    expect(ArchivedProjectsResultSchema.safeParse({ items: [{ project, breadcrumb, cascadeCount: 0 }] }).success).toBe(false);
+  });
+
   it('rejects a live project', () => {
     expect(ArchivedProjectsResultSchema.safeParse({ items: [{ project: { ...project, status: 'active' }, breadcrumb: [{ projectId: project.id, name: project.name }] }] }).success).toBe(false);
   });

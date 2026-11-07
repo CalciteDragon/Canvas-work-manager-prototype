@@ -125,6 +125,12 @@ export const UpdateProjectInputSchema = z.object({
    * it would be describing an operation that does not exist.
    */
   parentProjectId: ProjectIdSchema.optional(),
+  /**
+   * On a transition into `archived`, the live workstreams to archive with this project, **every
+   * one of them by id** (Slice 80, §31): the domain compares this with the live subtree as an exact
+   * set, so nothing comes down that the caller did not name. An empty list counts as absent.
+   */
+  archiveWorkstreamIds: z.array(ProjectIdSchema).optional(),
 });
 export type UpdateProjectInput = z.infer<typeof UpdateProjectInputSchema>;
 

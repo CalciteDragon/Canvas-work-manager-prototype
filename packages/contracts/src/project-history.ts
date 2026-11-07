@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { IsoDateSchema, IsoDateTimeSchema } from './common';
 import { ProjectIdSchema } from './ids';
 import { ProjectPageSchema, canonicalPageKindFor } from './project-page';
-import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectSchema, ProjectStatusSchema } from './project';
+import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectSchema, ProjectStateRecordSchema, ProjectStatusSchema } from './project';
 
 /**
  * **Project operation payloads** (main §§26, 31, 39): creation and the three existing-project
@@ -23,6 +23,9 @@ import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectSchema, ProjectS
  * because those two transitions are the ones the history executor lets run while the subject itself
  * is archived, and a label must say which one a step is.
  *
+ * Those two may also carry `workstreams`, the group that moved with the subject (Slice 80): each
+ * one's own status and completion time. It is omitted when there was no group, so a plain archive's
+ * stored shape is what it always was, and an action recorded before groups existed still parses.
  */
 
 /** A cleared optional field is `null`, so a change can say "there was a value, now there is none". */
@@ -127,7 +130,7 @@ export type ProjectUpdateOperation = z.infer<typeof ProjectUpdateOperationSchema
 
 /** `project.archive`: the status crossed into `archived`, with whatever else the same write changed. */
 export const ProjectArchiveOperationSchema = z
-  .strictObject({ ...projectShape, type: z.literal('project.archive') })
+  .strictObject({ ...projectShape, type: z.literal('project.archive'), workstreams: z.array(ProjectStateRecordSchema).min(1).optional() })
   .superRefine((operation, ctx) => {
     assertFootprint(operation.changes, ctx);
     const status = statusChangeOf(operation.changes);
@@ -139,7 +142,7 @@ export type ProjectArchiveOperation = z.infer<typeof ProjectArchiveOperationSche
 
 /** `project.reactivate`: the status came out of `archived` to the explicit status the caller chose. */
 export const ProjectReactivateOperationSchema = z
-  .strictObject({ ...projectShape, type: z.literal('project.reactivate') })
+  .strictObject({ ...projectShape, type: z.literal('project.reactivate'), workstreams: z.array(ProjectStateRecordSchema).min(1).optional() })
   .superRefine((operation, ctx) => {
     assertFootprint(operation.changes, ctx);
     const status = statusChangeOf(operation.changes);
@@ -162,12 +165,16 @@ export type ProjectUndoOperation = z.infer<typeof ProjectUndoOperationSchema>;
 const projectResult = <T extends ProjectUndoOperation['type'], O extends 'restored' | 'reapplied'>(operation: T, outcome: O) =>
   z.object({ operation: z.literal(operation), outcome: z.literal(outcome), project: ProjectSchema });
 
+/** An archive or reactivation also answers the workstreams it moved, absent when none (Slice 80). */
+const groupResult = <T extends 'project.archive' | 'project.reactivate', O extends 'restored' | 'reapplied'>(operation: T, outcome: O) =>
+  projectResult(operation, outcome).extend({ cascaded: z.array(ProjectSchema).min(1).optional() });
+
 export const ProjectUpdateUndoResultSchema = projectResult('project.update', 'restored');
 export const ProjectUpdateRedoResultSchema = projectResult('project.update', 'reapplied');
-export const ProjectArchiveUndoResultSchema = projectResult('project.archive', 'restored');
-export const ProjectArchiveRedoResultSchema = projectResult('project.archive', 'reapplied');
-export const ProjectReactivateUndoResultSchema = projectResult('project.reactivate', 'restored');
-export const ProjectReactivateRedoResultSchema = projectResult('project.reactivate', 'reapplied');
+export const ProjectArchiveUndoResultSchema = groupResult('project.archive', 'restored');
+export const ProjectArchiveRedoResultSchema = groupResult('project.archive', 'reapplied');
+export const ProjectReactivateUndoResultSchema = groupResult('project.reactivate', 'restored');
+export const ProjectReactivateRedoResultSchema = groupResult('project.reactivate', 'reapplied');
 
 /** Undo of creation has removed the project and canonical page, so it returns the absent id. */
 export const ProjectAddUndoResultSchema = z.object({
