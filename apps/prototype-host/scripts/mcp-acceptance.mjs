@@ -87,6 +87,7 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
     `${title} reads the linked reflection from the journal`,
   );
   await assertArchivedProjects(client, title, dataFile, access);
+  await assertGroupArchive(client, title);
   const undo = await assertUndo(client, title, dataFile);
   await assertRestoreAndShortcuts(client, title);
   const foreignPageReceipt = await assertPageHistory(client, foreign, title, dataFile, access);
@@ -150,6 +151,41 @@ const assertArchivedProjects = async (client, title, dataFile, access) => {
   const revealed = await client.callTool({ name: 'get_project_archive', arguments: { projectId: rootId } });
   check(revealed.structuredContent.items.some(({ task: row }) => row?.id === taskId), `${title} the independent row becomes actionable`);
   check((await client.callTool({ name: 'restore_task', arguments: { taskId } })).isError !== true, `${title} restores the row separately`);
+};
+
+/**
+ * Slice 80's group archive over each real transport: refused without ids, naming them; committed
+ * with them; Undo, Redo and restore each keep the group's exact statuses.
+ */
+const assertGroupArchive = async (client, title) => {
+  const rootId = projectIdOf(await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Group owner ${title}` } }));
+  const kitchenId = projectIdOf(await client.callTool({ name: 'create_project', arguments: { kind: 'subproject', parentProjectId: rootId, name: 'Group kitchen', status: 'active' } }));
+  const cabinetsId = projectIdOf(await client.callTool({ name: 'create_project', arguments: { kind: 'subproject', parentProjectId: kitchenId, name: 'Group cabinets', status: 'on_hold' } }));
+  const statuses = async () => Promise.all([kitchenId, cabinetsId].map(async (projectId) => (await client.callTool({ name: 'get_project', arguments: { projectId } })).structuredContent.status));
+  const stateIs = async (expected, what) => check(JSON.stringify(await statuses()) === JSON.stringify(expected), `${title} ${what}`);
+
+  const refusal = await refusedText(() => client.callTool({ name: 'archive_project', arguments: { projectId: rootId } }));
+  check(refusal !== null && refusal.includes(kitchenId) && refusal.includes(cabinetsId), `${title} archive_project without ids refuses and names both workstreams`);
+  await stateIs(['active', 'on_hold'], 'the refused archive moved nothing');
+
+  const archived = await client.callTool({ name: 'archive_project', arguments: { projectId: rootId, archiveWorkstreamIds: [kitchenId, cabinetsId] } });
+  check(archived.isError !== true && archived.structuredContent.cascaded?.length === 2, `${title} archive_project naming them answers cascaded`);
+  await stateIs(['archived', 'archived'], 'the group came down');
+
+  const step = async (direction) => {
+    const summary = (await client.callTool({ name: 'get_operation_history', arguments: { projectId: rootId } })).structuredContent;
+    const next = summary[direction];
+    return client.callTool({ name: `${direction}_operation`, arguments: { historyId: summary.historyId, actionId: next.actionId, expectedRevision: summary.revision } });
+  };
+  const undone = await step('undo');
+  check(undone.isError !== true && undone.structuredContent.result.cascaded?.length === 2, `${title} undo_operation reports the group`);
+  await stateIs(['active', 'on_hold'], 'Undo returned the group to its exact statuses');
+  check((await step('redo')).isError !== true, `${title} redo_operation re-archives the group`);
+  await stateIs(['archived', 'archived'], 'Redo took the group down again');
+
+  const restored = await client.callTool({ name: 'restore_project', arguments: { projectId: rootId, status: 'planning' } });
+  check(restored.isError !== true && restored.structuredContent.project.status === 'planning' && restored.structuredContent.cascaded?.length === 2, `${title} restore_project takes the chosen status for the owner and answers the group`);
+  await stateIs(['active', 'on_hold'], 'restore returned the group to its recorded statuses');
 };
 
 /** This connection's own history summary for the project. */

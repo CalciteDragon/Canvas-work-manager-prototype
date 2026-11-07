@@ -57,7 +57,9 @@ root's history whatever route the toggle came from. A toggle still succeeds whil
 archived as a navigation preference; root Archive is visitable independently of its record or
 toggle. A page **transition** remains blocked while archived.
 
-`update_project`, `archive_project` and `restore_project` return `{ project, operation }`: a
+`update_project`, `archive_project` and `restore_project` return `{ project, operation, cascaded? }`
+(`cascaded` is the workstreams a group archive or restore moved, Slice 80, and `archive_project` and
+`update_project` take the `archiveWorkstreamIds` that names them): a
 `project.archive` receipt when the status entered `archived`, `project.reactivate` when it left it,
 `project.update` for every other change — completion, reparenting, layout and progress settings
 included — and `operation: null` when nothing changed, archiving an archived project included. The

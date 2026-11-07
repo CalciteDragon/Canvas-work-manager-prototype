@@ -52,7 +52,7 @@ import {
   revertProjectWrite,
   type ProjectAddHistoryRepositories,
 } from './project-history';
-import { findHighestWriteBlocker } from './project-visibility';
+import { findHighestWriteBlocker, groupWords } from './project-visibility';
 import {
   reapplyReflectionAdd,
   reapplyReflectionArchive,
@@ -600,7 +600,8 @@ const activitySummary = (operation: UndoOperation, result: UndoResult | RedoResu
     const kind = operation.kind ?? ('page' in result ? result.page.kind : 'optional');
     return `${did} ${gerund} ${kind} page`;
   }
-  if ('project' in result) return `${did} ${gerund} "${result.project.name}"`;
+  // `cascaded`, not the recorded group: the count is what this step actually moved (Slice 80, R6).
+  if ('project' in result) return `${did} ${gerund} "${result.project.name}"${groupWords('cascaded' in result ? result.cascaded?.length ?? 0 : 0)}`;
   if (operation.type.startsWith('section.')) {
     const section = 'section' in result ? result.section : operation.type === 'section.add' ? operation.section : undefined;
     return `${did} ${gerund} ${section === undefined ? 'section' : nameOf(section)} section`;

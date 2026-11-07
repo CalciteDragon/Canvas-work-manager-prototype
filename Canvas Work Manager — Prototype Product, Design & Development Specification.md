@@ -1917,24 +1917,25 @@ Live content merely hidden by an archived project and archived descendants whose
 structure blocks their own Restore do not appear as rows. Archived roots are recovered from
 workspace **Settings → Archived projects**, not from their own root Archive. That Settings list
 also includes archived subprojects whose ancestors are live. Project reactivation requires an
-explicit non-archived status; the prototype does not guess a prior status. *Slice 79:* the status
+explicit non-archived status for the project restored; the prototype does not guess a prior status,
+though workstreams archived with it return to the status they recorded (below). *Slice 79:* the status
 is explicit because it is shown: Archive and Settings preselect **Active**, visibly, in one shared
 restore choice, and the person can change it before Restore (§23). *Slice 79:* an archived root
 is also restored in place, from the archived banner over each of its pages, so its root Archive
 says "Restore “X” above to bring its archived work back." rather than pointing at Settings, which
 stays a recovery route ([decision](docs/decisions/2026-09-root-archive-recovery-guidance.md)).
 
-None of this adds a cascade. Archiving a project with **live child subprojects is still
-refused**, exactly as it is today, and archiving a project never archives anything beneath it —
-an implicit cascade would archive work the caller never named. A whole-tree Archive page makes
-archived work *findable*; it does not make archiving *contagious*. *Slice 79:* the refusal is said
-before the write when the page can know it: with live workstreams under the project, the header's
-archive confirmation reads "“X” can’t be archived yet", lists each live child as a link to its page
-with its status (a completed child still blocks), and offers only Close. When the tree cannot say
-(a stale read, or work hidden under an archived ancestor) the confirmation commits and the domain
-decides; its refusal then reads "“X” still has live workstreams. Archive them first.", with the
-reason under Details, and the page re-reads its tree
-([decision](docs/decisions/2026-08-project-nesting-and-archive-rules.md)).
+**A project archive takes down only what the caller named** (*Slice 80*, reversing Slice 25.0's
+no-cascade rule; [decision](docs/decisions/2026-11-cascading-project-archive.md)). An implicit cascade
+would archive work the caller never named, so a project with live workstreams refuses unless the
+caller names its **whole live subtree**, at any depth and with a Completed workstream counted as
+live, compared as an exact set. A refusal lists each one's name and id. The walk stops at an archived
+node: work archived separately is not named and keeps its state, along with anything beneath it. Each
+workstream that comes down records its owner and what it was, and every restore of the owner, from any
+entry point, returns exactly those to their recorded status and completion time; the status the
+restore names is the owner's alone. A workstream that came down cannot change status or move until
+its owner returns. It is one action in the owner's history and one Activity line on the owner. A
+whole-tree Archive page makes archived work *findable*; it does not make archiving *contagious*.
 
 *Slice 74.* Archive is always visitable for a root, whether its record is missing, hidden or
 shown. **Open archive** in More and recovery toasts navigates directly and writes nothing. Its
@@ -2018,8 +2019,9 @@ exemption; the transition does not
 ([why](docs/decisions/2026-09-optional-page-operation-history.md)).
 
 *Landed in Slice 39.* An existing project's update, archive and reactivation join the same history as
-a sixth operation family. Archiving still never cascades, and a history step may not acquire a
-cascade: redoing an archive, or undoing a reactivation, refuses while any child is live. The freeze
+a sixth operation family. A history step moves exactly its recorded group (*Slice 80*) and never
+sweeps in new work: redoing an archive, or undoing a reactivation, refuses while any live workstream
+is not recorded, and undoing an archive or redoing a reactivation refuses if the group has changed. The freeze
 keeps one narrow exception, for the project's **own** status only: an archive's Undo, a
 reactivation's Redo and an edit made while the project was already archived may run while that same
 project is archived, because the ordinary write allowed them and refusing would wedge the stack on
@@ -3186,6 +3188,13 @@ changed (archiving an archived project included). All three are reversed through
 under `projects.write` alone, and the grant map discovery publishes gains a sixth family, `project`.
 Names, inputs and permissions are unchanged
 ([why](docs/decisions/2026-09-project-update-operation-history.md)).*
+
+*Amended in Slice 80:* `archive_project` and `update_project` take an optional `archiveWorkstreamIds`,
+which must name a project's whole live subtree; without it a project with live workstreams refuses,
+naming each one and its id. All three answer `cascaded`, the workstreams that moved, absent when none.
+`list_archived_projects` and `get_project_archive` carry `cascadeCount`. Permissions and the tool count
+are unchanged. Naming ids is an API precondition, not §58's confirmation, which stays Slice 22's
+([why](docs/decisions/2026-11-cascading-project-archive.md)).
 
 *Amended in Slice 42:* `create_project` now returns `{ project, operation }` with its always-present
 `project.add` receipt. Creation is the first action in the created project's own history; its Undo

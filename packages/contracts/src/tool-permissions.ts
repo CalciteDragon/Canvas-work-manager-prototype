@@ -69,7 +69,8 @@ export const OPERATION_FAMILY_PERMISSION = {
   page: 'projects.write',
   // Project creation, update, archive and reactivation all belong to the project itself. Creation
   // removes only the untouched project and canonical page; the other writes touch only its own
-  // fields, so every project operation needs the existing `projects.write` grant.
+  // fields and, for an archive or a reactivation, the workstreams in its group, so every project
+  // operation needs the existing `projects.write` grant.
   project: 'projects.write',
 } as const satisfies Record<z.infer<typeof OperationFamilySchema>, z.infer<typeof AgentPermissionSchema>>;
 

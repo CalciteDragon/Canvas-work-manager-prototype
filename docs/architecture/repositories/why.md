@@ -37,7 +37,8 @@ the whole document and checks references, uniqueness and workspace scope, and �
 archive phase — the ownership invariants: every row's section exists, belongs to its
 project and holds its kind; a live row is never in an archived section or under an
 archived parent; a parent and child share a section; every archive marker names an
-archive still in progress. Rejected: leaving invariants to the write path — the document
+archive still in progress; and, since Slice 80, a project's `archivedWithProject` marker names an
+archived, unmarked ancestor through a chain carrying the same marker. Rejected: leaving invariants to the write path — the document
 that produced friction note `note-2026-09-01-002` was written by a correct write path and
 was still wrong.
 

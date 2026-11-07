@@ -269,8 +269,12 @@ workstream's, not its root's, even when the call moved it to another root:
 Undo writes back exactly the fields that call changed, completion time included, and leaves any other
 field someone changed since alone; a later change to one of the same fields refuses. Reversing a move
 re-checks the destination the way a new move would: it must still exist, must not sit beneath the
-project, and must not be under anything archived. Redoing an archive — or undoing a reactivation —
-refuses while the project has a live workstream, because archiving never cascades. One narrow
+project, and must not be under anything archived. `archive_project` refuses while the project has a
+live workstream at any depth, naming each one and its id; a second call with `archiveWorkstreamIds`
+naming them all archives them together, as one step, and `restore_project` on that project brings them
+back at the statuses they recorded (a person's confirmation for this is still Slice 22's). A history
+step moves exactly its recorded group: redoing an archive — or undoing a reactivation — refuses while a
+live workstream is not recorded, and undoing an archive refuses if the group has changed. One narrow
 exception to the archive freeze applies here and nowhere else: a project's **own** archive can be
 undone, its reactivation redone, and an edit made while it was archived undone or redone, while that
 same project is archived — but an archived **ancestor** still answers `history_blocked:`.

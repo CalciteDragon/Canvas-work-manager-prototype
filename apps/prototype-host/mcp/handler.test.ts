@@ -379,6 +379,24 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
     }
   });
 
+  it('a text-only client’s archive refusal names each live workstream and its id, then a call naming them commits (Slice 80, R2)', async () => {
+    const { client, handler } = await build('prototype-user-a-readwrite', true);
+    try {
+      const created = await client.callTool({ name: 'create_project', arguments: { kind: 'subproject', parentProjectId: 'project-agent-ops', name: 'Named child' } });
+      const childId = (created.structuredContent as { project: { id: string } }).project.id;
+      const refused = await client.callTool({ name: 'archive_project', arguments: { projectId: 'project-agent-ops' } });
+      expect(refused.isError).toBe(true);
+      expect(JSON.stringify(refused.content)).toContain(`\\"Named child\\" [${childId}]`);
+
+      const named = await client.callTool({ name: 'archive_project', arguments: { projectId: 'project-agent-ops', archiveWorkstreamIds: [childId] } });
+      expect(named.isError).not.toBe(true);
+      expect(named.structuredContent).toMatchObject({ cascaded: [{ id: childId, status: 'archived' }] });
+    } finally {
+      await client.close();
+      await handler.close();
+    }
+  });
+
   it('lets a read-only MCP connection list archived projects but refuses Restore', async () => {
     const { client, handler } = await build('prototype-user-a-readonly');
     try {

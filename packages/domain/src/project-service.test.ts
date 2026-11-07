@@ -3,6 +3,7 @@ import { buildSeed } from '@cwm/prototype-data';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
+import { liveSubtree } from './project-visibility';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 
@@ -163,6 +164,265 @@ describe('ProjectService.archive', () => {
     const archived = await harness.projectService.archive(harness.actor, MINE);
 
     expect(await harness.projectService.archive(harness.actor, MINE)).toEqual(archived);
+  });
+});
+
+/**
+ * `nested-projects`' shape on the harness: MINE → Kitchen (Active) → Cabinets (On hold); MINE →
+ * Garden (Completed); MINE → Legacy (archived, unmarked) → Shelving (live, hidden: the trap state).
+ */
+const group = async (harness: ReturnType<typeof buildHarness>) => {
+  const kitchen = await create(harness, { name: 'Kitchen', parentProjectId: MINE, status: 'active' });
+  const cabinets = await create(harness, { name: 'Cabinets', parentProjectId: kitchen.id, status: 'on_hold' });
+  const garden = (await harness.projectWriteService.update(harness.actor, (await create(harness, { name: 'Garden', parentProjectId: MINE })).id, { status: 'completed' })).project;
+  const legacy = await create(harness, { name: 'Legacy', parentProjectId: MINE });
+  const shelving = await create(harness, { name: 'Shelving', parentProjectId: legacy.id, status: 'active' });
+  await harness.projectWriteService.archive(harness.actor, shelving.id);
+  await harness.projectWriteService.archive(harness.actor, legacy.id);
+  await harness.projects.update({ ...(await harness.projects.find(shelving.id))!, status: 'active' });
+  return { kitchen, cabinets, garden, legacy, shelving, ids: [kitchen.id, cabinets.id, garden.id] };
+};
+const stored = async (harness: ReturnType<typeof buildHarness>, id: ProjectId) => (await harness.projects.find(id))!;
+const documentOf = (harness: ReturnType<typeof buildHarness>) => JSON.stringify(harness.store.snapshot());
+
+describe('ProjectService group archive (Slice 80, R1–R3, R7)', () => {
+  it('archiving with the whole live subtree named marks each at its recorded status, as one action and one Activity line', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden, ids } = await group(harness);
+    const lines = (await harness.activity.list(harness.actor)).length;
+
+    const write = await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: ids });
+
+    expect(write.project.status).toBe('archived');
+    expect(write.cascaded?.map((project) => project.id)).toEqual(ids);
+    expect(await stored(harness, kitchen.id)).toMatchObject({ status: 'archived', archivedWithProject: { projectId: MINE, status: 'active' } });
+    expect(await stored(harness, cabinets.id)).toMatchObject({ status: 'archived', archivedWithProject: { projectId: MINE, status: 'on_hold' } });
+    expect(await stored(harness, garden.id)).toMatchObject({ status: 'archived', archivedWithProject: { projectId: MINE, status: 'completed', completedAt: garden.completedAt } });
+    expect(await stored(harness, garden.id)).not.toHaveProperty('completedAt');
+    expect(write.operation).toMatchObject({ operation: 'project.archive', label: 'Archived "Project project-mine" and 3 workstreams' });
+    expect(await harness.operationActions.find(write.operation!.actionId)).toMatchObject({ operation: { workstreams: [
+      { projectId: kitchen.id, status: 'active' }, { projectId: cabinets.id, status: 'on_hold' }, { projectId: garden.id, status: 'completed', completedAt: garden.completedAt },
+    ] } });
+    const activity = await harness.activity.list(harness.actor);
+    expect(activity).toHaveLength(lines + 1);
+    expect(activity[0]).toMatchObject({ action: 'project.archived', entityId: MINE, summary: 'Archived "Project project-mine" and 3 workstreams' });
+    expect((await harness.operationHistoryService.summary(harness.actor, kitchen.id)).undo?.label).toBe('Created "Kitchen"');
+  });
+
+  it('says one workstream in the singular, and a plain archive records no group', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden } = await group(harness);
+    const one = await harness.projectWriteService.archive(harness.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    expect(one.operation?.label).toBe('Archived "Kitchen" and 1 workstream');
+
+    const plain = await harness.projectWriteService.archive(harness.actor, garden.id);
+    expect(plain.operation?.label).toBe('Archived "Garden"');
+    expect(plain).not.toHaveProperty('cascaded');
+    expect((await harness.operationActions.find(plain.operation!.actionId))?.operation).not.toHaveProperty('workstreams');
+  });
+
+  it('the walk stops at an archived node: a live project hidden under it is neither named nor changed', async () => {
+    const harness = buildHarness();
+    const { legacy, shelving, ids } = await group(harness);
+    const before = [await stored(harness, legacy.id), await stored(harness, shelving.id)];
+
+    await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: ids });
+
+    expect([await stored(harness, legacy.id), await stored(harness, shelving.id)]).toEqual(before);
+    await expect(harness.projectWriteService.archive(harness.actor, (await create(harness, { name: 'Other' })).id, { archiveWorkstreamIds: [shelving.id] }))
+      .rejects.toThrow('is not a live workstream under it');
+  });
+
+  it.each([
+    ['no ids at all', (_ids: ProjectId[]) => undefined],
+    ['an empty list', (_ids: ProjectId[]) => []],
+    ['a partial list', (ids: ProjectId[]) => ids.slice(0, 1)],
+  ])('with %s, refuses naming every live workstream and its id, and writes nothing', async (_name, list) => {
+    const harness = buildHarness();
+    const { ids } = await group(harness);
+    const before = documentOf(harness);
+
+    const refusal = harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: list(ids) });
+
+    await expect(refusal).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(refusal).rejects.toThrow(`project "${MINE}" still has active workstreams: "Kitchen" [${ids[0]}], "Cabinets" [${ids[1]}], "Garden" [${ids[2]}]`);
+    expect(documentOf(harness)).toEqual(before);
+  });
+
+  it('a foreign and a nonexistent id refuse with identical text, and write nothing', async () => {
+    const harness = buildHarness();
+    const { ids } = await group(harness);
+    const before = documentOf(harness);
+    const text = (id: string) => `project "${MINE}" cannot archive "${id}": it is not a live workstream under it`;
+
+    await expect(harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: [...ids, THEIRS] })).rejects.toThrow(text(THEIRS));
+    await expect(harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: [...ids, 'project-nope' as ProjectId] })).rejects.toThrow(text('project-nope'));
+    expect(documentOf(harness)).toEqual(before);
+  });
+
+  it('holds through update as through archive: PATCH without ids refuses, with them commits', async () => {
+    const harness = buildHarness();
+    const { ids, kitchen } = await group(harness);
+
+    await expect(harness.projectWriteService.update(harness.actor, MINE, { status: 'archived' })).rejects.toThrow('still has active workstreams');
+    const write = await harness.projectWriteService.update(harness.actor, MINE, { status: 'archived', archiveWorkstreamIds: ids });
+
+    expect(write.cascaded?.map((project) => project.id)).toEqual(ids);
+    expect(await stored(harness, kitchen.id)).toMatchObject({ archivedWithProject: { projectId: MINE } });
+  });
+
+  it('the input on anything but an archive transition refuses; an empty list is absent', async () => {
+    const harness = buildHarness();
+    const { ids } = await group(harness);
+
+    await expect(harness.projectWriteService.update(harness.actor, MINE, { name: 'x', archiveWorkstreamIds: ids })).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.projectWriteService.update(harness.actor, MINE, { status: 'on_hold', archiveWorkstreamIds: ids })).rejects.toBeInstanceOf(DomainRuleError);
+    expect((await harness.projectWriteService.update(harness.actor, MINE, { name: 'x', archiveWorkstreamIds: [] })).project.name).toBe('x');
+  });
+
+  it('on an already archived project the list is ignored: a retry is the no-op it needs, and a rename still renames', async () => {
+    const harness = buildHarness();
+    const { ids } = await group(harness);
+    await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: ids });
+    const before = documentOf(harness);
+
+    const retry = await harness.projectWriteService.update(harness.actor, MINE, { status: 'archived', archiveWorkstreamIds: ids });
+    const retried = await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: ids });
+    expect(retry.operation).toBeNull();
+    expect(retried.operation).toBeNull();
+    expect(retry).not.toHaveProperty('cascaded');
+    expect(documentOf(harness)).toEqual(before);
+
+    const renamed = await harness.projectWriteService.update(harness.actor, MINE, { status: 'archived', archiveWorkstreamIds: ids, name: 'Renamed' });
+    expect(renamed.project.name).toBe('Renamed');
+    expect(renamed.operation?.operation).toBe('project.update');
+  });
+
+  it('an actor without projects.write is forbidden; with it alone a group archive needs no read grant', async () => {
+    const harness = buildHarness();
+    const { ids } = await group(harness);
+
+    await expect(harness.projectWriteService.archive(agentActorFor(0, ['projects.read', 'tasks.write']), MINE, { archiveWorkstreamIds: ids })).rejects.toBeInstanceOf(PermissionDeniedError);
+    const write = await harness.projectWriteService.archive(agentActorFor(0, ['projects.write']), MINE, { archiveWorkstreamIds: ids });
+    expect(write.cascaded).toHaveLength(3);
+  });
+
+  it('a cycle in a hand-built project list terminates the walk', () => {
+    const base = { workspaceId: 'w', name: 'x', status: 'active', projectLayoutMode: 'flow', progressFormula: 'count', createdAt: NOW, updatedAt: NOW };
+    const a = { ...base, id: 'a', kind: 'subproject', parentProjectId: 'b' };
+    const b = { ...base, id: 'b', kind: 'subproject', parentProjectId: 'a' };
+    expect(liveSubtree([a, b] as never, 'a' as ProjectId).map((project) => project.id)).toEqual(['b']);
+  });
+
+  it('archives and moves in one call', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden } = await group(harness);
+
+    const write = await harness.projectWriteService.update(harness.actor, kitchen.id, { status: 'archived', parentProjectId: garden.id, archiveWorkstreamIds: [cabinets.id] });
+
+    expect(write.project.parentProjectId).toBe(garden.id);
+    expect(await stored(harness, cabinets.id)).toMatchObject({ archivedWithProject: { projectId: kitchen.id } });
+  });
+
+  it('a move of the owner carries its group, and the marker invariant holds at commit', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden } = await group(harness);
+    await harness.projectWriteService.archive(harness.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+
+    const moved = await harness.projectWriteService.update(harness.actor, kitchen.id, { parentProjectId: garden.id });
+
+    expect(moved.project.parentProjectId).toBe(garden.id);
+    expect((await stored(harness, cabinets.id)).parentProjectId).toBe(kitchen.id);
+    expect(await stored(harness, cabinets.id)).toMatchObject({ archivedWithProject: { projectId: kitchen.id } });
+  });
+});
+
+describe('ProjectService restore of a group (Slice 80, R4, R5, R7)', () => {
+  it('restore revives exactly the marked, each to its recorded status and completion time, clearing markers; one archived alone stays', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden, legacy, ids } = await group(harness);
+    await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: ids });
+    const legacyBefore = await stored(harness, legacy.id);
+    const lines = (await harness.activity.list(harness.actor)).length;
+
+    const write = await harness.projectWriteService.update(harness.actor, MINE, { status: 'on_hold' });
+
+    expect(write.cascaded?.map((project) => project.id)).toEqual(ids);
+    expect(write.project.status).toBe('on_hold');
+    const kitchenNow = await stored(harness, kitchen.id);
+    expect(kitchenNow.status).toBe('active');
+    expect(kitchenNow).not.toHaveProperty('archivedWithProject');
+    expect((await stored(harness, cabinets.id)).status).toBe('on_hold');
+    expect(await stored(harness, garden.id)).toMatchObject({ status: 'completed', completedAt: garden.completedAt });
+    expect(await stored(harness, legacy.id)).toEqual(legacyBefore);
+    expect(write.operation).toMatchObject({ operation: 'project.reactivate', label: 'Reactivated "Project project-mine" and 3 workstreams' });
+    const activity = await harness.activity.list(harness.actor);
+    expect(activity).toHaveLength(lines + 1);
+    expect(activity[0]).toMatchObject({ action: 'project.updated', summary: 'Reactivated "Project project-mine" and 3 workstreams' });
+  });
+
+  it('a restore with no group keeps its old line and answers no cascaded', async () => {
+    const harness = buildHarness();
+    await harness.projectWriteService.archive(harness.actor, MINE);
+    const write = await harness.projectWriteService.update(harness.actor, MINE, { status: 'active' });
+
+    expect(write).not.toHaveProperty('cascaded');
+    expect((await harness.activity.list(harness.actor))[0]).toMatchObject({ summary: 'Updated "Project project-mine"' });
+  });
+
+  it('a restore under an archived ancestor refuses and keeps every marker', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden } = await group(harness);
+    await harness.projectWriteService.archive(harness.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: [garden.id] });
+    const before = documentOf(harness);
+
+    await expect(harness.projectWriteService.update(harness.actor, kitchen.id, { status: 'active' })).rejects.toThrow(`project "${MINE}" is archived and cannot take new work`);
+
+    expect(documentOf(harness)).toEqual(before);
+    expect(await stored(harness, kitchen.id)).toMatchObject({ status: 'archived' });
+    expect(await stored(harness, kitchen.id)).not.toHaveProperty('archivedWithProject');
+  });
+
+  it('a marked project refuses a status change, a reparent and both in one call, naming the owner; a rename succeeds', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden } = await group(harness);
+    await harness.projectWriteService.archive(harness.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    const before = documentOf(harness);
+    const text = `project "${cabinets.id}" was archived with "${kitchen.id}"; restore "${kitchen.id}" to bring it back`;
+
+    await expect(harness.projectWriteService.update(harness.actor, cabinets.id, { status: 'active' })).rejects.toThrow(text);
+    await expect(harness.projectWriteService.update(harness.actor, cabinets.id, { parentProjectId: garden.id })).rejects.toThrow(text);
+    await expect(harness.projectWriteService.update(harness.actor, cabinets.id, { status: 'active', parentProjectId: garden.id })).rejects.toThrow(text);
+    expect(documentOf(harness)).toEqual(before);
+
+    expect((await harness.projectWriteService.update(harness.actor, cabinets.id, { name: 'Doors' })).project.name).toBe('Doors');
+    const again = await harness.projectWriteService.update(harness.actor, cabinets.id, { status: 'archived', parentProjectId: kitchen.id });
+    expect(again.operation).toBeNull();
+  });
+
+  it('an unmarked archived project can still reactivate and move in one call', async () => {
+    const harness = buildHarness();
+    const { legacy, garden, shelving } = await group(harness);
+    await harness.projects.update({ ...(await stored(harness, shelving.id)), status: 'archived' });
+
+    const moved = await harness.projectWriteService.update(harness.actor, shelving.id, { status: 'active', parentProjectId: garden.id });
+
+    expect(moved.project).toMatchObject({ status: 'active', parentProjectId: garden.id });
+    expect((await stored(harness, legacy.id)).status).toBe('archived');
+  });
+
+  it('nested owners: Home’s restore leaves Kitchen listed as archived with its own group', async () => {
+    const harness = buildHarness();
+    const { kitchen, cabinets, garden } = await group(harness);
+    await harness.projectWriteService.archive(harness.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: [garden.id] });
+
+    await harness.projectWriteService.update(harness.actor, MINE, { status: 'active' });
+
+    expect((await stored(harness, garden.id)).status).toBe('completed');
+    expect((await stored(harness, kitchen.id)).status).toBe('archived');
+    expect(await stored(harness, cabinets.id)).toMatchObject({ archivedWithProject: { projectId: kitchen.id } });
   });
 });
 

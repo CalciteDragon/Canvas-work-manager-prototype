@@ -154,7 +154,7 @@ export class WorkspaceService {
 
   /**
    * Archived projects are not workspace content, and neither is the live work sitting
-   * underneath one: archiving does not cascade (§31), so `status` alone would leave a
+   * underneath one: an archive takes down only what was named (§31), so `status` alone would leave a
    * reparented or reactivated sub-project showing up in search and in upcoming work while
    * every write to it is refused. `archivedAncestry` is built over the **unfiltered** list —
    * over the filtered one the archived ancestors would already be gone.

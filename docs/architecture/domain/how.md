@@ -193,7 +193,9 @@ under `projects.read`, while owned rows are read separately by the viewer's cont
   field against the value the other direction left (a parent mismatch reads `reparented`), then
   re-runs `ProjectService.update`'s rules for the resulting change: a destination parent in the
   workspace, not beneath the subject and with no archived ancestry (`archive-state-changed` names the
-  archived one); no live child when the direction archives (`new-dependent`); no manual formula
+  archived one); `planBringBack` or `planTakeDown` for the action's recorded group, all or nothing
+  (Slice 80: no live workstream unrecorded when the direction archives, `new-dependent`; a group
+  that no longer matches, `field-changed`; a recorded workstream that no longer exists is skipped); no manual formula
   without its value; and, for a move to another root, no placement with exactly one end — its
   canvas or its source — in the subject's subtree (`shortcut-reference`): since Slice 65 a
   workstream's Work canvas can hold placements, so both ends count, and a placement with both ends

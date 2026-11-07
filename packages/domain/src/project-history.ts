@@ -4,6 +4,7 @@ import {
   ProjectPageSchema,
   ProjectReactivateOperationSchema,
   ProjectSchema,
+  ProjectStateRecordSchema,
   ProjectUpdateOperationSchema,
   nameOf,
   type OperationHistoryDirection,
@@ -14,6 +15,7 @@ import {
   type ProjectId,
   type ProjectPage,
   type ProjectSection,
+  type ProjectStateRecord,
   type ProjectUndoOperation,
   type RedoResult,
   type SectionShortcut,
@@ -34,6 +36,7 @@ import type {
 import type { Clock } from './clock';
 import { EntityNotFoundError } from './errors';
 import { OperationExecutionRefused, conflictListText, directionWord, refuseOnConflicts } from './operation-execution';
+import { groupWords, liveSubtree, markArchivedWith, reviveFromMarker } from './project-visibility';
 
 /**
  * **Capture, Undo and Redo for existing-project writes** (Slice 39, §§26, 31, 39;
@@ -48,9 +51,10 @@ import { OperationExecutionRefused, conflictListText, directionWord, refuseOnCon
  * Reversal is not a way around the forward rules. Each direction re-runs, against the project tree
  * as it is **now**, the checks `ProjectService.update` would run for the same change: a destination
  * parent must exist in the workspace, must not sit under the subject, and must have no archived
- * ancestry; a direction that archives refuses while any child is live, because archiving never
- * cascades and a history step must not acquire one. `completedAt` is restored verbatim — it is
- * captured business state, not something to regenerate from the transition's clock.
+ * ancestry. A history step moves exactly its recorded group (Slice 80, R6): a direction that archives
+ * refuses while any live workstream is not recorded, and a direction that restores refuses when the
+ * group no longer matches, so a step never sweeps in work added since. `completedAt` is restored
+ * verbatim — it is captured business state, not something to regenerate from the transition's clock.
  *
  * The dependency type holds the project repository — the only one written — plus pages, sections
  * and placements, read to refuse a move that would split a shortcut's two ends across roots.
@@ -254,17 +258,30 @@ const FIELDS: readonly Field[] = [
 /** A project's value for one recorded field, with absence as `null`. */
 const valueOf = (project: Project, field: Field): unknown => (project as Record<string, unknown>)[field] ?? null;
 
+/** One workstream a group archive or restore moves: its record before the write and after it. */
+export interface GroupWrite {
+  before: Project;
+  after: Project;
+}
+
+/** What a workstream was outside its group: read from itself on an archive, from its marker on a restore. */
+const recordedStateOf = ({ before }: GroupWrite): ProjectStateRecord => {
+  const { status, completedAt } = before.archivedWithProject ?? before;
+  return ProjectStateRecordSchema.parse({ projectId: before.id, status, ...(completedAt === undefined ? {} : { completedAt }) });
+};
+
 /**
  * The operation one committed write stores, from the project before it and the normalized project
- * it wrote (`updatedAt` aside). The status decides the kind; everything else is `changes`.
+ * it wrote (`updatedAt` aside). The status decides the kind; everything else is `changes`. `group` is
+ * what moved with it; a write with no group stores the shape it always did, with no `workstreams`.
  */
-export const captureProjectWrite = (before: Project, after: Project): ProjectWriteOperation => {
+export const captureProjectWrite = (before: Project, after: Project, group: readonly GroupWrite[] = []): ProjectWriteOperation => {
   const changes = FIELDS.flatMap((field) => {
     const was = valueOf(before, field);
     const now = valueOf(after, field);
     return JSON.stringify(was) === JSON.stringify(now) ? [] : [{ field, before: was, after: now }];
   });
-  const shape = { version: 1, projectId: before.id, changes };
+  const shape = { version: 1, projectId: before.id, changes, ...(group.length === 0 ? {} : { workstreams: group.map(recordedStateOf) }) };
   if (before.status !== 'archived' && after.status === 'archived') {
     return ProjectArchiveOperationSchema.parse({ ...shape, type: 'project.archive' });
   }
@@ -301,14 +318,15 @@ const STATUS_WORD: Record<Project['status'], string> = {
  * control can say what it will undo (Slice 41): `Renamed "Old" to "New"`, `Completed "X"`,
  * `Reopened "X"`, `Set "X" to On hold`, `Moved "X" under Kitchen`, `Changed the layout of "X"`,
  * `Changed progress for "X"`, `Changed the target date of "X"`, `Edited the description of "X"`,
- * `Changed the icon of "X"`; an archive or reactivation keeps `Archived`/`Reactivated`; more than
- * one user-facing edit is `Edited "X"`. `parentName` is the new parent's name for a move, read by
- * the caller; without it a move is `Moved "X"`.
+ * `Changed the icon of "X"`; an archive or reactivation keeps `Archived`/`Reactivated`, naming a
+ * group's size (`Archived "X" and 3 workstreams`); more than one user-facing edit is `Edited "X"`.
+ * `parentName` is the new parent's name for a move, read by the caller; without it a move is
+ * `Moved "X"`.
  */
 export const projectWriteLabel = (operation: ProjectWriteOperation, after: Project, parentName?: string): string => {
   const subject = `"${after.name}"`;
-  if (operation.type === 'project.archive') return `Archived ${subject}`;
-  if (operation.type === 'project.reactivate') return `Reactivated ${subject}`;
+  if (operation.type === 'project.archive') return `Archived ${subject}${groupWords(operation.workstreams?.length ?? 0)}`;
+  if (operation.type === 'project.reactivate') return `Reactivated ${subject}${groupWords(operation.workstreams?.length ?? 0)}`;
   const edits = new Set(operation.changes.map((change) => EDIT_OF[change.field]));
   if (edits.size !== 1) return `Edited ${subject}`;
   const [edit] = edits;
@@ -578,13 +596,82 @@ const crossRootShortcutConflicts = (carried: readonly CarriedShortcut[]): UndoCo
     nextStep: 'remove-reference-and-retry',
   }));
 
-/** Runs one direction: preflight every recorded field and the hierarchy rules, then one write. */
+const isSameRecord = (marker: ProjectStateRecord | undefined, expected: ProjectStateRecord): boolean =>
+  marker !== undefined &&
+  marker.projectId === expected.projectId &&
+  marker.status === expected.status &&
+  marker.completedAt === expected.completedAt;
+
+/**
+ * **Bring back** (Undo of an archive, Redo of a reactivation): every recorded workstream is still
+ * marked exactly as recorded, and nothing else is marked with this owner, because a marked project
+ * left under a live owner would break the marker invariant. Each refusal is `field-changed`: someone
+ * changed the group, no action on the workstream makes it match again, and the repair is the owner's
+ * Restore by hand. A recorded workstream that no longer exists is skipped, never a conflict: its
+ * creation's Undo looks only at its own history, and refusing would strand every step below this one
+ * for a project with nothing left to do.
+ */
+const planBringBack = (all: readonly Project[], subject: Project, group: readonly ProjectStateRecord[]) => {
+  const conflicts: UndoConflict[] = [];
+  const writes: Project[] = [];
+  const recorded = new Set(group.map(({ projectId }) => projectId));
+  for (const record of group) {
+    const workstream = all.find(({ id }) => id === record.projectId);
+    if (workstream === undefined) continue;
+    const { projectId: _workstreamId, ...state } = record;
+    if (workstream.status === 'archived' && isSameRecord(workstream.archivedWithProject, { projectId: subject.id, ...state })) {
+      writes.push(reviveFromMarker(workstream));
+    } else {
+      conflicts.push(conflict(workstream.id, 'field-changed', workstream.name));
+    }
+  }
+  for (const project of all) {
+    if (project.archivedWithProject?.projectId === subject.id && !recorded.has(project.id)) {
+      conflicts.push(conflict(project.id, 'field-changed', project.name));
+    }
+  }
+  return { conflicts, writes };
+};
+
+/**
+ * **Take down** (Redo of an archive, Undo of a reactivation): every recorded workstream is as it was
+ * recorded and still in the live subtree, and no live workstream is unrecorded, so a step never
+ * sweeps in work added since. A status drift is a state someone can restore; only a completion time
+ * differing is not, because no input can set one. A recorded workstream that no longer exists is
+ * skipped, as in `planBringBack`.
+ */
+const planTakeDown = (all: readonly Project[], subject: Project, group: readonly ProjectStateRecord[]) => {
+  const conflicts: UndoConflict[] = [];
+  const writes: Project[] = [];
+  const recorded = new Set(group.map(({ projectId }) => projectId));
+  const live = liveSubtree(all, subject.id);
+  const liveIds = new Set(live.map(({ id }) => id));
+  for (const record of group) {
+    const workstream = all.find(({ id }) => id === record.projectId);
+    if (workstream === undefined) continue;
+    if (workstream.status !== record.status || workstream.archivedWithProject !== undefined) {
+      conflicts.push(conflict(workstream.id, 'archive-state-changed', workstream.name));
+    } else if (workstream.completedAt !== record.completedAt) {
+      conflicts.push(conflict(workstream.id, 'field-changed', workstream.name));
+    } else if (!liveIds.has(workstream.id)) {
+      conflicts.push(conflict(workstream.id, 'reparented', workstream.name));
+    } else {
+      writes.push(markArchivedWith(workstream, subject.id));
+    }
+  }
+  for (const project of live) {
+    if (!recorded.has(project.id)) conflicts.push(conflict(project.id, 'new-dependent', project.name));
+  }
+  return { conflicts, writes };
+};
+
+/** Runs one direction: preflight every recorded field and the hierarchy rules, then one unit of writes. */
 const writeProject = async (
   repositories: ProjectHistoryRepositories,
   clock: Clock,
   operation: ProjectWriteOperation,
   direction: OperationHistoryDirection,
-): Promise<Project> => {
+): Promise<{ project: Project; cascaded: Project[] }> => {
   const expected = direction === 'undo' ? 'after' : 'before';
   const target = direction === 'undo' ? 'before' : 'after';
   const current = await repositories.projects.find(operation.projectId);
@@ -601,6 +688,7 @@ const writeProject = async (
 
   let next: Project | undefined;
   let carried: CarriedShortcut[] = [];
+  let groupWrites: Project[] = [];
   if (current !== null && conflicts.length === 0) {
     const draft: Record<string, unknown> = { ...current };
     for (const change of operation.changes) {
@@ -623,19 +711,36 @@ const writeProject = async (
       carried = await shortcutsCarriedAcrossRoots(repositories, current, next.parentProjectId!);
       conflicts.push(...crossRootShortcutConflicts(carried));
     }
-    if (next.status === 'archived' && current.status !== 'archived') {
-      const children = await repositories.projects.list({ workspaceId: current.workspaceId, parentProjectId: current.id });
-      conflicts.push(...children.filter((child) => child.status !== 'archived').map((child) => conflict(child.id, 'new-dependent', child.name)));
+    if (operation.type !== 'project.update') {
+      const all = await repositories.projects.list({ workspaceId: current.workspaceId });
+      const plan = (operation.type === 'project.archive') === (direction === 'undo') ? planBringBack : planTakeDown;
+      const planned = plan(all, current, operation.workstreams ?? []);
+      conflicts.push(...planned.conflicts);
+      groupWrites = planned.writes;
     }
   }
 
   refuse(direction, operation, current === null ? `project [${operation.projectId}]` : `"${current.name}"`, conflicts, carried);
   if (current === null || next === undefined) throw new EntityNotFoundError('project', operation.projectId);
 
-  const written = ProjectSchema.parse({ ...next, updatedAt: clock.now().toISOString() });
+  const updatedAt = clock.now().toISOString();
+  const written = ProjectSchema.parse({ ...next, updatedAt });
   await repositories.projects.update(written);
-  return written;
+  const cascaded: Project[] = [];
+  for (const write of groupWrites) {
+    const workstream = ProjectSchema.parse({ ...write, updatedAt });
+    await repositories.projects.update(workstream);
+    cascaded.push(workstream);
+  }
+  return { project: written, cascaded };
 };
+
+const asResult = (operation: ProjectWriteOperation, outcome: 'restored' | 'reapplied', { project, cascaded }: { project: Project; cascaded: Project[] }) => ({
+  operation: operation.type,
+  outcome,
+  project,
+  ...(cascaded.length === 0 ? {} : { cascaded }),
+});
 
 /** Undo: the recorded `before` values, under the current tree's rules. */
 export const revertProjectWrite = async (
@@ -643,7 +748,7 @@ export const revertProjectWrite = async (
   clock: Clock,
   operation: ProjectWriteOperation,
 ): Promise<UndoResult> =>
-  ({ operation: operation.type, outcome: 'restored', project: await writeProject(repositories, clock, operation, 'undo') }) as UndoResult;
+  asResult(operation, 'restored', await writeProject(repositories, clock, operation, 'undo')) as UndoResult;
 
 /** Redo: the recorded `after` values, under the same rules. */
 export const reapplyProjectWrite = async (
@@ -651,4 +756,4 @@ export const reapplyProjectWrite = async (
   clock: Clock,
   operation: ProjectWriteOperation,
 ): Promise<RedoResult> =>
-  ({ operation: operation.type, outcome: 'reapplied', project: await writeProject(repositories, clock, operation, 'redo') }) as RedoResult;
+  asResult(operation, 'reapplied', await writeProject(repositories, clock, operation, 'redo')) as RedoResult;

@@ -1,5 +1,7 @@
 import { PrototypeDocumentSchema, type Project, type ProjectId, type ProjectStatus } from '@cwm/contracts';
+import { buildSeed } from '@cwm/prototype-data';
 import { describe, expect, it } from 'vitest';
+import { buildHarness } from '../test/test-support';
 import { DomainRuleError } from './errors';
 import { archivedAncestry, assertProjectWritable, findHighestWriteBlocker } from './project-visibility';
 
@@ -137,6 +139,17 @@ describe('archivedAncestry', () => {
     const preFiltered = archivedRootTree().filter(({ status }) => status !== 'archived');
 
     expect(archivedAncestry(preFiltered).isHidden(id('grandchild'))).toBe(false);
+  });
+});
+
+describe('the freeze on a marked project (Slice 80, R5)', () => {
+  it('a content write names the owner to restore; an unmarked archived project keeps today’s message', async () => {
+    const harness = buildHarness(buildSeed('nested-projects'));
+    await harness.projectWriteService.archive(harness.actor, 'project-kitchen' as ProjectId, { archiveWorkstreamIds: ['project-cabinets' as ProjectId] });
+
+    await expect(assertProjectWritable(harness.projects, 'project-cabinets' as ProjectId)).rejects.toThrow('project "project-cabinets" was archived with "project-kitchen"; restore "project-kitchen" to bring it back');
+    await expect(assertProjectWritable(harness.projects, 'project-kitchen' as ProjectId)).rejects.toThrow('project "project-kitchen" is archived; reactivate it first');
+    await expect(assertProjectWritable(harness.projects, 'project-legacy' as ProjectId)).rejects.toThrow('project "project-legacy" is archived; reactivate it first');
   });
 });
 

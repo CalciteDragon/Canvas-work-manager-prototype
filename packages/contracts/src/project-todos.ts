@@ -68,8 +68,9 @@ export const ProjectTodosResultSchema = z.object({
   /**
    * Present **only for an archived root** (Slice 79, §31): how many rows this read would list
    * once the root is restored, never the rows. `items` is then empty, because §31 hides an
-   * archived project's live contents; work archived in its own right, which a restore does not
-   * bring back, is not counted. A live root's answer has no such field.
+   * archived project's live contents. Rows under workstreams archived with the root are counted
+   * (Slice 80), because a restore brings them back; work archived in its own right, which a restore
+   * does not, is not. A live root's answer has no such field.
    */
   hiddenItemCount: z.number().int().nonnegative().optional(),
 });

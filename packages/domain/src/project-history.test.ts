@@ -76,6 +76,325 @@ const projectAddRepositories = (h: Harness): ProjectAddHistoryRepositories => ({
 });
 
 
+describe('history of a group archive (Slice 80, R6)', () => {
+  /** MINE → Kitchen (Active) → Cabinets (On hold); MINE → Garden (Completed). */
+  const group = async (h: Harness) => {
+    const kitchen = await h.projectService.create(h.actor, { workspaceId: h.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen', status: 'active' });
+    const cabinets = await h.projectService.create(h.actor, { workspaceId: h.actor.workspaceId, kind: 'subproject', parentProjectId: kitchen.id, name: 'Cabinets', status: 'on_hold' });
+    const gardenId = (await createChild(h, MINE, 'Garden')).id;
+    const garden = (await h.projectWriteService.update(h.actor, gardenId, { status: 'completed' })).project;
+    tick(h);
+    return { kitchen, cabinets, garden, ids: [kitchen.id, cabinets.id, garden.id] };
+  };
+  const archiveAll = (h: Harness, ids: ProjectId[], actor: ActorContext = h.actor) => h.projectWriteService.archive(actor, MINE, { archiveWorkstreamIds: ids });
+  const projects = (h: Harness) => JSON.stringify(h.store.snapshot().projects);
+  const withoutStamps = (h: Harness) => h.store.snapshot().projects.map(({ updatedAt: _updatedAt, ...rest }) => rest);
+
+  it('Undo of a group archive restores the group exactly, and Redo re-marks it', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets, garden, ids } = await group(h);
+    const start = withoutStamps(h);
+    const archived = await archiveAll(h, ids);
+    const marked = withoutStamps(h);
+
+    const undone = await step(h, archived.operation!);
+    expect(withoutStamps(h)).toEqual(start);
+    expect(undone.result).toMatchObject({ operation: 'project.archive', outcome: 'restored' });
+    expect('cascaded' in undone.result && undone.result.cascaded?.map(({ id }) => id)).toEqual(ids);
+    expect(await project(h, garden.id)).toMatchObject({ status: 'completed', completedAt: garden.completedAt });
+
+    const redone = await step(h, archived.operation!, 'redo');
+    expect(withoutStamps(h)).toEqual(marked);
+    expect('cascaded' in redone.result && redone.result.cascaded?.map(({ id }) => id)).toEqual(ids);
+    expect(await project(h, kitchen.id)).toMatchObject({ archivedWithProject: { projectId: MINE, status: 'active' } });
+    expect(await project(h, cabinets.id)).toMatchObject({ archivedWithProject: { projectId: MINE, status: 'on_hold' } });
+  });
+
+  it('Undo of a reactivation re-archives the recorded group, and Redo revives it', async () => {
+    const h = buildHarness();
+    const { kitchen, garden, ids } = await group(h);
+    await archiveAll(h, ids);
+    const marked = withoutStamps(h).filter(({ id }) => id !== MINE);
+    const restored = await h.projectWriteService.update(h.actor, MINE, { status: 'on_hold' });
+    expect((await h.operationActions.find(restored.operation!.actionId))?.operation).toMatchObject({ type: 'project.reactivate', workstreams: [{ projectId: kitchen.id, status: 'active' }, expect.anything(), { projectId: garden.id, status: 'completed', completedAt: garden.completedAt }] });
+
+    const undone = await step(h, restored.operation!);
+    expect(withoutStamps(h).filter(({ id }) => id !== MINE)).toEqual(marked);
+    expect('cascaded' in undone.result && undone.result.cascaded).toHaveLength(3);
+
+    await step(h, restored.operation!, 'redo');
+    expect(await project(h, kitchen.id)).not.toHaveProperty('archivedWithProject');
+    expect(await project(h, garden.id)).toMatchObject({ status: 'completed', completedAt: garden.completedAt });
+  });
+
+  it('a rename of a workstream survives Undo and Redo', async () => {
+    const h = buildHarness();
+    const { kitchen, ids } = await group(h);
+    const archived = await archiveAll(h, ids);
+    await h.projectService.update(someoneElse, kitchen.id, { name: 'Galley' });
+
+    await step(h, archived.operation!);
+    expect((await project(h, kitchen.id)).name).toBe('Galley');
+    await step(h, archived.operation!, 'redo');
+    expect((await project(h, kitchen.id)).name).toBe('Galley');
+  });
+
+  describe('bring back refuses, moving nothing', () => {
+    it.each([
+      ['one no longer marked', (_marker: { projectId: ProjectId; status: 'active' }) => undefined],
+      ['a marker with a different status', (marker: { projectId: ProjectId; status: 'active' }) => ({ ...marker, status: 'planning' as const })],
+      ['a marker with a different completion time', (marker: { projectId: ProjectId; status: 'active' }) => ({ ...marker, completedAt: '2026-01-01T00:00:00.000Z' })],
+    ])('%s, with change-by-hand', async (_name, mutate) => {
+      const h = buildHarness();
+      const { kitchen, ids, cabinets } = await group(h);
+      const archived = await archiveAll(h, ids);
+      const current = await project(h, cabinets.id) as Project & { archivedWithProject: { projectId: ProjectId; status: 'active' } };
+      const next = mutate(current.archivedWithProject);
+      await h.projects.update({ ...current, archivedWithProject: next } as Project);
+      const before = state(h);
+
+      const refusal = await refusalOf(step(h, archived.operation!));
+
+      expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ id: cabinets.id, problem: 'field-changed', nextStep: 'change-by-hand' }] });
+      expect(state(h)).toEqual(before);
+      expect(kitchen).toBeTruthy();
+    });
+
+    it('an unrecorded project marked with the owner, with change-by-hand', async () => {
+      const h = buildHarness();
+      const { ids } = await group(h);
+      const archived = await archiveAll(h, ids);
+      const stray = await createChild(h, (await createRoot(h, 'Other')).id, 'Stray');
+      const parented = { ...(await project(h, stray.id)), parentProjectId: MINE, status: 'archived', archivedWithProject: { projectId: MINE, status: 'active' } } as Project;
+      await h.projects.update(parented);
+      const before = state(h);
+
+      const refusal = await refusalOf(step(h, archived.operation!));
+
+      expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ id: stray.id, problem: 'field-changed', nextStep: 'change-by-hand' }] });
+      expect(state(h)).toEqual(before);
+    });
+
+    it('a workstream live and moved away, with change-by-hand', async () => {
+      const h = buildHarness();
+      const { garden, ids } = await group(h);
+      const archived = await archiveAll(h, ids);
+      const { archivedWithProject: _marker, ...rest } = await project(h, garden.id) as Project & { archivedWithProject?: unknown };
+      await h.projects.update({ ...rest, status: 'active', parentProjectId: (await createRoot(h, 'Elsewhere')).id } as Project);
+      const before = state(h);
+
+      const refusal = await refusalOf(step(h, archived.operation!));
+
+      expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ id: garden.id, problem: 'field-changed', nextStep: 'change-by-hand' }] });
+      expect(state(h)).toEqual(before);
+    });
+  });
+
+  describe('take down refuses, moving nothing', () => {
+    const undone = async (h: Harness) => {
+      const parts = await group(h);
+      const archived = await archiveAll(h, parts.ids);
+      await step(h, archived.operation!);
+      return { ...parts, archived };
+    };
+
+    it('on a status drift', async () => {
+      const h = buildHarness();
+      const { kitchen, archived } = await undone(h);
+      await h.projectService.update(someoneElse, kitchen.id, { status: 'planning' });
+      const before = state(h);
+
+      const refusal = await refusalOf(step(h, archived.operation!, 'redo'));
+
+      expect(refusal.details).toMatchObject({ conflicts: [{ id: kitchen.id, problem: 'archive-state-changed', nextStep: 'restore-state-and-retry' }] });
+      expect(state(h)).toEqual(before);
+    });
+
+    it('with only the completion time changed, with change-by-hand', async () => {
+      const h = buildHarness();
+      const { garden, archived } = await undone(h);
+      await h.projects.update({ ...(await project(h, garden.id)), completedAt: '2026-01-01T00:00:00.000Z' } as Project);
+      const before = state(h);
+
+      const refusal = await refusalOf(step(h, archived.operation!, 'redo'));
+
+      expect(refusal.details).toMatchObject({ conflicts: [{ id: garden.id, problem: 'field-changed', nextStep: 'change-by-hand' }] });
+      expect(state(h)).toEqual(before);
+    });
+
+    it('on one moved out of the subtree', async () => {
+      const h = buildHarness();
+      const { garden, archived } = await undone(h);
+      await h.projectService.update(someoneElse, garden.id, { parentProjectId: (await createRoot(h, 'Elsewhere')).id });
+      const before = state(h);
+
+      const refusal = await refusalOf(step(h, archived.operation!, 'redo'));
+
+      expect(refusal.details).toMatchObject({ conflicts: [{ id: garden.id, problem: 'reparented' }] });
+      expect(state(h)).toEqual(before);
+    });
+
+    it('on a new live workstream, at any depth', async () => {
+      const h = buildHarness();
+      const { cabinets, archived } = await undone(h);
+      const late = await createChild(h, cabinets.id, 'Late');
+      const before = state(h);
+
+      const refusal = await refusalOf(step(h, archived.operation!, 'redo'));
+
+      expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ id: late.id, title: 'Late', problem: 'new-dependent' }] });
+      expect(state(h)).toEqual(before);
+    });
+  });
+
+  it('a recorded workstream removed by project.add Undo is skipped both ways, and the count is what moved; a Redo of its creation stays blocked', async () => {
+    const h = buildHarness();
+    const kitchen = await createChild(h, MINE, 'Kitchen');
+    const created = await h.projectWriteService.create(h.actor, { workspaceId: h.actor.workspaceId, kind: 'subproject', parentProjectId: kitchen.id, name: 'Cabinets' });
+    const archived = await h.projectWriteService.archive(someoneElse, kitchen.id, { archiveWorkstreamIds: [created.project.id] });
+    const restored = await h.projectWriteService.update(someoneElse, kitchen.id, { status: 'active' });
+    await step(h, created.operation!);
+    expect(await h.projects.find(created.project.id)).toBeNull();
+
+    // Take down: nothing strands, Kitchen comes down alone, and the Activity count is what moved.
+    const down = await step(h, restored.operation!, 'undo', someoneElse);
+    expect((await project(h, kitchen.id)).status).toBe('archived');
+    expect(down.result).not.toHaveProperty('cascaded');
+    expect((await h.activity.list(h.actor))[0]).toMatchObject({ summary: 'Undid reactivating "Kitchen"' });
+
+    // Its creation's Redo stays blocked under the archived owner.
+    expect((await h.operationHistoryService.summary(h.actor, created.project.id)).redo?.blockedBy).toMatchObject({ projectId: kitchen.id });
+
+    // Bring back: the same.
+    await step(h, archived.operation!, 'undo', someoneElse);
+    expect((await project(h, kitchen.id)).status).not.toBe('archived');
+    await step(h, archived.operation!, 'redo', someoneElse);
+    expect((await project(h, kitchen.id)).status).toBe('archived');
+  });
+
+  it('Undo and Redo write one Activity line naming the count, on the owner', async () => {
+    const h = buildHarness();
+    const { ids } = await group(h);
+    const archived = await archiveAll(h, ids);
+    const lines = (await h.activity.list(h.actor)).length;
+
+    await step(h, archived.operation!);
+    expect((await h.activity.list(h.actor))).toHaveLength(lines + 1);
+    expect((await h.activity.list(h.actor))[0]).toMatchObject({ entityId: MINE, summary: 'Undid archiving "Project project-mine" and 3 workstreams' });
+    await step(h, archived.operation!, 'redo');
+    expect((await h.activity.list(h.actor))[0]).toMatchObject({ summary: 'Redid archiving "Project project-mine" and 3 workstreams' });
+  });
+
+  it('a plain archive recorded before a group existed refuses when a group is now marked', async () => {
+    const h = buildHarness();
+    const plain = await h.projectWriteService.archive(h.actor, MINE);
+    await h.projectWriteService.update(someoneElse, MINE, { status: 'active' });
+    const late = await createChild(h, MINE, 'Late');
+    await h.projectWriteService.archive(someoneElse, MINE, { archiveWorkstreamIds: [late.id] });
+    const before = projects(h);
+
+    const refusal = await refusalOf(step(h, plain.operation!));
+
+    expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ id: late.id, problem: 'field-changed', nextStep: 'change-by-hand' }] });
+    expect(projects(h)).toEqual(before);
+  });
+
+  it('moving the owner while archived does not break its Undo or Redo', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets, garden } = await group(h);
+    const archived = await h.projectWriteService.archive(h.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    await h.projectService.update(someoneElse, kitchen.id, { parentProjectId: garden.id });
+
+    await step(h, archived.operation!);
+    expect(await project(h, kitchen.id)).toMatchObject({ status: 'active', parentProjectId: garden.id });
+    expect((await project(h, cabinets.id)).status).toBe('on_hold');
+    await step(h, archived.operation!, 'redo');
+    expect(await project(h, cabinets.id)).toMatchObject({ archivedWithProject: { projectId: kitchen.id } });
+  });
+
+  it('a marked project’s rename is blocked for Undo, then runs after the group returns, recorded as archived throughout', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets } = await group(h);
+    await h.projectWriteService.archive(h.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    const rename = await h.projectWriteService.update(h.actor, cabinets.id, { name: 'Doors' });
+    expect(await h.operationActions.find(rename.operation!.actionId)).toMatchObject({ operation: { type: 'project.update', archivedThroughout: true } });
+
+    const refusal = await refusalOf(step(h, rename.operation!));
+    expect(refusal.details).toMatchObject({ reason: 'history_blocked', blockingProjectId: kitchen.id });
+
+    await h.projectWriteService.update(h.actor, kitchen.id, { status: 'active' });
+    await step(h, rename.operation!);
+    expect((await project(h, cabinets.id)).name).toBe('Cabinets');
+  });
+
+  it('nested owners: Kitchen’s Undo is blocked by Home first and runs afterwards', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets, garden } = await group(h);
+    const inner = await h.projectWriteService.archive(someoneElse, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    await h.projectWriteService.archive(h.actor, MINE, { archiveWorkstreamIds: [garden.id] });
+
+    const refusal = await refusalOf(step(h, inner.operation!, 'undo', someoneElse));
+    expect(refusal.details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
+
+    await h.projectWriteService.update(h.actor, MINE, { status: 'active' });
+    await step(h, inner.operation!, 'undo', someoneElse);
+    expect((await project(h, kitchen.id)).status).toBe('active');
+    expect((await project(h, cabinets.id)).status).toBe('on_hold');
+  });
+
+  it('a workstream’s own older step is blocked while the owner is archived, and runs after its return', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets } = await group(h);
+    const edit = await h.projectWriteService.update(h.actor, cabinets.id, { status: 'planning' });
+    await h.projectWriteService.archive(h.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+
+    expect((await refusalOf(step(h, edit.operation!))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: kitchen.id });
+
+    await h.projectWriteService.update(h.actor, kitchen.id, { status: 'active' });
+    await step(h, edit.operation!);
+    expect((await project(h, cabinets.id)).status).toBe('on_hold');
+  });
+
+  it('another actor’s restore refuses my Undo and retires nothing; their identical re-archive lets it run, state-based', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets } = await group(h);
+    const archived = await h.projectWriteService.archive(h.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    await h.projectWriteService.update(someoneElse, kitchen.id, { status: 'active' });
+
+    const refusal = await refusalOf(step(h, archived.operation!));
+    expect(refusal.details).toMatchObject({ reason: 'history_conflict' });
+    expect((await h.operationHistoryService.summary(h.actor, kitchen.id)).undo?.actionId).toBe(archived.operation!.actionId);
+
+    await h.projectWriteService.archive(someoneElse, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    await step(h, archived.operation!);
+    expect((await project(h, cabinets.id)).status).toBe('on_hold');
+  });
+
+  it('with a workstream’s status changed between the two, it refuses with change-by-hand', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets } = await group(h);
+    const archived = await h.projectWriteService.archive(h.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+    await h.projectWriteService.update(someoneElse, kitchen.id, { status: 'active' });
+    await h.projectWriteService.update(someoneElse, cabinets.id, { status: 'planning' });
+    await h.projectWriteService.archive(someoneElse, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+
+    const refusal = await refusalOf(step(h, archived.operation!));
+    expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ id: cabinets.id, problem: 'field-changed', nextStep: 'change-by-hand' }] });
+  });
+
+  it('per-actor cursors stay separate, and a tasks.write-only actor is forbidden before any detail', async () => {
+    const h = buildHarness();
+    const { ids } = await group(h);
+    const archived = await archiveAll(h, ids, someoneElse);
+    expect((await h.operationHistoryService.summary(h.actor, MINE)).undo).toBeNull();
+
+    // The same connection with only tasks.write: forbidden, and told nothing about the revision.
+    await expect(h.operationHistoryService.transition(agentActorFor(0, ['tasks.write']), archived.operation!.historyId, { actionId: archived.operation!.actionId, expectedRevision: 0, direction: 'undo' }))
+      .rejects.toBeInstanceOf(PermissionDeniedError);
+    expect((await project(h, MINE)).status).toBe('archived');
+  });
+});
+
 describe('project.add Undo preflight', () => {
   const dependants = [
     {

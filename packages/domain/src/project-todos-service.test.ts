@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { EntityNotFoundError, PermissionDeniedError } from './errors';
 import { ProjectTodosService } from './project-todos-service';
+import { liveSubtree } from './project-visibility';
 
 const AT = '2026-08-01T16:00:00.000Z';
 
@@ -363,6 +364,27 @@ describe('ProjectTodosService.derive — scope (§31, §34)', () => {
     // Restoring answers exactly the rows the count promised, and no count.
     await harness.projectService.update(harness.actor, MINE, { status: 'active' });
     expect(await service.derive(harness.actor, MINE)).toEqual(live);
+  });
+
+  // Slice 80, R8: what came down with the root comes back with it, so the count includes its rows,
+  // and work archived in its own right beforehand stays out, as a restore would leave it.
+  it('counts rows under a group archived with the root, and excludes a separately archived workstream', async () => {
+    const harness = buildHarness();
+    await scenario(harness);
+    const service = todosServiceFor(harness);
+    await harness.projectService.update(harness.actor, 'project-bathroom' as ProjectId, { status: 'archived' });
+    const live = await service.derive(harness.actor, MINE);
+    expect(positionOf(sequenceOf(live), 'project-kitchen')).toBeGreaterThanOrEqual(0);
+    expect(positionOf(sequenceOf(live), 'project-bathroom')).toBe(-1);
+    const ids = liveSubtree(await harness.projects.list({ workspaceId: harness.actor.workspaceId }), MINE).map(({ id }) => id);
+    expect(ids.length).toBeGreaterThan(0);
+
+    await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: ids });
+    const result = await service.derive(harness.actor, MINE);
+
+    expect(result).toEqual({ projectId: MINE, items: [], hiddenItemCount: live.items.length });
+    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    expect(sequenceOf(await service.derive(harness.actor, MINE))).toEqual(sequenceOf(live));
   });
 
   it('answers a zero count for an archived root with nothing live beneath it', async () => {

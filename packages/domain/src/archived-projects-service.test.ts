@@ -19,6 +19,25 @@ describe('ArchivedProjectsService', () => {
     expect(second.items.map(({ project }) => project.id)).toContain('project-cabinets');
   });
 
+  it('counts the marked as cascadeCount, never lists one while its owner is archived, and omits it when none (Slice 80, R8)', async () => {
+    const harness = buildHarness(buildSeed('nested-projects'));
+    const service = new ArchivedProjectsService({ projects: harness.projects });
+    const archive = new ProjectArchiveService({ projects: harness.projects, pages: harness.pages,
+      sections: harness.sections, tasks: harness.tasks, reflections: harness.reflections });
+    await harness.projectWriteService.archive(harness.actor, 'project-kitchen' as never, { archiveWorkstreamIds: ['project-cabinets' as never] });
+
+    const items = (await service.list(harness.actor)).items;
+    expect(items.find(({ project }) => project.id === 'project-kitchen')?.cascadeCount).toBe(1);
+    expect(items.map(({ project }) => project.id)).not.toContain('project-cabinets');
+    expect(items.find(({ project }) => project.id === 'project-legacy')).not.toHaveProperty('cascadeCount');
+
+    const derived = (await archive.derive(harness.actor, 'project-renovation' as never)).items;
+    const row = (id: string) => derived.find((item) => item.kind === 'subproject' && item.project.id === id);
+    expect(row('project-kitchen')).toMatchObject({ cascadeCount: 1 });
+    expect(row('project-cabinets')).toBeUndefined();
+    expect(row('project-legacy')).not.toHaveProperty('cascadeCount');
+  });
+
   it('re-evaluates a listed child after it moves to another live root', async () => {
     const harness = buildHarness(buildSeed('nested-projects'));
     const service = new ArchivedProjectsService({ projects: harness.projects });

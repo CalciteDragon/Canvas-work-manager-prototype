@@ -80,3 +80,11 @@ stays and the domain decides; a `rule_violation` on that archive then reads "“
 workstreams. Archive them first." with the reason under Details, never "Try again", and the page
 re-reads its context so the next confirmation shows the blocked form. Spec §31 carries a
 *Slice 79* note.
+
+**Amended, 2026-11-06 — Slice 80 (the refusal now applies only to what the caller did not name).**
+The user reversed "no cascade". A project with live workstreams still refuses unless the caller names
+the whole live subtree in `archiveWorkstreamIds`, in which case they come down together; this entry's
+objection, work the caller never named, is met by the naming, and the confirmation this entry's
+*Revisit when* anticipated exists. `assertNoActiveChildren` is now `assertNamedWorkstreams`, and walks
+the subtree rather than one level. Everything else above stands. See
+[a project archive can take its named workstreams down with it](2026-11-cascading-project-archive.md).

@@ -199,3 +199,8 @@ alternatives are recorded in [workstream user terminology](2026-09-workstream-us
 
 **Amended, 2026-10-09 (Slice 66).** The Sub-Projects section is retired. The project column's Work list and Add workstream control provide hierarchy navigation and creation. The old file conversion pipeline is removed; the project/page model stays intact.
 See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).
+
+**Amended, 2026-11-06 (Slice 80).** "Archiving gains no cascade" above is superseded: the user chose an
+explicit one, in which the caller names the whole live subtree. An implicit cascade stays ruled out,
+and the Archive page still makes work findable, not contagious. See
+[a project archive can take its named workstreams down with it](2026-11-cascading-project-archive.md).

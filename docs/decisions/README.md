@@ -70,7 +70,8 @@ Archive-label revision; both entries record acceptance.
 | Entry | Settled | Status |
 |---|---|---|
 | [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md) | Ready-only parent-first root Archive; workspace Settings recovers archived roots and live-ancestor subprojects | amended; Slice 47 keeps a stale list paused until a current read and moves Settings focus to a usable control |
-| [Project nesting rules and what archiving a parent does](2026-08-project-nesting-and-archive-rules.md) | Same workspace, no cycles, no depth limit; children archived first | extended; amended (Slice 79: the blocked confirmation says it first) |
+| [A project archive can take its named workstreams down with it](2026-11-cascading-project-archive.md) | The caller names the whole live subtree; a marker records each one's state; every restore of the owner brings back exactly the marked | current |
+| [Project nesting rules and what archiving a parent does](2026-08-project-nesting-and-archive-rules.md) | Same workspace, no cycles, no depth limit; an archive names its live workstreams (Slice 80) | extended; amended (Slice 79: the blocked confirmation says it first) |
 | [Task status transitions, `completedAt`, and how a task is archived](2026-08-task-status-transitions-and-archive.md) | Archive is `archivedAt`, not a status; `done` stamps `completedAt` | amended; Slice 49 applies the archived-completion rule to history; Slice 61 exposes checkbox reopen |
 | [Workspace scoping, and why a foreign id is 404 rather than 409](2026-08-workspace-scoping-and-not-found.md) | Every read and write is scoped by the actor's workspace | current |
 | [Where the agent permission model is enforced](2026-08-permissions-live-on-the-actor.md) | The domain asserts capability on the actor; no `agents.*` permission | current |

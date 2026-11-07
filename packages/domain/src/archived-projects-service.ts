@@ -1,6 +1,7 @@
 import { ArchivedProjectsResultSchema, type Project, type ProjectId } from '@cwm/contracts';
 import type { ProjectRepository } from '@cwm/repositories';
 import { assertPermitted, type ActorContext } from './actor';
+import { cascadeCountOf } from './project-visibility';
 import { restoreEligibility } from './restore-eligibility';
 
 /** Workspace recovery query, independent of any root Archive page or page toggle. */
@@ -21,7 +22,8 @@ export class ArchivedProjectsService {
         seen.add(current.id);
         current = current.kind === 'subproject' ? byId.get(current.parentProjectId) : undefined;
       }
-      return { project, breadcrumb };
+      const cascadeCount = cascadeCountOf(projects, project.id);
+      return { project, breadcrumb, ...(cascadeCount === undefined ? {} : { cascadeCount }) };
     });
     items.sort((a, b) => a.project.id.localeCompare(b.project.id));
     return ArchivedProjectsResultSchema.parse({ items });

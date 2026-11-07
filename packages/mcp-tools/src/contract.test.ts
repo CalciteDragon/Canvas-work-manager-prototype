@@ -539,6 +539,62 @@ describe('an archived root’s derived reads over MCP (Slice 79, Q7)', () => {
   });
 });
 
+describe('a group archive over MCP (Slice 80, R11)', () => {
+  const tree = async ({ services }: ReturnType<typeof buildHarness>) => {
+    const base = { workspaceId: user().workspaceId };
+    const root = (await services.projects.create(user(), { ...base, kind: 'root', name: 'Group root' })).project;
+    const kitchen = (await services.projects.create(user(), { ...base, kind: 'subproject', parentProjectId: root.id, name: 'Kitchen', status: 'active' })).project;
+    const cabinets = (await services.projects.create(user(), { ...base, kind: 'subproject', parentProjectId: kitchen.id, name: 'Cabinets', status: 'on_hold' })).project;
+    return { root, kitchen, cabinets };
+  };
+  const writer = () => agent(['projects.read', 'projects.write']);
+
+  it('archive_project without ids refuses and names the workstreams; with them it answers cascaded', async () => {
+    const harness = buildHarness();
+    const { root, kitchen, cabinets } = await tree(harness);
+
+    await expect(harness.registry.call('archive_project', { projectId: root.id }, writer())).rejects.toThrow(`"Kitchen" [${kitchen.id}], "Cabinets" [${cabinets.id}]`);
+
+    const result = (await harness.registry.call('archive_project', { projectId: root.id, archiveWorkstreamIds: [kitchen.id, cabinets.id] }, writer())) as { operation: { label: string }; cascaded: { id: string }[] };
+    expect(result.cascaded.map(({ id }) => id)).toEqual([kitchen.id, cabinets.id]);
+    expect(result.operation.label).toBe('Archived "Group root" and 2 workstreams');
+  });
+
+  it('a plain archive_project still answers no cascaded, and update_project carries the input through its shared schema', async () => {
+    const harness = buildHarness();
+    const { root, kitchen, cabinets } = await tree(harness);
+
+    expect(await harness.registry.call('archive_project', { projectId: cabinets.id }, writer())).not.toHaveProperty('cascaded');
+    const updated = (await harness.registry.call('update_project', { projectId: root.id, status: 'archived', archiveWorkstreamIds: [kitchen.id] }, writer())) as { cascaded: { id: string }[] };
+    expect(updated.cascaded.map(({ id }) => id)).toEqual([kitchen.id]);
+  });
+
+  it('restore_project brings the group back at its recorded statuses, and lists count it first', async () => {
+    const harness = buildHarness();
+    const { root, kitchen, cabinets } = await tree(harness);
+    await harness.registry.call('archive_project', { projectId: root.id, archiveWorkstreamIds: [kitchen.id, cabinets.id] }, writer());
+
+    const listed = (await harness.registry.call('list_archived_projects', {}, writer())) as { items: { project: { id: string }; cascadeCount?: number }[] };
+    expect(listed.items.find(({ project }) => project.id === root.id)?.cascadeCount).toBe(2);
+    expect(listed.items.map(({ project }) => project.id)).not.toContain(kitchen.id);
+
+    const restored = (await harness.registry.call('restore_project', { projectId: root.id, status: 'planning' }, writer())) as { project: { status: string }; cascaded: { id: string; status: string }[] };
+    expect(restored.project.status).toBe('planning');
+    expect(restored.cascaded.map(({ status }) => status)).toEqual(['active', 'on_hold']);
+  });
+
+  it('says so in the descriptions it changed', () => {
+    const { registry } = buildHarness();
+    const describes = (name: string) => registry.list().find((tool) => tool.name === name)?.description;
+    expect(describes('archive_project')).toContain('archiveWorkstreamIds');
+    expect(describes('update_project')).toContain('archiveWorkstreamIds');
+    expect(describes('restore_project')).toContain('at the status it recorded');
+    expect(describes('list_archived_projects')).toContain('cascadeCount');
+    expect(describes('get_project_archive')).toContain('cascadeCount');
+    expect(describes('undo_operation')).toContain('recorded group');
+  });
+});
+
 describe('agent-facing workstream vocabulary (§26, §54)', () => {
   it('defines workstream with the unchanged subproject kind and avoids retired prose', () => {
     const { registry } = buildHarness();

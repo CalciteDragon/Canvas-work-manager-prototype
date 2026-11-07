@@ -23,7 +23,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   }),
   defineTool({
     name: 'list_archived_projects',
-    description: 'List archived root projects and workstreams in this workspace whose ancestors are live and which can be restored now. Requires projects.read. Restore with an explicit non-archived status using restore_project; archived descendants appear after their parent returns.',
+    description: 'List archived root projects and workstreams in this workspace whose ancestors are live and which can be restored now. Requires projects.read. Restore with an explicit non-archived status using restore_project. cascadeCount, when present, is how many workstreams were archived with that project and come back with it; they are not listed themselves. A descendant archived separately appears after its parent returns.',
     permission: 'projects.read',
     inputSchema: z.object({}),
     execute: (_input, { actor, services }) => services.archivedProjects.list(actor),
@@ -58,7 +58,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'update_project',
     description:
-      'Change a project’s name, description, icon, status, target date, parent (a workstream only), layout or progress settings. Omitted fields are left alone; null clears one. Answers { project, operation }: operation is a receipt for one undoable action in this project’s own history — project.archive when the status entered archived, project.reactivate when it left it, project.update otherwise — or null when nothing changed. Reverse it through undo_operation with projects.write.',
+      'Change a project’s name, description, icon, status, target date, parent (a workstream only), layout or progress settings. Omitted fields are left alone; null clears one. When the status enters archived, a project with live workstreams needs archiveWorkstreamIds, naming every one of them, as archive_project describes; the input is refused on any other write. Answers { project, operation, cascaded? }: operation is a receipt for one undoable action in this project’s own history — project.archive when the status entered archived, project.reactivate when it left it, project.update otherwise — or null when nothing changed; cascaded is the workstreams that moved with it, absent when none. A workstream archived with its owner cannot change status or parent until the owner is restored. Reverse it through undo_operation with projects.write.',
     permission: 'projects.write',
     inputSchema: UpdateProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.projects.update(actor, projectId, input),
@@ -66,15 +66,16 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'archive_project',
     description:
-      'Archive a project. This is reversible, hides the project and its descendants from ordinary live reads, and refuses when a live child project would make the operation ambiguous. Answers { project, operation }: a project.archive receipt, or null when the project was already archived. undo_operation can reverse it while the project is still archived.',
+      'Archive a project. This is reversible and hides the project and its descendants from ordinary live reads. A project with live workstreams, at any depth, refuses unless archiveWorkstreamIds names every one of them exactly; the refusal lists each name and id, so a second call can name them deliberately. Those workstreams are then archived with it, as one undoable step, and come back when it is restored. Work archived separately is not named and stays as it is. Answers { project, operation, cascaded? }: a project.archive receipt, or null when the project was already archived, and the workstreams archived with it, absent when none. undo_operation can reverse it while the project is still archived.',
     permission: 'projects.write',
-    inputSchema: z.object({ projectId: ProjectIdSchema }),
-    execute: ({ projectId }, { actor, services }) => services.projects.archive(actor, projectId),
+    inputSchema: z.object({ projectId: ProjectIdSchema, archiveWorkstreamIds: z.array(ProjectIdSchema).optional() }),
+    execute: ({ projectId, archiveWorkstreamIds }, { actor, services }) =>
+      services.projects.archive(actor, projectId, archiveWorkstreamIds === undefined ? {} : { archiveWorkstreamIds }),
   }),
   defineTool({
     name: 'restore_project',
     description:
-      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants. Answers { project, operation }: a project.reactivate receipt when the project left archived, a project.update receipt if it was not archived and only its status changed, or null when it already had that status. It needs no receipt to call, however long ago the project was archived.',
+      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status. Workstreams archived with it come back too, each at the status it recorded, not the one supplied here; a descendant archived separately stays archived. Answers { project, operation, cascaded? }: a project.reactivate receipt when the project left archived, a project.update receipt if it was not archived and only its status changed, or null when it already had that status, and the workstreams that came back, absent when none. It needs no receipt to call, however long ago the project was archived.',
     permission: 'projects.write',
     inputSchema: RestoreProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, status }, { actor, services }) => services.projects.update(actor, projectId, { status }),

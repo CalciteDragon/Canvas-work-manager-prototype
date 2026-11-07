@@ -214,8 +214,10 @@ directional results report an absent page on Undo Add and a present one everywhe
 the **changed** fields with exact before/after values, `null` standing for absence. `status` and
 `completedAt` are recorded independently, exactly as the commit moved them, because the service's own
 normalization does not always move them together; `parentProjectId` never clears; the kind follows the status crossing
-the archive boundary; and only an update carries `archivedThroughout`, the flag the history
-executor's narrow archived-subject exception reads. `project.add` captures the project and canonical
+the archive boundary; only an update carries `archivedThroughout`, the flag the history
+executor's narrow archived-subject exception reads; and an archive or reactivation may carry
+`workstreams`, the `ProjectStateRecord` of each project that moved with it, omitted when none (Slice 80).
+The same record is the `archivedWithProject` marker, naming the owner there instead of the workstream. `project.add` captures the project and canonical
 page together; Undo reports the removed id and Redo returns both records with their original ids.
 Creation Undo is permitted only for an unchanged project with no canonical dependents, and an
 absent project is valid only with its Activity lifecycle anchor and the creator's undone history

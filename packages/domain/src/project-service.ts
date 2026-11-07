@@ -26,8 +26,9 @@ import {
   projectAddLabel,
   projectWriteLabel,
   shortcutsCarriedAcrossRoots,
+  type GroupWrite,
 } from './project-history';
-import { archivedAncestry } from './project-visibility';
+import { archivedAncestry, groupWords, liveSubtree, markArchivedWith, reviveFromMarker } from './project-visibility';
 
 /**
  * §26's project hierarchy. Deliberately no depth limit: whether nesting is worth keeping
@@ -94,9 +95,9 @@ export class ProjectService {
   /**
    * The actor's workspace is applied last, so a caller-supplied filter cannot widen it.
    *
-   * **Live projects underneath an archived ancestor are dropped.** Archiving does not cascade
-   * (§31), so reparenting or reactivating can leave one live inside something someone has put
-   * away — hidden from the tree a person navigates while every write to it is refused. It is
+   * **Live projects underneath an archived ancestor are dropped.** An archive comes down only with
+   * what the caller named (§31), so a move or an older document can leave one live inside something
+   * someone has put away — hidden from the tree a person navigates while every write to it is refused. It is
    * the trap state, and it is the only thing dropped: a project archived in its own right is
    * still returned, so `status: ['archived']` keeps working. Archive and workspace Settings
    * apply their own recovery eligibility when presenting archived projects.
@@ -129,7 +130,7 @@ export class ProjectService {
         // A unit of work under archived work would be live inside something hidden from every
         // ordinary read — the same defect a live row in an archived section is, one layer up.
         // The whole chain, not just the parent: an archived *grandparent* hides it just as
-        // completely, and archiving does not cascade, so the intermediate one can be live.
+        // completely, and in the trap state the intermediate one can be live.
         await this.assertAncestryActive(actor, parent);
       }
 
@@ -188,6 +189,11 @@ export class ProjectService {
    * action whose kind follows the status — `project.archive` into `archived`, `project.reactivate`
    * out of it, `project.update` otherwise. A normalized no-op answers `operation: null` and records
    * nothing, so it leaves timestamps, Activity and the actor's Redo branch alone.
+   *
+   * **A group moves with the transition, still as one write** (Slice 80, §31). Into `archived`, the
+   * caller must name the whole live subtree in `archiveWorkstreamIds`, and each comes down marked
+   * with this owner. Out of `archived`, every project so marked returns to its recorded status,
+   * whichever entry point restored the owner, and nothing unmarked changes.
    */
   async update(actor: ActorContext, id: ProjectId, input: UpdateProjectInput): Promise<ProjectWriteResult> {
     assertValidActor(actor);
@@ -215,6 +221,22 @@ export class ProjectService {
 
       if (next.progressFormula === 'manual' && next.manualProgress === undefined) {
         throw new DomainRuleError('manual progress requires a value from 0 to 100');
+      }
+
+      // A workstream that came down does not leave alone (R5), judged on the normalized change, so
+      // sending its current parent or status again is not one. Before the checks below, whose
+      // remedies it would contradict: its owner's restore is the only way back.
+      const marker = current.archivedWithProject;
+      if (marker !== undefined && (next.status !== current.status || next.parentProjectId !== current.parentProjectId)) {
+        throw new DomainRuleError(`project "${id}" was archived with "${marker.projectId}"; restore "${marker.projectId}" to bring it back`);
+      }
+
+      const named = input.archiveWorkstreamIds ?? [];
+      const archiving = next.status === 'archived' && current.status !== 'archived';
+      // Refused on anything but an archive, except a retry of one: on an already archived project
+      // the list is ignored, so an uncertain retry stays the idempotent no-op it needs.
+      if (named.length > 0 && !archiving && !(current.status === 'archived' && input.status === 'archived')) {
+        throw new DomainRuleError('archiveWorkstreamIds applies only to a write that archives the project');
       }
 
       const reparenting = next.parentProjectId !== current.parentProjectId && next.parentProjectId !== undefined;
@@ -248,27 +270,33 @@ export class ProjectService {
         delete next.completedAt;
       }
 
-      const archiving = next.status === 'archived' && current.status !== 'archived';
       // The exposed route is PATCH, so a rule only `archive()` enforced would be decorative.
-      if (archiving) await this.assertNoActiveChildren(actor, id);
+      const group = archiving
+        ? await this.groupComingDown(actor, id, named)
+        : reactivating
+          ? await this.groupComingBack(actor, id)
+          : [];
 
       // The label names the new parent; `assertParentIsUsable` does not keep it, so it is read once
       // more inside the same unit, and only for a move.
       const parentName = reparenting ? (await this.dependencies.projects.find(next.parentProjectId!))?.name : undefined;
-      return this.commit(actor, current, next, archiving, parentName);
+      return this.commit(actor, current, next, archiving, parentName, group);
     });
   }
 
-  /** Sets `status: 'archived'`. Idempotent: archiving an archived project records nothing. */
-  async archive(actor: ActorContext, id: ProjectId): Promise<ProjectWriteResult> {
+  /**
+   * Sets `status: 'archived'`, with the live workstreams the caller named. Idempotent: archiving an
+   * archived project records nothing, and ignores the list.
+   */
+  async archive(actor: ActorContext, id: ProjectId, options: { archiveWorkstreamIds?: readonly ProjectId[] } = {}): Promise<ProjectWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       if (current.status === 'archived') return ProjectWriteResultSchema.parse({ project: current, operation: null });
-      await this.assertNoActiveChildren(actor, id);
-      return this.commit(actor, current, { ...current, status: 'archived' }, true);
+      const group = await this.groupComingDown(actor, id, options.archiveWorkstreamIds ?? []);
+      return this.commit(actor, current, { ...current, status: 'archived' }, true, undefined, group);
     });
   }
 
@@ -283,28 +311,38 @@ export class ProjectService {
     next: Project,
     archiving: boolean,
     parentName?: string,
+    group: readonly GroupWrite[] = [],
   ): Promise<ProjectWriteResult> {
     const changed = { ...next, updatedAt: current.updatedAt };
     if (JSON.stringify(changed) === JSON.stringify(current)) return ProjectWriteResultSchema.parse({ project: current, operation: null });
 
-    const updated = ProjectSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
+    const updatedAt = this.dependencies.clock.now().toISOString();
+    const updated = ProjectSchema.parse({ ...next, updatedAt });
     await this.dependencies.projects.update(updated);
+    const cascaded: Project[] = [];
+    for (const { after } of group) {
+      const workstream = ProjectSchema.parse({ ...after, updatedAt });
+      await this.dependencies.projects.update(workstream);
+      cascaded.push(workstream);
+    }
+    // One line however large the group, on the owner: one gesture stays one event (R7).
+    const words = groupWords(group.length);
     await this.dependencies.activity.record(actor, {
       action: archiving ? 'project.archived' : 'project.updated',
       entityType: 'project',
       entityId: updated.id,
       projectId: updated.id,
-      summary: `${archiving ? 'Archived' : 'Updated'} "${updated.name}"`,
+      summary: archiving ? `Archived "${updated.name}"${words}` : group.length > 0 ? `Reactivated "${updated.name}"${words}` : `Updated "${updated.name}"`,
     });
     // Recorded inside this same unit, after the write and its activity, so the project, the event
     // and the action commit or roll back together.
-    const operation = captureProjectWrite(current, updated);
+    const operation = captureProjectWrite(current, updated, group);
     const receipt = await this.dependencies.history.record(actor, {
       projectId: updated.id,
       label: projectWriteLabel(operation, updated, parentName),
       operation,
     });
-    return ProjectWriteResultSchema.parse({ project: updated, operation: receipt });
+    return ProjectWriteResultSchema.parse({ project: updated, operation: receipt, ...(cascaded.length === 0 ? {} : { cascaded }) });
   }
 
   /**
@@ -320,17 +358,38 @@ export class ProjectService {
     throw new DomainRuleError(`project "${subject.id}" cannot move to another root: ${sentence}`);
   }
 
-  /** An implicit cascade would archive work the caller never named (§58 flags archive). */
-  private async assertNoActiveChildren(actor: ActorContext, id: ProjectId): Promise<void> {
+  /**
+   * An implicit cascade would archive work the caller never named (§58 flags archive), so the caller
+   * names it: `named` must be exactly the live subtree, or nothing is written. A refusal names every
+   * live workstream with its id, so one retry can succeed; a stranger gets one text whether it is
+   * foreign or absent, so this does not confirm a project in another workspace exists.
+   */
+  private async assertNamedWorkstreams(actor: ActorContext, id: ProjectId, named: readonly ProjectId[]): Promise<Project[]> {
     // The repository, not `list`: this runs inside `archive`, and a write must not
     // additionally require `projects.read` to check its own precondition.
-    const children = await this.dependencies.projects.list({
-      workspaceId: actor.workspaceId,
-      parentProjectId: id,
-    });
-    if (children.some((child) => child.status !== 'archived')) {
-      throw new DomainRuleError(`project "${id}" still has active workstreams`);
+    const live = liveSubtree(await this.dependencies.projects.list({ workspaceId: actor.workspaceId }), id);
+    const stranger = named.find((candidate) => !live.some((project) => project.id === candidate));
+    if (stranger !== undefined) {
+      throw new DomainRuleError(`project "${id}" cannot archive "${stranger}": it is not a live workstream under it`);
     }
+    if (live.some((project) => !named.includes(project.id))) {
+      throw new DomainRuleError(`project "${id}" still has active workstreams: ${live.map((project) => `"${project.name}" [${project.id}]`).join(', ')}`);
+    }
+    return live;
+  }
+
+  /** The named live subtree, each as this owner's archive leaves it. Computed before anything is written. */
+  private async groupComingDown(actor: ActorContext, id: ProjectId, named: readonly ProjectId[]): Promise<GroupWrite[]> {
+    const live = await this.assertNamedWorkstreams(actor, id, named);
+    return live.map((before) => ({ before, after: markArchivedWith(before, id) }));
+  }
+
+  /** Every project marked with this owner, each as its restore leaves it. */
+  private async groupComingBack(actor: ActorContext, id: ProjectId): Promise<GroupWrite[]> {
+    const projects = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
+    return projects
+      .filter((project) => project.archivedWithProject?.projectId === id)
+      .map((before) => ({ before, after: reviveFromMarker(before) }));
   }
 
   /**

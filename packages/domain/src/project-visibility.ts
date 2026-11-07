@@ -3,13 +3,13 @@ import type { ProjectRepository } from '@cwm/repositories';
 import { DomainRuleError } from './errors';
 
 /**
- * **Archiving reaches down, even though it does not cascade.**
+ * **Archiving reaches down, and comes down only with what was named.**
  *
  * §31: *"A project whose own status is `archived` hides its live contents from ordinary reads
- * too."* Archiving a project does not archive anything beneath it — that would archive work the
- * caller never named — so a live sub-project can end up underneath an archived ancestor, and
- * every ordinary read has to agree about what that means. Before this module four read models
- * each had their own answer and three of them had none.
+ * too."* Archiving a project takes down only the workstreams the caller named (Slice 80), so a
+ * live sub-project can still end up underneath an archived ancestor, by a move or in an older
+ * document, and every ordinary read has to agree about what that means. Before this module four
+ * read models each had their own answer and three of them had none.
  *
  * Pure functions over a `Project[]`, plus one assertion over a `ProjectRepository`. Neither is
  * a domain-service edge, so the acyclic service graph (§12) is untouched and any caller with
@@ -88,6 +88,50 @@ export const archivedAncestry = (projects: readonly Project[]): ArchivedAncestry
 };
 
 /**
+ * **What a group archive of `id` must name** (Slice 80, §31): its whole live subtree, depth first,
+ * at any depth. The walk stops at an archived node, which is untouched along with anything beneath
+ * it, because that was put away separately. A completed workstream is live here: only `archived`
+ * stops it. Takes the complete workspace set, as `archivedAncestry` does, and carries a visited set
+ * because a hand-edited document can contain a cycle.
+ */
+export const liveSubtree = (projects: readonly Project[], id: ProjectId): Project[] => {
+  const seen = new Set<ProjectId>([id]);
+  const live: Project[] = [];
+  const visit = (parentId: ProjectId): void => {
+    for (const project of projects) {
+      if (project.parentProjectId !== parentId || seen.has(project.id)) continue;
+      seen.add(project.id);
+      if (project.status === 'archived') continue;
+      live.push(project);
+      visit(project.id);
+    }
+  };
+  visit(id);
+  return live;
+};
+
+/** A workstream as `ownerId`'s group archive leaves it: archived, remembering what it was. */
+export const markArchivedWith = (project: Project, ownerId: ProjectId): Project => {
+  const { completedAt, ...rest } = project;
+  return {
+    ...rest,
+    status: 'archived',
+    archivedWithProject: { projectId: ownerId, status: project.status, ...(completedAt === undefined ? {} : { completedAt }) },
+  } as Project;
+};
+
+/** A marked workstream as its owner's restore leaves it: exactly what its marker recorded. */
+export const reviveFromMarker = (project: Project): Project => {
+  const { archivedWithProject: marker, completedAt: _completedAt, ...rest } = project;
+  if (marker === undefined) throw new TypeError(`project "${project.id}" has no archived-with marker`);
+  return { ...rest, status: marker.status, ...(marker.completedAt === undefined ? {} : { completedAt: marker.completedAt }) } as Project;
+};
+
+/** The words a label and an Activity line add for a group: ` and 3 workstreams`, nothing for none. */
+export const groupWords = (count: number): string =>
+  count === 0 ? '' : ` and ${count} workstream${count === 1 ? '' : 's'}`;
+
+/**
  * **The write freeze, one project or one ancestor deep.**
  *
  * `TaskService`, `ReflectionService` and `SectionService` each carried an identical private
@@ -105,6 +149,11 @@ export const archivedAncestry = (projects: readonly Project[]): ArchivedAncestry
 export const assertProjectWritable = async (projects: ProjectRepository, projectId: ProjectId): Promise<void> => {
   const project = await projects.find(projectId);
   if (project === null) return;
+  // A marked project cannot reactivate alone (Slice 80, R5), so the remedy names its owner.
+  if (project.archivedWithProject !== undefined) {
+    const owner = project.archivedWithProject.projectId;
+    throw new DomainRuleError(`project "${projectId}" was archived with "${owner}"; restore "${owner}" to bring it back`);
+  }
   // The message the three services already produced, kept verbatim: the remedy is the same one.
   if (project.status === 'archived') {
     throw new DomainRuleError(`project "${projectId}" is archived; reactivate it first`);
@@ -148,8 +197,9 @@ export const findHighestWriteBlocker = async (
 };
 
 /**
- * The workspace's projects **as if `rootId` were restored**: the same records, with that one
- * project's status read as live, in memory only (Slice 79, Q7).
+ * The workspace's projects **as if `rootId` were restored**: the same records, with that project's
+ * status read as live and every project marked with it at its recorded status, in memory only
+ * (Slice 79, Q7; Slice 80, R8).
  *
  * An archived root's derived reads answer no rows (§31) but say how many a restore would bring
  * back; running the ordinary derivation over this view is how they count them without a second
@@ -157,5 +207,14 @@ export const findHighestWriteBlocker = async (
  * archived here, exactly as a restore would leave it.
  */
 export function asRestored(projects: readonly Project[], rootId: ProjectId): Project[] {
-  return projects.map((project) => (project.id === rootId ? ({ ...project, status: 'active' } as Project) : project));
+  return projects.map((project) => {
+    if (project.id === rootId) return { ...project, status: 'active' } as Project;
+    return project.archivedWithProject?.projectId === rootId ? reviveFromMarker(project) : project;
+  });
 }
+
+/** How many projects a restore of `ownerId` brings back with it, or `undefined` for none (R8). */
+export const cascadeCountOf = (projects: readonly Project[], ownerId: ProjectId): number | undefined => {
+  const count = projects.filter((project) => project.archivedWithProject?.projectId === ownerId).length;
+  return count === 0 ? undefined : count;
+};

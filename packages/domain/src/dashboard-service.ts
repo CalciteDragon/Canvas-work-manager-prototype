@@ -79,8 +79,8 @@ export class DashboardService {
     // than "what should I do today?".
     const all = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
     // Two rules, not one: archived owners are excluded by `status`, and the live sub-projects
-    // *underneath* an archived ancestor by `isHidden` — archiving does not cascade (§31), so
-    // one does not imply the other. The ancestry is built over `all`, before the filter, or it
+    // *underneath* an archived ancestor by `isHidden` — an archive takes down only what was named (§31),
+    // so one does not imply the other. The ancestry is built over `all`, before the filter, or it
     // would be searching for ancestors it has just removed.
     const ancestry = archivedAncestry(all);
     const projects = all.filter(({ id, status }) => status !== 'archived' && !ancestry.isHidden(id));

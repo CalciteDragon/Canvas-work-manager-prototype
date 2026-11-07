@@ -78,3 +78,10 @@ should walk the whole subtree rather than one level.
 
 **Amended, 2026-10-09 (Slice 66).** The Sub-Projects section is retired. Archived descendants are reached through root Archive and workspace Settings recovery. Named project/section reads and archived-ancestor write guards remain unchanged.
 See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).
+
+**Amended, 2026-11-06 (Slice 80).** Live under archived is still hidden and still refused. The named
+[group archive](2026-11-cascading-project-archive.md) adds a way down that cannot produce it, because it
+takes the whole live subtree. The escape hatch narrows for a project marked `archivedWithProject`: it
+refuses a status change or a reparent until its owner is restored, because leaving alone would break
+the group. A project archived in its own right keeps "reactivate and move in one call", and the
+freeze's message on a marked project names the owner rather than saying to reactivate it.

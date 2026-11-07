@@ -157,6 +157,18 @@ describe('ProjectJournalService (§36)', () => {
     await expect(harness.projectJournalService.completedWork(harness.actor, 'project-theirs' as never)).rejects.toBeInstanceOf(EntityNotFoundError);
   });
 
+  it('counts entries under a group archived with the root, equal to what a restore shows (Slice 80, R8)', async () => {
+    const { harness, child, grandchild } = await populated();
+    const live = await harness.projectJournalService.journal(harness.actor, MINE);
+    expect(live.items.length).toBeGreaterThan(0);
+
+    await harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: [child.id, grandchild.id] });
+
+    expect(await harness.projectJournalService.journal(harness.actor, MINE)).toEqual({ projectId: MINE, items: [], hiddenItemCount: live.items.length });
+    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    expect((await harness.projectJournalService.journal(harness.actor, MINE)).items).toHaveLength(live.items.length);
+  });
+
   it('answers a zero count for an archived root with no reflections', async () => {
     const harness = buildHarness();
     const empty = await harness.projectService.create(harness.actor, {

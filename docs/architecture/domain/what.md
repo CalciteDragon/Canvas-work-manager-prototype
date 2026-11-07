@@ -107,7 +107,8 @@ sequenceDiagram
 | `IdGenerator`, `PrototypeIdGenerator` | `src/ids.ts` | Id minting, injectable for determinism |
 | `DomainRuleError`, `EntityNotFoundError`, `PermissionDeniedError` | `src/errors.ts` | The three caller-caused failures; `DomainRuleError.details` carries a typed refusal |
 | `LivePublication`, `LiveEventPublisher` | `src/live-events.ts` | A §62 frame addressed to a workspace, and the port that delivers it |
-| `archivedAncestry` | `src/project-visibility.ts` | Archiving reaches down without cascading |
+| `archivedAncestry` | `src/project-visibility.ts` | What an archive hides, for every read model |
+| `liveSubtree`, `markArchivedWith`, `reviveFromMarker`, `cascadeCountOf` | `src/project-visibility.ts` | A group archive: what it must name, how a workstream comes down and back, and how many a restore returns |
 | `Instant` | `src/instants.ts` | Lossless ordering of ISO instants as text |
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
 | `taskOrigin` | `src/task-origin.ts` | Pure canonical owner, page, section and root-first breadcrumb resolution shared by Todos, dashboard, upcoming work and Timeline |

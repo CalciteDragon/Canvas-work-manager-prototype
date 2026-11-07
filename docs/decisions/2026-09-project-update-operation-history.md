@@ -147,3 +147,12 @@ first action in the created project's own history and returns `{ project, operat
 non-null receipt. Undo removes the unchanged project and canonical page after dependency preflight;
 Redo recreates them with the same ids. The distinct capture/revert/reapply payload is documented
 in [project creation history](2026-09-project-creation-history.md).
+
+**Amended, 2026-11-06 — Slice 80.** An archive or a reactivation may carry `workstreams`, the group
+that moved with it, omitted when there was none, so older actions still parse and mean what they did.
+A step moves exactly that group. Bringing it back refuses `field-changed` if any recorded workstream no
+longer matches or any unrecorded project is marked with the owner. Taking it down refuses on a status
+drift (`archive-state-changed`), a completion-time change (`field-changed`), a move out of the subtree
+(`reparented`) or a live workstream not recorded (`new-dependent`, today's refusal for a plain
+archive). A recorded workstream that no longer exists is skipped both ways. "Archiving never cascades"
+above is superseded by [the group archive](2026-11-cascading-project-archive.md).

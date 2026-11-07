@@ -23,6 +23,7 @@ import type {
 } from '@cwm/repositories';
 import { assertPermitted, type ActorContext } from './actor';
 import { DomainRuleError, EntityNotFoundError } from './errors';
+import { cascadeCountOf } from './project-visibility';
 import { sectionRecoveryOf } from './section-recovery-policy';
 import { restoreEligibility } from './restore-eligibility';
 
@@ -82,7 +83,8 @@ export class ProjectArchiveService {
     for (const project of tree) {
       if (project.kind !== 'subproject' || !eligible.project(project.id)) continue;
       const page = this.canvasPage(project, pageById);
-      items.push({ kind: 'subproject', project, origin: this.origin(project.id, page, projectById),
+      const cascadeCount = cascadeCountOf(projects, project.id);
+      items.push({ kind: 'subproject', project, ...(cascadeCount === undefined ? {} : { cascadeCount }), origin: this.origin(project.id, page, projectById),
         cause: { kind: 'own' }, restoration: this.ready('restore_project', 'projects.write') });
     }
 

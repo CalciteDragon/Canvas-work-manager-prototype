@@ -117,8 +117,8 @@ writes every project field, so one action per changed call covers edits, complet
 layout and progress settings, and the status crossing decides whether it is an archive, a
 reactivation or an update. The subject's own history owns it, so a reparent that changes its root
 never moves an action between histories. Reversal re-runs the forward hierarchy and archive rules
-against the tree as it is now — archiving never cascades, and a history step does not acquire a
-cascade. The history blocker gets one narrow exception, for the subject's **own** archived status and
+against the tree as it is now, and a step moves exactly its recorded group, never work added since
+([decision](../../decisions/2026-11-cascading-project-archive.md)). The history blocker gets one narrow exception, for the subject's **own** archived status and
 only for an archive's Undo, a reactivation's Redo and an edit made while archived, because the service
 allowed those writes and refusing would wedge the cursor on the project they are about; an archived
 ancestor still blocks ([decision](../../decisions/2026-09-project-update-operation-history.md)).
@@ -150,10 +150,12 @@ Activity ([decision](../../decisions/2026-09-historical-activity-identity.md)).
 revision/conflict detail, and only then executes it; caller input never chooses the grant
 ([decision](../../decisions/2026-09-operation-family-permissions.md)).
 
-**Archiving a project reaches down without cascading.** A project with a live child
-refuses to archive; live work beneath an archived ancestor is hidden from ordinary reads
-and cannot be newly created or reactivated there. The rule is pure functions over the
-project list (`project-visibility.ts`) so every read model shares one answer
+**Archiving a project reaches down, and takes down only what was named.** A project with live
+workstreams refuses to archive unless the caller names the whole live subtree, which then comes down
+marked with its owner, and the owner's restore brings back exactly the marked
+([decision](../../decisions/2026-11-cascading-project-archive.md)). Live work beneath an archived
+ancestor is hidden from ordinary reads and cannot be newly created or reactivated there. The rule is
+pure functions over the project list (`project-visibility.ts`) so every read model shares one answer
 ([decision](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)).
 
 **Combined reads assert every grant they return.** `get_project_todos`, the Archive and
