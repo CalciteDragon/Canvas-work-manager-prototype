@@ -48,8 +48,11 @@ export const CONTEXTS: Context[] = [
   { id: 'kitchen-archived-with-group', route: KITCHEN, region: 'main', afterOnly: true, views: PANELS, prepare: archiveKitchen,
     act: c => expect(c.page.locator('app-archived-banner [data-archived-sentence]')).toContainText('Restoring it brings back') },
   { id: 'cabinets-archived-with-kitchen', route: CABINETS, region: 'main', afterOnly: true, views: PANELS, prepare: archiveKitchen },
-  { id: 'renovation-archive-row', route: `${ROOT}/pages/archive`, region: '[data-archived-item][data-archived-id="project-kitchen"]', afterOnly: true, views: PANELS, prepare: archiveKitchen },
-  { id: 'settings-archived-row', route: '/settings/archived-projects', region: '[data-archived-project][data-project-id="project-kitchen"]', afterOnly: true, views: PANELS, prepare: archiveKitchen },
+  // Scrolled into view: at 375 the row is below the fold, and the sheet exists to judge its spacing.
+  { id: 'renovation-archive-row', route: `${ROOT}/pages/archive`, region: '[data-archived-item][data-archived-id="project-kitchen"]', afterOnly: true, views: PANELS, prepare: archiveKitchen,
+    act: c => c.page.locator('[data-archived-item][data-archived-id="project-kitchen"]').scrollIntoViewIfNeeded() },
+  { id: 'settings-archived-row', route: '/settings/archived-projects', region: '[data-archived-project][data-project-id="project-kitchen"]', afterOnly: true, views: PANELS, prepare: archiveKitchen,
+    act: c => c.page.locator('[data-archived-project][data-project-id="project-kitchen"]').scrollIntoViewIfNeeded() },
   { id: 'archive-toast-group', route: KITCHEN, region: 'app-project-header', afterOnly: true, views: PANELS,
     act: async c => { await openArchiveConfirm(c); await c.page.locator('[data-project-archive-confirm-yes]').click(); await toastShown(c); } },
   { id: 'restore-toast-group', route: `${ROOT}/pages/archive`, region: 'main', afterOnly: true, views: PANELS, prepare: archiveKitchen,

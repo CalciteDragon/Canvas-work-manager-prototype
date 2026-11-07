@@ -1,10 +1,12 @@
 <!-- plan id="80" status="active" summary="An explicit, confirmed “Archive X and its N workstreams”, with a matching restore that brings back only what was archived with it" -->
 # Slice 80 — Cascading project archive
 
-**State (2026-11-06):** plan written and reviewed in 5 rounds (session S80PLAN); round 5 returned no
-substantive findings. **The user accepted the plan and every recommendation (2026-11-06):** Q1 (a), Q2 (a),
-Q3 (a), Q4 (a), Q5 (a), Q6 (a), Q7 (a). Initial bundle 1,149.69 kB, ceiling unchanged at 1,150 kB. **Next** is
-step 0.
+**State (2026-11-07):** the user accepted the plan and every recommendation (2026-11-06): Q1 (a), Q2 (a),
+Q3 (a), Q4 (a), Q5 (a), Q6 (a), Q7 (a). **Steps 0–12 are done; awaiting Gate 2.** Three independent reviews of the
+diff ran; their findings are fixed in `963b49f` or listed under Revisions. On `963b49f`: `pnpm test`, `pnpm lint`
+with `docs:check`, all 286 browser journeys, the four acceptance scripts and the Storybook build pass. Sheet: 194
+matrix pairs and the Capture scope's panels, zero gate failures, at `apps/e2e/ux-output/slice80-sheet/index.html`
+(git-ignored). Initial bundle 1,139.37 kB, ceiling unchanged at 1,150 kB. **Next** is the user's Gate 2, then step 13.
 
 ## Goal
 
@@ -855,6 +857,18 @@ on the owner. The options below stay as the record of what was weighed.
 - **Round 5 (2026-11-06, one cold reviewer, closing round; no substantive findings, 1 minor, checked against the code):** the
   Undo and Redo half of "archive and a move in one call" could not pass in step 3, because R6's directions arrive in step 5, so
   that half moves to step 5. Step 2's review closes here.
+- **Diff reviews (2026-11-07, step 12; three cold reviewers: domain, web, boundaries and documentation):**
+  - *Fixed (`963b49f`):* the banner kept a stale count when the same owner was restored and archived again elsewhere, so it re-reads
+    on the owner's `updatedAt`; a restore answered as a no-op now re-reads the page; a partial list holding a stranger names every live
+    workstream, so one retry can succeed; `archive_project` reuses the contract's field; `LiveDescendant` is `WorkTreeNode`; false
+    "by a move" trap-state comments, and stale contracts, host API, guide, testing and decision-index text.
+  - *Tests added:* the Archive row and toast counting the response, a 20-row list at 375, keyboard by Tab and arrows, the plain
+    reactivation's Redo, an archive-and-move's Undo and Redo, `project.add` Undo while marked, the freeze through a real task write.
+  - *Not taken, checked against the code:* "`cascadeCount` on `get_project_archive` has no behavioural test" (it is asserted in
+    `archived-projects-service.test.ts`). "Undo and Redo publish one record frame" stays asserted through the one Activity line each
+    frame comes from. A→B→A during the archive request undercounts the toast, and cannot invent a number: left as is.
+  - *Carried, raised at Gate 2:* the sheet's gate lists `landmark-unique` on `.archive-page`, which the baseline's `archive-*` cells
+    already have. "Archive all" and "Cancel" touch with no gap, as the two-button confirmation always did.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
