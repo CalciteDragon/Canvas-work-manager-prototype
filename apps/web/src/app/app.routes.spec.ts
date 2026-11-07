@@ -62,19 +62,19 @@ describe('the §68 route map', () => {
 
   it('loads only the rarely-opened routes lazily', () => {
     // Q8 (a) of Slice 79: Calendar and Settings › Agents joined the two `prototype/*` routes
-    // behind `loadComponent` to hold the initial bundle ceiling. Every other feature route stays
-    // eager, so the `resolves` cases above prove the lazy ones still land on their pages.
+    // behind `loadComponent` to hold the initial bundle ceiling. Q1 (a) of Slice 80 added Settings ›
+    // Archived projects, a recovery route opened rarely. Every other feature route stays eager, so
+    // the `resolves` cases above prove the lazy ones still land on their pages.
     const lazy = routes.filter((route) => route.loadComponent).map((route) => route.path);
     const eager = routes.filter((route) => route.component).map((route) => route.path);
 
-    expect(lazy).toEqual(['calendar', 'settings/agents', 'prototype/design', 'prototype/state']);
+    expect(lazy).toEqual(['calendar', 'settings/agents', 'settings/archived-projects', 'prototype/design', 'prototype/state']);
     expect(eager).toEqual([
       'app',
       'projects/:projectId/pages/:pageKind',
       'projects/:projectId',
       'search',
       'settings',
-      'settings/archived-projects',
       '**',
     ]);
   });

@@ -159,3 +159,11 @@ to keep the ceiling and lazy-load two rarely opened feature routes, `/calendar` 
 feature route stays eager. The build then measured **1,141.97 kB** initial, with Calendar and
 Agents in lazy chunks (0.43 kB and 9.35 kB). Calendar alone freed only 0.27 kB, because the shared
 chunks re-split. The ceiling stays at 1150 kB and the 850 kB warning keeps reporting.
+
+**Amended, 2026-11-06 — Slice 80, a third feature route goes lazy (user decision).** Slice 79 closed
+at **1,149.69 kB**, 0.31 kB under the ceiling, and the cascading project archive needs an estimated
+1–2 kB of initial code. The user chose to keep the ceiling and lazy-load
+`/settings/archived-projects`, a recovery route opened rarely, which overturns the wording "every
+other feature route stays eager" above for that one route. The build then measured **1,138.63 kB**
+initial, with the page in an 11.96 kB lazy chunk. Search, Settings and the project and dashboard
+routes stay eager. The ceiling stays at 1150 kB and the 850 kB warning keeps reporting.

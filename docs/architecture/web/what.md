@@ -66,7 +66,7 @@ C4Component
 | `/search` | `SearchPage` | Slice 21 |
 | `/settings` | `SettingsPage` | |
 | `/settings/agents` | `AgentConnectionsPage` (lazy) | §53; lazy since Slice 79 (Q8 (a)) |
-| `/settings/archived-projects` | `ArchivedProjectsPage` | Workspace recovery, independent of optional Archive pages |
+| `/settings/archived-projects` | `ArchivedProjectsPage` (lazy) | Workspace recovery, independent of optional Archive pages; lazy since Slice 80 (Q1 (a)) |
 | `/prototype/design` | `DesignLabPage` (lazy) | §67 |
 | `/prototype/state` | `StateInspectorPage` (lazy) | §46, §68 |
 | `**` | `NotFoundPage` | §68 — "This page doesn’t exist", Go to Home |

@@ -2,7 +2,6 @@ import { Routes } from '@angular/router';
 import { DashboardPage } from './features/dashboard/dashboard-page';
 import { ProjectWorkspaceShell } from './features/projects/project-workspace-shell';
 import { SearchPage } from './features/search/search-page';
-import { ArchivedProjectsPage } from './features/settings/archived-projects/archived-projects-page';
 import { SettingsPage } from './features/settings/settings-page';
 import { NotFoundPage } from './shared/components/placeholder-page/not-found-page';
 
@@ -20,8 +19,9 @@ import { NotFoundPage } from './shared/components/placeholder-page/not-found-pag
  *
  * **Calendar and Settings › Agents are lazy too** (Slice 79, Q8 (a)): they are rarely opened,
  * and loading them on demand holds the initial bundle under its 1,150 kB ceiling
- * (`docs/decisions/2026-08-initial-bundle-budget.md`) rather than raising it. Every other
- * feature route stays eager.
+ * (`docs/decisions/2026-08-initial-bundle-budget.md`) rather than raising it. **Settings ›
+ * Archived projects joined them** (Slice 80, Q1 (a)), a recovery route opened rarely, to pay for
+ * the cascading archive. Every other feature route stays eager.
  */
 export const routes: Routes = [
   // `pathMatch: 'full'` is not decoration — without it this redirect swallows every URL.
@@ -44,7 +44,10 @@ export const routes: Routes = [
     path: 'settings/agents',
     loadComponent: () => import('./features/settings/agents/agent-connections-page').then((m) => m.AgentConnectionsPage),
   },
-  { path: 'settings/archived-projects', component: ArchivedProjectsPage },
+  {
+    path: 'settings/archived-projects',
+    loadComponent: () => import('./features/settings/archived-projects/archived-projects-page').then((m) => m.ArchivedProjectsPage),
+  },
   {
     path: 'prototype/design',
     loadComponent: () => import('./prototype/design-lab/design-lab-page').then((m) => m.DesignLabPage),

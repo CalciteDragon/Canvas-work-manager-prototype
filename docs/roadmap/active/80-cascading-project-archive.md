@@ -2,9 +2,9 @@
 # Slice 80 — Cascading project archive
 
 **State (2026-11-06):** plan written and reviewed in 5 rounds (session S80PLAN); round 5 returned no
-substantive findings. **Awaiting the user's acceptance and answers to Open questions 1–7.** No
-implementation has started. Initial bundle 1,149.69 kB, ceiling unchanged at 1,150 kB. **Next** is step 0,
-once the plan is accepted.
+substantive findings. **The user accepted the plan and every recommendation (2026-11-06):** Q1 (a), Q2 (a),
+Q3 (a), Q4 (a), Q5 (a), Q6 (a), Q7 (a). Initial bundle 1,149.69 kB, ceiling unchanged at 1,150 kB. **Next** is
+step 0.
 
 ## Goal
 
@@ -703,8 +703,10 @@ the same commit as the code. Bundle figure after any step that adds web code.
 
 ## Open questions
 
-Numbered for the user's answers. Nothing below is decided; each recommendation is what the plan assumes until told
-otherwise, and the implementation does not start before these are answered.
+**All seven answered by the user (2026-11-06): the recommendation in each case**, so Q1 (a) lazy
+`/settings/archived-projects`, Q2 (a) recorded status, Q3 (a) restore the owner first, Q4 (a) agents may cascade by
+naming each id, Q5 (a) the copy table as written, Q6 (a) comb item 1 on read-only pages only, Q7 (a) one Activity line
+on the owner. The options below stay as the record of what was weighed.
 
 **1. What pays for the bundle?**
 - *Context.* 0.31 kB of headroom; this slice needs an estimated 1–2 kB initial, which cannot fit. Your Slice 79 answer

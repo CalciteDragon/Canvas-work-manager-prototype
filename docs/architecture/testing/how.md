@@ -117,8 +117,9 @@ complete `chrome-verification.json`. Earlier slices' runtime scripts remain froz
    Slice 41's eager header controls measured 1024.97 kB.
    After Slice 73 closed at 1,049,943 bytes, the user raised the hard ceiling to 1100 kB.
    Slice 77 raises it to 1150 kB; its production initial bundle measures 1101.98 kB. Slice 79
-   makes Calendar and Settings › Agents lazy routes (every other feature route stays eager) and
-   defers its archived banner and first-run block, measuring 1,149.35 kB at its review.
+   makes Calendar and Settings › Agents lazy routes and defers its archived banner and first-run
+   block, measuring 1,149.35 kB at its review. Slice 80 makes Settings › Archived projects lazy too
+   (every other feature route stays eager), measuring 1,138.63 kB before its own additions.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through
