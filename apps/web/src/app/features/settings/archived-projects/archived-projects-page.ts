@@ -49,7 +49,7 @@ export class ArchivedProjectsPage {
       const restored = await this.store.restore(id);
       if (restored && project) {
         this.restoredProjectId.set(this.store.restoreReport()?.projectId ?? id);
-        this.toast.show(restoredProjectFeedback(project.name, status), undefined, () => {
+        this.toast.show(restoredProjectFeedback(project.name, status, this.store.restoredCascadeCount()), undefined, () => {
           const rows = this.host.nativeElement.querySelectorAll<HTMLElement>('[data-archived-project]');
           return rows[index]?.querySelector<HTMLElement>('[data-restore-status]:not(:disabled)') ?? this.heading()?.nativeElement ?? null;
         });

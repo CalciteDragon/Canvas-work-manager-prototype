@@ -58,6 +58,7 @@
         [pageWriteError]="store.pageWriteError()"
         [pageWriteRetryKind]="store.pageWriteRetryKind()"
         [workCreateBlocked]="workCreateBlocked()"
+        [readOnly]="store.readOnly()"
         (workCreateRequested)="openWorkCreate()"
         (toggleRequested)="toggleNavigation()"
         (pageToggleRequested)="setPageEnabled($event.kind, $event.enabled)"

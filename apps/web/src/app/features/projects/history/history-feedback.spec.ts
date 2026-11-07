@@ -110,6 +110,10 @@ describe('history feedback (Slice 41)', () => {
       link: { projectId: 'project-kitchen', label: 'Open Kitchen' },
     });
     expect(archivedHereFeedback('Garden').message).toBe('Archived Garden.');
+    expect(archivedHereFeedback('Kitchen', 1).message).toBe('Archived Kitchen and 1 workstream.');
+    expect(archivedHereFeedback('Home renovation', 3).message).toBe('Archived Home renovation and 3 workstreams.');
+    expect(restoredProjectFeedback('Kitchen', 'active', 1).message).toBe('Restored Kitchen as Active. 1 workstream came back as it was.');
+    expect(restoredProjectFeedback('Home renovation', 'on_hold', 3).message).toBe('Restored Home renovation as On hold. 3 workstreams came back as they were.');
   });
 
   it('words every adopter feedback without naming absent controls', () => {

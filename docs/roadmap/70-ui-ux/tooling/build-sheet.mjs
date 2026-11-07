@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 const args = process.argv.slice(2);
 const flag = name => { const at = args.indexOf(name); return at === -1 ? null : args[at + 1]; };
 const profile = flag('--profile') ?? '71';
-if (!['71', '72', '73', '74', '75', '76', '77', '78', '79'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+if (!['71', '72', '73', '74', '75', '76', '77', '78', '79', '80'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
 // Profile 75's slice-73 pair has its own "before": the pre-73 build's placement run.
 const pre73Dir = flag('--pre73') === null ? null : resolve(flag('--pre73'));
 const positional = args.filter((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
@@ -58,7 +58,7 @@ const CENSUS_EXCEPTIONS = [
   { owner: 'slice 7: project navigation breadcrumbs (listed after the after census; see the plan)', classes: ['project-nav__breadcrumb'], test: c => /\bproject-nav__breadcrumb\b/.test(c.class ?? '') },
   { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
 ];
-const activeExceptions = ['77', '78', '79'].includes(profile) ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
+const activeExceptions = ['77', '78', '79', '80'].includes(profile) ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
 const exceptionFor = c => activeExceptions.find(e => e.test(c));
 const objectCell = cell => cell.route === '/app' || cell.route?.startsWith('/projects/') || cell.route === '/settings/archived-projects';
 // A selector may stand in for an axe node only when its baseline predates the structural identity (`axeNodeIdentity`).
@@ -68,7 +68,7 @@ const structuralAnchor = node => /^(drag-preview|dragging)?\|/.test(node.stableA
  * so the list's pre-existing axe nodes gained a new structural anchor. Both forms name one
  * identity; every other anchor is compared as recorded.
  */
-const anchorOf = node => ['78', '79'].includes(profile) && (/\|APP-SIDEBAR:\d+\|NAV:0\|DIV:1\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '') || /^\|data-projects-region=\|DIV\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '')) ? 'sidebar projects list' : node.stableAnchor;
+const anchorOf = node => ['78', '79', '80'].includes(profile) && (/\|APP-SIDEBAR:\d+\|NAV:0\|DIV:1\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '') || /^\|data-projects-region=\|DIV\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '')) ? 'sidebar projects list' : node.stableAnchor;
 const objectPanels = new Set(['cards', 'object-rows', 'primitives', 'task-row', 'widget-frame', 'activity']);
 const chromeCell = cell => cell.route?.startsWith('/projects/') && !/\/(todos|archive|reflections)(?:$|\?)/.test(cell.route);
 const censusFailures = [], censusExceptions = [], intendedChanges = [], geometryReport = [];
@@ -98,6 +98,8 @@ const eaBaseline=profile==='79'?await read(join(beforeDir,'empty-archived-verifi
 /** Acceptance item 4's changing matrix cells; the overdue dashboards are Stage 0's list. */
 const EA_EXEMPT_CELLS = ['empty-dashboard', 'kitchen-archived', 'kitchen-archive-confirm', 'archive', 'busy-week-dashboard', 'overdue-chaos-dashboard', 'agent-heavy-dashboard'];
 const eaExempt = cell => EA_EXEMPT_CELLS.some(id => new RegExp(`^${id}-(dark|light)-\\d+$`).test(cell.id));
+/** Slice 80's one changing matrix cell: Kitchen's confirmation, now a commit with its list. */
+const cascadeExempt = cell => /^kitchen-archive-confirm-(dark|light)-\d+$/.test(cell.id);
 /** The empty and archived specimens, and the header count specimen. */
 const EA_LAB_PANELS = new Set(['state-messages', 'section-frame']);
 const labPanels = profile === '78' ? STATE_LAB_PANELS : profile === '79' ? EA_LAB_PANELS : objectPanels;
@@ -146,7 +148,7 @@ for (const a of after.cells) {
   const b = before.cells.find(b => b.id === a.id);
   if (!b || a.status !== 'captured' || b.status !== 'captured') { failures.push({ cell: a.id, reason: 'missing or incomplete evidence' }); continue; }
   const [bl, al] = await Promise.all([read(join(beforeDir, b.artifacts.layout)), read(join(afterDir, a.artifacts.layout))]);
-  if((profile==='77' && objectCell(a)) || (profile==='78' && objectCell(a) && !stateExempt(a)) || (profile==='79' && objectCell(a) && !eaExempt(a))) {
+  if((profile==='77' && objectCell(a)) || (profile==='78' && objectCell(a) && !stateExempt(a)) || (profile==='79' && objectCell(a) && !eaExempt(a)) || (profile==='80' && objectCell(a) && !cascadeExempt(a))) {
     for(const box of bl.planes??[])if(['app-top-bar','app-sidebar','app-project-page-navigation','app-project-header'].includes(box.selector)) {
       const now=al.planes?.find(e=>e.selector===box.selector && e.index===box.index);
       if(!now || ['x','y','width','height'].some(field=>!Number.isFinite(box[field]) || !Number.isFinite(now[field]) || Math.abs(box[field]-now[field])>1))failures.push({cell:a.id,reason:'objects fixed shell plane missing or moved more than 1 px',before:box,after:now});
@@ -302,7 +304,7 @@ for (const a of after.cells) {
       const fixed=family==='planes' ? changes.filter(change=>fixedPlanes.has(old[change.index]?.selector) || change.reason==='missing numeric geometry') : [];
       if(fixed.length)failures.push({cell:a.id,family,changes:fixed});
       if(changes.length>fixed.length)geometryReport.push({cell:a.id,family,changes:changes.filter(c=>!fixed.includes(c))});
-    } else if ((profile === '78' && stateExempt(a)) || (profile === '79' && eaExempt(a))) {
+    } else if ((profile === '78' && stateExempt(a)) || (profile === '79' && eaExempt(a)) || (profile === '80' && cascadeExempt(a))) {
       // The matrix cells the slice changes on purpose: movement is reported; corrupt evidence still fails.
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
@@ -335,7 +337,7 @@ for (const a of after.cells) {
       }
     }
   }
-  if (['72', '76', '77', '78', '79'].includes(profile)) {
+  if (['72', '76', '77', '78', '79', '80'].includes(profile)) {
     const touch = (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
     const product = al.controls.filter(c => c.scope === 'product');
     for (const c of product) {
@@ -376,10 +378,10 @@ for (const a of after.cells) {
     }
     if (!Array.isArray(bl.sectionContents) || !Array.isArray(al.sectionContents)) failures.push({ cell: a.id, reason: 'section content collector missing' });
   }
-  if ((profile === '76' && chromeCell(a)) || ['77', '78', '79'].includes(profile)) {
+  if ((profile === '76' && chromeCell(a)) || ['77', '78', '79', '80'].includes(profile)) {
     const [was, now] = await Promise.all([read(join(beforeDir, b.artifacts.axe)), read(join(afterDir, a.artifacts.axe))]);
     const key = (v, n) => v.id + ':' + (anchorOf(n) ?? n.target?.join(' '));
-    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(!['77', '78', '79'].includes(profile) || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
+    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(!['77', '78', '79', '80'].includes(profile) || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
     for (const violation of now.violations ?? []) if (violation.id !== 'color-contrast') for (const node of violation.nodes) {
       if (!known.has(key(violation,node)) && !known.has(violation.id + ':' + node.target?.join(' '))) failures.push({ cell: a.id, reason: 'new axe node ' + violation.id, target: node.target });
     }
@@ -396,7 +398,7 @@ for (const a of after.cells) {
   pairs.push({ id: a.id, theme: a.theme });
 }
 // Section chrome owns its runtime evidence; the frozen Depth journey uses retired labels.
-const verification = ['76', '77', '78', '79'].includes(profile) ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
+const verification = ['76', '77', '78', '79', '80'].includes(profile) ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
 const optional = path => read(path).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
 const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-verification.json')) : null;
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
@@ -978,6 +980,44 @@ const EA_VISUAL_PAIRS = [
   ['markdown-preview', 'light', 1440, 'W4-031'], ['markdown-preview', 'dark', 375, 'W4-031'], ['count-dense', 'light', 1440, 'L4-023'], ['count-kitchen', 'dark', 375, 'L4-023'],
   ['drag-start', 'dark', 1440, 'carried (note-2026-10-22-002)'],
 ];
+/**
+ * Slice 80's gate. This table is the plan's Capture scope, so a context dropped from the rig fails
+ * rather than passing: each view must exist with no error, say what the plan's copy table says, stay
+ * inside the phone's width, and add no axe violation beyond contrast (reported, never gated).
+ */
+const FOUR_VIEWS = [['dark', 1440], ['dark', 375], ['light', 1440], ['light', 375]], TWO_PANELS = [['light', 1440], ['dark', 375]];
+const CASCADE_ROWS = [
+  ['renovation-archive-confirm', FOUR_VIEWS, 'region', 'Archive “Home renovation” and its 3 workstreams?'],
+  ['kitchen-archived-with-group', TWO_PANELS, 'banner', '“Kitchen” is archived. Restoring it brings back 1 workstream as it was.'],
+  ['cabinets-archived-with-kitchen', TWO_PANELS, 'banner', '“Cabinets” was archived with “Kitchen”. Restoring “Kitchen” brings it back.'],
+  ['renovation-archive-row', TWO_PANELS, 'region', 'Comes back with 1 workstream'],
+  ['settings-archived-row', TWO_PANELS, 'region', 'Comes back with 1 workstream'],
+  ['archive-toast-group', TWO_PANELS, 'toast', 'Archived Kitchen and 1 workstream.'],
+  ['restore-toast-group', TWO_PANELS, 'toast', 'Restored Kitchen as Active. 1 workstream came back as it was.'],
+  ['late-refusal', TWO_PANELS, 'region', 'The workstreams under “Kitchen” changed. Choose Archive again to confirm the current list.'],
+];
+const cascadeEvidence = profile === '80' ? await read(join(verificationDir, 'cascading-archive-verification.json')).catch(e => { if (e.code === 'ENOENT') return null; throw e; }) : null;
+const cascadeBaseline = profile === '80' ? await read(join(beforeDir, 'cascading-archive-verification.json')).catch(e => { if (e.code === 'ENOENT') return null; throw e; }) : null;
+if (profile === '80') {
+  if (!cascadeEvidence) failures.push({ reason: 'cascading-archive-verification.json missing' });
+  else if (cascadeEvidence.commit !== after.commit) failures.push({ reason: 'cascading evidence is from another commit', evidence: cascadeEvidence.commit, matrix: after.commit });
+  if (!cascadeBaseline?.entries?.some(e => e.context === 'renovation-archive-confirm')) failures.push({ reason: 'before capture lacks renovation-archive-confirm' });
+  for (const [context, views, field, text] of CASCADE_ROWS) for (const [theme, width] of views) {
+    const entry = cascadeEvidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
+    const cell = `${context}|${theme}|${width}`;
+    if (!entry || entry.error) { failures.push({ cell, reason: 'context missing or errored', error: entry?.error }); continue; }
+    const shown = field === 'region' ? entry.region?.text : entry[field];
+    if (!String(shown ?? '').includes(text)) failures.push({ cell, reason: 'copy table', expected: text, shown });
+    if (entry.overflow?.document > entry.overflow?.viewport) failures.push({ cell, reason: 'scrolls sideways', ...entry.overflow });
+    for (const violation of entry.axe?.violations ?? []) if (violation.id !== 'color-contrast') failures.push({ cell, reason: 'axe ' + violation.id, nodes: violation.nodes });
+    const consoleErrors = (entry.consoleErrors ?? []).filter(line => !(context === 'late-refusal' && /net::ERR_FAILED|status of 409/.test(line)));
+    if (consoleErrors.length) failures.push({ cell, reason: 'console errors', consoleErrors });
+  }
+  for (const a of after.cells.filter(cascadeExempt)) {
+    const tree = await readFile(join(afterDir, a.artifacts.tree), 'utf8');
+    if (!tree.includes('Archive “Kitchen” and its 1 workstream?') || !tree.includes('Cabinets · Active')) failures.push({ cell: a.id, reason: 'the confirmation does not list Cabinets' });
+  }
+}
 const emptyArchivedChecks = [];
 const eaPairs = profile === '79' ? EA_VISUAL_PAIRS.map(([context, theme, width, findings]) => {
   const find = evidence => evidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
@@ -1425,6 +1465,26 @@ if (profile === '78') {
   await writeFile(join(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 78 · States · Gate 2</title><style>body{font:16px/1.5 system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain;object-position:top}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#ffad7f}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #394156}@media(max-width:700px){body{margin:12px}.pair{grid-template-columns:1fr}}</style><h1>States: failures and loading / Slice 78</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ' + esc(before.commit) + ' → after ' + esc(after.commit) + '. States evidence: before ' + esc(stateBaseline?.commit ?? 'unavailable') + ' → after ' + esc(stateEvidence?.commit ?? 'unavailable') + '.</p><p>' + pairs.length + ' paired matrix cells · ' + failures.length + ' gate failures · ' + gaps.length + ' of ' + stateVisualPairs.length + ' visual acceptance pairs incomplete. Zero gate failures does not mean user acceptance.</p><p><a href="report.json">Full gate report</a> · <a href="states-verification.json">States evidence, before and after</a></p><h2>Core task costs</h2>' + costs + '<h2>Visual acceptance before / after</h2>' + featured.join('') + '<h2>Context table</h2><p>Every exemption comes from this table. Each row is checked in both themes at 1440 and 375.</p>' + table + '<h2>Matrix before / after</h2><details><summary>All ' + pairs.length + ' matrix pairs</summary>' + pairs.map(card).join('') + '</details><h2>Checks and gate failures</h2><pre>' + esc(JSON.stringify(failures, null, 2)) + '</pre><details><summary>Reported movement in the four changing cells</summary><pre>' + esc(JSON.stringify(geometryReport, null, 2)) + '</pre></details><h2>Contrast (reported only)</h2>' + contrastTable + '</html>');
 }
 console.log(JSON.stringify({ pairs: pairs.length, geometryFailures: failures.length, intentionalLabChanges: exceptions.length, composites, output }));
+if (profile === '80') {
+  const copied = new Set();
+  const copy = async (phase, dir, file) => {
+    const name = phase + '-' + file;
+    if (!copied.has(name)) { await copyFile(join(dir, file), join(output, name)); copied.add(name); }
+    return name;
+  };
+  const find = (evidence, context, theme, width) => evidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
+  const panels = [];
+  for (const [context, views, , text] of CASCADE_ROWS) for (const [theme, width] of views) {
+    const was = find(cascadeBaseline, context, theme, width), now = find(cascadeEvidence, context, theme, width);
+    const pictures = [];
+    if (was?.screenshot && !was.error) pictures.push(figure(await copy('before', beforeDir, was.screenshot), 'before'));
+    if (now?.screenshot && !now.error) pictures.push(figure(await copy('after', verificationDir, now.screenshot), 'after'));
+    panels.push(`<article><h3>${esc(`${context} · ${theme} · ${width}`)}</h3><p>${esc(text)}</p><div class="pair">${pictures.join('')}</div></article>`);
+  }
+  const matrix = pairs.filter(pair => cascadeExempt(pair));
+  await writeFile(join(output, 'cascading-archive-verification.json'), JSON.stringify({ after: cascadeEvidence, before: cascadeBaseline }, null, 2));
+  await writeFile(join(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 80 · Cascading archive · Gate 2</title><style>body{font:16px/1.5 system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain;object-position:top}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#ffad7f}@media(max-width:700px){body{margin:12px}.pair{grid-template-columns:1fr}}</style><h1>Cascading project archive / Slice 80</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ' + esc(before.commit) + ' → after ' + esc(after.commit) + '.</p><p>' + pairs.length + ' paired matrix cells · ' + failures.length + ' gate failures. Zero gate failures does not mean user acceptance.</p><p><a href="report.json">Full gate report</a></p><h2>What changed</h2>' + panels.join('') + '<h2>Kitchen’s confirmation, before / after</h2>' + matrix.map(card).join('') + '<h2>All matrix pairs</h2><details><summary>All ' + pairs.length + ' pairs, every other one required not to move</summary>' + pairs.map(card).join('') + '</details><h2>Checks and gate failures</h2><pre>' + esc(JSON.stringify(failures, null, 2)) + '</pre></html>');
+}
 if (profile === '79') {
   const copied = new Set();
   const copy = async (phase, dir, file) => {

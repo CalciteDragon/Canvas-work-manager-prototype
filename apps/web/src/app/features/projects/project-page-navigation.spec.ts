@@ -39,12 +39,14 @@ const render = async (
     activeKind?: 'home' | 'archive' | null;
     breadcrumbs?: Project[];
     collapsed?: boolean;
+    readOnly?: boolean;
   } = {},
 ) => {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({ providers: [provideRouter([])] });
   const fixture = TestBed.createComponent(ProjectPageNavigation);
   fixture.componentRef.setInput('root', ROOT);
+  if (options.readOnly) fixture.componentRef.setInput('readOnly', true);
   fixture.componentRef.setInput('pages', options.pages ?? [
     ProjectPageSchema.parse({
       id: 'page-renovation-home',
@@ -401,6 +403,15 @@ describe('ProjectPageNavigation (§23)', () => {
     const fixture = await render({ workTree: [] });
 
     expect(query(fixture, '[data-work-empty]')?.textContent).toContain('No workstreams yet');
+  });
+
+  // Slice 80, Q6 (a): over an archived page its workstreams exist, archived, under a banner
+  // promising them back, so the sentence would be false.
+  it('does not say so on a read-only page', async () => {
+    const fixture = await render({ workTree: [], readOnly: true });
+
+    expect(query(fixture, '[data-work-empty]')).toBeNull();
+    expect(query(fixture, '.project-nav__work')).toBeNull();
   });
 
   // §23: at narrow widths the column "collapses behind a labelled control rather than

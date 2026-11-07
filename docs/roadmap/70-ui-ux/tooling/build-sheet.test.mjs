@@ -8,6 +8,13 @@ import { spawnSync } from 'node:child_process';
 
 const builder = join(dirname(fileURLToPath(import.meta.url)), 'build-sheet.mjs');
 
+test('profile 80 fails without its runtime evidence: a dropped rig does not pass', async t => {
+  const f = await fixture(t);
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '80'], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(await readFile(join(f.dirs[2], 'report.json'), 'utf8'), /cascading-archive-verification\.json missing/);
+});
+
 async function feedbackSheet(t, { changed = false, open = false, overflow = false, badGeometry = false, missingFocus = false } = {}) {
   const f = await fixture(t);
   f.cell.state = open ? 'remove-feedback' : 'populated';

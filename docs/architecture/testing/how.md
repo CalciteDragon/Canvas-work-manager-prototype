@@ -8,6 +8,14 @@ a current read, so a race is verified against the canonical write refusal too.
 
 ## Runtime flow
 
+Slice 80 uses `ux/slice80.config.ts` on Slice 79's ports (web 4257, host 4357; the two rigs never run
+together), `.prototype/ux-slice80.json` and the `bfff1c6` baseline in
+`apps/e2e/ux-output/slice80-baseline-web/browser`. `ux/cascading-archive-verification.ts` holds its
+runtime contexts; one marked `afterOnly` cannot exist at the baseline and the before run skips it.
+`build-sheet.mjs <before> <after> <sheet> <after> --profile 80` is its gate. Its journeys are
+`apps/e2e/cascading-archive.spec.ts`, on the ordinary suite's servers: all with a mouse, and Acceptance
+item 4's named ones again by touch at 375 and by keyboard alone.
+
 Slice 79 uses `ux/slice79.config.ts` on web 4257, host 4357 and `.prototype/ux-slice79.json`,
 with the `44e7e9e` baseline in `apps/e2e/ux-output/slice79-baseline-web/browser`; `UX_MATCH`,
 `UX_STATES_MATCH` and `UX_STATES_SKIP_TASKS` work as for slice 78. `build-sheet.mjs <before>

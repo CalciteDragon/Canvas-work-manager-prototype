@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { configureContext } from './isolation';
-import { seed, setClock } from '../seed';
+import { api, seed, setClock } from '../seed';
 import { SEED_NOW } from './matrix';
 
 /**
@@ -24,18 +24,44 @@ export type Context = {
   views?: readonly (readonly ['dark' | 'light', number])[];
   afterOnly?: boolean;
   prepare?(): Promise<void>;
+  /** Routes installed before navigation. */
+  setup?(page: Page): Promise<void>;
   act?(c: Ctx): Promise<void>;
 };
 
 const CONFIRM_R = '[data-project-archive-confirm]';
+const ROOT = '/projects/project-renovation';
+const KITCHEN = '/projects/project-kitchen';
+const CABINETS = '/projects/project-cabinets';
 const openArchiveConfirm = async (c: Ctx) => {
   await c.page.getByRole('button', { name: 'More project actions', exact: true }).click();
   await c.page.getByRole('menuitem', { name: /^Archive (project|workstream)…$/ }).click();
   await expect(c.page.locator(CONFIRM_R)).toBeVisible();
 };
+const archiveKitchen = async () => { await api.patch('/api/projects/project-kitchen', { status: 'archived', archiveWorkstreamIds: ['project-cabinets'] }); };
+const toastShown = (c: Ctx) => c.page.locator('[data-toast]:popover-open').waitFor();
+/** Each after-only panel: light at 1440, dark at 375 (Capture scope). */
+const PANELS = [['light', 1440], ['dark', 375]] as const;
 
 export const CONTEXTS: Context[] = [
-  { id: 'renovation-archive-confirm', route: '/projects/project-renovation', region: CONFIRM_R, act: openArchiveConfirm },
+  { id: 'renovation-archive-confirm', route: ROOT, region: CONFIRM_R, act: openArchiveConfirm },
+  { id: 'kitchen-archived-with-group', route: KITCHEN, region: 'main', afterOnly: true, views: PANELS, prepare: archiveKitchen,
+    act: c => expect(c.page.locator('app-archived-banner [data-archived-sentence]')).toContainText('Restoring it brings back') },
+  { id: 'cabinets-archived-with-kitchen', route: CABINETS, region: 'main', afterOnly: true, views: PANELS, prepare: archiveKitchen },
+  { id: 'renovation-archive-row', route: `${ROOT}/pages/archive`, region: '[data-archived-item][data-archived-id="project-kitchen"]', afterOnly: true, views: PANELS, prepare: archiveKitchen },
+  { id: 'settings-archived-row', route: '/settings/archived-projects', region: '[data-archived-project][data-project-id="project-kitchen"]', afterOnly: true, views: PANELS, prepare: archiveKitchen },
+  { id: 'archive-toast-group', route: KITCHEN, region: 'app-project-header', afterOnly: true, views: PANELS,
+    act: async c => { await openArchiveConfirm(c); await c.page.locator('[data-project-archive-confirm-yes]').click(); await toastShown(c); } },
+  { id: 'restore-toast-group', route: `${ROOT}/pages/archive`, region: 'main', afterOnly: true, views: PANELS, prepare: archiveKitchen,
+    act: async c => { await c.page.locator('[data-archived-item][data-archived-id="project-kitchen"] [data-restore-action]').click(); await toastShown(c); } },
+  { id: 'late-refusal', route: KITCHEN, region: 'app-project-header', afterOnly: true, views: PANELS,
+    setup: page => page.route(url => url.pathname === '/prototype/events', route => route.abort()).then(() => undefined),
+    act: async c => {
+      await openArchiveConfirm(c);
+      await api.post('/api/projects', { workspaceId: 'workspace-demo', kind: 'subproject', parentProjectId: 'project-kitchen', name: 'Late drawers' });
+      await c.page.locator('[data-project-archive-confirm-yes]').click();
+      await c.page.locator('[data-project-write-error]').waitFor();
+    } },
 ];
 
 /** Browser-side evidence: the region's text and controls, the banner, the open toast and where focus is. */
@@ -77,6 +103,7 @@ test('Cascading archive evidence', async ({ browser }) => {
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
     try {
       await fixture.prepare?.();
+      await fixture.setup?.(page);
       await page.goto('http://localhost:4200' + fixture.route, { waitUntil: 'load' });
       await page.waitForLoadState('networkidle');
       const toggle = page.getByRole('button', { name: `Switch to the ${theme} theme` });

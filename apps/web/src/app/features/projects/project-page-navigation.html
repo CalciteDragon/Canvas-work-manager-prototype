@@ -116,7 +116,10 @@
       (click)="requestWorkCreate()"><app-icon name="plus" /></button>
   </div>
   @if (workTree().length === 0) {
-    <p data-work-empty class="project-nav__empty">No workstreams yet</p>
+    <!-- On a read-only page its workstreams exist, archived; the banner above says what comes back. -->
+    @if (!readOnly()) {
+      <p data-work-empty class="project-nav__empty">No workstreams yet</p>
+    }
   } @else {
     <ul class="project-nav__work">
       @for (node of workTree(); track node.project.id) {

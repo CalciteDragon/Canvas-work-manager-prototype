@@ -95,3 +95,10 @@ proved by component tests with rows supplied, not by a capture.
 an archived root's Reflections page still holding an empty "Write a reflection" region and the
 completed-work subject picker, which only feeds the composer. A read-only Reflections page now
 renders neither region, only its header and the journal with its hidden-count sentence.
+
+**Amended, 2026-11-06 — Slice 80.** With [group archives](2026-11-cascading-project-archive.md) the
+banner has two more sentences: an owner says how many workstreams its restore brings back, and a
+marked project names its owner. The hidden count includes rows under the group, because a restore
+brings them back. More's status buttons are absent on a marked project, by this entry's rule that a
+control which can only be refused is absent. The project column's "No workstreams yet" is not shown
+on a read-only page, where it would be false under the banner.

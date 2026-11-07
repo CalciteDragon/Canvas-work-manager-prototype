@@ -71,7 +71,7 @@ export class ArchivePage implements ProjectPageRenderer {
             : ['/projects', item.origin.projectId, 'pages', item.origin.pageKind];
       this.restoredRoute.set(route);
       this.restoredFragment.set(item.kind === 'subproject' ? undefined : `section-${item.kind === 'section' ? item.section.id : item.kind === 'task' ? item.task.sectionId : item.reflection.sectionId}`);
-      const feedback = item.kind === 'subproject' ? restoredProjectFeedback(item.project.name, request.status)
+      const feedback = item.kind === 'subproject' ? restoredProjectFeedback(item.project.name, request.status, this.store.restoredCascadeCount())
         : restoredItemFeedback(this.titleOf(item), item.origin.breadcrumb.map(step => step.name).join(' › '),
           ({ home: 'Home', work: 'Work', todos: 'Todos', archive: 'Archive', reflections: 'Reflections' })[item.origin.pageKind], item.origin.pageEnabled);
       this.toast.show(feedback, this.store.restoreReport() ?? undefined, () => {

@@ -153,17 +153,16 @@ for (const theme of ['dark', 'light'] as const) {
         await onlyOneLift(page);
       });
 
-      // Slice 79, L4-008: Home renovation has live Kitchen and Garden, so the confirmation is the
-      // blocked form, with no commit, and Close returns to More with nothing written.
-      test('blocked archive returns to More, page toggles retain focus and Archive gets a landing', async ({ page }) => {
+      // Slice 80: Home renovation lists what would come down, and Cancel returns to More with
+      // nothing written.
+      test('cancelling a group archive returns to More, page toggles retain focus and Archive gets a landing', async ({ page }) => {
         await more(page).click();
         await page.locator('[data-project-archive]').click();
         const confirm = page.locator('[data-project-archive-confirm]');
         await expect(page.locator('[data-project-archive-cancel]')).toBeFocused();
-        await expect(page.locator('[data-project-archive-cancel]')).toHaveText('Close');
+        await expect(page.locator('[data-project-archive-cancel]')).toHaveText('Cancel');
         await onlyOneLift(page);
-        await expect(confirm.locator('[data-project-archive-confirm-yes]')).toHaveCount(0);
-        await expect(confirm.locator('a[data-project-archive-child]')).toHaveText(['Kitchen', 'Garden']);
+        await expect(confirm.locator('[data-project-archive-row]')).toHaveCount(3);
         await page.locator('[data-project-archive-cancel]').click();
         await expect(confirm).toHaveCount(0);
         await expect(page.locator('[data-project-write-error]')).toHaveCount(0);

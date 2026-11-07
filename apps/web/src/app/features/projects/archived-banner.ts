@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
-import type { Project, ProjectRestoreStatus } from '@cwm/contracts';
+import { ChangeDetectionStrategy, Component, PendingTasks, computed, effect, inject, input, linkedSignal, output, signal, untracked } from '@angular/core';
+import type { Project, ProjectId, ProjectRestoreStatus } from '@cwm/contracts';
+import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FailureMessage } from '../../shared/feedback/failure-message';
 import { RestoreStatusChoice } from '../../shared/projects/restore-status-choice';
 import type { OwnerRestoreFailure } from './project-workspace-store';
@@ -10,11 +11,16 @@ import type { OwnerRestoreFailure } from './project-workspace-store';
  * restore choice on that owner. The owner is `ProjectWorkspaceStore.archivedOwner()`, the
  * outermost archived project, since only its restore can succeed.
  *
- * Presentational: it emits `restore` with the shown status and the shell calls `restoreOwner`.
- * The choice starts on Active again whenever the owner changes (archived twice: after the outer
- * owner, the page's own). A failure for this owner renders here, not in the header, and its Try
- * again repeats the last pressed status. The shell mounts it behind `@defer (when readOnly())`
- * to keep it out of the initial bundle (Open question 6 (a)).
+ * It emits `restore` with the shown status and the shell calls `restoreOwner`. The choice starts on
+ * Active again whenever the owner changes (archived twice: after the outer owner, the page's own). A
+ * failure for this owner renders here, not in the header, and its Try again repeats the last pressed
+ * status. The shell mounts it behind `@defer (when readOnly())` to keep it out of the initial bundle
+ * (Open question 6 (a)).
+ *
+ * **It reads one thing itself** (Slice 80, R10): how many workstreams a restore of the page's own
+ * project brings back, because the store does not hold archived descendants by design. The read is
+ * keyed on the owner, so being archived twice reads again once the page's own project is the owner,
+ * and an answer for a previous owner is dropped. No answer leaves the sentence without a count.
  */
 @Component({
   selector: 'app-archived-banner',
@@ -43,10 +49,46 @@ export class ArchivedBanner {
   protected readonly status = linkedSignal<string, ProjectRestoreStatus>({ source: computed(() => this.owner().id), computation: () => 'active' });
   private lastStatus: ProjectRestoreStatus | null = null;
 
+  private readonly gateway = inject(WORK_MANAGER_GATEWAY);
+  private readonly pendingTasks = inject(PendingTasks);
+  /** The owner, when it is the project on screen; the other sentences need no count. */
+  private readonly ownedId = computed(() => (this.owner().id === this.project().id ? this.owner().id : null));
+  private readonly groupSize = signal<number | undefined>(undefined);
+  private countRead = 0;
+
+  constructor() {
+    effect(() => {
+      const id = this.ownedId();
+      untracked(() => void this.readCount(id));
+    });
+  }
+
+  private async readCount(id: ProjectId | null): Promise<void> {
+    const read = ++this.countRead;
+    this.groupSize.set(undefined);
+    if (id === null) return;
+    const settled = this.pendingTasks.add();
+    try {
+      const { items } = await this.gateway.projects.archived();
+      if (read === this.countRead) this.groupSize.set(items.find(({ project }) => project.id === id)?.cascadeCount);
+    } catch {
+      // A failed read leaves the sentence without a count; the restore itself is unaffected.
+    } finally {
+      settled();
+    }
+  }
+
   protected readonly sentence = computed(() => {
     const project = this.project();
     const owner = this.owner();
-    if (owner.id === project.id) return `“${project.name}” is archived.`;
+    if (owner.id === project.id) {
+      const size = this.groupSize();
+      if (size === undefined) return `“${project.name}” is archived.`;
+      return `“${project.name}” is archived. Restoring it brings back ${size === 1 ? '1 workstream as it was' : `${size} workstreams as they were`}.`;
+    }
+    if (project.archivedWithProject?.projectId === owner.id) {
+      return `“${project.name}” was archived with “${owner.name}”. Restoring “${owner.name}” brings it back.`;
+    }
     return project.status === 'archived'
       ? `“${project.name}” is archived, and so is “${owner.name}”, which holds it.`
       : `“${project.name}” is inside “${owner.name}”, which is archived.`;

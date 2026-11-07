@@ -20,15 +20,14 @@ const project = (id: string, name: string, status: Project['status'], parentProj
 const RENOVATION = project('project-renovation', 'Home renovation', 'active');
 
 /**
- * §81's archive confirmation, and Slice 79's blocked form (L4-008): with live workstreams under
- * the project the domain would refuse the archive, so the dialog says so first and offers no
- * commit.
+ * §81's archive confirmation (Slice 80): with live workstreams under the project it lists them,
+ * nested, and a press names what is on screen.
  */
 const meta: Meta<ProjectArchiveConfirm> = {
   title: 'Projects/ProjectArchiveConfirm',
   component: ProjectArchiveConfirm,
   decorators: [applicationConfig({ providers: [provideRouter([])] })],
-  args: { project: RENOVATION, opener: document.body, archive: fn(async () => true), liveChildren: [] },
+  args: { project: RENOVATION, opener: document.body, archive: fn(async () => true), workstreams: [] },
 };
 export default meta;
 type Story = StoryObj<ProjectArchiveConfirm>;
@@ -36,19 +35,27 @@ type Story = StoryObj<ProjectArchiveConfirm>;
 /** Nothing live underneath: the commit form, as before. */
 export const Commit: Story = {};
 
-/** Live workstreams, a completed one included: each a link with its status, and Close only. */
-export const Blocked: Story = {
+/** Live workstreams, a nested and a completed one included: each with its status, and Archive all. */
+export const WithWorkstreams: Story = {
   args: {
-    liveChildren: [
-      project('project-kitchen', 'Kitchen', 'active', RENOVATION.id),
-      project('project-garden', 'Garden', 'completed', RENOVATION.id),
+    workstreams: [
+      { project: project('project-kitchen', 'Kitchen', 'active', RENOVATION.id), children: [{ project: project('project-cabinets', 'Cabinets', 'on_hold', 'project-kitchen'), children: [] }] },
+      { project: project('project-garden', 'Garden', 'completed', RENOVATION.id), children: [] },
     ],
   },
   play: async ({ canvasElement }) => {
     const dialog = within(canvasElement.ownerDocument.body);
-    await expect(dialog.getByRole('heading', { name: '“Home renovation” can’t be archived yet' })).toBeVisible();
-    await expect(dialog.getByRole('link', { name: 'Garden' })).toHaveAttribute('href', '/projects/project-garden');
-    await expect(dialog.queryByRole('button', { name: 'Archive it' })).toBeNull();
-    await expect(dialog.getByRole('button', { name: 'Close' })).toHaveFocus();
+    await expect(dialog.getByRole('heading', { name: 'Archive “Home renovation” and its 3 workstreams?' })).toBeVisible();
+    await expect(dialog.getByText('Cabinets · On hold')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Archive all' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toHaveFocus();
   },
+};
+
+/** About twenty rows at phone width, which no seed holds: the list scrolls by itself. */
+export const LongList: Story = {
+  args: {
+    workstreams: Array.from({ length: 20 }, (_, i) => ({ project: project(`project-${i}`, `Workstream ${i + 1}`, 'active', RENOVATION.id), children: [] })),
+  },
+  globals: { viewport: { value: 'mobile1' } },
 };

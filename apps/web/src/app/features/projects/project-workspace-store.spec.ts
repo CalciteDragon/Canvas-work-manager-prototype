@@ -21,7 +21,7 @@ import { FakeWorkManagerGateway, type FakeGatewayOptions } from '../../core/gate
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
 import { ProjectWorkspaceStore } from './project-workspace-store';
-import { liveChildrenOf } from './live-children';
+import { liveDescendantIds, liveDescendantsOf } from './live-descendants';
 import { provideRecordingReporter } from '../../core/history/testing/recording-reporter';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -1334,33 +1334,82 @@ describe('ProjectWorkspaceStore — the archived owner, live and degraded (Slice
   });
 });
 
-describe('ProjectWorkspaceStore — the archive refusal comes first (Slice 79, L4-008, §31)', () => {
+describe('ProjectWorkspaceStore — a group archive and its restore (Slice 80, R10)', () => {
   const withAttic = () => [
     ...renovation().map((project) => (project.id === 'project-garden' ? { ...project, status: 'completed' as const } : project)),
     child('project-attic', 'Legacy attic', 'project-renovation', { status: 'archived' }),
   ];
+  const updates = (gateway: { calls: { method: string; args?: unknown }[] }) => gateway.calls.filter(({ method }) => method === 'projects.update');
 
-  it('gives a root its top-level live workstreams, completed included and archived left out', async () => {
+  it('the walk over a real store: the whole live subtree, with what is archived left out', async () => {
     const { store } = storeWith({ projects: withAttic() });
     await store.load('project-renovation' as ProjectId);
 
-    expect(liveChildrenOf(store).map(({ name, status }) => [name, status])).toEqual([['Kitchen', 'active'], ['Garden', 'completed']]);
+    expect(liveDescendantIds(liveDescendantsOf(store))).toEqual(['project-kitchen', 'project-cabinets', 'project-garden']);
   });
 
-  it('gives a workstream its node’s children, and a leaf none', async () => {
-    const { store } = storeWith({ projects: withAttic() });
-    await store.load('project-kitchen' as ProjectId);
-    expect(liveChildrenOf(store).map(({ name }) => name)).toEqual(['Cabinets']);
+  it('archive(ids) sends them only when non-empty, and no-argument callers stay valid', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    await store.load('project-garden' as ProjectId);
+    await store.archive();
+    expect(JSON.stringify(updates(gateway).at(-1))).not.toContain('archiveWorkstreamIds');
 
     TestBed.resetTestingModule();
-    const leaf = storeWith({ projects: withAttic() });
-    await leaf.store.load('project-cabinets' as ProjectId);
-    expect(liveChildrenOf(leaf.store)).toEqual([]);
+    const named = storeWith({ projects: renovation() });
+    await named.store.load('project-kitchen' as ProjectId);
+    await named.store.archive(['project-cabinets' as ProjectId]);
+    expect(JSON.stringify(updates(named.gateway).at(-1))).toContain('"archiveWorkstreamIds":["project-cabinets"]');
   });
 
-  it('answers none when the tree has not been read, so the domain decides', async () => {
-    const { store } = storeWith({ projects: renovation() });
-    expect(liveChildrenOf(store)).toEqual([]);
+  it('the count comes from the response, never the press: an operation: null retry leaves it 0', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    await store.load('project-kitchen' as ProjectId);
+    const kitchen = store.project()!;
+    const cabinets = child('project-cabinets', 'Cabinets', 'project-kitchen', { status: 'archived' });
+    const answer = { project: { ...kitchen, status: 'archived' as const }, operation: null };
+    gateway.projects.update = async () => ({ ...answer, cascaded: [cabinets] });
+    await store.archive(['project-cabinets' as ProjectId]);
+    expect(store.archiveCascadeCount()).toBe(1);
+
+    gateway.projects.update = async () => answer;
+    await store.archive(['project-cabinets' as ProjectId]);
+    expect(store.archiveCascadeCount()).toBe(0);
+  });
+
+  it('under an archived owner a late refusal says Restore first, because its list cannot change', async () => {
+    const projects = [root('project-attic', 'Legacy attic', { status: 'archived' }), child('project-shelving', 'Legacy shelving', 'project-attic')];
+    const { store } = storeWith({ projects, failOn: { 'projects.update': new GatewayError('rule_violation', 409, 'project "project-shelving" still has active workstreams') } });
+    await store.load('project-shelving' as ProjectId);
+
+    expect(await store.archive()).toBe(false);
+
+    expect(store.writeError()?.sentence).toBe('Restore “Legacy attic” first.');
+  });
+
+  it('a permission refusal keeps its wording, and nothing is painted', async () => {
+    const { store } = storeWith({ projects: renovation(), failOn: { 'projects.update': new GatewayError('permission_denied', 403, 'no grant') } });
+    await store.load('project-kitchen' as ProjectId);
+
+    expect(await store.archive(['project-cabinets' as ProjectId])).toBe(false);
+
+    expect(store.writeError()?.sentence).toBe('Couldn’t archive “Kitchen”. Try again.');
+    expect(store.project()?.status).not.toBe('archived');
+  });
+
+  it('restoreOwner applies cascaded, so a marked project’s page has no archived owner at once', async () => {
+    const marker = { projectId: 'project-kitchen', status: 'active' };
+    const kitchen = child('project-kitchen', 'Kitchen', 'project-renovation', { status: 'archived' });
+    const cabinets = child('project-cabinets', 'Cabinets', 'project-kitchen', { status: 'archived', archivedWithProject: marker } as never);
+    const { store, gateway } = storeWith({ projects: [root('project-renovation', 'Home renovation'), kitchen, cabinets] });
+    await store.load('project-cabinets' as ProjectId);
+    expect(store.archivedOwner()?.id).toBe('project-kitchen');
+    const { archivedWithProject: _marker, ...revived } = cabinets as typeof cabinets & { archivedWithProject?: unknown };
+    gateway.projects.update = async () => ({ project: { ...kitchen, status: 'active' as const }, operation: null, cascaded: [{ ...revived, status: 'active' as const } as typeof cabinets] });
+
+    expect(await store.restoreOwner('project-kitchen' as ProjectId, 'active')).toBe(true);
+
+    expect(store.archivedOwner()).toBeNull();
+    expect(store.project()?.status).toBe('active');
   });
 
   it('words a late rule_violation as what to do, with the reason under Details, and re-reads the tree', async () => {
@@ -1375,7 +1424,7 @@ describe('ProjectWorkspaceStore — the archive refusal comes first (Slice 79, L
     await TestBed.inject(ApplicationRef).whenStable();
 
     expect(store.writeError()).toEqual({
-      sentence: '“Cabinets” still has live workstreams. Archive them first.',
+      sentence: 'The workstreams under “Cabinets” changed. Choose Archive again to confirm the current list.',
       reason: expect.stringContaining('still has active workstreams'),
     });
     expect(gateway.calls.filter(({ method }) => method === 'projects.list').length).toBeGreaterThan(listsBefore);
@@ -1384,7 +1433,7 @@ describe('ProjectWorkspaceStore — the archive refusal comes first (Slice 79, L
   it('re-reads the tree after a late refusal, so the next confirmation knows the new workstream', async () => {
     const { store, gateway } = storeWith({ projects: renovation() });
     await store.load('project-cabinets' as ProjectId);
-    expect(liveChildrenOf(store)).toEqual([]);
+    expect(liveDescendantsOf(store)).toEqual([]);
     // An agent added a workstream since the last read; the domain refuses the archive.
     gateway.projects.update = async () => {
       Object.assign(gateway.options, { projects: [...renovation(), child('project-hinges', 'Hinges', 'project-cabinets')] });
@@ -1394,7 +1443,7 @@ describe('ProjectWorkspaceStore — the archive refusal comes first (Slice 79, L
     expect(await store.archive()).toBe(false);
     await TestBed.inject(ApplicationRef).whenStable();
 
-    expect(liveChildrenOf(store).map(({ name }) => name)).toEqual(['Hinges']);
+    expect(liveDescendantIds(liveDescendantsOf(store))).toEqual(['project-hinges']);
   });
 
   it('keeps “Try again” for an archive that retrying can fix', async () => {

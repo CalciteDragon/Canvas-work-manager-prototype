@@ -13,6 +13,9 @@ import type { WorkspaceId } from '@cwm/contracts';
 import { axeNodeIdentity, collectControls } from './layout.mjs';
 
 /**
+ * Frozen with Slice 79's record: since Slice 80 its blocked-confirmation contexts cannot pass. It runs
+ * only under `slice79.config.ts`, never in `pnpm test` or `pnpm e2e`.
+ *
  * Slice 79's empty, archived and editing evidence: every Capture scope context, run unchanged
  * against the before (`44e7e9e`) and after builds. Fixtures are made through the host API, never
  * by editing seeds. Contexts drive the page through hooks and roles both builds share; where only

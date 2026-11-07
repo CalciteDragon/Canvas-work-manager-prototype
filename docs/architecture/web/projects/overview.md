@@ -52,7 +52,7 @@ schema-version-6 converter was removed in Slice 66.
   `RECEIPT_UNDO` for the component-owned toast; pure `history-feedback.ts` words every confirmation.
 - `ProjectHeader`, `ProjectMoreMenu`, `ProjectDetailsDialog`, `ProjectArchiveConfirm`: the
   native menu, single-commit details draft and archive confirmation, with focus returned to More.
-  Over live workstreams the confirmation is the blocked form: each child a link, Close only.
+  Over live workstreams the confirmation lists them, nested, and a press names what it shows (Slice 80).
 - `ProjectPageNavigation`: the column — pages, the root-name page-settings gear, the Work plus and work tree —
   placed beside the sidebar by one `:has()` rule. Its gear opens a native page-settings popover
   whose pending toggles retain focus.

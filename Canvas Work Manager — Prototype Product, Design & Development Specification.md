@@ -1050,7 +1050,9 @@ record; Open archive navigates and records no write (*Slice 74*).
 Workspace **Settings → Archived projects** is a separate recovery route. It lists archived roots
 and subprojects whose ancestors are live across the actor's workspace, even if a root's optional
 Archive page is disabled. Restore requires a deliberate non-archived status and uses the existing
-project write; Open project goes to the canonical project route.
+project write; Open project goes to the canonical project route. *Slice 80:* a row whose restore
+brings workstreams back says "Comes back with N workstreams", as root Archive's does, and the toast
+counts them from the response: "Restored X as Active. N workstreams came back as they were."
 
 *Slice 79.* "Deliberate" means visible and changeable, not unchosen: Settings and Archive restore a project through one shared choice, "Restore as [status] · Restore", with the restore statuses in one casing (Planning, Active, On hold, Completed) and **Active** preselected and shown before the press, so Restore is enabled at once. After a restore from Settings, focus moves to the toast's Open it; dismissing the toast moves it to the restore choice of the row that took the restored row's place, else the heading ([decision](docs/decisions/2026-09-actionable-archive-and-archived-projects.md)).
 
@@ -1249,8 +1251,20 @@ remove, and the sections' own write controls are absent, not disabled. Task List
 with no drawer; an empty archived canvas says "This page has no sections." Collapse stays and
 toggles locally, unsaved, from the stored state. An archived root's Todos has no task checkbox,
 Complete or Delete, and its Reflections page no composer; their empty sentences say "Restore to
-view N hidden todos." (or reflections) when work is hidden (§31). The header's Rename, Parent,
-status, Undo/Redo and More stay ([why](docs/decisions/2026-11-archived-pages-are-read-only.md)).
+view N hidden todos." (or reflections) when work is hidden (§31). The header's Rename, status,
+Undo/Redo and More stay ([why](docs/decisions/2026-11-archived-pages-are-read-only.md)); on a
+workstream archived with its owner More has no status buttons, because only the owner's restore can
+bring it back (*Slice 80*).
+
+*Slice 80's archive confirmation.* With live workstreams beneath the project, More's Archive asks
+"Archive “X” and its N workstreams?", says they leave the sidebar together and that restoring “X”
+brings them back, and lists each one with its status, nested by depth, as static text in a region
+that scrolls by itself. Its button says **Archive all**, and a press names exactly the list on
+screen. With none, the confirmation is the one it always was. If the list was stale the dialog
+closes and the header says "The workstreams under “X” changed. Choose Archive again to confirm the
+current list.", with the reason under Details, and the page re-reads; on a project under an archived
+owner it says "Restore “Owner” first." The toast counts what the response moved:
+"Archived X and N workstreams." ([why](docs/decisions/2026-11-cascading-project-archive.md)).
 
 *Slice 74 feedback.* One toast owns the confirmation, actions and transition result. It follows
 the acted region in Tab order and is docked at the content track's bottom, with a matching reserve.
@@ -1933,7 +1947,8 @@ live, compared as an exact set. A refusal lists each one's name and id. The walk
 node: work archived separately is not named and keeps its state, along with anything beneath it. Each
 workstream that comes down records its owner and what it was, and every restore of the owner, from any
 entry point, returns exactly those to their recorded status and completion time; the status the
-restore names is the owner's alone. A workstream that came down cannot change status or move until
+restore names is the owner's alone. The banner, the Archive row and the Settings row say what comes
+back before the restore, and Archive's and Settings' toasts count it after. A workstream that came down cannot change status or move until
 its owner returns. It is one action in the owner's history and one Activity line on the owner. A
 whole-tree Archive page makes archived work *findable*; it does not make archiving *contagious*.
 

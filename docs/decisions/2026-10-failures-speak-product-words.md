@@ -102,6 +102,11 @@ every other code keeps "Couldn’t archive “X”. Try again." (`unreachable` c
 reason stays under Details. Any `rule_violation` on a project write also re-reads the page's
 context, since a rule refusing it means the picture on screen was stale.
 
+**Amended, 2026-11-06 — Slice 80.** That archive sentence is now "The workstreams under “X” changed.
+Choose Archive again to confirm the current list.", because the list named was stale, and "Restore
+“Owner” first." under an archived owner, where choosing Archive again would loop. The rule stands:
+it says what to do, and never Try again.
+
 **Amended, 2026-11-04 (Slice 79 Open question 9, user decision)**
 
 A toast no longer holds a collapsed Details. Its raw reason opens from the toast's **View

@@ -79,7 +79,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    and Kitchen.
 8. **Edit work metadata.** Open **⋯** in a root or workstream header. Set a name, description,
    status or target/due date, reload, and confirm the stored value. Archive is a deliberate
-   action with confirmation; archiving Home renovation while live children remain is refused.
+   action with confirmation; archiving Home renovation lists the workstreams that would come down with
+   it, nested with their statuses, and restoring it brings them back as they were.
 9. **Recover archived work.** On the showcase's **Archive** page, inspect the independently
    archived permit task and notes section, then the archived **Legacy attic**. Its live
    **Legacy shelving** descendant is omitted until the owner returns. Restore the ready rows,

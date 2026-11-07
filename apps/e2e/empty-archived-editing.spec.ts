@@ -233,19 +233,6 @@ test.describe('archive refusal and restore', () => {
     await seed('nested-projects');
   });
 
-  test('archiving Kitchen names Cabinets as a link and offers no commit; following it lands on Cabinets', async ({ page }) => {
-    await page.goto(KITCHEN);
-    await openArchiveConfirm(page);
-    const confirm = page.locator(CONFIRM);
-    await expect(confirm.locator('[data-project-archive-confirm-yes]')).toHaveCount(0);
-    await expect(confirm.getByRole('button')).toHaveText(['Close']);
-    await expect(confirm.locator('a[data-project-archive-child]')).toHaveText(['Cabinets']);
-    await confirm.locator('a[data-project-archive-child]').click();
-    await expect(page).toHaveURL(new RegExp(`${CABINETS}$`));
-    await expect(heading(page)).toHaveText('Cabinets');
-    await expect(confirm).toHaveCount(0);
-  });
-
   test('a late refusal says what to do', async ({ page }) => {
     await page.route((url) => /^\/api\/projects\/project-cabinets$/.test(url.pathname), (route) =>
       route.request().method() === 'GET'
@@ -255,7 +242,7 @@ test.describe('archive refusal and restore', () => {
     await openArchiveConfirm(page);
     await page.locator('[data-project-archive-confirm-yes]').click();
     const error = page.locator('[data-project-write-error]');
-    await expect(error).toContainText('“Cabinets” still has live workstreams. Archive them first.');
+    await expect(error).toContainText('The workstreams under “Cabinets” changed. Choose Archive again to confirm the current list.');
     await expect(error.locator('details')).toContainText('E2E: Cabinets still has live work');
     await expect(heading(page)).toHaveText('Cabinets');
   });

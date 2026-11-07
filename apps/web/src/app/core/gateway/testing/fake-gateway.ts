@@ -845,7 +845,8 @@ const applyProjectUpdate = (project: Project, input: UpdateProjectInput): Projec
 
   const next = { ...project };
   for (const [key, value] of Object.entries(input)) {
-    if (value === undefined) continue;
+    // Names what comes down with the archive; it is not a field of the record.
+    if (value === undefined || key === 'archiveWorkstreamIds') continue;
     if (value === null) delete next[key as keyof Project];
     else Object.assign(next, { [key]: value });
   }

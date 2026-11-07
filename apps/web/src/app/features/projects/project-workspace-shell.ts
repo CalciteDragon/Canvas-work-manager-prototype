@@ -140,7 +140,7 @@ export class ProjectWorkspaceShell {
   private releaseWorkLift: (() => void) | null = null;
   readonly saveDetails = (patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>): Promise<boolean> => this.store.saveDetails(patch);
   readonly clearWriteError = (): void => this.store.clearWriteError();
-  readonly archiveProject = (): Promise<boolean> => this.confirmArchive();
+  readonly archiveProject = (workstreamIds: ProjectId[]): Promise<boolean> => this.confirmArchive(workstreamIds);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -558,16 +558,16 @@ export class ProjectWorkspaceShell {
    * place the archive can be reversed — the dashboard has no header to offer it. A refusal leaves
    * the domain's own reason in the header.
    */
-  async confirmArchive(): Promise<boolean> {
+  async confirmArchive(workstreamIds: ProjectId[] = []): Promise<boolean> {
     const project = this.store.project();
     if (project === null) return false;
-    if (!await this.store.archive()) return false;
+    if (!await this.store.archive(workstreamIds)) return false;
     // Only if the person is still on it: after a sidebar move during the awaited PATCH, this header
     // belongs to another project, whose history holds no such step.
     if (this.projectId() !== project.id) return true;
     // The confirmation's caller closes its native modal before the next render paints feedback.
     afterNextRender(() => {
-      if (this.projectId() === project.id) this.toast.show(archivedHereFeedback(project.name), this.store.archiveReport() ?? undefined,
+      if (this.projectId() === project.id) this.toast.show(archivedHereFeedback(project.name, this.store.archiveCascadeCount()), this.store.archiveReport() ?? undefined,
         () => this.host.nativeElement.querySelector<HTMLElement>('[data-project-more]'));
     }, { injector: this.injector });
     return true;

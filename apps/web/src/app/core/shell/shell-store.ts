@@ -41,7 +41,8 @@ export class ShellStore {
   /**
    * Every project the read returned, archived ones included (Slice 79): one unfiltered read
    * answers both the tree and whether anything archived exists. The domain already hides live
-   * work under an archived ancestor, so an archived row here is archived in its own right.
+   * work under an archived ancestor, so an archived row here is archived itself, alone or with its
+   * owner (Slice 80).
    */
   private readonly projectsState = signal<Project[]>([]);
   /** A project read has answered. `projectsState` starts as `[]`, so emptiness alone proves nothing. */

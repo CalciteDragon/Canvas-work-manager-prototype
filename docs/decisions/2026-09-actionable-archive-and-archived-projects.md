@@ -92,3 +92,7 @@ the restore choice of the row at the restored row's place, else the heading. §2
 
 Real use shows a ready action missing from either surface, recovery steps remaining unclear after
 restoring an owner, or workspace Settings becoming too dense for many archived projects.
+
+**Amended, 2026-11-06 — Slice 80.** Both surfaces' rows say "Comes back with N workstreams" when a
+restore brings a [group](2026-11-cascading-project-archive.md) back, and their toasts count it from
+the response. The status a person chooses here is the owner's alone; the group returns as it was.

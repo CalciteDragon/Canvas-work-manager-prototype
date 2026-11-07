@@ -28,6 +28,9 @@
               {{ step.name }}@if (!last) { <span aria-hidden="true"> / </span> }
             }
           </p>
+          @if (item.cascadeCount; as count) {
+            <p class="archived-projects__breadcrumb" data-archived-cascade-count>Comes back with {{ count }} {{ count === 1 ? 'workstream' : 'workstreams' }}</p>
+          }
         </div>
         <div class="archived-projects__actions">
           <app-restore-status-choice

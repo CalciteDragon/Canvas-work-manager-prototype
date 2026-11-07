@@ -1198,18 +1198,42 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
 });
 
 describe('ProjectWorkspaceShell — the header, the canvas and what crosses between them', () => {
-  // Slice 79, L4-008: what the tree knows is said first; Kitchen and Garden are live.
-  it('gives the confirmation the live workstreams, so archiving over them offers no commit', async () => {
+  // Slice 80: what the tree knows is listed, and what is on screen is what is named.
+  it('gives the confirmation the live subtree, and commits naming it', async () => {
     const { harness, gateway } = await open('/projects/project-renovation');
     query(harness, '[data-project-more]')!.click();
     harness.fixture.detectChanges();
     query(harness, '[data-project-archive]')!.click();
     await settle(harness);
 
-    expect(query(harness, '[data-project-archive-confirm-yes]')).toBeNull();
-    expect([...harness.fixture.nativeElement.querySelectorAll('a[data-project-archive-child]')].map((link) => (link as HTMLAnchorElement).getAttribute('href')))
-      .toEqual(['/projects/project-kitchen', '/projects/project-garden']);
+    expect(query(harness, 'h2#project-archive-title')?.textContent).toBe('Archive “Home renovation” and its 3 workstreams?');
     expect(gateway.calls.some(({ method }) => method === 'projects.update')).toBe(false);
+
+    query(harness, '[data-project-archive-confirm-yes]')!.click();
+    await settle(harness);
+
+    const write = gateway.calls.find(({ method }) => method === 'projects.update');
+    expect(JSON.stringify(write)).toContain('"archiveWorkstreamIds":["project-kitchen","project-cabinets","project-garden"]');
+  });
+
+  it('after a banner restore on a marked project, focus reaches the heading and no restore choice took it first', async () => {
+    const kitchen = project('project-kitchen', 'Kitchen', 'project-renovation', { status: 'archived' });
+    const cabinets = { ...project('project-cabinets', 'Cabinets', 'project-kitchen', { status: 'archived' }), archivedWithProject: { projectId: 'project-kitchen', status: 'active' } } as typeof kitchen;
+    const { harness, gateway } = await open('/projects/project-cabinets', { projects: [defaults().projects[0]!, kitchen, cabinets] });
+    expect(query(harness, 'app-archived-banner [data-archived-sentence]')?.textContent?.trim()).toBe('“Cabinets” was archived with “Kitchen”. Restoring “Kitchen” brings it back.');
+    const { archivedWithProject: _marker, ...revived } = cabinets as typeof cabinets & { archivedWithProject?: unknown };
+    gateway.projects.update = async () => ({
+      project: { ...kitchen, status: 'active' as const }, operation: null, cascaded: [{ ...revived, status: 'active' as const } as typeof kitchen],
+    });
+    const focused: (string | null)[] = [];
+    document.addEventListener('focusin', (event) => focused.push((event.target as HTMLElement).tagName));
+
+    query(harness, 'app-archived-banner [data-restore-action]')!.click();
+    await settle(harness);
+
+    expect(query(harness, 'app-archived-banner [data-archived-sentence]')).toBeNull();
+    expect(document.activeElement).toBe(query(harness, 'h1[data-project-name]'));
+    expect(focused).not.toContain('SELECT');
   });
 
   it('stays on the archived project with its Undo, and stays put with the reason when the domain refuses', async () => {
@@ -1225,7 +1249,7 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     await settle(refused.harness);
 
     expect(refused.router.url).toBe('/projects/project-cabinets');
-    expect(query(refused.harness, '[data-project-write-error] [role="alert"]')?.textContent?.trim()).toBe('“Cabinets” still has live workstreams. Archive them first.');
+    expect(query(refused.harness, '[data-project-write-error] [role="alert"]')?.textContent?.trim()).toBe('The workstreams under “Cabinets” changed. Choose Archive again to confirm the current list.');
     expect(query(refused.harness, '[data-project-write-error] details')?.textContent).toContain('still has active workstreams');
 
     // Slice 41: a successful archive no longer navigates to `/app`, where no header could offer

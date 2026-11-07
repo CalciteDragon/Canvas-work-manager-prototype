@@ -42,6 +42,9 @@ export class ArchivePageStore {
   private readonly retryPendingState = signal(false);
   private readonly restoringState = signal<ReadonlySet<string>>(new Set());
   private readonly restoreReportState = signal<OperationWriteReport | null>(null);
+  /** How many workstreams came back with the last project restore, from the response (Slice 80). */
+  private readonly restoredCascadeCountState = signal(0);
+  readonly restoredCascadeCount = this.restoredCascadeCountState.asReadonly();
   private projectIdState = signal<ProjectId | null>(null);
   private generation = 0;
   private destroyed = false;
@@ -124,6 +127,7 @@ export class ArchivePageStore {
     const generation = ++this.generation;
     const id = this.idOf(item);
     this.restoreReportState.set(null);
+    this.restoredCascadeCountState.set(0);
     this.restoringState.update((ids) => new Set([...ids, id]));
     let written = false;
     let report: OperationWriteReport | null = null;
@@ -133,10 +137,12 @@ export class ArchivePageStore {
     };
     try {
       switch (item.kind) {
-        case 'subproject':
-          await reportedWrite(this.reporter, () => this.gateway.projects.update(item.project.id, { status }),
+        case 'subproject': {
+          const { cascaded } = await reportedWrite(this.reporter, () => this.gateway.projects.update(item.project.id, { status }),
             ({ project, operation }) => retainedReport({ projectId: project.id, projectName: project.name, receipt: operation }));
+          this.restoredCascadeCountState.set(cascaded?.length ?? 0);
           break;
+        }
         case 'section':
           await reportedWrite(this.reporter, () => this.gateway.sections.restore(item.section.id),
             ({ section, operation }) => retainedReport({ projectId: section.projectId, receipt: operation }));

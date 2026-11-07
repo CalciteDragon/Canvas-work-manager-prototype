@@ -79,3 +79,7 @@ Archive's note, right under that banner, therefore says "Restore “X” above t
 work back." instead of sending the person to Settings. Settings › Archived projects stays a
 recovery route; the banner is a second, in-place one. Archive's rows and their recovery rules are
 unchanged.
+
+**Amended, 2026-11-06 — Slice 80.** A workstream's row says what its restore brings back, "Comes back
+with N workstreams", and those workstreams are not listed themselves while it is archived: the same
+parent-first rule, now with the count ([decision](2026-11-cascading-project-archive.md)).

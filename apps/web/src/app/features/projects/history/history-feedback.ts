@@ -46,8 +46,9 @@ export const restoredItemFeedback = (title: string, breadcrumb: string, page: st
   tone: 'status', message: `Restored “${title}” to ${breadcrumb} › ${page}${pageEnabled ? '.' : ', which is switched off.'}`,
 });
 /** Project restore names the selected resulting status. */
-export const restoredProjectFeedback = (name: string, status: string): HistoryFeedback => ({
-  tone: 'status', message: `Restored ${name} as ${RESTORED_STATUS[status] ?? status}.`,
+export const restoredProjectFeedback = (name: string, status: string, workstreams = 0): HistoryFeedback => ({
+  tone: 'status',
+  message: `Restored ${name} as ${RESTORED_STATUS[status] ?? status}.${workstreams === 0 ? '' : ` ${workstreams} workstream${workstreams === 1 ? ' came back as it was' : 's came back as they were'}.`}`,
 });
 
 const VERB: Record<OperationHistoryDirection, string> = { undo: 'Undo', redo: 'Redo' };
@@ -190,9 +191,9 @@ export const crossOwnerFeedback = (label: string, projectId: ProjectId, projectN
 });
 
 /** The sentence a header archive leaves, on the page that stays (Slice 41). */
-export const archivedHereFeedback = (projectName: string): HistoryFeedback => ({
+export const archivedHereFeedback = (projectName: string, workstreams = 0): HistoryFeedback => ({
   tone: 'status',
-  message: `Archived ${projectName}.`,
+  message: `Archived ${projectName}${workstreams === 0 ? '' : ` and ${workstreams} workstream${workstreams === 1 ? '' : 's'}`}.`,
 });
 
 /** Where the controls' read of the history stands. */

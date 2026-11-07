@@ -1,12 +1,14 @@
 <button type="button" class="menu__item" role="menuitem" tabindex="-1" data-project-edit-details (click)="editDetailsRequested.emit()">Edit details…</button>
-<div role="group" aria-label="Status">
-  <span class="control-label">Status</span>
-  @for (status of statuses; track status) {
-    <button type="button" class="menu__item more-menu__status" role="menuitemradio" tabindex="-1"
-      data-project-status-option [attr.data-status]="status" [attr.aria-checked]="project().status === status"
-      (click)="statusRequested.emit(status)">{{ status.replace('_', ' ') }}</button>
-  }
-</div>
+@if (project().archivedWithProject === undefined) {
+  <div role="group" aria-label="Status">
+    <span class="control-label">Status</span>
+    @for (status of statuses; track status) {
+      <button type="button" class="menu__item more-menu__status" role="menuitemradio" tabindex="-1"
+        data-project-status-option [attr.data-status]="status" [attr.aria-checked]="project().status === status"
+        (click)="statusRequested.emit(status)">{{ status.replace('_', ' ') }}</button>
+    }
+  </div>
+}
 <div class="menu__separator" role="separator"></div>
 <button type="button" class="menu__item" role="menuitem" tabindex="-1" data-project-open-archive (click)="openArchiveRequested.emit()">Open archive</button>
 @if (project().status !== 'archived') {

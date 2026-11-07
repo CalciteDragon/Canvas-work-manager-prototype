@@ -530,20 +530,24 @@ name field, a failed save describes Save and keeps its reason under Details).
 Discard clears that error before the header returns. Archive confirmation uses the existing
 archive callback, keeps header Undo and returns focus to More, including refusal.
 
-**The archive refusal comes first (Slice 79, L4-008).** `ProjectArchiveConfirm` computes its
-blocking workstreams itself, with `liveChildrenOf` (`live-children.ts`) over the shell's
+**What comes down is listed, and the press names it (Slice 80).** `ProjectArchiveConfirm` computes
+the live subtree itself, with `liveDescendantsOf` (`live-descendants.ts`) over the shell's
 `WORKSPACE_TREE` (`workspace-tree.ts`, provided `useExisting: ProjectWorkspaceStore`), or from its
-`liveChildren` input when one is given (stories, tests). Non-empty, it renders the blocked form:
-the heading "“X” can’t be archived yet", each child an `a.link[data-project-archive-child]` to
-`/projects/<id>` followed by its status (44 px tall under a coarse pointer), a click on one closing the dialog, and Close
-(`data-project-archive-cancel`, focused on open) as the only button. Empty, the commit form is
-unchanged and the domain decides. The list is live: a frame that changes the tree while the
-dialog is open swaps the form, and focus moves to the new form's dismiss button. **The trap is the bundle:** the header and the store are
+`workstreams` input when one is given (stories, tests). Non-empty, it renders the count in the
+heading and each one as static text with its status in nested `<ul>`s inside a named, focusable
+region (`data-project-archive-list`, `data-project-archive-row`) that scrolls by itself; the commit
+says Archive all. Empty, the words are the ones it always had and the domain decides. Both forms
+share the same two buttons, with focus starting on Cancel. The list is live: a frame that changes the
+tree while the dialog is open updates the list and the ids together, and one that empties it moves
+focus to Cancel. `archive` receives **the ids on screen at the press**. **The trap is the bundle:** the header and the store are
 initial code, so neither carries the list; the token has no runtime dependency, because importing
 the store class into the deferred chunk re-splits the store's dependencies into extra initial
 chunks (about 0.5 kB measured). The late refusal is the store's: `projectWriteSentence` takes the
-failure code, an archive's `rule_violation` reads "“X” still has live workstreams. Archive them
-first.", and any `rule_violation` on a project write queues `refreshContext`.
+failure code and the archived owner, an archive's `rule_violation` reads "The workstreams under “X”
+changed. Choose Archive again to confirm the current list.", or "Restore “Owner” first." under an
+archived owner, where no tree holds what is live and the first sentence would loop. Any
+`rule_violation` on a project write queues `refreshContext`. The stores' `archiveCascadeCount` and
+`restoredCascadeCount` come from the response, so an `operation: null` retry invents no count.
 
 A refused project write is the store's `writeError()`, a `Failure` named by what it was for
 ("Couldn’t rename “X”. Try again.", change the status, description or date of, archive, or save
@@ -575,7 +579,12 @@ project and on none of a live one. It is mounted behind `@defer (when store.read
 empty placeholder, so it and its chunk stay out of the initial bundle (Slice 79, Open question 6
 (a)); the canvas moves down once, when the chunk arrives. Its sentence names the owner: "“X” is
 archived.", "“X” is inside “Y”, which is archived." or, when both are archived, "“X” is archived,
-and so is “Y”, which holds it.". Its `RestoreStatusChoice` starts on Active for each owner, is
+and so is “Y”, which holds it.". Since Slice 80 a project archived with its owner reads "“X” was
+archived with “Y”. Restoring “Y” brings it back.", and an owner with a group adds "Restoring it
+brings back N workstreams as they were.": the banner reads `projects.archived()` itself for that
+count, keyed on the owner so a later owner reads again and an older answer is dropped, because the
+store holds no archived descendants, and no answer leaves the plain sentence. `restoreOwner` applies
+the response's `cascaded`, or a marked page would briefly find itself the next owner. Its `RestoreStatusChoice` starts on Active for each owner, is
 pending with `restorePending()` (the banner is `aria-busy`) and natively disabled while another
 project write runs; `restoreFailure()` for the current owner renders inside it, inline, with
 Details, and with Try again (repeating the last status) only when `retryable`. The shell's
@@ -639,7 +648,7 @@ choice of the row now at the restored row's place) or the heading.
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | ProjectDetailsDialog | component | Single-commit project draft | [API](../../../api/components/ProjectDetailsDialog.html) |
-| ProjectArchiveConfirm | component | Modal archive confirmation; the blocked form over live workstreams | [API](../../../api/components/ProjectArchiveConfirm.html) |
+| ProjectArchiveConfirm | component | Modal archive confirmation; lists live workstreams and names them at the press | [API](../../../api/components/ProjectArchiveConfirm.html) |
 | ProjectColumnFocusRequest | injectable | Cross-shell column and Archive focus requests | [API](../../../api/injectables/ProjectColumnFocusRequest.html) |
 
 

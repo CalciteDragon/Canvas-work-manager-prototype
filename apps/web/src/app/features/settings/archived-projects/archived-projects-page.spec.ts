@@ -75,6 +75,24 @@ describe('ArchivedProjectsPage (Slice 44)', () => {
     expect(host.querySelector('[data-restore-undo]')).toBeNull();
     expect(document.activeElement).toBe(open);
   });
+  it('says what comes back when a count is present, and the toast counts the response, not the row (Slice 80)', async () => {
+    const gateway = new FakeWorkManagerGateway({ projects: [project], archivedProjects: { items: [{ ...archived.items[0]!, cascadeCount: 3 }] } });
+    const child = ProjectSchema.parse({ ...project, id: 'project-c', kind: 'subproject', parentProjectId: project.id, status: 'active' });
+    gateway.projects.update = async () => ({ project: { ...project, status: 'active' }, operation: null, cascaded: [child] });
+    const { fixture } = await render(gateway);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[data-archived-cascade-count]')?.textContent?.trim()).toBe('Comes back with 3 workstreams');
+
+    gateway.options.archivedProjects = { items: [] };
+    host.querySelector<HTMLButtonElement>('[data-restore-action]')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+
+    expect(host.querySelector('[data-toast]')?.textContent).toContain('Restored Past launch as Active. 1 workstream came back as it was.');
+  });
+  it('has no such line with no group', async () => {
+    const { fixture } = await render();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-archived-cascade-count]')).toBeNull();
+  });
   it('shows breadcrumb and Open project, and restores through the shared choice', async () => {
     const { fixture, gateway } = await render();
     const host = fixture.nativeElement as HTMLElement;

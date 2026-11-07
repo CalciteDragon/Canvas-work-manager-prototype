@@ -1,18 +1,30 @@
 <dialog #dialog class="lift lift--dialog" closedby="none" aria-labelledby="project-archive-title" data-project-archive-confirm
   (keydown)="keydown($event)" (cancel)="$event.preventDefault()">
-  @if (blockedBy().length) {
-    <h2 id="project-archive-title">“{{ project().name }}” can’t be archived yet</h2>
-    <p>These workstreams aren’t archived. Archive them first:</p>
-    <ul>
-      @for (child of blockedBy(); track child.id) {
-        <li><a class="link" data-project-archive-child [routerLink]="['/projects', child.id]" (click)="close()">{{ child.name }}</a> · {{ statusLabel(child) }}</li>
-      }
-    </ul>
-    <button type="button" class="button" data-project-archive-cancel (click)="close()">Close</button>
+  @if (count()) {
+    <h2 id="project-archive-title">Archive “{{ project().name }}” and its {{ count() }} {{ count() === 1 ? 'workstream' : 'workstreams' }}?</h2>
+    <p>They leave the sidebar together. You can undo it from the header, and restoring “{{ project().name }}” brings these back:</p>
+    <div class="project-archive-confirm__list" data-project-archive-list role="region" aria-label="Workstreams to archive" tabindex="0">
+      <ng-container [ngTemplateOutlet]="rows" [ngTemplateOutletContext]="{ $implicit: workstreamNodes() }" />
+    </div>
   } @else {
     <h2 id="project-archive-title">Archive “{{ project().name }}”?</h2>
     <p>It leaves the sidebar; you can undo it from the header.</p>
-    <button type="button" class="button button--danger" data-project-archive-confirm-yes [attr.aria-disabled]="pending()" (click)="confirm()">{{ pending() ? 'Archiving…' : 'Archive it' }}</button>
-    <button type="button" class="button" data-project-archive-cancel [attr.aria-disabled]="pending()" (click)="close()">Cancel</button>
   }
+  <button type="button" class="button button--danger" data-project-archive-confirm-yes [attr.aria-disabled]="pending()" (click)="confirm()">{{ pending() ? 'Archiving…' : (count() ? 'Archive all' : 'Archive it') }}</button>
+  <button type="button" class="button" data-project-archive-cancel [attr.aria-disabled]="pending()" (click)="close()">Cancel</button>
 </dialog>
+
+<!-- Nested lists, so depth reaches assistive technology and not only the eye. Static text: a danger
+  confirmation has no job left for a link to do. -->
+<ng-template #rows let-nodes>
+  <ul class="project-archive-confirm__rows">
+    @for (node of nodes; track node.project.id) {
+      <li data-project-archive-row>
+        <span>{{ node.project.name }} · {{ statusLabel(node.project) }}</span>
+        @if (node.children.length) {
+          <ng-container [ngTemplateOutlet]="rows" [ngTemplateOutletContext]="{ $implicit: node.children }" />
+        }
+      </li>
+    }
+  </ul>
+</ng-template>

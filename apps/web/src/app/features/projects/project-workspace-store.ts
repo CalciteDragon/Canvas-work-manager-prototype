@@ -22,18 +22,25 @@ import type { ProgressFact } from './project-header';
 
 /**
  * What a refused project write was for, by the fields it carried (Slice 78). An archive refused
- * as a `rule_violation` says what to do instead (Slice 79): the only rule an archive can break is
- * a live workstream under it, and retrying cannot help.
+ * as a `rule_violation` says what to do instead (Slice 80): the list the confirmation named was not
+ * the live subtree, so choosing Archive again shows the current one. It never says Try again. Under
+ * an archived owner no tree holds what is live, so that list would stay empty and the sentence would
+ * loop; the owner's restore is what can help there. Every other archive failure can succeed on retry.
  */
-const projectWriteSentence = (input: UpdateProjectInput, name: string, code: string | null): string => {
+const projectWriteSentence = (input: UpdateProjectInput, name: string, code: string | null, ownerName: string | undefined): string => {
+  if (input.status === 'archived' && code === 'rule_violation') {
+    return ownerName === undefined
+      ? `The workstreams under “${name}” changed. Choose Archive again to confirm the current list.`
+      : `Restore “${ownerName}” first.`;
+  }
   const fields = Object.keys(input);
-  const verb = input.status === 'archived' ? (code === 'rule_violation' ? null : 'archive')
+  const verb = input.status === 'archived' ? 'archive'
     : fields.length !== 1 ? 'save the details of'
     : input.name !== undefined ? 'rename'
     : input.status !== undefined ? 'change the status of'
     : input.description !== undefined ? 'change the description of'
     : 'change the date of';
-  return verb === null ? `“${name}” still has live workstreams. Archive them first.` : `Couldn’t ${verb} “${name}”. Try again.`;
+  return `Couldn’t ${verb} “${name}”. Try again.`;
 };
 
 /**
@@ -666,15 +673,19 @@ export class ProjectWorkspaceStore {
    * outcome — the page stays on the archived project, whose header offers its Undo (Slice 41) —
    * and it answers that outcome instead of deciding anything, because §19's stores decide and
    * pages navigate. On success the returned record is applied, so the header reads `archived`
-   * without waiting for a frame.
+   * without waiting for a frame. `workstreamIds` are the ones the confirmation showed, sent only when
+   * there are any (Slice 80).
    */
-  archive(): Promise<boolean> {
+  archive(workstreamIds: readonly ProjectId[] = []): Promise<boolean> {
     this.archiveReport.set(null);
-    return this.writeProject({ status: 'archived' }, null);
+    this.archiveCascadeCount.set(0);
+    return this.writeProject({ status: 'archived', ...(workstreamIds.length === 0 ? {} : { archiveWorkstreamIds: [...workstreamIds] }) }, null);
   }
 
   /** The committed archive's own receipt, retained for the shell's confirmation Undo. */
   readonly archiveReport = signal<OperationWriteReport | null>(null);
+  /** How many workstreams that archive took down, from the response and never from the press. */
+  readonly archiveCascadeCount = signal(0);
 
   /**
    * One project write, optimistic unless `paint` is `null` (archive alone, which is awaited). The
@@ -703,11 +714,14 @@ export class ProjectWorkspaceStore {
       this.whileWriting(async () => {
         try {
           const { project: updated } = await reportedWrite(this.reporter, () => this.gateway.projects.update(projectId, input),
-            ({ project, operation }) => {
+            ({ project, operation, cascaded }) => {
               const report: OperationWriteReport = { projectId: project.id, projectName: project.name, receipt: operation,
                 ...(input.status === 'archived' ? { feedback: 'own' as const } : {}),
               };
-              if (current() && input.status === 'archived') this.archiveReport.set(report);
+              if (current() && input.status === 'archived') {
+                this.archiveReport.set(report);
+                this.archiveCascadeCount.set(cascaded?.length ?? 0);
+              }
               return report;
             });
           // The server's record, not the paint: the host may have normalised something.
@@ -717,7 +731,7 @@ export class ProjectWorkspaceStore {
           if (current()) {
             if (paint !== null) this.projectState.set(before);
             const code = failureCode(error);
-            this.writeErrorState.set(writeFailure(error, projectWriteSentence(input, before.name, code)));
+            this.writeErrorState.set(writeFailure(error, projectWriteSentence(input, before.name, code, this.archivedOwner()?.name)));
             // A rule refused it, so the context on screen was stale (for an archive, the tree):
             // re-read it, so the next confirmation says so first. Queued by `whileWriting`.
             if (code === 'rule_violation') this.refreshContext();
@@ -735,7 +749,9 @@ export class ProjectWorkspaceStore {
    * not `writeProject`: that paints the page's own record and words a failure with its name. Not
    * optimistic and painting nothing; it holds the project-write count, so `restoreBlocked` and the
    * header hold still, and runs inside `whileWriting`, so a frame meanwhile waits for it. On
-   * success the owner's record replaces its breadcrumb (or the project itself), the context epoch
+   * success the owner's record and any group that came back with it (Slice 80) replace the
+   * breadcrumbs and the project itself, or a marked project's page would move `archivedOwner` on to
+   * itself and focus a restore choice that vanishes when the frame lands. The context epoch
    * moves so an older read in flight cannot repaint it archived, and the tree is re-read. The
    * write is reported with the owner's id and name: for an ancestor, the cross-owner toast.
    * Resolves `false` for a stale owner, while loading or while any project write runs (a header
@@ -761,12 +777,14 @@ export class ProjectWorkspaceStore {
     return this.track(() =>
       this.whileWriting(async () => {
         try {
-          const { project: restored } = await reportedWrite(this.reporter, () => this.gateway.projects.update(owner.id, { status }),
+          const { project: restored, cascaded } = await reportedWrite(this.reporter, () => this.gateway.projects.update(owner.id, { status }),
             ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
           if (!current()) return true;
           const epoch = ++this.contextWriteEpoch;
-          if (this.projectState()?.id === restored.id) this.projectState.set(restored);
-          else this.ancestorsState.update((ancestors) => ancestors.map((ancestor) => (ancestor.id === restored.id ? restored : ancestor)));
+          const changed = new Map([restored, ...(cascaded ?? [])].map((project) => [project.id, project]));
+          const own = changed.get(projectId);
+          if (own !== undefined) this.projectState.set(own);
+          this.ancestorsState.update((ancestors) => ancestors.map((ancestor) => changed.get(ancestor.id) ?? ancestor));
           try {
             const projects = await this.gateway.projects.list({ status: NAVIGABLE_STATUSES });
             if (current() && epoch === this.contextWriteEpoch) this.descendantsState.set(projects);

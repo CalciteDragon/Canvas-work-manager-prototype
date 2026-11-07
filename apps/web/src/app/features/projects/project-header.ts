@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
-import { isSubproject, type Project, type UpdateProjectInput } from '@cwm/contracts';
+import { isSubproject, type Project, type ProjectId, type UpdateProjectInput } from '@cwm/contracts';
 import { Icon } from '../../shared/components/icon/icon';
 import { FailureMessage } from '../../shared/feedback/failure-message';
 import type { Failure } from '../../shared/feedback/failure';
@@ -44,7 +44,7 @@ export class ProjectHeader {
   readonly writeError = input<Failure | null>(null);
   readonly routeLanding = input(true);
   readonly saveDetails = input<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>(async () => false);
-  readonly confirmArchive = input<() => Promise<boolean>>(async () => false);
+  readonly confirmArchive = input<(workstreamIds: ProjectId[]) => Promise<boolean>>(async () => false);
   readonly clearWriteError = input<() => void>(() => {});
 
   readonly statusRequested = output<SettableProjectStatus>();

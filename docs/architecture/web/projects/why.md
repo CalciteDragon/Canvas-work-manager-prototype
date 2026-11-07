@@ -150,11 +150,12 @@ root's Todos and Reflections pages say how much a restore brings back, "Restore 
 todos.", instead of an empty sentence that is false under the banner; with nothing hidden the
 ordinary sentence stays, because it is true (the user's answer to Slice 79's Open question 7).
 
-**An archive the domain will refuse is refused first.** Archiving over a live workstream is the
-domain's rule and stays so, with no cascade; the confirmation says it before the write, naming each
-live child as a link with its status, and offers only Close. A refusal that still arrives, on a
-stale tree, says what to do rather than "Try again", and the tree is re-read
-([decision](../../../decisions/2026-08-project-nesting-and-archive-rules.md)).
+**What an archive takes down is said before the write, and what is said is what is named.** The
+domain archives over live workstreams only when the caller names them, so the confirmation lists
+them and a press names exactly that list. A person therefore hears the rule before committing, the
+answer Slice 79 gave to L4-008, now as a commit rather than a refusal. A refusal that still arrives,
+on a stale tree, says what to do rather than "Try again", and the tree is re-read
+([decision](../../../decisions/2026-11-cascading-project-archive.md)).
 
 **Arriving at a section is a DOM match, never a selector interpolation.** The canvas
 matches `#section-<id>` against the sections it loaded, focuses the frame heading, and
@@ -197,7 +198,8 @@ undo its own receipt after checking that it remains next
 
 - [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — ready-only root rows and separate workspace Settings recovery.
 - [Archived pages are read-only, with a banner that restores in place](../../../decisions/2026-11-archived-pages-are-read-only.md) — outermost owner, absent write controls, local collapse, static Task List rows.
-- [Project nesting rules and what archiving a parent does](../../../decisions/2026-08-project-nesting-and-archive-rules.md) — children archived first; since Slice 79 the confirmation says so before the write.
+- [A project archive can take its named workstreams down with it](../../../decisions/2026-11-cascading-project-archive.md) — the confirmation's list, the banner's sentences, More's status buttons and the rows' line (Slice 80).
+- [Project nesting rules and what archiving a parent does](../../../decisions/2026-08-project-nesting-and-archive-rules.md) — an archive names its live workstreams, since Slice 80.
 
 - [Direct canvas editing direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (implemented in Slice 27)
 - [Contextual insertion names its position](../../../decisions/2026-09-contextual-insertion-names-its-position.md)

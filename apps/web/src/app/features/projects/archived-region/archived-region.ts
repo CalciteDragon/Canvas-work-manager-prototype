@@ -134,8 +134,11 @@ export class ArchivedRegion {
     }
   }
 
-  /** The exact `archivedWithSectionId` count for an archived container. */
+  /** The exact `archivedWithSectionId` count for an archived container; what a workstream brings back. */
   cascadeLabel(item: ProjectArchiveItem): string | null {
+    if (item.kind === 'subproject') {
+      return item.cascadeCount === undefined ? null : `Comes back with ${item.cascadeCount} workstream${item.cascadeCount === 1 ? '' : 's'}`;
+    }
     if (item.kind !== 'section' || item.cascadeCount === undefined) return null;
     const ownedData = item.recovery?.kind === 'owned-content' ? item.recovery.ownedData : ownedKindOf(item.section.type);
     if (ownedData === undefined) return null;

@@ -23,6 +23,9 @@ export class ArchivedProjectsStore {
   private readonly statusState = signal<ReadonlyMap<ProjectId, ProjectRestoreStatus>>(new Map());
   private readonly busyState = signal<ProjectId | null>(null);
   private readonly restoreReportState = signal<OperationWriteReport | null>(null);
+  /** How many workstreams came back with the last restore, from the response (Slice 80). */
+  private readonly restoredCascadeCountState = signal(0);
+  readonly restoredCascadeCount = this.restoredCascadeCountState.asReadonly();
   private generation = 0;
   private destroyed = false;
 
@@ -121,6 +124,7 @@ export class ArchivedProjectsStore {
         ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation, feedback: 'own' }));
       if (this.destroyed || this.generation !== writeGeneration) return false;
       this.restoreReportState.set({ projectId: written.project.id, projectName: written.project.name, receipt: written.operation, feedback: 'own' });
+      this.restoredCascadeCountState.set(written.cascaded?.length ?? 0);
       const refresh = this.load({ quiet: true });
       const refreshGeneration = this.generation;
       const refreshed = await refresh;

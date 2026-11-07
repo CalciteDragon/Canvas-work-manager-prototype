@@ -57,6 +57,8 @@ export class ProjectPageNavigation {
   readonly pageWriteRetryKind = input<OptionalProjectPageKind | null>(null);
   /** A focusable unavailable plus spells out this reason without requesting a write. */
   readonly workCreateBlocked = input<string | null>(null);
+  /** An archived page: an empty tree means its workstreams are archived, not that it has none. */
+  readonly readOnly = input<boolean>(false);
   /** A disclosure belongs to this mounted column; a live root change closes it. */
   readonly settingsOpen = signal(false);
 
