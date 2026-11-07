@@ -451,7 +451,7 @@ describe('a write-only agent still lands its rows (§54)', () => {
 
 describe('archived ancestors (§31)', () => {
   /**
-   * `assertNoActiveChildren` forces children archived before an ancestor can be, and this
+   * `assertNamedWorkstreams` forces a live subtree named before an ancestor can be archived, and this
    * slice refuses the two ways back in, so a live descendant of an archived ancestor cannot be
    * reached through the services any more. The fixture is written straight to the repositories
    * — which is also how one arrives in a seed or a hand-edited `data.json` (§14).

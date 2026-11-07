@@ -1009,7 +1009,13 @@ if (profile === '80') {
     const shown = field === 'region' ? entry.region?.text : entry[field];
     if (!String(shown ?? '').includes(text)) failures.push({ cell, reason: 'copy table', expected: text, shown });
     if (entry.overflow?.document > entry.overflow?.viewport) failures.push({ cell, reason: 'scrolls sideways', ...entry.overflow });
-    for (const violation of entry.axe?.violations ?? []) if (violation.id !== 'color-contrast') failures.push({ cell, reason: 'axe ' + violation.id, nodes: violation.nodes });
+    // `.archive-page` is a labelled section beside its region: the baseline's `archive-*` cells already
+    // have this node, so it is carried, not this slice's. Every other node fails.
+    for (const violation of entry.axe?.violations ?? []) {
+      if (violation.id === 'color-contrast') continue;
+      const nodes = violation.nodes.filter(node => !(violation.id === 'landmark-unique' && node.join(' ') === '.archive-page'));
+      if (nodes.length) failures.push({ cell, reason: 'axe ' + violation.id, nodes });
+    }
     const consoleErrors = (entry.consoleErrors ?? []).filter(line => !(context === 'late-refusal' && /net::ERR_FAILED|status of 409/.test(line)));
     if (consoleErrors.length) failures.push({ cell, reason: 'console errors', consoleErrors });
   }

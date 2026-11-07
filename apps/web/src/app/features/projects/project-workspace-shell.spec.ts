@@ -1222,9 +1222,10 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     const { harness, gateway } = await open('/projects/project-cabinets', { projects: [defaults().projects[0]!, kitchen, cabinets] });
     expect(query(harness, 'app-archived-banner [data-archived-sentence]')?.textContent?.trim()).toBe('“Cabinets” was archived with “Kitchen”. Restoring “Kitchen” brings it back.');
     const { archivedWithProject: _marker, ...revived } = cabinets as typeof cabinets & { archivedWithProject?: unknown };
-    gateway.projects.update = async () => ({
-      project: { ...kitchen, status: 'active' as const }, operation: null, cascaded: [{ ...revived, status: 'active' as const } as typeof kitchen],
-    });
+    const liveKitchen = { ...kitchen, status: 'active' as const };
+    const liveCabinets = { ...revived, status: 'active' as const } as typeof kitchen;
+    gateway.options.projects = [defaults().projects[0]!, liveKitchen, liveCabinets];
+    gateway.projects.update = async () => ({ project: liveKitchen, operation: null, cascaded: [liveCabinets] });
     const focused: (string | null)[] = [];
     document.addEventListener('focusin', (event) => focused.push((event.target as HTMLElement).tagName));
 

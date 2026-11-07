@@ -260,6 +260,15 @@ describe('ProjectService group archive (Slice 80, R1–R3, R7)', () => {
     expect(documentOf(harness)).toEqual(before);
   });
 
+  it('a partial list that also holds a stranger still names every live workstream, so one retry can succeed', async () => {
+    const harness = buildHarness();
+    const { ids } = await group(harness);
+
+    const refusal = harness.projectWriteService.archive(harness.actor, MINE, { archiveWorkstreamIds: [ids[0]!, 'project-nope' as ProjectId] });
+
+    await expect(refusal).rejects.toThrow(`its live workstreams are "Kitchen" [${ids[0]}], "Cabinets" [${ids[1]}], "Garden" [${ids[2]}]`);
+  });
+
   it('holds through update as through archive: PATCH without ids refuses, with them commits', async () => {
     const harness = buildHarness();
     const { ids, kitchen } = await group(harness);

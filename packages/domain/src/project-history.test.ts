@@ -299,6 +299,47 @@ describe('history of a group archive (Slice 80, R6)', () => {
     expect(projects(h)).toEqual(before);
   });
 
+  it('a plain reactivation’s Redo refuses when a group is now marked', async () => {
+    const h = buildHarness();
+    const child = await createChild(h, MINE, 'Kitchen');
+    await h.projectWriteService.archive(someoneElse, child.id);
+    const plain = await h.projectWriteService.update(h.actor, child.id, { status: 'active' });
+    await step(h, plain.operation!);
+    await h.projectWriteService.update(someoneElse, child.id, { status: 'active' });
+    const late = await createChild(h, child.id, 'Late');
+    await h.projectWriteService.archive(someoneElse, child.id, { archiveWorkstreamIds: [late.id] });
+    const before = projects(h);
+
+    const refusal = await refusalOf(step(h, plain.operation!, 'redo'));
+
+    expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ id: late.id, problem: 'field-changed', nextStep: 'change-by-hand' }] });
+    expect(projects(h)).toEqual(before);
+  });
+
+  it('an archive and a move in one call: Undo and Redo move the parent and the group together', async () => {
+    const h = buildHarness();
+    const { kitchen, cabinets, garden } = await group(h);
+    const start = withoutStamps(h);
+    const write = await h.projectWriteService.update(h.actor, kitchen.id, { status: 'archived', parentProjectId: garden.id, archiveWorkstreamIds: [cabinets.id] });
+    const done = withoutStamps(h);
+
+    await step(h, write.operation!);
+    expect(withoutStamps(h)).toEqual(start);
+
+    await step(h, write.operation!, 'redo');
+    expect(withoutStamps(h)).toEqual(done);
+  });
+
+  it('a project.add Undo is blocked while the created project is marked', async () => {
+    const h = buildHarness();
+    const kitchen = await createChild(h, MINE, 'Kitchen');
+    const created = await h.projectWriteService.create(h.actor, { workspaceId: h.actor.workspaceId, kind: 'subproject', parentProjectId: kitchen.id, name: 'Cabinets' });
+    await h.projectWriteService.archive(someoneElse, kitchen.id, { archiveWorkstreamIds: [created.project.id] });
+
+    expect((await refusalOf(step(h, created.operation!))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: kitchen.id });
+    expect(await h.projects.find(created.project.id)).not.toBeNull();
+  });
+
   it('moving the owner while archived does not break its Undo or Redo', async () => {
     const h = buildHarness();
     const { kitchen, cabinets, garden } = await group(h);

@@ -28,7 +28,7 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    its 200 `{ shortcutId, projectId, pageId, operation }` body, and transition results remain
    discriminated by direction and operation. `ProjectPageGateway.setEnabled` answers
    `{ page, operation }`, validated so a host that stopped sending it fails here rather than
-   silently; `ProjectGateway.update` answers `{ project, operation }` the same way since Slice 39.
+   silently; `ProjectGateway.update` answers `{ project, operation, cascaded? }` the same way since Slice 39.
    Every browser caller reports the receipt through `OPERATION_HISTORY_REPORTER` (Slice 41) —
    `ProjectGateway.create` answers the same validated `ProjectWriteResult` as update, with a
    required creation receipt. Root creation is initiated outside a project shell, so its inert

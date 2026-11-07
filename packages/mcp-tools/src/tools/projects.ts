@@ -68,7 +68,7 @@ export const projectTools: readonly WorkManagerTool[] = [
     description:
       'Archive a project. This is reversible and hides the project and its descendants from ordinary live reads. A project with live workstreams, at any depth, refuses unless archiveWorkstreamIds names every one of them exactly; the refusal lists each name and id, so a second call can name them deliberately. Those workstreams are then archived with it, as one undoable step, and come back when it is restored. Work archived separately is not named and stays as it is. Answers { project, operation, cascaded? }: a project.archive receipt, or null when the project was already archived, and the workstreams archived with it, absent when none. undo_operation can reverse it while the project is still archived.',
     permission: 'projects.write',
-    inputSchema: z.object({ projectId: ProjectIdSchema, archiveWorkstreamIds: z.array(ProjectIdSchema).optional() }),
+    inputSchema: UpdateProjectInputSchema.pick({ archiveWorkstreamIds: true }).extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, archiveWorkstreamIds }, { actor, services }) =>
       services.projects.archive(actor, projectId, archiveWorkstreamIds === undefined ? {} : { archiveWorkstreamIds }),
   }),

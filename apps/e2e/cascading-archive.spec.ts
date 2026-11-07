@@ -18,10 +18,23 @@ const SHELVING = 'project-legacy-child';
 const route = (id: string) => `/projects/${id}`;
 
 type Mode = 'mouse' | 'touch' | 'keyboard';
+/**
+ * Keyboard alone reaches the control the way a person does: Tab through the page, or the arrow keys
+ * inside a menu, whose items take no Tab stop. Failing to arrive is a failure of the journey.
+ */
 const press = async (locator: Locator, mode: Mode) => {
-  if (mode === 'touch') await locator.tap();
-  else if (mode === 'keyboard') { await locator.focus(); await locator.press('Enter'); }
-  else await locator.click();
+  if (mode === 'touch') return locator.tap();
+  if (mode === 'mouse') return locator.click();
+  const page = locator.page();
+  const key = await locator.getAttribute('tabindex') === '-1' ? 'ArrowDown' : 'Tab';
+  for (let presses = 0; presses < 80; presses += 1) {
+    if (await locator.evaluate((element) => element === document.activeElement)) {
+      await page.keyboard.press('Enter');
+      return;
+    }
+    await page.keyboard.press(key);
+  }
+  throw new Error(`keyboard never reached ${String(locator)}`);
 };
 type Stored = { status: string; completedAt?: string; archivedWithProject?: { projectId: string; status: string; completedAt?: string } };
 const stored = (id: string) => api.get<Stored>(`/api/projects/${id}`);
@@ -134,6 +147,13 @@ for (const { mode, use } of MODES) {
       expect(archive.items.flatMap(({ project }) => (project ? [project.id] : []))).not.toContain(CABINETS);
       const listed = await api.get<{ items: { project: { id: string } }[] }>('/api/archived-projects');
       expect(listed.items.map(({ project }) => project.id)).not.toContain(CABINETS);
+      await page.goto('/settings/archived-projects');
+      await expect(page.locator(`[data-archived-project][data-project-id="${KITCHEN}"]`)).toBeVisible();
+      await expect(page.locator(`[data-archived-project][data-project-id="${CABINETS}"]`)).toHaveCount(0);
+      await page.goto(`${route(ROOT)}/pages/archive`);
+      await expect(page.locator(`[data-archived-item][data-archived-id="${KITCHEN}"]`)).toBeVisible();
+      await expect(page.locator(`[data-archived-item][data-archived-id="${CABINETS}"]`)).toHaveCount(0);
+      await loaded(page, CABINETS);
 
       await press(banner(page).locator('[data-restore-action]'), mode);
 
@@ -176,6 +196,29 @@ for (const { mode, use } of MODES) {
     }
   });
 }
+
+test.describe('cascading archive, a long list at 375', () => {
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true });
+
+  test('twenty rows scroll in their own region while the title and the buttons stay on screen', async ({ page }) => {
+    await seed('nested-projects');
+    for (let index = 1; index <= 20; index += 1) {
+      await api.post('/api/projects', { workspaceId: 'workspace-demo', kind: 'subproject', parentProjectId: GARDEN, name: `Bed ${index}` });
+    }
+    await loaded(page, GARDEN);
+    await openConfirm(page, 'touch');
+
+    const region = confirm(page).locator('[data-project-archive-list]');
+    const scrolls = await region.evaluate((element) => element.scrollHeight > element.clientHeight);
+    expect(scrolls).toBe(true);
+    const title = confirm(page).locator('h2');
+    await region.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect(title).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('[data-project-archive-confirm-yes]')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('[data-project-archive-cancel]')).toBeInViewport({ ratio: 1 });
+    await expect(confirm(page).locator('[data-project-archive-row]').last()).toBeInViewport();
+  });
+});
 
 test.describe('cascading archive, the rest at 1440', () => {
   test.use({ viewport: { width: 1440, height: 900 } });

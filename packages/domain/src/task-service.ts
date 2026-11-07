@@ -721,7 +721,7 @@ export class TaskService {
   /**
    * A project archives by `status`, which `assertProjectVisible` cannot see. Work does not
    * come back into a project someone has put away — **or into one whose ancestor is archived**,
-   * since an archive takes down only what was named (§31). Create, update, complete and restore are refused.
+   * since an older document can hold live work there (§31). Create, update, complete and restore are refused.
    * Archiving is not — tidying hidden work is the point. The walk is shared with
    * `SectionService` and `ReflectionService`, which each carried the shallow version.
    */

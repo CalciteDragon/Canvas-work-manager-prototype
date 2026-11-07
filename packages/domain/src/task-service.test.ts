@@ -10,6 +10,19 @@ const LATER = new Date('2026-08-25T09:00:00.000Z');
 const create = async (harness: ReturnType<typeof buildHarness>, overrides = {}) =>
   harness.taskService.create(harness.actor, { projectId: MINE, title: 'Configure deployment', ...overrides });
 
+describe('TaskService on a project archived with its owner (Slice 80, R5)', () => {
+  it('a content write names the owner to restore; an unmarked archived project keeps today’s message', async () => {
+    const harness = buildHarness();
+    const base = { workspaceId: harness.actor.workspaceId, kind: 'subproject' as const };
+    const kitchen = await harness.projectService.create(harness.actor, { ...base, parentProjectId: MINE, name: 'Kitchen' });
+    const cabinets = await harness.projectService.create(harness.actor, { ...base, parentProjectId: kitchen.id, name: 'Cabinets' });
+    await harness.projectWriteService.archive(harness.actor, kitchen.id, { archiveWorkstreamIds: [cabinets.id] });
+
+    await expect(create(harness, { projectId: cabinets.id })).rejects.toThrow(`project "${cabinets.id}" was archived with "${kitchen.id}"; restore "${kitchen.id}" to bring it back`);
+    await expect(create(harness, { projectId: kitchen.id })).rejects.toThrow(`project "${kitchen.id}" is archived; reactivate it first`);
+  });
+});
+
 describe('TaskService.create', () => {
   it('stamps clock timestamps and a generated id, and parses as a contract Task', async () => {
     const harness = buildHarness();

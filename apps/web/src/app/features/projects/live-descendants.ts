@@ -1,11 +1,8 @@
-import type { Project, ProjectId } from '@cwm/contracts';
+import type { ProjectId } from '@cwm/contracts';
 import type { ProjectWorkspaceStore, WorkTreeNode } from './project-workspace-store';
 
 /** One live workstream under the routed project, with its own, so depth can reach the list's markup. */
-export interface LiveDescendant {
-  readonly project: Project;
-  readonly children: readonly LiveDescendant[];
-}
+export type LiveDescendant = WorkTreeNode;
 
 const live = (nodes: readonly WorkTreeNode[]): LiveDescendant[] =>
   nodes.filter(({ project }) => project.status !== 'archived').map(({ project, children }) => ({ project, children: live(children) }));

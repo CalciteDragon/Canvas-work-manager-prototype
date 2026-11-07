@@ -105,6 +105,21 @@ describe('ArchivedBanner and a group (Slice 80, R10)', () => {
     expect(sentence()).toBe('“Cabinets” is archived, and so is “Home renovation”, which holds it.');
   });
 
+  it('reads again when the same owner’s record changes: restored and re-archived elsewhere, it no longer promises the old group', async () => {
+    const gateway = new FakeWorkManagerGateway({ archivedProjects: { items: [listing(KITCHEN, 1)] } });
+    const { fixture, host, sentence } = setup(KITCHEN, KITCHEN, gateway);
+    await settle(fixture);
+    expect(sentence()).toBe('“Kitchen” is archived. Restoring it brings back 1 workstream as it was.');
+
+    gateway.options.archivedProjects = { items: [listing(KITCHEN)] };
+    const again = { ...KITCHEN, updatedAt: '2026-08-28T16:00:00.000Z' };
+    host.project.set(again);
+    host.owner.set(again);
+    await settle(fixture);
+
+    expect(sentence()).toBe('“Kitchen” is archived.');
+  });
+
   it('after Home returns, Kitchen reads and shows its own count; a slow answer for the old owner is ignored', async () => {
     const gateway = new FakeWorkManagerGateway();
     let answerOld!: (value: { items: ReturnType<typeof listing>[] }) => void;

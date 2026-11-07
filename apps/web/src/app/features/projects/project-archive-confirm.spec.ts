@@ -123,6 +123,17 @@ describe('ProjectArchiveConfirm (§26, Slice 80)', () => {
     expect(document.activeElement).toBe(cancelButton(element));
   });
 
+  it('moves focus to Cancel when a list appears, off a button that has just become Archive all', async () => {
+    const { fixture, element } = await render([]);
+    element.querySelector<HTMLElement>('[data-project-archive-confirm-yes]')!.focus();
+
+    fixture.componentRef.setInput('workstreams', GROUP());
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(document.activeElement).toBe(cancelButton(element));
+  });
+
   it('holds a long list in its own named, focusable region', async () => {
     const { element } = await render(Array.from({ length: 20 }, (_, i) => node(`project-${i}`, `Workstream ${i}`, 'active')));
     const region = element.querySelector<HTMLElement>('[data-project-archive-list]')!;

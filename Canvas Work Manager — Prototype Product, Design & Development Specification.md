@@ -2090,7 +2090,7 @@ archived project's own page already renders
 it are not the same rule. **Archived owners** are excluded by the `status` filter each aggregate
 read already had — the dashboard, workspace search and upcoming work — and by the unscoped task
 list, which had none. **Live work beneath an archived ancestor** is excluded by all of those and
-by the project list too, which still returns a project archived in its own right so that
+by the project list too, which still returns a project that is itself archived so that
 `status: ['archived']` keeps working. Archived descendants are reached through root Archive
 and workspace Settings recovery (Slices 44 and 47). A read that names a project or a section always answers, because an
 archived project's own page keeps rendering.*
@@ -3206,7 +3206,7 @@ Names, inputs and permissions are unchanged
 
 *Amended in Slice 80:* `archive_project` and `update_project` take an optional `archiveWorkstreamIds`,
 which must name a project's whole live subtree; without it a project with live workstreams refuses,
-naming each one and its id. All three answer `cascaded`, the workstreams that moved, absent when none.
+naming each one and its id. `archive_project`, `update_project` and `restore_project` answer `cascaded`, the workstreams that moved, absent when none.
 `list_archived_projects` and `get_project_archive` carry `cascadeCount`. Permissions and the tool count
 are unchanged. Naming ids is an API precondition, not §58's confirmation, which stays Slice 22's
 ([why](docs/decisions/2026-11-cascading-project-archive.md)).

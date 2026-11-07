@@ -244,7 +244,7 @@ a navigation preference. Root Archive is visitable independently of that prefere
 a page step still does not work while archived — the transition answers
 `history_blocked:` until the project is reactivated.
 
-`update_project`, `archive_project` and `restore_project` answer `{ project, operation }` too. The
+`update_project`, `archive_project` and `restore_project` answer `{ project, operation }` too, with `cascaded` when a group moved. The
 receipt says how the status moved, and it belongs to **that project's** own history — a
 workstream's, not its root's, even when the call moved it to another root:
 
@@ -272,7 +272,7 @@ re-checks the destination the way a new move would: it must still exist, must no
 project, and must not be under anything archived. `archive_project` refuses while the project has a
 live workstream at any depth, naming each one and its id; a second call with `archiveWorkstreamIds`
 naming them all archives them together, as one step, and `restore_project` on that project brings them
-back at the statuses they recorded (a person's confirmation for this is still Slice 22's). A history
+back at the statuses they recorded, answering them as `cascaded` (a person's confirmation for this is still Slice 22's). `list_archived_projects` and `get_project_archive` carry `cascadeCount` on such a project, and do not list its group while it is archived. A history
 step moves exactly its recorded group: redoing an archive — or undoing a reactivation — refuses while a
 live workstream is not recorded, and undoing an archive refuses if the group has changed. One narrow
 exception to the archive freeze applies here and nowhere else: a project's **own** archive can be

@@ -83,7 +83,7 @@ reference a section elsewhere in the same tree.
 | Part | Path | Role |
 |---|---|---|
 | `SCHEMA_VERSION`, `PrototypeDocumentSchema` | `src/document.ts` | The `data.json` shape and its version (`6`) |
-| `ProjectSchema`, `isRootProject` | `src/project.ts` | Discriminated union on `kind`; status and `progressFormula` |
+| `ProjectSchema`, `isRootProject` | `src/project.ts` | Discriminated union on `kind`; status and `progressFormula`; a subproject's `archivedWithProject` marker (Slice 80) |
 | `ProjectPageSchema`, `NAVIGABLE_PAGE_KINDS` | `src/project-page.ts` | Four root kinds plus `work`; which are tabs |
 | `ProjectSectionSchema`, `SECTION_CAPABILITIES`, `SECTION_CONFIG_SCHEMAS`, `MarkdownConfigSchema`, `sectionConfigRefusal`, `RETIRED_SECTION_TYPES`, `isRetiredSectionType`, `retiredSectionReplacement`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, per-type capabilities with the declared prose key for config recovery, retired types and replacement guidance, the container/view split, display names, grid presets |
 | `SectionShortcutSchema`, `shortcutNameOf` | `src/section-shortcut.ts` | Placements on a canonical page (Home or Work) referencing a source section, and their shared display naming rule |

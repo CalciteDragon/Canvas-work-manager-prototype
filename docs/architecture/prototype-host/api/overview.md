@@ -30,7 +30,7 @@ contract inputs and answer contract shapes; they hold no rules.
 - Forward write results without reshaping them. Section writes carry `{ section, operation }`;
   task writes carry `{ task, operation }`; reflection writes carry
   `{ reflection, operation }`; the page toggle carries `{ page, operation }`; and project create
-  and PATCH carry `{ project, operation }` (Slice 42 adds the creation receipt). Creates always carry a receipt and normalized no-op updates carry
+  and PATCH carry `{ project, operation }`, plus `cascaded` when a group moved (Slice 42 adds the creation receipt; Slice 80 the group). Creates always carry a receipt and normalized no-op updates carry
   `operation: null`. A deleted disposable section's `section` is a response snapshot. A repeated
   section removal remains a 409 and may carry only the exact actor's newest outstanding receipt
   in typed `details`. New `DELETE /api/sections/:id` requests accept no query fields: live owned

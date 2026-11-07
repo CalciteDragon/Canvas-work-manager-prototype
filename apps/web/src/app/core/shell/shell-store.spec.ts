@@ -97,7 +97,7 @@ describe('ShellStore', () => {
   });
 
   // Slice 79 (W4-034): one unfiltered read, split here. The domain already hides live work under
-  // an archived ancestor, so what comes back archived is archived in its own right.
+  // an archived ancestor, so what comes back archived is archived itself, alone or with its owner.
   it('reads every project in one unfiltered call, and keeps archived ones out of the tree', async () => {
     const { store, gateway } = storeWith({
       projects: [project('project-1', 'Live'), { ...project('project-2', 'Shelved'), status: 'archived' }],

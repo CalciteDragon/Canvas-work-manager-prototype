@@ -955,7 +955,7 @@ export class SectionService {
    * it. Work does not come *back* into a project someone has put away: adding, editing,
    * moving, duplicating and restoring are refused. Removing is not — see `remove`.
    *
-   * **Or into one whose ancestor is archived.** An archive takes down only what was named (§31), so a live
+   * **Or into one whose ancestor is archived.** An older document can hold live work under an archive (§31), so a live
    * sub-project can sit under an archived root, and a freeze that looked only at the named
    * project would let work in through the side door. `project-visibility.ts` states that walk
    * once, for the three services that each carried a copy of the shallow version.

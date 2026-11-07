@@ -95,11 +95,11 @@ export class ProjectService {
   /**
    * The actor's workspace is applied last, so a caller-supplied filter cannot widen it.
    *
-   * **Live projects underneath an archived ancestor are dropped.** An archive comes down only with
-   * what the caller named (§31), so a move or an older document can leave one live inside something
-   * someone has put away — hidden from the tree a person navigates while every write to it is refused. It is
-   * the trap state, and it is the only thing dropped: a project archived in its own right is
-   * still returned, so `status: ['archived']` keeps working. Archive and workspace Settings
+   * **Live projects underneath an archived ancestor are dropped.** A group archive takes the whole
+   * live subtree and a move under anything archived is refused, so only an older document or a
+   * fixture holds one live inside something someone has put away (§31) — hidden from the tree a person navigates while every write to it is refused. It is
+   * the trap state, and it is the only thing dropped: a project that is itself archived, alone or
+   * with its owner, is still returned, so `status: ['archived']` keeps working. Archive and workspace Settings
    * apply their own recovery eligibility when presenting archived projects.
    *
    * The ancestry is built over the **unfiltered** workspace, then the query is applied. Built
@@ -368,12 +368,13 @@ export class ProjectService {
     // The repository, not `list`: this runs inside `archive`, and a write must not
     // additionally require `projects.read` to check its own precondition.
     const live = liveSubtree(await this.dependencies.projects.list({ workspaceId: actor.workspaceId }), id);
+    const listed = live.map((project) => `"${project.name}" [${project.id}]`).join(', ');
     const stranger = named.find((candidate) => !live.some((project) => project.id === candidate));
     if (stranger !== undefined) {
-      throw new DomainRuleError(`project "${id}" cannot archive "${stranger}": it is not a live workstream under it`);
+      throw new DomainRuleError(`project "${id}" cannot archive "${stranger}": it is not a live workstream under it${live.length === 0 ? '' : `; its live workstreams are ${listed}`}`);
     }
     if (live.some((project) => !named.includes(project.id))) {
-      throw new DomainRuleError(`project "${id}" still has active workstreams: ${live.map((project) => `"${project.name}" [${project.id}]`).join(', ')}`);
+      throw new DomainRuleError(`project "${id}" still has active workstreams: ${listed}`);
     }
     return live;
   }

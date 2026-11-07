@@ -22,7 +22,7 @@ Read-only unless marked. Every write parses its body with the matching contract 
 |---|---|
 | Identity | `GET /api/me` |
 | Archived projects | `GET /api/archived-projects` — workspace-scoped roots and archived subprojects with live ancestors under `projects.read` |
-| Projects | `GET /api/projects`, `POST /api/projects` — answers `{ project, operation }` with `project.add`, `GET /api/projects/:id`, `PATCH /api/projects/:id` — answers `{ project, operation }`, the receipt being `project.archive`, `project.reactivate` or `project.update`, and `null` for a no-op |
+| Projects | `GET /api/projects`, `POST /api/projects` — answers `{ project, operation }` with `project.add`, `GET /api/projects/:id`, `PATCH /api/projects/:id` — takes `archiveWorkstreamIds` on an archive and answers `{ project, operation, cascaded? }`, the receipt being `project.archive`, `project.reactivate` or `project.update`, and `null` for a no-op |
 | Derived per project | `GET /api/projects/:id/progress`, `/timeline`, `/todos`, `/archive`, `/journal`, `/completed-work` |
 | Pages | `GET /api/projects/:projectId/pages`, `PATCH /api/projects/:projectId/pages/:kind` — the PATCH answers `{ page, operation }`, the receipt being `page.add` for a first enable, `page.update` for a later boolean and `null` for a no-op |
 | Sections | `GET /api/projects/:projectId/sections`, `POST /api/projects/:projectId/sections` (add receipt), `PATCH /api/sections/:id` (field-aware update result), `DELETE /api/sections/:id` (ID-only cascade/removal receipt; retired query fields are 400; exact-owner repeat can return 409 receipt details), `POST /api/sections/:id/move` (move result), `/duplicate`, `/restore` |

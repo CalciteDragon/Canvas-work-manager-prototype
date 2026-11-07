@@ -1,4 +1,5 @@
-// A long list scrolls by itself, so the title and the buttons stay on screen at 375 px. Tokens only.
+// A long list scrolls by itself, so the title and the buttons stay on screen at 375 px. Spacing is
+// tokens; the height is a share of the viewport, which is what it has to leave room in.
 .project-archive-confirm__list {
   max-block-size: 40dvh;
   overflow-block: auto;

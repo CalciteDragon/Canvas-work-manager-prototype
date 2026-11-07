@@ -86,6 +86,16 @@ describe('ArchivedRegion', () => {
     expect(fixture.nativeElement.querySelector('[data-archived-region]')).toBeNull();
   });
 
+  it('says what a workstream’s restore brings back only when it has a group (Slice 80)', async () => {
+    const plain = items.find((item) => item.kind === 'subproject')!;
+    const row = (fixture: Awaited<ReturnType<typeof render>>) =>
+      fixture.nativeElement.querySelector('[data-archived-kind="subproject"] [data-archived-cascade-count]')?.textContent?.trim();
+
+    expect(row(await render([plain]))).toBeUndefined();
+    expect(row(await render([{ ...plain, cascadeCount: 1 } as typeof plain]))).toBe('Comes back with 1 workstream');
+    expect(row(await render([{ ...plain, cascadeCount: 3 } as typeof plain]))).toBe('Comes back with 3 workstreams');
+  });
+
   it('renders only ready owner entries and the exact cascade count', async () => {
     const fixture = await render();
     expect(all(fixture, '[data-archived-item]')).toHaveLength(2);

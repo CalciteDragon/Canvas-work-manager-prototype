@@ -222,7 +222,7 @@ page together; Undo reports the removed id and Redo returns both records with th
 Creation Undo is permitted only for an unchanged project with no canonical dependents, and an
 absent project is valid only with its Activity lifecycle anchor and the creator's undone history
 action ([decision](../../decisions/2026-09-project-creation-history.md)). `project-write-result.ts`
-holds the strict `{ project, operation }` envelope, apart from the payloads for the same bundling
+holds the strict `{ project, operation, cascaded? }` envelope, apart from the payloads for the same bundling
 reason. Creation always carries a receipt; existing-project no-ops may return `null`. Transition results identify the subject and affected
 rows, report absence on Undo Add, and include implicit-container placement when needed.
 `history-placement.ts` owns shared placement shapes without an import cycle. `tool-permissions.ts`

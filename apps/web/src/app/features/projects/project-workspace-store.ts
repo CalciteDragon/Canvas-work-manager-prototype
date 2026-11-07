@@ -777,7 +777,7 @@ export class ProjectWorkspaceStore {
     return this.track(() =>
       this.whileWriting(async () => {
         try {
-          const { project: restored, cascaded } = await reportedWrite(this.reporter, () => this.gateway.projects.update(owner.id, { status }),
+          const { project: restored, cascaded, operation } = await reportedWrite(this.reporter, () => this.gateway.projects.update(owner.id, { status }),
             ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
           if (!current()) return true;
           const epoch = ++this.contextWriteEpoch;
@@ -785,6 +785,8 @@ export class ProjectWorkspaceStore {
           const own = changed.get(projectId);
           if (own !== undefined) this.projectState.set(own);
           this.ancestorsState.update((ancestors) => ancestors.map((ancestor) => changed.get(ancestor.id) ?? ancestor));
+          // Already restored elsewhere: the answer names no group, and this page's records are stale.
+          if (operation === null) this.refreshContext();
           try {
             const projects = await this.gateway.projects.list({ status: NAVIGABLE_STATUSES });
             if (current() && epoch === this.contextWriteEpoch) this.descendantsState.set(projects);

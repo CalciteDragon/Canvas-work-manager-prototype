@@ -6,9 +6,9 @@ import { DomainRuleError } from './errors';
  * **Archiving reaches down, and comes down only with what was named.**
  *
  * §31: *"A project whose own status is `archived` hides its live contents from ordinary reads
- * too."* Archiving a project takes down only the workstreams the caller named (Slice 80), so a
- * live sub-project can still end up underneath an archived ancestor, by a move or in an older
- * document, and every ordinary read has to agree about what that means. Before this module four
+ * too."* Archiving a project takes down the live workstreams the caller named (Slice 80), and the
+ * walk stops at anything already archived, so an older document or fixture can still hold a live
+ * sub-project underneath an archived ancestor, and every ordinary read has to agree about what that means. Before this module four
  * read models each had their own answer and three of them had none.
  *
  * Pure functions over a `Project[]`, plus one assertion over a `ProjectRepository`. Neither is

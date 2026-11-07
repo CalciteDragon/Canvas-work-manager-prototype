@@ -1406,7 +1406,27 @@ describe('ProjectWorkspaceStore — a group archive and its restore (Slice 80, R
     const { archivedWithProject: _marker, ...revived } = cabinets as typeof cabinets & { archivedWithProject?: unknown };
     gateway.projects.update = async () => ({ project: { ...kitchen, status: 'active' as const }, operation: null, cascaded: [{ ...revived, status: 'active' as const } as typeof cabinets] });
 
+    gateway.options.projects = [root('project-renovation', 'Home renovation'), { ...kitchen, status: 'active' }, { ...revived, status: 'active' } as typeof cabinets];
+
     expect(await store.restoreOwner('project-kitchen' as ProjectId, 'active')).toBe(true);
+
+    expect(store.archivedOwner()).toBeNull();
+    expect(store.project()?.status).toBe('active');
+  });
+
+  it('a restore answered as a no-op re-reads, so a marked page does not keep a stale record', async () => {
+    const marker = { projectId: 'project-kitchen', status: 'active' };
+    const kitchen = child('project-kitchen', 'Kitchen', 'project-renovation', { status: 'archived' });
+    const cabinets = child('project-cabinets', 'Cabinets', 'project-kitchen', { status: 'archived', archivedWithProject: marker } as never);
+    const { store, gateway } = storeWith({ projects: [root('project-renovation', 'Home renovation'), kitchen, cabinets] });
+    await store.load('project-cabinets' as ProjectId);
+    const live = { ...kitchen, status: 'active' as const };
+    const { archivedWithProject: _marker, ...revived } = cabinets as typeof cabinets & { archivedWithProject?: unknown };
+    gateway.options.projects = [root('project-renovation', 'Home renovation'), live, { ...revived, status: 'active' } as typeof cabinets];
+    gateway.projects.update = async () => ({ project: live, operation: null });
+
+    await store.restoreOwner('project-kitchen' as ProjectId, 'active');
+    await TestBed.inject(ApplicationRef).whenStable();
 
     expect(store.archivedOwner()).toBeNull();
     expect(store.project()?.status).toBe('active');

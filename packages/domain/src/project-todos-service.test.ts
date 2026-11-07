@@ -346,7 +346,7 @@ describe('ProjectTodosService.derive — scope (§31, §34)', () => {
     const harness = buildHarness();
     await scenario(harness);
     const service = todosServiceFor(harness);
-    // Archiving does not cascade (§31): the children go first, each in its own right.
+    // No group here (§31): the children go first, each in its own right.
     for (const id of ['project-tiling', 'project-kitchen', 'project-bathroom']) {
       await harness.projectService.update(harness.actor, id as ProjectId, { status: 'archived' });
     }

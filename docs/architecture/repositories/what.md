@@ -62,7 +62,7 @@ sequenceDiagram
 | `BaseDataStore` | `src/data-store.ts` | The queue, provisional state, commit and `replaceActiveDocument` |
 | `InMemoryDataStore` | `src/data-store.ts` | Seeded from a literal; no disk |
 | `JsonDataStore` | `src/data-store.ts` | Loads a path, persists with temp-and-rename |
-| `validateDocumentIntegrity` | `src/data-store.ts` | Whole-document parse plus reference, uniqueness, scope and ownership checks, including creator-bound Activity and history anchors for creation Undo |
+| `validateDocumentIntegrity` | `src/data-store.ts` | Whole-document parse plus reference, uniqueness, scope and ownership checks, including a project's `archivedWithProject` marker (Slice 80) and creator-bound Activity and history anchors for creation Undo |
 | `JsonCollectionRepository`, `Json*Repository` | `src/json-repositories.ts` | The twelve implementations over provisional state, including row, optional-page and project removals used only by their safe history inverses and the two operation-history repositories |
 | `RepositoryConflictError`, `RepositoryNotFoundError`, `UnitOfWorkInProgressError` | `src/errors.ts`, `src/data-store.ts` | Storage-level failures the domain maps or lets through as bugs |
 | `acquireDataFileOwnership`, `DataFileOwnership`, `DataFileInUseError`, `DataFileOwnerUnavailableError` | `src/data-file-ownership.ts` | The advisory `<data file>.owner` record every writing entrypoint takes; not used by the domain or by `JsonDataStore` |

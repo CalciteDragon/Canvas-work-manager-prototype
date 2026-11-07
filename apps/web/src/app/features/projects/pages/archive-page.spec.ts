@@ -181,6 +181,31 @@ describe('ArchivePage (§31)', () => {
     expect(hierarchyChanged).toHaveBeenCalledTimes(1);
   });
 
+  it('counts the response in the restore toast, not the row, and a plain restore says nothing of a group (Slice 80)', async () => {
+    const child = ProjectSchema.parse({ ...root, id: 'project-kitchen', kind: 'subproject', parentProjectId: PROJECT, name: 'Kitchen', status: 'archived' });
+    const cabinets = ProjectSchema.parse({ ...child, id: 'project-cabinets', parentProjectId: child.id, name: 'Cabinets', status: 'active' });
+    const item = ProjectArchiveItemSchema.parse({ kind: 'subproject', project: child, cascadeCount: 5,
+      origin: { ...archive.items[0]!.origin, projectId: child.id, pageKind: 'work', breadcrumb: [{ projectId: PROJECT, name: root.name }, { projectId: child.id, name: child.name }] },
+      cause: { kind: 'own' }, restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' } });
+    const live = ProjectSchema.parse({ ...child, status: 'active' });
+
+    const grouped = await render({ ...archive, items: [item] });
+    grouped.gateway.projects.update = vi.fn().mockResolvedValue({ project: live, operation: null, cascaded: [cabinets] });
+    grouped.gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
+    grouped.fixture.nativeElement.querySelector('[data-restore-action]').click();
+    await grouped.fixture.whenStable(); grouped.fixture.detectChanges();
+    expect(grouped.fixture.nativeElement.querySelector('[data-toast]')?.textContent).toContain('Restored Kitchen as Active. 1 workstream came back as it was.');
+
+    const plain = await render({ ...archive, items: [item] });
+    plain.gateway.projects.update = vi.fn().mockResolvedValue({ project: live, operation: null });
+    plain.gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
+    plain.fixture.nativeElement.querySelector('[data-restore-action]').click();
+    await plain.fixture.whenStable(); plain.fixture.detectChanges();
+    const said = plain.fixture.nativeElement.querySelector('[data-toast]')?.textContent;
+    expect(said).toContain('Restored Kitchen as Active.');
+    expect(said).not.toContain('workstream');
+  });
+
   // Slice 79: a workstream's Restore is its RestoreStatusChoice's, and focus finds it the same way.
   it('dismissal focuses a workstream’s Restore when it is the next surviving one', async () => {
     const child = ProjectSchema.parse({ ...root, id: 'project-kitchen', kind: 'subproject', parentProjectId: PROJECT, name: 'Kitchen', status: 'archived' });

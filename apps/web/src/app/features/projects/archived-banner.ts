@@ -51,21 +51,32 @@ export class ArchivedBanner {
 
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
-  /** The owner, when it is the project on screen; the other sentences need no count. */
-  private readonly ownedId = computed(() => (this.owner().id === this.project().id ? this.owner().id : null));
+  /**
+   * The owner, when it is the project on screen, the other sentences needing no count. Keyed on its
+   * `updatedAt` too: restored and archived again elsewhere, it can be the same owner with another
+   * group, and a refresh that sees only the end of that must not keep the old promise.
+   */
+  private readonly ownedKey = computed(() => {
+    const owner = this.owner();
+    return owner.id === this.project().id ? `${owner.updatedAt} ${owner.id}` : null;
+  });
   private readonly groupSize = signal<number | undefined>(undefined);
   private countRead = 0;
+  private countedId: ProjectId | null = null;
 
   constructor() {
     effect(() => {
-      const id = this.ownedId();
-      untracked(() => void this.readCount(id));
+      const owned = this.ownedKey() !== null;
+      const id = untracked(() => this.owner().id);
+      untracked(() => void this.readCount(owned ? id : null));
     });
   }
 
   private async readCount(id: ProjectId | null): Promise<void> {
     const read = ++this.countRead;
-    this.groupSize.set(undefined);
+    // A fresh read of the same owner keeps what it said until the answer, so the sentence holds still.
+    if (id !== this.countedId) this.groupSize.set(undefined);
+    this.countedId = id;
     if (id === null) return;
     const settled = this.pendingTasks.add();
     try {
