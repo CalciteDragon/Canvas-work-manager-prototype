@@ -1,8 +1,13 @@
 <!-- plan id="80" status="active" summary="An explicit, confirmed “Archive X and its N workstreams”, with a matching restore that brings back only what was archived with it" -->
 # Slice 80 — Cascading project archive
 
-**State (2026-11-07):** the user accepted the plan and every recommendation (2026-11-06): Q1 (a), Q2 (a),
-Q3 (a), Q4 (a), Q5 (a), Q6 (a), Q7 (a). **Steps 0–12 are done; awaiting Gate 2.** Three independent reviews of the
+**State (2026-11-09):** **Gate 2 passed (the user, 2026-11-09, at `a8b4add`).** The user found the late
+refusal's wording ("The workstreams under “X” changed. Choose Archive again to confirm the current list.")
+unclear without a better one in mind, and left it for the §8 comb (umbrella comb item 10). **Next is step 13:**
+real use, then the Outcome and `roadmap.mjs complete`. Nothing of step 13 has been recorded yet.
+
+The user accepted the plan and every recommendation (2026-11-06): Q1 (a), Q2 (a),
+Q3 (a), Q4 (a), Q5 (a), Q6 (a), Q7 (a). Steps 0–12 are done. Three independent reviews of the
 diff ran; their findings are fixed in `963b49f` or listed under Revisions. On `963b49f`: `pnpm test`, `pnpm lint`
 with `docs:check`, all 286 browser journeys, the four acceptance scripts and the Storybook build pass. Sheet: 194
 matrix pairs and the Capture scope's panels, zero gate failures, at `apps/e2e/ux-output/slice80-sheet/index.html`

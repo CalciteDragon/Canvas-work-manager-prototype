@@ -429,6 +429,16 @@ Carried from the slices' records:
    naming a long title), listed under its Step 13 Q9.
 9. Slice 79: the dashboard rows' empty control gutter.
 
+Added by Slice 80 (the user's Gate 2, 2026-11-09):
+
+10. The late archive refusal, "The workstreams under “X” changed. Choose Archive again to confirm the
+    current list.", reads unclear to the user, who had no better wording yet.
+11. The archive confirmation's "Archive all" / "Archive it" and "Cancel" touch with no gap (true
+    before Slice 80 too).
+
+Item 1 is now partly closed: Slice 80 (Q6 (a)) drops "No workstreams yet" on a read-only page. A live
+root whose only workstreams are archived still says it.
+
 ### Redesign slice 6b (States) — planning brief
 
 Historical brief: 6b was created as [slice 78](../completed/78-failures-and-loading.md), completed as 6b-1;
