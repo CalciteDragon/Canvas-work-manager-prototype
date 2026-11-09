@@ -16,6 +16,7 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign: evidence and direction through Gate 1 (done), then the redesign slices in layer order until the protocol's stop rule | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
+| 81 | Slice 81 — One navigation tree | Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work | [81-one-navigation-tree.md](active/81-one-navigation-tree.md) |
 
 ### Planned
 
