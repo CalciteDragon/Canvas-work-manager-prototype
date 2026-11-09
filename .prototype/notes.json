@@ -1445,6 +1445,78 @@
       "projectId": "project-kitchen",
       "slice": 79,
       "note": "Slice 79 real use (nested-projects): Kitchen's Task List header says \"2 tasks\" for its 2 rows. Starting a drag on the open task (mouse, and a CDP touch hold-and-move at 375) showed the preview and \"Drop on another Task List to move it. Order within a list can't be changed yet.\" over quick-add, with no row jump. Keyboard only: a row's Tab stops are Complete, the title's open details and Delete, so there is no way to start a drag. No task row or details view has a move control (none in the markup), so a keyboard user cannot move a task between lists. That predates Slice 79 and is outside it. Archiving Home renovation by hand took six archive confirmations, leaves first; cascading archive is the next slice, already decided."
+    },
+    {
+      "id": "note-2026-11-09-001",
+      "createdAt": "2026-11-09T21:00:00.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 80,
+      "note": "Slice 80 real use (nested-projects, 1440 mouse, 1440 keyboard, 375 touch): archiving Home renovation asked once, \"Archive “Home renovation” and its 3 workstreams?\", listed Kitchen · Active, Cabinets · Active (indented) and Garden · Completed, and not the Legacy pair. Archive all toasted \"Archived Home renovation and 3 workstreams.\", kept the page with its banner (\"Restoring it brings back 3 workstreams as they were.\") and returned focus to More in all three modes. Undo (toast, and the header) and Redo (header) moved exactly the group; Garden kept its completedAt; Legacy attic stayed archived. Restoring from the banner as On hold left the root On hold and the three as they were, with no toast and focus on the h1. Slice 79's six confirmations are now one. No friction in the flow itself."
+    },
+    {
+      "id": "note-2026-11-09-002",
+      "createdAt": "2026-11-09T21:01:00.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 80,
+      "note": "Slice 80 real use: the same status reads \"On Hold\" in More's menu and the status chip, and \"On hold\" in the banner's, Archive's and Settings' \"Restore as\" selects. Nothing is broken; one of the two casings is wrong. For the §8 comb."
+    },
+    {
+      "id": "note-2026-11-09-003",
+      "createdAt": "2026-11-09T21:02:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 80,
+      "note": "Slice 80 real use, live frames on: with Kitchen's confirmation open, a workstream added through the API arrived as a live frame and the open dialog rewrote itself in place to \"its 2 workstreams\", adding \"Late drawers · Planning\" to the list, with nothing announced. So with the event stream connected the late refusal is rare (it took adding and committing in the same tick to see it), which is good, but the list a person is reading can change under the pointer just before Archive all. Worth a look at the §8 comb: a short \"The list changed.\" note in the dialog, or announcing the new count."
+    },
+    {
+      "id": "note-2026-11-09-004",
+      "createdAt": "2026-11-09T21:03:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 80,
+      "note": "Slice 80 real use: the late refusal itself (workstream added and Archive all pressed before the frame landed, at 1440 by mouse and keyboard and at 375 by touch) closed the dialog, returned focus to More, showed \"The workstreams under “Kitchen” changed. Choose Archive again to confirm the current list.\" under the header with Details and no Try again, and archived nothing; the next confirmation listed the new workstream, and a successful archive cleared the sentence. Wording already on the comb list (umbrella item 10). Details says \"still has active workstreams\" — see the MCP note on the word \"active\"."
+    },
+    {
+      "id": "note-2026-11-09-005",
+      "createdAt": "2026-11-09T21:04:00.000Z",
+      "route": "/projects/project-cabinets",
+      "projectId": "project-cabinets",
+      "slice": 80,
+      "note": "Slice 80 real use: Cabinets while marked says \"“Cabinets” was archived with “Kitchen”. Restoring “Kitchen” brings it back.\" and More offers only Edit details… and Open archive, as designed. But the banner's control under that sentence is \"Restore as [Active] Restore\": the status chosen there is Kitchen's, and the button restores Kitchen, from Cabinets' page. The sentence says so; the control does not. \"Restore Kitchen\" on the button would carry it."
+    },
+    {
+      "id": "note-2026-11-09-006",
+      "createdAt": "2026-11-09T21:05:00.000Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 80,
+      "note": "Slice 80 real use: Kitchen restored from root Archive (\"Comes back with 1 workstream\", later \"…with 2 workstreams\" and \"…with 3 workstreams\" as API-added ones came down with it) and from Settings › Archived projects (same line), each time toasting \"Restored Kitchen as Active. N workstream(s) came back as it was / as they were.\" with every workstream back. Focus after a row restore lands on the toast's link (\"Go to it\" in Archive, \"Open it\" in Settings) — two names for the same move. Archive's Kitchen row still reads \"Origin: Home renovation / Kitchen / Work canvas\", which names the workstream inside its own path; predates Slice 80."
+    },
+    {
+      "id": "note-2026-11-09-007",
+      "createdAt": "2026-11-09T21:06:00.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 80,
+      "note": "Slice 80 real use, keyboard alone at 1440: More is 24–27 Tabs from the top; inside its menu the Archive item, last, took 6 to 11 ArrowDowns depending on where the menu opened (Up or End is the short way, but nothing says so). The confirmation opens on Cancel, the safe default; Archive all is one Shift+Tab, but three Tabs forward. The toast's Undo was 17 Tabs away from More. None blocks the journey; all of it predates Slice 80."
+    },
+    {
+      "id": "note-2026-11-09-008",
+      "createdAt": "2026-11-09T21:07:00.000Z",
+      "route": "/mcp",
+      "projectId": null,
+      "slice": 80,
+      "note": "Slice 80 real MCP use (Streamable HTTP, prototype-user-a-readwrite, nested-projects): archive_project without ids, and with a partial list, both refuse with 'project \"project-renovation\" still has active workstreams: \"Kitchen\" [project-kitchen], \"Cabinets\" [project-cabinets], \"Garden\" [project-garden]', so one retry naming all three succeeds; it answered cascaded with the three and a \"Archived \\\"Home renovation\\\" and 3 workstreams\" receipt. list_archived_projects showed Home renovation alone with cascadeCount 3 (Legacy attic hidden beneath it, by design). undo_operation (outcome restored, Garden completed with its completedAt), redo_operation (reapplied, same markers) and restore_project as on_hold all moved exactly the group, and afterwards Legacy attic was the one listed, without cascadeCount. Two things read wrong: (1) \"active workstreams\" names Garden, which is Completed; the rule is about live (not archived) workstreams, and the same text reaches the web's Details. (2) restore_project on the marked Cabinets refuses with 'project \"project-cabinets\" was archived with \"project-renovation\"; restore \"project-renovation\" to bring it back' — ids only, where the archive refusal gives names and ids. Also: the history label says \"Reactivated \\\"Home renovation\\\" and 3 workstreams\" where the web's toasts say \"Restored\". For the §8 comb."
+    },
+    {
+      "id": "note-2026-11-09-009",
+      "createdAt": "2026-11-09T21:08:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 80,
+      "note": "Slice 80 real use, seen in passing: a workstream created through the API with no icon (\"Late drawers\" under Kitchen) is drawn in the main sidebar with no icon and its name at 52 px, left of its parent Kitchen's name (65 px) and its sibling Cabinets' (81 px), so it reads as a sibling of Kitchen, not its child. The project navigation gives the same row a 🧩 fallback and the right indent. Predates Slice 80; the web cannot create an icon-less workstream, so only API and MCP callers meet it."
     }
   ]
 }

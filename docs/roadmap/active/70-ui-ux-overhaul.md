@@ -387,21 +387,25 @@ it the patterns layer (TH07–TH10).
 - **Not current:** the full `pnpm e2e` and the Storybook build were not re-run after Q9, the review
   fixes and the sidebar wording; the slice's Outcome says exactly what ran.
 
-**Active: [Slice 80, cascading project archive](80-cascading-project-archive.md) (user decision,
-2026-11-05).** An explicit, confirmed "Archive X and its N workstreams", with a matching restore that
-brings back only what was archived with it. Its plan was reviewed in five rounds and is **awaiting the
-user's acceptance and answers to its seven Open questions** (2026-11-06). No implementation has started.
-- **It reverses a standing rule.** Slice 25.0 and §31 say archiving never cascades, and Slice 79's
-  blocked confirmation is built on that. It needs its own plan and decision records. No decision or
-  spec text has changed yet.
-- **Decisions it revisits:** [project nesting and archive rules](../../decisions/2026-08-project-nesting-and-archive-rules.md),
-  [reactivating under an archived ancestor](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
-  and [archived pages are read-only](../../decisions/2026-11-archived-pages-are-read-only.md).
-- **It will hit the bundle ceiling.** With 0.31 kB of headroom, its plan proposes a lazy
-  `/settings/archived-projects` route (measured −11.06 kB) and puts that to the user as Open question 1.
+**Completed: [Slice 80, cascading project archive](../completed/80-cascading-project-archive.md)
+(user decision 2026-11-05, Gate 2 passed 2026-11-09).** Archiving a project with live workstreams is now
+one confirmed "Archive X and its N workstreams", and the restore brings back only what was archived with
+it.
+- **What changed.** The caller names the whole live subtree. The workstreams come down marked with their
+  statuses, as one action. Every restore, Undo and Redo moves exactly that group, in the web and through
+  MCP. A marked workstream comes back only through its owner.
+- **The rule it reverses.** Slice 25.0 and §31's no-cascade rule. The decision is
+  [Cascading project archive](../../decisions/2026-11-cascading-project-archive.md), with amendments
+  across the archive decisions and spec §23, §26, §31, §39 and §54.
+- **Bundle:** 1,139.37 kB initial, with the ceiling unchanged at 1,150 kB, because
+  `/settings/archived-projects` became lazy.
+- **Real use (step 13, 2026-11-09).** It ran on `nested-projects` at 1440 by mouse and keyboard, at 375
+  by touch, and through a real MCP client. It found no defect and changed no code. Its wording points are
+  comb items 12–17 below; two more predate the slice and are in its Outcome.
 
-The §8 comb has not run. It was due next after 6b; the user's decision puts the cascading archive
-ahead of it, and the comb's order after that is the user's to confirm.
+**Next: the user's choice.** Either the §8 comb (items below) or redesign slice 7, 8 or 9. The
+§8 comb has not run. It was due after 6b, and the user's decision put the cascading archive ahead of it.
+Nothing is active under the umbrella until the user picks.
 
 ### §8 comb list
 
@@ -435,6 +439,24 @@ Added by Slice 80 (the user's Gate 2, 2026-11-09):
     current list.", reads unclear to the user, who had no better wording yet.
 11. The archive confirmation's "Archive all" / "Archive it" and "Cancel" touch with no gap (true
     before Slice 80 too).
+
+Added by Slice 80's real use (2026-11-09; nothing broken, all reads wrong):
+
+12. The archive refusal's prefix, "still has active workstreams:", calls Completed workstreams
+    "active". The rule is about live ones. The refusal reaches agents and the web's Details
+    (`note-2026-11-09-008`).
+13. `restore_project` on a marked workstream names the owner and itself by id only, where the archive
+    refusal gives names and ids (`note-2026-11-09-008`).
+14. History labels say "Reactivated “X” and N workstreams", where the toasts say "Restored"
+    (`note-2026-11-09-008`).
+15. "On Hold" in More and the status chip, and "On hold" in every "Restore as" select
+    (`note-2026-11-09-002`).
+16. A live frame rewrites an open archive confirmation's list with no notice
+    (`note-2026-11-09-003`).
+17. On a marked workstream, the banner's "Restore as … Restore" restores its owner. Only the sentence
+    says so (`note-2026-11-09-005`).
+
+Item 4 ("Go to it" and "Open it") was met again in Slice 80's real use (`note-2026-11-09-006`).
 
 Item 1 is now partly closed: Slice 80 (Q6 (a)) drops "No workstreams yet" on a read-only page. A live
 root whose only workstreams are archived still says it.

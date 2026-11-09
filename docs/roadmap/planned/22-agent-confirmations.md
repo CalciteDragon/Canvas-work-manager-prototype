@@ -13,7 +13,7 @@ confirmation real for a few and watching what agents and people do (§58).
 
 ## Build
 
-*Note, 2026-11-06:* [Slice 80](../active/80-cascading-project-archive.md) lets an agent with
+*Note, 2026-11-06:* [Slice 80](../completed/80-cascading-project-archive.md) lets an agent with
 `projects.write` archive a whole subtree by naming every id. That is an API precondition, not a
 person's confirmation, so a group archive is the obvious first case for this slice's pause.
 

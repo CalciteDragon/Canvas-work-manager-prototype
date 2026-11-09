@@ -143,11 +143,17 @@ zero gate failures. The initial bundle is 1,149.69 kB, 0.31 kB under the ceiling
 done. Five wording points the user left for later are on the umbrella's
 [§8 comb list](active/70-ui-ux-overhaul.md#8-comb-list).
 
-**Now — [Slice 80, a cascading project archive](active/80-cascading-project-archive.md) (user decision,
-2026-11-05).** An explicit, confirmed "Archive X and its N workstreams", with a matching restore that
-brings back only what was archived with it. This reverses the no-cascade rule of Slice 25.0 and §31. Its
-plan is reviewed and awaits the user's acceptance; no decision or spec text has changed yet. The §8 comb
-has not run. See the umbrella's
+**Slice 80 completed — Gate 2 accepted (2026-11-09).** [Cascading project archive](completed/80-cascading-project-archive.md)
+(a user decision of 2026-11-05) reverses the no-cascade rule of Slice 25.0 and §31. Archiving a project
+with live workstreams is now one confirmed "Archive X and its N workstreams". The caller names the
+workstreams, in the web by confirming the list and through MCP by passing their ids. They come down marked
+with their statuses. Every restore, Undo and Redo moves exactly that group. The initial bundle is
+1,139.37 kB, under an unchanged 1,150 kB ceiling, because `/settings/archived-projects` became lazy. Real
+use through the web and MCP found no defect. Its wording points join the umbrella's
+[§8 comb list](active/70-ui-ux-overhaul.md#8-comb-list) as items 10–17.
+
+**Now — the user's choice (2026-11-09).** Nothing is active under the umbrella. The next phase is either
+the §8 comb or redesign slice 7, 8 or 9, and the user has not chosen yet. See the umbrella's
 [handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes

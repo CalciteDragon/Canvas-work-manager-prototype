@@ -1,10 +1,13 @@
-<!-- plan id="80" status="active" summary="An explicit, confirmed “Archive X and its N workstreams”, with a matching restore that brings back only what was archived with it" -->
+<!-- completed-record id="80" closed="2026-11-09" summary="Archive a project with its named live workstreams in one confirmed step, marked with their statuses; every restore, Undo and Redo moves exactly that group; the web, MCP and history agree; real use on nested-projects found no defect; Gate 2 accepted" -->
 # Slice 80 — Cascading project archive
 
-**State (2026-11-09):** **Gate 2 passed (the user, 2026-11-09, at `a8b4add`).** The user found the late
+**State (2026-11-09):** **complete; see the Outcome.** Step 13 ran on 2026-11-09: real use on `nested-projects`
+through the web (1440 mouse, 1440 keyboard, 375 touch) and through a real MCP client, with nine friction notes under
+slice 80 and no defect found, so no code changed after `963b49f`. The history of the slice follows.
+
+**Gate 2 passed (the user, 2026-11-09, at `a8b4add`).** The user found the late
 refusal's wording ("The workstreams under “X” changed. Choose Archive again to confirm the current list.")
-unclear without a better one in mind, and left it for the §8 comb (umbrella comb item 10). **Next is step 13:**
-real use, then the Outcome and `roadmap.mjs complete`. Nothing of step 13 has been recorded yet.
+unclear without a better one in mind, and left it for the §8 comb (umbrella comb item 10).
 
 The user accepted the plan and every recommendation (2026-11-06): Q1 (a), Q2 (a),
 Q3 (a), Q4 (a), Q5 (a), Q6 (a), Q7 (a). Steps 0–12 are done. Three independent reviews of the
@@ -879,14 +882,128 @@ on the owner. The options below stay as the record of what was weighed.
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+The user passed Gate 2 on 2026-11-09, and Slice 80 closes as built. Archiving a project with live
+workstreams is now one confirmed step, "Archive “Home renovation” and its 3 workstreams?", where Slice 79
+needed one confirmation per project, leaves first. Restoring the owner brings back exactly what came down
+with it, at the statuses they had.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+**Deliverables**
+- **Contracts.** The `archivedWithProject` marker on [project.ts](../../../packages/contracts/src/project.ts)
+  records the owner, the status and any `completedAt`. `archiveWorkstreamIds` is in
+  [inputs.ts](../../../packages/contracts/src/inputs.ts). `cascaded` is on archive, reactivate and history
+  results, and `cascadeCount` on [archived-projects.ts](../../../packages/contracts/src/archived-projects.ts).
+  [data-store.ts](../../../packages/repositories/src/data-store.ts) refuses a marker that names a missing or
+  live owner.
+- **Domain.** [ProjectService](../../../packages/domain/src/project-service.ts) archives only when the caller
+  names the whole live subtree as an exact set. The walk is in
+  [project-visibility.ts](../../../packages/domain/src/project-visibility.ts). The group comes down marked,
+  in one action with one Activity line. Every restore revives by marker. A marked project refuses to be
+  restored or reactivated alone. [project-history.ts](../../../packages/domain/src/project-history.ts)
+  moves exactly the recorded group in both directions.
+- **MCP.** `archive_project` takes `archiveWorkstreamIds`. Without it, the tool refuses and names each live
+  workstream with its id. `undo_operation`, `redo_operation` and `restore_project` answer `cascaded`, and
+  `list_archived_projects` and `get_project_archive` carry `cascadeCount`. The
+  [mcp-acceptance](../../../apps/prototype-host/scripts/mcp-acceptance.mjs) journey pins all of this.
+- **Web.**
+  - [The confirmation](../../../apps/web/src/app/features/projects/project-archive-confirm.ts) lists the
+    live subtree, indented, with statuses, and sends exactly the ids it showed. A late refusal closes the
+    dialog and says so under the header.
+  - [The banner](../../../apps/web/src/app/features/projects/archived-banner.ts) gives the count, or on a
+    marked workstream names its owner and restores that owner.
+  - The Archive and Settings rows say "Comes back with N workstreams". The toasts count from each
+    response. A marked project's More has no status buttons.
+  - `/settings/archived-projects` is now lazy, which pays for the slice: 1,149.69 → 1,139.37 kB initial,
+    with the ceiling unchanged at 1,150 kB.
+- **End to end.** [cascading-archive.spec.ts](../../../apps/e2e/cascading-archive.spec.ts) covers twelve
+  journeys at 1440 with a mouse, repeated at 375 by touch and by keyboard alone. Profile 80's sheet has 194
+  matrix pairs and zero gate failures.
+- **Acceptance.** Items 1–6 passed at `963b49f`: `pnpm test`, `pnpm lint` with `docs:check`, all 286 browser
+  journeys, the four acceptance scripts, the Storybook build and the bundle. The commits after it change only
+  documentation and the sheet rig's scrolling (`a8b4add`), and the sheet was re-captured after that. Item 7 is
+  step 13 below.
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+**Step 13, real use (2026-11-09).** The host ran on a copy of the `empty` seed at
+`.prototype/real-use-slice80.json`, with `nested-projects` loaded and the web on 4200. The developer's
+`data.json` was not touched.
+- **Mouse at 1440.** This ran in the app's browser pane: archive Home renovation, header Undo, header Redo,
+  then restore from the banner as On hold. Then Kitchen was archived and restored from root Archive and from
+  Settings, and Cabinets was opened while marked. The toast's Undo had timed out by the time the click
+  arrived, because of the agent's latency, so Undo ran from the header. Partway through, the pane was
+  hidden and stopped drawing. The later mouse steps ran as element clicks from the page.
+- **Keyboard at 1440 and touch at 375.** A scratch Playwright walk ran against the same two servers with
+  real key presses and taps. Neither mode needed the pane. It covered every step above, the toast's Undo
+  included.
+- **Late refusal.** With live frames on, an added workstream rewrote the open dialog in place, so no refusal
+  came. The refusal itself needed the add and the press in the same tick, which all three modes did. With
+  frames blocked, as journey 10 does, it appeared each time.
+- **MCP.** A real client used Streamable HTTP and `prototype-user-a-readwrite`. It called `archive_project`
+  without ids and with a partial list (both refused and named all three), then with the three ids
+  (`cascaded`). `list_archived_projects` showed `cascadeCount` 3. `undo_operation`, `redo_operation`, a
+  refused `restore_project` on marked Cabinets and `restore_project` as `on_hold` followed.
+- **Result.** Every state matched the API in every mode, with no console errors. No defect was found, so no
+  code changed. Nine notes (`note-2026-11-09-001` to `-009`) record what reads wrong; their items are under
+  Open questions.
 
-**Deferred** — <what was left out and which slice owns it>.
+**Deliberate choices**
+- Q1 (a): `/settings/archived-projects` became lazy. This overturns the wording of Slice 79's Q8 (a), "every
+  other feature route stays eager", to keep the 1,150 kB ceiling.
+- Q2 (a): restore returns each workstream at its recorded status, not the owner's chosen one.
+- Q3 (a): a marked workstream comes back only through its owner. Q4 (a): agents may cascade, but only by
+  naming each id.
+- Q5 (a): the copy table as written. A restore on the project's own page has no toast.
+- Q6 (a): the read-only page's false empty sentence is fixed here. Q7 (a): one Activity line per group.
+- Rejected: a silent cascade, which archives work nobody named, and a restore that revives every archived
+  descendant, which brings back work archived separately.
+- The decisions are recorded in [Cascading project archive](../../decisions/2026-11-cascading-project-archive.md).
+  That entry amends [nesting and archive rules](../../decisions/2026-08-project-nesting-and-archive-rules.md),
+  [reactivating under an archived ancestor](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md),
+  [project update history](../../decisions/2026-09-project-update-operation-history.md),
+  [archived pages are read-only](../../decisions/2026-11-archived-pages-are-read-only.md) and
+  [the bundle budget](../../decisions/2026-08-initial-bundle-budget.md).
 
-**Open questions** — <what the next phase or the user must answer>.
+**Deviations from the plan** (all recorded under Revisions)
+- **From the step 12 diff reviews.**
+  - The banner's read is keyed on the owner's `updatedAt` as well as its id. Otherwise a restore and
+    re-archive made elsewhere left a stale count.
+  - A restore answered as a no-op re-reads the page.
+  - A partial list holding a stranger names every live workstream.
+  - `live-children.ts` became [live-descendants.ts](../../../apps/web/src/app/features/projects/live-descendants.ts),
+    typed as `WorkTreeNode`.
+- **In step 13.** Keyboard and touch ran through a scratch Playwright walk, and some mouse steps through
+  page-side clicks, because the browser pane was hidden.
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+**Deferred**
+- The late refusal's wording and the touching Archive all and Cancel buttons are umbrella comb items 10 and
+  11, already listed. They are left there unchanged.
+- The step 13 friction is for the §8 comb or its own small slices. See Open questions.
+
+**Open questions** (all from step 13's notes, none blocking; the first six are umbrella comb items 12–17)
+- **"active workstreams".** The refusal's prefix, kept from before for compatibility, calls Completed
+  workstreams "active". The rule is about live ones. The same text reaches the web's Details.
+- **Ids without names.** `restore_project` on a marked workstream names the projects by id only, while the
+  archive refusal gives names and ids.
+- **"Reactivated" and "Restored".** History labels say "Reactivated …", where the toasts say "Restored …".
+- **"On Hold" and "On hold".** More's menu and the chip say "On Hold". Every "Restore as" select says "On
+  hold".
+- **The list changes unannounced.** A live frame rewrites the open confirmation's list in place, with no
+  announcement.
+- **The button on a marked page.** The banner on a marked workstream restores its owner, but the button only
+  says "Restore".
+- **Two names for one link.** After a row restore, the toast's link is "Go to it" in Archive and "Open it" in
+  Settings. This is already comb item 4.
+- **Older than this slice.** Keyboard distances (More 24–27 Tabs, its last item 6–11 arrows), and an
+  icon-less API-created workstream drawn under-indented in the main sidebar.
+- **What next.** The user still chooses between the §8 comb and redesign slices 7, 8 or 9.
+
+**Documentation updated**
+- **Spec:** §23, §26, §31, §39 and §54.
+- **Architecture:** `contracts` (how, what), `domain` (how, what, why), `mcp-tools/how` and
+  `prototype-host/api` (overview, what). Also `repositories` (what, why), `testing` (how, what), `web`
+  (what, why, `core/how`), `web/projects` (overview, how, what, why) and `web/prototype-tooling/how`.
+- **Decisions:** the new entry and its index line, with amendments to the five decisions above and to
+  [actionable archive](../../decisions/2026-09-actionable-archive-and-archived-projects.md),
+  [workspaces and work units](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md),
+  [root archive recovery](../../decisions/2026-09-root-archive-recovery-guidance.md) and
+  [failures speak product words](../../decisions/2026-10-failures-speak-product-words.md).
+- **Guides:** [mcp-setup](../../guides/mcp-setup.md) and [the first-milestone walkthrough](../../guides/first-milestone-walkthrough.md).
+- **Roadmap:** [goals](../goals.md) and the umbrella's handoff.

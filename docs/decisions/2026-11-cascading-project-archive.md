@@ -56,7 +56,7 @@ stranding every step beneath it for up to a day.
   [Slice 22](../roadmap/planned/22-agent-confirmations.md).
 
 The user chose each of these on 2026-11-06, taking every recommendation in
-[Slice 80's plan](../roadmap/active/80-cascading-project-archive.md#open-questions).
+[Slice 80's plan](../roadmap/completed/80-cascading-project-archive.md#open-questions).
 
 **Confidence**
 
