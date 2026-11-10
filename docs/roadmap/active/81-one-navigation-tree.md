@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-10):** **step 0 (rig and "before") in progress.** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-10):** **step 1 (alternatives: specimens) done; step 2 (captures and sheet) is next.** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -28,7 +28,37 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   allows T10's dead end only at "Find Connect agent control"; `testing/how.md` says an "after" run fails until the
   tree's "Pages of Home renovation…" exists (T08 and `kitchen-page-settings`). Noted: Acceptance item 6's "no dead
   end" is read against the baseline, where T10 is already a dead end (slice 8's); the click comparison is step 13's.
-**Step 0 is complete. Next is step 1** (alternatives: specimens). Bundle unchanged at 1,139.37 kB (no web code).
+**Step 0 is complete** (bundle 1,139.37 kB, no web code). Done in step 1 (commits in the Revisions entry):
+- *Specimens:* `/prototype/navigation/:option` (`loadComponent`; `app.routes.spec.ts` counts it) loads
+  `prototype/navigation-alternatives/`: `NavigationAlternativesPage` (the layer, `inert` on the shell's top bar
+  and sidebar, skip link, stand-in header with breadcrumb, Q6 (i) `h1`, Q10's Details fold at 375, three frames,
+  phone Menu and drawer, one lift), `SpecimenModel` (parses `at`; current chain and root pages through the
+  gateway interface; rows from `ShellStore`), `SpecimenTree` (rows in `keys=links` or `keys=tree`), and
+  `OptionA`, `OptionB`, `OptionC` + `OptionCTabs`. Query: `at`, `keys`, `home=a|b|c|d` (Q5, default d),
+  `q16=a|b|c` (default b; a and c read no pages), `menu=open` (drawer open on load, for captures).
+  Data attributes for step 2's measurements: `data-specimen-nav`, `-header`, `-heading`, `-breadcrumb`,
+  `-page-tabs` (C), `-first-content`, `-skip-link`, `-menu`, `-lift`, `-action="page-settings|add-workstream|new-project"`.
+- *Smoke spec:* `navigation-alternatives-page.spec.ts` (6 cases: one per option, C's tab row and `location`,
+  the treeview's one tab stop, the root-labelled controls).
+- *Rig:* `apps/e2e/ux/slice81-alternatives.config.ts` (4257/4357, `.prototype/ux-slice81-alternatives.json`,
+  serves `apps/web/dist/web/browser`, so build first) and `ux/navigation-alternatives.ts`: a browser smoke
+  (every option × keyboard model over nested-projects) and the probe. Run: `pnpm --filter web build`, then
+  `cd apps/e2e && pnpm exec playwright test --config ux/slice81-alternatives.config.ts`. Step 2 adds captures here.
+- *Probe (Chromium 151.0.7922.34; `ux-output/slice81-alternatives/popover-probe.json`):* `showPopover({ source })`
+  sets the implicit anchor, but the initial `position-anchor` is **`normal`**, under which `.lift--popover`'s
+  `anchor()` ignores it and the lift falls to the viewport corner (this is Slice 73's invoker trap too); with
+  `position-anchor: auto` it sits under the opener. The `source` is **not** exempt from light dismiss: a pointer
+  press on the opener closes the lift and its click reopens it. A `commandfor` + `command="toggle-popover"`
+  invoker is exempt and anchors the same way. The specimen uses `source` + `position-anchor: auto` + a
+  remembered pointer press. R2's "keeps the light-dismiss exemption" is therefore wrong; step 3 picks step 6's
+  mechanism (R2, "Probe result").
+- *Bundle:* initial **1,139.85 kB** (+0.48 kB: the route entry, 0.17 kB in `main`, and 0.34 kB of export names
+  in a shared initial chunk for eager symbols the lazy chunk reuses). The specimen chunk is lazy (45.49 kB raw).
+  It returns to the baseline when step 3 deletes the route. R1's "adds nothing" is corrected.
+- *Traps:* the alternatives rig serves the last build, so rebuild after any web change; `cdkTrapFocusAutoCapture`
+  grabs focus at init even while the trap is off (not used); `(pointerdown.capture)` is not an Angular event
+  modifier (a native capture listener is used).
+**Next is step 2** (captures, sheet, summary, recommendation; ends with `CHAIN: STOP`).
 
 ## Goal
 
@@ -72,7 +102,8 @@ specimens are disposable prototype tooling (AGENTS.md "Deliberately disposable")
 
 - **Route.** `/prototype/navigation/:option` (`option` ∈ `a`, `b`, `c`) with query `at=<app URL>` (for
   example `at=/projects/project-cabinets`) and `keys=links|tree` (the keyboard model, Q4, independent of the
-  shape). It is a `loadComponent` route, so it adds nothing to the initial bundle; step 1 verifies that.
+  shape). It is a `loadComponent` route, so the specimens stay out of the initial bundle; step 1 measured the
+  route entry itself at +0.48 kB (State header), which step 3's deletion returns.
 - **It covers the shell.** `App` always wraps routes in `AppShell`, so the specimen is a fixed, full-viewport
   layer. While mounted it sets `inert` on the shell's own top bar and sidebar and removes it on destroy, so Tab
   counts and the phone captures measure only the specimen. This is a prototype-only hack, deleted at step 3.
@@ -182,6 +213,11 @@ kept them out of `ShellStore` on §20 grounds, and that reason holds.
   `showPopover({ source })` is typed in TypeScript 6's DOM lib; step 1's specimens probe its anchor and
   light-dismiss behaviour in the e2e Chromium before step 6 relies on it, and unit specs spy on it, because the
   unit DOM may lack it (`shared/feedback/toast.ts:47` calls `showPopover?.()`).
+  **Probe result (step 1, Chromium 151):** the anchor holds only with `position-anchor: auto` on the popover
+  (the initial value is `normal`), and the `source` is **not** exempt from light dismiss, so a second press would
+  reopen. Step 3 chooses between `source` with `position-anchor: auto` and a remembered pointer press (what the
+  specimen does), and a `commandfor`/`command="toggle-popover"` invoker, which is exempt but needs the popover's
+  element to exist when pressed (it is deferred).
 - **`closeWorkCreate`** (`project-workspace-shell.ts:466-474`) takes the handler's opener instead of searching
   its own host for the plus or the toggle; after a successful create it yields to the new `h1`.
 - **Freshness.** `ShellStore` already re-reads on every `project.*` live frame (`shell-store.ts:154-155`). To
@@ -550,6 +586,8 @@ Paths marked **(pick)** are confirmed or renamed at step 3.
 | `apps/web/src/app/prototype/navigation-alternatives/navigation-alternatives-page.ts`, `.html`, `.scss` | create | Lazy page: full-viewport layer, `at` and `keys`, stand-in workspace |
 | `apps/web/src/app/prototype/navigation-alternatives/option-a.*`, `option-b.*`, `option-c.*` | create | The three specimens |
 | `apps/web/src/app/prototype/navigation-alternatives/navigation-alternatives-page.spec.ts` | create | One smoke case per option: renders, one current item |
+| `apps/web/src/app/prototype/navigation-alternatives/specimen-model.ts`, `specimen-tree.*` | create (step 1) | The shared data and the row renderer for both keyboard models |
+| `docs/architecture/web/prototype-tooling/what.md` | modify | The specimens' row while they exist |
 | `apps/web/src/app/app.routes.ts`, `app.routes.spec.ts` | modify | `/prototype/navigation/:option`, `loadComponent`; the doc comment counting `prototype/*` routes |
 | `apps/e2e/ux/navigation-alternatives.ts`, `apps/e2e/ux/slice81-alternatives.config.ts` | create | Captures and measurements |
 | `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs` | create | The comparison sheet |
@@ -1138,6 +1176,15 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   are in the State header. Findings closed gains "Step 0's re-check": four ids reproduce only in part, and the
   slice claims only the remaining part. The plan's line citations into `capture.ts` and `tasks.ts` refer to
   `1a0fb0d`; the State header gives today's lines.
+- **Step 1 (2026-11-10):** the specimens, the smoke spec, the alternatives rig and the probe; State header.
+  - *Changed content:* R1's "adds nothing to the initial bundle" (the route entry costs +0.48 kB); R2 gains the
+    probe's result (no light-dismiss exemption for `source`; `position-anchor: auto` needed), which step 3 resolves
+    for step 6; the Steps 1–2 change list gains `specimen-model.ts`, `specimen-tree.*` and `what.md`.
+  - *Specimen calls (defaults, AGENTS.md §4; for step 2's summary):* the specimens also take `home=` (Q5) and
+    `q16=`, so the pick can see those answers; Q11 is shown as (a) only; option B, back at "‹ All projects" while
+    inside a project, marks the current root `aria-current="location"` (going up does not navigate, so the page is
+    not in view); option C shows the root's tab row on workstreams too (none current), so root scope reads the same
+    there; the specimen does not re-read pages on live frames.
 
 ## Outcome
 

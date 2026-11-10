@@ -53,3 +53,4 @@ flowchart TB
 | `DesignLabPage`, `DesignLabStore`, `DesignLabToken`, `DesignLabExport` | `design-lab/` | §67 |
 | `LivePanels`, `PrimitivePanels`, `ControlPanels`, `PlanePanels`, `SectionCanvasFrame`, `StubSectionContent` | `design-lab/panels/`, `design-lab/section-canvas-frame.ts` | The catalogue; `SectionCanvasFrame` mirrors the canvas wrapper's reveal properties so shared section controls appear correctly |
 | Fixtures | `design-lab/design-lab-fixtures.ts` | The data the live panels render |
+| `NavigationAlternativesPage`, `SpecimenModel`, `SpecimenTree`, `OptionA`, `OptionB`, `OptionC`, `OptionCTabs` | `navigation-alternatives/` | Slice 81's disposable specimens (R1), deleted at its step 3 |

@@ -1,0 +1,128 @@
+<!-- Slice 81 R1 specimen rows (disposable). One template for both of Q4's keyboard models. -->
+@let tree = keys() === 'tree';
+<ul
+  class="specimen-tree"
+  data-specimen-tree
+  [attr.role]="tree ? 'tree' : null"
+  [attr.aria-label]="tree ? label() : null"
+  (keydown)="keydown($event)"
+  (focusin)="focusin($event)"
+>
+  <ng-container *ngTemplateOutlet="rows; context: { $implicit: nodes(), depth: 1 }" />
+</ul>
+
+<ng-template #rows let-nodes let-depth="depth">
+  @for (node of nodes; track node.id) {
+    @let open = node.children !== undefined && (node.kind === 'group' && !tree ? true : node.expanded);
+    <li class="specimen-tree__item" [attr.role]="tree ? 'none' : null" [style.--specimen-indent]="indent(depth)">
+      <div
+        class="specimen-tree__row"
+        [class.specimen-tree__row--current]="node.current === 'page'"
+        [class.specimen-tree__row--location]="node.current === 'location'"
+        [class.specimen-tree__row--muted]="node.muted"
+        [class.specimen-tree__row--group]="node.kind === 'group'"
+      >
+        @if (tree && node.children !== undefined) {
+          <!-- In the treeview the chevron is decoration; the row's own keys open and close it. -->
+          <span class="specimen-tree__chevron" aria-hidden="true" (click)="toggle(node, $event)">{{ open ? '▾' : '▸' }}</span>
+        }
+        @switch (node.kind) {
+          @case ('link') {
+            <a
+              class="specimen-tree__link"
+              [attr.data-node-id]="node.id"
+              [routerLink]="[]"
+              [queryParams]="{ at: node.at }"
+              queryParamsHandling="merge"
+              [attr.aria-current]="node.current ?? null"
+              [attr.role]="tree ? 'treeitem' : null"
+              [attr.aria-level]="tree ? depth : null"
+              [attr.aria-expanded]="tree && node.children !== undefined ? open : null"
+              [attr.tabindex]="tabIndexOf(node)"
+            >
+              <span class="specimen-tree__label">{{ node.label }}</span>
+              @if (node.mark) {
+                <span class="specimen-tree__mark">{{ node.mark }}</span>
+              }
+            </a>
+          }
+          @case ('action') {
+            @let lift = node.action?.type === 'page-settings' || node.action?.type === 'add-workstream' || node.action?.type === 'new-project';
+            @if (tree) {
+              <span
+                class="specimen-tree__action"
+                role="treeitem"
+                [attr.data-node-id]="node.id"
+                [attr.data-specimen-action]="node.action?.type"
+                [attr.aria-level]="depth"
+                [attr.aria-haspopup]="lift ? 'dialog' : null"
+                [attr.aria-describedby]="node.description ? domId('specimen-desc', node.id) : null"
+                [attr.tabindex]="tabIndexOf(node)"
+                (click)="act(node, $event)"
+                >{{ node.label }}</span
+              >
+            } @else {
+              <button
+                type="button"
+                class="specimen-tree__action"
+                [attr.data-node-id]="node.id"
+                [attr.data-specimen-action]="node.action?.type"
+                [attr.aria-expanded]="lift ? openActionId() === node.id : null"
+                [attr.aria-describedby]="node.description ? domId('specimen-desc', node.id) : null"
+                (click)="act(node, $event)"
+              >
+                {{ node.label }}
+              </button>
+            }
+            @if (node.description) {
+              <span class="visually-hidden" [attr.id]="domId('specimen-desc', node.id)">{{ node.description }}</span>
+            }
+          }
+          @case ('group') {
+            <span
+              class="specimen-tree__group-label"
+              [attr.id]="domId('specimen-group', node.id)"
+              [attr.data-node-id]="node.id"
+              [attr.role]="tree ? 'treeitem' : null"
+              [attr.aria-level]="tree ? depth : null"
+              [attr.aria-expanded]="tree ? open : null"
+              [attr.tabindex]="tabIndexOf(node)"
+              >{{ node.label }}</span
+            >
+          }
+          @default {
+            <span
+              class="specimen-tree__note"
+              [attr.data-node-id]="node.id"
+              [attr.role]="tree ? 'treeitem' : null"
+              [attr.aria-level]="tree ? depth : null"
+              [attr.aria-disabled]="tree ? 'true' : null"
+              [attr.tabindex]="tabIndexOf(node)"
+              >{{ node.label }}</span
+            >
+          }
+        }
+        @if (!tree && node.children !== undefined && node.kind !== 'group') {
+          <button
+            type="button"
+            class="icon-button icon-button--sm specimen-tree__toggle"
+            [attr.aria-expanded]="open"
+            [attr.aria-label]="'Contents of ' + node.label"
+            (click)="toggle(node, $event)"
+          >
+            <span aria-hidden="true">{{ open ? '▾' : '▸' }}</span>
+          </button>
+        }
+      </div>
+      @if (open) {
+        <ul
+          class="specimen-tree__children"
+          [attr.role]="tree ? 'group' : null"
+          [attr.aria-labelledby]="node.kind === 'group' ? domId('specimen-group', node.id) : null"
+        >
+          <ng-container *ngTemplateOutlet="rows; context: { $implicit: node.children, depth: depth + 1 }" />
+        </ul>
+      }
+    </li>
+  }
+</ng-template>
