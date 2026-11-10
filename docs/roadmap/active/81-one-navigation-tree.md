@@ -59,7 +59,7 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Traps:* the alternatives rig serves the last build, so rebuild after any web change; `cdkTrapFocusAutoCapture`
   grabs focus at init even while the trap is off (not used); `(pointerdown.capture)` is not an Angular event
   modifier (a native capture listener is used).
-**Step 1 is complete.** Done in step 2 (`b0626b7` rig, sheet and summary; the review fixes after it, in the Revisions entry):
+**Step 1 is complete.** Done in step 2 (`b0626b7` rig, sheet and summary; `ea12164` review fixes):
 - *Sheet:* `apps/e2e/ux-output/slice81-alternatives/index.html` (git-ignored): **68 comparison rows × 3 options**
   (11 contexts × light/dark × 1440, 375 Menu closed, 375 Menu open; `renovation-root` also at 1024), 204 option
   captures plus four panels (Q4, Q5, Q16, forced colours), 224 images. Measurements in the sheet and in
