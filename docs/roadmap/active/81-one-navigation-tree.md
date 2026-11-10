@@ -28,7 +28,7 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   allows T10's dead end only at "Find Connect agent control"; `testing/how.md` says an "after" run fails until the
   tree's "Pages of Home renovation…" exists (T08 and `kitchen-page-settings`). Noted: Acceptance item 6's "no dead
   end" is read against the baseline, where T10 is already a dead end (slice 8's); the click comparison is step 13's.
-**Step 0 is complete** (bundle 1,139.37 kB, no web code). Done in step 1 (commits in the Revisions entry):
+**Step 0 is complete** (bundle 1,139.37 kB, no web code). Done in step 1 (`3d2e64d` specimens, rig, probe and docs; `ad4570d` review fixes):
 - *Specimens:* `/prototype/navigation/:option` (`loadComponent`; `app.routes.spec.ts` counts it) loads
   `prototype/navigation-alternatives/`: `NavigationAlternativesPage` (the layer, `inert` on the shell's top bar
   and sidebar, skip link, stand-in header with breadcrumb, Q6 (i) `h1`, Q10's Details fold at 375, three frames,
