@@ -65,6 +65,16 @@ export class SpecimenTree {
   protected toggle(node: SpecimenNode, event?: Event): void {
     event?.preventDefault();
     event?.stopPropagation();
+    // Collapsing a row that holds focus below it hands focus to the row, which stays rendered.
+    if (node.expanded) {
+      const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-node-id]')].find((element) => element.dataset['nodeId'] === node.id);
+      const item = row?.closest('li');
+      const active = this.host.nativeElement.ownerDocument.activeElement;
+      if (row !== undefined && item?.contains(active) && active !== row) {
+        if (this.keys() === 'tree') this.activeId.set(node.id);
+        row.focus();
+      }
+    }
     this.toggled.emit({ id: node.id, expanded: !node.expanded });
   }
 

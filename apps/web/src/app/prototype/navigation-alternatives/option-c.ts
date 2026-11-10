@@ -72,7 +72,7 @@ export class OptionC {
           }
           <li>
             <button type="button" class="button button--ghost option-c-tabs__settings" data-specimen-action="page-settings"
-              [attr.aria-expanded]="openActionId() === settingsRow().id" (click)="open($event)">{{ settingsRow().label }}</button>
+              [attr.data-node-id]="settingsRow().id" [attr.aria-expanded]="openActionId() === settingsRow().id" (click)="open($event)">{{ settingsRow().label }}</button>
           </li>
         </ul>
       </nav>

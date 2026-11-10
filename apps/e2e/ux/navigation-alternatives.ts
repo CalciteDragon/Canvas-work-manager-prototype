@@ -106,11 +106,34 @@ test('showPopover({ source }) anchors with position-anchor: auto; light dismiss 
     });
     await page.locator('#probe-command').click();
     const opened = await liftOpen(page);
+    const command = await box(page, '#probe-command');
+    const placed = await box(page, '[data-specimen-lift]');
+    result['commandInvokerLift'] = { opener: command, lift: placed };
+    expect(Math.abs(placed.x - command.x)).toBeLessThan(2);
+    expect(placed.y - (command.y + command.height)).toBeGreaterThanOrEqual(0);
     await page.locator('#probe-command').click();
     const exempt = opened && !(await liftOpen(page));
     await page.evaluate(() => document.querySelector('#probe-command')!.remove());
     return exempt;
   })();
+  // Under the initial `position-anchor: normal` the same `source` does not place the lift: it
+  // falls to the viewport's corner.
+  result['normalLift'] = await page.evaluate(() => {
+    const lift = document.querySelector<HTMLElement>('[data-specimen-lift]')!;
+    const opener = document.querySelector<HTMLElement>('[data-specimen-nav] [data-specimen-action="page-settings"]')!;
+    lift.style.setProperty('position-anchor', 'normal');
+    lift.showPopover({ source: opener } as ShowPopoverOptions);
+    const { x, y } = lift.getBoundingClientRect();
+    lift.hidePopover();
+    lift.style.removeProperty('position-anchor');
+    return { x, y };
+  });
+  // The findings the plan's State header and R2 rely on. A Chromium that changes either fails here,
+  // and step 6's mechanism is re-checked.
+  expect(result['desktop']).toMatchObject({ initialPositionAnchor: 'normal', liftPositionAnchor: 'auto', supportsSource: true });
+  expect(result['sourceExemptFromLightDismiss']).toBe(false);
+  expect(result['commandInvokerExempt']).toBe(true);
+  expect((result['normalLift'] as { x: number }).x).toBeLessThan(2);
   await opener.click();
   expect(await liftOpen(page)).toBe(true);
 

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ProjectPageSchema, ProjectSchema, type Project, type ProjectPage } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
+import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { shellTestProviders } from '../../core/gateway/testing/shell-test-providers';
 import { ShellStore } from '../../core/shell/shell-store';
 import { NavigationAlternativesPage } from './navigation-alternatives-page';
@@ -78,6 +79,31 @@ describe('NavigationAlternativesPage (Slice 81 R1, disposable)', () => {
     const tree = element.querySelector('[data-specimen-nav] [role="tree"]')!;
     expect(tree).not.toBeNull();
     expect([...tree.querySelectorAll('[role="treeitem"][tabindex="0"]')].map((item) => item.textContent?.trim())).toEqual(['Kitchen']);
+  });
+
+  it('a project read that lands after the person left the project marks nothing', async () => {
+    TestBed.configureTestingModule({
+      imports: [NavigationAlternativesPage],
+      providers: [...shellTestProviders({ projects: PROJECTS, pages: PAGES }), ShellStore],
+    });
+    await TestBed.inject(ShellStore).load();
+    // Cabinets' read is held until the place has moved to Home.
+    const gateway = TestBed.inject(WORK_MANAGER_GATEWAY);
+    const get = gateway.projects.get.bind(gateway.projects);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    gateway.projects.get = async (id) => { await held; return get(id); };
+    const fixture = TestBed.createComponent(NavigationAlternativesPage);
+    fixture.componentRef.setInput('option', 'a');
+    fixture.componentRef.setInput('at', '/projects/project-cabinets');
+    await fixture.whenStable();
+    fixture.componentRef.setInput('at', '/app');
+    await fixture.whenStable();
+    release();
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+
+    expect(currentIn(fixture.nativeElement as HTMLElement, '[data-specimen-nav]')).toEqual(['Home']);
   });
 
   it('labels page settings and Add workstream with the root', async () => {

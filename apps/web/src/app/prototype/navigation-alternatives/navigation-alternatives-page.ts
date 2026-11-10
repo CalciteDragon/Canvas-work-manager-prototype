@@ -104,6 +104,7 @@ export class NavigationAlternativesPage {
 
   constructor() {
     effect(() => {
+      this.model.option.set(this.optionId() as 'a' | 'b' | 'c');
       this.model.at.set(this.at() ?? '/app');
       this.model.home.set((['a', 'b', 'c', 'd'].includes(this.home() ?? '') ? this.home() : 'd') as HomeNaming);
       this.model.rootPagesMode.set((['a', 'b', 'c'].includes(this.q16() ?? '') ? this.q16() : 'b') as RootPagesMode);
@@ -159,17 +160,16 @@ export class NavigationAlternativesPage {
   private pointerdown(event: Event): void {
     const id = (event.target as Element | null)?.closest<HTMLElement>('[data-node-id], [data-specimen-action]');
     const open = this.liftElement().nativeElement.matches(':popover-open');
-    const nodeId = id?.dataset['nodeId'] ?? (id?.dataset['specimenAction'] === 'page-settings' ? this.liftFor() : null);
+    const nodeId = id?.dataset['nodeId'] ?? null;
     this.pressedOpenFor = open && nodeId !== null && nodeId === this.liftFor() ? nodeId : null;
   }
 
   protected act({ node, opener }: SpecimenActivation): void {
     const action = node.action;
     if (action === undefined) return;
-    if (this.pressedOpenFor === node.id) {
-      this.pressedOpenFor = null;
-      return;
-    }
+    const dismissedByThisPress = this.pressedOpenFor === node.id;
+    this.pressedOpenFor = null;
+    if (dismissedByThisPress) return;
     if (action.type === 'retry-pages') return this.model.ensureRootPages(action.rootId);
     if (action.type === 'retry-projects') return void this.model.shell?.load();
     if (action.type === 'all-projects') return;

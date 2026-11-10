@@ -38,12 +38,13 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   `q16=a|b|c` (default b; a and c read no pages), `menu=open` (drawer open on load, for captures).
   Data attributes for step 2's measurements: `data-specimen-nav`, `-header`, `-heading`, `-breadcrumb`,
   `-page-tabs` (C), `-first-content`, `-skip-link`, `-menu`, `-lift`, `-action="page-settings|add-workstream|new-project"`.
-- *Smoke spec:* `navigation-alternatives-page.spec.ts` (6 cases: one per option, C's tab row and `location`,
-  the treeview's one tab stop, the root-labelled controls).
+- *Smoke spec:* `navigation-alternatives-page.spec.ts` (7 cases: one per option, C's tab row and `location`,
+  the treeview's one tab stop, the root-labelled controls, a project read landing after leaving marks nothing).
 - *Rig:* `apps/e2e/ux/slice81-alternatives.config.ts` (4257/4357, `.prototype/ux-slice81-alternatives.json`,
   serves `apps/web/dist/web/browser`, so build first) and `ux/navigation-alternatives.ts`: a browser smoke
   (every option × keyboard model over nested-projects) and the probe. Run: `pnpm --filter web build`, then
   `cd apps/e2e && pnpm exec playwright test --config ux/slice81-alternatives.config.ts`. Step 2 adds captures here.
+  The probe asserts its findings, so a Chromium that changes them fails the probe and step 6's mechanism is re-checked.
 - *Probe (Chromium 151.0.7922.34; `ux-output/slice81-alternatives/popover-probe.json`):* `showPopover({ source })`
   sets the implicit anchor, but the initial `position-anchor` is **`normal`**, under which `.lift--popover`'s
   `anchor()` ignores it and the lift falls to the viewport corner (this is Slice 73's invoker trap too); with
@@ -1185,6 +1186,14 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
     inside a project, marks the current root `aria-current="location"` (going up does not navigate, so the page is
     not in view); option C shows the root's tab row on workstreams too (none current), so root scope reads the same
     there; the specimen does not re-read pages on live frames.
+  - *Review (one cold reviewer over `3d2e64d`; 1 substantive, 4 minor, all checked against the code and holding):*
+    substantive: a project read still in flight could land after the person moved to a destination, leaving two
+    current items; fixed (the load token moves on leaving), with a spec case watched failing first. Minor, fixed:
+    the old context is kept only for a move inside the same root (any other shows loading); a stale remembered press
+    could swallow the next activation (cleared on every activation; C's tab-row button carries its id); Q16 (b)
+    reads fire only in option A, the one that draws them; collapsing a row by its chevron while focus is below it
+    hands focus to the row. The probe now asserts its findings (initial `normal`, the corner fallback, no source
+    exemption, the command invoker's exemption and anchoring) rather than only recording them.
 
 ## Outcome
 

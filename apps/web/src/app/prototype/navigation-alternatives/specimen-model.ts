@@ -90,6 +90,7 @@ export class SpecimenModel {
   /** Optional so the route map's spec, which renders the page without `AppShell`, still resolves it. */
   readonly shell = inject(ShellStore, { optional: true });
 
+  readonly option = signal<'a' | 'b' | 'c'>('a');
   readonly at = signal('/app');
   readonly home = signal<HomeNaming>('d');
   readonly rootPagesMode = signal<RootPagesMode>('b');
@@ -124,12 +125,17 @@ export class SpecimenModel {
       const place = this.place();
       untracked(() => {
         if (place.kind === 'project') void this.loadContext(place.projectId);
-        else this.contextState.set({ state: 'none' });
+        else {
+          // A project read still in flight must not land after the person left the project.
+          this.loadToken++;
+          this.contextState.set({ state: 'none' });
+        }
       });
     });
     // Q16 (b): an opened root that is not current reads its pages once, on first expand.
     effect(() => {
-      if (this.rootPagesMode() !== 'b') return;
+      // Only option A draws a non-current root's pages; B and C never would show what is read.
+      if (this.rootPagesMode() !== 'b' || this.option() !== 'a') return;
       const expanded = this.expandedState();
       const current = this.context()?.root.id;
       const roots = this.roots();
@@ -329,7 +335,10 @@ export class SpecimenModel {
     const token = ++this.loadToken;
     const previous = this.context();
     // A move inside the same root keeps the old context until the new one answers: no empty frame.
-    if (previous === null) this.contextState.set({ state: 'loading', projectId });
+    // A move to another root, or to anything not in the old root's live tree, shows loading.
+    const previousTree = this.roots().find((node) => node.project.id === previous?.root.id);
+    const sameRoot = previous !== null && (previous.root.id === projectId || [previous.project, ...previous.ancestors].some((p) => p.id === projectId) || (previousTree !== undefined && containsProject(previousTree, projectId)));
+    if (!sameRoot) this.contextState.set({ state: 'loading', projectId });
     try {
       const project = await this.gateway.projects.get(projectId);
       const ancestors: Project[] = [];
@@ -346,6 +355,9 @@ export class SpecimenModel {
     }
   }
 }
+
+const containsProject = (node: ProjectTreeNode, id: ProjectId): boolean =>
+  node.project.id === id || node.children.some((child) => containsProject(child, id));
 
 /** Q15 (a): the open workstream, else its nearest eligible ancestor (live, under no archived one). */
 const nearestEligible = (context: ProjectContext): Project => {
