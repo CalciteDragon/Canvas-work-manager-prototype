@@ -22,7 +22,9 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Trap:* Playwright's headless shell was missing; `pnpm exec playwright install chromium` fixed it.
 - *Rerun recipe:* `cd apps/e2e && UX_BEFORE=<sha> pnpm exec playwright test --config ux/slice81.config.ts
   navigation-tree-verification.ts` (tasks), and `capture.ts` with `UX_MATCH` halves (merge into `index.json`).
-**Next in step 0:** re-check each in-scope finding against the baseline.
+- *Finding re-check:* all in-scope ids reproduce; L2-012, L2-016, L1-006 and `note-2026-10-15-004` only in
+  part (Findings closed, "Step 0's re-check"). None is "closed earlier".
+**Next in step 0:** one review pass over step 0's diff, then step 1 (alternatives: specimens).
 
 ## Goal
 
@@ -354,6 +356,21 @@ the comb). W1-026, W3-012, W2-009 and W4-008 closed in Slices 74–75.
 
 Step 0 re-checks every in-scope finding against the baseline. One that no longer reproduces is listed as
 "closed earlier" with its evidence, not claimed.
+
+**Step 0's re-check (2026-11-10, against the `1a0fb0d` capture and source):** every id in the table still
+reproduces, so none is "closed earlier". Four reproduce only in part, and the slice claims only the part that
+remains:
+- **L2-012:** the light theme's current item now has a visible fill, matching dark (`nested-projects-dashboard`
+  light and dark 1440). What remains is the marker's absence on project pages and Settings sub-pages
+  (`sidebar.html:113-115`'s `exact: true`), which L7-002 and L7-010 also carry.
+- **L2-016:** `--font-weight-medium` now exists (`_tokens.scss:102`). The two columns' group headings still
+  differ in weight and colour.
+- **L1-006:** the 142 px gap between a section's title and body has gone. Three left edges remain at 1440
+  (header text about 559, section title 529, body 505).
+- **`note-2026-10-15-004`:** the Archive origin path no longer links "Home"; its "Work canvas" link still grows
+  to 44 px on touch inside the sentence.
+W1-055 was checked at 1024 on the root, not on Kitchen; the cause (the column's width) is the same, and J11
+checks the root's first page.
 
 ## Acceptance check
 
@@ -1112,6 +1129,11 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   - *Second round (one cold reviewer; 1 substantive, 2 minor):* the Test plan row still said `replaceUrl`,
     contradicting the push; fixed. The e2e row now names `:103-105` too, and R3's bullet lists the same
     not-committed cases as Q13's Answer. The reviewer found no remaining shape-changing gap.
+
+- **Step 0 (2026-11-10):** the rig, baseline, "before" capture, core-task counts and the Q12 (a) measurements
+  are in the State header. Findings closed gains "Step 0's re-check": four ids reproduce only in part, and the
+  slice claims only the remaining part. The plan's line citations into `capture.ts` and `tasks.ts` refer to
+  `1a0fb0d`; the State header gives today's lines.
 
 ## Outcome
 
