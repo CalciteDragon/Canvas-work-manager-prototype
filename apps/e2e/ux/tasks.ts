@@ -17,6 +17,16 @@ export class TaskCounter {
   summary() { const passed = this.steps.filter(s => s.status === 'passed'); return { clicks: passed.reduce((n,s)=>n+s.clicks,0), keystrokes: passed.reduce((n,s)=>n+s.keystrokes,0), surfaces: [...new Set(passed.map(s=>s.surface))], deadEnds: this.steps.filter(s=>s.status==='blocked').length }; }
 }
 const legacyBefore = Boolean(process.env['UX_BEFORE']) && !process.env['UX_OBJECTS'];
+/**
+ * Slice 81's before/after names for the navigation controls the tasks and states use. Keyed on
+ * `UX_BEFORE` directly: `legacyBefore` is always false under `UX_OBJECTS=1`. The "after" names
+ * are the plan's (Acceptance J5, J6); step 3 makes them exact at the pick.
+ */
+export const navLocators = (before: boolean) => ({
+  pageSettings: before ? 'Project page settings for Home renovation' : 'Pages of Home renovation…',
+  addWorkstream: 'Add workstream',
+});
+const nav81 = navLocators(Boolean(process.env['UX_BEFORE']));
 export const TASKS = [
   { id:'T01', title:'Create a root project', seed:'empty', route:'/app', spec:'§23, §26' },
   { id:'T02', title:'Create a workstream under Kitchen', seed:'nested-projects', route:'/projects/project-kitchen', spec:'§26' },
@@ -71,9 +81,11 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await click(fromMain ? main.first() : page.locator('app-sidebar').getByRole('button',{name:'New project',exact:true}),'New project',fromMain ? 'Home' : 'Sidebar'); await type(page.getByRole('textbox',{name:'Project name'}),'Baseline project','Create project');
       await click(button('Create'),'Create','Create project'); await expect(page.getByRole('heading',{name:'Baseline project',exact:true})).toBeVisible(); break; }
     case 'T02':
-      await nav(); await click(button('Add workstream'),'Add workstream','Project navigation');
+      await nav(); await click(button(nav81.addWorkstream),'Add workstream','Project navigation');
       await type(page.getByRole('dialog').getByRole('textbox',{name:'Name',exact:true}),'Baseline workstream','Workstream dialog');
-      await c.step('Choose Kitchen as parent','Workstream dialog',{clicks:1},()=>page.getByRole('combobox',{name:'Parent',exact:true}).selectOption('project-kitchen'));
+      // Slice 81: choosing a parent the dialog already shows costs nothing (Acceptance item 6).
+      if (await page.getByRole('combobox',{name:'Parent',exact:true}).inputValue() !== 'project-kitchen')
+        await c.step('Choose Kitchen as parent','Workstream dialog',{clicks:1},()=>page.getByRole('combobox',{name:'Parent',exact:true}).selectOption('project-kitchen'));
       await expect(page.getByRole('combobox',{name:'Parent',exact:true})).toHaveValue('project-kitchen');
       await click(page.getByRole('dialog').getByRole('button',{name:'Create',exact:true}),'Create','Workstream dialog'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
     case 'T03': {
@@ -114,7 +126,7 @@ async function execute(page: Page, id: string, c: TaskCounter) {
       await click(button(legacyBefore ? 'Insert at the end' : 'Add a section'),'Insert at end','Work canvas'); await click(button('Add shortcut'),'Add shortcut','Section dialog');
       await click(page.locator('[data-shortcut-add]:not([disabled])').first(),'Add source shortcut','Shortcut picker'); await expect(page.getByRole('dialog')).toHaveCount(0); break;
     case 'T08':
-      await nav(); await click(button('Project page settings for Home renovation'),'Page settings','Project navigation');
+      await nav(); await click(button(nav81.pageSettings),'Page settings','Project navigation');
       await click(page.getByRole('checkbox',{name:'Show Reflections page'}),'Hide Reflections','Page settings');
       await expect(page.getByRole('checkbox',{name:'Show Reflections page'})).not.toBeChecked();
       await expect(page.getByRole('checkbox',{name:'Show Reflections page'})).not.toHaveAttribute('aria-disabled', 'true');

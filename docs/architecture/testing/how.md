@@ -8,6 +8,13 @@ a current read, so a race is verified against the canonical write refusal too.
 
 ## Runtime flow
 
+Slice 81 uses `ux/slice81.config.ts` on the same ports (web 4257, host 4357; never with another rig),
+`.prototype/ux-slice81.json` and the `1a0fb0d` baseline in `apps/e2e/ux-output/slice81-baseline-web/browser`,
+built in a temporary worktree. Its `testMatch` is `capture.ts` and `ux/navigation-tree-verification.ts`, which
+runs the core tasks under `UX_OBJECTS=1`. The navigation controls the tasks and states name come from
+`navLocators` in `ux/tasks.ts`, keyed on `UX_BEFORE` itself, since `legacyBefore` is always false under
+`UX_OBJECTS=1`; T02 skips choosing Kitchen as parent when the dialog already shows it.
+
 Slice 80 uses `ux/slice80.config.ts` on Slice 79's ports (web 4257, host 4357; the two rigs never run
 together), `.prototype/ux-slice80.json` and the `bfff1c6` baseline in
 `apps/e2e/ux-output/slice80-baseline-web/browser`. `ux/cascading-archive-verification.ts` holds its

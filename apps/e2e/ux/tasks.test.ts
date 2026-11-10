@@ -19,3 +19,9 @@ test('failed action records attempted cost, preserves completed counts and rethr
   assert.deepEqual(counter.summary(), { clicks: 1, keystrokes: 0, surfaces: ['Home'], deadEnds: 1 });
   assert.deepEqual(counter.steps[1], { action: 'Missing', surface: 'Dialog', clicks: 1, keystrokes: 0, status: 'blocked', error: 'Absent' });
 });
+
+test('Slice 81 locators key on UX_BEFORE directly, not on legacyBefore', async () => {
+  const { navLocators } = await import('./tasks');
+  assert.deepEqual(navLocators(true), { pageSettings: 'Project page settings for Home renovation', addWorkstream: 'Add workstream' });
+  assert.deepEqual(navLocators(false), { pageSettings: 'Pages of Home renovation…', addWorkstream: 'Add workstream' });
+});

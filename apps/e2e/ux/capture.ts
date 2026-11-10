@@ -1,5 +1,5 @@
 import { inventoryCoverage, validateMatrix } from './coverage';
-import { runCoreTasks } from './tasks';
+import { navLocators, runCoreTasks } from './tasks';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { execFileSync } from 'node:child_process';
@@ -16,6 +16,7 @@ import { axeNodeIdentity, collectControls, collectPlaneBoxes } from './layout.mj
 const commit = process.env['UX_BEFORE'] || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 /** Only Slice 73's baseline predates the native details and confirmation lifts; it opened the inline More panel instead. */
 const legacyBefore = Boolean(process.env['UX_BEFORE']) && !process.env['UX_OBJECTS'];
+const nav81 = navLocators(Boolean(process.env['UX_BEFORE']));
 const inlineMoreBaseline = process.env['UX_BEFORE'] === 'e56c7d7ca9f442b3d3dd6fd954e25ccee6d3ad78';
 const out = resolve('ux-output', commit);
 const escape = (s: string) => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
@@ -31,8 +32,8 @@ async function state(page: Page, cell: CaptureCell) {
       await button('More project actions').click();
       if (!inlineMoreBaseline) await page.getByRole('menuitem', { name: cell.state === 'project-details' ? 'Edit details…' : /^Archive (project|workstream)…$/, exact: true }).click();
       break;
-    case 'page-settings': await button('Project page settings for Home renovation').click(); break;
-    case 'work-create': await button('Add workstream').click(); break;
+    case 'page-settings': await button(nav81.pageSettings).click(); break;
+    case 'work-create': await button(nav81.addWorkstream).click(); break;
     case 'section-create': case 'shortcut-picker':
       await button(legacyBefore ? 'Insert at the end' : 'Add a section').click();
       if (cell.state === 'shortcut-picker') await button('Add shortcut').click();
@@ -45,7 +46,8 @@ async function state(page: Page, cell: CaptureCell) {
       await title.click();
       break;
     }
-    case 'collapsed': await button(/^Collapse /).first().click(); break;
+    // Scoped to main (Slice 81): the tree's disclosures must never be a section's collapse.
+    case 'collapsed': await page.locator('main').getByRole('button', { name: /^Collapse / }).first().click(); break;
     case 'remove-feedback': await button(/^Remove section /).first().click(); break;
     case 'refused':
       await page.route('**/api/projects/*/sections', route => route.request().method() === 'POST'
