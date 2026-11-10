@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-10):** **step 1 (alternatives: specimens) done; step 2 (captures and sheet) is next.** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-10):** **step 2 (alternatives: captures and sheet) done; waiting for the user's pick (Q4–Q11, Q14, Q16), then step 3.** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -59,7 +59,23 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Traps:* the alternatives rig serves the last build, so rebuild after any web change; `cdkTrapFocusAutoCapture`
   grabs focus at init even while the trap is off (not used); `(pointerdown.capture)` is not an Angular event
   modifier (a native capture listener is used).
-**Next is step 2** (captures, sheet, summary, recommendation; ends with `CHAIN: STOP`).
+**Step 1 is complete.** Done in step 2 (commits in the Revisions entry):
+- *Sheet:* `apps/e2e/ux-output/slice81-alternatives/index.html` (git-ignored): **68 comparison rows × 3 options**
+  (11 contexts × light/dark × 1440, 375 Menu closed, 375 Menu open; `renovation-root` also at 1024), 204 option
+  captures plus four panels (Q4, Q5, Q16, forced colours), 224 images. Measurements in the sheet and in
+  `slice81-alternatives/measurements.json`; identical over two runs.
+- *Rig:* `ux/navigation-alternatives.ts` gains `captures`, `measurements` and `sheet index` tests (the whole file,
+  5 tests, 1.7 min); `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs` writes the sheet and fails on
+  a row missing an option (`node --test …/build-navigation-alternatives.test.mjs`, 3 cases). Run: `pnpm --filter
+  web build`; `cd apps/e2e && pnpm exec playwright test --config ux/slice81-alternatives.config.ts`; then the builder.
+- *Summary:* [`slice81-navigation.md`](../70-ui-ux/alternatives/slice81-navigation.md) recommends **A with Q4 (a)**.
+  Each of Q4–Q11, Q14 and Q16 has an "After the specimens" line below; every recommendation stands, Q5 adds "or
+  (a) if C", and Q10 adds placing history and More on the name row at 375 (the folded header still ends at 34 %).
+- *Bundle:* no web code changed; initial **1,139.85 kB** (step 1's figure, rebuilt).
+- *Traps:* archiving a root through the host API needs `archiveWorkstreamIds` for its live workstreams (409
+  otherwise); a "Loading" row can appear after the first settled check, so every capture re-asserts it is gone;
+  `--grep measurements` also matches a test whose title says "measurement", hence the "sheet index" title.
+**Next: the user picks an alternative and answers Q4–Q11, Q14 and Q16; then step 3** (firm up the plan).
 
 ## Goal
 
@@ -847,6 +863,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a): J9 (a). (b): about 1–2 kB more, which puts R4's upper estimate at about 1,149 kB, so Q12's
   payment would very likely be needed; and a harder rewrite of every keyboard journey.
 
+- *After the specimens (step 2).* Measured from Cabinets: the treeview cuts keys (A 4/7/7 against 15/9/18 to Garden / Todos / Website launch) and Tab presses to the first content without the skip link (6 against 24), but with the skip link both models take 6. In the treeview the "Projects" group label becomes a 28 px `treeitem` at 375. Recommendation unchanged: (a).
+
 **5. Does "Home" keep its name?**
 - *Context.* The workspace dashboard and each root's first page are both "Home" (L7-003, W4-005, L6-006). In one
   tree they would be one row apart, and the seed root is "Home renovation". The page label is hard-coded in at
@@ -862,6 +880,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a) or (d): the sites above, their specs, and e2e locators that say "Home" on project pages. (b):
   the sidebar, the dashboard `h1` and their locators. (c): three findings stay open.
 
+- *After the specimens (step 2).* The sheet's Q5 panel shows (a)–(d) in option A. (d) works in A and B; in C the first page is a tab and needs a name (the specimen shows "Home"), so under C the choice is (a) or (b). Recommendation: (d), or (a) if C is picked.
+
 **6. Document titles, and the page heading on root pages.**
 - *Context.* Every route is "Canvas Work Manager" (L7-019). Every root page's `h1` is the project name, so a
   page is named only by its highlighted tab, and Todos adds "What is coming up" (L7-018). §26 says the header
@@ -876,6 +896,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (i) changes the `h1` on three pages, which several journeys locate by name, and §26's header rule.
   (ii) keeps §26 but leaves L7-018 half open (the page is named, but not by the `h1`).
 
+- *After the specimens (step 2).* The specimens show (i): on Todos the `h1` is "Todos" under the breadcrumb "Home renovation › Todos"; on Cabinets it is "Cabinets". Recommendation unchanged: (a) and (i).
+
 **7. Where page settings live.**
 - *Options.* (a) The labelled control in the tree **and** "Pages…" in More. (b) Only in More **(amends)**. (c)
   Only in the tree.
@@ -883,17 +905,23 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   one item each.
 - *Impact.* (b) hides the setting from the tree it changes; (c) misses the place two auditors looked.
 
+- *After the specimens (step 2).* In A the tree's "Pages of Home renovation…" wraps to two lines at the 240 px sidebar (B's unindented row ellipsizes; C's is a button in the tab row). Recommendation unchanged: (a).
+
 **8. Where Add workstream starts.**
 - *Options.* (a) A labelled "Add workstream" row at the end of the current root's workstreams in the tree.
   (b) Only in More **(amends)**. (c) Both.
 - *Recommendation.* (a). It is where the result appears, and the dialog states the Parent.
 - *Impact.* (c) is one more menu item.
 
+- *After the specimens (step 2).* Under forced colours the action rows ("New project", "Pages of …", "Add workstream") lose their link colour and read as plain text, so they need a shape cue whatever the answer. Recommendation unchanged: (a).
+
 **9. The phone pattern.**
 - *Options.* (a) The tree in the existing Menu drawer; the column toggle goes; the breadcrumb shows the current
   place. (b) As (a), plus the current place's name beside Menu in the top bar. (c) A bottom sheet.
 - *Recommendation.* (a). It keeps the phone decision's tested focus rules, and the breadcrumb answers L7-005.
 - *Impact.* (b): a top-bar change and its spec. (c): a new lift and new focus rules.
+
+- *After the specimens (step 2).* The open drawer shows the whole deepest path (3/3) in every option, and the breadcrumb names the place when it is closed. Recommendation unchanged: (a).
 
 **10. The project header at 375.**
 - *Context.* It takes about 40 % of the first screen (L1-014): icon, name, description, Status, Progress, Target
@@ -903,6 +931,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Recommendation.* (a). Nothing is lost, and the content starts in the top quarter.
 - *Impact.* (a): one disclosure and its spec; the header-history decision gets an amendment. (b): the
   description is unreachable on phones. (c): L1-014 stays open.
+
+- *After the specimens (step 2).* With (a)'s fold the header still ends at 274 px of 812 (34 %) in A and B and at 378 px (47 %) in C, whose tab row sits in the header; the top quarter is 203 px. The stand-in puts Details, and the history and More buttons, on rows of their own. Recommendation: (a), and step 3 also places history and More on the name row below 48rem (a small layout call), or accept about a third of the screen.
 
 **11. Archived work in the tree.**
 - *Context.* `ShellStore` reads archived projects but the sidebar filters them out (`shell-store.ts:66`; Slice
@@ -922,6 +952,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a): the tree renders rows from the context as well as from `ShellStore` (J8; the `legacy-shelving`
   and `kitchen-archived` pairs). (b): reverses Slice 79's rule, lengthens the tree on agent-heavy, and advances
   L7-009. (c): the current item is not in the tree. (d): L7-008 stays open.
+
+- *After the specimens (step 2).* `legacy-shelving` and `legacy-archived` show (a): the real path, with Legacy attic as a muted row marked "Archived" (two lines at 240 px). Recommendation unchanged: (a).
 
 **12. What pays for the bundle?**
 - *Context.* 10.7 kB of headroom. R4's estimate is +3.5 to +8 kB with Q4 (a); with Q4 (b) and Q16 (b) together
@@ -1003,6 +1035,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a): the breadcrumb row costs 44 px at 375, inside Q10's quarter-screen budget; one census exception.
   (b): two exceptions and small phone targets. (c): the origin sentence breaks again.
 
+- *After the specimens (step 2).* No touch target under 44 px at 375 in any option's header or bar with (a)'s breadcrumb (the Archive origin sentence is not in the specimens). Recommendation unchanged: (a).
+
 **15. Which Parent does Add workstream default to when the open workstream cannot be one?**
 - *Context.* The decided default is the open workstream. The [gear decision](../../decisions/2026-09-project-navigation-gear-and-work-create.md)
   excludes archived projects and anything under archived ancestry as parents. On Legacy shelving (live, under
@@ -1032,6 +1066,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   until a root is opened); page records for opened roots live in core, which is the §20 concern R2 avoids for
   `ShellStore`, so the column decision gets an amendment saying why an on-demand cache is different; one file
   (`core/shell/root-pages.ts` and its spec) and two tree states to test. (c): breaks §23's rule.
+
+- *After the specimens (step 2).* The sheet's Q16 panel (Cabinets with a second root, Website launch, Todos and Archive enabled): (b) lists Todos and Archive after the read; (c) also lists Reflections, which is not enabled (§23); (a) gives a root with no workstreams no disclosure at all. Recommendation unchanged: (b).
 
 ## Revisions
 
@@ -1194,6 +1230,13 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
     reads fire only in option A, the one that draws them; collapsing a row by its chevron while focus is below it
     hands focus to the row. The probe now asserts its findings (initial `normal`, the corner fallback, no source
     exemption, the command invoker's exemption and anchoring) rather than only recording them.
+- **Step 2 (2026-11-10):** the captures, measurements, comparison sheet and summary; State header.
+  - *Changed content:* an "After the specimens (step 2)" line under each of Q4–Q11, Q14 and Q16 (measurements and
+    what the captures show; no answer is taken). Q5 notes that C needs (a) or (b); Q10 notes the folded header
+    still ends at 34 % of the phone screen and proposes placing history and More on the name row.
+  - *Measurement calls (defaults, AGENTS.md §4):* Website launch's first page is measured against a second root the
+    rig creates in nested-projects (no seed has both); keys start with focus on the document; taps count Menu; the
+    forced-colours check compares the current row's computed styles with Kitchen's, and the captures show the result.
 
 ## Outcome
 
