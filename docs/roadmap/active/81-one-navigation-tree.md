@@ -1,13 +1,28 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-09):** **plan accepted by the user on 2026-11-09, with answers to Q1 (a), Q2 (a), Q3 (a),
-Q12 (a), Q13 (b) and Q15 (a) (see Open questions and the Revisions entry "Acceptance"). No implementation yet.
-Next is step 0** (rig and "before"). Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Review: six
-cold rounds (`ba4a454`, `fcd2e5f`, `fde1bff`, `ca2ea97`, `605972a`, `af3f373`), then two rounds on the
-acceptance amendment (Q13 (b)'s push landing is a stated default the user may change at the pick). The only code change is `CURRENT_SLICE = 81` (`14ea6ec`). Initial bundle at the plan's
-start: 1,139.28 kB, against the unchanged 1,150 kB ceiling; Q12 (a) pre-approves lazy `/settings`, then lazy
-`/search`, if a step's build would end above 1,148 kB.
+**State (2026-11-10):** **step 0 (rig and "before") in progress.** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
+plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
+- *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
+  `prototype/seeds/empty.json`); `ux/navigation-tree-verification.ts` with only the core-task test; `navLocators`
+  in `ux/tasks.ts` (gear and Add workstream keyed on `UX_BEFORE`; "after" names per J5/J6, made exact at step 3),
+  used by `capture.ts`; T02 skips "Choose Kitchen as parent" when Parent already shows it; `kitchen-collapsed`
+  scoped to `main`. Line citations elsewhere in this plan (`capture.ts:34`, `:48`, `:169`, `tasks.ts:117`) refer
+  to `1a0fb0d`; they are now `capture.ts:35`, `:50`, `:171` and `tasks.ts:129`.
+- *Baseline:* built in a temporary worktree at `1a0fb0d` (the accepted plan's commit), copied to
+  `apps/e2e/ux-output/slice81-baseline-web/` (git-ignored), worktree removed. Initial total **1,139.37 kB**.
+- *"Before" capture:* `UX_BEFORE=1a0fb0d98fb9c324e9db96dee2ab80f4778e24eb` into
+  `apps/e2e/ux-output/1a0fb0d98fb9c324e9db96dee2ab80f4778e24eb/`: 194/194 matrix cells captured (two halves,
+  `UX_MATCH='^[a-m]'` 5.7 min and `'^[n-z]'` 7.4 min). Core-task counts (clicks/keystrokes): T01 2/16, T02 3/19,
+  T03 10/38, T04 1/0, T05 2/0, T06 2/16, T07 3/0, T08 3/0, T09 1/0, T11 1/0, T12 1/0; T10 blocked as in every
+  earlier baseline (no Connect agent control; slice 8). These equal Slice 79's recorded counts.
+- *Q12 (a) fallbacks measured* (temporary `app.routes.ts` change, reverted): lazy `/settings` **1,137.10 kB**
+  (−2.27 kB; chunk 2.62 kB); lazy `/settings` and `/search` **1,136.00 kB** (−3.37 kB in all).
+- *Trap:* Playwright's headless shell was missing; `pnpm exec playwright install chromium` fixed it.
+- *Rerun recipe:* `cd apps/e2e && UX_BEFORE=<sha> pnpm exec playwright test --config ux/slice81.config.ts
+  navigation-tree-verification.ts` (tasks), and `capture.ts` with `UX_MATCH` halves (merge into `index.json`).
+**Next in step 0:** re-check each in-scope finding against the baseline.
 
 ## Goal
 
