@@ -14,8 +14,10 @@ const out = resolve('ux-output', commit);
 
 test('navigation tree core tasks', async ({ browser }) => {
   await runCoreTasks(browser, resolve(out, 'tasks'));
-  const tasks: { id: string; status: string; clicks: number; deadEnds: number }[] = JSON.parse(await readFile(resolve(out, 'tasks/tasks.json'), 'utf8'));
+  const tasks: { id: string; status: string; clicks: number; deadEnds: number; steps: { action: string; status: string }[] }[] = JSON.parse(await readFile(resolve(out, 'tasks/tasks.json'), 'utf8'));
   await writeFile(resolve(out, 'navigation-tree-verification.json'), JSON.stringify({ commit, before: Boolean(process.env['UX_BEFORE']), tasks }, null, 2));
-  // T10 records its known dead end (no Connect agent control); every other task completes.
-  expect(tasks.filter(t => t.id !== 'T10' && t.status !== 'completed').map(t => t.id), 'core tasks complete').toEqual([]);
+  // T10's known dead end (no Connect agent control, slice 8) is the only one allowed, and only at that step.
+  // Comparing clicks with step 0's counts is Acceptance item 6, read from the two builds' JSON at step 13.
+  const knownDeadEnd = (t: (typeof tasks)[number]) => t.id === 'T10' && t.steps.filter(s => s.status === 'blocked').map(s => s.action).join() === 'Find Connect agent control';
+  expect(tasks.filter(t => t.status !== 'completed' && !knownDeadEnd(t)).map(t => t.id), 'core tasks complete').toEqual([]);
 });

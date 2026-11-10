@@ -24,7 +24,11 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   navigation-tree-verification.ts` (tasks), and `capture.ts` with `UX_MATCH` halves (merge into `index.json`).
 - *Finding re-check:* all in-scope ids reproduce; L2-012, L2-016, L1-006 and `note-2026-10-15-004` only in
   part (Findings closed, "Step 0's re-check"). None is "closed earlier".
-**Next in step 0:** one review pass over step 0's diff, then step 1 (alternatives: specimens).
+- *Review* (one cold reviewer over `1a0fb0d..faa6ae9`): no substantive findings. Minor, fixed: the core-task test
+  allows T10's dead end only at "Find Connect agent control"; `testing/how.md` says an "after" run fails until the
+  tree's "Pages of Home renovation…" exists (T08 and `kitchen-page-settings`). Noted: Acceptance item 6's "no dead
+  end" is read against the baseline, where T10 is already a dead end (slice 8's); the click comparison is step 13's.
+**Step 0 is complete. Next is step 1** (alternatives: specimens). Bundle unchanged at 1,139.37 kB (no web code).
 
 ## Goal
 

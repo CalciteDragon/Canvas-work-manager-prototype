@@ -13,7 +13,8 @@ Slice 81 uses `ux/slice81.config.ts` on the same ports (web 4257, host 4357; nev
 built in a temporary worktree. Its `testMatch` is `capture.ts` and `ux/navigation-tree-verification.ts`, which
 runs the core tasks under `UX_OBJECTS=1`. The navigation controls the tasks and states name come from
 `navLocators` in `ux/tasks.ts`, keyed on `UX_BEFORE` itself, since `legacyBefore` is always false under
-`UX_OBJECTS=1`; T02 skips choosing Kitchen as parent when the dialog already shows it.
+`UX_OBJECTS=1`; T02 skips choosing Kitchen as parent when the dialog already shows it. The "after" gear name
+("Pages of Home renovation…") exists only once the tree has it, so until then only the `UX_BEFORE` run passes.
 
 Slice 80 uses `ux/slice80.config.ts` on Slice 79's ports (web 4257, host 4357; the two rigs never run
 together), `.prototype/ux-slice80.json` and the `bfff1c6` baseline in
