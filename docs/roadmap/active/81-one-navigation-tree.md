@@ -59,14 +59,16 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Traps:* the alternatives rig serves the last build, so rebuild after any web change; `cdkTrapFocusAutoCapture`
   grabs focus at init even while the trap is off (not used); `(pointerdown.capture)` is not an Angular event
   modifier (a native capture listener is used).
-**Step 1 is complete.** Done in step 2 (commits in the Revisions entry):
+**Step 1 is complete.** Done in step 2 (`b0626b7` rig, sheet and summary; the review fixes after it, in the Revisions entry):
 - *Sheet:* `apps/e2e/ux-output/slice81-alternatives/index.html` (git-ignored): **68 comparison rows × 3 options**
   (11 contexts × light/dark × 1440, 375 Menu closed, 375 Menu open; `renovation-root` also at 1024), 204 option
   captures plus four panels (Q4, Q5, Q16, forced colours), 224 images. Measurements in the sheet and in
-  `slice81-alternatives/measurements.json`; identical over two runs.
+  `slice81-alternatives/measurements.json`; identical over three runs. Each context capture also carries its own
+  axe scan and (at 375) small targets: none under 44 px; `color-contrast` only on the muted archived rows in B and C.
 - *Rig:* `ux/navigation-alternatives.ts` gains `captures`, `measurements` and `sheet index` tests (the whole file,
-  5 tests, 1.7 min); `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs` writes the sheet and fails on
-  a row missing an option (`node --test …/build-navigation-alternatives.test.mjs`, 3 cases). Run: `pnpm --filter
+  5 tests, 3.2 min); `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs` writes the sheet and fails on
+  a row missing an option, a context missing a view, or missing measurements (`node --test
+  …/build-navigation-alternatives.test.mjs`, 5 cases). Run: `pnpm --filter
   web build`; `cd apps/e2e && pnpm exec playwright test --config ux/slice81-alternatives.config.ts`; then the builder.
 - *Summary:* [`slice81-navigation.md`](../70-ui-ux/alternatives/slice81-navigation.md) recommends **A with Q4 (a)**.
   Each of Q4–Q11, Q14 and Q16 has an "After the specimens" line below; every recommendation stands, Q5 adds "or
@@ -863,7 +865,7 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a): J9 (a). (b): about 1–2 kB more, which puts R4's upper estimate at about 1,149 kB, so Q12's
   payment would very likely be needed; and a harder rewrite of every keyboard journey.
 
-- *After the specimens (step 2).* Measured from Cabinets: the treeview cuts keys (A 4/7/7 against 15/9/18 to Garden / Todos / Website launch) and Tab presses to the first content without the skip link (6 against 24), but with the skip link both models take 6. In the treeview the "Projects" group label becomes a 28 px `treeitem` at 375. Recommendation unchanged: (a).
+- *After the specimens (step 2).* Measured from Cabinets: the treeview cuts keys (A 4/7/7 against 15/9/18 to Garden / Todos / Website launch) and Tab presses to the first content without the skip link (6 against 24), but with the skip link both models take 6. B's treeview count to another root (15) includes a Tab back into the tree because the specimen drops focus after "‹ All projects". In the treeview the "Projects" group label becomes a 28 px `treeitem` at 375. Recommendation unchanged: (a).
 
 **5. Does "Home" keep its name?**
 - *Context.* The workspace dashboard and each root's first page are both "Home" (L7-003, W4-005, L6-006). In one
@@ -880,7 +882,7 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a) or (d): the sites above, their specs, and e2e locators that say "Home" on project pages. (b):
   the sidebar, the dashboard `h1` and their locators. (c): three findings stay open.
 
-- *After the specimens (step 2).* The sheet's Q5 panel shows (a)–(d) in option A. (d) works in A and B; in C the first page is a tab and needs a name (the specimen shows "Home"), so under C the choice is (a) or (b). Recommendation: (d), or (a) if C is picked.
+- *After the specimens (step 2).* The sheet's Q5 panel shows (a)–(d) in option A only. B's root row is the same link, so (d) should read the same there; in C the first page is a tab and needs a name (the specimen shows "Home"), so under C the choice is (a) or (b). Recommendation: (d), or (a) if C is picked.
 
 **6. Document titles, and the page heading on root pages.**
 - *Context.* Every route is "Canvas Work Manager" (L7-019). Every root page's `h1` is the project name, so a
@@ -932,7 +934,7 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a): one disclosure and its spec; the header-history decision gets an amendment. (b): the
   description is unreachable on phones. (c): L1-014 stays open.
 
-- *After the specimens (step 2).* With (a)'s fold the header still ends at 274 px of 812 (34 %) in A and B and at 378 px (47 %) in C, whose tab row sits in the header; the top quarter is 203 px. The stand-in puts Details, and the history and More buttons, on rows of their own. Recommendation: (a), and step 3 also places history and More on the name row below 48rem (a small layout call), or accept about a third of the screen.
+- *After the specimens (step 2).* With (a)'s fold the header still ends at 274 px of 812 (34 %) in A and B and at 378 px (47 %) in C, whose tab row sits in the header; the top quarter is 203 px. The stand-in puts Details, and the history and More buttons, on rows of their own. Recommendation: (a), and that step 3 place history and More on the name row below 48rem (a small layout call); the alternative is to accept about a third of the screen.
 
 **11. Archived work in the tree.**
 - *Context.* `ShellStore` reads archived projects but the sidebar filters them out (`shell-store.ts:66`; Slice
@@ -953,7 +955,7 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   and `kitchen-archived` pairs). (b): reverses Slice 79's rule, lengthens the tree on agent-heavy, and advances
   L7-009. (c): the current item is not in the tree. (d): L7-008 stays open.
 
-- *After the specimens (step 2).* `legacy-shelving` and `legacy-archived` show (a): the real path, with Legacy attic as a muted row marked "Archived" (two lines at 240 px). Recommendation unchanged: (a).
+- *After the specimens (step 2).* `legacy-shelving` and `legacy-archived` show (a): the real path, with Legacy attic as a muted row marked "Archived" (two lines at 240 px when it carries a disclosure, as in `legacy-shelving`). The muted row fails axe `color-contrast` in the open 375 drawer in B (2 nodes) and C (4), not in A, so it needs a contrast-safe colour rather than reduced opacity. Recommendation unchanged: (a).
 
 **12. What pays for the bundle?**
 - *Context.* 10.7 kB of headroom. R4's estimate is +3.5 to +8 kB with Q4 (a); with Q4 (b) and Q16 (b) together
@@ -1035,7 +1037,7 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a): the breadcrumb row costs 44 px at 375, inside Q10's quarter-screen budget; one census exception.
   (b): two exceptions and small phone targets. (c): the origin sentence breaks again.
 
-- *After the specimens (step 2).* No touch target under 44 px at 375 in any option's header or bar with (a)'s breadcrumb (the Archive origin sentence is not in the specimens). Recommendation unchanged: (a).
+- *After the specimens (step 2).* No control under 44 px at 375 in any context's bar, header or open drawer, in any option, with (a)'s breadcrumb (links model; the Archive origin sentence is not in the specimens). Recommendation unchanged: (a).
 
 **15. Which Parent does Add workstream default to when the open workstream cannot be one?**
 - *Context.* The decided default is the open workstream. The [gear decision](../../decisions/2026-09-project-navigation-gear-and-work-create.md)
@@ -1237,6 +1239,14 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   - *Measurement calls (defaults, AGENTS.md §4):* Website launch's first page is measured against a second root the
     rig creates in nested-projects (no seed has both); keys start with focus on the document; taps count Menu; the
     forced-colours check compares the current row's computed styles with Kitchen's, and the captures show the result.
+  - *Review (one cold reviewer over `b0626b7`; 1 substantive, 5 minor, checked against the code and all holding):*
+    substantive: axe and small targets ran only at Cabinets in light, while the summary read as general; every
+    context capture now records its own scan, which found `color-contrast` on the muted archived rows in B and C
+    (Q11's note). Minor, fixed: the forced-colours check now reads the indicator bar (`::before`); the builder fails
+    on a context missing a whole view or on missing measurements (two cases, watched failing first); B's treeview
+    figure to another root is shown to include a Tab back after the specimen drops focus; the Q5, Q10 and Q11 lines
+    no longer overstate (Q5 was captured in A only; the wrap needs a disclosure; Q10's layout call is a
+    recommendation); the State header names the commits.
 
 ## Outcome
 

@@ -18,6 +18,9 @@ const KEYS = [['links', 'Disclosure links (Q4 a)'], ['tree', 'Treeview (Q4 b)']]
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const img = (file, alt) => `<a href="${esc(file)}"><img src="${esc(file)}" alt="${esc(alt)}" loading="lazy"></a>`;
 
+// Every context has these views (R1: light and dark; 1440, and 375 with Menu closed and open);
+// a context may add more (renovation-root at 1024).
+const REQUIRED_VIEWS = ['light', 'dark'].flatMap(theme => ['1440 closed', '375 closed', '375 open'].map(view => `${theme} ${view}`));
 const failures = [];
 const rows = [];
 for (const context of index.contexts) {
@@ -26,7 +29,7 @@ for (const context of index.contexts) {
     const key = `${shot.theme} ${shot.width} ${shot.state}`;
     if (!views.includes(key)) views.push(key);
   }
-  if (views.length === 0) failures.push(`${context.id}: no captures`);
+  for (const view of REQUIRED_VIEWS) if (!views.includes(view)) failures.push(`${context.id}: no ${view} view`);
   for (const view of views) {
     const [theme, width, state] = view.split(' ');
     const cells = OPTIONS.map(([option, label]) => {
@@ -37,7 +40,18 @@ for (const context of index.contexts) {
     rows.push(`<tr data-row="${esc(`${context.id} ${view}`)}"><th scope="row"><b>${esc(context.id)}</b><br>${esc(theme)} · ${esc(width)} px${state === 'open' ? ' · Menu open' : ''}<br><small>${esc(context.seed)} · <code>${esc(context.at)}</code><br>${esc(context.shows)}</small></th>${cells.join('')}</tr>`);
   }
 }
+for (const [option] of OPTIONS) for (const [keys] of KEYS) if (!index.measurements?.[option]?.[keys]) failures.push(`measurements missing for option ${option}, ${keys}`);
 if (failures.length > 0) { console.error(`Sheet not written:\n${failures.join('\n')}`); process.exit(1); }
+
+// axe over every context capture, per option (each capture records its own scan).
+const sweep = OPTIONS.map(([option, label]) => {
+  const scanned = index.shots.filter(s => s.option === option && s.axe);
+  const serious = scanned.reduce((n, s) => n + s.axe.serious, 0), critical = scanned.reduce((n, s) => n + s.axe.critical, 0);
+  const rules = [...new Set(scanned.flatMap(s => s.axe.rules))];
+  const where = scanned.filter(s => s.axe.serious + s.axe.critical > 0).map(s => `${s.context} ${s.theme} ${s.width} ${s.state}`);
+  const small = [...new Set(index.shots.filter(s => s.option === option && s.smallTargets?.length).flatMap(s => s.smallTargets.map(name => `${name} in ${s.context}`)))];
+  return `<tr><th scope="row">${esc(label)}</th><td>${scanned.length}</td><td>${serious} / ${critical}</td><td>${esc(rules.join(', ') || '—')}</td><td><small>${esc(where.join('; ') || '—')}</small></td><td>${small.length}<br><small>${esc(small.slice(0, 12).join('; '))}</small></td></tr>`;
+});
 
 const fmt = v => v === null || v === undefined ? '—' : typeof v === 'object' ? esc(JSON.stringify(v)) : esc(v);
 const measureRows = OPTIONS.flatMap(([option, label]) => KEYS.map(([keys, keysLabel]) => {
@@ -72,6 +86,9 @@ The summary and recommendation are in <code>docs/roadmap/70-ui-ux/alternatives/s
 <p>Activations are from Cabinets (depth 2, nested-projects) to Garden / to the root's Todos / to Website launch's first page (a second root created for the measurement). Clicks and keys at 1440; taps at 375 include Menu. Keys start with focus on the document.</p>
 <table class="measures"><thead><tr><th>Option and keyboard model</th><th>Clicks</th><th>Keys</th><th>Taps (375)</th><th>Tab to first content (no skip / skip)</th><th>Header at 375</th><th>Deepest path rows (1440 · drawer)</th><th>Targets &lt; 44 px (375)</th><th>axe serious / critical</th><th>Current distinct in forced colours</th></tr></thead>
 <tbody>${measureRows.join('')}</tbody></table>
+<h2>axe and small targets over every capture</h2>
+<p>Serious and critical axe nodes inside the specimen, scanned at each context capture (links model), and distinct controls under 44 px at 375 (bar and header with Menu closed; the drawer open).</p>
+<table class="measures"><thead><tr><th>Option</th><th>Captures scanned</th><th>Serious / critical nodes</th><th>Rules</th><th>Where</th><th>Targets &lt; 44 px at 375</th></tr></thead><tbody>${sweep.join('')}</tbody></table>
 <h2>Contexts</h2>
 <table><thead><tr><th>Context</th>${OPTIONS.map(([, label]) => `<th>${esc(label)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>
 ${extras}

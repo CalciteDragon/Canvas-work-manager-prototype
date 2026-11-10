@@ -57,7 +57,8 @@
    `normal`) and does not exempt the `source` from light dismiss, so the page remembers a pointer
    press on an open lift's opener. The same file captures every R1 context in each option (light and
    dark, 1440, 375 with Menu closed and open, `renovation-root` at 1024) and measures activations, Tab
-   counts, header height, path rows, small targets, axe and forced colours; it writes
+   counts, header height, path rows, small targets, axe and forced colours (each context capture also records
+   its own axe scan and, at 375, its small targets); it writes
    `apps/e2e/ux-output/slice81-alternatives/index.json`, from which
    `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs` (tested by its `.test.mjs`, run with
    `node --test`) writes the comparison sheet `index.html`. The committed summary is

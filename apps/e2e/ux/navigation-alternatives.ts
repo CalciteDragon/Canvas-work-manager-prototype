@@ -189,7 +189,7 @@ test('showPopover({ source }) anchors with position-anchor: auto; light dismiss 
 const OPTIONS = ['a', 'b', 'c'] as const;
 type Option = (typeof OPTIONS)[number];
 type Keys = 'links' | 'tree';
-type Shot = { context: string; option: Option; theme: Theme; width: Width; state: 'closed' | 'open'; file: string };
+type Shot = { context: string; option: Option; theme: Theme; width: Width; state: 'closed' | 'open'; file: string; axe?: Awaited<ReturnType<typeof axe>>; smallTargets?: string[] };
 
 /** R1's contexts, grouped by the seed each needs. `archived-only` archives every root through the host API. */
 const CONTEXTS = [
@@ -241,11 +241,15 @@ test('captures: every context × option, light and dark, 1440 and 375 (Menu clos
             await visit(page, option, ctx.at);
             await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
             const name = (state: string) => `${ctx.id}--${option}--${theme}-${width}-${state}.png`;
-            shots.push({ context: ctx.id, option, theme, width, state: 'closed', file: await take(page, name('closed')) });
+            // Each context capture also records its own axe scan and, at 375, its small targets.
+            const closedFile = await take(page, name('closed'));
+            shots.push({ context: ctx.id, option, theme, width, state: 'closed', file: closedFile, axe: await axe(page),
+              ...(width === 375 ? { smallTargets: await smallTargets(page, '[data-specimen] > .specimen__bar, [data-specimen-header]') } : {}) });
             if (width === 375) {
               await visit(page, option, ctx.at, '&menu=open');
               await expect(page.locator('#specimen-navigation')).toHaveAttribute('role', 'dialog');
-              shots.push({ context: ctx.id, option, theme, width, state: 'open', file: await take(page, name('open')) });
+              const openFile = await take(page, name('open'));
+              shots.push({ context: ctx.id, option, theme, width, state: 'open', file: openFile, axe: await axe(page), smallTargets: await smallTargets(page, '#specimen-navigation') });
             }
           }
         }
@@ -432,6 +436,17 @@ test('measurements: activations, Tab counts, header share, path rows, small targ
         m['forcedColours'] = await forcedDistinct(page);
         await context.close();
       }
+      if (option === 'b' && keys === 'tree') {
+        // Where focus goes when "‹ All projects" changes the level: if it falls to the document,
+        // the next arrow needs a Tab back into the tree, which B's keys to another root include.
+        const { context, page } = await open(browser, 1440);
+        await visit(page, 'b', '/projects/project-cabinets', extra);
+        await arrowTo(page, node('all-projects')(page));
+        await page.keyboard.press('Enter');
+        await expect(nav(page).locator('[data-node-id="all-projects"]')).toHaveCount(0);
+        m['focusAfterAllProjects'] = await page.evaluate(() => { const a = document.activeElement; return a === null || a === document.body ? 'document' : `${a.tagName.toLowerCase()}${a.getAttribute('data-node-id') ? ` ${a.getAttribute('data-node-id')}` : ''}`; });
+        await context.close();
+      }
       measurements[option][keys] = m;
     }
   }
@@ -478,9 +493,14 @@ const forcedDistinct = (page: Page) => page.evaluate(() => {
   const other = document.querySelector('[data-specimen-nav] [data-node-id="project:project-kitchen"]')?.closest('.specimen-tree__row');
   if (!current || !other) return { distinct: false, differs: ['current or comparison row missing'] };
   const props = ['background-color', 'color', 'border-left-style', 'border-left-width', 'border-left-color', 'outline-style', 'outline-width', 'text-decoration-line', 'font-weight'];
+  // The indicator bar is the row's `::before` (specimen-tree.scss).
+  const bar = ['content', 'background-color', 'inline-size'];
   const read = (row: Element) => {
     const link = row.querySelector('a')!;
-    return Object.fromEntries(props.flatMap((p) => [[`row ${p}`, getComputedStyle(row).getPropertyValue(p)], [`link ${p}`, getComputedStyle(link).getPropertyValue(p)]]));
+    return Object.fromEntries([
+      ...props.flatMap((p) => [[`row ${p}`, getComputedStyle(row).getPropertyValue(p)], [`link ${p}`, getComputedStyle(link).getPropertyValue(p)]]),
+      ...bar.map((p) => [`bar ${p}`, getComputedStyle(row, '::before').getPropertyValue(p)]),
+    ]);
   };
   const a = read(current), b = read(other);
   const differs = Object.keys(a).filter((k) => a[k] !== b[k]);

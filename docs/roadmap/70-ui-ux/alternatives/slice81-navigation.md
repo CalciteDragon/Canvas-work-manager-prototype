@@ -38,10 +38,21 @@ arrow and Enter.
 | C · links | 1 / 1 / 1 | 12 / 21 / 14 | 2 / 1 / 2 | 24 / 11 | 378 px (47 %) | 0 |
 | C · treeview | 1 / 1 / 1 | 4 / 8 / 6 | 2 / 1 / 2 | 11 / 11 | 378 px (47 %) | 1 |
 
-In every option and model: the deepest path (Home renovation › Kitchen › Cabinets) is fully visible at
-1440 and in the open drawer (3/3); **axe finds no serious or critical node**; and under forced colours
-the current item stays distinct (the indicator bar and bold weight survive; the tint does not). The one
-small target in the treeview is the "Projects" group label, which becomes a 28 px `treeitem`.
+In every option and model the deepest path (Home renovation › Kitchen › Cabinets) is fully visible at
+1440 and in the open drawer (3/3). At Cabinets (light, 1440 and the open 375 drawer) axe finds no serious
+or critical node in either model. Under forced colours the current item stays distinct: the indicator
+bar (the row's `::before`, `Highlight`) and the bold weight survive, the tint does not. The one small
+target in the treeview is the "Projects" group label, which becomes a 28 px `treeitem`.
+
+Every context capture (68 per option, links model) also records its own axe scan and, at 375, its small
+targets. **No control under 44 px at 375 in any context or option.** axe's only serious nodes are
+`color-contrast` on the muted archived rows in the open 375 drawer: **A none; B 2** (`legacy-archived`,
+light); **C 4** (`legacy-archived` light; `legacy-shelving` light and dark). Q11's muted "Archived" row
+needs a contrast-safe colour rather than reduced opacity whichever option is picked.
+
+B's treeview figure to another root (15 keys) is partly an artefact: after "‹ All projects" changes the
+level, the specimen drops focus to the document, so the count includes a Tab back into the tree. A product
+build would keep focus on the level's first row, which would put it nearer the links model's 8.
 
 ## What the captures show
 
@@ -49,7 +60,8 @@ small target in the treeview is the "Projects" group label, which becomes a 28 p
   workstreams to full depth, then "Pages of Home renovation…" and "Add workstream". Every destination
   is one click away and other roots stay visible. Its costs: in the links model it has the most Tab
   stops before the content (24; the skip link brings it to 6), and at the 240 px sidebar "Pages of Home
-  renovation…" and an archived row with its mark ("Legacy attic · Archived") wrap to two lines.
+  renovation…" and, with its disclosure, an archived row and its mark ("Legacy attic · Archived" in
+  `legacy-shelving`) wrap to two lines.
 - **B, a focused tree that drills in.** Inside a project the sidebar holds only that root, so it is the
   shortest list and the cheapest by keyboard within a project. But another root costs one more
   activation ("‹ All projects"), the tree loses the whole-workspace view the decision asked for, and the
@@ -72,7 +84,7 @@ links; the plan's Q4 reasoning stands.
 What the specimens showed that step 3 must carry into the plan if A is picked: the folded header at
 375 still ends at 34 % of the screen, not inside the top quarter Q10 aimed for (the stand-in puts
 Details and the history and More buttons on rows of their own); the two-line wraps of the root-scoped
-control and of archived rows at 240 px; and the action rows (`Pages of …`, `Add workstream`) lose their
+control and of an archived row with a disclosure at 240 px; the muted archived row's contrast; and the action rows (`Pages of …`, `Add workstream`) lose their
 link colour under forced colours, so they need a shape cue as well.
 
 The per-question recommendations, as they stand after the specimens, are in the plan's Open questions
