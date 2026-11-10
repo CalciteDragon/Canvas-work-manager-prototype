@@ -1,9 +1,10 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-09):** first draft (`76bc7e7`) revised after review rounds 1 (`ba4a454`) and 2. Round 3 is
-next. No implementation; the only code change is `CURRENT_SLICE = 81` (`14ea6ec`). After review: the user's
-acceptance and answers to Q1–Q3 and Q12–Q15, then step 0. Initial bundle at the plan's start: 1,139.28 kB.
+**State (2026-11-09):** first draft (`76bc7e7`) revised after review rounds 1 (`ba4a454`), 2 (`fcd2e5f`) and 3.
+Round 4 is next. No implementation; the only code change is `CURRENT_SLICE = 81` (`14ea6ec`). After review: the
+user's acceptance and answers to Q1, Q2, Q3, Q12, Q13 and Q15, then step 0. Initial bundle at the plan's start:
+1,139.28 kB.
 
 ## Goal
 
@@ -118,9 +119,10 @@ kept them out of `ShellStore` on §20 grounds, and that reason holds.
   hidden, as Slice 74 decided); the current page kind; the current project (id, name, status) and its ancestors
   (id, name, status, root first); a `missing` state for a failed or not-found load; and `addBlockedReason`, the
   sentence the feature already builds for an archived root (`project-workspace-shell.ts:162-165`). The
-  ancestors and current project matter because the domain hides archived projects and live work under an
-  archived ancestor from `ShellStore` (`project-service.ts:98-112`, `shell-store.ts:40-45`), so only the
-  context can draw them while current (Q11), and the title needs their names. No gateway calls, no knowledge of
+  ancestors and current project matter because the domain drops live work under an archived ancestor from
+  the projects read (`project-service.ts:98-112`), so only the context can draw Legacy shelving while it is
+  current (Q11), and the title needs the names. Archived projects themselves are in `ShellStore`'s read; the
+  web filters them out of the tree at `shell-store.ts:66`. No gateway calls, no knowledge of
   features.
 - **Keyed, not cleared.** `/projects/:id` and `/projects/:id/pages/:kind` are two route configs, so moving
   between them destroys and re-creates `ProjectWorkspaceShell`. The context is therefore replaced when the new
@@ -147,9 +149,13 @@ kept them out of `ShellStore` on §20 grounds, and that reason holds.
   `LiftFocus` returns focus to the opener.
 - **From the phone drawer.** `<main>` is inert while the drawer is open. The drawer is the same sidebar
   instance, hidden and inert, not removed, so its opener stays connected and a `focus()` on it would silently
-  fail (`lift-focus.ts:9-10`). So `AppShell` closes the drawer first and passes **Menu** as the opener; the
-  lift returns focus to Menu. At 375 the popover has an explicit placement (a sheet at the top of the
-  viewport) instead of the hidden anchor.
+  fail (`lift-focus.ts:9-10`). So `AppShell` closes the drawer first and passes **Menu** as the focus-return
+  target, not as the popover's `source`: a source is exempt from light dismiss, so tapping Menu would open the
+  drawer under a popover still open. At 375 the popover opens with no `source` and an explicit placement (a
+  sheet at the top of the viewport) instead of the hidden anchor, and `LiftFocus` returns focus to Menu.
+  `showPopover({ source })` is typed in TypeScript 6's DOM lib; step 1's specimens probe its anchor and
+  light-dismiss behaviour in the e2e Chromium before step 6 relies on it, and unit specs spy on it, because the
+  unit DOM may lack it (`toast.ts:47` calls `showPopover?.()`).
 - **`closeWorkCreate`** (`project-workspace-shell.ts:466-474`) takes the handler's opener instead of searching
   its own host for the plus or the toggle; after a successful create it yields to the new `h1`.
 - **Freshness.** `ShellStore` already re-reads on every `project.*` live frame (`shell-store.ts:154-155`). To
@@ -275,37 +281,37 @@ recommends leaving TH13's content layouts out to keep the sheet to one review sc
 
 ## Findings closed
 
-**If Q1 is answered (a): 42 closed and 1 advanced from TH11, TH13 and TH15, plus 3 from TH02 and 4 carried
+**If Q1 is answered (a) and Q6 (i): 42 closed and 1 advanced from TH11, TH13 and TH15 (under Q6 (ii), 41 and 2), plus 3 from TH02 and 4 carried
 items.** Every id has its evidence: a journey in Acceptance item 4 (J*n*), a component test (T), or a visual
 pair (P).
 
 | Finding(s) | Sev | Evidence |
 |---|---|---|
-| L7-001, W1-015 (two trees) | S2, S3 | J2; P `renovation-root` 1440 |
+| L7-001, W1-015 (two trees) | S2, S3 | J2; P `nested-projects-project` 1440 |
 | L7-002, W4-004, W1-046 (current project not marked) | S2, S3, S3 | J1; P `kitchen` 1440 |
-| L7-008 (archived current place) | S2 | J8; P `legacy-archived` |
+| L7-008 (archived current place) | S2 | J8; P `kitchen-archived` |
 | L7-020 (root scope inside a workstream) | S3 | J6; P `kitchen` 1440 |
 | W1-011 (new workstream looks different) | S3 | J5; T one row component |
-| L7-003, W4-005, L6-006 ("Home" twice) | S2 | J1 (names, Archive origin, fallback notice); P `dashboard`, `renovation-root` |
+| L7-003, W4-005, L6-006 ("Home" twice) | S2 | J1 (names, Archive origin, fallback notice); P `nested-projects-dashboard`, `nested-projects-project` |
 | L7-004, W1-016 (breadcrumb) | S3 | J4; P `cabinets` |
-| L7-018 (page named once) | S3 | J1; P `renovation-todos`. **Closed only under Q6 (i)**; (ii) advances it |
-| W1-049 (Archive's two headings) | S3 | T archive page; P `renovation-archive` |
-| W2-030 (Archive heading and origin path) | S3 | T archived region; P `renovation-archive` 375 |
+| L7-018 (page named once) | S3 | J1; P `todos`. **Closed only under Q6 (i)**; (ii) advances it |
+| W1-049 (Archive's two headings) | S3 | T archive page; P `archive` |
+| W2-030 (Archive heading and origin path) | S3 | T archived region; P `archive` 375 |
 | L7-010, L1-026 (Settings children) | S3 | J1; P `settings-agents` |
-| L7-007, W1-055, L1-013 (width at 1024) | S2 | J11 (width, first section in view); P `renovation-root` 1024 |
+| L7-007, W1-055, L1-013 (width at 1024) | S2 | J11 (width, first section in view); P `nested-projects-project` 1024 |
 | L7-019 (titles) | S2 | J12 |
 | L5-014, W3-001 (skip link) | S2 | J3; P `skip-link-focused` |
 | L5-011, W3-009, W1-006, W2-033, W4-026 (one `main`) | S3 | J3; T dashboard |
 | L5-015 (heading outline) | S3 | T tree; J3 |
 | L7-005, L7-006 (phone) | S2 | J7; P `kitchen` 375 closed and open |
-| L1-014 (header at 375) | S2 | J7 (height); P `renovation-root` 375 |
+| L1-014 (header at 375) | S2 | J7 (height); P `nested-projects-project` 375 |
 | L7-022 (Projects group) | S3 | **Advanced:** per-root disclosures, J9; no index page |
 | W1-008, W2-004, W3-010, W4-029 (Parent default) | S2, S3 | J5; P `add-workstream-kitchen` |
 | W1-014, W2-007 (new workstream opens) | S3 | J5 |
 | W1-044, W2-026, W4-017 (page settings) | S2 | J6; P `page-settings-open` 1440 and 375 |
 | L5-008, L2-012 (marker by hue only; unequal) — TH02, deferred by Slice 71 | S2, S3 | J1 (forced colours); P light and dark |
 | L5-017 (forced colours) — **advanced**, navigation half only | S2 | J1 forced colours |
-| Carried: L1-006 (header edge), L2-016 (group headings), `note-2026-10-15-004`, comb item 1 | — | P `renovation-root`; T tree; P `renovation-archive` 375; J8 |
+| Carried: L1-006 (header edge), L2-016 (group headings), `note-2026-10-15-004`, comb item 1 | — | P `nested-projects-project`; T tree; P `archive` 375; J8 |
 
 **Not closed here (Q1 (a)):** L7-009 and L7-021 (concepts: the comb re-judges them); L1-004, L1-018, W2-015,
 W2-022, W2-028, L5-018 (TH13 content layouts: slice 81.1); W1-041, W4-016 (TH15's shortcut half: slice 9 or
@@ -340,7 +346,7 @@ Run in this order on the slice's final commit. **(pick)** items are made exact a
    4. **Breadcrumb.** Cabinets shows "Home renovation › Kitchen › Cabinets"; the last item is current text;
       Kitchen's link opens Kitchen; on `/settings/agents` it shows "Settings › AI & Agents".
    5. **Add workstream.** From Kitchen's control in the tree **(pick)**, Parent is preselected "Kitchen"; on
-      a root page it is "Home renovation"; on Legacy shelving it is "Home renovation". Create "Pantry": the
+      a root page it is "Home renovation"; on Legacy shelving it is "Home renovation" (Q15 (a) or (b) in this seed). Create "Pantry": the
       URL becomes Pantry's, its `h1` has focus, the tree shows Pantry under Kitchen, current, with the same
       row shape as Cabinets; the toast and Undo behave as Q13 says. Escape returns focus to the control. A
       refused create (host fault) keeps the dialog, the draft and focus.
@@ -389,11 +395,15 @@ or "Add workstream" get before/after alternatives (Acceptance item 6).
 matrix cell. **(pick)** fixes the region selectors.
 
 **Runtime contexts** in `ux/navigation-tree-verification.ts` (light at 1440, dark at 375), captured on both
-builds unless marked after-only: `kitchen`, `cabinets`, `kitchen-menu-open` (375), `skip-link-focused`,
+builds unless marked after-only: `kitchen`, `cabinets`, `kitchen-menu-open` (375),
 `add-workstream-kitchen`, `page-settings-open`, `legacy-shelving`, `forced-colours-kitchen`; after-only:
-`deep-tree`. Matrix cells used as pairs: `nested-projects-project` (1440, 1024, 375), `todos`, `archive`,
+`deep-tree`, `skip-link-focused` (no skip link exists before). Matrix cells used as pairs: `nested-projects-project` (1440, 1024, 375), `todos`, `archive`,
 `settings-agents`, `nested-projects-dashboard`, `kitchen-archived` (Legacy attic), `kitchen-page-settings`,
 `kitchen-work-create`, `phone-menu`.
+
+**`kitchen-collapsed`** clicks the first `button(/^Collapse /)` (`capture.ts:48`), a section's collapse. The
+tree's disclosure buttons must not match it: their names are "Show/Hide … pages and workstreams", and the locator
+is scoped to `main` on both builds.
 
 **Census exceptions:** profile 81 retires `build-sheet.mjs:58`'s `project-nav__breadcrumb` exception (owned by
 slice 7) and adds exceptions only as Q14 decides.
@@ -526,7 +536,7 @@ Paths marked **(pick)** are confirmed or renamed at step 3.
 | `apps/e2e/ux/*-verification.ts` (73–80) | modify | One-line frozen-tool header note |
 | `docs/roadmap/70-ui-ux/tooling/build-sheet.mjs`, `build-sheet.test.mjs` | modify | Profile 81: region rules, content census exceptions, the retired `project-nav__breadcrumb` exception |
 
-### Documentation (in the step that changes the behaviour; step 11 sweeps)
+### Documentation (in the step that changes the behaviour; step 13 sweeps)
 
 | File | Change |
 |---|---|
@@ -546,9 +556,13 @@ One fresh session per step. **"Green" at the end of a step** means `pnpm test`, 
 spec the step touched or broke, fixed in that step. Each step commits, updates the State header and records
 the bundle after any web change.
 
-0. **Rig and "before"** (after Q1–Q3, Q12 and Q13 are answered): `slice81.config.ts`; the optional column step
-   in `capture.ts` and `tasks.ts`; baseline build at the accepted plan's commit; the "before" matrix and the
-   core-task counts. Re-check each in-scope finding against the baseline. Measure lazy `/settings` and lazy
+0. **Rig and "before"** (after Q1, Q2, Q3, Q12, Q13 and Q15 are answered): `slice81.config.ts`, copied from
+   `slice80.config.ts` with its ports, `.prototype/ux-slice81.json` and `UX_BEFORE` serving
+   `apps/e2e/ux-output/slice81-baseline-web/browser`; the baseline is built in a temporary `git worktree` at the
+   accepted plan's commit (`pnpm install --offline`, `pnpm --filter web build`), its `dist/web/browser` copied
+   there and the worktree removed; the before/after locators in `capture.ts` and `tasks.ts` (Acceptance item 6);
+   the "before" matrix and the core-task counts. `slice81-alternatives.config.ts` (step 2) uses
+   `.prototype/ux-slice81-alternatives.json`. Re-check each in-scope finding against the baseline. Measure lazy `/settings` and lazy
    `/search` in a temporary build, then revert it.
 1. **Alternatives: specimens.** R1's route, options A–C, both keyboard models, the smoke spec. Verify the
    initial bundle is unchanged.
@@ -606,7 +620,7 @@ Steps 4–11 write these first and watch each fail for the right reason. **(pick
 | `sidebar.spec.ts`: keyboard model (pick) | Q4 |
 | `shell-store.spec.ts`: the now-public `refresh()` re-reads once; `app-shell.spec.ts`: `SHELL_COMMANDS.refreshProjects()` resolves after it | Deterministic freshness |
 | `app-shell.spec.ts`: the first focusable is the skip link, and activating it focuses `main` | L5-014 |
-| `app-shell.spec.ts`: a tree trigger inside the open drawer closes the drawer, calls the handler, and focus returns to Menu when the lift closes | Lifts from the drawer |
+| `app-shell.spec.ts`: a tree trigger inside the open drawer closes the drawer, calls the handler with Menu as the return target and no `source`, and focus returns to Menu when the lift closes; tapping Menu while the popover is open dismisses it | Lifts from the drawer |
 | `app-shell.spec.ts`: the drawer opens with the current item in view; every earlier drawer case passes | Phone pattern |
 | `project-workspace-shell.spec.ts`: publishes pages, current kind and archived states; registers and disposes handlers | R2's writer |
 | `project-workspace-shell.spec.ts`: a page-settings request opens the deferred popover with `source` set to the opener; the returned open state drives `aria-expanded`; a second press closes it; Escape returns focus to it; the `@error` state shows Reload page | Gear behaviour carried over |
@@ -684,7 +698,7 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 **3. Which alternatives are built?**
 - *Options.* (a) A, B and C as in R1, each with both keyboard models. (b) A and B only, which keeps the decision
   as written. (c) Different options you name.
-- *Recommendation.* (a). C **(amends)** two lines of the decision, but L7-018 and L7-020 point at pages beside the
+- *Recommendation.* (a). C **(amends)** three lines of the decision (R1), but L7-018 and L7-020 point at pages beside the
   content, and the decision invites two or three shapes.
 - *Impact.* (a): three specimens. (b): about a third less work in steps 1–2. Picking C needs a decision amendment.
 
@@ -694,7 +708,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   `treeitem`, `aria-level`, roving tabindex): one Tab stop, arrows, Home, End, type-ahead.
 - *Recommendation.* (a). Links stay links (middle click, the screen reader's link list), the code is smaller,
   and it needs no key manager. Every specimen offers both (`keys=`), so you can try each.
-- *Impact.* (a): J9 (a). (b): about 1–2 kB more and a harder rewrite of every keyboard journey.
+- *Impact.* (a): J9 (a). (b): about 1–2 kB more, which puts R4's upper estimate at about 1,149 kB, so Q12's
+  payment would very likely be needed; and a harder rewrite of every keyboard journey.
 
 **5. Does "Home" keep its name?**
 - *Context.* The workspace dashboard and each root's first page are both "Home" (L7-003, W4-005, L6-006). In one
@@ -716,9 +731,10 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   page is named only by its highlighted tab, and Todos adds "What is coming up" (L7-018). §26 says the header
   "describes the project, not the page".
 - *Options.* Title: (a) "Todos · Home renovation · Canvas Work Manager", most specific first; (b) "Home
-  renovation – Todos | Canvas Work Manager". Heading: (i) Todos, Archive and Reflections get an `h1` naming the
-  page under the header, whose project name becomes the breadcrumb's root plus a non-heading title, and §26 is
-  corrected; (ii) the header's `h1` stays the project name and the page name becomes the page's first `h2`.
+  renovation – Todos | Canvas Work Manager". Heading: (i) the `h1` names the current item: on the root's
+  first page and on a workstream it is the header's project name, as today; on Todos, Archive and Reflections
+  the header's project name becomes the breadcrumb's root (no second title line) and the page's own `h1` names
+  the page, and §26 is corrected; (ii) the header's `h1` stays the project name and the page name becomes the page's first `h2`.
 - *Recommendation.* (a) and (i): the tab's name leads and the heading equals the current item (principle 8).
 - *Impact.* (i) changes the `h1` on three pages, which several journeys locate by name, and §26's header rule.
   (ii) keeps §26 but leaves L7-018 half open (the page is named, but not by the `h1`).
@@ -752,21 +768,22 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   description is unreachable on phones. (c): L1-014 stays open.
 
 **11. Archived work in the tree.**
-- *Context.* The domain hides archived projects, and live work under an archived ancestor, from the projects
-  read (`project-service.ts:98-112`; `shell-store.ts:40-45`). In `nested-projects`, Legacy attic is archived
-  and its live child Legacy shelving is reachable only by URL or from Archive. So the tree can show either one
-  only while it is current, through the context's ancestors (R2). Listing them otherwise would need a domain
-  read change, which this web-only slice does not make. Slice 79's rule is "the sidebar lists live projects only".
-- *Options.* (a) While current, the item is drawn under its real path: its live ancestors as ordinary rows, any
-  archived ancestor as a muted row marked "Archived", and the item itself marked "Archived" if it is; an
-  archived root that is current is shown with "Archived" and its pages. Nothing archived is listed otherwise.
-  (b) While current, the item is shown only in the breadcrumb, and the tree marks its nearest listed ancestor
-  as `aria-current="location"`. (c) Leave it out of the tree entirely.
-- *Recommendation.* (a). It mirrors "Archive is listed while current", keeps one current item, and keeps the
-  real path visible, without changing what the domain lists.
-- *Impact.* (a): the tree renders rows from the context as well as from `ShellStore` (J8, the `legacy-shelving`
-  and `kitchen-archived` pairs). (b): simpler, but the current item is not in the tree, against "one you are
-  here". (c): L7-008 stays open.
+- *Context.* `ShellStore` reads archived projects but the sidebar filters them out (`shell-store.ts:66`; Slice
+  79's rule, "the sidebar lists live projects only"). The domain itself drops only live work under an archived
+  ancestor (`project-service.ts:98-112`): in `nested-projects`, Legacy attic (archived) is in the read, and its
+  live child Legacy shelving is not, so the tree can show Legacy shelving only while it is current, through the
+  context (R2).
+- *Options.* (a) Archived items stay out of the tree except while current: then the current item is drawn
+  under its real path, its live ancestors as ordinary rows, an archived ancestor as a muted row marked
+  "Archived", and the item marked "Archived" if it is; an archived root that is current shows "Archived" and its
+  pages. (b) Archived projects are always listed, muted and marked, under their parents (web-only: the read
+  already has them); Legacy shelving still appears only while current. (c) While current, the item is only in
+  the breadcrumb, and the tree marks its nearest listed ancestor `aria-current="location"`. (d) Never in the tree.
+- *Recommendation.* (a). It mirrors "Archive is listed while current", keeps Slice 79's rule and one current
+  item, and shows the real path.
+- *Impact.* (a): the tree renders rows from the context as well as from `ShellStore` (J8; the `legacy-shelving`
+  and `kitchen-archived` pairs). (b): reverses Slice 79's rule, lengthens the tree on agent-heavy, and advances
+  L7-009. (c): the current item is not in the tree. (d): L7-008 stays open.
 
 **12. What pays for the bundle?**
 - *Context.* 10.7 kB of headroom; the estimate is +4 to +9 kB (R4).
@@ -872,6 +889,22 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   - *Steps:* step 6 removes the column's gear and plus with the move, so no id is duplicated. The old step 8 is
     split into "the column goes" and "the phone pattern". Step 3 reviews until a round has no substantive
     findings. Steps now run 0–15.
+
+- **Round 3 (2026-11-09, one cold reviewer of the whole plan; 5 substantive, 7 minor; each checked against the
+  code):**
+  - *Premise corrected again:* `ShellStore` reads archived projects and the web filters them (`shell-store.ts:66`);
+    the domain drops only live work under an archived ancestor. R2 and Q11 now say so, and Q11 gains the
+    web-only "always listed, muted" option.
+  - *Evidence:* the findings table now names the captured matrix cells, not specimen contexts.
+    `skip-link-focused` is after-only. The headline count states its Q6 condition.
+  - *`kitchen-collapsed`:* the reviewer read it as the column; it is a section's "Collapse …"
+    (`capture.ts:48`). The real risk, a tree disclosure matching the same locator, is guarded instead.
+  - *Q6 (i)* now states the `h1` on the root's first page and on workstreams.
+  - *The drawer:* Menu is the focus-return target, not the popover's `source`, because a source is exempt from
+    light dismiss. A test covers it, and step 1 probes `showPopover({ source })` before step 6 uses it.
+  - *Consistency:* Q3 says three amendments. Q4's impact carries the bundle risk. Question timing now agrees
+    in the State header, the Open questions and step 0, with Q15 before step 0. The documentation sweep is step
+    13. Step 0 says how the baseline is built and names the data files.
 
 ## Outcome
 
