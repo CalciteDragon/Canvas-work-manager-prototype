@@ -406,16 +406,18 @@ it.
 **Active: [Slice 81, one navigation tree](81-one-navigation-tree.md) (redesign slice 7; the user's choice,
 2026-11-09).** The user chose redesign slice 7 next, which supersedes the earlier "8 before 7" order (see
 "Answered after Gate 1"). The §8 comb and redesign slice 8 stay pending, in that order unless the user says otherwise.
-- **State.** The plan has been written and reviewed in six cold rounds, and is waiting for the user's acceptance.
-  Nothing is implemented. The only code change is `CURRENT_SLICE = 81`.
-- **Scope**, if its Q1 (a) is chosen: 42 findings closed and 1 advanced from TH11, TH13 and TH15's
+- **State.** The plan was reviewed in six cold rounds and **accepted by the user on 2026-11-09**, with answers to
+  Q1 (a), Q2 (a), Q3 (a), Q12 (a), Q13 (b) and Q15 (a). Nothing is implemented; next is step 0. The only code
+  change is `CURRENT_SLICE = 81`.
+- **Scope** (Q1 (a)): 42 findings closed and 1 advanced from TH11, TH13 and TH15's
   Add-workstream and gear part, plus 3 TH02 marker findings and 4 carried items. That includes comb item 1. The
   six TH13 content-layout findings go to a follow-on slice 81.1.
 - **Shape.** Steps 1–2 build three live shell alternatives behind a lazy prototype route, with a comparison
   sheet. They end with `CHAIN: STOP` so the user can pick one.
-- **Before step 0**, the user answers Q1, Q2, Q3, Q12, Q13 and Q15. Q4–Q11, Q14 and Q16 are answered at the pick.
-- **Bundle:** 1,139.28 kB at the plan's start, with the ceiling unchanged at 1,150 kB. Q12 asks the user to
-  pre-approve lazy `/settings` and `/search` as payment.
+- **Answered before step 0** (2026-11-09): Q1, Q2, Q3, Q12, Q13 (b: Undo from a new workstream's toast returns
+  to its parent) and Q15. Q4–Q11, Q14 and Q16 are answered at the pick.
+- **Bundle:** 1,139.28 kB at the plan's start, with the ceiling unchanged at 1,150 kB. Q12 (a) pre-approves lazy
+  `/settings`, then lazy `/search`, as payment if a build would end above 1,148 kB.
 
 ### §8 comb list
 

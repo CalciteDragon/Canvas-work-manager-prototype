@@ -1,13 +1,13 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-09):** **plan written and reviewed in six cold rounds; awaiting the user's acceptance and
-answers. No implementation yet.** Rounds: 1 (`ba4a454`), 2 (`fcd2e5f`), 3 (`fde1bff`), 4 (`ca2ea97`), 5
-(`605972a`) and 6, which found one substantive item, a mechanical one, fixed in the same commit as this header.
-The rounds' substantive counts fell 21, 11, 5, 3, 4, 1; the cap of about six rounds was reached, so no seventh
-round ran (see Revisions). The only code change is `CURRENT_SLICE = 81` (`14ea6ec`). **Next is step 0**, after
-the user accepts the plan and answers Q1, Q2, Q3, Q12, Q13 and Q15; Q4–Q11, Q14 and Q16 are answered at the pick
-after step 2. Initial bundle at the plan's start: 1,139.28 kB, against the unchanged 1,150 kB ceiling.
+**State (2026-11-09):** **plan accepted by the user on 2026-11-09, with answers to Q1 (a), Q2 (a), Q3 (a),
+Q12 (a), Q13 (b) and Q15 (a) (see Open questions and the Revisions entry "Acceptance"). No implementation yet.
+Next is step 0** (rig and "before"). Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Review: six
+cold rounds (`ba4a454`, `fcd2e5f`, `fde1bff`, `ca2ea97`, `605972a`, `af3f373`), then two rounds on the
+acceptance amendment (Q13 (b)'s push landing is a stated default the user may change at the pick). The only code change is `CURRENT_SLICE = 81` (`14ea6ec`). Initial bundle at the plan's
+start: 1,139.28 kB, against the unchanged 1,150 kB ceiling; Q12 (a) pre-approves lazy `/settings`, then lazy
+`/search`, if a step's build would end above 1,148 kB.
 
 ## Goal
 
@@ -209,9 +209,16 @@ publishes").
 - **Add workstream** (W1-008, W2-004, W3-010, W4-029, W1-014, W2-007): Parent defaults to the open
   workstream, or the root on a root page. When the open workstream is not an eligible parent (archived, or
   under archived ancestry, which the [gear decision](../../decisions/2026-09-project-navigation-gear-and-work-create.md)
-  excludes), the default is Q15's. An archived root keeps its focusable unavailable Add with its reason.
-  After a create: await the shell's refresh, navigate to the new workstream, focus its `h1`. What the toast and
-  Undo do after that navigation is Q13. A refused create keeps the dialog, draft and focus, as now.
+  excludes), the default is the nearest eligible ancestor (Q15 (a)). An archived root keeps its focusable unavailable Add with its reason.
+  After a create: await the shell's refresh, navigate to the new workstream, focus its `h1`. A refused create
+  keeps the dialog, draft and focus, as now.
+- **The create's toast and its Undo** (Q13 (b), workstream creation only; the full rule is under Q13): after
+  the navigation the toast says "Created Pantry under Kitchen." with Undo and no "Open Pantry" link. Undo from
+  that toast, once it commits, removes Pantry, returns to the parent (Kitchen) and focuses its heading; the
+  parent's toast then says "Undone: Created “Pantry”." with the link "Open Pantry to redo" and no Undo; the
+  landing is a push, so Back reaches Pantry's "Creation undone" with Redo after the toast has gone. A stale,
+  gone, refused or failed Undo stays on Pantry, and one that lands after the person left Pantry moves nothing. The header's Undo on Pantry, and root creation, are unchanged: they
+  land on "Creation undone" at the created project's URL.
 - **Add workstream's control** (default; Q8 decides where): one control per tree, at the end of the current
   root's workstreams, visible text and accessible name "Add workstream" (T02's exact locator still matches),
   with the description "in Home renovation" (`aria-describedby`), because it creates inside this root while its
@@ -262,7 +269,8 @@ Initial is **1,139.28 kB** at the plan's start, so the headroom is **10.7 kB**.
 - **Estimate:** the items above sum to net **+3.5 to +8 kB** with Q4 (a), ending at 1,143–1,147 kB, and
   **+4.5 to +10 kB** with Q4 (b), up to about 1,149 kB. Q16 (b) adds about 1 kB.
 - **The rule:** every web step runs `pnpm --filter web build` and records the figure in the State header. A
-  step that would cross 1,150 kB stops with `CHAIN: STOP`. Q12 pre-approves the payment.
+  step that would cross 1,150 kB stops with `CHAIN: STOP`. Q12 (a) pre-approves the payment: lazy `/settings`,
+  then lazy `/search`, when a step's build would end above 1,148 kB.
 - **Fallbacks, measured at step 0** in a temporary build that is then reverted: lazy `/settings` and lazy
   `/search`. Nothing here raises the ceiling.
 
@@ -277,7 +285,8 @@ The sheet has zero gate failures and passes the user's Gate 2. The initial bundl
 
 - Change the agent connections page beyond its breadcrumb and current marking (slice 8). Rename product words
   beyond Q5's one label (slice 9). Touch TH12 scaffolding.
-- Fix the TH13 content layouts, L7-009, L7-021, W1-041 or W4-016 unless Q1 says so.
+- Fix the TH13 content layouts (slice 81.1), L7-009, L7-021 (the comb), W1-041 or W4-016 (slice 9 or the comb)
+  (Q1 (a)).
 - Add a projects index page, routes for nested workstreams, favourites, drag in the tree, or search in it.
 - Change any domain, contract, host or MCP behaviour. This slice is web-only.
 - Add Angular CDK Tree or a key manager to the initial bundle without measuring it.
@@ -288,11 +297,11 @@ The sheet has zero gate failures and passes the user's Gate 2. The initial bundl
 **A redesign slice under the overhaul protocol, with the §6 extras.** It is the shell layer and changes the
 chrome on every route, so every matrix cell is in the sheet. The gate treats the navigation and header regions
 as changing and the content regions as fixed, except for the listed content changes (Capture scope). Q1
-recommends leaving TH13's content layouts out to keep the sheet to one review screen.
+(a) leaves TH13's six content layouts to a follow-on slice 81.1, keeping the sheet to one review screen.
 
 ## Findings closed
 
-**If Q1 is answered (a) and Q6 (i): 42 closed and 1 advanced from TH11, TH13 and TH15 (under Q6 (ii), 41 and 2), plus 3 from TH02 and 4 carried
+**Under Q1 (a), and if Q6 is answered (i): 42 closed and 1 advanced from TH11, TH13 and TH15 (under Q6 (ii), 41 and 2), plus 3 from TH02 and 4 carried
 items.** Every id has its evidence: a journey in Acceptance item 4 (J*n*), a component test (T), or a visual
 pair (P).
 
@@ -357,9 +366,13 @@ Run in this order on the slice's final commit. **(pick)** items are made exact a
    4. **Breadcrumb.** Cabinets shows "Home renovation › Kitchen › Cabinets"; the last item is current text;
       Kitchen's link opens Kitchen; on `/settings/agents` it shows "Settings › AI & Agents".
    5. **Add workstream.** From the tree's "Add workstream" control while on Kitchen **(pick)**, Parent is preselected "Kitchen"; on
-      a root page it is "Home renovation"; on Legacy shelving it is "Home renovation" (Q15 (a) or (b) in this seed). Create "Pantry": the
+      a root page it is "Home renovation"; on Legacy shelving it is "Home renovation" (Q15 (a): the nearest eligible ancestor, here the root). Create "Pantry": the
       URL becomes Pantry's, its `h1` has focus, the tree shows Pantry under Kitchen, current, with the same
-      row shape as Cabinets; the toast and Undo behave as Q13 says. Escape returns focus to the control at 1440
+      row shape as Cabinets; the toast says "Created Pantry under Kitchen." with Undo. Undo from the toast (Q13 (b)):
+      the URL becomes Kitchen's, Kitchen's `h1` has focus, Pantry is gone from the tree, and the toast says
+      "Undone: Created “Pantry”." with "Open Pantry to redo", which opens Pantry's "Creation undone" with Redo;
+      after the toast has gone, Back from Kitchen reaches the same page.
+      Escape from the dialog returns focus to the control at 1440
       and to Menu at 375 (R2). A refused create (host fault) keeps the dialog, the draft and focus.
    6. **Page settings.** The tree's control is named "Pages of Home renovation…" and, per Q7, More holds it
       on Kitchen. Enabling Reflections adds it **(pick: under the root, or in C's tab row)**; Escape returns
@@ -533,13 +546,15 @@ Paths marked **(pick)** are confirmed or renamed at step 3.
 
 | File | Change | Responsibility |
 |---|---|---|
-| `features/projects/project-workspace-shell.ts`, `.html`, `.scss`, `.spec.ts` | modify | Publish the context; register handlers; deferred popover and dialog hosts with `@error`; `closeWorkCreate` takes the opener; create → refresh → navigate → focus; delete the column and its collapse; `ArchiveFocusRequest` |
+| `features/projects/project-workspace-shell.ts`, `.html`, `.scss`, `.spec.ts` | modify | Publish the context; register handlers; deferred popover and dialog hosts with `@error`; `closeWorkCreate` takes the opener; create → refresh → navigate → focus; the create's toast after the navigation and its Undo's return to the parent (Q13 (b)); delete the column and its collapse; `ArchiveFocusRequest` |
 | `features/projects/project-page-navigation.ts`, `.html`, `.scss`, `.spec.ts`, `.stories.ts` | delete | The column |
 | `features/projects/project-work-item.ts`, `.scss` | delete | The column's work row |
 | `features/projects/page-settings-popover.ts`, `.html`, `.scss`, `.spec.ts` | create | The gear's popover, anchored to a given opener |
-| `features/projects/work-create-dialog.ts`, `.html`, `.spec.ts`, `.stories.ts` | modify | Parent default from the open workstream; ineligible per Q15 |
+| `features/projects/work-create-dialog.ts`, `.html`, `.spec.ts`, `.stories.ts` | modify | Parent default from the open workstream; an ineligible one defaults to its nearest eligible ancestor (Q15 (a)) |
 | `features/projects/project-workspace-store.ts`, `.spec.ts` | modify | `createWorkstream` returns the new id |
-| `features/projects/history/project-history-store.ts` (+ spec) | modify only as Q13 needs | Feedback across the navigation to the new workstream |
+| `features/projects/history/project-history-store.ts` (+ spec), `core/history/receipt-undo.ts` | modify (Q13 (b)) | Mark a committed receipt Undo, which today is told from a stale one only by its message (both are `tone: 'status'`, `undoReceipt`): an optional field on `ReceiptUndoResult` |
+| `features/projects/history/history-feedback.ts` (+ spec) | modify (Q13 (b)) | "Created Pantry under Kitchen." |
+| `core/history/receipt-toast.ts` (+ spec) | modify only as the landing's focus needs (Q13 (b)) | `undo` resolves with its result, or leaves focus to the landing instead of the toast's Dismiss |
 | `features/projects/project-header.ts`, `.html`, `.scss`, `.spec.ts` | modify | Breadcrumb slot; phone fold (Q10); left edge (L1-006); C's tab row if picked |
 | `features/projects/project-more-menu.ts` (+ spec) | modify | "Pages…" (Q7 (a) or (b)) |
 | `features/projects/pages/todos-page.html`, `reflections-page.html`, `archive-page.html`, `archive-page.ts` | modify | Page `h1`s per Q6; Todos's second heading; Archive's single heading |
@@ -554,6 +569,7 @@ Paths marked **(pick)** are confirmed or renamed at step 3.
 |---|---|---|
 | `apps/e2e/navigation-tree.spec.ts` | create | Acceptance item 4 |
 | `apps/e2e/phone-layout.spec.ts`, `work-navigation.spec.ts` | modify | §77 rewrites |
+| `apps/e2e/project-creation-history.spec.ts` | modify (step 7) | §77: the workstream half creates and lands on the new workstream; its toast assertion (`:101`) becomes "Created Field study under …", and the `[data-toast-open]` click and URL wait (`:103-105`) go, since the create already lands there; the header's Undo still lands on "Creation undone"; the root half is unchanged |
 | The fifteen specs under Behaviour vs. appearance | modify | Locators |
 | `apps/e2e/ux/capture.ts`, `ux/tasks.ts` | modify | Before/after locators for the gear and Add workstream; T02 skips choosing a parent already chosen |
 | `apps/e2e/ux/slice81.config.ts`, `ux/navigation-tree-verification.ts` | create | Rig and runtime contexts |
@@ -568,11 +584,12 @@ Paths marked **(pick)** are confirmed or renamed at step 3.
 | `docs/decisions/2026-10-one-navigation-tree.md` | Amendment: the pick and the answers to Q4–Q11, Q14 and Q16 |
 | Dated amendments: `2026-09-phone-navigation-drawer.md`, `2026-09-where-the-project-navigation-column-lives.md`, `2026-09-project-navigation-gear-and-work-create.md`, `2026-09-optional-page-management-lives-in-project-navigation.md`, `2026-10-creation-defaults-follow-the-open-work.md`, `2026-10-route-focus-lands-lost-focus.md`, `2026-09-project-header-history-controls.md`, `2026-11-empty-workspace-offers-the-first-project.md` | What changed for each |
 | TH11's other reopened entries: `2026-09-reactivating-under-an-archived-ancestor.md`, `2026-09-actionable-archive-and-archived-projects.md`, `2026-09-project-workspaces-and-subproject-work-units.md` | An amendment where this slice changes them (Q11, origin path); otherwise a note that they stay as written |
-| New: `2026-11-navigation-reads-project-place-from-a-context.md` (R2), `2026-11-document-titles-and-skip-link.md` (Q6, R3), and one for Q5 if a label changes | §78 entries |
+| New: `2026-11-navigation-reads-project-place-from-a-context.md` (R2), `2026-11-document-titles-and-skip-link.md` (Q6, R3), `2026-11-undoing-a-new-workstream-returns-to-its-parent.md` (Q13 (b), written at step 7), and one for Q5 if a label changes | §78 entries |
+| Dated amendment (step 7): `2026-09-project-creation-history.md` | The toast's Undo of a new workstream now leaves its URL for the parent; recovery at the URL (Redo) is unchanged and reached by the toast's link |
 | `docs/decisions/README.md` | Index |
 | `docs/architecture/web/{overview,why,what,how}.md`, `web/core/*`, `web/projects/*`, `web/dashboard/how.md`, `web/prototype-tooling/*`, `testing/{what,how}.md` | What is now true |
 | `docs/guides/first-milestone-walkthrough.md`, `README.md` | Where they name the column or the gear |
-| `docs/roadmap/active/70-ui-ux-overhaul.md`, `docs/roadmap/goals.md` | Handoff; comb item 1 closed; slice 81.1 if Q1 (a) |
+| `docs/roadmap/active/70-ui-ux-overhaul.md`, `docs/roadmap/goals.md` | Handoff; comb item 1 closed; slice 81.1 queued (Q1 (a)) |
 
 ## Implementation sequence
 
@@ -580,7 +597,7 @@ One fresh session per step. **"Green" at the end of a step** means `pnpm test`, 
 spec the step touched or broke, fixed in that step. Each step commits, updates the State header and records
 the bundle after any web change.
 
-0. **Rig and "before"** (after Q1, Q2, Q3, Q12, Q13 and Q15 are answered): `slice81.config.ts`, copied from
+0. **Rig and "before"** (Q1, Q2, Q3, Q12, Q13 and Q15 answered on 2026-11-09): `slice81.config.ts`, copied from
    `slice80.config.ts` with its ports, `.prototype/ux-slice81.json` and `UX_BEFORE` serving
    `apps/e2e/ux-output/slice81-baseline-web/browser`; the baseline is built in a temporary `git worktree` at the
    accepted plan's commit (`pnpm install --offline`, `pnpm --filter web build`), its `dist/web/browser` copied
@@ -588,7 +605,7 @@ the bundle after any web change.
    locators in `capture.ts` and `tasks.ts` (Acceptance item 6); `navigation-tree-verification.ts` with its
    core-task test; the "before" matrix and the core-task counts. `slice81-alternatives.config.ts` (step 2) uses
    `.prototype/ux-slice81-alternatives.json`. Re-check each in-scope finding against the baseline. Measure lazy `/settings` and lazy
-   `/search` in a temporary build, then revert it.
+   `/search` (Q12 (a)'s pre-approved payment) in a temporary build, then revert it.
 1. **Alternatives: specimens.** R1's route, options A–C, both keyboard models, Q16's options for a non-current
    root, the `showPopover({ source })` probe, the smoke spec. Verify the
    initial bundle is unchanged.
@@ -607,8 +624,10 @@ the bundle after any web change.
    the tree and More; anchoring, `aria-expanded` and focus return; from the drawer. The column's gear and plus
    are removed in this step, so there is one popover id; `phone-layout.spec.ts:228` and `work-navigation.spec.ts`'s
    gear case move to the tree's controls here.
-7. **Create opens the workstream** (tests first): Parent default; `refreshProjects`; navigate and focus; Q13's
-   toast and Undo; rewrite `work-navigation.spec.ts`.
+7. **Create opens the workstream** (tests first): Parent default (Q15 (a)); `refreshProjects`; navigate and
+   focus; Q13 (b)'s toast and the toast Undo's return to the parent; rewrite `work-navigation.spec.ts` and the
+   workstream half of `project-creation-history.spec.ts`; the decision entry
+   `2026-11-undoing-a-new-workstream-returns-to-its-parent.md` and the creation-history amendment.
 8. **The column goes** (tests first): delete the column, its pages and work tree, collapse and focus request;
    `ArchiveFocusRequest`; the redirect focus case; rewrite `phone-layout.spec.ts:323` to its new intent (a
    chosen tree link closes the drawer and focuses `main`); fix every locator the deletion breaks.
@@ -653,10 +672,14 @@ Steps 4–11 write these first and watch each fail for the right reason. **(pick
 | `project-workspace-shell.spec.ts`: the dialog's `@defer` shows its `@error` state | Deferred dialog failure |
 | `project-workspace-shell.spec.ts`: Open archive still lands on the Archive heading across shell instances (`ArchiveFocusRequest`) | The surviving half |
 | `project-workspace-shell.spec.ts`: a tree link to a disabled page that §68 redirects keeps focus on the pressed link at desktop width; the notice shows | Redirect without the column hand-off |
-| `work-create-dialog.spec.ts`: Parent defaults to the open workstream; to the root on a root page; per Q15 when the open workstream is under archived ancestry | W1-008 |
+| `work-create-dialog.spec.ts`: Parent defaults to the open workstream; to the root on a root page; to the nearest eligible ancestor when the open workstream is archived or under archived ancestry (Q15 (a); a deeper fixture where that ancestor is not the root) | W1-008, Q15 |
 | `project-workspace-store.spec.ts`: `createWorkstream` returns the new id; a refusal keeps the draft | Create path |
 | `project-workspace-shell.spec.ts`: after create, awaits `refreshProjects`, navigates and focuses the new `h1`; a failed refresh still navigates | W2-007 |
-| `project-workspace-shell.spec.ts` or `project-history-store.spec.ts`: Q13's toast and Undo after the navigation | Q13 |
+| `project-workspace-shell.spec.ts`: after a workstream create and the navigation, the toast says "Created Pantry under Kitchen.", its Undo becomes ready once Pantry's history is read, and it has no "Open Pantry" link | Q13 (b) |
+| `project-workspace-shell.spec.ts`: a toast Undo that commits navigates to Kitchen (a push, not `replaceUrl`), focuses Kitchen's `h1[data-project-name]` whether or not focus was in the toast, and shows "Undone: Created “Pantry”." with "Open Pantry to redo" and no Undo; with the root as Parent it lands on the root's `/projects/:id` and its `h1` | Q13 (b) |
+| `project-workspace-shell.spec.ts`: the create shows no cross-owner "Created “Pantry”." toast before it navigates; after the landing, Back returns to Pantry's URL and its "Creation undone" with Redo | Q13 (b) |
+| `project-workspace-shell.spec.ts`: a stale ("That is no longer the latest change in Pantry."), gone ("That change can no longer be undone.") or refused toast Undo stays on Pantry with today's toast; an Undo that lands after the route left Pantry navigates nothing; the header's Undo on Pantry still lands on "Creation undone" | Q13 (b) boundaries |
+| `project-history-store.spec.ts` (only if the store changes): `undoReceipt` marks a committed transition and not the stale result | Q13 (b) |
 | `breadcrumb.spec.ts`: ancestors as links, current as text with `aria-current`; inline links | L7-004 |
 | `archived-region.spec.ts`: one region; the origin path as breadcrumb links | W2-030, W1-049 |
 | `project-header.spec.ts`: breadcrumb on a workstream; at narrow width the facts fold behind a disclosure (Q10) | L1-014 |
@@ -689,7 +712,7 @@ change from another tab (J6 repeats with Reflections enabled through the host AP
 
 ## Explicit non-goals
 
-- The TH13 content layouts, L7-009, L7-021, W1-041 and W4-016 (Q1).
+- The TH13 content layouts (slice 81.1), L7-009, L7-021, W1-041 and W4-016 (Q1 (a)).
 - A projects index page, drag in the tree, favourites, or search in the tree.
 - New routes for workstreams, or a change to the URL scheme.
 - The agent connections card (slice 8) and product vocabulary (slice 9) beyond Q5's label.
@@ -698,7 +721,9 @@ change from another tab (J6 repeats with Reflections enabled through the host AP
 
 ## Open questions
 
-**Answer before step 0:** Q1, Q2, Q3, Q12, Q13, Q15. **Answer at the pick (after step 2):** Q4–Q11, Q14 and Q16,
+**Answered on 2026-11-09 (user decision, at acceptance):** Q1 (a), Q2 (a), Q3 (a), Q12 (a), Q13 (b) and Q15 (a);
+the user's words were "accept all except for #5 go with option b", #5 being Q13. Each answer is recorded under
+its question; the options are kept as they were asked. **Answer at the pick (after step 2):** Q4–Q11, Q14 and Q16,
 with the specimens in front of you. The specimens show each recommendation unless the question says otherwise.
 Options marked **(amends)** contradict a line of the one-tree decision and would need an amendment.
 
@@ -716,6 +741,9 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Impact.* (a): 42 closed and 1 advanced, plus 3 TH02 and 4 carried items; slice 81.1 queued before the comb.
   (b): six content regions join the "must change" set and the sheet roughly doubles. (c): two concept designs
   join a shape decision.
+- **Answer (user decision, 2026-11-09): (a)**, as recommended. Navigation and header findings only; TH13's six
+  content layouts go to a follow-on slice 81.1; L7-009 and L7-021 go to the comb; W1-041 and W4-016 to slice 9
+  or the comb.
 
 **2. What form do the alternatives take?**
 - *Options.* (a) Live specimens behind a lazy `/prototype/navigation/:option` route over the real seeds, with a
@@ -724,6 +752,7 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   disposable.
 - *Impact.* (a): two sessions (steps 1–2). (b): one session, but the keyboard models and real depth cannot be
   tried. (c): similar cost to (a), but Storybook has no shell, so the phone pattern cannot be shown.
+- **Answer (user decision, 2026-11-09): (a)**, as recommended. Live specimens over the real seeds.
 
 **3. Which alternatives are built?**
 - *Options.* (a) A, B and C as in R1, each with both keyboard models. (b) A and B only, which keeps the decision
@@ -731,6 +760,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
 - *Recommendation.* (a). C **(amends)** three lines of the decision (R1), but L7-018 and L7-020 point at pages beside the
   content, and the decision invites two or three shapes.
 - *Impact.* (a): three specimens. (b): about a third less work in steps 1–2. Picking C needs a decision amendment.
+- **Answer (user decision, 2026-11-09): (a)**, as recommended. Alternatives A, B and C, each with both keyboard
+  models; if C is picked, the one-tree decision gets the amendment R1 describes.
 
 **4. The tree's keyboard model and ARIA pattern.**
 - *Options.* (a) Disclosure navigation: nested lists of links, expand buttons with `aria-expanded`, all in the
@@ -830,6 +861,9 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   line. If you prefer Q4 (b) and Q16 (b) together, (b) is the payment that fits.
 - *Impact.* (a): the first open of Settings or Search loads a small chunk. (b): a delay on the first task
   selection, and a lift journey to re-check.
+- **Answer (user decision, 2026-11-09): (a)**, as recommended. Fit within the headroom; lazy `/settings`, then
+  lazy `/search`, are pre-approved when a step's build would end above 1,148 kB. The ceiling stays 1,150 kB. If
+  the pick takes Q4 (b) and Q16 (b) together, this question is asked again then.
 
 **13. After creating a workstream and moving to it, what do the toast and Undo do?**
 - *Context.* Navigating loads the new workstream's history, which clears the header's feedback
@@ -842,6 +876,45 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   behaviour is tested.
 - *Impact.* (a): a test for the toast surviving the navigation, possibly a small history-store change. (b): a
   new landing rule for workstreams only. (c): the toast differs from every other create's.
+- **Answer (user decision, 2026-11-09): (b)**, not the recommendation. As (a), but Undo returns to the parent and
+  focuses its heading. The rule, checked against the code (`project-history-store.ts` `undoReceipt` and
+  `startGeneration`, `receipt-toast.ts`, `project-workspace-shell.ts`'s "Creation undone" recovery):
+  - *Create* (as (a)): after the refresh and the navigation to Pantry, with focus on Pantry's `h1`, the toast says
+    "Created Pantry under Kitchen." with Undo, polite, no link (Pantry is open); the sentence is a new helper in
+    `history/history-feedback.ts` beside `crossOwnerFeedback`. The write's own report arrives while Kitchen is
+    still shown, and the navigation starts a new history generation, which closes any toast
+    (`receipt-toast.ts`'s generation effect). So the create does not announce today's cross-owner "Created
+    “Pantry”." with "Open Pantry" before it navigates (its report is marked `feedback: 'own'`, which
+    `announceCrossOwner` skips), and the shell shows the new toast after the navigation with the create's report; the receipt is Pantry's own history's first step, so Undo is offered once Pantry's
+    history is read (`saving` until then).
+  - *Undo from the toast:* when the undo transition **commits** (Pantry is removed), the shell navigates to the
+    parent's `/projects/:id` (a push, not `replaceUrl`) and focuses its `h1[data-project-name]`, whether or not
+    focus was in the toast (today `ReceiptToast.undo` focuses the toast's Dismiss, and its `close('write')`
+    fallback could focus Pantry's recovery heading; the landing overrides both). When the parent is the root, that is the
+    root's first page. Both routes are `/projects/:projectId`, so the shell is reused and its history starts a new
+    generation; the result is shown after the parent's history is read: "Undone: Created “Pantry”." (today's
+    `transitionResultFeedback` words), status tone, no Undo, with the link "Open Pantry to redo". The link opens
+    Pantry's URL, where the creator's held Redo shows "Creation undone" with Redo, as the
+    [creation-history decision](../../decisions/2026-09-project-creation-history.md) requires. The tree no
+    longer lists Pantry once the shell refreshes. The toast closes itself after `TOAST_DISMISS_MS` like every
+    status toast, and Kitchen's header Redo does not hold Pantry's creation, so **Back** from Kitchen is the
+    lasting way to Redo: it returns to Pantry's URL and its "Creation undone". That is why the landing pushes
+    rather than replaces. (A default, AGENTS.md §4, found in the acceptance review; the user may change it at
+    the pick: keep this toast open until dismissed, or replace the URL and accept the toast as the only way.)
+  - *Not committed:* "That is no longer the latest change in Pantry." is also `tone: 'status'`, so the landing
+    keys on the commit, not the tone; it, a refusal or a failure stays on Pantry with today's toast and focus. An
+    Undo that lands after the person left Pantry moves nothing (as `restoreFromBanner`).
+  - *Unchanged:* the header's Undo on Pantry lands on "Creation undone" at Pantry's URL, with Redo (Slice 42,
+    `project-creation-history.spec.ts`). Root creation is unchanged: it navigates without a toast, and its
+    header Undo lands on "Creation undone". Only a new workstream's toast Undo leaves the page.
+  - *Where:* `project-workspace-shell.ts` owns the create flow, the toast after the navigation and the landing;
+    `history/history-feedback.ts` holds the new sentence. `core/history/receipt-undo.ts` gains an optional
+    field on `ReceiptUndoResult` that `project-history-store.ts`'s `undoReceipt` sets on a committed transition,
+    because otherwise only the message tells a committed Undo from a stale one; `core/history/receipt-toast.ts`
+    changes only as far as the landing's focus needs (its `undo` resolving with the result, or skipping its
+    Dismiss focus when the landing takes focus). Tests first, at step 7
+    (Test plan). Recorded in a new `2026-11-undoing-a-new-workstream-returns-to-its-parent.md` with a dated
+    amendment to `2026-09-project-creation-history.md`, both at step 7.
 
 **14. How large are breadcrumb links on touch?**
 - *Context.* The umbrella's primitives rule is 44 px targets on touch. Breadcrumb links are short words in a
@@ -863,6 +936,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   Create waits for a choice.
 - *Recommendation.* (a). It stays closest to "where I am". In today's seeds it equals the root; deeper trees differ.
 - *Impact.* (a) or (b): one rule and a test each. (c): an extra required choice in a rare case.
+- **Answer (user decision, 2026-11-09): (a)**, as recommended. The nearest eligible ancestor. In today's seeds
+  (Legacy shelving) that is the root; the dialog spec also covers a deeper fixture where it is not.
 
 **16. What does a root show when it is opened but not current?**
 - *Context.* The decision says each root expands to its enabled pages and its workstreams. The tree has a
@@ -992,6 +1067,36 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   - *Stop rule:* the reviewer judged the plan ready once item 1 was fixed. Round 6 reached the brief's cap of
     about six rounds, so no seventh round ran. The fix is mechanical and changes no other section. Step 3 runs
     review rounds on the firmed-up plan after the pick anyway.
+
+- **Acceptance (2026-11-09, user decision):** the user accepted the plan and answered the six questions due
+  before step 0: "accept all except for #5 go with option b" (#5 is Q13). Q1 (a), Q2 (a), Q3 (a), Q12 (a) and
+  Q15 (a), as recommended; **Q13 (b)**, not the recommendation: Undo from the create's toast returns to the
+  parent and focuses its heading. Q4–Q11, Q14 and Q16 stay open until the pick after step 2.
+  - *Recorded:* an Answer line under each of the six questions, options kept as asked; the Open questions intro.
+  - *Conditionals settled:* the State header; R3 (Q15's default; a new "create's toast and its Undo" bullet for
+    Q13 (b)); R4 (Q12's payment); Do not, Scope check, Findings closed and Explicit non-goals (Q1); Acceptance
+    J5 (Q15's Parent on Legacy shelving; Q13 (b)'s toast, Undo, URL, focus and Redo link); the File-level
+    change list (the dialog row, the workspace shell row, the history-store row now naming
+    `core/history/receipt-undo.ts`, a new `project-creation-history.spec.ts` row, a new decision entry and the
+    creation-history amendment, slice 81.1 queued); Implementation steps 0 and 7 (step numbers unchanged); the
+    Test plan (the dialog row, and four rows replacing Q13's one).
+  - *Q13 (b) specified against the code:* the landing keys on a committed transition, because the stale
+    "no longer the latest change" result is also `tone: 'status'`; the generation change on navigation closes
+    the toast, so the shell shows the create's toast and the Undo's result after each navigation; Redo stays
+    reachable through "Open Pantry to redo", which opens Pantry's "Creation undone". The header's Undo and root
+    creation are unchanged.
+  - *Review of the amendment (one cold reviewer; 1 substantive, 5 minor; its code claims checked and holding):*
+    the substantive one: the Undo result's "Open Pantry to redo" link closes with the toast after 8 s, and
+    with `replaceUrl` nothing would then lead back to Redo. Settled by a default rather than a new question,
+    because it changes no surface or step: the landing pushes, so Back reaches Pantry's "Creation undone"
+    (Q13's Answer says the user may change it at the pick). Minor, fixed: `receipt-toast.ts`'s focus and
+    `history-feedback.ts`'s sentence are in the change list and the "Where" bullet; the `ReceiptUndoResult`
+    field is required, not conditional; the pre-navigation cross-owner toast is suppressed; the e2e row names
+    the `:101` toast assertion; the test plan names the gone ("can no longer be undone") result and Back;
+    `goals.md` names the answers.
+  - *Second round (one cold reviewer; 1 substantive, 2 minor):* the Test plan row still said `replaceUrl`,
+    contradicting the push; fixed. The e2e row now names `:103-105` too, and R3's bullet lists the same
+    not-committed cases as Q13's Answer. The reviewer found no remaining shape-changing gap.
 
 ## Outcome
 
