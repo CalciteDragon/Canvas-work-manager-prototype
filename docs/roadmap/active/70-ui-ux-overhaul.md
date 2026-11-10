@@ -403,9 +403,19 @@ it.
   by touch, and through a real MCP client. It found no defect and changed no code. Its wording points are
   comb items 12–17 below; two more predate the slice and are in its Outcome.
 
-**Next: the user's choice.** Either the §8 comb (items below) or redesign slice 7, 8 or 9. The
-§8 comb has not run. It was due after 6b, and the user's decision put the cascading archive ahead of it.
-Nothing is active under the umbrella until the user picks.
+**Active: [Slice 81, one navigation tree](81-one-navigation-tree.md) (redesign slice 7; the user's choice,
+2026-11-09).** The user chose redesign slice 7 next, which supersedes the earlier "8 before 7" order (see
+"Answered after Gate 1"). The §8 comb and redesign slice 8 stay pending, in that order unless the user says otherwise.
+- **State.** The plan has been written and reviewed in six cold rounds, and is waiting for the user's acceptance.
+  Nothing is implemented. The only code change is `CURRENT_SLICE = 81`.
+- **Scope**, if its Q1 (a) is chosen: 42 findings closed and 1 advanced from TH11, TH13 and TH15's
+  Add-workstream and gear part, plus 3 TH02 marker findings and 4 carried items. That includes comb item 1. The
+  six TH13 content-layout findings go to a follow-on slice 81.1.
+- **Shape.** Steps 1–2 build three live shell alternatives behind a lazy prototype route, with a comparison
+  sheet. They end with `CHAIN: STOP` so the user can pick one.
+- **Before step 0**, the user answers Q1, Q2, Q3, Q12, Q13 and Q15. Q4–Q11, Q14 and Q16 are answered at the pick.
+- **Bundle:** 1,139.28 kB at the plan's start, with the ceiling unchanged at 1,150 kB. Q12 asks the user to
+  pre-approve lazy `/settings` and `/search` as payment.
 
 ### §8 comb list
 
@@ -458,7 +468,7 @@ Added by Slice 80's real use (2026-11-09; nothing broken, all reads wrong):
 
 Item 4 ("Go to it" and "Open it") was met again in Slice 80's real use (`note-2026-11-09-006`).
 
-Item 1 is now partly closed: Slice 80 (Q6 (a)) drops "No workstreams yet" on a read-only page. A live
+Item 1 is now partly closed: Slice 80 (Q6 (a)) drops "No workstreams yet" on a read-only page. Slice 81 plans to close the rest: the one tree draws no empty sentence under a root. A live
 root whose only workstreams are archived still says it.
 
 ### Redesign slice 6b (States) — planning brief
@@ -568,7 +578,7 @@ decision.
 ### Answered after Gate 1 (2026-10-14)
 
 - **Creation defaults.** The interpretation is confirmed: Parent defaults to the open workstream. A newly created workstream also opens itself.
-- **Agent connections** move ahead of the navigation-tree slice, so the order becomes 1–6, then 8, then 7, then 9.
+- **Agent connections** move ahead of the navigation-tree slice, so the order becomes 1–6, then 8, then 7, then 9. *Superseded 2026-11-09:* the user chose redesign slice 7 ([Slice 81](81-one-navigation-tree.md)) next, then the §8 comb, then slice 8.
 - **Comb after the patterns layer (answered 2026-10-25).** The protocol §8 re-capture and fresh comb run after 6b closes and before agent connections.
 - **Contrast.** The user accepted Depth's demo tints. Worst-case AA is reported on every sheet but no longer gates the work. The fallbacks and principles 4–5 still hold ([decision](../../decisions/2026-10-frosted-glass-depth-direction.md)).
 

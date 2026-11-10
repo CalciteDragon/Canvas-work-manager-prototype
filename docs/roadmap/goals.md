@@ -152,9 +152,11 @@ with their statuses. Every restore, Undo and Redo moves exactly that group. The 
 use through the web and MCP found no defect. Its wording points join the umbrella's
 [§8 comb list](active/70-ui-ux-overhaul.md#8-comb-list) as items 10–17.
 
-**Now — the user's choice (2026-11-09).** Nothing is active under the umbrella. The next phase is either
-the §8 comb or redesign slice 7, 8 or 9, and the user has not chosen yet. See the umbrella's
-[handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
+**Now — [Slice 81, one navigation tree](active/81-one-navigation-tree.md) (redesign slice 7; the user's choice,
+2026-11-09).** It is active. The plan has been written and reviewed in six rounds, and is waiting for the user's
+acceptance and answers to its open questions. Nothing is implemented yet. Its first steps build three live shell
+alternatives, then stop so the user can pick one. The §8 comb and redesign slice 8 come after it, in that order.
+See the umbrella's [handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:

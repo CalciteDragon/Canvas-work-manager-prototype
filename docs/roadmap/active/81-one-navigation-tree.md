@@ -1,10 +1,13 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-09):** first draft (`76bc7e7`) revised after review rounds 1 (`ba4a454`), 2 (`fcd2e5f`), 3 (`fde1bff`), 4 (`ca2ea97`) and 5.
-Round 6 is next. No implementation; the only code change is `CURRENT_SLICE = 81` (`14ea6ec`). After review: the
-user's acceptance and answers to Q1, Q2, Q3, Q12, Q13 and Q15, then step 0. Initial bundle at the plan's start:
-1,139.28 kB.
+**State (2026-11-09):** **plan written and reviewed in six cold rounds; awaiting the user's acceptance and
+answers. No implementation yet.** Rounds: 1 (`ba4a454`), 2 (`fcd2e5f`), 3 (`fde1bff`), 4 (`ca2ea97`), 5
+(`605972a`) and 6, which found one substantive item, a mechanical one, fixed in the same commit as this header.
+The rounds' substantive counts fell 21, 11, 5, 3, 4, 1; the cap of about six rounds was reached, so no seventh
+round ran (see Revisions). The only code change is `CURRENT_SLICE = 81` (`14ea6ec`). **Next is step 0**, after
+the user accepts the plan and answers Q1, Q2, Q3, Q12, Q13 and Q15; Q4–Q11, Q14 and Q16 are answered at the pick
+after step 2. Initial bundle at the plan's start: 1,139.28 kB, against the unchanged 1,150 kB ceiling.
 
 ## Goal
 
@@ -356,8 +359,8 @@ Run in this order on the slice's final commit. **(pick)** items are made exact a
    5. **Add workstream.** From the tree's "Add workstream" control while on Kitchen **(pick)**, Parent is preselected "Kitchen"; on
       a root page it is "Home renovation"; on Legacy shelving it is "Home renovation" (Q15 (a) or (b) in this seed). Create "Pantry": the
       URL becomes Pantry's, its `h1` has focus, the tree shows Pantry under Kitchen, current, with the same
-      row shape as Cabinets; the toast and Undo behave as Q13 says. Escape returns focus to the control. A
-      refused create (host fault) keeps the dialog, the draft and focus.
+      row shape as Cabinets; the toast and Undo behave as Q13 says. Escape returns focus to the control at 1440
+      and to Menu at 375 (R2). A refused create (host fault) keeps the dialog, the draft and focus.
    6. **Page settings.** The tree's control is named "Pages of Home renovation…" and, per Q7, More holds it
       on Kitchen. Enabling Reflections adds it **(pick: under the root, or in C's tab row)**; Escape returns
       focus to the opener. At 375, opening it from the drawer closes the drawer, and closing it returns focus
@@ -381,7 +384,9 @@ Run in this order on the slice's final commit. **(pick)** items are made exact a
 5. `apps/e2e/phone-layout.spec.ts` keeps every drawer rule of the phone decision (trap, Escape, Close,
    backdrop, inert, resize, a failed create reopening the form); only its column cases change.
 6. The core-task scripts (`apps/e2e/ux/tasks.ts`, T01–T12) run on the "after" build with no task above its
-   baseline click count and no dead end. Each script takes before/after locators (T08 and the `page-settings`
+   baseline click count and no dead end. Each script takes before/after locators, keyed on `UX_BEFORE` directly as
+   `cascading-archive-verification.ts:17` does, not on `legacyBefore`, which `UX_OBJECTS=1` always makes false
+   (`tasks.ts:19`, `capture.ts:18`) (T08 and the `page-settings`
    state name the gear "Project page settings for Home renovation", `tasks.ts:117`, `capture.ts:34`), and
    T02's "Choose Kitchen as parent" step is skipped, at zero clicks, when Parent already shows Kitchen, so T02
    drops by one click on the "after" build.
@@ -416,7 +421,8 @@ its legacy "core task baseline" (`capture.ts:169`; without the flag `legacyBefor
 the slice's verification file runs `runCoreTasks` (as `objects-verification.ts:167` does). Step 0 creates
 `navigation-tree-verification.ts` with only that core-task test, and `testMatch` is `['capture.ts',
 'navigation-tree-verification.ts']`. Step 13 adds the runtime contexts to the same file and runs them once with
-`UX_BEFORE=1` against the baseline kept from step 0, then without it.
+`UX_BEFORE=1` against the baseline kept from step 0, then without it. That before run's core-task counts must
+equal step 0's; a difference is a rig fault to fix, not a new baseline.
 
 **`kitchen-collapsed`** clicks the first `button(/^Collapse /)` (`capture.ts:48`), a section's collapse. The
 tree's disclosure buttons must not match it: their names are "Show/Hide … pages and workstreams", and the locator
@@ -508,7 +514,7 @@ Paths marked **(pick)** are confirmed or renamed at step 3.
 | `apps/web/src/app/core/shell/navigation-context.ts` (+ `.spec.ts`) | create | R2's keyed project place and handler registration |
 | `apps/web/src/app/core/shell/sidebar/sidebar.ts`, `.html`, `.scss`, `.spec.ts`, `.stories.ts` **(pick)** | modify | The one tree: destinations, roots, pages, workstreams, settings children, marker, disclosures |
 | `apps/web/src/app/core/shell/sidebar/project-tree-item.ts`, `.scss` **(pick)** | modify or replace | One row for every workstream; depth cap; archived marks |
-| `apps/web/src/app/core/shell/root-pages.ts` (+ `.spec.ts`) | create only if Q16 (b) | On-demand page records for an opened non-current root, refreshed on page live frames |
+| `apps/web/src/app/core/shell/root-pages.ts` (+ `.spec.ts`) | create only if Q16 (b) | On-demand page records for an opened non-current root, refreshed on its `project.page_*` frames |
 | `apps/web/src/app/core/shell/shell-commands.ts`, `shell-store.ts` (+ specs) | modify | `refresh()` made public; `SHELL_COMMANDS.refreshProjects()` calls it |
 | `apps/web/src/app/core/shell/app-shell.ts`, `.html`, `.scss`, `.spec.ts` | modify | Skip link; context input and handler calls; drawer closes before a lift; current item in view; lift tokens on the drawer |
 | `apps/web/src/app/core/shell/top-bar/top-bar.*` | modify only if Q9 (b) | Current place beside Menu |
@@ -659,7 +665,7 @@ Steps 4–11 write these first and watch each fail for the right reason. **(pick
 | `project-more-menu.spec.ts`: "Pages…" on root and workstream routes calls the handler with the More button as `source` and `returnFocus` (Q7); the menu closes first | Page settings from More |
 | `top-bar.spec.ts`: the current place beside Menu (only if Q9 (b)) | Q9 (b) |
 | `sidebar.spec.ts`: an opened non-current root shows what Q16 says, with its loading and failure rows under (b) | Q16 |
-| `root-pages.spec.ts` (Q16 (b)): one read per root on first expand; re-read on a page live frame for that root; a failure keeps Try again | Q16 (b) |
+| `root-pages.spec.ts` (Q16 (b)): one read per root on first expand; re-read on a `project.page_*` frame for that root; a failure keeps Try again | Q16 (b) |
 | `page-settings-popover.spec.ts`: the column spec's gear cases (fixed first page, pending, refusal, retry, Escape) | Behaviour preserved |
 
 Failure and permission paths covered: a failed projects read; a failed or not-found project load; a refused or
@@ -865,7 +871,8 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   `ShellStore`. This matters in options A and C at `/app` and on `many-roots`.
 - *Options.* (a) Workstreams only; the optional pages appear once the root is current; the root's own row still
   opens its first page **(amends)**. (b) Read that root's pages on first expand through the gateway interface,
-  in a small core cache keyed by root and refreshed on page live frames, not in `ShellStore`; a loading row and
+  in a small core cache keyed by root and refreshed on that root's `project.page_*` live frames
+  (`project.page_enabled`, `project.page_disabled` and their undo and redo variants), not in `ShellStore`; a loading row and
   a failure row with Try again. (c) Show the first page and every page kind this build renders, with no
   records, so a disabled page could be advertised **(amends)**, and §23 forbids advertising a page that is not
   enabled.
@@ -975,6 +982,16 @@ Options marked **(amends)** contradict a line of the one-tree decision and would
   - *Q16 (b)'s cost:* its §20 tension, the column-decision amendment, `root-pages.ts` and its spec are now stated.
   - *Minor:* the capture-scope sentence is fixed. The dialog's `.html` was added for Q15 (c). More's "Pages…"
     anchors to the More button.
+
+- **Round 6 (2026-11-09, one cold reviewer; 1 substantive, 3 minor; the round-5 citations hold, the bundle
+  sums hold, no boundary violation):**
+  - *Substantive, fixed:* the before/after locators in `tasks.ts` and `capture.ts` key on `UX_BEFORE` directly.
+    Following the existing `legacyBefore` idiom would never select the baseline's labels under `UX_OBJECTS=1`.
+  - *Minor, fixed:* J5's focus return at 375 is Menu. The before run's core-task counts must equal step 0's.
+    Q16 (b)'s cache names its frames, `project.page_*`.
+  - *Stop rule:* the reviewer judged the plan ready once item 1 was fixed. Round 6 reached the brief's cap of
+    about six rounds, so no seventh round ran. The fix is mechanical and changes no other section. Step 3 runs
+    review rounds on the firmed-up plan after the pick anyway.
 
 ## Outcome
 
