@@ -1,10 +1,18 @@
 # Slice 81 — navigation alternatives: summary and recommendation
 
-**Status: awaiting the user's pick (2026-11-10).** This is the committed summary of Slice 81's step 2
+**Status: picked (2026-11-10). The user chose B**, not the recommended A: "they liked B best on
+seeing it", after this sheet and a set of question mockups. With it: no underlined blue links in the
+navigation (themed controls instead), the tree's actions as a back-chevron and a pencil "Edit project"
+menu on one row, and no visible Close in the phone drawer. Q4–Q11, Q14 and Q16 took the
+recommendations below, re-read for B; Q7 and Q8 became "pencil menu + More". The pick is recorded in
+the [decision](../../../decisions/2026-10-one-navigation-tree.md)'s 2026-11-10 amendment and the
+plan's R1 outcome.
+
+This is the committed summary of Slice 81's step 2
 ([plan](../../active/81-one-navigation-tree.md), R1). It compares three live specimens of the
 [one navigation tree](../../../decisions/2026-10-one-navigation-tree.md) and recommends one. The
-recommendation is the developer's; the user is free to overrule it. The pick and the answers to
-Q4–Q11, Q14 and Q16 are recorded at step 3, which also deletes the specimens.
+recommendation was the developer's; the user overruled it. Step 3 deleted the specimens, their rig
+and the sheet builder; they remain in the history at `ea12164`.
 
 ## Evidence
 
@@ -16,11 +24,11 @@ Q4–Q11, Q14 and Q16 are recorded at step 3, which also deletes the specimens.
   3 options** (11 contexts × light and dark × 1440, 375 with Menu closed, 375 with Menu open; plus
   `renovation-root` at 1024), 204 option captures, and four extra panels (Q4's two keyboard models,
   Q5's four namings, Q16's three options in A and C, and forced colours), 224 images in all.
-- **Rig:** `apps/e2e/ux/navigation-alternatives.ts` under `ux/slice81-alternatives.config.ts` (ports
-  4257/4357), built from `f10ee16` plus this step's rig; Chromium 151. The builder is
-  `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs`. Re-run: `pnpm --filter web build`,
-  then `cd apps/e2e && pnpm exec playwright test --config ux/slice81-alternatives.config.ts`, then
-  `node docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs`.
+- **Rig (deleted at step 3; at `ea12164`):** `apps/e2e/ux/navigation-alternatives.ts` under
+  `ux/slice81-alternatives.config.ts` (ports 4257/4357), built from `f10ee16` plus this step's rig;
+  Chromium 151. The builder was `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs`. To
+  re-run, check out `ea12164`, then `pnpm --filter web build`,
+  `cd apps/e2e && pnpm exec playwright test --config ux/slice81-alternatives.config.ts`, and the builder.
 
 ## Measurements
 

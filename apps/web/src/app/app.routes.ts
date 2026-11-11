@@ -21,9 +21,7 @@ import { NotFoundPage } from './shared/components/placeholder-page/not-found-pag
  * and loading them on demand holds the initial bundle under its 1,150 kB ceiling
  * (`docs/decisions/2026-08-initial-bundle-budget.md`) rather than raising it. **Settings ›
  * Archived projects joined them** (Slice 80, Q1 (a)), a recovery route opened rarely, to pay for
- * the cascading archive. Every other feature route stays eager. Slice 81 adds a third
- * `prototype/*` route, `prototype/navigation/:option`, for its alternatives specimens; it is
- * deleted with them at the slice's step 3.
+ * the cascading archive. Every other feature route stays eager.
  */
 export const routes: Routes = [
   // `pathMatch: 'full'` is not decoration — without it this redirect swallows every URL.
@@ -57,12 +55,6 @@ export const routes: Routes = [
   {
     path: 'prototype/state',
     loadComponent: () => import('./prototype/dev-panel/state-inspector-page').then((m) => m.StateInspectorPage),
-  },
-  {
-    // Slice 81's disposable navigation specimens (R1), deleted at its step 3.
-    path: 'prototype/navigation/:option',
-    loadComponent: () =>
-      import('./prototype/navigation-alternatives/navigation-alternatives-page').then((m) => m.NavigationAlternativesPage),
   },
   { path: '**', component: NotFoundPage },
 ];

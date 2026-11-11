@@ -43,26 +43,6 @@
    (Slice 79; the stub content reports its config's `summary` under a `summary: true` definition).
    Its wrapper follows the canvas's quiet defaults on pointer
    and touch. `CURRENT_SLICE` is 81 for captured friction notes.
-6. **Slice 81's specimens, while they exist (deleted at its step 3).** `/prototype/navigation/:option`
-   lazily loads `NavigationAlternativesPage`. Route inputs: `option` (`a`, `b`, `c`), and the query's
-   `at` (the app URL shown), `keys` (`links` or `tree`, Q4), `home` (Q5, default `d`), `q16` (a
-   non-current root, default `b`) and `menu=open` (the phone drawer starts open). The page provides
-   `SpecimenModel`, which parses `at`, reads the current project's chain and its root's pages through
-   `WORK_MANAGER_GATEWAY`, and builds rows from `ShellStore` (injected from `AppShell`, optional so the
-   route map's spec can resolve the page alone); options A, B and C turn those into `SpecimenNode`s
-   and `SpecimenTree` renders them in either keyboard model. While mounted, the page sets `inert` on
-   the shell's top bar and sidebar. Its lift opens with `showPopover({ source })`; the probe in
-   `apps/e2e/ux/navigation-alternatives.ts` (run under `ux/slice81-alternatives.config.ts`) found
-   that Chromium 151 anchors to the `source` only with `position-anchor: auto` (the initial value is
-   `normal`) and does not exempt the `source` from light dismiss, so the page remembers a pointer
-   press on an open lift's opener. The same file captures every R1 context in each option (light and
-   dark, 1440, 375 with Menu closed and open, `renovation-root` at 1024) and measures activations, Tab
-   counts, header height, path rows, small targets, axe and forced colours (each context capture also records
-   its own axe scan and, at 375, its small targets); it writes
-   `apps/e2e/ux-output/slice81-alternatives/index.json`, from which
-   `docs/roadmap/70-ui-ux/tooling/build-navigation-alternatives.mjs` (tested by its `.test.mjs`, run with
-   `node --test`) writes the comparison sheet `index.html`. The committed summary is
-   [`slice81-navigation.md`](../../../roadmap/70-ui-ux/alternatives/slice81-navigation.md).
 
 ## Key symbols
 
@@ -75,7 +55,6 @@
 | `CURRENT_SLICE` | const | The slice notes are filed under — bump when a slice starts | [API](../../../api/miscellaneous/variables.html#CURRENT_SLICE) |
 | `StateInspectorPage`, `StateInspectorStore`, `ProjectLayoutControl` | component / injectable / component | §68's inspector | [API](../../../api/components/StateInspectorPage.html) |
 | `DesignLabPage`, `DesignLabStore` | component / injectable | §67 | [API](../../../api/injectables/DesignLabStore.html) |
-| `NavigationAlternativesPage`, `SpecimenModel`, `SpecimenTree` | component / injectable / component | Slice 81's disposable specimens | [API](../../../api/components/NavigationAlternativesPage.html) |
 | `DesignLabToken`, `DesignLabExport` | interfaces | A knob as data; the export shape | [API](../../../api/interfaces/DesignLabToken.html) |
 | `LivePanels`, `PrimitivePanels`, `ControlPanels`, `PlanePanels`, `SectionCanvasFrame`, `StubSectionContent` | components | The catalogue | [API](../../../api/components/LivePanels.html) |
 
@@ -89,8 +68,6 @@
   panels render `ProjectSectionFrame`, section contents and `TaskRow` from fixtures.
 - [prototype-runtime](../../prototype-host/prototype-runtime/overview.md) — over HTTP.
 - [contracts](../../contracts/overview.md) — `prototype.ts` shapes.
-- [shell](../core/overview.md) — Slice 81's specimens only: `ShellStore` and `SHELL_NARROW_QUERY`,
-  and the [projects](../projects/overview.md) page registry, until step 3 deletes them.
 
 **Depended on by**
 

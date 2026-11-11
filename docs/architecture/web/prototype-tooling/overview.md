@@ -3,12 +3,11 @@
 `apps/web/src/app/prototype` is the development-only surface (§22, §46, §67): the
 Ctrl/Cmd+Shift+D development panel and the `/prototype/state` page that share one set of
 controls; the Design Lab at `/prototype/design` with its nineteen live token knobs and its
-catalogue of real components; while Slice 81 runs, its navigation alternatives at
-`/prototype/navigation/:option`; and `PrototypeControlPort`, the interface behind which the
+catalogue of real components; and `PrototypeControlPort`, the interface behind which the
 panel reaches the host's rig routes. It changes the rig — persona, seed, date, theme,
 layout mode, AI provider, delay, failure rate, flags, notes — never the workspace.
 
-**Code:** `apps/web/src/app/prototype/{control,dev-panel,design-lab,navigation-alternatives}` · **Tests:**
+**Code:** `apps/web/src/app/prototype/{control,dev-panel,design-lab}` · **Tests:**
 `*.spec.ts` beside each file; `control/testing` fake · **Parent:** [web](../overview.md) ·
 **Host side:** [prototype-runtime](../../prototype-host/prototype-runtime/overview.md)
 
@@ -37,11 +36,6 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
   cards and menus stay marked *not yet a shared component* — plus
   real lift-class specimens over a busy backing and a motion specimen. The live Drawer panel
   renders `TaskDetailDrawer` in contained mode, with neither fixed positioning nor the top layer.
-
-- `NavigationAlternativesPage` (Slice 81 R1, **disposable, deleted at the slice's step 3**): three
-  live navigation specimens (A, B, C) over the loaded seed, each in both of Q4's keyboard models,
-  as a full-viewport layer over the shell with a stand-in workspace. It reads `ShellStore` and the
-  gateway interface directly, a shortcut product code may not take.
 
 ## Not responsible for
 

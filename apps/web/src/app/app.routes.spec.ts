@@ -16,7 +16,6 @@ import { AgentConnectionsPage } from './features/settings/agents/agent-connectio
 import { ArchivedProjectsPage } from './features/settings/archived-projects/archived-projects-page';
 import { SettingsPage } from './features/settings/settings-page';
 import { DesignLabPage } from './prototype/design-lab/design-lab-page';
-import { NavigationAlternativesPage } from './prototype/navigation-alternatives/navigation-alternatives-page';
 import { StateInspectorPage } from './prototype/dev-panel/state-inspector-page';
 import { NotFoundPage } from './shared/components/placeholder-page/not-found-page';
 import { routes } from './app.routes';
@@ -55,8 +54,6 @@ describe('the §68 route map', () => {
     ['/settings/archived-projects', ArchivedProjectsPage],
     ['/prototype/design', DesignLabPage],
     ['/prototype/state', StateInspectorPage],
-    // Slice 81's disposable specimens (R1), deleted at its step 3.
-    ['/prototype/navigation/a?at=/app', NavigationAlternativesPage],
   ])('resolves %s', async (path, expected) => {
     const component = await (await harness()).navigateByUrl(path);
 
@@ -71,7 +68,7 @@ describe('the §68 route map', () => {
     const lazy = routes.filter((route) => route.loadComponent).map((route) => route.path);
     const eager = routes.filter((route) => route.component).map((route) => route.path);
 
-    expect(lazy).toEqual(['calendar', 'settings/agents', 'settings/archived-projects', 'prototype/design', 'prototype/state', 'prototype/navigation/:option']);
+    expect(lazy).toEqual(['calendar', 'settings/agents', 'settings/archived-projects', 'prototype/design', 'prototype/state']);
     expect(eager).toEqual([
       'app',
       'projects/:projectId/pages/:pageKind',
