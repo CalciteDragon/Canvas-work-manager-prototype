@@ -89,5 +89,12 @@ built by the slice's later steps (nothing here exists yet):
 - **Page settings** sit in the pencil menu and in More.
 - **Archived work** stays out of the tree except while current, then under its real path, with a
   contrast-passing colour rather than reduced opacity.
-- The other answers (titles and headings, the phone header, breadcrumb touch size, the keyboard model)
-  are in the plan's Open questions Q4–Q11, Q14 and Q16.
+- **Keyboard (Q4 (a)):** disclosure navigation: links and expand buttons in the Tab order, no treeview.
+- **Titles and headings (Q6 (a), (i)):** "Todos · Home renovation · Canvas Work Manager"; the `h1` names the
+  current page.
+- **Phone header (Q10 (a)):** below 48rem the description and facts fold behind "Details", with history and
+  More on the name row.
+- **Breadcrumb on touch (Q14 (a)):** 44 px targets; the Archive origin sentence keeps inline links.
+- **Pages of a root (Q16 (b)):** only enabled pages; in B only the current root shows its pages, so no
+  on-demand read of another root's pages is needed.
+- Details are in the Slice 81 plan's Open questions Q4–Q11, Q14 and Q16.

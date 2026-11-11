@@ -87,6 +87,9 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Deleted:* the `/prototype/navigation/:option` route, `prototype/navigation-alternatives/`, `ux/navigation-alternatives.ts`,
   `ux/slice81-alternatives.config.ts`, `build-navigation-alternatives.mjs` and its test (all at `ea12164`); the
   prototype-tooling docs. The sheet output stays git-ignored in `ux-output/slice81-alternatives/`.
+- *Review:* one cold reviewer over `a05a9b8` (3 substantive, 5 minor; all fixed in the review commit, Revisions
+  "Step 3"). Trap for step 5/9: `menuKeys` does not stop Escape, and the drawer closes on any Escape that reaches it.
+  The bundle estimate for B now reaches about 1,148.7 kB, so Q12 (a)'s lazy `/settings` may be needed (pre-approved).
 - *Bundle:* initial **1,139.36 kB** (back to the baseline after the route's removal).
 **Next: step 4** (context and current place, tests first).
 
@@ -101,7 +104,8 @@ alternatives before the slice commits to it.
 **Settled and not re-opened here:**
 - The user chose this slice next (2026-11-09). The §8 comb and redesign slice 8 stay pending, in that order.
 - One tree, not two marked trees (Gate 1, 2026-10-14, [decision](../../decisions/2026-10-one-navigation-tree.md)).
-  Root-scoped controls stay reachable from the tree, labelled with their scope.
+  Root-scoped controls stay reachable from the tree, labelled with their scope; since the decision's 2026-11-10
+  amendment (the pick), that is one activation behind the pencil "Edit project" menu, whose items name the scope.
 - Add workstream's Parent defaults to the open workstream, and the root on root pages. A new workstream
   opens itself ([decision](../../decisions/2026-10-creation-defaults-follow-the-open-work.md), user
   confirmation 2026-10-14).
@@ -222,13 +226,19 @@ step 3 (they remain at `ea12164`); the sheet output stays git-ignored.
 - **The pencil menu** ("Edit project", `aria-haspopup="menu"`, `aria-expanded`): a `popover="auto"` menu
   in `core/shell/sidebar/`, `role="menu"` with two `menuitem`s, "Pages of Home renovation…" and "Add
   workstream" (described "in Home renovation"), driven by `shared/lifts/menu-keys.ts` as More is (arrows,
-  Home, End; Escape closes and returns focus to the pencil; Tab closes). An item calls its handler through
+  Home, End; Escape closes and returns focus to the pencil; Tab closes). Because the drawer closes on any
+  Escape that reaches it (`app-shell.html`'s `(keydown.escape)`) and `menuKeys` only calls `preventDefault()`,
+  the menu **stops Escape's propagation** so, inside the drawer, Escape closes only the menu and focus is on the
+  pencil; a second Escape closes the drawer. An item calls its handler through
   `AppShell` (R2) after the menu closes. An archived root's "Add workstream" item stays focusable with its
   reason (`aria-disabled` and the reason as its description). With no handler registered the pencil is not
   rendered.
 - **Icon buttons** reuse the header's `.icon-button` (32 px on desktop, 44 px below 48rem). Their tooltip is a
   themed, token-styled label shown on hover and on keyboard focus, from the button's accessible name (CSS on
-  a data attribute; no `title`, so the name is not announced twice).
+  a data attribute; no `title`, so the name is not announced twice). WCAG 1.4.13: the tooltip stays while the
+  pointer moves onto it and while focus stays; Escape on the focused or hovered button hides it (a data
+  attribute, cleared on leave or blur) and, when a tooltip was showing, stops propagation, so inside the drawer
+  the first Escape hides the tooltip and the next closes the drawer. Touch shows no tooltip (no hover).
 
 ### R2 — Where the tree's data comes from (architecture)
 
@@ -270,7 +280,9 @@ kept them out of `ShellStore` on §20 grounds, and that reason holds.
   (`project-page-navigation.html:35`). From a handler, the popover opens with `showPopover({ source: opener })`,
   which keeps the implicit anchor and the light-dismiss exemption for the opener; the handler returns an
   open-state signal that the core trigger binds to `aria-expanded`, and a second press closes it.
-  `LiftFocus` returns focus to the opener.
+  `LiftFocus` returns focus to the opener. *(Superseded at step 3: the light-dismiss exemption does not hold,
+  and with B the opener is the menu's button; see "Step 3's choice" below. No open-state signal and no
+  second-press close.)*
 - **From the phone drawer.** `<main>` is inert while the drawer is open. The drawer is the same sidebar
   instance, hidden and inert, not removed, so its opener stays connected and a `focus()` on it would silently
   fail (`shared/lifts/lift-focus.ts:9-10`). So `AppShell` closes the drawer first and passes **Menu** as the focus-return
@@ -425,12 +437,13 @@ Initial is **1,139.28 kB** at the plan's start, so the headroom is **10.7 kB**.
   **+4.5 to +10 kB** with Q4 (b), up to about 1,149 kB. Q16 (b) adds about 1 kB.
 - **With B (step 3):** Q4 (a), no treeview. Q16 (b)'s on-demand read is not built: in B a root that is not
   current is never opened in the tree (it is a link one level up), so its pages are never shown, and the
-  current root's pages come from the context (−1 kB against the estimate). The pencil menu (a small core
-  component reusing `menuKeys`, which More already ships in the initial bundle) and the level state add about
-  +0.5 to +1 kB; the themed pills, tooltips and the focus-visible dismiss are CSS and markup, about +0.3 kB.
-  **Net estimate +3.8 to +8.3 kB, ending at about 1,143–1,148 kB.** The pencil menu does not change the outcome:
-  Q12 (a)'s pre-approval (lazy `/settings`, then lazy `/search`, above 1,148 kB) still holds and is enough
-  (−3.37 kB measured at step 0).
+  current root's pages come from the context (the Q16 (b) ~1 kB that sat on top of the estimate is not spent;
+  it was never inside the +3.5 to +8 kB). The pencil menu (a small core component reusing `menuKeys`, which More
+  already ships in the initial bundle) and the level state add about +0.5 to +1 kB; the themed pills, tooltips
+  and the focus-visible dismiss are CSS and markup, about +0.3 kB. **Net estimate +4.3 to +9.3 kB, ending at about
+  1,143.7–1,148.7 kB** from step 3's 1,139.36 kB. The pencil menu moves the top of the range across the 1,148 kB
+  trigger, so **Q12 (a)'s payment may be needed**; its pre-approval (lazy `/settings`, then lazy `/search`)
+  still holds and is enough (−3.37 kB measured at step 0), keeping the end near 1,145.3 kB, under the ceiling.
 - **The rule:** every web step runs `pnpm --filter web build` and records the figure in the State header. A
   step that would cross 1,150 kB stops with `CHAIN: STOP`. Q12 (a) pre-approves the payment: lazy `/settings`,
   then lazy `/search`, when a step's build would end above 1,148 kB.
@@ -490,7 +503,7 @@ pair (P).
 | L5-015 (heading outline) | S3 | T tree; J3 |
 | L7-005, L7-006 (phone) | S2 | J7; P `kitchen` 375 closed and open |
 | L1-014 (header at 375) | S2 | J7 (height); P `nested-projects-project` 375 |
-| L7-022 (Projects group) | S3 | **Advanced:** per-root disclosures, J9; no index page |
+| L7-022 (Projects group) | S3 | **Advanced:** under B the Projects group is a label, not a toggle, and each root drills in by its link; workstream disclosures, J9; no index page |
 | W1-008, W2-004, W3-010, W4-029 (Parent default) | S2, S3 | J5; P `add-workstream-kitchen` |
 | W1-014, W2-007 (new workstream opens) | S3 | J5 |
 | W1-044, W2-026, W4-017 (page settings) | S2 | J6; P `page-settings-open` 1440 and 375 |
@@ -579,7 +592,8 @@ Run in this order on the slice's final commit. Made exact for B at step 3 (2026-
       children (created through the host API) and the toggle's `aria-expanded` follows; a workstream opened by hand
       stays open after navigating to another page of the root. Enter on the chevron shows the top level with
       focus on Home renovation's row. Enter on the pencil opens its menu with focus on the first item; Down and
-      Up move between the two; Escape closes it and focus is on the pencil; Tab closes it. The chevron and the
+      Up move between the two; Escape closes it and focus is on the pencil; Tab closes it. At 375 in the open
+      drawer, Escape in the pencil menu closes only the menu (the drawer stays, focus on the pencil). The chevron and the
       pencil show their tooltip on hover and on keyboard focus.
    10. **Deep tree.** Five nested workstreams created through the host API under Cabinets: the deepest is
        current, its ancestors are expanded, indentation stops at the fourth level, and the breadcrumb names
@@ -592,14 +606,14 @@ Run in this order on the slice's final commit. Made exact for B at step 3 (2026-
    inert, resize, a failed create reopening the form); its Close cases move to the focus-visible "Close
    navigation" button (decision 4), and its column cases change.
 6. The core-task scripts (`apps/e2e/ux/tasks.ts`, T01–T12) run on the "after" build with no task above its
-   baseline click count and no dead end. Each script takes before/after locators, keyed on `UX_BEFORE` directly as
+   baseline click count except T08 (+1, accepted with the pick), and no dead end. Each script takes before/after locators, keyed on `UX_BEFORE` directly as
    `cascading-archive-verification.ts:17` does, not on `legacyBefore`, which `UX_OBJECTS=1` always makes false
    (`tasks.ts:19`, `capture.ts:18`) (T08 and the `page-settings`
    state name the gear "Project page settings for Home renovation", `tasks.ts:117`, `capture.ts:34`), and
    T02's "Choose Kitchen as parent" step is skipped, at zero clicks, when Parent already shows Kitchen. With B,
    T02 and T08 open the pencil before their item, so each adds that click and T02's skipped choice takes one
-   away: T02 stays at its baseline (3) and T08 rises by one (3 → 4) **unless** the locator reaches page settings
-   through More, which costs the same. T08 is therefore **a known regression of one click**, accepted with the
+   away: T02 stays at its baseline (3) and T08 rises by one (3 → 4) (through More it costs the same). T08 is
+   therefore **a known regression of one click**, accepted with the
    pick (decision 3 moved the action behind the pencil); the "after" run records it, and the Outcome names it.
 7. The sheet (Capture scope) has zero gate failures and goes to the user for **Gate 2**.
 8. **Real use** after Gate 2: `nested-projects` and `busy-week` at 1440 mouse, 1440 keyboard and 375 touch,
@@ -637,7 +651,8 @@ the slice's verification file runs `runCoreTasks` (as `objects-verification.ts:1
 equal step 0's; a difference is a rig fault to fix, not a new baseline.
 
 **`kitchen-collapsed`** clicks the first `button(/^Collapse /)` (`capture.ts:48`), a section's collapse. The
-tree's disclosure buttons must not match it: their names are "Show/Hide … pages and workstreams", and the locator
+tree's disclosure buttons must not match it: under B only workstreams with children have one, named "Show/Hide
+Kitchen's workstreams" (not "Collapse …"), and the locator
 is scoped to `main` on both builds.
 
 **Census exceptions:** profile 81 retires `build-sheet.mjs:58`'s `project-nav__breadcrumb` exception (owned by
@@ -875,6 +890,7 @@ Steps 4–11 write these first and watch each fail for the right reason. Firmed 
 | `sidebar.spec.ts`: outside a project the top level lists destinations, Projects (a label, no toggle) with live roots as links and no disclosure, and Settings with its children; inside one, only the root level | B's two levels (L7-022) |
 | `sidebar.spec.ts`: the chevron shows the top level without navigating, marks the current root `aria-current="location"` with no `page`, and moves focus to that row; a place change resets the level | B's level |
 | `sidebar.spec.ts`: a workstream opened by hand stays open across a place change in the same root | Disclosures |
+| `edit-project-menu.spec.ts`: Escape in the open menu does not propagate (a parent `keydown.escape` listener is not called); Escape on a button with its tooltip showing hides it and does not propagate, a second Escape does; `app-shell.spec.ts`: at narrow width, Escape in the drawer's pencil menu closes only the menu and focuses the pencil | Escape layering in the drawer (step 3 review) |
 | `edit-project-menu.spec.ts`: the pencil is named "Edit project" with `aria-haspopup="menu"` and `aria-expanded`; Enter opens the menu with focus on "Pages of Home renovation…"; Down/Up/Home/End move; Escape closes and focuses the pencil; Tab closes; each item emits once after the menu closes; an archived root's Add is focusable with `aria-disabled` and its reason | Decision 3 |
 | `sidebar.spec.ts`: no element in the tree or the action row has an underline at rest; the chevron and pencil carry a tooltip from their name on hover and focus; the action row is one row (chevron and pencil vertically centred) | Decisions 2 and 3 |
 | `sidebar.spec.ts`: ancestors of current expanded; depth 6 indents as depth 4 | Deep trees |
@@ -1416,6 +1432,14 @@ its question.
     item 5 made exact; Capture scope's region selectors and three after-only contexts; the change list (pencil
     menu, `_controls.scss`, More's two items, Q5 (d)'s sites and decision entry; `root-pages.ts` and `top-bar.*`
     dropped); steps 4–6 and 9–11, 13; the Test plan's pick rows; answers under Q4–Q11, Q14, Q16.
+  - *Review (one cold reviewer over `a05a9b8`; 3 substantive, 5 minor, each checked against the code and holding):*
+    substantive: Escape in the pencil menu would also close the phone drawer (`menuKeys` does not stop
+    propagation; the drawer listens for Escape) — the menu now stops it, with spec and J9 cases; Acceptance item 6
+    still forbade any task above baseline while accepting T08 +1 — fixed; the "settled" root-scoped-controls line
+    contradicted the amendment — it now points to it. Minor, fixed: the bundle arithmetic (Q16 was never in the
+    base range; now +4.3 to +9.3 kB, so the Q12 (a) payment may be needed, still under 1,150 kB); R2's superseded
+    open-state/second-press text marked; L7-022 and the disclosure names restated for B; the tooltip's WCAG 1.4.13
+    handling; the decision amendment names Q4, Q6, Q10 and Q14's answers.
   - *Defaults taken (AGENTS.md §4):* the chevron moves focus to the current root's row and there is no "back down"
     control without navigating; the tooltip is CSS from the accessible name, shown on hover and focus, no
     `title`; the origin path keeps content link style (it is content, not navigation); the Projects label is not
