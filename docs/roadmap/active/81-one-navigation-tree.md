@@ -77,7 +77,7 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Traps:* archiving a root through the host API needs `archiveWorkstreamIds` for its live workstreams (409
   otherwise); a "Loading" row can appear after the first settled check, so every capture re-asserts it is gone;
   `--grep measurements` also matches a test whose title says "measurement", hence the "sheet index" title.
-**Step 2 is complete.** The user picked **B** on 2026-11-10, with decisions 2–4 and Q4–Q11, Q14, Q16 (R1's Outcome). Done in step 3:
+**Step 2 is complete.** The user picked **B** on 2026-11-10, with decisions 2–4 and Q4–Q11, Q14, Q16 (R1's Outcome). Done in step 3 (`a05a9b8` pick, plan, deletions; `75a4b11` review fixes):
 - *Plan:* rewritten for B (Revisions, "Step 3"): pencil "Edit project" menu + More for page settings and Add workstream,
   back-chevron, themed breadcrumb pills, drawer without Close (a focus-visible "Close navigation" as the last Tab
   stop), popover anchored to the menu's button with `position-anchor: auto`, no `root-pages.ts` (Q16 under B).
@@ -87,7 +87,7 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Deleted:* the `/prototype/navigation/:option` route, `prototype/navigation-alternatives/`, `ux/navigation-alternatives.ts`,
   `ux/slice81-alternatives.config.ts`, `build-navigation-alternatives.mjs` and its test (all at `ea12164`); the
   prototype-tooling docs. The sheet output stays git-ignored in `ux-output/slice81-alternatives/`.
-- *Review:* one cold reviewer over `a05a9b8` (3 substantive, 5 minor; all fixed in the review commit, Revisions
+- *Review:* one cold reviewer over `a05a9b8` (3 substantive, 5 minor; all fixed in `75a4b11`, Revisions
   "Step 3"). Trap for step 5/9: `menuKeys` does not stop Escape, and the drawer closes on any Escape that reaches it.
   The bundle estimate for B now reaches about 1,148.7 kB, so Q12 (a)'s lazy `/settings` may be needed (pre-approved).
 - *Bundle:* initial **1,139.36 kB** (back to the baseline after the route's removal).
