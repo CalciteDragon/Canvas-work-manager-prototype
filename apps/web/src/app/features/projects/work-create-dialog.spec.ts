@@ -232,4 +232,21 @@ describe('WorkCreateDialog (§23, §26)', () => {
     expect(query(fixture, '[data-create-work-inside]').textContent).toContain(`Inside ${PARENTS.find(({ id }) => id === expected)!.name}`);
     expect(query(fixture, '[data-create-work-parent-note]')).toBeNull();
   });
+
+  it('resets a departed default to the next nearest eligible ancestor with its note (Q15 (a))', async () => {
+    const parents = [...PARENTS, { id: CABINETS, name: 'Cabinets', depth: 2, completed: false }];
+    TestBed.resetTestingModule();
+    const fixture = TestBed.createComponent(WorkCreateDialog);
+    fixture.componentRef.setInput('parents', parents);
+    fixture.componentRef.setInput('create', async () => null);
+    fixture.componentRef.setInput('openId', CABINETS);
+    fixture.componentRef.setInput('openPath', [{ id: ROOT }, { id: KITCHEN }]);
+    fixture.detectChanges();
+    expect(query<HTMLSelectElement>(fixture, '[data-create-work-parent]').value).toBe(CABINETS);
+    // Cabinets is archived while the dialog is open: it leaves the options.
+    fixture.componentRef.setInput('parents', PARENTS);
+    fixture.detectChanges();
+    expect(query<HTMLSelectElement>(fixture, '[data-create-work-parent]').value).toBe(KITCHEN);
+    expect(query(fixture, '[data-create-work-parent-note]').textContent).toContain('Cabinets is no longer available; choose another parent.');
+  });
 });

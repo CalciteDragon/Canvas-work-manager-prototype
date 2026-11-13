@@ -228,6 +228,13 @@ and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locato
   Tests first: `work-create-dialog.spec.ts` (four Q15 cases, the archived-ancestry fixture defaulting to Kitchen,
   not the root); the shell's handler case now expects Cabinets. Docs: `web/projects/how.md`, `why.md`, and an
   amendment to `2026-10-creation-defaults-follow-the-open-work.md`. Bundle **1,149.73 kB** (+0.10; the dialog is lazy).
+  Commits: `80e9203` (Parent default, docs, Open question 19), then the review's unit case and this header. E2E
+  green: `work-navigation` (two Parent expectations now Cabinets, the open workstream), `phone-layout`,
+  `project-creation-history`. A `phone-layout` dark-theme setup case failed once on the theme toggle and passed on rerun.
+- *Review* (one cold reviewer over `80e9203`): no substantive findings; it confirmed a live child of an archived
+  parent never reaches `parents` (`toWorkTree` walks from the root over a list without archived). Minor, fixed: a unit
+  case for a departed default (the open Cabinets leaves; Kitchen is chosen, the note names Cabinets). Left: `why.md`'s
+  summary omits the ancestor fallback (how.md and the decision carry it); the stash is local to this machine.
 - *Parked:* `git stash list` → "slice 81 step 7 WIP: create opens the workstream (1,151.16 kB, over the ceiling)"
   (also `/tmp/s81s7-wip.patch`, not durable). It holds the whole step written test-first, with every touched unit
   spec green (shell 93/93, dialog, store, shell-store, app-shell, history store, receipt toast, history feedback):
