@@ -56,3 +56,11 @@ quick-add rule now has its implementation.
 the field, refuses a second submit while one is pending, and on a long list scrolls the new row
 into view under a sticky add form. A section or shortcut created from the canvas dialog is
 revealed and its heading focused. See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).
+
+**Amended, 2026-11-13 — Slice 81 step 7 (Parent default implemented).** Add workstream's Parent now
+defaults to the open workstream, and to the root on a root page. When the open workstream is not a
+Parent option (it is archived, or sits under an archived ancestor), the default is its nearest
+ancestor that is one (Slice 81 Q15 (a)): under an archived Cabinets inside Kitchen, that is Kitchen,
+not the root. A chosen parent that disappears resets to the same default with its note. Navigating to
+a newly created workstream (W1-014, W2-007) is not yet shipped: its build crosses the bundle ceiling
+and waits on the user ([plan](../roadmap/active/81-one-navigation-tree.md), Open question 19).

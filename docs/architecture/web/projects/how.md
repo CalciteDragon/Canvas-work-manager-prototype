@@ -67,7 +67,9 @@ leaves focus where the person put it; every close emits `closed` once and the sh
 request. Pending toggles use aria-disabled and reset refused native state so the pressed toggle
 keeps focus through settlement. `openWorkCreate` records the request's `returnFocus` and opens
 `WorkCreateDialog`, whose inner `@if` destroys its draft on close. Parent options flatten the live tree, root first;
-completed parents are marked. A disappearing parent resets to the root with a named polite note,
+completed parents are marked. Parent defaults to the open project (`openId`), else its nearest ancestor in
+`openPath` that is still an option, since archived work and work under it are not (Slice 81, Q15 (a)); on a root
+page that is the root. A disappearing parent resets to that default with a named polite note,
 deferred until a pending submit settles. The shell closes both lifts on `store.loading()` or a root change;
 a chosen close of the dialog returns focus to the request's `returnFocus` after rendering
 (`LiftFocus`, falling back to the project `h1`). Loads move no focus.

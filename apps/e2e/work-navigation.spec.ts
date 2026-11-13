@@ -111,7 +111,9 @@ test('Add workstream creates once without navigation, refreshes a second tab and
 
   await page.goto('/projects/project-cabinets');
   await fromPencil(page, 'add');
-  await expect(parentOf(page)).toHaveValue(ROOT);
+  // Slice 81, Q15 (a): Parent defaults to the open workstream.
+  await expect(parentOf(page)).toHaveValue('project-cabinets');
+  await expect(dialogOf(page)).toContainText('Inside Cabinets');
   await parentOf(page).selectOption('project-kitchen');
   await expect(dialogOf(page)).toContainText('Inside Kitchen');
   await nameOf(page).fill('Cabinet hardware');
@@ -124,7 +126,8 @@ test('Add workstream creates once without navigation, refreshes a second tab and
   await fromPencil(page, 'add');
   await parentOf(page).selectOption('project-garden');
   await api.patch('/api/projects/project-garden', { status: 'archived' });
-  await expect(parentOf(page)).toHaveValue(ROOT);
+  // A departed choice resets to the default: the open workstream (Q15 (a)).
+  await expect(parentOf(page)).toHaveValue('project-cabinets');
   await expect(dialogOf(page)).toContainText('Garden is no longer available; choose another parent.');
   await dialogOf(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   await watcher.close();

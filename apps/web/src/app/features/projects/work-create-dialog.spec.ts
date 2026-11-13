@@ -13,11 +13,18 @@ const PARENTS: WorkCreateParent[] = [
   { id: 'project-garden' as ProjectId, name: 'Garden', depth: 1, completed: true },
 ];
 
-const render = async (create: (parentId: ProjectId, name: string) => Promise<Failure | null> = async () => null) => {
+const render = async (
+  create: (parentId: ProjectId, name: string) => Promise<Failure | null> = async () => null,
+  open?: { openId: ProjectId; openPath: readonly { id: ProjectId }[] },
+) => {
   TestBed.resetTestingModule();
   const fixture = TestBed.createComponent(WorkCreateDialog);
   fixture.componentRef.setInput('parents', PARENTS);
   fixture.componentRef.setInput('create', create);
+  if (open) {
+    fixture.componentRef.setInput('openId', open.openId);
+    fixture.componentRef.setInput('openPath', open.openPath);
+  }
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
@@ -206,5 +213,23 @@ describe('WorkCreateDialog (§23, §26)', () => {
     await successfulRequest;
     success.detectChanges();
     expect(success.componentInstance.selectedParentId()).toBe(KITCHEN);
+  });
+
+  // Slice 81, Q15 (a): Parent defaults to the open workstream, the root on a root page, and the
+  // nearest eligible ancestor when the open one is not a parent choice (archived, or under archived
+  // ancestry: neither is in `parents`). Cabinets is archived and Drawers lives under it, so the
+  // nearest eligible ancestor is Kitchen, not the root.
+  const CABINETS = 'project-cabinets' as ProjectId;
+  const DRAWERS = 'project-drawers' as ProjectId;
+  it.each([
+    ['the root page', ROOT, [], ROOT],
+    ['an open workstream', KITCHEN, [{ id: ROOT }], KITCHEN],
+    ['an archived open workstream', CABINETS, [{ id: ROOT }, { id: KITCHEN }], KITCHEN],
+    ['a workstream under archived ancestry', DRAWERS, [{ id: ROOT }, { id: KITCHEN }, { id: CABINETS }], KITCHEN],
+  ] as const)('defaults Parent from %s (Q15 (a))', async (_case, openId, openPath, expected) => {
+    const fixture = await render(undefined, { openId, openPath });
+    expect(query<HTMLSelectElement>(fixture, '[data-create-work-parent]').value).toBe(expected);
+    expect(query(fixture, '[data-create-work-inside]').textContent).toContain(`Inside ${PARENTS.find(({ id }) => id === expected)!.name}`);
+    expect(query(fixture, '[data-create-work-parent-note]')).toBeNull();
   });
 });

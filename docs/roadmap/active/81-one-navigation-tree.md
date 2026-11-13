@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-13):** **step 6 (lifts move, with step 8's column deletion brought forward per Open question 18 (a)) is done; next is step 7.** Step 5 is done. Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-13):** **step 7 is stopped on the bundle ceiling (Open question 19): its Parent default (Q15 (a)) is committed; the rest is parked in `git stash`.** Step 6 (lifts move, with step 8's column deletion brought forward per Open question 18 (a)) is done. Step 5 is done. Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -221,7 +221,30 @@ and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locato
 - *Noted, not changed:* at desktop a tree link leaves focus on the link (as the column's wide selection did);
   opening the pencil does not close the task drawer, choosing "Pages of …" does; an archived root lists no archived
   workstreams under it.
-**Next:** step 7 (create opens the workstream).
+**Step 7 — stopped (2026-11-13) on the bundle ceiling; Open question 19.**
+- *Committed:* the Parent default (Q15 (a)). `WorkCreateDialog` gains `openId` and `openPath` (the shell binds
+  `projectId()` and `store.breadcrumbs()`); Parent defaults to the open project, else its nearest ancestor that is
+  still an option (archived work and work under it are not), and a vanished choice resets to that default.
+  Tests first: `work-create-dialog.spec.ts` (four Q15 cases, the archived-ancestry fixture defaulting to Kitchen,
+  not the root); the shell's handler case now expects Cabinets. Docs: `web/projects/how.md`, `why.md`, and an
+  amendment to `2026-10-creation-defaults-follow-the-open-work.md`. Bundle **1,149.73 kB** (+0.10; the dialog is lazy).
+- *Parked:* `git stash list` → "slice 81 step 7 WIP: create opens the workstream (1,151.16 kB, over the ceiling)"
+  (also `/tmp/s81s7-wip.patch`, not durable). It holds the whole step written test-first, with every touched unit
+  spec green (shell 93/93, dialog, store, shell-store, app-shell, history store, receipt toast, history feedback):
+  `ShellStore.refresh()` public and `ShellCommands.refreshProjects()` (`AppShell`; the dashboard spec's and story's
+  doubles gain it); `ProjectWorkspaceStore.createWorkstream` resolves the create's `OperationWriteReport`
+  (`feedback: 'own'`) or a `Failure`; `ReceiptUndoResult.committed` set by `undoReceipt` on a committed transition;
+  `ReceiptToast.undo` resolves its result; `createdUnderFeedback` ("Created Pantry under Kitchen."); the shell's
+  `createWorkstream` (close the dialog, await `refreshProjects`, `land()` on the new workstream), `undoToast` (a
+  committed Undo of the shown create's toast lands on the parent, a push, with "Open Pantry to redo"), and
+  `focusLanding` in `afterEveryRender` (focus the landed `h1`, then show the toast, after the new history
+  generation). Shell spec block "Slice 81: creating a workstream opens it" (9 cases). Not yet done on it: the e2e
+  rewrites (`work-navigation.spec.ts`, the workstream half of `project-creation-history.spec.ts`), the decision
+  `2026-11-undoing-a-new-workstream-returns-to-its-parent.md`, the creation-history amendment, the review.
+  To resume: `git stash pop` (the dialog and shell-template hunks are already committed and may conflict trivially; keep HEAD's).
+- *Trap:* in the shell spec, a held `history.transition` keeps a pending task, so `settle()` (which awaits
+  `whenStable`) hangs until it is answered; navigate first, answer, then settle.
+**Next:** the user answers Open question 19; then resume step 7 from the stash.
 
 ## Goal
 
@@ -1423,6 +1446,26 @@ blocking step 6)
   Slice 81 only to at most 1,155 kB; (b), (c) and (e) are not used. **Measured: 1,149.60 kB**, so (d) was not needed and the
   ceiling stays 1,150 kB (1,149.63 kB after the review fixes).
 
+**19. Step 7 crosses the bundle ceiling: what pays for the create path?** (step 7, 2026-11-13; **blocking step 7**)
+- *Context.* Step 6 closed at 1,149.63 kB, 0.37 kB under the 1,150 kB ceiling (Open question 18 did not raise it).
+  Step 7 written in full measures **1,151.16 kB** (+1.53 kB). Its Parent default is lazy (the dialog) and is
+  committed at **1,149.73 kB**; the rest is eager shell code: the create → refresh → navigate → focus path, Q13 (b)'s
+  toast after the navigation and its Undo's landing on the parent (`ProjectWorkspaceShell` about +1.2 kB), plus the
+  small `refreshProjects`, `committed`, `ReceiptToast.undo` result and sentence helper. No pre-approved payment is
+  left, and steps 10 and 11 still add eager code (breadcrumb in the eager header, `TitleStrategy`, skip link), so a
+  ceiling held at 1,150 kB stops each of them in turn.
+- *Options.* (a) **Raise the ceiling for Slice 81 to at most 1,155 kB** (Q18 (d)'s allowance, applied from step 7
+  on): step 7 lands about 1,151.2 kB; steps 10–11 are estimated at +2 to +4 kB, so they may reach the 1,155 kB
+  figure and ask again. (b) **Load the landing lazily**: the shell keeps a stub and `import()`s the landing code after
+  the create's write answers (and for that toast's Undo); estimated −1 kB, leaving about 1,150.1 kB, still over or at
+  the line, with nothing for steps 10–11. (c) **Lazy More menu** (Q18 (c)): estimated −2 to −3 kB; More's first open
+  loads a chunk, a design change needing a decision entry and a placeholder that stays a working `popovertarget`.
+  (d) **Lazy dashboard route** (Q18 (e)): the `/app` landing loads a chunk.
+- *Recommendation.* (a), with (c) pre-approved as the fallback if a later step would cross 1,155 kB. The create path
+  is core behaviour (W1-014, W2-007, Q13 (b)), and (b) costs structure for too little.
+- *Impact.* (a) amends the bundle decision for Slice 81 and lets step 7 resume from the stash as written; (c) adds a
+  design piece to a later step; without an answer step 7 cannot be finished.
+
 ## Revisions
 
 - **First draft (2026-11-09, S81PLAN):** written from the code, the spec, the findings and the decisions.
@@ -1657,6 +1700,10 @@ blocking step 6)
   - *Defaults taken (AGENTS.md §4):* the popover keeps the heading "Pages" (the menu item names the root); More's two items
     sit after Open archive, so the existing separator rule holds; a light dismiss leaves focus where the person put it,
     as the gear's popover did.
+
+- **Step 7 (2026-11-13), stopped on the bundle.** No plan content changed beyond Open question 19 and the State
+  header. The test plan's "`createWorkstream` returns the new id" is met as returning the create's report, which
+  carries the id and the receipt the shell's toast needs.
 
 ## Outcome
 

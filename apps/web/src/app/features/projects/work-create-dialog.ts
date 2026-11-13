@@ -27,6 +27,9 @@ export class WorkCreateDialog {
   readonly parents = input.required<readonly WorkCreateParent[]>();
   /** Resolves `null` on success, or the failure to show beside the form: a sentence, the reason for Details (Slice 78). */
   readonly create = input.required<(parentId: ProjectId, name: string) => Promise<Failure | null>>();
+  /** The open project and its ancestors (root first), for Parent's default (Slice 81, Q15 (a)). */
+  readonly openId = input<ProjectId | null>(null);
+  readonly openPath = input<readonly { id: ProjectId }[]>([]);
   readonly closed = output<void>();
   readonly selectedParentId = signal<ProjectId | null>(null);
   readonly name = signal('');
@@ -74,8 +77,11 @@ export class WorkCreateDialog {
     if (selectedId !== null) {
       this.parentNote.set(`${this.selectedParentName()} is no longer available; choose another parent.`);
     }
-    this.selectedParentId.set(parents[0]?.id ?? null);
-    this.selectedParentName.set(parents[0]?.name ?? '');
+    // The open workstream, else its nearest ancestor that is still a parent choice (Q15 (a)).
+    const near = [...this.openPath().map(({ id }) => id), this.openId()].reverse();
+    const fallback = near.map((id) => parents.find((parent) => parent.id === id)).find(Boolean) ?? parents[0];
+    this.selectedParentId.set(fallback?.id ?? null);
+    this.selectedParentName.set(fallback?.name ?? '');
   }
 
   parentLabel(parent: WorkCreateParent): string {

@@ -357,13 +357,14 @@ describe('ProjectWorkspaceShell — §23’s workspace and §68’s routes', () 
     expect(TestBed.inject(NavigationContext).place()?.root?.name).toBe('Other');
     expect(query(harness, '[role="dialog"]')).toBeNull();
   });
-  it('opens work creation from the handler with root-first parents, closes on success and returns focus to the request’s returnFocus', async () => {
+  it('opens work creation from the handler with root-first parents and Parent on the open workstream, closes on success and returns focus to the request’s returnFocus', async () => {
     const { harness, gateway, router } = await open('/projects/project-cabinets');
     const from = await requestWork(harness);
     expect(query(harness, '[role="dialog"]')).not.toBeNull();
     const select = query(harness, 'select') as HTMLSelectElement;
     expect([...select.options].map((option) => option.textContent?.trim())).toEqual(['Home renovation', 'Kitchen', 'Cabinets', 'Garden']);
-    expect(select.value).toBe('project-renovation');
+    // Slice 81, Q15 (a): the open workstream, not the root.
+    expect(select.value).toBe('project-cabinets');
     const name = query(harness, '[role="dialog"] input') as HTMLInputElement;
     name.value = 'Paint'; name.dispatchEvent(new Event('input'));
     select.value = 'project-kitchen'; select.dispatchEvent(new Event('change'));

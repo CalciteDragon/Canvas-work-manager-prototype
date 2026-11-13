@@ -3,7 +3,7 @@
 ## The problem it solves
 
 Page settings and Add workstream open from the navigation tree's pencil "Edit project" menu and
-from the header's More, with an explicit root-default parent and the child's existing history
+from the header's More, with an explicit Parent that defaults to the open workstream ([creation defaults](../../../decisions/2026-10-creation-defaults-follow-the-open-work.md)) and the child's existing history
 feedback; they replaced the column's root-name gear and Work plus in Slice 81
 ([navigation controls](../../../decisions/2026-09-project-navigation-gear-and-work-create.md)).
 Nested `subproject` work is called a workstream in user prose

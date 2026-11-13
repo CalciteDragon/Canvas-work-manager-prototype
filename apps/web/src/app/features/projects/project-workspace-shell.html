@@ -113,7 +113,7 @@
           />
         }
         @if (workCreateOpen()) {
-          <app-work-create-dialog [parents]="workCreateParents()" [create]="createWorkstream" (closed)="closeWorkCreate()" />
+          <app-work-create-dialog [parents]="workCreateParents()" [openId]="projectId()" [openPath]="store.breadcrumbs()" [create]="createWorkstream" (closed)="closeWorkCreate()" />
         }
       } @error {
         <div data-lift-error class="state-message state-message--region state-message--failed">
