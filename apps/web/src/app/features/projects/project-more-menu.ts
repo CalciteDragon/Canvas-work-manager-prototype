@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output } from '@angular/core';
 import { isSubproject, type Project, type ProjectStatus } from '@cwm/contracts';
+import { NavigationContext } from '../../core/shell/navigation-context';
 import { menuKeys } from '../../shared/lifts/menu-keys';
 
 /** The four §26 statuses offered independently of the archive confirmation. */
@@ -19,6 +20,10 @@ export class ProjectMoreMenu {
   readonly statusRequested = output<SettableProjectStatus>();
   readonly archiveRequested = output<void>();
   readonly openArchiveRequested = output<void>();
+  /** "Pages of <root>…" or Add workstream; the header closes the menu and calls the handler (Slice 81, decision 3). */
+  readonly treeActionRequested = output<'openPageSettings' | 'openAddWorkstream'>();
+  /** The root and Add workstream's unavailable reason (an archived root), from the tree's place. */
+  protected readonly place = inject(NavigationContext).place;
   readonly dismissed = output<void>();
   protected readonly statuses: SettableProjectStatus[] = ['planning', 'active', 'on_hold', 'completed'];
   protected readonly isWorkUnit = computed(() => isSubproject(this.project()));
@@ -27,6 +32,10 @@ export class ProjectMoreMenu {
   /** Opening a menu always starts at its first action. */
   focusFirst(): void {
     this.items()[0]?.focus();
+  }
+
+  protected addWorkstream(): void {
+    if (!this.place()?.addBlockedReason) this.treeActionRequested.emit('openAddWorkstream');
   }
 
   protected keydown(event: KeyboardEvent): void {

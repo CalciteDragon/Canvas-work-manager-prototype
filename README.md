@@ -158,7 +158,7 @@ pnpm storybook
 ```
 
 <http://localhost:6006> — `TaskRow`'s six §4 variants, `ProjectSectionFrame`'s, and the
-story sets the 25.x slices added for the canvas, navigation column, pages, shortcuts and
+story sets the 25.x slices added for the canvas, pages, shortcuts and
 the archive list, with a dark/light toolbar switch and live controls. `pnpm storybook:build`
 produces a static build.
 

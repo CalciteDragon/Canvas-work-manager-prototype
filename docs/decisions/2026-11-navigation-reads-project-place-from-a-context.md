@@ -58,3 +58,12 @@ rule, which has met the e2e journeys but not real use, and for handlers, which n
 
 A second feature needs to publish place into the tree, or a production API gives the shell a way to
 read a root's pages without the route.
+
+**Amended, 2026-11-13 (Slice 81, step 6).** Handlers are now registered: `ProjectWorkspaceShell`
+registers `{ openPageSettings, openAddWorkstream }` and disposes them on destroy, so
+`hasHandlers()` is true whenever a project shell is mounted and the pencil is drawn in the app.
+`AppShell.toPlace` passes the pencil as source and return at desktop width, and from the drawer
+closes it, focuses Menu and calls with no source and Menu as return. The header's More calls the
+context directly (`ProjectHeader.requestTreeAction`, a feature → core edge), with More as source
+and return; `ProjectMoreMenu` reads the root's name and Add workstream's blocked reason from
+`place()`. No pass-through inputs were added ([plan](../roadmap/active/81-one-navigation-tree.md)).

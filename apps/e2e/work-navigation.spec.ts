@@ -1,6 +1,10 @@
-/** Slice 60: column settings and work creation, including real live and refusal paths. */
+/**
+ * Slice 60: page settings and work creation, including real live and refusal paths. Slice 81 moved
+ * both from the deleted project column to the tree's pencil menu.
+ */
 import type { Project, ProjectWriteResult } from '@cwm/contracts';
 import { expect, test, type Page } from '@playwright/test';
+import { fromPencil, pencil, treePage, treeWork } from './project-tree';
 import { api, createRoot, seed, setClock } from './seed';
 
 const ROOT = 'project-renovation';
@@ -15,29 +19,32 @@ test.beforeEach(async () => {
 });
 
 for (const theme of ['dark', 'light'] as const) {
-  test(`${theme}: gear settings work by keyboard on Home, Todos and third-level work`, async ({ page }) => {
+  test(`${theme}: the pencil’s page settings work by keyboard on Home, Todos and third-level work`, async ({ page }) => {
     for (const path of [`/projects/${ROOT}/pages/home`, `/projects/${ROOT}/pages/todos`, '/projects/project-cabinets']) {
       await page.goto(path);
       await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
       if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      const gear = page.locator('[data-project-settings-toggle]');
+      const edit = pencil(page);
+      const pages = page.locator('[data-edit-project-pages]');
       const panel = page.locator('[data-project-page-manager]');
-      await expect(gear).toHaveAccessibleName('Project page settings for Home renovation');
+      await expect(edit).toHaveAccessibleName('Edit project');
       await expect(panel).toBeHidden();
-      await gear.press('Enter');
+      await edit.press('Enter');
+      await expect(pages).toBeFocused();
+      await expect(pages).toHaveAccessibleName('Pages of Home renovation…');
+      await pages.press('Enter');
       await expect(panel).toBeVisible();
-      await expect(gear).toHaveAttribute('aria-expanded', 'true');
       await expect(panel.locator('[data-page-toggle-kind="home"] input')).toBeDisabled();
       await expect(panel.locator('[data-page-toggle-kind="work"]')).toHaveCount(0);
       const reflections = panel.locator('[data-page-toggle-kind="reflections"] input');
       await expect(reflections).toBeChecked();
       await reflections.click();
       await expect(reflections).not.toBeChecked();
-      await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
+      await expect(treePage(page, 'reflections')).toHaveCount(0);
       await reflections.click();
       await expect(reflections).toBeChecked();
-      await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toBeVisible();
+      await expect(treePage(page, 'reflections')).toBeVisible();
 
       await page.route(`**/api/projects/${ROOT}/pages/reflections`, (route) =>
         route.request().method() === 'PATCH'
@@ -48,22 +55,25 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(panel.locator('[data-page-toggle-error]')).toContainText('Reflections toggle refused');
       await reflections.press('Escape');
       await expect(panel).toBeHidden();
-      await expect(gear).toBeFocused();
-      await gear.press('Space');
+      await expect(edit).toBeFocused();
+      await edit.press('Space');
+      await expect(pages).toBeFocused();
+      await pages.press('Enter');
       await expect(panel).toBeVisible();
-      await gear.click();
+      await page.keyboard.press('Escape');
       await expect(panel).toBeHidden();
+      await expect(edit).toBeFocused();
       await page.unroute(`**/api/projects/${ROOT}/pages/reflections`);
     }
   });
 }
 
-test('Work plus creates once without navigation, refreshes a second tab and resets a departed parent', async ({ page }) => {
+test('Add workstream creates once without navigation, refreshes a second tab and resets a departed parent', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto(`/projects/${ROOT}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
   const before = await projects();
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   await expect(nameOf(page)).toBeFocused();
   await expect(parentOf(page)).toHaveValue(ROOT);
   const options = await parentOf(page).locator('option').allTextContents();
@@ -74,7 +84,7 @@ test('Work plus creates once without navigation, refreshes a second tab and rese
   await dialogOf(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialogOf(page)).toHaveCount(0);
   expect((await projects()).map(({ id }) => id)).toEqual(before.map(({ id }) => id));
-  await expect(page.locator('[data-work-create]')).toBeFocused();
+  await expect(pencil(page)).toBeFocused();
 
   const watcher = await page.context().newPage();
   const stream = watcher.waitForResponse((response) => response.url().includes('/prototype/events') && response.status() === 200);
@@ -82,7 +92,7 @@ test('Work plus creates once without navigation, refreshes a second tab and rese
   await stream;
   await expect(watcher.locator('section.todos')).toBeVisible();
   const url = page.url();
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   await nameOf(page).fill('Paint samples');
   await expect(dialogOf(page)).toContainText('Inside Home renovation');
   const created = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/api/projects'));
@@ -96,11 +106,11 @@ test('Work plus creates once without navigation, refreshes a second tab and rese
   expect(child.parentProjectId).toBe(ROOT);
   await expect(page.locator('[data-toast]:popover-open')).toContainText('Created “Paint samples”.');
   await expect(page.locator('[data-toast]:popover-open [data-toast-open]')).toHaveAttribute('href', `/projects/${child.id}`);
-  await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+  await expect(treeWork(watcher, child.id)).toBeVisible();
   await expect(watcher.locator(`[data-todo-id="${child.id}"]`)).toContainText('Workstream');
 
   await page.goto('/projects/project-cabinets');
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   await expect(parentOf(page)).toHaveValue(ROOT);
   await parentOf(page).selectOption('project-kitchen');
   await expect(dialogOf(page)).toContainText('Inside Kitchen');
@@ -111,7 +121,7 @@ test('Work plus creates once without navigation, refreshes a second tab and rese
   expect((await api.get<Project>(`/api/projects/${nested.id}`)).parentProjectId).toBe('project-kitchen');
   await expect(page).toHaveURL(/\/projects\/project-cabinets$/);
 
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   await parentOf(page).selectOption('project-garden');
   await api.patch('/api/projects/project-garden', { status: 'archived' });
   await expect(parentOf(page)).toHaveValue(ROOT);
@@ -128,7 +138,7 @@ test('real archived-ancestry refusal retains the name and parent without creatin
   });
   await page.route((url) => url.pathname === '/prototype/events', (route) => route.abort());
   await page.goto(`/projects/${ROOT}`);
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   await parentOf(page).selectOption('project-cabinets');
   await nameOf(page).fill('Refused draft');
   const before = await projects();
@@ -143,9 +153,9 @@ test('real archived-ancestry refusal retains the name and parent without creatin
   expect(errors).toEqual([]);
 });
 
-test('a failed create keeps its draft and an archived root explains why the plus is unavailable', async ({ page }) => {
+test('a failed create keeps its draft and an archived root explains why Add workstream is unavailable', async ({ page }) => {
   await page.goto(`/projects/${ROOT}`);
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   await nameOf(page).fill('Transport draft');
   await parentOf(page).selectOption('project-kitchen');
   const before = await projects();
@@ -163,11 +173,13 @@ test('a failed create keeps its draft and an archived root explains why the plus
   const root = await createRoot('Archived scratch');
   await api.patch(`/api/projects/${root.id}`, { status: 'archived' });
   await page.goto(`/projects/${root.id}`);
-  const plus = page.locator('[data-work-create]');
-  await expect(plus).toHaveAttribute('aria-disabled', 'true');
-  await expect(plus).toHaveAccessibleName('Add workstream — unavailable while Archived scratch is archived');
-  await plus.focus();
-  await expect(plus).toBeFocused();
-  await plus.press('Enter');
+  await pencil(page).click();
+  const add = page.locator('[data-edit-project-add]');
+  await expect(add).toHaveAttribute('aria-disabled', 'true');
+  await expect(add).toHaveAccessibleName('Add workstream');
+  await expect(add).toHaveAccessibleDescription('unavailable while Archived scratch is archived');
+  await add.focus();
+  await expect(add).toBeFocused();
+  await add.press('Enter');
   await expect(dialogOf(page)).toHaveCount(0);
 });

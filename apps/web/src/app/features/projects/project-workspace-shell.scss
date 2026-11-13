@@ -2,22 +2,18 @@
 
 :host {
   display: block;
-  // `min-height`, not `height`: the sticky column's containing block is the grid below, and a
-  // container fixed to the scrollport's height gives sticky nothing to travel through — the
-  // column scrolls away with the canvas, which is the failure §23 calls "disappearing".
   min-height: 100%;
 }
 
-// §23's picture: the navigation column, then the main workspace. `AppShell` hands this
-// component the region without its own padding (see `app-shell.scss`), so the column is
-// flush against the global sidebar and the gutter belongs to the main track alone.
+// One track since Slice 81 (the tree is the navigation). `AppShell` hands this component the
+// region without its own padding (see `app-shell.scss`), so the gutter belongs to the main track.
 //
 // Named `project-workspace`, not `workspace`: `app-shell.scss` already owns a `.workspace`,
 // and two components using one class name for two different boxes is a confusion waiting to
 // be read as a cascade bug — even though Angular's encapsulation keeps them apart.
 .project-workspace {
   display: grid;
-  grid-template-columns: var(--layout-project-column-width) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100%;
 }
 
@@ -26,16 +22,6 @@
     --lift-side-offset: var(--layout-drawer-width);
     padding-inline-end: var(--layout-drawer-width);
   }
-}
-
-.project-workspace__nav {
-  // Load-bearing, not decoration: a stretched grid item is already the full height of the
-  // row, so sticky would have no travel and the column would scroll away with the canvas.
-  align-self: start;
-  position: sticky;
-  top: 0;
-  height: calc(100vh - var(--layout-top-bar-height));
-  min-height: 0;
 }
 
 .project-workspace__main {
@@ -67,10 +53,6 @@
 .project-workspace__recovery p {
   margin: 0;
   color: var(--color-text-muted);
-}
-
-.project-workspace__nav-failure {
-  margin: var(--space-3);
 }
 
 // The read failure's page: a heading over the shared failure form (Open question 4).
@@ -111,15 +93,4 @@
 
 .project-workspace__page-notice .button {
   flex: 0 0 auto;
-}
-
-@media (max-width: breakpoints.$workspace-narrow) {
-  .project-workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .project-workspace__nav {
-    position: static;
-    height: auto;
-  }
 }

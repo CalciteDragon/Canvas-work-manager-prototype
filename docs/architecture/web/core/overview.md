@@ -63,9 +63,11 @@ can confirm a write and undo it without importing another feature's store.
   [dashboard](../dashboard/overview.md)).
 - The rig controls: `PROTOTYPE_CONTROL` lives in
   [prototype-tooling](../prototype-tooling/overview.md), deliberately outside core.
-- The project navigation column: it lives in the projects feature and is *placed* by
-  one `:has()` rule in `app-shell.scss`
-  ([decision](../../../decisions/2026-09-where-the-project-navigation-column-lives.md)).
+- Page settings and Add workstream: the pencil's items ask `NavigationContext`, and the
+  project route's `ProjectWorkspaceShell`, which registers the handlers, renders both lifts
+  ([projects](../projects/overview.md)). There is no project navigation column; the tree is the
+  navigation (Slice 81,
+  [decision](../../../decisions/2026-09-where-the-project-navigation-column-lives.md)).
 
 ## Read next
 

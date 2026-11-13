@@ -113,3 +113,10 @@ reflect these distinctions ([lifts](2026-10-lifts-use-the-top-layer.md),
 scrolled into view under a sticky add form, with focus kept in the field. The stacked drawer is
 still not scrolled into view: quick-add no longer selects. The sidebar's New project refuses a
 blank name beside the field with "Enter a name.". See [feedback stays on the object](2026-10-feedback-stays-on-the-object.md).
+
+**Amended, 2026-11-13 (Slice 81, step 6).** The project column is deleted, and with it the
+Project column rule above: no narrow re-collapse, no toggle focus hand-off, no
+`ProjectColumnFocusRequest` (the Archive landing it also held is now `ArchiveFocusRequest`). A
+§68 redirect of a tree link leaves focus on the pressed link. The drawer's pencil opens page
+settings and Add workstream by closing the drawer, focusing Menu and opening the lift with Menu as
+its return ([plan](../roadmap/active/81-one-navigation-tree.md)).

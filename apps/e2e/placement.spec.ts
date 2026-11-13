@@ -289,7 +289,9 @@ test('blank names are refused beside the field, with no browser bubble first (F2
   await expect(projectName).toBeFocused();
 
   await page.goto(`/projects/${KITCHEN}`);
-  await page.locator('[data-work-create]').click();
+  // Slice 81: Add workstream is in the tree's pencil menu.
+  await page.locator('app-sidebar [data-edit-project]').click();
+  await page.locator('[data-edit-project-add]').click();
   const workName = page.locator('[data-create-work-name]');
   await expect(workName).toBeFocused();
   await page.locator('[data-create-work-submit]').click();
@@ -324,9 +326,9 @@ test.describe('live regions at 375 touch', () => {
   test('hidden live regions never stretch the phone document, with a dialog open', async ({ page }) => {
     await page.goto(`/projects/${KITCHEN}`);
     await page.locator('[data-section-canvas]').waitFor();
-    const expand = page.getByRole('button', { name: 'Show project navigation', exact: true });
-    if (await expand.isVisible()) await expand.click();
-    await page.getByRole('button', { name: 'Add workstream', exact: true }).click();
+    // Slice 81: at 375 the header's More offers Add workstream.
+    await page.locator('[data-project-more]').click();
+    await page.locator('[data-project-add-workstream]').click();
     await expect(page.locator('[data-create-work-name]')).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(0);
   });

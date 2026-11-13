@@ -43,44 +43,6 @@
   <p data-project-loading class="project-workspace__muted">Loading project…</p>
 } @else if (store.project(); as project) {
   <div class="project-workspace" [class.project-workspace--drawer-open]="drawerCoordinator.open()">
-    @if (store.root(); as root) {
-      @defer (when true) {
-      <app-project-page-navigation
-        class="project-workspace__nav"
-        [root]="root"
-        [pages]="pages()"
-        [workTree]="store.subprojectTree()"
-        [currentProjectId]="project.id"
-        [activeKind]="activeKind()"
-        [breadcrumbs]="store.breadcrumbs()"
-        [collapsed]="collapsed()"
-        [pageWritePending]="store.pageWritePending()"
-        [pageWriteError]="store.pageWriteError()"
-        [pageWriteRetryKind]="store.pageWriteRetryKind()"
-        [workCreateBlocked]="workCreateBlocked()"
-        [readOnly]="store.readOnly()"
-        (workCreateRequested)="openWorkCreate()"
-        (toggleRequested)="toggleNavigation()"
-        (pageToggleRequested)="setPageEnabled($event.kind, $event.enabled)"
-        (retryPageRequested)="retryPageContext()"
-        (linkSelected)="onColumnLinkSelected($event)"
-      />
-      } @placeholder {
-        <div data-project-nav-placeholder class="project-workspace__nav" aria-hidden="true"></div>
-      } @loading {
-        <div data-project-nav-placeholder class="project-workspace__nav" aria-hidden="true"></div>
-      } @error {
-        <div data-project-nav-error class="project-workspace__nav">
-          <!-- The failure form's layout, with Reload page in Try again's place: reloading is the
-               real cure for a lazy chunk that failed to load (Slice 78). -->
-          <div class="state-message state-message--region state-message--failed project-workspace__nav-failure">
-            <p class="state-message__sentence" data-failure-sentence role="alert">Couldn’t load project navigation.</p>
-            <a class="button button--sm" data-recovery="reload" [href]="navigationReloadUrl()">Reload page</a>
-          </div>
-        </div>
-      }
-    }
-
     <div class="project-workspace__main">
       <app-project-header
         [project]="project"
@@ -134,6 +96,32 @@
         </p>
       }
 
+      <!-- Slice 81 (R2): the tree's pencil and More open these through the handlers this shell
+           registers. Both deferred, so neither is in the initial bundle; a failed chunk says so
+           with Reload page, the cure for a lazy chunk that failed to load (Slice 78). -->
+      @defer (when pageSettingsRequest() || workCreateOpen()) {
+        @if (pageSettingsRequest(); as request) {
+          <app-page-settings-popover
+            [request]="request"
+            [pages]="pages()"
+            [pageWritePending]="store.pageWritePending()"
+            [pageWriteError]="store.pageWriteError()"
+            [pageWriteRetryKind]="store.pageWriteRetryKind()"
+            (pageToggleRequested)="setPageEnabled($event.kind, $event.enabled)"
+            (retryPageRequested)="retryPageContext()"
+            (closed)="pageSettingsRequest.set(null)"
+          />
+        }
+        @if (workCreateOpen()) {
+          <app-work-create-dialog [parents]="workCreateParents()" [create]="createWorkstream" (closed)="closeWorkCreate()" />
+        }
+      } @error {
+        <div data-lift-error class="state-message state-message--region state-message--failed">
+          <p class="state-message__sentence" data-failure-sentence role="alert">Couldn’t open {{ pageSettingsRequest() ? 'page settings' : 'Add workstream' }}.</p>
+          <a class="button button--sm" data-recovery="reload" [href]="navigationReloadUrl()">Reload page</a>
+        </div>
+      }
+
       @if (unavailable(); as reason) {
         <p data-page-unavailable class="project-workspace__error" role="alert">{{ reason }}</p>
       } @else if (rendered(); as rendered) {
@@ -145,11 +133,6 @@
       }
     </div>
   </div>
-  @defer (when workCreateOpen()) {
-    @if (workCreateOpen()) {
-      <app-work-create-dialog [parents]="workCreateParents()" [create]="createWorkstream" (closed)="closeWorkCreate()" />
-    }
-  }
 }
 
 <app-toast [open]="toast.state() !== null" [tone]="toast.state()?.tone ?? 'status'"

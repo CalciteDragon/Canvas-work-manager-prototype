@@ -29,14 +29,17 @@ for (const theme of ['dark', 'light'] as const) {
       test.afterEach(async () => { await setClock(null); });
 
       test('More and page settings open beside their openers, inside the viewport', async ({ page }) => {
+        // Slice 81: page settings opens under the menu's button that asked for it — the tree's
+        // pencil at 1440, the header's More at 375 (where the tree is in the drawer).
+        const pageSettingsOpener = width === 375 ? more(page) : page.locator('app-sidebar [data-edit-project]');
+        const pageSettingsItem = page.locator(width === 375 ? '[data-project-pages]' : '[data-edit-project-pages]');
         const pairs = [
-          { opener: more(page), lift: page.locator('[data-project-more-menu]') },
-          { opener: page.locator('[data-project-settings-toggle]'), lift: page.locator('[data-project-page-manager]') },
+          { opener: more(page), lift: page.locator('[data-project-more-menu]'), item: null },
+          { opener: pageSettingsOpener, lift: page.locator('[data-project-page-manager]'), item: pageSettingsItem },
         ];
-        for (const { opener, lift } of pairs) {
-          // At 375 the gear is in the collapsed project column.
-          if (!(await opener.isVisible())) await page.locator('[data-project-nav-toggle]').click();
+        for (const { opener, lift, item } of pairs) {
           await opener.click();
+          if (item) await item.click();
           await expect(lift).toBeVisible();
           await expect.poll(() => lift.evaluate((node) => getComputedStyle(node).transform)).toBe('none');
           const o = (await opener.boundingBox())!;
@@ -168,9 +171,10 @@ for (const theme of ['dark', 'light'] as const) {
         await expect(page.locator('[data-project-write-error]')).toHaveCount(0);
         await expect(more(page)).toBeFocused();
 
-        if (width === 375) await page.locator('[data-project-nav-toggle]').click();
-        const gear = page.locator('[data-project-settings-toggle]');
-        await gear.press('Enter');
+        // Slice 81: page settings from the tree's pencil, or from More at 375; Escape returns to it.
+        const opener = width === 375 ? more(page) : page.locator('app-sidebar [data-edit-project]');
+        await opener.press('Enter');
+        await page.locator(width === 375 ? '[data-project-pages]' : '[data-edit-project-pages]').press('Enter');
         const panel = page.locator('[data-project-page-manager]');
         const toggle = panel.locator('input:not([disabled])').first();
         await expect(toggle).toBeFocused();
@@ -179,7 +183,7 @@ for (const theme of ['dark', 'light'] as const) {
         await expect(toggle).toBeFocused();
         await page.keyboard.press('Escape');
         await expect(panel).toBeHidden();
-        await expect(gear).toBeFocused();
+        await expect(opener).toBeFocused();
         await more(page).click();
         await page.locator('[data-project-open-archive]').click();
         await expect(page.locator('#archive-page-title')).toBeFocused();
@@ -201,10 +205,17 @@ for (const theme of ['dark', 'light'] as const) {
         await expect(page.locator('#archive-page-title')).toBeFocused();
 
         await page.goto(`/projects/${ROOT}`);
-        if (width === 375) await page.locator('[data-project-nav-toggle]').click();
-        await page.locator('[data-project-page-tab][data-page-kind="todos"]').click();
-        if (width === 375) await expect(page.locator('[data-project-nav-toggle]')).toBeFocused();
-        else await expect(page.locator('[data-route-page-focus]')).toBeFocused();
+        // Slice 81: the tree's Todos link. At 375 the tree is in the drawer, and a chosen link closes
+        // it and focuses the workspace; at 1440 the link stays, so focus is not lost and stays on it.
+        if (width === 375) await page.locator('[data-shell-menu]').click();
+        const todos = page.locator('app-sidebar [data-nav-page="todos"]');
+        await todos.click();
+        await expect(page).toHaveURL(/\/pages\/todos$/);
+        if (width === 375) await expect(page.locator('main.workspace')).toBeFocused();
+        else {
+          await expect(todos).toHaveAttribute('aria-current', 'page');
+          await expect(todos).toBeFocused();
+        }
 
         await page.goto('/app');
         await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');

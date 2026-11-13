@@ -43,6 +43,11 @@ export class TopBar {
     this.menu()?.nativeElement.focus();
   }
 
+  /** The Menu button, while rendered: a lift opened from the drawer returns focus here. */
+  menuElement(): HTMLElement | null {
+    return this.menu()?.nativeElement ?? null;
+  }
+
   protected toggleTheme(): void {
     this.themeService.toggle();
   }

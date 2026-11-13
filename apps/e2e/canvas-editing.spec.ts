@@ -84,7 +84,6 @@ const expectOnlyCanvasChrome = async (page: Page): Promise<void> => {
     '[data-section-size]',
     '[data-shortcut-size]',
     '[data-section-duplicate]',
-    '[data-project-nav-open-archive]',
     '[data-section-name]',
   ]) {
     await expect(page.locator(selector)).toHaveCount(0);
@@ -285,83 +284,26 @@ test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and r
   expect((await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)).toEqual(briefEdited);
 });
 
-test('the navigation column follows the viewport and keeps long and narrow navigation reachable', async ({ page }) => {
+// Slice 81 deleted the per-project column; its viewport-height and own-scroller checks went with
+// it. What remains is the intent that a long workstream list stays reachable, now in the tree.
+test('a long workstream list stays reachable in the tree, wide and in the phone drawer', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
   await page.setViewportSize({ width: 1440, height: 900 });
-  const empty = await createRoot('Empty canvas');
-  await page.goto(`/projects/${empty.id}`);
-  await expect(page.locator('[data-empty-canvas-add]')).toBeVisible();
-
-  const checkViewportHeight = async (): Promise<void> => {
-    const metrics = await page.evaluate(() => {
-      const navigation = document.querySelector('app-project-page-navigation');
-      const topBar = document.querySelector('app-top-bar');
-      if (navigation === null || topBar === null) throw new Error('Workspace chrome did not render');
-      const navRect = navigation.getBoundingClientRect();
-      const topRect = topBar.getBoundingClientRect();
-      return { navHeight: navRect.height, navTop: navRect.top, topHeight: topRect.height, innerHeight };
-    });
-    expect(Math.abs(metrics.navHeight - (metrics.innerHeight - metrics.topHeight))).toBeLessThanOrEqual(1);
-    expect(Math.abs(metrics.navTop - metrics.topHeight)).toBeLessThanOrEqual(1);
-  };
-
-  await checkViewportHeight();
-  await addSection(empty.id, { type: 'markdown', columnSpan: 12 });
-  await page.reload();
-  await expect(page.locator('[data-section-frame]')).toHaveCount(1);
-  await checkViewportHeight();
-
-  await seed('nested-projects');
-  await api.patch(`/api/projects/${HOME_RENOVATION}/pages/archive`, { enabled: false });
-  await page.goto(`/projects/${HOME_RENOVATION}`);
-  await expect(page.locator('[data-section-frame]')).toHaveCount(6);
-  await checkViewportHeight();
-  // The shell's workspace region is the scroller, not the window; scrolling the window moves
-  // nothing and would let a column that scrolls away with the canvas pass.
-  const scrolled = await page.evaluate(() => {
-    const workspace = document.querySelector<HTMLElement>('main.workspace');
-    if (workspace === null) throw new Error('Workspace scroller did not render');
-    workspace.scrollTop = workspace.scrollHeight;
-    return workspace.scrollTop;
-  });
-  expect(scrolled).toBeGreaterThan(0);
-  await checkViewportHeight();
-
-  await seed('empty');
   const long = await createRoot('Long navigation');
   await createSubprojects(long.id, 40);
   await page.goto(`/projects/${long.id}`);
-  await expect(page.locator('[data-work-project-id]')).toHaveCount(40);
-  await page.evaluate(() => {
-    const navigation = document.querySelector('.project-nav');
-    if (navigation === null) throw new Error('Project navigation did not render');
-    navigation.scrollTop = navigation.scrollHeight;
-  });
-  const lastLink = page.locator('[data-work-project-id]').last();
-  await expect(lastLink).toBeVisible();
-  const scrollMetrics = await page.evaluate(() => {
-    const navigation = document.querySelector('.project-nav')!;
-    const last = navigation.querySelectorAll('[data-work-project-id]')[
-      navigation.querySelectorAll('[data-work-project-id]').length - 1
-    ]!;
-    const navRect = navigation.getBoundingClientRect();
-    const lastRect = last.getBoundingClientRect();
-    return { scrollHeight: navigation.scrollHeight, clientHeight: navigation.clientHeight, top: navRect.top, bottom: navRect.bottom, lastTop: lastRect.top, lastBottom: lastRect.bottom };
-  });
-  expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight);
-  expect(scrollMetrics.lastTop).toBeGreaterThanOrEqual(scrollMetrics.top);
-  expect(scrollMetrics.lastBottom).toBeLessThanOrEqual(scrollMetrics.bottom);
+  const rows = page.locator('app-sidebar a[data-nav-work]');
+  await expect(rows).toHaveCount(40);
+  await rows.last().scrollIntoViewIfNeeded();
+  await expect(rows.last()).toBeInViewport();
 
   await page.setViewportSize({ width: 375, height: 812 });
-  const toggle = page.locator('[data-project-nav-toggle]');
-  await expect(toggle).toHaveText('Show project navigation');
-  const narrowHeight = await page.locator('app-project-page-navigation').evaluate((element) => element.getBoundingClientRect().height);
-  const toggleHeight = await toggle.evaluate((element) => element.getBoundingClientRect().height);
-  expect(narrowHeight).toBeLessThanOrEqual(toggleHeight + 1);
-  await toggle.click();
-  await expect(page.locator('[data-project-page-tab]')).toHaveCount(1);
-  await expect(page.locator('[data-work-project-id]').last()).toBeVisible();
+  await page.locator('[data-shell-menu]').click();
+  await expect(page.locator('[role="dialog"][aria-label="Navigation"]')).toBeVisible();
+  await expect(page.locator('app-sidebar [data-nav-root]')).toBeVisible();
+  await rows.last().scrollIntoViewIfNeeded();
+  await expect(rows.last()).toBeInViewport();
 });
 
 test('retired hierarchy view leaves Home and Kitchen placements in dense seed order', async ({ page }) => {

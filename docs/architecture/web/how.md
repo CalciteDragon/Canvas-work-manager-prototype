@@ -210,7 +210,8 @@ dismissal and inertness require browser checks; unit specs stub native methods.
 recovers body focus after eligible navigation without overriding a connected control.
 Lift paint and enter/leave motion use tokens; reduced motion crossfades. CSS anchor positioning
 has fixed placement fallback. **Trap:** each popover names its opener with `anchor-name` and
-`position-anchor` (More in `project-header.scss`, the gear in `project-page-navigation.scss`);
+`position-anchor` (More in `project-header.scss`); `PageSettingsPopover`, opened by script with
+`showPopover({ source })`, sets inline `position-anchor: auto` to anchor to that source instead;
 Chromium does not resolve the invoker's implicit anchor, and an unresolved popover lands at the
 viewport's top-left. A popover too wide for either side of its opener falls back to the
 `--lift-gutter` position, below or above it. `lifts.spec.ts` pins both openers. The shell reserves desktop drawer width outside the lift.

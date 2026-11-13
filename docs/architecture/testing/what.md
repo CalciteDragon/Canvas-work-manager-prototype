@@ -65,10 +65,12 @@ read-only rows. `phone-layout.spec.ts` adds title-tap selection, Close focus ret
 at 375 px by touch in both themes. Transport reopen evidence lives in `api/routes.test.ts`
 and `mcp-tools/src/contract.test.ts`, proved sensitive by a reverted timestamp-clear fault.
 
-`apps/e2e/work-navigation.spec.ts` covers the root-name gear, explicit-parent Work plus,
-stale parents, real create refusal, transport failure, archived-root blocking and two-tab
-tree/Todos refresh. Creation-history journeys create through the Work plus and inspect the
-navigation column; phone-layout also covers these controls at 375 px with touch.
+`apps/e2e/work-navigation.spec.ts` covers page settings and explicit-parent Add workstream from
+the tree's pencil menu, stale parents, real create refusal, transport failure, archived-root
+blocking and two-tab tree/Todos refresh; `apps/e2e/project-tree.ts` holds the shared tree
+helpers (`pencil`, `fromPencil`). Creation-history journeys create through Add workstream and
+inspect the navigation tree; phone-layout covers the drawer's pencil at 375 px with touch, where
+each lift opens as a sheet and returns focus to Menu (Slice 81).
 
 ```mermaid
 flowchart TB

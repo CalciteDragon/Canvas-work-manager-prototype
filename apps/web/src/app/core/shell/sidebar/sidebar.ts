@@ -80,8 +80,7 @@ export class Sidebar {
   readonly projectActions = input(false);
   /**
    * The pencil's "Pages of <root>…", with the pencil as the lift's anchor and focus return.
-   * `AppShell` leaves both requests unbound until step 6 registers the handlers that answer them;
-   * until then no handler means no pencil.
+   * `AppShell` hands both requests to the project shell's handlers (`NavigationContext`).
    */
   readonly pageSettingsRequested = output<HTMLElement>();
   /** The pencil's "Add workstream", with the pencil. */

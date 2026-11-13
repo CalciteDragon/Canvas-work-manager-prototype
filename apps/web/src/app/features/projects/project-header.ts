@@ -5,6 +5,7 @@ import { FailureMessage } from '../../shared/feedback/failure-message';
 import type { Failure } from '../../shared/feedback/failure';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { LiftStack } from '../../shared/lifts/lift-stack';
+import { NavigationContext } from '../../core/shell/navigation-context';
 import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
 import { ProjectDetailsDialog } from './project-details-dialog';
 import { ProjectArchiveConfirm } from './project-archive-confirm';
@@ -58,6 +59,7 @@ export class ProjectHeader {
   private readonly menuHost = viewChild.required('menuHost', { read: ElementRef<HTMLElement> });
   private readonly injector = inject(Injector);
   private readonly stack = inject(LiftStack);
+  private readonly navigation = inject(NavigationContext);
   private release: (() => void) | null = null;
   private focus: LiftFocus | null = null;
   private restoreOnMenuClose = true;
@@ -115,6 +117,16 @@ export class ProjectHeader {
   requestArchive(): void {
     this.closeMore(false);
     this.archiveOpen.set(true);
+  }
+
+  /**
+   * More's tree actions call the shell's handler directly (Slice 81, R2), with the More button as
+   * the lift's anchor and focus return. The menu closes without restoring focus: the lift takes it.
+   */
+  requestTreeAction(open: 'openPageSettings' | 'openAddWorkstream'): void {
+    this.closeMore(false);
+    const more = this.moreButton().nativeElement;
+    this.navigation[open]({ source: more, returnFocus: more });
   }
 
   openArchive(): void {

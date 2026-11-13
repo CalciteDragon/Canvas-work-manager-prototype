@@ -23,20 +23,18 @@ import { TaskDrawerCoordinator } from '../tasks/task-drawer-coordinator';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
-import { NavigationContext, type PlaceProject, type ProjectPlace } from '../../core/shell/navigation-context';
+import { NavigationContext, type PlaceProject, type ProjectPlace, type ProjectPlaceRequest } from '../../core/shell/navigation-context';
 import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
 import { ReceiptToast } from '../../core/history/receipt-toast';
 import { FailureMessage } from '../../shared/feedback/failure-message';
 import { UnavailablePage } from '../../shared/components/unavailable-page/unavailable-page';
 import type { Failure } from '../../shared/feedback/failure';
 import { Toast } from '../../shared/feedback/toast';
-import { WORKSPACE_NARROW_BREAKPOINT } from '../../core/layout/breakpoints';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
 import { ProjectHistoryControls } from './history/project-history-controls';
 import { ProjectHistoryStore } from './history/project-history-store';
 import { ArchivedBanner } from './archived-banner';
 import { ProjectHeader } from './project-header';
-import { ProjectPageNavigation } from './project-page-navigation';
 import type { ProjectPageRendererInputs } from './project-page-contract';
 import {
   isOptionalProjectPageKind,
@@ -49,6 +47,7 @@ import {
 import { ProjectWorkspaceStore, type WorkTreeNode } from './project-workspace-store';
 import { WORKSPACE_TREE } from './workspace-tree';
 import { WorkCreateDialog, type WorkCreateParent } from './work-create-dialog';
+import { PageSettingsPopover } from './page-settings-popover';
 import type { SettableProjectStatus } from './project-more-menu';
 
 /** How a fallback's reason travels a redirect. See `noticeFromNavigation`. */
@@ -57,33 +56,25 @@ interface PageNoticeState {
   pageEnableKind?: OptionalProjectPageKind;
 }
 
-const NARROW = `(max-width: ${WORKSPACE_NARROW_BREAKPOINT})`;
-
 const placeProject = ({ id, name, status }: Project): PlaceProject => ({ id, name, status });
 
 /**
- * Slice 58: the column link a narrow selection chose, until the toggle that re-collapsed it
- * can take focus. Root-scoped rather than a shell field: `/projects/:projectId` and
- * `/projects/:projectId/pages/:pageKind` are two route configs, so moving between them makes
- * the router re-create the shell, and a field would be lost with the toggle it meant to focus.
+ * Open archive's landing, until the Archive heading can take focus. Root-scoped rather than a
+ * shell field: `/projects/:projectId` and `/projects/:projectId/pages/:pageKind` are two route
+ * configs, so moving between them makes the router re-create the shell, and a field would be
+ * lost with the heading it meant to focus.
  */
 @Injectable({ providedIn: 'root' })
-export class ProjectColumnFocusRequest {
-  /** The chosen link's URL, as `Router.url` will read once the navigation lands. */
-  readonly url = signal<string | null>(null);
-  /** Open archive's landing survives a replacement of the routed shell. */
+export class ArchiveFocusRequest {
+  /** The Archive URL, as `Router.url` will read once the navigation lands. */
   readonly archiveUrl = signal<string | null>(null);
 
   constructor() {
     // A navigation that lands anywhere else ends the request, including on a route with no
     // project shell to drop it — otherwise a later visit to the same URL would take focus.
-    // The §68 redirect rewrites the request before it navigates, so it is not dropped here.
     inject(Router)
       .events.pipe(takeUntilDestroyed())
       .subscribe((event) => {
-        if (event instanceof NavigationEnd && this.url() !== null && event.urlAfterRedirects !== this.url()) {
-          this.url.set(null);
-        }
         if (event instanceof NavigationEnd && this.archiveUrl() !== null && event.urlAfterRedirects !== this.archiveUrl()) {
           this.archiveUrl.set(null);
         }
@@ -99,10 +90,9 @@ export class ProjectColumnFocusRequest {
  * param change, so moving between a root's pages keeps the context — the project, its pages
  * and its work hierarchy — loaded once.
  *
- * The layout is §23's, which is the diagram that describes the *shell*: the navigation column
- * occupies the first track for the full height of the workspace region, flush against the
- * global sidebar, and the header, the fallback notice and the routed renderer stack in the
- * second. §26's "Project Header / Project Navigation / Controls / Section Canvas" is read as
+ * The layout is one track: the header, the fallback notice and the routed renderer stack in it.
+ * Navigation is the global tree (Slice 81), which reads this route's place from
+ * `NavigationContext`. §26's "Project Header / Project Navigation / Controls / Section Canvas" is read as
  * the page's parts rather than as a strict vertical stack — what matters, and what this
  * placement gives, is that the header is rendered **once per project** rather than once per
  * page.
@@ -110,7 +100,7 @@ export class ProjectColumnFocusRequest {
 @Component({
   selector: 'app-project-workspace-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, FailureMessage, UnavailablePage, ProjectHeader, ProjectHistoryControls, Toast, ProjectPageNavigation, WorkCreateDialog, RouterLink, ArchivedBanner],
+  imports: [NgComponentOutlet, FailureMessage, UnavailablePage, ProjectHeader, ProjectHistoryControls, Toast, WorkCreateDialog, PageSettingsPopover, RouterLink, ArchivedBanner],
   // `providers`, not `viewProviders`: the page renderers are mounted through `NgComponentOutlet`,
   // and every writer store inside them must resolve the header's history as its reporter
   // (Slice 41). The inert root default would otherwise hide a wiring mistake.
@@ -124,9 +114,9 @@ export class ProjectColumnFocusRequest {
   ],
   templateUrl: './project-workspace-shell.html',
   styleUrl: './project-workspace-shell.scss',
-  // The shell owns the workspace region's gutters, so `AppShell` gives it the full bleed and
-  // the navigation column can reach the sidebar. Keyed on this attribute rather than on the
-  // component's selector, so a rename cannot silently stop matching.
+  // The shell owns the workspace region's gutters, so `AppShell` gives it the full bleed. Keyed
+  // on this attribute rather than on the component's selector, so a rename cannot silently stop
+  // matching.
   host: { 'data-flush-workspace': '' },
 })
 export class ProjectWorkspaceShell {
@@ -149,19 +139,21 @@ export class ProjectWorkspaceShell {
   private readonly location = inject(Location);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
-  private readonly columnFocus = inject(ProjectColumnFocusRequest);
+  private readonly archiveFocus = inject(ArchiveFocusRequest);
   private focusedHistoryUrl: string | null = null;
 
   private readonly noticeState = signal<string | null>(null);
   private readonly noticeEnableKindState = signal<OptionalProjectPageKind | null>(null);
   /** The page the current notice was read for; see the resolve effect. */
   private noticedFor: string | null = null;
-  private readonly narrowState = signal(false);
-  private readonly collapsedState = signal(false);
   private readonly archiveNavigationPendingState = signal(false);
   /** A single reconciliation key prevents a held summary from reloading forever. */
   private creationReconciliationKey: string | null = null;
   readonly workCreateOpen = signal(false);
+  /** Where a chosen close of the dialog returns focus: the request's menu button, or Menu. */
+  private workCreateReturn: HTMLElement | null = null;
+  /** The open page settings' request (Slice 81, R2); `null` while closed. */
+  readonly pageSettingsRequest = signal<ProjectPlaceRequest | null>(null);
   private workCreateRootId: ProjectId | null = null;
   readonly workCreateBlocked = computed(() => {
     const root = this.store.root();
@@ -184,8 +176,6 @@ export class ProjectWorkspaceShell {
 
   readonly notice = this.noticeState.asReadonly();
   readonly noticeEnableKind = this.noticeEnableKindState.asReadonly();
-  /** §23's narrow-width collapse. The column is simply present at desktop widths. */
-  readonly collapsed = computed(() => this.narrowState() && this.collapsedState());
   readonly archiveNavigationPending = this.archiveNavigationPendingState.asReadonly();
   /** Only the creating actor's held project.add Redo can recover a missing route. */
   readonly creationRecovery = computed(() => {
@@ -320,6 +310,12 @@ export class ProjectWorkspaceShell {
       const place = this.place();
       untracked(() => navigation.publish(place));
     });
+    // The tree's pencil and More reach this route through handlers: nothing replays into a
+    // re-created shell, and the disposer removes only this shell's own (R2).
+    inject(DestroyRef).onDestroy(navigation.register({
+      openPageSettings: (request) => this.openPageSettings(request),
+      openAddWorkstream: (request) => this.openWorkCreate(request),
+    }));
     // Slice 79: the drawer is a write surface, so a project going read-only closes it (Q5 (a)).
     effect(() => {
       if (this.store.readOnly()) untracked(() => this.drawerCoordinator.close());
@@ -334,7 +330,10 @@ export class ProjectWorkspaceShell {
     effect(() => {
       const loading = this.store.loading();
       const rootId = this.store.root()?.id ?? null;
-      if (loading || rootId !== this.workCreateRootId) this.workCreateOpen.set(false);
+      if (loading || rootId !== this.workCreateRootId) {
+        this.workCreateOpen.set(false);
+        this.pageSettingsRequest.set(null);
+      }
       this.workCreateRootId = rootId;
     });
     // A direct load resolves asynchronously and a fragment-only navigation can reuse the shell.
@@ -378,13 +377,6 @@ export class ProjectWorkspaceShell {
       const resolution = this.resolution();
       if (resolution === null) return;
       if (resolution.outcome === 'redirect') {
-        // A column selection the fallback redirects still ends on the toggle: the request
-        // follows the redirect rather than being dropped as a navigation that lost.
-        untracked(() => {
-          if (this.columnFocus.url() === this.router.url) {
-            this.columnFocus.url.set(this.router.serializeUrl(this.router.createUrlTree(resolution.to)));
-          }
-        });
         void this.router.navigate(resolution.to, {
           replaceUrl: true,
           state: {
@@ -408,60 +400,6 @@ export class ProjectWorkspaceShell {
         this.noticeEnableKindState.set(notice?.pageEnableKind ?? null);
       });
     });
-
-    const narrow = globalThis.matchMedia?.(NARROW);
-    if (narrow !== undefined) {
-      this.narrowState.set(narrow.matches);
-      // A collapsed column that stays collapsed after the window widens would hide navigation
-      // the user never chose to hide, so `collapsed` is the *and* of the two.
-      this.collapsedState.set(narrow.matches);
-      const onNarrowChange = (event: { matches: boolean }): void => {
-        this.narrowState.set(event.matches);
-        this.collapsedState.set(event.matches);
-        this.columnFocus.url.set(null);
-      };
-      narrow.addEventListener('change', onNarrowChange);
-      // The `MediaQueryList` is a window singleton and outlives this component, so an
-      // unremoved listener is a closure over a destroyed shell — once per visit, forever.
-      inject(DestroyRef).onDestroy(() => narrow.removeEventListener('change', onNarrowChange));
-    }
-
-    // Slice 58: a narrow column selection's focus request, honoured once the navigation has
-    // landed, any reload it caused has settled and §68 has not redirected it — and only if the
-    // URL is still the one chosen. A browser Back, a global-drawer choice or a history link that
-    // won the navigation meanwhile keeps its own focus. Registered after the load effect, so a
-    // project change has already set `loading` by the time this reads it.
-    effect(() => {
-      const url = this.columnFocus.url();
-      if (url === null || this.router.currentNavigation() !== null || this.store.loading()) return;
-      if (this.resolution()?.outcome === 'redirect') return;
-      untracked(() => {
-        this.columnFocus.url.set(null);
-        if (this.router.url !== url) return;
-        afterNextRender(() => this.focusColumnTarget(), { injector: this.injector });
-      });
-    });
-  }
-
-  /**
-   * While narrow, a chosen link collapses the column again, so the canvas it opened is not
-   * pushed under the list, and asks for focus on the toggle that brings the column back.
-   */
-  onColumnLinkSelected(url: string): void {
-    if (!this.narrowState()) return;
-    this.collapsedState.set(true);
-    this.columnFocus.url.set(url);
-  }
-
-  /** The toggle, or — when the load ended without a column — the heading or Try again of what rendered. */
-  private focusColumnTarget(): void {
-    const host = this.host.nativeElement;
-    const target =
-      host.querySelector<HTMLElement>('[data-project-nav-toggle]') ??
-      host.querySelector<HTMLElement>('#project-creation-recovery-heading') ??
-      host.querySelector<HTMLElement>('[data-project-unavailable] h1') ??
-      host.querySelector<HTMLElement>('[data-project-error] [data-recovery]');
-    target?.focus();
   }
 
   private focusHistoryFragment(): void {
@@ -499,30 +437,32 @@ export class ProjectWorkspaceShell {
     return kind === null ? 'page' : pageDefinitionFor(kind)?.label ?? kind;
   }
 
-  toggleNavigation(): void {
-    this.collapsedState.update((collapsed) => !collapsed);
-  }
-
   /** A full reload retries a failed deferred dependency while preserving the current route. */
   navigationReloadUrl(): string { return this.router.url; }
 
-  /** The column requests the dialog; the loaded root determines whether creation is available. */
-  openWorkCreate(): void {
+  /**
+   * The tree's pencil or More asks for page settings (Slice 81, R2): rendered in a deferred block,
+   * which opens itself under the request's source. Not before the root has loaded.
+   */
+  openPageSettings(request: ProjectPlaceRequest): void {
+    if (!this.store.loading() && this.store.root() !== null) this.pageSettingsRequest.set(request);
+  }
+
+  /** The tree's pencil or More requests the dialog; the loaded root determines whether creation is available. */
+  openWorkCreate(request: ProjectPlaceRequest): void {
     if (!this.store.loading() && this.workCreateBlocked() === null) {
+      this.workCreateReturn = request.returnFocus;
       this.releaseWorkLift = this.lifts.open(() => this.closeWorkCreate());
       this.workCreateOpen.set(true);
     }
   }
 
-  /** A chosen close restores focus after the deferred dialog leaves the view. Loads move no focus. */
+  /** A chosen close returns focus to the request's opener after the dialog leaves. Loads move no focus. */
   closeWorkCreate(): void {
     this.releaseWorkLift?.(); this.releaseWorkLift = null;
     this.workCreateOpen.set(false);
-    afterNextRender(() => {
-      const host = this.host.nativeElement;
-      const plus = this.collapsed() ? null : host.querySelector<HTMLElement>('[data-work-create]');
-      (plus ?? host.querySelector<HTMLElement>('[data-project-nav-toggle]'))?.focus();
-    }, { injector: this.injector });
+    const opener = this.workCreateReturn;
+    afterNextRender(() => new LiftFocus(opener, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]')).restore(), { injector: this.injector });
   }
 
   /**
@@ -584,12 +524,12 @@ export class ProjectWorkspaceShell {
       const root = this.store.root();
       if (root !== null) {
         const target = ['/projects', root.id, 'pages', 'archive'];
-        this.columnFocus.archiveUrl.set(this.router.serializeUrl(this.router.createUrlTree(target)));
+        this.archiveFocus.archiveUrl.set(this.router.serializeUrl(this.router.createUrlTree(target)));
         if (await this.router.navigate(target)) {
           this.focusArchiveLanding();
           return;
         }
-        this.columnFocus.archiveUrl.set(null);
+        this.archiveFocus.archiveUrl.set(null);
       }
       if (returnTo) new LiftFocus(returnTo, () => this.host.nativeElement.querySelector('[data-project-more]')).restore();
     } finally {
@@ -598,10 +538,10 @@ export class ProjectWorkspaceShell {
   }
 
   private focusArchiveLanding(): void {
-    const url = this.columnFocus.archiveUrl();
+    const url = this.archiveFocus.archiveUrl();
     if (url === null || this.router.url !== url) return;
     const heading = this.host.nativeElement.querySelector<HTMLElement>('#archive-page-title');
-    if (heading) { this.columnFocus.archiveUrl.set(null); heading.focus(); }
+    if (heading) { this.archiveFocus.archiveUrl.set(null); heading.focus(); }
   }
 
   /**

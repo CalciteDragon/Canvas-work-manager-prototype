@@ -17,7 +17,7 @@ import {
 import { Router, RouterOutlet } from '@angular/router';
 import { SHELL_NARROW_BREAKPOINT } from '../layout/breakpoints';
 import { SHELL_COMMANDS, type ShellCommands } from './shell-commands';
-import { NavigationContext } from './navigation-context';
+import { NavigationContext, type ProjectPlaceHandlers } from './navigation-context';
 import { ShellStore } from './shell-store';
 import { Icon } from '../../shared/components/icon/icon';
 import { PinnedFailureSlot } from '../../shared/feedback/pinned-failure-slot';
@@ -149,6 +149,24 @@ export class AppShell implements ShellCommands {
     if (!this.narrow() || this.drawerOpen()) return this.sidebar()?.reopenCreate();
     this.openDrawer();
     this.afterRender(() => this.sidebar()?.reopenCreate());
+  }
+
+  /**
+   * The pencil's two items (Slice 81, R2). At desktop width the pencil is the lift's anchor and
+   * focus return. In the drawer the drawer closes first — it is hidden and inert behind a lift,
+   * and its pencil cannot take focus back — and the lift opens with no source, returning to Menu.
+   */
+  protected toPlace(pencil: HTMLElement, command: keyof ProjectPlaceHandlers): void {
+    if (!this.drawerOpen()) {
+      this.navigation[command]({ source: pencil, returnFocus: pencil });
+      return;
+    }
+    this.closeDrawerThen(() => {
+      const menu = this.topBar().menuElement();
+      if (menu === null) return;
+      menu.focus();
+      this.navigation[command]({ source: null, returnFocus: menu });
+    });
   }
 
   /** Escape, Close and the backdrop: the drawer goes and focus returns to the Menu that opened it. */

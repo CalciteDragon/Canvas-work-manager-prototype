@@ -58,8 +58,13 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    marker's bar and weight in a browser, both themes and forced colours.
    The root level opens with an action row: the chevron calls `showTopLevel()` and focuses the
    current root's row (the Projects label while the read has failed or not answered); the pencil (`EditProjectMenu`) is drawn only when `AppShell` passes
-   `navigation.hasHandlers()` as `projectActions`, and its two requests are the sidebar's
-   `pageSettingsRequested` / `addWorkstreamRequested` outputs. Disclosure state is the sidebar's
+   `navigation.hasHandlers()` as `projectActions` — true while a `ProjectWorkspaceShell` is
+   mounted, since it registers `{ openPageSettings, openAddWorkstream }` and disposes them on
+   destroy — and its two requests are the sidebar's `pageSettingsRequested` /
+   `addWorkstreamRequested` outputs, which `AppShell.toPlace` hands to the context. At desktop
+   width the pencil is the request's `source` and `returnFocus`; from the drawer `toPlace` closes
+   the drawer first, focuses Menu (`TopBar.menuElement()`), then calls the handler with no source
+   and Menu as `returnFocus`, since the drawer's pencil is hidden and inert behind the lift. Disclosure state is the sidebar's
    `expanded` set: a loaded place adds its ancestors, another root starts afresh (a `missing`
    frame keeps it). The indent cap is a CSS descendant rule on `.tree-children`. Tooltips are CSS
    drawing a `data-tooltip` control's `aria-label`, flush under it (a gap would lose `:hover`);
@@ -69,8 +74,7 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    `.icon-button--sm`; a `popovertarget` menu without `position-anchor: auto` falls to the viewport
    corner (step 1's probe); the initial bundle is at its ceiling, so measure every addition.
    `navigation-tree.spec.ts` checks underlines, tooltips, sizes (32 and 44 px), the archived
-   colour by axe, and forced-colours borders; the pencil's checks use the Design Lab's
-   root-level specimen until step 6 registers handlers.
+   colour by axe, and forced-colours borders.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
    (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
@@ -117,7 +121,7 @@ returns feedback to that same toast and shares the header's transition guard.
 | `EditProjectMenu` | component | The tree's pencil menu (Slice 81) | [API](../../../api/components/EditProjectMenu.html) |
 | `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer; `ProjectTreeItem`'s host is its `li` (`li[app-project-tree-item]`), so each list holds list items directly | [API](../../../api/components/AppShell.html) |
 | `SHELL_NARROW_QUERY` | constant | The drawer query, built from the shared breakpoint checked against Sass | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
-| `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and project navigation thresholds, equal to the CSS-free Sass partial by token-lint check | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |
+| `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and workspace thresholds, equal to the CSS-free Sass partial by token-lint check; no component reads `WORKSPACE_NARROW_BREAKPOINT` since the column was deleted (Slice 81), and it stays because the lint pins it against `$workspace-narrow`, which the dashboard uses | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |
 | `NavigationContext`, `ProjectPlace`, `ProjectPlaceHandlers` | injectable / interfaces | The project route's place for the tree, and its handlers (Slice 81) | [API](../../../api/injectables/NavigationContext.html) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
 | `SHELL_COMMANDS`, `ShellCommands` | token / interface | What a routed page may ask of the shell: `workspaceEmpty`, `requestCreate()`; `AppShell` provides it as itself | [API](../../../api/interfaces/ShellCommands.html) |
@@ -205,4 +209,4 @@ or absent. afterEveryRender waits for [data-route-page-focus] inside main before
 moving it and cancels waiting when another control already owns focus. Initial loads and
 input-free redirects do nothing. route-focus.spec.ts pins the policy and async landing;
 native route journeys are in apps/e2e/lifts.spec.ts. The service imports no feature and
-never reads project navigation state; explicit Archive and column requests remain in projects.
+never reads project navigation state; the explicit Archive request remains in projects.

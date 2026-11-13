@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { ProjectId, WorkspaceId } from '@cwm/contracts';
+import { fromPencil, openDisclosure, treePage, treePages, treeWork } from './project-tree';
 import { PROTOTYPE_HOST, api as requestApi, createProject, createRoot, seed, setClock } from './seed';
 
 /**
@@ -103,7 +104,7 @@ test('create a project, add a task list, add a task, and see it on Today', async
   // The canonical section restore repaints Archive, and the next root navigation reads the
   // section and its exact cascade member back onto the canvas.
   await expect(page.locator('[data-archived-item]')).toHaveCount(0);
-  await page.locator('[data-project-nav-root]').click();
+  await treePage(page, 'home').click();
   await expect(page).toHaveURL(/\/projects\/[^/]+$/);
   await expect(page.locator('[data-section-frame][data-section-type="task-list"]')).toBeVisible();
   await expect(page.locator('[data-task-row]')).toContainText('Write the walkthrough');
@@ -126,15 +127,16 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
 
   await page.goto(`/projects/${SHOWCASE_ROOT}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
-  await expect(page.locator('[data-project-page-tab]')).toHaveCount(4);
-  expect(await page.locator('[data-project-page-tab]').evaluateAll((tabs) => tabs.map((tab) => tab.dataset['pageKind']))).toEqual([
-    'home',
+  // Slice 81: the tree's root row is Home; its other enabled pages follow.
+  await expect(treePage(page, 'home')).toHaveAttribute('aria-current', 'page');
+  expect(await treePages(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-nav-page')))).toEqual([
     'todos',
     'archive',
     'reflections',
   ]);
-  await expect(page.locator('[data-work-project-id="project-kitchen"]')).toBeVisible();
-  await expect(page.locator('[data-work-project-id="project-kitchen"] [data-work-project-id="project-cabinets"]')).toBeVisible();
+  await expect(treeWork(page, 'project-kitchen')).toBeVisible();
+  await openDisclosure(page, 'project-kitchen');
+  await expect(treeWork(page, 'project-kitchen').locator('li[data-nav-work-id="project-cabinets"]')).toBeVisible();
   await expect(page.locator('[data-shortcut-frame]')).toHaveCount(4);
   await expect(page.locator('[data-section-item]')).toHaveCount(6);
 
@@ -240,12 +242,8 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await expect(page.locator('[data-project-name]')).toHaveText('Page management journey');
   const projectId = new URL(page.url()).pathname.split('/').at(-1)!;
 
-  await expect(page.locator('[data-project-page-tab]')).toHaveCount(1);
-  await expect(page.locator('[data-project-page-tab][data-page-kind="home"]')).toBeVisible();
-  await expect(page.locator('[data-page-toggle-kind="home"] input')).toBeDisabled();
-  for (const kind of ['todos', 'archive', 'reflections'] as const) {
-    await expect(page.locator(`[data-page-toggle-kind="${kind}"] input`)).not.toBeChecked();
-  }
+  await expect(treePage(page, 'home')).toBeVisible();
+  await expect(treePages(page)).toHaveCount(0);
 
   const pageToggle = (kind: 'todos' | 'archive' | 'reflections') => page.locator(`[data-page-toggle-kind="${kind}"] input`);
   const pageRecord = async (kind: string) => {
@@ -253,29 +251,32 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
     return pages.find((candidate) => candidate.kind === kind);
   };
 
-  await page.locator('[data-project-settings-toggle]').click();
+  // Slice 81: page settings is the pencil's popover, rendered when it opens.
+  await fromPencil(page, 'pages');
+  await expect(page.locator('[data-page-toggle-kind="home"] input')).toBeDisabled();
+  for (const kind of ['todos', 'archive', 'reflections'] as const) await expect(pageToggle(kind)).not.toBeChecked();
   for (const kind of ['todos', 'archive', 'reflections'] as const) {
     await pageToggle(kind).click();
     await expect(pageToggle(kind)).toBeChecked();
-    await expect(page.locator(`[data-project-page-tab][data-page-kind="${kind}"]`)).toBeVisible();
+    await expect(treePage(page, kind)).toBeVisible();
     await expect.poll(async () => (await pageRecord(kind))?.enabled).toBe(true);
   }
 
   await pageToggle('todos').click();
   await expect(pageToggle('todos')).not.toBeChecked();
-  await expect(page.locator('[data-project-page-tab][data-page-kind="todos"]')).toHaveCount(0);
+  await expect(treePage(page, 'todos')).toHaveCount(0);
   await expect.poll(async () => (await pageRecord('todos'))?.enabled).toBe(false);
   await page.reload();
+  await fromPencil(page, 'pages');
   await expect(pageToggle('todos')).not.toBeChecked();
-  await page.locator('[data-project-settings-toggle]').click();
   await pageToggle('todos').click();
   await expect(pageToggle('todos')).toBeChecked();
   await page.reload();
-  await expect(page.locator('[data-project-page-tab][data-page-kind="todos"]')).toBeVisible();
+  await expect(treePage(page, 'todos')).toBeVisible();
 
-  await page.locator('[data-project-settings-toggle]').click();
+  await fromPencil(page, 'pages');
   await pageToggle('reflections').click();
-  await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
+  await expect(treePage(page, 'reflections')).toHaveCount(0);
   await page.goto(`/projects/${projectId}/pages/reflections`);
   await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/pages/home$`));
   await expect(page.locator('[data-page-notice-enable]')).toHaveText('Enable Reflections');
@@ -298,8 +299,8 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   });
   await page.goto(`/projects/${grandchild.id}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Nested unit');
-  await expect(page.locator('[data-project-nav-root]')).toContainText('Page management journey');
-  await page.locator('[data-project-settings-toggle]').click();
+  await expect(treePage(page, 'home')).toContainText('Page management journey');
+  await fromPencil(page, 'pages');
   await expect(page.locator('[data-project-page-manager]')).toBeVisible();
   await expect(page.locator('[data-page-toggle-kind="work"]')).toHaveCount(0);
   await expect(page.locator('[data-page-toggle-kind="home"] input')).toBeDisabled();
@@ -343,7 +344,7 @@ test('injected gateway failures roll back a task but preserve confirmed optional
     await expect(page.locator('[data-todo-write-error]')).toHaveCount(0);
     await expect(task.locator('[data-todo-toggle]')).not.toBeChecked();
 
-    await page.locator('[data-project-settings-toggle]').click();
+    await fromPencil(page, 'pages');
     const todosToggle = page.locator('[data-page-toggle-kind="todos"] input');
     await todosToggle.click();
     await expect(todosToggle).toBeChecked();

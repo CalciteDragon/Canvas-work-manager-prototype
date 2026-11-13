@@ -1,0 +1,59 @@
+// The column gear's popover styles, moved with it (Slice 81, step 6).
+.page-settings h2 {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+// From the phone drawer there is no anchor: a sheet under the top bar, across the viewport.
+.page-settings--sheet {
+  inset: calc(var(--layout-top-bar-height) + var(--space-4)) var(--space-4) auto;
+  inline-size: auto;
+  margin: 0;
+  position-try-fallbacks: none;
+}
+
+.page-settings__help {
+  margin: var(--space-2) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.page-settings__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.page-settings__control {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.page-settings__control:hover,
+.page-settings__control:focus-within {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.page-settings__control small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.page-settings__status {
+  margin: var(--space-2) 0 0;
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  .page-settings__control {
+    min-block-size: var(--size-hit-target);
+  }
+}

@@ -7,6 +7,7 @@ import type {
   SectionAddResult,
 } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
+import { fromPencil, treePage, treePages } from './project-tree';
 import { api, connectMcp, createRoot, createSubprojects, seed, setClock } from './seed';
 
 /**
@@ -62,20 +63,22 @@ test('a first enable is reversible in the browser, and its page returns under th
   expect((await pagesOf(root.id)).map(({ kind }) => kind)).toEqual(['home']);
 
   await page.goto(`/projects/${root.id}`);
-  await expect(page.locator('[data-project-page-tab]')).toHaveCount(1);
+  await expect(treePage(page, 'home')).toBeVisible();
+  await expect(treePages(page)).toHaveCount(0);
   const toggle = (kind: 'todos' | 'archive' | 'reflections') => page.locator(`[data-page-toggle-kind="${kind}"] input`);
-  const tab = (kind: string) => page.locator(`[data-project-page-tab][data-page-kind="${kind}"]`);
+  const tab = (kind: string) => treePage(page, kind);
 
   // A second tab, watching the same root through the live stream.
   const watcher = await context.newPage();
   await watcher.goto(`/projects/${root.id}`);
-  await expect(watcher.locator('[data-project-page-tab]')).toHaveCount(1);
+  await expect(treePage(watcher, 'home')).toBeVisible();
+  await expect(treePages(watcher)).toHaveCount(0);
 
-  await page.locator('[data-project-settings-toggle]').click();
+  await fromPencil(page, 'pages');
   await toggle('reflections').click();
   await expect(tab('reflections')).toBeVisible();
   const created = (await pageOf(root.id, 'reflections'))!;
-  await expect(watcher.locator('[data-project-page-tab][data-page-kind="reflections"]')).toBeVisible();
+  await expect(treePage(watcher, 'reflections')).toBeVisible();
   expect((await history(root.id)).undo?.operation).toBe('page.add');
 
   // Undo removes the record entirely — "off" and "never existed" are different states.
@@ -83,7 +86,7 @@ test('a first enable is reversible in the browser, and its page returns under th
   expect(undone.result).toMatchObject({ operation: 'page.add', outcome: 'removed', pageId: created.id });
   expect(await pageOf(root.id, 'reflections')).toBeUndefined();
   await expect(tab('reflections')).toHaveCount(0);
-  await expect(watcher.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
+  await expect(treePage(watcher, 'reflections')).toHaveCount(0);
 
   // Redo brings back the same page id, and the tab with it.
   const redone = await step(root.id, 'redo');
@@ -122,7 +125,7 @@ test('Open archive writes nothing, and reversing its navigation setting keeps Ar
 
   // A toggle from a nested work route still belongs to the root's history.
   await page.goto(`/projects/${child.id}`);
-  await page.locator('[data-project-settings-toggle]').click();
+  await fromPencil(page, 'pages');
   await page.locator('[data-page-toggle-kind="archive"] input').click();
   await expect.poll(async () => (await pageOf(root.id, 'archive'))?.enabled).toBe(true);
   const archivePage = (await pageOf(root.id, 'archive'))!;
@@ -146,13 +149,14 @@ test('Open archive writes nothing, and reversing its navigation setting keeps Ar
   await expect(viewer.locator('[data-archive-page]')).toBeVisible();
   await expect(viewer.locator('[data-page-notice]')).toHaveCount(0);
   await expect(viewer.locator('[data-page-notice-enable]')).toHaveCount(0);
-  await expect(viewer.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveAttribute('aria-current', 'page');
-  await viewer.locator('[data-project-page-tab][data-page-kind="home"]').click();
-  await expect(viewer.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveCount(0);
+  await expect(treePage(viewer, 'archive')).toHaveAttribute('aria-current', 'page');
+  await treePage(viewer, 'home').click();
+  await expect(treePage(viewer, 'archive')).toHaveCount(0);
   // Enabling again restores the tab; it does not drag anyone to it.
   await step(root.id, 'redo');
-  await expect(viewer.locator('[data-project-page-tab][data-page-kind="archive"]')).toBeVisible();
-  await expect(viewer).toHaveURL(new RegExp(`/projects/${root.id}/pages/home$`));
+  await expect(treePage(viewer, 'archive')).toBeVisible();
+  // Slice 81: the tree's root row, which stands for Home, links to the root itself.
+  await expect(viewer).toHaveURL(new RegExp(`/projects/${root.id}$`));
   expect((await pageOf(root.id, 'archive'))?.id).toBe(archivePage.id);
   await viewer.close();
 });
@@ -162,9 +166,9 @@ test('a dependent added by another actor blocks the first-enable Undo and change
   await setClock('2026-09-21T12:00:00.000Z');
   const root = await createRoot('Blocked page Undo');
   await page.goto(`/projects/${root.id}`);
-  await page.locator('[data-project-settings-toggle]').click();
+  await fromPencil(page, 'pages');
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
-  await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toBeVisible();
+  await expect(treePage(page, 'reflections')).toBeVisible();
   const created = (await pageOf(root.id, 'reflections'))!;
 
   // The container and its row belong to an agent, so the person's next Undo is still the enable.
@@ -208,10 +212,10 @@ test('a dependent added by another actor blocks the first-enable Undo and change
   expect(await rootState(root.id)).toBe(before);
   expect(await pageOf(root.id, 'reflections')).toMatchObject({ id: created.id, enabled: true });
   await page.reload();
-  await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toBeVisible();
+  await expect(treePage(page, 'reflections')).toBeVisible();
 
   // The ordinary disable is still available, and is what the person actually wants here.
-  await page.locator('[data-project-settings-toggle]').click();
+  await fromPencil(page, 'pages');
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
   await expect.poll(async () => (await pageOf(root.id, 'reflections'))?.enabled).toBe(false);
   const disabled = await api.patch<ProjectPageWriteResult>(`/api/projects/${root.id}/pages/reflections`, { enabled: false });
@@ -220,5 +224,5 @@ test('a dependent added by another actor blocks the first-enable Undo and change
   await step(root.id, 'undo');
   await expect.poll(async () => (await pageOf(root.id, 'reflections'))?.enabled).toBe(true);
   expect(await rootState(root.id)).not.toBe(before);
-  await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toBeVisible();
+  await expect(treePage(page, 'reflections')).toBeVisible();
 });

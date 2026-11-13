@@ -313,6 +313,9 @@ test.describe('cascading archive, the rest at 1440', () => {
     await api.patch(`/api/projects/${ROOT}`, { status: 'archived', archiveWorkstreamIds: [KITCHEN, CABINETS, GARDEN] });
     await page.goto(route(ROOT));
     await expect(banner(page)).toBeVisible();
-    await expect(page.locator('[data-work-empty]')).toHaveCount(0);
+    // Slice 81: the tree's root level, which replaced the project column, says nothing empty.
+    await expect(page.locator('app-sidebar [data-nav-root]')).toBeVisible();
+    await expect(page.locator('app-sidebar')).not.toContainText(/no workstreams/i);
+    await expect(page.locator('main')).not.toContainText(/no workstreams/i);
   });
 });

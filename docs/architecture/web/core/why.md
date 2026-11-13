@@ -96,7 +96,7 @@ the false "No projects yet"
 - [How live reconnects recover derived project views](../../../decisions/2026-08-live-recovery-invalidates-derived-views.md)
 - [A theme change lasts the session, not the persona](../../../decisions/2026-08-theme-selection-is-session-only.md)
 - [The theme follows the device and explicit choices persist](../../../decisions/2026-10-theme-follows-device-and-persists.md)
-- [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md) — why it is *not* here
+- [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md) — why it was *not* here; amended: the column is deleted and the tree is the navigation (Slice 81)
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md) — why the adapter talks to `:4310` directly
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the receipt-driven Undo seam beside section removal
 - [Section removal is one cascade gesture, and task Delete is reversible](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — the gateway sends the section id alone

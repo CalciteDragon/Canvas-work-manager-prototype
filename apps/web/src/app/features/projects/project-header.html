@@ -94,6 +94,7 @@
       (statusRequested)="setStatus($event)"
       (archiveRequested)="requestArchive()"
       (openArchiveRequested)="openArchive()"
+      (treeActionRequested)="requestTreeAction($event)"
       (dismissed)="closeMore()"
     />
   @defer (when detailsOpen()) {

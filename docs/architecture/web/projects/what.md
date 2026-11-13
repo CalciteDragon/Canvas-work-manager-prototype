@@ -10,14 +10,15 @@ stay with that component; Preview does not create a second gateway or copy sourc
 
 ```mermaid
 flowchart TB
-  shell["ProjectWorkspaceShell<br/>both project routes; header once; page resolution"]
+  shell["ProjectWorkspaceShell<br/>both project routes; header once; page resolution;<br/>publishes place, registers handlers"]
+  navctx["NavigationContext (core)<br/>place for the tree; openPageSettings · openAddWorkstream"]
   wstore["ProjectWorkspaceStore<br/>record, progress, writes, work tree"]
-  nav["ProjectPageNavigation<br/>pages, toggles, work tree (ProjectWorkItem)"]
+  settings["PageSettingsPopover<br/>optional-page toggles, anchored to the request's source"]
   workcreate["WorkCreateDialog<br/>Name, live Parent, awaited create"]
   header["ProjectHeader → ProjectMoreMenu<br/>native menu, immediate status"]
   details["ProjectDetailsDialog · ProjectArchiveConfirm<br/>deferred native modal lifts"]
   drawer["TaskDrawerCoordinator<br/>shell selection + desktop width reservation"]
-  focus["ProjectColumnFocusRequest<br/>root-lived column and Archive URLs"]
+  focus["ArchiveFocusRequest<br/>root-lived Archive URL"]
   hist["ProjectHistoryStore<br/>summary, pending, transitions; OPERATION_HISTORY_REPORTER + RECEIPT_UNDO"]
   controls["ProjectHistoryControls<br/>projected into the header"]
   reg["PROJECT_PAGE_REGISTRY<br/>home · todos · archive · reflections → renderer"]
@@ -45,7 +46,10 @@ flowchart TB
   notice["ReceiptToast → shared Toast<br/>receipt Undo, Archive and retries"]
   create["SectionCreateDialog · InsertionPoint · SectionResizeHandle"]
   shell --> wstore
-  shell --> nav
+  shell -. "publish · register" .-> navctx
+  header -. "More: tree actions" .-> navctx
+  navctx -. "handlers" .-> shell
+  shell --> settings
   shell --> workcreate
   workcreate -. "create callback" .-> wstore
   shell --> drawer & focus
@@ -76,13 +80,13 @@ sequenceDiagram
   participant R as Router
   participant S as ProjectWorkspaceShell
   participant W as ProjectWorkspaceStore
-  participant N as ProjectPageNavigation
+  participant N as NavigationContext
   participant C as ProjectCanvas
   participant P as ProjectPageStore
   R->>S: /projects/:id (or /pages/:kind)
   S->>W: load(projectId): record, pages, progress, tree
   S->>S: resolve root Archive regardless of record, other pages require enabled renderer
-  S->>N: pages, enabled flags, tree
+  S->>N: publish place (root, pages, path), register handlers
   S->>C: mount renderer via NgComponentOutlet with ProjectPageRendererInputs
   C->>P: load(projectId, pageId): sections + shortcut placements, one combined order
   P-->>C: placements → frames (sections) and ShortcutFrames
@@ -96,9 +100,9 @@ sequenceDiagram
 | `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header and `#history-controls` focus after render; page resolution and fallback notice; breadcrumbs for a subproject; creator recovery at a missing project's URL, with a generic Retry when the summary read is unavailable for any reason but `not_found` |
 | `ProjectWorkspaceStore`, `WorkTreeNode`, `OwnerRestoreFailure` | `project-workspace-store.ts` | Project-level state and writes; authoritative `missing` state after a not-found read; the archived owner, `readOnly` and the owner's restore (Slice 79) |
 | `ArchivedBanner` | `archived-banner.ts` | Deferred banner on every page of a read-only project: names the archived owner (own, ancestor, or both), restores it through `RestoreStatusChoice`, and shows its restore failure (Slice 79); since Slice 80 says what its restore brings back, reading that count itself, or names the owner a marked project came down with |
-| `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows; `linkSelected` reports a plain link activation from a capture-phase listener |
-| `ProjectColumnFocusRequest` | `project-workspace-shell.ts` | Root-scoped: narrow column and explicit Archive URL requests until their rendered targets can take focus |
-| `ProjectHeader`, `ProjectMoreMenu`, `ProgressFact` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress (a `ProgressFact`: muted "Measuring…", the percentage, "No tasks to measure" or "Couldn’t load"), target date; a projection slot for the history controls; rename/status/date/archive (Archive not offered on an archived project). More is an auto-popover menu with immediate status radios, Edit details, Open archive set apart from the status radios by a separator, and a separated danger Archive item; deferred details and confirm dialogs return focus to More |
+| `PageSettingsPopover` | `page-settings-popover.ts` | A root's optional-page toggles (Slice 81): rendered by the shell for a `ProjectPlaceRequest`, opens itself with `showPopover({ source })` and `position-anchor: auto`, or as the `page-settings--sheet` with no source; registers with `LiftStack`; Escape and navigation return focus to `returnFocus`, a light dismiss leaves it; `closed` once |
+| `ArchiveFocusRequest` | `project-workspace-shell.ts` | Root-scoped: Open archive's URL until the Archive heading can take focus, across shell re-creation |
+| `ProjectHeader`, `ProjectMoreMenu`, `ProgressFact` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress (a `ProgressFact`: muted "Measuring…", the percentage, "No tasks to measure" or "Couldn’t load"), target date; a projection slot for the history controls; rename/status/date/archive (Archive not offered on an archived project). More is an auto-popover menu with immediate status radios, Edit details, Open archive set apart from the status radios by a separator, then "Pages of <root>…" and Add workstream (described "in <root>", or the archived reason as a focusable no-op), read from `NavigationContext.place()`; `ProjectHeader.requestTreeAction` closes More and calls the context with More as source and return (Slice 81); and a separated danger Archive item; deferred details and confirm dialogs return focus to More |
 | `ProjectDetailsDialog`, `ProjectArchiveConfirm` | `project-details-dialog.ts`, `project-archive-confirm.ts` | Native modal lifts: one draft Save and dirty-dismissal handling; separate archive confirmation, which over live workstreams lists them nested with their statuses in a scrolling region and names exactly that list at the press (Slice 80) |
 | `liveDescendantsOf`, `liveDescendantIds`, `WORKSPACE_TREE` | `live-descendants.ts`, `workspace-tree.ts` | The project's live subtree as nested nodes, read by the deferred archive confirmation from the shell's store through a dependency-free token (Slices 79, 80) |
 | `ProjectHistoryStore` | `history/project-history-store.ts` | The displayed project's summary, public generation/write sequence, coalesced owed reads and one transition guard; implements `OperationHistoryReporter` and `ReceiptUndo` without adopting cross-owner summaries |
@@ -121,7 +125,7 @@ sequenceDiagram
 | Six section types | `sections/{markdown,tasks,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's shortcuts, on Home or a workstream's Work canvas |
 
-The column, header, section and shortcut frames consume shared plane tokens; their ownership and component composition stay unchanged.
+The header, section and shortcut frames consume shared plane tokens; their ownership and component composition stay unchanged.
 
 `canvas-chrome/toolbar-keys.ts` owns roving keyboard and focus-entry behavior. The canvas
 hosts persistent Add a section outside its drop list and suspends insertion during sorting.

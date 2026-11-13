@@ -243,7 +243,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       arguments: { projectId: SHOWCASE_ROOT, kind: 'archive', enabled: true },
     });
     expect(enabled.isError).not.toBe(true);
-    await expect(page.locator('[data-project-page-tab][data-page-kind="archive"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('app-sidebar [data-nav-page="archive"]')).toBeVisible({ timeout: 15_000 });
     expect((await requestApi.get<Array<{ kind: string; enabled: boolean }>>(`/api/projects/${SHOWCASE_ROOT}/pages`)).find(({ kind }) => kind === 'archive')?.enabled).toBe(true);
   } finally {
     await client.close();

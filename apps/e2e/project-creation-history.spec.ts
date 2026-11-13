@@ -1,6 +1,7 @@
 import type { OperationHistorySummary, ProjectPage, ProjectTodosResult, ProjectWriteResult } from '@cwm/contracts';
 import { expect, test, type Page } from '@playwright/test';
 import { historyControl, redoFromHeader, undoFromHeader } from './history-controls';
+import { fromPencil, openDisclosure, treeWork } from './project-tree';
 import { api, seed, setClock } from './seed';
 
 const PERSONA_STORAGE_KEY = 'cwm.prototype.persona';
@@ -78,7 +79,7 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   await expect(page.locator('[data-projects-empty]')).toHaveCount(0);
   expect((await api.get<ProjectPage[]>(`/api/projects/${root.id}/pages`)).map(({ id }) => id)).toEqual([rootPage!.id]);
 
-  // Create from Work while another mounted column watches the root's live frames.
+  // Create from the pencil's Add workstream while another tab's tree watches the root's live frames.
   const watcher = await page.context().newPage();
   observeBrowser(watcher);
   const watcherStream = watcher.waitForResponse((response) => response.url().includes('/prototype/events') && response.status() === 200);
@@ -86,7 +87,7 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   await watcherStream;
   const childCreatedResponse = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().endsWith('/api/projects'));
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   const dialog = page.getByRole('dialog', { name: 'Add workstream' });
   await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Field study');
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
@@ -99,7 +100,7 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   expect(child.parentProjectId).toBe(root.id);
   expect(childOperation).toMatchObject({ operation: 'project.add', label: 'Created "Field study"' });
   await expect(page.locator('[data-toast]:popover-open')).toContainText('Created “Field study”.');
-  await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+  await expect(treeWork(watcher, child.id)).toBeVisible();
   await page.locator('[data-toast]:popover-open [data-toast-open]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
   await expect(page.locator('[data-project-name]')).toHaveText('Field study');
@@ -113,7 +114,7 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   expect((await rawGet('user-demo', child.id)).status).toBe(404);
   const childUndoSummary = await api.get<OperationHistorySummary>(`/api/projects/${child.id}/history`);
   expect(childUndoSummary.redo).toMatchObject({ operation: 'project.add', actionId: childOperation.actionId });
-  await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toHaveCount(0);
+  await expect(treeWork(watcher, child.id)).toHaveCount(0);
 
   const outsiderContext = await browser.newContext();
   await outsiderContext.addInitScript((key: string) => localStorage.setItem(key, 'user-alex'), PERSONA_STORAGE_KEY);
@@ -131,7 +132,7 @@ test('project creation Undo and Redo recover roots and workstreams at the same U
   await redoFromHeader(page, 'Created "Field study"');
   await expect(page.locator('[data-project-name]')).toHaveText('Field study');
   expect((await api.get<ProjectPage[]>(`/api/projects/${child.id}/pages`)).map(({ id }) => id)).toEqual([childPage!.id]);
-  await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+  await expect(treeWork(watcher, child.id)).toBeVisible();
 
   await undoFromHeader(page, 'Created "Field study"');
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
@@ -163,6 +164,9 @@ test('creation under a live workstream refreshes the ancestor work, Todos and Ar
   const parentWatcher = await watch(`/projects/${parentId}`);
   const todosWatcher = await watch(`/projects/${rootId}/pages/todos`);
   const archiveWatcher = await watch(`/projects/${rootId}/pages/archive`);
+  // Slice 81: a workstream's children render in the tree only while it is open.
+  await openDisclosure(rootWatcher, parentId);
+  await openDisclosure(parentWatcher, parentId);
 
   await page.goto(`/projects/${parentId}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Kitchen');
@@ -170,7 +174,7 @@ test('creation under a live workstream refreshes the ancestor work, Todos and Ar
   const archiveBefore = await api.get(`/api/projects/${rootId}/archive`);
   const childCreatedResponse = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().endsWith('/api/projects'));
-  await page.locator('[data-work-create]').click();
+  await fromPencil(page, 'add');
   const dialog = page.getByRole('dialog', { name: 'Add workstream' });
   await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Field study follow-up');
   await dialog.getByRole('combobox', { name: 'Parent', exact: true }).selectOption(parentId);
@@ -181,8 +185,8 @@ test('creation under a live workstream refreshes the ancestor work, Todos and Ar
   expect(child.parentProjectId).toBe(parentId);
   expect(childResult.operation).toMatchObject({ operation: 'project.add', label: 'Created "Field study follow-up"' });
 
-  await expect(rootWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
-  await expect(parentWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+  await expect(treeWork(rootWatcher, child.id)).toBeVisible();
+  await expect(treeWork(parentWatcher, child.id)).toBeVisible();
   expect((await api.get<Array<{ id: string; parentProjectId?: string }>>('/api/projects'))
     .find(({ id }) => id === child.id)?.parentProjectId).toBe(parentId);
   const todosWithChild = await api.get<ProjectTodosResult>(`/api/projects/${rootId}/todos`);
@@ -196,8 +200,8 @@ test('creation under a live workstream refreshes the ancestor work, Todos and Ar
   await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
   await undoFromHeader(page, 'Created "Field study follow-up"');
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
-  await expect(rootWatcher.locator(`[data-work-project-id="${child.id}"]`)).toHaveCount(0);
-  await expect(parentWatcher.locator(`[data-work-project-id="${child.id}"]`)).toHaveCount(0);
+  await expect(treeWork(rootWatcher, child.id)).toHaveCount(0);
+  await expect(treeWork(parentWatcher, child.id)).toHaveCount(0);
   await expect(todosWatcher.locator(`[data-todo-id="${child.id}"]`)).toHaveCount(0);
   expect((await api.get<Array<{ id: string }>>('/api/projects')).some(({ id }) => id === child.id)).toBe(false);
   expect(await api.get<ProjectTodosResult>(`/api/projects/${rootId}/todos`)).toEqual(todosBefore);
@@ -205,8 +209,8 @@ test('creation under a live workstream refreshes the ancestor work, Todos and Ar
 
   await redoFromHeader(page, 'Created "Field study follow-up"');
   await expect(page.locator('[data-project-name]')).toHaveText('Field study follow-up');
-  await expect(rootWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
-  await expect(parentWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+  await expect(treeWork(rootWatcher, child.id)).toBeVisible();
+  await expect(treeWork(parentWatcher, child.id)).toBeVisible();
   await expect(todosWatcher.locator(`[data-todo-id="${child.id}"]`)).toContainText('Workstream');
   expect((await api.get<Array<{ id: string; parentProjectId?: string }>>('/api/projects'))
     .find(({ id }) => id === child.id)?.parentProjectId).toBe(parentId);

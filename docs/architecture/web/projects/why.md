@@ -2,8 +2,9 @@
 
 ## The problem it solves
 
-The root-name gear and Work plus put settings and creation beside the navigation they affect,
-with an explicit root-default parent and the child's existing history feedback
+Page settings and Add workstream open from the navigation tree's pencil "Edit project" menu and
+from the header's More, with an explicit root-default parent and the child's existing history
+feedback; they replaced the column's root-name gear and Work plus in Slice 81
 ([navigation controls](../../../decisions/2026-09-project-navigation-gear-and-work-create.md)).
 Nested `subproject` work is called a workstream in user prose
 ([terminology](../../../decisions/2026-09-workstream-user-terminology.md)).
@@ -45,11 +46,15 @@ store — 25.3 split it because progress describes the project while sections de
 page, and the three live rules (progress on any frame naming the project; the record on
 `project.*`; the tree on `rootProjectId`) are cleaner stated separately.
 
-**The navigation column lives here, not in `AppShell`.** Placement and state are
-separable; a root's pages and an ancestor walk in the store every route pays for would be
-the mega-store §20 forbids. One `:has()` rule keyed on a declared attribute places it
-([decision](../../../decisions/2026-09-where-the-project-navigation-column-lives.md)).
-The optional-page toggles sit in that column
+**There is no project navigation column; the tree is the navigation** (Slice 81). The column
+lived here rather than in `AppShell` because a root's pages and an ancestor walk in the store
+every route pays for would be the mega-store §20 forbids
+([decision](../../../decisions/2026-09-where-the-project-navigation-column-lives.md)). That
+reasoning survives in the shape that replaced it: the shell publishes its place to core's
+`NavigationContext` and registers handlers, so the tree draws the root's pages and work without
+`ShellStore` holding them, and the lifts the tree asks for stay in this feature
+([decision](../../../decisions/2026-11-navigation-reads-project-place-from-a-context.md)).
+The optional-page toggles open from the pencil and More
 ([decision](../../../decisions/2026-09-optional-page-management-lives-in-project-navigation.md)).
 
 **Page resolution is a positive rule** — root, navigable kind, renderable, and enabled except for Archive — so
@@ -177,8 +182,6 @@ undo its own receipt after checking that it remains next
   tree); a friction note records the cost.
 - Every renderer and content component is a plain standalone component with an
   inputs record — easy to story, easy to test with the fakes.
-- A sticky column needs `min-height`, not `height`, on its container, or it scrolls
-  away with the canvas — §23's "disappearing" by another route.
 
 ## Decisions that shape this system
 
@@ -226,7 +229,7 @@ undo its own receipt after checking that it remains next
 - [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project envelope every caller unwraps, and root projections re-reading on project-record frames from any root
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the same-URL recovery state and creator-only summary after Undo
 - [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header controls, per-step blockers, write reporting, archive stays on the project; amended for receipt Undo
-- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — a narrow column choice re-collapses the column and focuses its toggle across a reload
+- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — the drawer's pencil opens page settings and Add workstream as lifts returning to Menu; the column's narrow re-collapse is gone with the column (Slice 81)
 
 ## Spec sections
 
@@ -235,7 +238,7 @@ organization discoverable on every device while preserving a plain section name 
 stop. Its dated amendments replace hover-only desktop chrome, full-strength touch chrome and
 awaited collapse; default names remain for redesign slice 9.
 
-§23 shell and the navigation column · §26 project page and pages · §27 canvas, ownership,
+§23 shell and the navigation tree's project place · §26 project page and pages · §27 canvas, ownership,
 shortcuts · §28 layout flag · §29 registry · §30 section types · §31 frame and archive ·
 §32 editing · §34 the Todos page · §36 the Reflections page · §66 section structure ·
 §68 routes.
@@ -247,7 +250,7 @@ the two steps for an archived container whose rows were archived on their own. A
 beneath an archived project is omitted until that project returns
 ([decision](../../../decisions/2026-09-content-oriented-archive-policy.md)).
 
-[Depth V2](../../../decisions/2026-10-depth-blur-budget.md) separates the column pane from consistent header and content sheets without per-sheet blur on long canvases.
+[Depth V2](../../../decisions/2026-10-depth-blur-budget.md) keeps the header and content sheets consistent without per-sheet blur on long canvases.
 
 The [native lift mechanism](../../../decisions/2026-10-lifts-use-the-top-layer.md) escapes
 section containment and reserves canvas width without placing a second drawer column inside a

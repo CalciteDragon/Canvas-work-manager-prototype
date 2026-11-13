@@ -361,6 +361,64 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     }
   });
 
+  describe('the pencil’s requests reach the project shell’s handlers (Slice 81, step 6)', () => {
+    const withPlace = () => {
+      const context = TestBed.inject(NavigationContext);
+      const root = { id: 'project-1' as ProjectId, name: 'Personal workspace', status: 'active' as const };
+      context.publish({ projectId: root.id, status: 'ready', root, ancestors: [], current: root, pages: [], currentKind: 'home', addBlockedReason: null });
+      const handlers = { openPageSettings: vi.fn(), openAddWorkstream: vi.fn() };
+      context.register(handlers);
+      return handlers;
+    };
+    const choose = async (q: Query, stable: () => Promise<void>, item: string) => {
+      q('[data-edit-project-menu]')!.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'open', oldState: 'closed' }));
+      await stable();
+      q(item)!.click();
+      await stable();
+      await stable();
+    };
+    const withHide = async (run: () => Promise<void>) => {
+      const hide = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidePopover');
+      Object.defineProperty(HTMLElement.prototype, 'hidePopover', { configurable: true, value() {
+        this.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed', oldState: 'open' }));
+      } });
+      try { await run(); } finally {
+        if (hide) Object.defineProperty(HTMLElement.prototype, 'hidePopover', hide);
+        else Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+      }
+    };
+
+    it.each([
+      ['openPageSettings', '[data-edit-project-pages]'],
+      ['openAddWorkstream', '[data-edit-project-add]'],
+    ] as const)('at desktop width, %s gets the pencil as source and focus return', async (handler, item) => withHide(async () => {
+      const { q, stable } = await renderAt(false);
+      const handlers = withPlace();
+      await stable();
+      await choose(q, stable, item);
+      const pencil = q('[data-edit-project]')!;
+      expect(handlers[handler]).toHaveBeenCalledExactlyOnceWith({ source: pencil, returnFocus: pencil });
+    }));
+
+    it.each([
+      ['openPageSettings', '[data-edit-project-pages]'],
+      ['openAddWorkstream', '[data-edit-project-add]'],
+    ] as const)('in the drawer, %s closes the drawer first and gets no source with Menu as focus return', async (handler, item) => withHide(async () => {
+      const { q, stable, openDrawer } = await renderAt(true);
+      const handlers = withPlace();
+      await openDrawer();
+      handlers[handler].mockImplementation(() => {
+        // The drawer has closed by the time the handler runs: the lift opens over the workspace.
+        expect(q('#shell-navigation')!.getAttribute('role')).toBeNull();
+        expect(q('main')!.hasAttribute('inert')).toBe(false);
+      });
+      await choose(q, stable, item);
+      const menu = q('[data-shell-menu]')!;
+      expect(handlers[handler]).toHaveBeenCalledExactlyOnceWith({ source: null, returnFocus: menu });
+      expect(document.activeElement).toBe(menu);
+    }));
+  });
+
   // The development panel closes on a `document` Escape. One key must not close both.
   it('ignores an Escape that did not come from inside the drawer', async () => {
     const { q, stable, openDrawer } = await renderAt(true);

@@ -1,0 +1,42 @@
+<div
+  data-project-page-manager
+  class="lift lift--popover page-settings"
+  [class.page-settings--sheet]="request().source === null"
+  popover="auto"
+  style="position-anchor: auto"
+  [attr.aria-labelledby]="titleId"
+  (toggle)="toggled($event)"
+  (keydown)="keydown($event)"
+>
+  <h2 [id]="titleId">Pages</h2>
+  <p class="page-settings__help">Choose which optional views appear in this project.</p>
+  <div class="page-settings__controls">
+    <label data-page-toggle-kind="home" class="page-settings__control">
+      <input class="checkbox" type="checkbox" checked disabled aria-label="Home page is required" />
+      <app-icon name="home" />
+      <span>Home</span>
+      <small>Required</small>
+    </label>
+    @for (definition of optionalPageDefinitions; track definition.kind) {
+      <label class="page-settings__control" [attr.data-page-toggle-kind]="definition.kind">
+        <input
+          class="checkbox"
+          type="checkbox"
+          [checked]="pageEnabled(definition.kind)"
+          [attr.aria-disabled]="pageWritePending()"
+          [attr.aria-label]="'Show ' + definition.label + ' page'"
+          (change)="requestPageToggle(definition.kind, $event)"
+        />
+        <app-icon [name]="definition.icon" />
+        <span>{{ definition.label }}</span>
+      </label>
+    }
+  </div>
+  @if (pageWritePending()) {
+    <p data-page-toggle-pending class="page-settings__status" role="status">Saving page settings…</p>
+  }
+  @if (pageWriteError(); as failure) {
+    <app-failure-message data-page-toggle-error class="page-settings__status" weight="inline" [failure]="failure" live="alert"
+      [recovery]="pageWriteRetryKind() !== null ? 'retry-refresh' : null" (retry)="retryPageRequested.emit()" />
+  }
+</div>

@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-13):** **step 6 (lifts move) STOPPED on the bundle ceiling (Open question 18); the user decides before it resumes.** Step 5 is done. Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-13):** **step 6 (lifts move, with step 8's column deletion brought forward per Open question 18 (a)) is done; next is step 7.** Step 5 is done. Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -164,7 +164,9 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Trap for step 6:* any eager addition crosses 1,150 kB. Step 6 moves the column's page-settings popover into a
   deferred host, which should free room: do that part first, measure after each part, and stop per the standing
   bundle rule if a build crosses (Open question 17). `.icon-button` is 40 px (32 px is `--sm`).
-**Step 6 — stopped, not committed (2026-11-13).** The implementation is written test-first and its unit specs pass
+**Step 6 — done (2026-11-13), resumed after Open question 18** (the user's answer: (a) with the More trim, (d) only if
+needed). Commits: see the closing commit of this header (`git log --grep 'slice 81): step 6'`). First parked, then resumed:
+*(As parked.)* The implementation is written test-first and its unit specs pass
 (191/191 over the six touched spec files), but the initial bundle measures **1,153.49 kB** (> 1,150 kB), so per the standing
 rule it is **parked in `git stash` as "slice 81 step 6 WIP: lifts move …"** (`git stash list`; `git stash apply` to resume)
 and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locator moves, docs, the review, the commit.
@@ -187,7 +189,31 @@ and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locato
   `@defer` block in the shell template measured 1,152.16 kB (−1.33 kB); the column's TypeScript in the shell would free
   an estimated 1–2 kB more.
 - *Trap:* the shell spec's Manual defer cases must tolerate blocks without `@error` (the archived banner's).
-**Next:** the user answers Open question 18; then step 6 resumes from the stash.
+- *Resumed (`git stash pop`):* **step 8's column deletion moved into this step.** Deleted `project-page-navigation.*` and
+  `project-work-item.*`, the shell's column `@defer` block, collapse/narrow state, `onColumnLinkSelected`,
+  `focusColumnTarget`, `toggleNavigation` and the §68 redirect's column focus rewrite; `ProjectColumnFocusRequest` is
+  now **`ArchiveFocusRequest`** (only `archiveUrl`); the workspace is one grid track. Tests first in
+  `project-workspace-shell.spec.ts`: no column track; the place replaces the column's tab and breadcrumb assertions; the
+  narrow-column block is deleted; a §68-redirected tree link keeps focus on the pressed link. `WORKSPACE_NARROW_BREAKPOINT`
+  stays (the token lint pins it; the dashboard uses `$workspace-narrow`).
+- *More trim:* `ProjectMoreMenu` reads the root name and blocked reason from `NavigationContext.place()` and emits
+  `treeActionRequested`; `ProjectHeader.requestTreeAction` closes More and calls the context with the More button as
+  source and return. The header's and shell's pass-through inputs and outputs are gone.
+- *E2E:* every spec the deletion broke is rewritten to its intent through `apps/e2e/project-tree.ts` (tree page,
+  workstream, disclosure, pencil helpers): cascading-archive, feedback, lifts, placement, task-lifts, mcp, page-history,
+  canvas-editing (the column-only case replaced by "a long workstream list stays reachable in the tree, wide and in the
+  phone drawer"), phone-layout (the gear/plus case via the drawer's pencil; `:323` rewritten: a chosen tree link closes
+  the drawer, navigates and focuses `main`), work-navigation, web, project-creation-history (locators and disclosures
+  only), project-history; also green: navigation-tree, states, archived-projects, empty-archived-editing, theme.
+  `ux/tasks.ts` and `ux/capture.ts`: the "after" path opens the pencil and chooses the item as a `menuitem` (rigs not run).
+- *Docs:* `web/projects/*`, `web/core/*`, `web/{overview,what,how}.md`, `testing/*`, the walkthrough, README; amendments
+  to the column, gear-and-work-create, optional-page-management, place-context, phone-drawer and route-focus decisions.
+- *Bundle:* initial **1,149.60 kB** (≤ 1,150 kB), so **the ceiling stays 1,150 kB**; the 1,155 kB allowance is not used.
+  Headroom is 0.40 kB: steps 7, 10 and 11 add eager code and will likely cross (Open question 17 still applies).
+- *Noted, not changed:* at desktop a tree link leaves focus on the link (as the column's wide selection did);
+  opening the pencil does not close the task drawer, choosing "Pages of …" does; an archived root lists no archived
+  workstreams under it.
+**Next:** step 7 (create opens the workstream).
 
 ## Goal
 
@@ -885,6 +911,7 @@ Confirmed for B at step 3 (2026-11-10).
 |---|---|---|
 | `apps/e2e/navigation-tree.spec.ts` | create (step 4: the marker; step 12: the journeys) | Acceptance item 4 |
 | `apps/e2e/phone-layout.spec.ts`, `work-navigation.spec.ts` | modify | §77 rewrites |
+| `apps/e2e/project-tree.ts` | create (step 6) | Tree locators and the pencil's items for the rewritten specs |
 | `apps/e2e/project-creation-history.spec.ts` | modify (step 7) | §77: the workstream half creates and lands on the new workstream; its toast assertion (`:101`) becomes "Created Field study under …", and the `[data-toast-open]` click and URL wait (`:103-105`) go, since the create already lands there; the header's Undo still lands on "Creation undone"; the root half is unchanged |
 | The fifteen specs under Behaviour vs. appearance | modify | Locators |
 | `apps/e2e/ux/capture.ts`, `ux/tasks.ts` | modify | Before/after locators for the gear and Add workstream; T02 skips choosing a parent already chosen |
@@ -950,9 +977,10 @@ the bundle after any web change.
    focus; Q13 (b)'s toast and the toast Undo's return to the parent; rewrite `work-navigation.spec.ts` and the
    workstream half of `project-creation-history.spec.ts`; the decision entry
    `2026-11-undoing-a-new-workstream-returns-to-its-parent.md` and the creation-history amendment.
-8. **The column goes** (tests first): delete the column, its pages and work tree, collapse and focus request;
-   `ArchiveFocusRequest`; the redirect focus case; rewrite `phone-layout.spec.ts:323` to its new intent (a
-   chosen tree link closes the drawer and focuses `main`); fix every locator the deletion breaks.
+8. **The column goes** — **moved into step 6** (Open question 18 (a), 2026-11-13): the column, its pages and work tree,
+   collapse and focus request, `ArchiveFocusRequest`, the redirect focus case, `phone-layout.spec.ts:323`'s rewrite and
+   every broken locator are done there. **Nothing remains for step 8**; a later session skips it (the token
+   `--layout-project-column-width` stays, used by controls and progress styles, outside this slice).
 9. **The phone pattern** (tests first): the drawer's current item in view, lift tokens on the drawer, Q9 (a);
    Close removed, the chevron and pencil on the drawer's top row (44 px), the focus-visible "Close navigation"
    as the last Tab stop; `phone-layout.spec.ts`'s Close cases move to it; the phone decision's amendment; the
@@ -1358,7 +1386,7 @@ blocking step 6)
 - *Impact.* (a) may stop step 6 or a later step for a decision. (b) merges part of step 8 into step 6's session and
   moves `phone-layout.spec.ts:323`'s rewrite earlier. (d) reverses the bundle decision's standing rule.
 
-**18. Step 6 crosses the bundle ceiling: what pays for it?** (step 6, 2026-11-13; **blocking step 6**)
+**18. Step 6 crosses the bundle ceiling: what pays for it?** (step 6, 2026-11-13; **resolved 2026-11-13**)
 - *Context.* Q17 was left open with (a) as the rule. Step 6's implementation (State header) measures **1,153.49 kB**
   after the trims available inside the step (one deferred block for both lifts; More's items without an `@if`). Its eager
   cost is the handler wiring, the deferred lifts' block and `@error`, More's two items and the header pass-through, and
@@ -1382,6 +1410,10 @@ blocking step 6)
   user would rather keep the ceiling: it is worth trying before (d).
 - *Impact.* (a) step 6's session also does step 8's deletion and `phone-layout.spec.ts:323`'s rewrite; (c) is a new
   piece of design in More (a decision entry); (d) amends the bundle decision; without an answer step 6 cannot be committed.
+- **Answer (user decision, 2026-11-13): (a) with the More trim, plus (d) only if needed**: step 8's column deletion moves into
+  step 6 and More calls `NavigationContext` directly; if the build were still over 1,150 kB, the ceiling could rise for
+  Slice 81 only to at most 1,155 kB; (b), (c) and (e) are not used. **Measured: 1,149.60 kB**, so (d) was not needed and the
+  ceiling stays 1,150 kB.
 
 ## Revisions
 
@@ -1609,6 +1641,11 @@ blocking step 6)
   - *Changed content:* Open question 18. No plan content changed yet: the deviations the stash makes (one deferred block
     and one `@error` for both lifts; More's items without an `@if`; the column's page-settings stories and spec cases
     moved to `page-settings-popover.spec.ts`; no popover story) are recorded here for the resumed step to keep or drop.
+  - *Resumed (2026-11-13):* Open question 18 answered; step 8's deletion moved into step 6 (implementation sequence, step 8
+    now empty); the stash's deviations are kept (one deferred block and one `@error`; More's items without an `@if`; the
+    popover spec holds the gear cases; no popover story). More reads the place and calls the context itself (the trim),
+    so `ProjectHeader` and `ProjectMoreMenu` lose their `rootName`/`addBlockedReason` inputs. `ProjectColumnFocusRequest`
+    becomes `ArchiveFocusRequest`. E2E helpers live in `apps/e2e/project-tree.ts` (not in the change list before).
   - *Defaults taken (AGENTS.md §4):* the popover keeps the heading "Pages" (the menu item names the root); More's two items
     sit after Open archive, so the existing separator rule holds; a light dismiss leaves focus where the person put it,
     as the gear's popover did.

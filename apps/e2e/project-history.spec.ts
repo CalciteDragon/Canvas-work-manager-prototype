@@ -5,6 +5,7 @@
 import type { OperationHistorySummary, ProjectPage, ProjectSection, Task } from '@cwm/contracts';
 import { expect, test, type Page } from '@playwright/test';
 import { historyControl, historyFeedback, redoFromHeader, toastDetails, stepFromHeader, undoFromHeader } from './history-controls';
+import { fromPencil, treePage } from './project-tree';
 import { api, connectMcp, seed, setClock, setPageEnabled } from './seed';
 
 const NOW = '2026-09-15T12:00:00.000Z';
@@ -255,9 +256,9 @@ test('2. an optional page toggle is undone and redone from the header', async ({
   const pages = await api.get<ProjectPage[]>('/api/projects/project-personal/pages');
   expect(pages.map(({ kind }) => kind)).toEqual(['home']);
   await page.goto('/projects/project-personal');
-  await page.locator('[data-project-settings-toggle]').click();
+  await fromPencil(page, 'pages');
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
-  const tab = page.locator('[data-project-page-tab][data-page-kind="reflections"]');
+  const tab = treePage(page, 'reflections');
   await expect(tab).toBeVisible();
   const before = (await summaryOf('project-personal')).revision;
   const undone = await undoFromHeader(page, 'Enabled the reflections page');
@@ -478,9 +479,9 @@ test('Slice 45 · 1. the controls work with Archive disabled, populated off Home
       await expect(historyControl(page, 'undo'), `${colorScheme} ${url}`).not.toHaveAttribute('aria-disabled', 'true');
       await expect(historyControl(page, 'redo'), `${colorScheme} ${url}`).toHaveAttribute('aria-label', 'Nothing to redo');
     }
-    await expect(page.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveAttribute('aria-current', 'page');
+    await expect(treePage(page, 'archive')).toHaveAttribute('aria-current', 'page');
     await visit(`/projects/${ROOT}`);
-    await expect(page.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveCount(0);
+    await expect(treePage(page, 'archive')).toHaveCount(0);
     await visit('/projects/project-kitchen');
     await expect(historyControl(page, 'undo'), `${colorScheme} sub-project`).toHaveAttribute('aria-label', 'Undo: Created "Populated kitchen"');
 

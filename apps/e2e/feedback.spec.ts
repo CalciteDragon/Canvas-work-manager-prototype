@@ -190,9 +190,9 @@ const starred: { row: string; route: string; act: (page: Page, mode: Mode) => Pr
     } },
   { row: 'Cross-owner write', route: kitchen, message: /\.$/, expected: ['Undo', /^Open /, 'Dismiss'], focusInToast: false,
     act: async (page, mode) => {
-      const expand = page.getByRole('button', { name: 'Show project navigation', exact: true });
-      if (await expand.isVisible()) await press(expand, mode);
-      await press(page.getByRole('button', { name: 'Add workstream', exact: true }), mode);
+      // Slice 81: the header's More offers Add workstream at every width.
+      await press(page.locator('[data-project-more]'), mode);
+      await press(page.locator('[data-project-add-workstream]'), mode);
       const dialog = page.getByRole('dialog');
       await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Lighting');
       await dialog.getByRole('combobox', { name: 'Parent', exact: true }).selectOption('project-kitchen');

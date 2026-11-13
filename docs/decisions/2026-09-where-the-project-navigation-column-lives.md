@@ -77,3 +77,12 @@ the canvas scrolls independently. These changes keep the original feature owners
 see [the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md).
 
 **Amended, 2026-10-14 (Slice 70 Gate 1).** Reopened: navigation condenses into one tree ([decision](2026-10-one-navigation-tree.md)). The separate project column is expected to go when the shell-layer slice lands. Until then this entry describes the code as it is.
+
+**Amended, 2026-11-13 (Slice 81, step 6).** The column is deleted: `ProjectPageNavigation`,
+`ProjectWorkItem`, the shell's column `@defer` block, its narrow collapse and toggle. The
+navigation tree in the global sidebar is the navigation, drawing a root's pages and work from the
+place the project shell publishes ([decision](2026-11-navigation-reads-project-place-from-a-context.md)).
+The workspace is one grid track: header, notice, renderer. The ownership reasoning above still
+holds in that shape — the root's pages and work are the project route's state, not `ShellStore`'s —
+and the full-bleed attribute stays. Brought forward from step 8 by the user's 2026-11-13 decision
+([plan](../roadmap/active/81-one-navigation-tree.md), Open question 18 (a)).

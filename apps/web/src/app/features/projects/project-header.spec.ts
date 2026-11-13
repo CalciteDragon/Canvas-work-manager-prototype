@@ -1,6 +1,7 @@
 import { DeferBlockBehavior, TestBed } from '@angular/core/testing';
 import { ProjectSchema, type Project } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { NavigationContext } from '../../core/shell/navigation-context';
 import { ProjectHeader } from './project-header';
 
 const root = (overrides: Record<string, unknown> = {}): Project => ProjectSchema.parse({
@@ -135,6 +136,55 @@ describe('ProjectHeader lifts (§26)', () => {
     query(fixture, '[data-project-open-archive]').click();
     expect(requested).toHaveBeenCalledExactlyOnceWith(query(fixture, '[data-project-more]'));
     expect(document.activeElement).not.toBe(query(fixture, '[data-project-more]'));
+  });
+
+  // Slice 81, decision 3: page settings and Add workstream are also in More, named by the root.
+  // More reads the root and calls the shell's handlers through `NavigationContext` itself.
+  const treeActions = (addBlockedReason: string | null = null) => {
+    const navigation = TestBed.inject(NavigationContext);
+    const rootPlace = { id: 'project-renovation' as Project['id'], name: 'Home renovation', status: 'active' as const };
+    navigation.publish({ projectId: rootPlace.id, status: 'ready', root: rootPlace, ancestors: [], current: rootPlace, pages: [], currentKind: 'home', addBlockedReason });
+    const handlers = { openPageSettings: vi.fn(), openAddWorkstream: vi.fn() };
+    navigation.register(handlers);
+    return handlers;
+  };
+
+  it('offers the root’s page settings and Add workstream, each calling its handler with the More button after the menu closes', async () => {
+    const fixture = await render(root({ name: 'Kitchen' }));
+    const handlers = treeActions();
+    await settle(fixture);
+    const more = query(fixture, '[data-project-more]');
+
+    await openMore(fixture);
+    const pagesItem = query(fixture, '[data-project-pages]');
+    expect(pagesItem.getAttribute('role')).toBe('menuitem');
+    expect(pagesItem.textContent?.trim()).toBe('Pages of Home renovation…');
+    pagesItem.click();
+    await settle(fixture);
+    expect(handlers.openPageSettings).toHaveBeenCalledExactlyOnceWith({ source: more, returnFocus: more });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+
+    await openMore(fixture);
+    const addItem = query(fixture, '[data-project-add-workstream]');
+    expect(addItem.textContent?.trim()).toBe('Add workstream');
+    expect(query(fixture, '#' + addItem.getAttribute('aria-describedby')).textContent?.trim()).toBe('in Home renovation');
+    addItem.click();
+    await settle(fixture);
+    expect(handlers.openAddWorkstream).toHaveBeenCalledExactlyOnceWith({ source: more, returnFocus: more });
+  });
+
+  it('keeps an archived root’s Add workstream focusable with its reason, and it does nothing', async () => {
+    const fixture = await render(root({ name: 'Home renovation', status: 'archived' }));
+    const handlers = treeActions('unavailable while Home renovation is archived');
+    await settle(fixture);
+    await openMore(fixture);
+    const addItem = query(fixture, '[data-project-add-workstream]');
+    expect(addItem.getAttribute('aria-disabled')).toBe('true');
+    expect(query(fixture, '#' + addItem.getAttribute('aria-describedby')).textContent?.trim()).toBe('unavailable while Home renovation is archived');
+    addItem.click();
+    await settle(fixture);
+    expect(handlers.openAddWorkstream).not.toHaveBeenCalled();
+    expect(query(fixture, '[data-project-more]').getAttribute('aria-expanded')).toBe('true');
   });
 
   it('saves changed details once and closes unchanged details without writing', async () => {

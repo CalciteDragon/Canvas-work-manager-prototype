@@ -54,6 +54,8 @@
         [projectActions]="navigation.hasHandlers()"
         (createRequested)="createProject($event)"
         (retryRequested)="store.load()"
+        (pageSettingsRequested)="toPlace($event, 'openPageSettings')"
+        (addWorkstreamRequested)="toPlace($event, 'openAddWorkstream')"
       />
     </div>
   </div>

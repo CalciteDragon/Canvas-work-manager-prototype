@@ -11,6 +11,12 @@
 }
 <div class="menu__separator" role="separator"></div>
 <button type="button" class="menu__item" role="menuitem" tabindex="-1" data-project-open-archive (click)="openArchiveRequested.emit()">Open archive</button>
+<!-- Slice 81, decision 3: the tree's pencil menu, mirrored here; root-scoped on any page. -->
+<button type="button" class="menu__item" role="menuitem" tabindex="-1" data-project-pages (click)="treeActionRequested.emit('openPageSettings')">Pages of {{ place()?.root?.name }}…</button>
+<button type="button" class="menu__item" role="menuitem" tabindex="-1" data-project-add-workstream
+  [attr.aria-disabled]="place()?.addBlockedReason && 'true'" aria-describedby="project-more-add-reason"
+  (click)="addWorkstream()">Add workstream</button>
+<span hidden id="project-more-add-reason">{{ place()?.addBlockedReason ?? 'in ' + place()?.root?.name }}</span>
 @if (project().status !== 'archived') {
   <div class="menu__separator" role="separator"></div>
   <button type="button" class="menu__item menu__item--danger" role="menuitem" tabindex="-1" data-project-archive (click)="archiveRequested.emit()">{{ isWorkUnit() ? 'Archive workstream…' : 'Archive project…' }}</button>

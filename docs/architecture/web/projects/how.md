@@ -51,26 +51,35 @@ handles, insertion labels and keyboard move announcements. Local sections still 
 The frame follows current resolved identity; the header displays the server's captured history
 label, so an owner rename does not rewrite older steps.
 
-The root-name gear declaratively opens a root-scoped auto popover. Its toggle event keeps
-settingsOpen in sync, opening focuses the first enabled toggle, and navigation or a root change
-closes it. Escape or the gear restores the gear; outside dismissal preserves the clicked control.
-Pending toggles use aria-disabled and reset refused native state so the pressed toggle keeps
-focus through settlement. The Work plus requests the shell's deferred `WorkCreateDialog`, with an
-inner `@if` so closing destroys its draft. Parent options flatten the live tree, root first;
+Page settings and Add workstream have no invoker in this feature's view (Slice 81). The shell
+registers `{ openPageSettings, openAddWorkstream }` on core's `NavigationContext` and disposes
+them on destroy; the tree's pencil menu reaches them through `AppShell.toPlace`, and More through
+`ProjectHeader.requestTreeAction`, which closes More and calls the context with the More button
+as `source` and `returnFocus`. Each request is a `ProjectPlaceRequest`. `openPageSettings` sets
+`pageSettingsRequest`; one `@defer (when pageSettingsRequest() || workCreateOpen())` holds both
+lifts, each under its own `@if`, with one `@error` (`data-lift-error`, "Couldn’t open page
+settings." or "Couldn’t open Add workstream.", Reload page at the current URL). Once rendered,
+`PageSettingsPopover` registers with `LiftStack`, calls `showPopover({ source })` — inline
+`position-anchor: auto` puts it under the source — or, with no source (from the phone drawer),
+`showPopover()` as the `page-settings--sheet`, and focuses the first enabled toggle. Escape or a
+navigation returns focus to `returnFocus` (`LiftFocus`, falling back to `main`); a light dismiss
+leaves focus where the person put it; every close emits `closed` once and the shell clears the
+request. Pending toggles use aria-disabled and reset refused native state so the pressed toggle
+keeps focus through settlement. `openWorkCreate` records the request's `returnFocus` and opens
+`WorkCreateDialog`, whose inner `@if` destroys its draft on close. Parent options flatten the live tree, root first;
 completed parents are marked. A disappearing parent resets to the root with a named polite note,
-deferred until a pending submit settles. The shell closes on `store.loading()` or a root change;
-chosen closes focus the visible plus or the narrow column toggle after rendering.
+deferred until a pending submit settles. The shell closes both lifts on `store.loading()` or a root change;
+a chosen close of the dialog returns focus to the request's `returnFocus` after rendering
+(`LiftFocus`, falling back to the project `h1`). Loads move no focus.
 `ProjectWorkspaceStore.createWorkstream` trims and validates the draft, guards a single flight per
 load generation, reports the child's creation receipt and requests a quiet context read only in
 the generation that started it. It resolves `null` or a `Failure`: a refusal before sending is a
 sentence with no reason, a refused write "Couldn’t add “X”. Try again." with the reason, which the
 dialog shows as an inline `FailureMessage` (`data-create-work-error`) that describes the name field. Creation keeps the URL and uses the header's existing cross-owner
 history feedback. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
-The column itself is deferred inside the loaded-root branch, alongside the deferred create dialog;
-the loaded context triggers it immediately. Loading reserves the navigation grid track; a failed
-chunk keeps that track and says "Couldn’t load project navigation." in the `.state-message`
-failed layout, with Reload page at the current URL in Try again's place. This keeps the initial graph
-under the unchanged 1050 kB error ceiling (the final measurement is in the Slice 60 record).
+Both lifts stay out of the initial bundle, which is measured against its ceiling in the
+[Slice 81 plan](../../../roadmap/active/81-one-navigation-tree.md). The workspace is one grid
+track: header, notice, renderer.
 
 Todos task checkboxes complete or reopen to `todo` through the canonical task gateway. Reopen
 clears `completedAt` optimistically and failure restores the exact item; generation/disposal
@@ -99,18 +108,10 @@ focus, and dismissal falls back to a surviving row control or the heading.
    domain counts nothing (live or archived), or "Couldn’t load" when no value has been read for
    this project — a failed re-read keeps the last value. It resolves the page positively; a non-resolvable URL redirects to the canonical
    page carrying a notice in navigation state.
-2. It renders `ProjectHeader` once and `ProjectPageNavigation` in the column, then
-   mounts the registry's renderer for the page through `NgComponentOutlet` with a
-   `computed()` inputs record whose callbacks are class-property arrows. While narrow, the
-   column's `linkSelected` collapses the column and records the link's URL in the root-scoped
-   `ProjectColumnFocusRequest`. An effect honours it once no navigation is in flight, the store
-   is not loading and §68 is not redirecting, and only if `Router.url` still equals it: then the
-   toggle — or "This project isn’t available" / "Creation undone", or a failed read's Try again — takes
-   focus after the render. A §68
-   fallback redirect moves the request to its target; any other winning navigation drops it,
-   and the request itself drops on any `NavigationEnd` elsewhere, so leaving for a route with no
-   project shell cannot leave it to fire on a later visit
-   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
+2. It renders `ProjectHeader` once, publishes its place to `NavigationContext` for the tree,
+   then mounts the registry's renderer for the page through `NgComponentOutlet` with a
+   `computed()` inputs record whose callbacks are class-property arrows. A §68 redirect of a
+   tree link moves no focus: it stays on the pressed link.
 3. `ProjectCanvas` provides `ProjectPageStore`, which loads the page's sections and
    shortcut placements as one combined order, renders each section inside
    `ProjectSectionFrame` with the registry's content component, and each shortcut inside
@@ -231,13 +232,12 @@ shared [`UnavailablePage`](../../../api/components/UnavailablePage.html) (`data-
 "This project isn’t available", "It may have been removed, or it isn’t shared with you." and Go to
 Home, with the history Retry projected beside it when the summary read failed. It has no Try again,
 no Details and no id, so another persona's project reads the same as a removed one (W4-024). The
-route-focus heading is also the narrow column's focus target. Any other failure replaces the
+Any other failure replaces the
 page with the route-focus h1 "Couldn’t load this project" over a `FailureMessage` whose sentence
 (`headedReadFailure`) says only what the heading does not: "Something went wrong while it was
 loading.", or "Couldn’t reach your workspace."; Try again (the shell's `retryProject()`, which
 re-reads the project and, when its read failed too, the history, so no bare header Retry is left
 behind) and the reason under Details.
-The narrow column's focus still lands on its Try again.
 A re-read of the same project keeps the failure on screen, its Try again busy, until the read
 answers; loading another project clears it at once.
 
@@ -365,7 +365,7 @@ clears it too. The frame's alert describes Collapse.
 |---|---|---|---|
 | `ProjectWorkspaceShell` | component | Both routes, header, page resolution | [API](../../../api/components/ProjectWorkspaceShell.html) |
 | `ProjectWorkspaceStore` | injectable | Project-level state and writes | [API](../../../api/injectables/ProjectWorkspaceStore.html) |
-| `ProjectPageNavigation` | component | The column; page toggles | [API](../../../api/components/ProjectPageNavigation.html) |
+| `PageSettingsPopover` | component | A root's page toggles, opened for a `ProjectPlaceRequest` | [API](../../../api/components/PageSettingsPopover.html) |
 | `WorkCreateDialog` | component | Workstream draft, explicit parent, pending/refusal and modal focus | [API](../../../api/components/WorkCreateDialog.html) |
 | `WorkCreateParent` | interface | Live parent option view state | [API](../../../api/interfaces/WorkCreateParent.html) |
 | `ProjectHeader`, `ProjectMoreMenu` | components | Header and its menu | [API](../../../api/components/ProjectHeader.html) |
@@ -508,11 +508,11 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   specs cannot prove pointer hit-testing, touch behavior or the absence of layout shift.
 - **The trap:** a page-scoped read that answers project-wide. Every read here names its
   page; the canvas once drew another page's container because one did not.
-- **The column's focus trap:** `/projects/:projectId` and `/projects/:projectId/pages/:pageKind`
-  are two route configs, so a link between them makes the router replace the shell
-  synchronously inside `RouterLink`'s click handler. A bubbling listener on the column is gone
-  before the click reaches it, and a shell field is gone with the old instance. That is why
-  `linkSelected` is reported from a capture-phase listener and the request is root-scoped.
+- **The re-created shell:** `/projects/:projectId` and `/projects/:projectId/pages/:pageKind`
+  are two route configs, so a link between them makes the router replace the shell, and a shell
+  field is gone with the old instance. That is why `ArchiveFocusRequest` is root-scoped, the
+  place is keyed rather than cleared, and the handler disposer removes only its own shell's
+  handlers.
 
 Plane containers use --plane-pane-background/filter or --plane-sheet-background/filter. Global token fallbacks resolve solid surfaces, and shared focus tokens draw every focus-visible outline. No spacing or layout rules change for Depth.
 
@@ -629,10 +629,10 @@ view. The shell provides TaskDrawerCoordinator
 and reserves --layout-drawer-width while desktop details are open. Task List sections own
 native opening and focus; no feature writes bypass the gateway.
 
-openArchive(returnTo) records the target URL in root-lived ProjectColumnFocusRequest.archiveUrl
+openArchive(returnTo) records the target URL in root-lived ArchiveFocusRequest.archiveUrl
 and navigates without a write. Root Archive resolves whether its page record is absent, hidden or
-shown; only its renderer accepts a nullable page id. Navigation lists a hidden Archive while it
-is current, and the toggle reads “Archive” while controlling navigation visibility. A rendered shell consumes the
+shown; only its renderer accepts a nullable page id. The tree lists a hidden Archive while it
+is current, and the page-settings toggle reads “Archive” while controlling navigation visibility. A rendered shell consumes the
 matching request when #archive-page-title exists; a different winning URL clears it. This explicit
 request survives shell replacement. Generic core route focus remains a fallback.
 
@@ -649,7 +649,7 @@ choice of the row now at the restored row's place) or the heading.
 |---|---|---|---|
 | ProjectDetailsDialog | component | Single-commit project draft | [API](../../../api/components/ProjectDetailsDialog.html) |
 | ProjectArchiveConfirm | component | Modal archive confirmation; lists live workstreams and names them at the press | [API](../../../api/components/ProjectArchiveConfirm.html) |
-| ProjectColumnFocusRequest | injectable | Cross-shell column and Archive focus requests | [API](../../../api/injectables/ProjectColumnFocusRequest.html) |
+| ArchiveFocusRequest | injectable | Cross-shell Archive focus request | [API](../../../api/injectables/ArchiveFocusRequest.html) |
 
 
 Task Lists disable CDK sorting within a list. The dragged list announces cross-list movement and clears that hint on drag end; dropTask still calls receive only for a different container. Read-only Task Lists pass sourceLink into TaskRow and distinguish an empty source. Todos uses the same object-row anatomy and taskMeta while retaining its own write store and exact status hooks. ArchivedRegion renders static object rows with separate Restore controls. Progress emphasises the pressed formula, without a lone primary. Settings archived-project cards show ancestor names only or Top-level project.

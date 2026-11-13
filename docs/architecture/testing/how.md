@@ -13,8 +13,9 @@ Slice 81 uses `ux/slice81.config.ts` on the same ports (web 4257, host 4357; nev
 built in a temporary worktree. Its `testMatch` is `capture.ts` and `ux/navigation-tree-verification.ts`, which
 runs the core tasks under `UX_OBJECTS=1`. The navigation controls the tasks and states name come from
 `navLocators` in `ux/tasks.ts`, keyed on `UX_BEFORE` itself, since `legacyBefore` is always false under
-`UX_OBJECTS=1`; T02 skips choosing Kitchen as parent when the dialog already shows it. The "after" gear name
-("Pages of Home renovation…") exists only once the tree has it, so until then only the `UX_BEFORE` run passes.
+`UX_OBJECTS=1`; T02 skips choosing Kitchen as parent when the dialog already shows it. The "after" page-settings name
+("Pages of Home renovation…") is the tree's pencil-menu item, drawn in the app since Slice 81's step 6
+registered the project shell's handlers; the "before" name is the deleted column's gear.
 
 Slice 80 uses `ux/slice80.config.ts` on Slice 79's ports (web 4257, host 4357; the two rigs never run
 together), `.prototype/ux-slice80.json` and the `bfff1c6` baseline in
@@ -212,15 +213,15 @@ complete `chrome-verification.json`. Earlier slices' runtime scripts remain froz
    archive that stays on its project, pending state through a held write, a gated second tab refused
    `history_revision_stale`, an agent's conflicting edit, and expiry after a clock move. The older
    journeys that clicked the notice's Undo now go through `history-controls.ts`.
-   `work-navigation.spec.ts` checks gear and plus behavior in both themes, live parent loss,
+   `work-navigation.spec.ts` checks the pencil's page settings and Add workstream in both themes, live parent loss,
    create refusal, archived-root blocking and a second tab's Work/Todos refresh. The touch
    path and dialog containment are in `phone-layout.spec.ts`. Slice 67 adds the literal six-type
    picker in `canvas-editing.spec.ts` and Markdown rendering, exact touch source save, code scrolling
    and containment at 375 px and desktop span-4 Grid in both themes.
-   Slice 42's `project-creation-history.spec.ts` creates from the sidebar and Work plus,
+   Slice 42's `project-creation-history.spec.ts` creates from the sidebar and Add workstream,
    Undoes and Redoes the same ids, reloads the creator's recovery route, and confirms another actor
    sees *This project isn’t available*. A nested-project journey checks the root Work tree, Todos, Archive
-   and the parent's Work column after create, Undo and Redo, then verifies the expired
+   and the parent's workstreams in the tree after create, Undo and Redo, then verifies the expired
    creation route has no stale recovery offer.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.

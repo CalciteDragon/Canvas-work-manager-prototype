@@ -48,7 +48,7 @@ properties, and it depends on the host **only** through gateway interfaces and o
 
 - [core](core/overview.md) — the boundary and the shell: gateway interfaces and the
   prototype adapter, identity, live updates, settings and flags, theme, `AppShell`.
-- [projects](projects/overview.md) — the project workspace: shell, navigation column,
+- [projects](projects/overview.md) — the project workspace: shell, page settings and Add workstream,
   pages, the section canvas, section types, shortcuts, archive.
 - [dashboard](dashboard/overview.md) — `/app`: the widget registry over one derived read.
 - [tasks](tasks/overview.md) — `TaskRow`, the detail drawer and the per-section task

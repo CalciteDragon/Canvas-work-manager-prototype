@@ -22,9 +22,19 @@ const out = resolve('ux-output', commit);
 const escape = (s: string) => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 async function state(page: Page, cell: CaptureCell) {
   const button = (name: string | RegExp) => page.getByRole('button', { name, exact: typeof name === 'string' });
+  // Slice 81: before, the project column held these as buttons (expanded at narrow widths); after,
+  // they are menu items under the tree's pencil — in the drawer below 48rem.
+  const before81 = Boolean(process.env['UX_BEFORE']);
+  const navItem = (name: string) => before81 ? button(name) : page.getByRole('menuitem', { name, exact: true });
   if (['page-settings','work-create'].includes(cell.state)) {
-    const show = button('Show project navigation');
-    if (await show.isVisible()) await show.click();
+    if (before81) {
+      const show = button('Show project navigation');
+      if (await show.isVisible()) await show.click();
+    } else {
+      const menu = page.locator('[data-shell-menu]');
+      if (await menu.isVisible()) await menu.click();
+      await page.locator('app-sidebar').getByRole('button', { name: 'Edit project', exact: true }).click();
+    }
   }
   switch (cell.state) {
     case 'more': await button('More project actions').click(); break;
@@ -32,8 +42,8 @@ async function state(page: Page, cell: CaptureCell) {
       await button('More project actions').click();
       if (!inlineMoreBaseline) await page.getByRole('menuitem', { name: cell.state === 'project-details' ? 'Edit details…' : /^Archive (project|workstream)…$/, exact: true }).click();
       break;
-    case 'page-settings': await button(nav81.pageSettings).click(); break;
-    case 'work-create': await button(nav81.addWorkstream).click(); break;
+    case 'page-settings': await navItem(nav81.pageSettings).click(); break;
+    case 'work-create': await navItem(nav81.addWorkstream).click(); break;
     case 'section-create': case 'shortcut-picker':
       await button(legacyBefore ? 'Insert at the end' : 'Add a section').click();
       if (cell.state === 'shortcut-picker') await button('Add shortcut').click();

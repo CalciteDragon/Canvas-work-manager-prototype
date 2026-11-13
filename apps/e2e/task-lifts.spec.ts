@@ -104,7 +104,9 @@ for (const theme of themes) {
           await expect(more).toBeFocused();
           await opener.click();
           await expect(drawer.locator('h2')).toBeFocused();
-          await page.locator('[data-project-settings-toggle]').click();
+          // Slice 81: page settings is the tree pencil's first item.
+          await page.locator('app-sidebar [data-edit-project]').click();
+          await page.locator('[data-edit-project-pages]').click();
           await expect(drawer).toHaveCount(0);
           await expect(page.locator('[data-project-page-manager] input:not(:disabled)').first()).toBeFocused();
           await onlyOneLift(page);

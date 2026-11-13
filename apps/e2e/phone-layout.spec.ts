@@ -1,5 +1,5 @@
 /**
- * Slice 58's phone layout: the global navigation drawer, the project column's re-collapse and
+ * Slice 58's phone layout: the global navigation drawer, its tree's links and pencil menu (Slice 81) and
  * the Task List details drawer at 375 px, by touch and keyboard, in both themes, and across a
  * resize. Everything here is what jsdom cannot show — a real focus trap, `inert` actually
  * blocking the workspace, modal task sheets, horizontal overflow and `matchMedia`.
@@ -226,29 +226,40 @@ for (const theme of THEMES) {
 for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
   test.use({ ...PHONE, colorScheme: theme });
 
-  test('gear page settings and Work creation stay tappable and fit the viewport', async ({ page }) => {
+  // Slice 81: the drawer's pencil menu replaces the column's gear and plus. A chosen item closes
+  // the drawer, opens its lift as a sheet, and returns focus to Menu.
+  test('the drawer’s pencil menu opens page settings and Add workstream, tappable and inside the viewport', async ({ page }) => {
     await page.goto('/projects/project-renovation');
     await useTheme(page, theme);
-    await page.locator('[data-project-nav-toggle]').tap();
-    const gear = page.locator('[data-project-settings-toggle]');
-    await gear.tap();
-    await expect(page.locator('[data-project-page-manager]')).toBeVisible();
-    const toggle = page.locator('[data-page-toggle-kind="reflections"] input');
-    await toggle.tap();
-    await expect(toggle).not.toBeChecked();
-    await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
-    await toggle.press('Escape');
-    await expect(gear).toBeFocused();
-    await expect(page.locator('[data-project-page-manager]')).toBeHidden();
-    const plus = page.locator('[data-work-create]');
-    for (const control of [gear, plus]) {
+    await openByTap(page);
+    const pencil = drawer(page).locator('[data-edit-project]');
+    for (const control of [drawer(page).locator('[data-nav-up]'), pencil]) {
       const box = (await control.boundingBox())!;
       expect(box.height, 'coarse-pointer target height').toBeGreaterThanOrEqual(44);
       expect(box.width, 'coarse-pointer target width').toBeGreaterThanOrEqual(44);
       expect(box.x).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(375);
     }
-    await plus.tap();
+    await pencil.tap();
+    await drawer(page).locator('[data-edit-project-pages]').tap();
+    await expectDrawerClosed(page);
+    const manager = page.locator('[data-project-page-manager]');
+    await expect(manager).toBeVisible();
+    const sheet = (await manager.boundingBox())!;
+    expect(sheet.x).toBeGreaterThanOrEqual(0);
+    expect(sheet.x + sheet.width).toBeLessThanOrEqual(375);
+    const toggle = page.locator('[data-page-toggle-kind="reflections"] input');
+    await toggle.tap();
+    await expect(toggle).not.toBeChecked();
+    await expect(page.locator('app-sidebar [data-nav-page="reflections"]')).toHaveCount(0);
+    await toggle.press('Escape');
+    await expect(manager).toBeHidden();
+    await expectFocus(page, '[data-shell-menu]');
+
+    await openByTap(page);
+    await pencil.tap();
+    await drawer(page).locator('[data-edit-project-add]').tap();
+    await expectDrawerClosed(page);
     const dialog = page.getByRole('dialog', { name: 'Add workstream' });
     await expect(dialog).toBeVisible();
     const box = (await dialog.boundingBox())!;
@@ -265,10 +276,11 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await dialog.getByRole('button', { name: 'Create', exact: true }).tap();
     await expect(dialog).toHaveCount(0);
     expect(page.url()).toBe(url);
-    await expect(plus).toBeFocused();
+    await expectFocus(page, '[data-shell-menu]');
     const child = (await api.get<Array<{ id: string; name: string; parentProjectId?: string }>>('/api/projects')).find((project) => project.name === name)!;
     expect(child.parentProjectId).toBe('project-renovation');
-    await expect(page.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+    await openByTap(page);
+    await expect(drawer(page).locator(`li[data-nav-work-id="${child.id}"]`)).toBeVisible();
     await expectNoHorizontalOverflow(page, 'Created workstream');
   });
 
@@ -322,29 +334,25 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await expectFocus(page, 'main.workspace');
   });
 
-  test('a chosen project page or unit of work re-collapses the column and focuses its toggle', async ({ page }) => {
-    const toggle = page.locator('[data-project-nav-toggle]');
-    const panel = page.locator('#project-nav-panel');
+  // Slice 81: the project column is gone; its pages and workstreams are links in the drawer's tree.
+  test('a chosen tree link closes the drawer, navigates and focuses the workspace', async ({ page }) => {
     const choose = async (link: string, url: RegExp, project: string) => {
-      await toggle.tap();
-      await expect(panel).toBeVisible();
-      await page.locator(link).tap();
+      await openByTap(page);
+      await drawer(page).locator(link).tap();
       await expect(page).toHaveURL(url);
       await expect(page.locator('[data-project-name]')).toContainText(project);
-      await expect(panel).toBeHidden();
-      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-      await expectFocus(page, '[data-project-nav-toggle]');
+      await expectDrawerClosed(page);
+      await expectFocus(page, 'main.workspace');
     };
 
     await page.goto('/projects/project-renovation/pages/home');
     await useTheme(page, theme);
-    await expect(panel).toBeHidden();
     // Todos on the same root: no project reload.
-    await choose('[data-project-page-tab][data-page-kind="todos"]', /\/pages\/todos$/, 'Home renovation');
-    // A unit of work: the project reloads and the toggle is a new one.
-    await choose('[data-work-project-id="project-kitchen"] > a', /\/projects\/project-kitchen$/, 'Kitchen');
-    // A root page tab from that unit of work reloads back to the root.
-    await choose('[data-project-page-tab][data-page-kind="home"]', /\/projects\/project-renovation\/pages\/home$/, 'Home renovation');
+    await choose('[data-nav-page="todos"]', /\/pages\/todos$/, 'Home renovation');
+    // A workstream: the project reloads.
+    await choose('li[data-nav-work-id="project-kitchen"] > .tree-row > a', /\/projects\/project-kitchen$/, 'Kitchen');
+    // The root's row from that workstream goes back to the root.
+    await choose('[data-nav-root]', /\/projects\/project-renovation(\/pages\/home)?$/, 'Home renovation');
   });
 
   test('quick-add keeps the task list usable and Delete stays tappable after closing its sheet', async ({ page }) => {

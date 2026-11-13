@@ -63,18 +63,18 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    above the widgets. Press it (or the **+** beside *Projects*), type `Prototype review`, and press **Create**. The
    new root opens with exactly one page: required **Home**. The other page kinds are not merely
    empty tabs — they have not been enabled yet.
-5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. Its project
-   column shows Home, Todos, Archive and Reflections, followed by a three-level work tree:
-   **Kitchen → Cabinets**, plus **Garden**. Home contains the six seeded section kinds and
+5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. The navigation
+   tree now shows the root's level: Home, Todos, Archive and Reflections, followed by a
+   three-level work tree, **Kitchen → Cabinets** (open Kitchen's disclosure), plus **Garden**. Home contains the six seeded section kinds and
    four seeded shortcut frames, so this is the useful starting point for the rest of the pass.
-6. **Page settings and work creation.** Open the gear beside the root name in the project column. Home is checked and disabled;
+6. **Page settings and work creation.** Open the pencil (**Edit project**) at the top of the tree and choose **Pages of Home renovation…** (the header's **⋯** offers the same item). Home is checked and disabled;
    Todos, Archive and Reflections are ordinary persisted toggles. Disable Todos, visit its old
    URL, and use **Enable Todos** in the Home fallback; the tab and route return only after the
    setting has been saved and fresh page context has arrived. Reload to confirm the setting.
-   Use the plus beside **Work** to add a workstream; choose Parent and check the "Inside …"
+   Choose **Add workstream** from the same pencil menu (or **⋯**); choose Parent and check the "Inside …"
    line before Create. The route stays put; the confirmation toast offers Undo and an Open link.
-7. **Root context on a workstream.** Open **Kitchen**, then **Cabinets**. The root's project
-   column and manager remain visible, but there is no Work toggle and no `/pages/work` tab. The
+7. **Root context on a workstream.** Open **Kitchen**, then **Cabinets**. The tree keeps the root's
+   level, with the current workstream marked, and the pencil's page settings remain the root's: there is no Work toggle and no `/pages/work` tab. The
    main area is the workstream's one canvas, and its breadcrumbs lead back through Home renovation
    and Kitchen.
 8. **Edit work metadata.** Open **⋯** in a root or workstream header. Set a name, description,
@@ -158,8 +158,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 17. **Markdown and progress.** The Markdown brief shows its prose rendered and grows with its
     wrapped content; **Edit** opens the source and **Save** writes it. Progress shows the percentage and its formula explanation; its settings control exposes
     count, weighted and manual settings without changing modes.
-18. **Workstreams and timeline.** The project column's Work list shows and links the work hierarchy;
-    **Add workstream** creates nested work with an explicit parent. Timeline shows the project's
+18. **Workstreams and timeline.** The navigation tree shows and links the work hierarchy;
+    **Add workstream**, from the pencil or **⋯**, creates nested work with an explicit parent. Timeline shows the project's
     dated records in order.
 19. **Todos.** Open the root's Todos tab. It is one chronological projection across root tasks,
     nested workstreams and their tasks: due dates first, equal instants by kind then ID, completed

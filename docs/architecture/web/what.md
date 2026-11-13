@@ -35,7 +35,7 @@ adapters `core/` provides:
 C4Component
   title web — features over core
   Container_Boundary(web, "web (Angular 22, :4200)") {
-    Component(projects, "features/projects", "project workspace", "shell, navigation column, pages, canvas, sections, shortcuts")
+    Component(projects, "features/projects", "project workspace", "shell, page settings, pages, canvas, sections, shortcuts")
     Component(core, "core/", "boundary and shell", "gateway, identity, live, config, shell, theme")
     Component(dashboard, "features/dashboard", "/app", "widget registry over one read")
     Component(tasks, "features/tasks", "task UI", "TaskRow, drawer, per-section store")

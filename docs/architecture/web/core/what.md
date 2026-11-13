@@ -29,7 +29,7 @@ flowchart LR
     as["AppShell"]
     ss["ShellStore<br/>project tree, hasArchived, workspaceEmpty, createProject"]
     sc["SHELL_COMMANDS<br/>workspaceEmpty, requestCreate"]
-    nc["NavigationContext<br/>project place, handlers (root-provided)"]
+    nc["NavigationContext<br/>project place; handlers the project shell registers (root-provided)"]
     sb["Sidebar → ProjectTreeItem, EditProjectMenu<br/>B's top or root level; inline, or the drawer below 48rem"]
     tb["TopBar<br/>Menu below 48rem"]
   end
@@ -104,7 +104,7 @@ sequenceDiagram
 | `PrototypeSettings`, `PrototypeFlags`, `StoredSettings` | `core/config/prototype-settings.ts` | §47 flags; delay; failure rate |
 | `RouteFocus` | `core/a11y/route-focus.ts` | Initializer-backed body-focus recovery after trusted-input navigation; page/header heading then bounded main fallback |
 | `ThemeService` | `core/theme/theme-service.ts` | §22 |
-| `AppShell`, `ShellStore`, `ProjectTreeNode`, `SHELL_NARROW_QUERY` | `core/shell/` | §23 layout and the project tree; the phone drawer's open state, focus moves and resize reset are `AppShell`'s |
+| `AppShell`, `ShellStore`, `ProjectTreeNode`, `SHELL_NARROW_QUERY` | `core/shell/` | §23 layout and the project tree; the phone drawer's open state, focus moves and resize reset are `AppShell`'s; `toPlace` hands the pencil's two requests to `NavigationContext` (Slice 81) |
 | `SHELL_COMMANDS`, `ShellCommands` | `core/shell/shell-commands.ts` | What a routed page may ask of the shell (Slice 79): `workspaceEmpty`, `requestCreate()`; `AppShell` provides it as itself |
 | `EditProjectMenu` | `core/shell/sidebar/` | The pencil "Edit project" and its `popover="auto"` menu (Slice 81, decision 3): "Pages of <root>…" and "Add workstream" (described "in <root>", or an archived root's reason with `aria-disabled`); `menuKeys`, and it stops Escape so the phone drawer stays; an item closes the menu, returns focus to the pencil and emits it; anchored under the pencil with `position-anchor: auto` |
 | `NavigationContext`, `ProjectPlace`, `rootLevelOf` | `core/shell/`, `core/shell/sidebar/tree-model.ts` | Slice 81: the project route's place (keyed, not cleared; `missing` marks nothing) and its handlers; the tree's root level derived from the place over the projects read |

@@ -7,7 +7,7 @@ case, and a 375 px containment check. Slice 44's exact-ID parent-first Archive a
 archived-project checks remain, with read grants separate from Restore grants.
 
 Slice 58 adds `phone-layout.spec.ts`: the global drawer by tap, Enter and Space with a real focus
-trap and `inert` workspace, route and create closing, project-column re-collapse across reloads,
+trap and `inert` workspace, route and create closing, the drawer's pencil lifts returning to Menu (Slice 81),
 Task List Delete beside an open details drawer, no horizontal overflow on five pages in both
 themes, and a non-mobile resize context for focus across the breakpoint.
 
