@@ -326,7 +326,7 @@ const creationTransition = (
   result: unknown,
 ): OperationHistoryTransitionResult => ({ direction, actionId: 'operation-created' as never, summary, result } as OperationHistoryTransitionResult);
 
-describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', () => {
+describe('ProjectWorkspaceShell — §23’s workspace and §68’s routes', () => {
   // Slice 81, step 6 (step 8's deletion brought forward, Open question 18): the tree is the
   // navigation, so the workspace is one track — the header, then the canvas.
   it('renders no project column: the header and the canvas are the workspace’s only track', async () => {
@@ -468,6 +468,18 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     expect(failure?.querySelector('[data-failure-sentence]')?.textContent?.trim()).toBe(sentence);
     expect(failure?.querySelector('[role="alert"]')).not.toBeNull();
     expect(failure?.querySelector('a[data-recovery="reload"]')?.getAttribute('href')).toBe('/projects/project-kitchen');
+  });
+
+  it('words a failed chunk by the latest request: Add workstream after a page-settings request that never opened', async () => {
+    const { harness } = await open('/projects/project-kitchen', {}, DeferBlockBehavior.Manual);
+    const navigation = TestBed.inject(NavigationContext);
+    const from = opener();
+    navigation.openPageSettings({ source: from, returnFocus: from });
+    harness.fixture.detectChanges();
+    for (const block of await harness.fixture.getDeferBlocks()) await block.render(DeferBlockState.Error).catch(() => undefined);
+    navigation.openAddWorkstream({ source: from, returnFocus: from });
+    harness.fixture.detectChanges();
+    expect(query(harness, '[data-lift-error] [data-failure-sentence]')?.textContent?.trim()).toBe('Couldn’t open Add workstream.');
   });
   it('focuses history controls on a direct fragment load without activating Undo', async () => {
     const { harness, gateway } = await open('/projects/project-kitchen#history-controls');

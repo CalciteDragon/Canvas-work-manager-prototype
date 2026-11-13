@@ -50,9 +50,8 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-// §23 puts the project navigation column *between* the sidebar and the main workspace, which
-// means it cannot sit inside this region's gutter. A routed component declares it owns the
-// full bleed and pads its own tracks; the shell keeps its state out of `ShellStore` (§20) and
+// A routed component may declare it owns the region's full bleed and pads its own tracks (the
+// project workspace does, and reserves the task drawer's width itself); the shell keeps its state out of `ShellStore` (§20) and
 // contributes only this rule. Keyed on the declared attribute rather than on a component
 // selector, so a rename cannot silently stop matching.
 .workspace:has(> [data-flush-workspace]) {

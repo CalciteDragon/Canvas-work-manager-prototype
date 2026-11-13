@@ -295,8 +295,17 @@ test('a long workstream list stays reachable in the tree, wide and in the phone 
   await page.goto(`/projects/${long.id}`);
   const rows = page.locator('app-sidebar a[data-nav-work]');
   await expect(rows).toHaveCount(40);
+  // §23's "disappearing" failure: the tree scrolls in its own scroller and stays in view while
+  // the canvas scrolls under it.
+  const sidebar = page.locator('.sidebar').first();
+  expect(await sidebar.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  const before = (await sidebar.boundingBox())!;
+  await page.locator('main.workspace').evaluate((element) => element.scrollBy(0, 2000));
+  expect((await sidebar.boundingBox())!.y).toBe(before.y);
   await rows.last().scrollIntoViewIfNeeded();
   await expect(rows.last()).toBeInViewport();
+  const last = (await rows.last().boundingBox())!;
+  expect(last.y + last.height).toBeLessThanOrEqual(before.y + before.height + 1);
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.locator('[data-shell-menu]').click();

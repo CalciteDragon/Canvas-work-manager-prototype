@@ -165,7 +165,7 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   deferred host, which should free room: do that part first, measure after each part, and stop per the standing
   bundle rule if a build crosses (Open question 17). `.icon-button` is 40 px (32 px is `--sm`).
 **Step 6 — done (2026-11-13), resumed after Open question 18** (the user's answer: (a) with the More trim, (d) only if
-needed). Commits: see the closing commit of this header (`git log --grep 'slice 81): step 6'`). First parked, then resumed:
+needed). Commits: `eeb6252` (implementation, column deletion, e2e, docs), then the review fixes and this header. First parked, then resumed:
 *(As parked.)* The implementation is written test-first and its unit specs pass
 (191/191 over the six touched spec files), but the initial bundle measures **1,153.49 kB** (> 1,150 kB), so per the standing
 rule it is **parked in `git stash` as "slice 81 step 6 WIP: lifts move …"** (`git stash list`; `git stash apply` to resume)
@@ -208,8 +208,16 @@ and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locato
   `ux/tasks.ts` and `ux/capture.ts`: the "after" path opens the pencil and chooses the item as a `menuitem` (rigs not run).
 - *Docs:* `web/projects/*`, `web/core/*`, `web/{overview,what,how}.md`, `testing/*`, the walkthrough, README; amendments
   to the column, gear-and-work-create, optional-page-management, place-context, phone-drawer and route-focus decisions.
-- *Bundle:* initial **1,149.60 kB** (≤ 1,150 kB), so **the ceiling stays 1,150 kB**; the 1,155 kB allowance is not used.
-  Headroom is 0.40 kB: steps 7, 10 and 11 add eager code and will likely cross (Open question 17 still applies).
+- *Review* (one cold reviewer over `eeb6252`): no substantive findings. Minor, fixed: the canvas-editing tree case again
+  checks the sidebar's own scroller and that it stays in place while `main` scrolls; a page-settings request left set by a
+  failed chunk no longer words a later Add workstream failure (`openWorkCreate` clears it; shell case); stale column
+  comments in `app-shell.scss` and `pinned-failure-slot.scss`; the shell spec's "two columns" title. Left: frozen UX rigs
+  (`ux/placement-`, `depth-`, `feedback-verification.ts`) still name column selectors (frozen, not re-run); the plane lists
+  in `ux/layout.mjs` and `build-sheet.mjs` still name `app-project-page-navigation` (step 13's profile 81); More's items are
+  tested in `project-header.spec.ts`, not `project-more-menu.spec.ts`; no shell-level case of a pencil request reaching a
+  shell re-created by an in-app move between the two route configs (covered in `navigation-context.spec.ts`).
+- *Bundle:* initial **1,149.63 kB** after the review fixes (1,149.60 kB before them), ≤ 1,150 kB, so **the ceiling stays
+  1,150 kB**; the 1,155 kB allowance is not used. Headroom is 0.37 kB: steps 7, 10 and 11 add eager code and will likely cross (Open question 17 still applies).
 - *Noted, not changed:* at desktop a tree link leaves focus on the link (as the column's wide selection did);
   opening the pencil does not close the task drawer, choosing "Pages of …" does; an archived root lists no archived
   workstreams under it.
@@ -1413,7 +1421,7 @@ blocking step 6)
 - **Answer (user decision, 2026-11-13): (a) with the More trim, plus (d) only if needed**: step 8's column deletion moves into
   step 6 and More calls `NavigationContext` directly; if the build were still over 1,150 kB, the ceiling could rise for
   Slice 81 only to at most 1,155 kB; (b), (c) and (e) are not used. **Measured: 1,149.60 kB**, so (d) was not needed and the
-  ceiling stays 1,150 kB.
+  ceiling stays 1,150 kB (1,149.63 kB after the review fixes).
 
 ## Revisions
 

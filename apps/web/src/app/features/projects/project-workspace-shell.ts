@@ -451,6 +451,8 @@ export class ProjectWorkspaceShell {
   /** The tree's pencil or More requests the dialog; the loaded root determines whether creation is available. */
   openWorkCreate(request: ProjectPlaceRequest): void {
     if (!this.store.loading() && this.workCreateBlocked() === null) {
+      // A page-settings request left set (its chunk failed, so no `closed`) must not word this one's failure.
+      this.pageSettingsRequest.set(null);
       this.workCreateReturn = request.returnFocus;
       this.releaseWorkLift = this.lifts.open(() => this.closeWorkCreate());
       this.workCreateOpen.set(true);

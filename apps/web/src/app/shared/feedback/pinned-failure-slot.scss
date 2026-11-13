@@ -4,7 +4,7 @@
 }
 
 // Fixed to the clear port the slot measured (`--pin-*`), centred on the content track the toast
-// uses, so it stays outside the project navigation column and any reserved drawer width.
+// uses, so it stays outside any reserved drawer width.
 .pinned-failure {
   position: fixed;
   z-index: var(--z-notice);
