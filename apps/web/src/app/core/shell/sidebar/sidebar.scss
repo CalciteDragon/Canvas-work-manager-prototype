@@ -26,33 +26,16 @@
   list-style: none;
 }
 
-[data-nav-item] {
-  display: block;
-  width: 100%;
+.group-label {
   padding: var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
   color: var(--color-text-muted);
-  text-align: start;
-  cursor: pointer;
-}
-
-[data-nav-item]:hover,
-[data-nav-item]:focus-visible {
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-}
-
-[data-nav-item].active {
-  background: var(--color-surface-raised);
-  color: var(--color-accent);
-}
-
-.section-header {
   font-size: var(--font-size-sm);
   letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
+}
+
+.group-label:focus {
+  outline: none;
 }
 
 .projects {
@@ -76,6 +59,7 @@
 .group__header-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-1);
 }
 
@@ -107,9 +91,8 @@ hr {
   border-block-start: var(--border-hairline) solid var(--color-border);
 }
 
-// Touch-sized destinations, at every width a coarse pointer is used (Slice 58).
+// Touch-sized, at every width a coarse pointer is used (Slice 58); tree rows size themselves.
 @media (hover: none), (any-pointer: coarse) {
-  [data-nav-item],
   [data-projects-archived-link] {
     min-height: var(--size-hit-target);
   }

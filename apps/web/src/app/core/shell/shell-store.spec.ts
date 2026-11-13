@@ -285,14 +285,16 @@ describe('ShellStore — the nestedProjects flag (§47)', () => {
     expect(store.projectTree()[0]?.children[0]?.children[0]?.project.name).toBe('Sink');
   });
 
-  it('flattens every level when the flag is off, with no reload', async () => {
+  // Slice 81 (§77, a behaviour change): with one tree, workstreams appear only under their root,
+  // flag or not. Off, the flag hides the work hierarchy; it no longer lifts it to the top level.
+  it('lists only the roots, with no work under them, when the flag is off, with no reload', async () => {
     const { store } = storeWith({ projects: threeDeep });
     await store.load();
 
     TestBed.inject(PrototypeSettings).setFlag('nestedProjects', false);
 
     // A computed over a signal: the tree re-derives without the store re-fetching.
-    expect(store.projectTree().map((node) => node.project.name)).toEqual(['Home', 'Kitchen', 'Sink']);
+    expect(store.projectTree().map((node) => node.project.name)).toEqual(['Home']);
     expect(store.projectTree().every((node) => node.children.length === 0)).toBe(true);
   });
 });

@@ -44,7 +44,14 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    `hasArchived()` says something archived exists, so an empty tree says "No active projects."
    with a link, "View archives", to `/settings/archived-projects`, and
    `workspaceEmpty()` is true only after a read answered (`answered()`) with no projects at all,
-   never while loading or after a failure.
+   never while loading or after a failure. With `nestedProjects` off the tree keeps only the
+   roots, with no work under them (Slice 81: workstreams appear only under their root).
+   The sidebar draws B's two levels from that tree and `AppShell`'s `projectPlace` input, read
+   from `NavigationContext`, which `ProjectWorkspaceShell` publishes: `rootLevelOf`
+   (`sidebar/tree-model.ts`) is the whole rule for the root level, including the loading case and
+   the current item's path drawn in where the read does not list it (Q11 (a)). Destinations mark
+   themselves with `routerLinkActive` + `ariaCurrentWhenActive`; the root level marks from the
+   place. Trap: Settings' own link needs `exact`, or every Settings child marks two items.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
    (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
@@ -91,6 +98,7 @@ returns feedback to that same toast and shares the header's transition guard.
 | `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer; `ProjectTreeItem`'s host is its `li` (`li[app-project-tree-item]`), so each list holds list items directly | [API](../../../api/components/AppShell.html) |
 | `SHELL_NARROW_QUERY` | constant | The drawer query, built from the shared breakpoint checked against Sass | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
 | `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and project navigation thresholds, equal to the CSS-free Sass partial by token-lint check | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |
+| `NavigationContext`, `ProjectPlace`, `ProjectPlaceHandlers` | injectable / interfaces | The project route's place for the tree, and its handlers (Slice 81) | [API](../../../api/injectables/NavigationContext.html) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
 | `SHELL_COMMANDS`, `ShellCommands` | token / interface | What a routed page may ask of the shell: `workspaceEmpty`, `requestCreate()`; `AppShell` provides it as itself | [API](../../../api/interfaces/ShellCommands.html) |
 

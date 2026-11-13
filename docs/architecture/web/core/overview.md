@@ -46,7 +46,9 @@ can confirm a write and undo it without importing another feature's store.
 - `RouteFocus`: a root initializer-backed service that recovers body focus after trusted-input
   navigation, waits for a page/header landing heading, and falls back to main after two seconds.
 - `AppShell`, `ShellStore`, `Sidebar`, `ProjectTreeItem`, `TopBar`: §23's layout and the
-  project tree; `ShellStore.createProject` is where a root is created. Below 48rem the same
+  navigation tree; `ShellStore.createProject` is where a root is created. The tree's project
+  place comes from `NavigationContext`, which the project route publishes (Slice 81,
+  [decision](../../../decisions/2026-11-navigation-reads-project-place-from-a-context.md)). Below 48rem the same
   sidebar instance becomes a modal navigation drawer behind the top bar's **Menu**, whose
   open state is `AppShell`'s own signal, not the store's (Slice 58,
   [decision](../../../decisions/2026-09-phone-navigation-drawer.md)). `AppShell` provides

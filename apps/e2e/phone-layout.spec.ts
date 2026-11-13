@@ -49,7 +49,8 @@ const expectDrawerOpen = async (page: Page) => {
   await expect(menu(page)).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('app-top-bar')).toHaveAttribute('inert', '');
   await expect(page.locator('main.workspace')).toHaveAttribute('inert', '');
-  await expect(sidebarLink(page, 'Home')).toBeVisible();
+  // Slice 81: either level of the tree; inside a project the drawer opens on the root level.
+  await expect(drawer(page).locator('app-sidebar a').first()).toBeVisible();
 };
 
 const openByTap = async (page: Page) => {
@@ -283,16 +284,17 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await expectFocus(page, 'main.workspace');
 
     await openByTap(page);
-    await page.locator('[data-project-id="project-cabinets"] > a').tap();
-    await expectDrawerClosed(page);
-    await expect(page).toHaveURL(/\/projects\/project-cabinets$/);
-    await expect(page.locator('[data-project-name]')).toContainText('Cabinets');
-    await expectFocus(page, 'main.workspace');
-
-    await openByTap(page);
     await sidebarLink(page, 'Settings').tap();
     await expectDrawerClosed(page);
     await expect(page).toHaveURL(/\/settings$/);
+    await expectFocus(page, 'main.workspace');
+
+    // Slice 81: the drawer's top level lists the roots; a root opens by navigating to it.
+    await openByTap(page);
+    await page.locator('[data-project-id="project-renovation"] > a').tap();
+    await expectDrawerClosed(page);
+    await expect(page).toHaveURL(/\/projects\/project-renovation$/);
+    await expect(page.locator('[data-project-name]')).toContainText('Home renovation');
     await expectFocus(page, 'main.workspace');
   });
 

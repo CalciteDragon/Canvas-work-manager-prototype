@@ -50,6 +50,7 @@
         [loading]="store.loading()"
         [createError]="store.createError()"
         [hasArchived]="store.hasArchived()"
+        [projectPlace]="navigation.place()"
         (createRequested)="createProject($event)"
         (retryRequested)="store.load()"
       />

@@ -21,6 +21,7 @@ import {
 } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
+import { NavigationContext } from '../../core/shell/navigation-context';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
@@ -1689,5 +1690,93 @@ describe('ProjectWorkspaceShell — read-only projects and the archived banner (
 
     expect(document.activeElement).toBe(elsewhere);
     elsewhere.remove();
+  });
+});
+
+describe('Slice 81: the project place for the navigation tree (R2)', () => {
+  const placeOf = () => TestBed.inject(NavigationContext).place();
+
+  it('publishes the root, its enabled pages without the first page, and the current kind on a root page', async () => {
+    const pages = [...defaults().pages, page('page-todos', RENOVATION.id, 'todos'), page('page-reflections', RENOVATION.id, 'reflections', false)];
+    const { harness } = await open('/projects/project-renovation/pages/todos', { pages });
+    await settle(harness);
+
+    expect(placeOf()).toEqual({
+      projectId: RENOVATION.id,
+      status: 'ready',
+      root: { id: RENOVATION.id, name: 'Home renovation', status: 'active' },
+      ancestors: [],
+      current: { id: RENOVATION.id, name: 'Home renovation', status: 'active' },
+      pages: [{ kind: 'todos', label: 'Todos' }],
+      currentKind: 'todos',
+      addBlockedReason: null,
+    });
+  });
+
+  it('publishes the first page as the current kind on a root’s own route', async () => {
+    const { harness } = await open('/projects/project-renovation');
+    await settle(harness);
+
+    expect(placeOf()).toMatchObject({ status: 'ready', currentKind: 'home', pages: [] });
+  });
+
+  it('publishes a workstream as the current project, with its path from the root and no current kind', async () => {
+    const { harness } = await open('/projects/project-cabinets');
+    await settle(harness);
+
+    expect(placeOf()).toMatchObject({
+      projectId: CABINETS.id,
+      status: 'ready',
+      root: { id: RENOVATION.id },
+      ancestors: [{ id: RENOVATION.id, name: 'Home renovation', status: 'active' }, { id: KITCHEN.id, name: 'Kitchen', status: 'active' }],
+      current: { id: CABINETS.id, name: 'Cabinets', status: 'active' },
+      currentKind: null,
+    });
+  });
+
+  it('publishes archived states: an archived current project, and Add workstream’s reason on an archived root', async () => {
+    const archivedRoot = { ...RENOVATION, status: 'archived' as const };
+    const archivedKitchen = { ...KITCHEN, status: 'archived' as const };
+    const { harness } = await open('/projects/project-kitchen', { projects: [archivedRoot, archivedKitchen, CABINETS, GARDEN] });
+    await settle(harness);
+
+    expect(placeOf()).toMatchObject({
+      root: { id: RENOVATION.id, status: 'archived' },
+      current: { id: KITCHEN.id, status: 'archived' },
+      addBlockedReason: 'unavailable while Home renovation is archived',
+    });
+  });
+
+  it('publishes a not-found project as missing, with nothing current', async () => {
+    const { harness } = await open('/projects/project-renovation', {
+      failOn: { 'projects.get': new GatewayError('not_found', 404, 'project "project-renovation" was not found') },
+    });
+    await settle(harness);
+
+    expect(placeOf()).toEqual({
+      projectId: RENOVATION.id, status: 'missing', root: null, ancestors: [], current: null, pages: [], currentKind: null, addBlockedReason: null,
+    });
+  });
+
+  it('publishes a failed read as missing too', async () => {
+    const { harness } = await open('/projects/project-renovation', {
+      failOn: { 'projects.get': new GatewayError('internal_error', 500, 'disk on fire') },
+    });
+    await settle(harness);
+
+    expect(placeOf()).toMatchObject({ status: 'missing', root: null, current: null });
+  });
+
+  it('moves the place to the next project, and clears it on leaving for the dashboard', async () => {
+    const { harness, router } = await open('/projects/project-cabinets');
+    await settle(harness);
+
+    await router.navigateByUrl('/projects/project-garden');
+    await settle(harness);
+    expect(placeOf()).toMatchObject({ projectId: GARDEN.id, status: 'ready', current: { id: GARDEN.id } });
+
+    await router.navigateByUrl('/app');
+    await settle(harness);
+    expect(placeOf()).toBeNull();
   });
 });

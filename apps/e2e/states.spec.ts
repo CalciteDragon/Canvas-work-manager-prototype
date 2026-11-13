@@ -135,8 +135,9 @@ test.describe('failures and loading at 1440', () => {
     projectsFailing = false;
     await sidebar.getByRole('button', { name: 'Try again', exact: true }).focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('app-sidebar li[app-project-tree-item]').first()).toBeVisible();
-    await expect(page.locator('app-sidebar [data-projects-toggle]')).toBeFocused();
+    await expect(page.locator('app-sidebar [data-project]').first()).toBeVisible();
+    // Slice 81: Projects is a group label now, and still where focus lands.
+    await expect(page.locator('app-sidebar [data-projects-label]')).toBeFocused();
   });
 
   test('the real provider fails only the digest: six widgets render beside it and no provider text shows', async ({ page }) => {

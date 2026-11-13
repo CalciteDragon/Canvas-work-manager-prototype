@@ -1,7 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
+  ElementRef,
   Injector,
+  computed,
   afterNextRender,
   effect,
   inject,
@@ -10,14 +13,15 @@ import {
   signal,
   untracked,
   viewChild,
-  type ElementRef,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import type { ProjectPlace } from '../navigation-context';
 import type { ProjectTreeNode } from '../shell-store';
 import { Icon } from '../../../shared/components/icon/icon';
 import type { Failure } from '../../../shared/feedback/failure';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
 import { ProjectTreeItem } from './project-tree-item';
+import { rootLevelOf } from './tree-model';
 
 /**
  * §23's sidebar. **Presentational**: it takes the project tree and the load's outcome as
@@ -49,13 +53,26 @@ export class Sidebar {
   readonly createError = input<Failure | null>(null);
   /** Archived projects exist (Slice 79): an empty tree says "No active projects." and links to them. */
   readonly hasArchived = input(false);
+  /**
+   * Where the person is inside a project (Slice 81, R2), from `NavigationContext` through
+   * `AppShell`; `null` outside one. It decides the tree's level and its current item.
+   */
+  readonly projectPlace = input<ProjectPlace | null>(null);
 
   readonly createRequested = output<string>();
   /** Try again on a failed read; `AppShell` asks `ShellStore` to read again. */
   readonly retryRequested = output<void>();
 
-  /** §23: "Project hierarchy should optionally expand inline." */
-  protected readonly projectsExpanded = signal(true);
+  /**
+   * B's level is view state, not a route (Slice 81): set by `showTopLevel()`, reset by every
+   * place change and by every link chosen in the tree, so a navigation always lands on its level.
+   */
+  private readonly upState = signal(false);
+  /** The root level's rows, or `null` where there is none to show (outside a project, a missing one). */
+  protected readonly rootLevel = computed(() => rootLevelOf(this.projectPlace(), this.projectTree()));
+  protected readonly level = computed<'top' | 'root'>(() => (this.rootLevel() !== null && !this.upState() ? 'root' : 'top'));
+  /** At the top level inside a project the current root is the location, not the page (R3, B's exception). */
+  protected readonly locationRootId = computed(() => (this.level() === 'top' ? this.rootLevel()?.root.id ?? null : null));
   protected readonly createOpen = signal(false);
   /** Survives the form closing, so a failed creation can hand the name back. */
   protected readonly draftName = signal('');
@@ -65,8 +82,9 @@ export class Sidebar {
   private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('newName');
   private readonly injector = inject(Injector);
 
-  protected toggleProjects(): void {
-    this.projectsExpanded.update((expanded) => !expanded);
+  /** The top level, without navigating (B's back-chevron, Slice 81). */
+  showTopLevel(): void {
+    this.upState.set(true);
   }
 
   /** Opening the form moves focus into its name (slice 72), after the render that creates it. */
@@ -89,7 +107,26 @@ export class Sidebar {
     effect(() => {
       if (this.createError() !== null) untracked(() => this.reopenCreate());
     });
+
+    // Every place change resets the level; a link chosen in the tree does too, because choosing the
+    // current page navigates nowhere and still has to drill back in. Captured, because a link to the
+    // other project route config re-creates the routed shell inside `RouterLink`'s own handler.
+    effect(() => {
+      this.placeKey();
+      untracked(() => this.upState.set(false));
+    });
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const onClick = (event: MouseEvent): void => {
+      if (event.target instanceof Element && event.target.closest('a[href]') !== null) this.upState.set(false);
+    };
+    host.addEventListener('click', onClick, { capture: true });
+    inject(DestroyRef).onDestroy(() => host.removeEventListener('click', onClick, { capture: true }));
   }
+
+  private readonly placeKey = computed(() => {
+    const place = this.projectPlace();
+    return place === null ? null : `${place.projectId}:${place.currentKind ?? ''}`;
+  });
 
   /**
    * Puts the form back, draft and all, with focus in the name. Public because `AppShell`, which

@@ -653,3 +653,61 @@ button.link {
   padding-block-start: var(--space-3);
   border-block-start: var(--control-line) solid var(--color-border);
 }
+
+// ── Navigation tree rows (Slice 81): one row for every destination, root, page and workstream,
+// and one current marker. Global, so the sidebar and its recursive rows share one copy. ──
+
+.tree-link {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+  }
+
+  // The current item (L5-008, L2-012): a bar and weight, not only hue, from tokens, so it reads the
+  // same in both themes. A border, unlike a background or a shadow, survives forced colours.
+  &[aria-current] {
+    padding-inline-start: calc(var(--space-2) - var(--border-focus));
+    border-inline-start: var(--border-focus) solid var(--color-accent);
+    color: var(--color-text);
+  }
+
+  &[aria-current='page'] {
+    background: var(--color-surface-raised);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.tree-children {
+  margin: 0;
+  // The one indent that makes §23's hierarchy readable, in token steps so the Design
+  // Lab's spacing density (§22) moves it with everything else.
+  padding-inline-start: var(--space-4);
+  list-style: none;
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  .tree-link {
+    min-height: var(--size-hit-target);
+  }
+}
+
+@media (forced-colors: active) {
+  .tree-link[aria-current] {
+    border-inline-start-color: Highlight;
+  }
+}

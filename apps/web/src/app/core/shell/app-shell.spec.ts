@@ -1,11 +1,12 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { ProjectSchema } from '@cwm/contracts';
+import { ProjectSchema, type ProjectId } from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
 import { AppShell } from './app-shell';
+import { NavigationContext } from './navigation-context';
 import { SHELL_COMMANDS } from './shell-commands';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
 
@@ -83,7 +84,8 @@ describe('AppShell', () => {
   });
 
   // Slice 78, Open question 11 (user decision, 2026-11-01): focus does not fall to the top of the page.
-  it('moves focus from the sidebar’s pressed Try again to the Projects heading when the list recovers', async () => {
+  // Slice 81: Projects is now a group label, and it is still where focus lands.
+  it('moves focus from the sidebar’s pressed Try again to the Projects label when the list recovers', async () => {
     const { fixture, element } = await renderShell({
       failOn: { 'projects.list': new GatewayError('unreachable', 0, 'the prototype host is not running') },
     });
@@ -96,8 +98,25 @@ describe('AppShell', () => {
     await fixture.whenStable();
 
     expect(element.querySelector('[data-projects-error]')).toBeNull();
-    expect(document.activeElement).toBe(element.querySelector('[data-projects-toggle]'));
+    expect(document.activeElement).toBe(element.querySelector('[data-projects-label]'));
     element.remove();
+  });
+
+  // Slice 81, R2: the project route publishes its place; the shell hands it to the presentational tree.
+  it('hands the navigation context’s place to the sidebar, and its clearing too', async () => {
+    const { fixture, element } = await renderShell();
+    const context = TestBed.inject(NavigationContext);
+    const root = { id: 'project-1' as ProjectId, name: 'Personal workspace', status: 'active' as const };
+
+    context.publish({ projectId: root.id, status: 'ready', root, ancestors: [], current: root, pages: [{ kind: 'todos', label: 'Todos' }], currentKind: 'todos', addBlockedReason: null });
+    await fixture.whenStable();
+    expect(element.querySelector('app-sidebar [data-nav-root]')?.textContent).toContain('Personal workspace');
+    expect(element.querySelector('app-sidebar [data-nav-page="todos"]')?.getAttribute('aria-current')).toBe('page');
+
+    await TestBed.inject(Router).navigateByUrl('/');
+    await fixture.whenStable();
+    expect(element.querySelector('app-sidebar [data-nav-root]')).toBeNull();
+    expect(element.querySelector('app-sidebar [data-projects-label]')).not.toBeNull();
   });
 
   it('keeps the explicit theme when a different persona loads (§22)', async () => {
@@ -356,11 +375,10 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(document.activeElement).toBe(q('main'));
   });
 
-  it('stays open for the Projects toggle, New project, and a modified or middle click', async () => {
+  it('stays open for New project and a modified or middle click', async () => {
     const { q, stable, openDrawer } = await renderAt(true);
     await openDrawer();
 
-    q('[data-projects-toggle]')!.click();
     q('[data-new-project]')!.click();
     q('a[data-nav-item]')!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
     q('a[data-nav-item]')!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 1 }));

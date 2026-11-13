@@ -17,6 +17,7 @@ import {
 import { Router, RouterOutlet } from '@angular/router';
 import { SHELL_NARROW_BREAKPOINT } from '../layout/breakpoints';
 import { SHELL_COMMANDS, type ShellCommands } from './shell-commands';
+import { NavigationContext } from './navigation-context';
 import { ShellStore } from './shell-store';
 import { Icon } from '../../shared/components/icon/icon';
 import { PinnedFailureSlot } from '../../shared/feedback/pinned-failure-slot';
@@ -49,7 +50,8 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
  * `SHELL_NARROW_QUERY`, the same single sidebar as a modal navigation drawer behind a Menu
  * (Slice 58, docs/decisions/2026-09-phone-navigation-drawer.md).
  *
- * It owns `ShellStore` and hands the pieces down as inputs, so §19's
+ * It owns `ShellStore`, reads the project place from `NavigationContext` (Slice 81), and hands
+ * the pieces down as inputs, so §19's
  * `Page → Store → Gateway` holds and the sidebar and top bar stay presentational. Whether the
  * drawer is open is this component's own UI state, not the store's (§20). Routed pages reach the
  * shell only through `SHELL_COMMANDS`, which it provides as itself (Slice 79).
@@ -69,6 +71,8 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
 })
 export class AppShell implements ShellCommands {
   protected readonly store = inject(ShellStore);
+  /** Where the person is inside a project (Slice 81, R2), handed to the presentational tree. */
+  protected readonly navigation = inject(NavigationContext);
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);

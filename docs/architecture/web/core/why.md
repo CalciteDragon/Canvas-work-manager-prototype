@@ -59,6 +59,12 @@ the override ([decision](../../../decisions/2026-10-theme-follows-device-and-per
 "expand inline" is a rendering concern; it has no counterpart in contracts and must not
 get one.
 
+**The tree reads project place from a context, not from `ShellStore`** (Slice 81). A root's pages
+and the path to the current workstream are the project route's state (§20). The route publishes
+plain view data to the root-provided `NavigationContext`, keyed rather than cleared because the two
+project route configs re-create the publishing shell, and registers handlers rather than signals so
+nothing replays ([decision](../../../decisions/2026-11-navigation-reads-project-place-from-a-context.md)).
+
 **Pages ask the shell through a token, never its store.** Home's first run needs one shell fact,
 whether the workspace is empty, and one command, open the creation form. `SHELL_COMMANDS`, which
 `AppShell` provides as itself, gives exactly those, so `ShellStore` stays the shell's own (§20) and
@@ -101,6 +107,7 @@ the false "No projects yet"
 - [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — the phone drawer, its focus rules and why its state is `AppShell`'s, not `ShellStore`'s
 - [Pending, saved and failed feedback stays on the object](../../../decisions/2026-10-feedback-stays-on-the-object.md) — the sidebar's New project refuses a blank name beside its field
 - [A failure speaks product words](../../../decisions/2026-10-failures-speak-product-words.md) — the sidebar's loading line, and its polite failure with Try again
+- [The navigation tree reads project place from a context](../../../decisions/2026-11-navigation-reads-project-place-from-a-context.md) — `NavigationContext`, the tree's two levels and the `nestedProjects` change
 - [An empty workspace offers the first project](../../../decisions/2026-11-empty-workspace-offers-the-first-project.md) — `workspaceEmpty`, `SHELL_COMMANDS`, and the sidebar's archived-only wording
 
 ## Spec sections

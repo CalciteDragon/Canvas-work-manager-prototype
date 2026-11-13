@@ -82,12 +82,14 @@ export class ShellStore {
    * presentational and injects nothing, and a flag check in it would be the first crack in
    * that. Because the flag is a signal and this is a `computed`, turning it re-derives the
    * tree with no reload and no second fetch.
+   *
+   * Off, the roots keep no work under them (Slice 81): with one navigation tree a workstream
+   * appears only under its root, so the flag hides the work hierarchy rather than flattening it.
    */
-  readonly projectTree = computed(() =>
-    this.settings.flags().nestedProjects
-      ? toTree(this.projects())
-      : this.projects().map((project) => ({ project, children: [] })),
-  );
+  readonly projectTree = computed(() => {
+    const tree = toTree(this.projects());
+    return this.settings.flags().nestedProjects ? tree : tree.map(({ project }) => ({ project, children: [] }));
+  });
 
   /**
    * Registered with `PendingTasks` so `ApplicationRef.isStable` — and therefore

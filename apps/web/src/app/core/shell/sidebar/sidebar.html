@@ -1,68 +1,97 @@
 <nav class="sidebar" aria-label="Workspace">
-  <ul class="group">
-    <li>
-      <a data-nav-item routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
-    </li>
-  </ul>
-
-  <div class="group">
-    <!-- The group header is itself a `<button>`, so the New project control cannot nest
-         inside it: the two are siblings in a flex row. New project sits outside the
-         expanded region so it is reachable with the group collapsed. -->
-    <div class="group__header-row">
-      <!-- A button, not a link: §68 defines /projects/:projectId and no /projects, so this
-           opens and closes the group rather than navigating nowhere. -->
-      <button
-        type="button"
-        class="section-header"
-        data-nav-item
-        data-projects-toggle
-        data-recovery-focus
-        [attr.aria-expanded]="projectsExpanded()"
-        (click)="toggleProjects()"
-      >
-        Projects
-      </button>
-      <button
-        type="button"
-        class="icon-button icon-button--sm group__new"
-        data-new-project
-        aria-label="New project"
-        [attr.aria-expanded]="createOpen()"
-        (click)="toggleCreate()"
-      >
-        <app-icon name="plus" />
-      </button>
-    </div>
-
-    @if (createOpen()) {
-      <form class="create-project" data-create-project-form novalidate (submit)="submitCreate($event, newName)">
-        <label class="control-label" for="new-project-name">Project name</label>
-        <input
-          id="new-project-name"
-          #newName
-          data-create-project-name
-          class="field create-project__name"
-          type="text"
-          autocomplete="off"
-          [value]="draftName()"
-          [attr.aria-invalid]="nameRefused() ? 'true' : null"
-          [attr.aria-describedby]="nameRefused() ? 'new-project-name-error' : createError() !== null ? 'new-project-create-error' : null"
-          (input)="nameRefused.set(false)"
-        />
-        <button type="submit" data-create-project-submit class="button button--primary">Create</button>
-        @if (nameRefused()) {
-          <p id="new-project-name-error" data-create-project-name-error class="field-status field-status--failed create-project__error" role="alert">Enter a name.</p>
+  @if (level() === 'root' && rootLevel(); as level) {
+    <!-- B's root level (Slice 81): the root's row opens its first page (Q5 (d)), then its enabled
+         pages (Q16 (b)), then its workstream hierarchy. Its own data attributes, not the column's. -->
+    <ul class="group tree" data-nav-root-level>
+      <li>
+        <a
+          class="tree-link"
+          data-nav-root
+          [routerLink]="['/projects', level.root.id]"
+          [attr.aria-current]="level.rootCurrent ? 'page' : null"
+        >
+          <span aria-hidden="true">{{ level.root.icon ?? '📁' }}</span>
+          <span class="name">{{ level.root.name }}</span>
+          @if (level.root.status === 'archived') {
+            <!-- The leading space keeps the name "Legacy attic Archived", not one word. --><span> Archived</span>
+          }
+        </a>
+        @if (level.pages.length > 0) {
+          <ul class="tree-children">
+            @for (page of level.pages; track page.kind) {
+              <li>
+                <a
+                  class="tree-link"
+                  [attr.data-nav-page]="page.kind"
+                  [routerLink]="['/projects', level.root.id, 'pages', page.kind]"
+                  [attr.aria-current]="page.current ? 'page' : null"
+                  >{{ page.label }}</a
+                >
+              </li>
+            }
+          </ul>
         }
-      </form>
-    }
+        @if (level.work.length > 0) {
+          <ul class="tree-children">
+            @for (row of level.work; track row.id) {
+              <li app-project-tree-item [row]="row" [currentId]="level.currentWorkId"></li>
+            }
+          </ul>
+        }
+      </li>
+    </ul>
+  } @else {
+    <ul class="group">
+      <li><a class="tree-link" data-nav-item routerLink="/app" routerLinkActive="active" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
+      <li><a class="tree-link" data-nav-item routerLink="/calendar" routerLinkActive="active" ariaCurrentWhenActive="page">Calendar</a></li>
+      <li><a class="tree-link" data-nav-item routerLink="/search" routerLinkActive="active" ariaCurrentWhenActive="page">Search</a></li>
+    </ul>
 
-    <!-- Beside the form, never in place of the tree. -->
-    @if (createError(); as createError) {
-      <app-failure-message data-create-error weight="inline" [failure]="createError" live="alert" sentenceId="new-project-create-error" />
-    }
+    <div class="group">
+      <!-- B's "Projects" is a group label (Slice 81): not a toggle, not a heading, and §68 has no
+           `/projects` to link to. Focusable only programmatically: a failed read's Try again hands
+           focus here when it goes (Slice 78). -->
+      <div class="group__header-row">
+        <span id="projects-label" class="group-label" data-projects-label data-recovery-focus tabindex="-1">Projects</span>
+        <button
+          type="button"
+          class="icon-button icon-button--sm group__new"
+          data-new-project
+          aria-label="New project"
+          [attr.aria-expanded]="createOpen()"
+          (click)="toggleCreate()"
+        >
+          <app-icon name="plus" />
+        </button>
+      </div>
 
-    @if (projectsExpanded()) {
+      @if (createOpen()) {
+        <form class="create-project" data-create-project-form novalidate (submit)="submitCreate($event, newName)">
+          <label class="control-label" for="new-project-name">Project name</label>
+          <input
+            id="new-project-name"
+            #newName
+            data-create-project-name
+            class="field create-project__name"
+            type="text"
+            autocomplete="off"
+            [value]="draftName()"
+            [attr.aria-invalid]="nameRefused() ? 'true' : null"
+            [attr.aria-describedby]="nameRefused() ? 'new-project-name-error' : createError() !== null ? 'new-project-create-error' : null"
+            (input)="nameRefused.set(false)"
+          />
+          <button type="submit" data-create-project-submit class="button button--primary">Create</button>
+          @if (nameRefused()) {
+            <p id="new-project-name-error" data-create-project-name-error class="field-status field-status--failed create-project__error" role="alert">Enter a name.</p>
+          }
+        </form>
+      }
+
+      <!-- Beside the form, never in place of the tree. -->
+      @if (createError(); as createError) {
+        <app-failure-message data-create-error weight="inline" [failure]="createError" live="alert" sentenceId="new-project-create-error" />
+      }
+
       <div data-projects-region [attr.aria-busy]="loading() ? 'true' : null">
         <!-- One polite region, mounted with the group, so a failure that replaces the loading
              line is announced: a status inserted already holding its text often is not.
@@ -89,32 +118,37 @@
             }
           </p>
         } @else if (failure() === null && projectTree().length > 0) {
-          <ul class="projects">
+          <ul class="projects" aria-labelledby="projects-label">
             @for (node of projectTree(); track node.project.id) {
-              <li app-project-tree-item [node]="node"></li>
+              <li [attr.data-project-id]="node.project.id">
+                <a
+                  class="tree-link"
+                  data-project
+                  [routerLink]="['/projects', node.project.id]"
+                  [attr.aria-current]="node.project.id === locationRootId() ? 'location' : null"
+                >
+                  @if (node.project.icon) {
+                    <span aria-hidden="true">{{ node.project.icon }}</span>
+                  }
+                  <span class="name">{{ node.project.name }}</span>
+                </a>
+              </li>
             }
           </ul>
         }
       </div>
-    }
-  </div>
+    </div>
 
-  <ul class="group">
-    <li><a data-nav-item routerLink="/calendar" routerLinkActive="active">Calendar</a></li>
-    <li><a data-nav-item routerLink="/search" routerLinkActive="active">Search</a></li>
-  </ul>
+    <hr />
 
-  <hr />
-
-  <ul class="group">
-    <li>
-      <a
-        data-nav-item
-        routerLink="/settings"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        >Settings</a
-      >
-    </li>
-  </ul>
+    <ul class="group">
+      <li>
+        <a class="tree-link" data-nav-item routerLink="/settings" routerLinkActive="active" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }">Settings</a>
+        <ul class="tree-children">
+          <li><a class="tree-link" data-nav-item routerLink="/settings/agents" routerLinkActive="active" ariaCurrentWhenActive="page">AI &amp; Agents</a></li>
+          <li><a class="tree-link" data-nav-item routerLink="/settings/archived-projects" routerLinkActive="active" ariaCurrentWhenActive="page">Archived projects</a></li>
+        </ul>
+      </li>
+    </ul>
+  }
 </nav>

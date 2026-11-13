@@ -18,11 +18,12 @@ import {
 import { DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
-import { canonicalPageKindFor, type ProjectId, type ProjectPageKind, type ProjectRestoreStatus, type UpdateProjectInput } from '@cwm/contracts';
+import { ProjectPageKindSchema, canonicalPageKindFor, type Project, type ProjectId, type ProjectPageKind, type ProjectRestoreStatus, type UpdateProjectInput } from '@cwm/contracts';
 import { TaskDrawerCoordinator } from '../tasks/task-drawer-coordinator';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { NavigationContext, type PlaceProject, type ProjectPlace } from '../../core/shell/navigation-context';
 import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
 import { ReceiptToast } from '../../core/history/receipt-toast';
 import { FailureMessage } from '../../shared/feedback/failure-message';
@@ -39,6 +40,7 @@ import { ProjectPageNavigation } from './project-page-navigation';
 import type { ProjectPageRendererInputs } from './project-page-contract';
 import {
   isOptionalProjectPageKind,
+  navigablePages,
   pageDefinitionFor,
   resolveProjectPage,
   type OptionalProjectPageKind,
@@ -56,6 +58,8 @@ interface PageNoticeState {
 }
 
 const NARROW = `(max-width: ${WORKSPACE_NARROW_BREAKPOINT})`;
+
+const placeProject = ({ id, name, status }: Project): PlaceProject => ({ id, name, status });
 
 /**
  * Slice 58: the column link a narrow selection chose, until the toggle that re-collapsed it
@@ -264,10 +268,55 @@ export class ProjectWorkspaceShell {
     };
   });
 
+  /**
+   * This route's place, for the navigation tree (Slice 81, R2): plain view data published to
+   * `NavigationContext`. Ready once the loaded project is the routed one (a same-project re-read
+   * keeps it ready); loading until then; missing after a failed or not-found load.
+   */
+  readonly place = computed<ProjectPlace>(() => {
+    const projectId = this.projectId();
+    const project = this.store.project();
+    const root = this.store.root();
+    if (project !== null && project.id === projectId && root !== null) {
+      const activeKind = this.activeKind();
+      return {
+        projectId,
+        status: 'ready',
+        root: placeProject(root),
+        ancestors: this.store.breadcrumbs().map(placeProject),
+        current: placeProject(project),
+        // Q5 (d): the root's own row opens its first page, so the tree lists the others.
+        pages: navigablePages(this.store.pages(), activeKind)
+          .filter(({ kind }) => kind !== canonicalPageKindFor(root.kind))
+          .map(({ kind, label }) => ({ kind, label })),
+        currentKind: activeKind,
+        addBlockedReason: this.workCreateBlocked(),
+      };
+    }
+    const requested = ProjectPageKindSchema.safeParse(this.pageKind());
+    return {
+      projectId,
+      status: this.store.loading() ? 'loading' : 'missing',
+      root: null,
+      ancestors: [],
+      current: null,
+      pages: [],
+      currentKind: this.store.loading() && requested.success ? requested.data : null,
+      addBlockedReason: null,
+    };
+  });
+
   /** The banner's restore cannot start while another project write runs (its own pending shows instead). */
   readonly bannerRestoreDisabled = computed(() => this.store.projectWritePending() && !this.store.restorePending());
 
   constructor() {
+    // Slice 81 (R2): the tree follows this route's place. Never cleared here: a re-created shell
+    // replaces it, and `NavigationContext` clears it when a navigation leaves `/projects/`.
+    const navigation = inject(NavigationContext);
+    effect(() => {
+      const place = this.place();
+      untracked(() => navigation.publish(place));
+    });
     // Slice 79: the drawer is a write surface, so a project going read-only closes it (Q5 (a)).
     effect(() => {
       if (this.store.readOnly()) untracked(() => this.drawerCoordinator.close());

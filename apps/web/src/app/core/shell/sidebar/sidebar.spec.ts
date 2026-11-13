@@ -1,9 +1,11 @@
+import { Component } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import type { Project } from '@cwm/contracts';
+import type { Project, ProjectId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { shellTestProviders } from '../../gateway/testing/shell-test-providers';
 import type { Failure } from '../../../shared/feedback/failure';
+import type { ProjectPlace } from '../navigation-context';
 import type { ProjectTreeNode } from '../shell-store';
 import { Sidebar } from './sidebar';
 
@@ -50,14 +52,22 @@ const openCreateForm = async (
   return element.querySelector<HTMLInputElement>('[data-create-project-name]')!;
 };
 
-const textOf = (element: HTMLElement, selector: string) =>
-  [...element.querySelectorAll(selector)].map((node) => node.textContent?.trim());
+/** The visible words, without decorative (`aria-hidden`) icons. */
+const wordsOf = (item: Element): string => {
+  const copy = item.cloneNode(true) as Element;
+  for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+  return (copy.textContent ?? '').replace(/\s+/g, ' ').trim();
+};
+
+const textOf = (element: HTMLElement, selector: string) => [...element.querySelectorAll(selector)].map(wordsOf);
 
 describe('Sidebar', () => {
   it('lists §23’s destinations, in §23’s order', async () => {
     const { element } = await render();
 
-    expect(textOf(element, '[data-nav-item]')).toEqual(['Home', 'Projects', 'Calendar', 'Search', 'Settings']);
+    // Slice 81, B's top level: Projects is a group label between the destinations and Settings.
+    expect(textOf(element, '[data-nav-item]')).toEqual(['Home', 'Calendar', 'Search', 'Settings', 'AI & Agents', 'Archived projects']);
+    expect(textOf(element, '[data-projects-label]')).toEqual(['Projects']);
   });
 
   // Asserted on the rendered href, not on a `routerLink` attribute: routerLink is an input
@@ -81,46 +91,36 @@ describe('Sidebar', () => {
     });
   });
 
-  // §68 defines `/projects/:projectId` and no `/projects`, so the group header navigates
-  // nowhere. A `<div (click)>` would satisfy "not a link" while being unreachable by
-  // keyboard, which is why the tag and aria-expanded are pinned.
-  it('makes Projects a keyboard-operable group header rather than a link', async () => {
-    const { fixture, element } = await render({ projectTree: [node('project-1', 'Personal workspace')] });
-    const header = element.querySelector<HTMLElement>('[data-projects-toggle]');
+  // Slice 81, B: "Projects" is a group label, not a toggle and not a heading (§68 has no
+  // `/projects`). It takes focus only programmatically, as the failed read's recovery target.
+  it('makes Projects a group label, not a toggle, a link or a heading', async () => {
+    const { element } = await render({ projectTree: [node('project-1', 'Personal workspace')] });
+    const label = element.querySelector<HTMLElement>('[data-projects-label]')!;
 
-    expect(header?.tagName).toBe('BUTTON');
-    expect(header?.getAttribute('href')).toBeNull();
-    expect(header?.getAttribute('aria-expanded')).toBe('true');
-
-    header?.click();
-    await fixture.whenStable();
-    expect(element.querySelector('[data-projects-toggle]')?.getAttribute('aria-expanded')).toBe('false');
+    expect(label.tagName).toBe('SPAN');
+    expect(label.getAttribute('aria-expanded')).toBeNull();
+    expect(label.getAttribute('tabindex')).toBe('-1');
+    expect(label.hasAttribute('data-recovery-focus')).toBe(true);
+    expect(element.querySelector('[data-projects-toggle]')).toBeNull();
+    expect(element.querySelector('ul.projects')?.getAttribute('aria-labelledby')).toBe(label.id);
   });
 
-  it('renders all three levels of the nested-projects seed inline', async () => {
+  // B's top level: the live roots as links, with no disclosure; a root opens by navigating to it.
+  it('lists only the roots at the top level, as links with no disclosure', async () => {
     const { element } = await render({
       projectTree: [
         node('project-renovation', 'Home renovation', [
           node('project-kitchen', 'Kitchen', [node('project-cabinets', 'Cabinets')]),
           node('project-garden', 'Garden'),
         ]),
+        node('project-launch', 'Website launch'),
       ],
     });
 
-    expect(textOf(element, '[data-project]')).toEqual(['Home renovation', 'Kitchen', 'Cabinets', 'Garden']);
-    const cabinets = element.querySelector('[data-project-id="project-cabinets"]');
-    expect(cabinets?.closest('[data-project-id="project-kitchen"]')).not.toBeNull();
-  });
-
-  it('nests list items directly in each list, with no element between them (axe list, listitem)', async () => {
-    const { element } = await render({
-      projectTree: [node('project-renovation', 'Home renovation', [node('project-kitchen', 'Kitchen', [node('project-cabinets', 'Cabinets')])])],
-    });
-
-    const lists = [...element.querySelectorAll('ul.projects, ul.children')];
-    expect(lists).toHaveLength(3);
-    for (const list of lists) expect([...list.children].map((child) => child.tagName)).toEqual(['LI']);
-    expect(element.querySelector('[data-project-id="project-cabinets"]')?.tagName).toBe('LI');
+    expect(textOf(element, '[data-project]')).toEqual(['Home renovation', 'Website launch']);
+    expect(element.querySelector('[data-nav-work], [data-project-id] ul, [aria-expanded]:not([data-new-project])')).toBeNull();
+    const lists = [...element.querySelectorAll('ul')];
+    for (const list of lists) expect([...list.children].every((child) => child.tagName === 'LI')).toBe(true);
   });
 
   it('says so when there are no projects, rather than leaving a gap', async () => {
@@ -377,14 +377,187 @@ describe('Sidebar', () => {
     expect(label.classList).toContain('control-label');
     expect(label.classList).not.toContain('create-project__label');
   });
+});
 
-  it('offers New project with the group collapsed', async () => {
-    const { fixture, element } = await render({ projectTree: [node('project-1', 'Personal workspace')] });
+@Component({ template: '' })
+class Blank {}
 
-    element.querySelector<HTMLElement>('[data-projects-toggle]')!.click();
+const HOME_RENOVATION = { id: 'project-renovation' as ProjectId, name: 'Home renovation', status: 'active' as const };
+const KITCHEN = { id: 'project-kitchen' as ProjectId, name: 'Kitchen', status: 'active' as const };
+const LEGACY_ATTIC = { id: 'project-attic' as ProjectId, name: 'Legacy attic', status: 'archived' as const };
+const LEGACY_SHELVING = { id: 'project-shelving' as ProjectId, name: 'Legacy shelving', status: 'active' as const };
+
+/** `nested-projects`' shape, as `ShellStore` reads it: Legacy attic is archived, so neither it nor its live child is listed. */
+const TREE = (): ProjectTreeNode[] => [
+  node('project-renovation', 'Home renovation', [
+    node('project-kitchen', 'Kitchen', [node('project-cabinets', 'Cabinets')]),
+    node('project-garden', 'Garden'),
+  ]),
+  node('project-launch', 'Website launch'),
+];
+
+const place = (overrides: Partial<ProjectPlace> = {}): ProjectPlace => ({
+  projectId: HOME_RENOVATION.id,
+  status: 'ready',
+  root: HOME_RENOVATION,
+  ancestors: [],
+  current: HOME_RENOVATION,
+  pages: [{ kind: 'todos', label: 'Todos' }, { kind: 'reflections', label: 'Reflections' }],
+  currentKind: 'home',
+  addBlockedReason: null,
+  ...overrides,
+});
+
+/** The tree at a real URL, so `routerLinkActive` marks destinations as the app does. */
+const renderAt = async (url: string, projectPlace: ProjectPlace | null, projectTree: ProjectTreeNode[] = TREE()) => {
+  TestBed.configureTestingModule({
+    imports: [Sidebar],
+    providers: [...shellTestProviders(), provideRouter([{ path: '**', component: Blank }])],
+  });
+  await TestBed.inject(Router).navigateByUrl(url);
+  const fixture = TestBed.createComponent(Sidebar);
+  fixture.componentRef.setInput('projectTree', projectTree);
+  fixture.componentRef.setInput('failure', null);
+  fixture.componentRef.setInput('projectPlace', projectPlace);
+  await fixture.whenStable();
+  const element = fixture.nativeElement as HTMLElement;
+  const current = () => [...element.querySelectorAll('[aria-current]')].map((item) => [wordsOf(item), item.getAttribute('aria-current')]);
+  return { fixture, element, current };
+};
+
+describe('Sidebar — one navigation tree (Slice 81, B)', () => {
+  it('lists destinations, Projects with the live roots, and Settings with its children outside a project', async () => {
+    const { element } = await renderAt('/calendar', null);
+
+    expect(textOf(element, '[data-nav-item]')).toEqual(['Home', 'Calendar', 'Search', 'Settings', 'AI & Agents', 'Archived projects']);
+    expect(textOf(element, '[data-project]')).toEqual(['Home renovation', 'Website launch']);
+    expect(element.querySelector('[data-nav-root]')).toBeNull();
+    const hrefs = Object.fromEntries([...element.querySelectorAll('a[data-nav-item]')].map((link) => [link.textContent?.trim(), link.getAttribute('href')]));
+    expect(hrefs).toMatchObject({ 'AI & Agents': '/settings/agents', 'Archived projects': '/settings/archived-projects' });
+  });
+
+  it('shows only the root level inside a project: the root’s row, its enabled pages and its workstreams', async () => {
+    const { element } = await renderAt('/projects/project-renovation', place());
+
+    expect(element.querySelector('[data-nav-item], [data-project], [data-projects-label]')).toBeNull();
+    const root = element.querySelector<HTMLAnchorElement>('a[data-nav-root]')!;
+    expect(wordsOf(root)).toBe('Home renovation');
+    expect(root.getAttribute('href')).toBe('/projects/project-renovation');
+    // Q5 (d): no Home row; the root's own row opens its first page. Q16 (b): only enabled pages.
+    expect([...element.querySelectorAll('a[data-nav-page]')].map((link) => [link.textContent?.trim(), link.getAttribute('href')])).toEqual([
+      ['Todos', '/projects/project-renovation/pages/todos'],
+      ['Reflections', '/projects/project-renovation/pages/reflections'],
+    ]);
+    expect(textOf(element, 'a[data-nav-work]')).toEqual(['Kitchen', 'Cabinets', 'Garden']);
+    expect(element.querySelector('[data-nav-work-id="project-cabinets"]')?.parentElement?.closest('[data-nav-work-id="project-kitchen"]')).not.toBeNull();
+    for (const list of element.querySelectorAll('ul')) expect([...list.children].every((child) => child.tagName === 'LI')).toBe(true);
+  });
+
+  it.each([
+    ['the dashboard', '/app', null, [['Home', 'page']]],
+    ['a Settings child', '/settings/agents', null, [['AI & Agents', 'page']]],
+    ['Settings itself', '/settings', null, [['Settings', 'page']]],
+    ['a root’s first page', '/projects/project-renovation', place(), [['Home renovation', 'page']]],
+    ['a root page', '/projects/project-renovation/pages/todos', place({ currentKind: 'todos' }), [['Todos', 'page']]],
+    ['a workstream', '/projects/project-cabinets', place({ projectId: 'project-cabinets' as ProjectId, current: { id: 'project-cabinets' as ProjectId, name: 'Cabinets', status: 'active' }, ancestors: [HOME_RENOVATION, KITCHEN], currentKind: null }), [['Cabinets', 'page']]],
+    ['an archived workstream', '/projects/project-attic', place({ projectId: LEGACY_ATTIC.id, current: LEGACY_ATTIC, ancestors: [HOME_RENOVATION], currentKind: null }), [['Legacy attic Archived', 'page']]],
+  ] as const)('marks exactly one current item on %s', async (_name, url, projectPlace, expected) => {
+    const { current } = await renderAt(url, projectPlace);
+
+    expect(current()).toEqual(expected);
+  });
+
+  // Q11 (a): live work under an archived ancestor is not in the projects read; while current it is drawn under its real path.
+  it('draws the current item under its real path when the read does not list it', async () => {
+    const { element, current } = await renderAt(
+      '/projects/project-shelving',
+      place({ projectId: LEGACY_SHELVING.id, current: LEGACY_SHELVING, ancestors: [HOME_RENOVATION, LEGACY_ATTIC], currentKind: null }),
+    );
+
+    expect(current()).toEqual([['Legacy shelving', 'page']]);
+    const attic = element.querySelector('[data-nav-work-id="project-attic"]')!;
+    expect(wordsOf(attic.querySelector('a[data-nav-work]')!)).toBe('Legacy attic Archived');
+    expect(attic.querySelector('[data-nav-work-id="project-shelving"]')).not.toBeNull();
+  });
+
+  it('shows the top level without navigating, and marks the current root as the location, not the page', async () => {
+    const { fixture, element, current } = await renderAt('/projects/project-cabinets', place({
+      projectId: 'project-cabinets' as ProjectId, current: { id: 'project-cabinets' as ProjectId, name: 'Cabinets', status: 'active' }, ancestors: [HOME_RENOVATION, KITCHEN], currentKind: null,
+    }));
+    const url = TestBed.inject(Router).url;
+
+    fixture.componentInstance.showTopLevel();
     await fixture.whenStable();
 
-    expect(element.querySelector('[data-project]')).toBeNull();
-    expect(element.querySelector('[data-new-project]')).not.toBeNull();
+    expect(TestBed.inject(Router).url).toBe(url);
+    expect(element.querySelector('[data-nav-root]')).toBeNull();
+    expect(textOf(element, '[data-project]')).toEqual(['Home renovation', 'Website launch']);
+    expect(current()).toEqual([['Home renovation', 'location']]);
+  });
+
+  it('returns to the current place’s level on a place change', async () => {
+    const { fixture, element, current } = await renderAt('/projects/project-renovation', place());
+    fixture.componentInstance.showTopLevel();
+    await fixture.whenStable();
+
+    await TestBed.inject(Router).navigateByUrl('/projects/project-renovation/pages/todos');
+    fixture.componentRef.setInput('projectPlace', place({ currentKind: 'todos' }));
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-nav-root]')).not.toBeNull();
+    expect(current()).toEqual([['Todos', 'page']]);
+  });
+
+  it('returns to the root level when a link in the tree is chosen, even one to the current page', async () => {
+    const { fixture, element } = await renderAt('/projects/project-renovation', place());
+    fixture.componentInstance.showTopLevel();
+    await fixture.whenStable();
+
+    element.querySelector<HTMLAnchorElement>('[data-project-id="project-renovation"] a')!.click();
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-nav-root]')).not.toBeNull();
+  });
+
+  it('keeps the previous root’s rows while a project of the same root loads', async () => {
+    const { element, current } = await renderAt('/projects/project-kitchen', place({ projectId: KITCHEN.id, status: 'loading', currentKind: null }));
+
+    expect(wordsOf(element.querySelector('[data-nav-root]')!)).toBe('Home renovation');
+    expect(textOf(element, 'a[data-nav-page]')).toEqual(['Todos', 'Reflections']);
+    expect(current()).toEqual([['Kitchen', 'page']]);
+  });
+
+  it('shows another root’s row alone, with nothing of the previous root, until its pages arrive', async () => {
+    const { element } = await renderAt('/projects/project-launch', place({ projectId: 'project-launch' as ProjectId, status: 'loading', currentKind: null }));
+
+    expect(wordsOf(element.querySelector('[data-nav-root]')!)).toBe('Website launch');
+    expect(element.querySelector('[data-nav-page], [data-nav-work]')).toBeNull();
+  });
+
+  it('marks nothing in a project whose load failed or was not found', async () => {
+    const { element, current } = await renderAt('/projects/project-gone', place({ projectId: 'project-gone' as ProjectId, status: 'missing', root: null, current: null, pages: [], currentKind: null }));
+
+    expect(current()).toEqual([]);
+    expect(element.querySelector('[data-nav-root]')).toBeNull();
+    expect(textOf(element, '[data-project]')).toEqual(['Home renovation', 'Website launch']);
+  });
+
+  // L5-008, L2-012: the marker is a shape (a bar and weight) from tokens, drawn by the one global
+  // `.tree-link` row in `_controls.scss`, so it is the same in both themes and kept under forced
+  // colours. Unit tests load no global styles, so the browser check is the e2e rig's; here every
+  // current item, destinations included, has to be that row.
+  it.each([
+    ['/app', null],
+    ['/settings/agents', null],
+    ['/projects/project-renovation/pages/todos', place({ currentKind: 'todos' })],
+    ['/projects/project-cabinets', place({ projectId: 'project-cabinets' as ProjectId, current: { id: 'project-cabinets' as ProjectId, name: 'Cabinets', status: 'active' }, ancestors: [HOME_RENOVATION, KITCHEN], currentKind: null })],
+  ] as const)('draws the current item at %s as the one tree row', async (url, projectPlace) => {
+    const { element } = await renderAt(url, projectPlace);
+    const marked = [...element.querySelectorAll<HTMLElement>('[aria-current]')];
+
+    expect(marked).toHaveLength(1);
+    expect(marked[0]!.classList).toContain('tree-link');
+    expect(marked[0]!.getAttribute('style')).toBeNull();
+    expect(element.querySelectorAll('a:not(.tree-link):not([data-projects-archived-link])')).toHaveLength(0);
   });
 });

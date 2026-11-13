@@ -36,7 +36,8 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await expect(page).toHaveURL(/\/projects\//);
   await expect(page.locator('[data-project-name]')).toHaveText('Prototype review');
   await expect(page.locator('[data-project-status]')).toHaveText('planning');
-  await expect(page.locator('[data-project]')).toHaveText('Prototype review');
+  // Slice 81: inside the project the tree shows its root level, the root's row first.
+  await expect(page.locator('app-sidebar [data-nav-root]')).toHaveAccessibleName('Prototype review');
 
   // Slice 25.7's optional renderer is a persisted page capability, not a second canvas. Enable
   // it through the host, visit the canonical route, and return to Home before continuing the

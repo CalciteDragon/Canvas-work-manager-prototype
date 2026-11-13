@@ -279,7 +279,8 @@ test('keyboard: a created shortcut is revealed and its heading focused (D14)', a
 });
 
 test('blank names are refused beside the field, with no browser bubble first (F20)', async ({ page }) => {
-  await page.goto(`/projects/${KITCHEN}`);
+  // Slice 81: New project sits at the tree's top level, outside a project.
+  await page.goto('/app');
   await page.locator('[data-new-project]').click();
   const projectName = page.locator('[data-create-project-name]');
   await projectName.press('Enter');
@@ -287,6 +288,7 @@ test('blank names are refused beside the field, with no browser bubble first (F2
   await expect(projectName).toHaveAttribute('aria-invalid', 'true');
   await expect(projectName).toBeFocused();
 
+  await page.goto(`/projects/${KITCHEN}`);
   await page.locator('[data-work-create]').click();
   const workName = page.locator('[data-create-work-name]');
   await expect(workName).toBeFocused();
