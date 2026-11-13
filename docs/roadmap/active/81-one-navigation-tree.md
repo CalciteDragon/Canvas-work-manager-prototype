@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-12):** **step 5 (tree interaction) done; next is step 6 (lifts move).** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-13):** **step 6 (lifts move) STOPPED on the bundle ceiling (Open question 18); the user decides before it resumes.** Step 5 is done. Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -164,7 +164,30 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
 - *Trap for step 6:* any eager addition crosses 1,150 kB. Step 6 moves the column's page-settings popover into a
   deferred host, which should free room: do that part first, measure after each part, and stop per the standing
   bundle rule if a build crosses (Open question 17). `.icon-button` is 40 px (32 px is `--sm`).
-**Next: step 6** (lifts move, tests first).
+**Step 6 — stopped, not committed (2026-11-13).** The implementation is written test-first and its unit specs pass
+(191/191 over the six touched spec files), but the initial bundle measures **1,153.49 kB** (> 1,150 kB), so per the standing
+rule it is **parked in `git stash` as "slice 81 step 6 WIP: lifts move …"** (`git stash list`; `git stash apply` to resume)
+and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locator moves, docs, the review, the commit.
+- *What the stash holds:* `features/projects/page-settings-popover.{ts,html,scss,spec.ts}` (the column gear's popover,
+  opened by a handler: `showPopover({ source })`, inline `position-anchor: auto`, a `page-settings--sheet` placement with
+  no source, `LiftStack`, Escape/navigation focus return to `returnFocus`, light dismiss leaves focus, `closed` once;
+  keeps `data-project-page-manager` and `data-page-toggle-kind`, so most e2e locators survive). `ProjectWorkspaceShell`
+  registers `{ openPageSettings, openAddWorkstream }` (disposer on destroy); `pageSettingsRequest` signal; **one**
+  `@defer (when pageSettingsRequest() || workCreateOpen())` holds both lifts, with one `@error` (`data-lift-error`,
+  "Couldn’t open page settings." / "Couldn’t open Add workstream.", Reload page), a trim from two blocks; `closeWorkCreate`
+  returns focus to the request's `returnFocus` (`LiftFocus`, fallback the `h1`); a root change or load also closes page
+  settings. `AppShell.toPlace` (desktop: pencil as source and return; drawer: closes the drawer, focuses Menu, then the
+  handler with no source and Menu as return); `TopBar.menuElement()`. More gains "Pages of <root>…" and "Add workstream"
+  (`data-project-pages`, `data-project-add-workstream`, `aria-describedby` "in <root>" or the archived reason, blocked =
+  focusable no-op) after Open archive; the header passes them on with the More button. The column loses its gear, popover,
+  plus and their inputs, outputs, styles, stories and spec cases (moved to the popover spec).
+- *Measurements (temporary budget edits, reverted):* HEAD 1,150.00 kB; step 6 first cut 1,153.99; after the trims above
+  1,153.49. Per-file initial growth: `project-workspace-shell.ts` +1.79 kB, `project-more-menu.ts` +1.20, `project-header.ts`
+  +0.82, `app-shell.ts` +0.52, `top-bar.ts` +0.07. The popover itself is lazy. A probe build without the column's eager
+  `@defer` block in the shell template measured 1,152.16 kB (−1.33 kB); the column's TypeScript in the shell would free
+  an estimated 1–2 kB more.
+- *Trap:* the shell spec's Manual defer cases must tolerate blocks without `@error` (the archived banner's).
+**Next:** the user answers Open question 18; then step 6 resumes from the stash.
 
 ## Goal
 
@@ -1335,6 +1358,31 @@ blocking step 6)
 - *Impact.* (a) may stop step 6 or a later step for a decision. (b) merges part of step 8 into step 6's session and
   moves `phone-layout.spec.ts:323`'s rewrite earlier. (d) reverses the bundle decision's standing rule.
 
+**18. Step 6 crosses the bundle ceiling: what pays for it?** (step 6, 2026-11-13; **blocking step 6**)
+- *Context.* Q17 was left open with (a) as the rule. Step 6's implementation (State header) measures **1,153.49 kB**
+  after the trims available inside the step (one deferred block for both lifts; More's items without an `@if`). Its eager
+  cost is the handler wiring, the deferred lifts' block and `@error`, More's two items and the header pass-through, and
+  `AppShell.toPlace`: +3.49 kB net. The column was already deferred, so removing its gear and plus freed nothing initial.
+  One more in-step trim is possible: More calls `NavigationContext` itself instead of going through the header (about
+  −1 kB, a feature → core edge that is already allowed), leaving about 1,152.5 kB.
+- *Options.* (a) **Bring step 8's column deletion forward into step 6** (Q17 (b)), plus the More trim. Measured: the
+  column's template block −1.33 kB; its shell TypeScript (collapse, `ProjectColumnFocusRequest`'s column half, focus
+  target, link-selected) is estimated at −1 to −2 kB. That gives an estimated **1,149–1,151 kB**, at the ceiling and not
+  safely under it, and it merges most of step 8 into this session. (b) **Defer More's two items** (render them only when
+  More opens, or leave them to a later step), keeping the pencil as the only trigger until there is room: about −1.2 kB,
+  which is not enough on its own, so it only works with (a). (c) **Lazy-load the project header's More menu** (its
+  `ProjectMoreMenu` in a `@defer (on interaction)` with the button outside the block): it moves More, its statuses and
+  the new items out of the initial bundle, estimated −2 to −3 kB, but it changes a §26 control's first-open timing and
+  needs a placeholder that stays a working `popovertarget`. (d) **Raise the ceiling** for Slice 81 (for example to
+  1,160 kB), reversing the bundle decision's standing rule. (e) Pre-approve a lazy dashboard route (the only eager
+  route left besides the project routes; it is the `/app` landing).
+- *Recommendation.* (a) with the More trim, and (d) by a few kB if (a) still measures above 1,150 kB. The column has to
+  go anyway (step 8), and steps 7, 10 and 11 still add eager code (create path, breadcrumb, `TitleStrategy`, skip link),
+  so a ceiling held at exactly 1,150 kB will stop each of those steps in turn. (c) is the larger structural saving if the
+  user would rather keep the ceiling: it is worth trying before (d).
+- *Impact.* (a) step 6's session also does step 8's deletion and `phone-layout.spec.ts:323`'s rewrite; (c) is a new
+  piece of design in More (a decision entry); (d) amends the bundle decision; without an answer step 6 cannot be committed.
+
 ## Revisions
 
 - **First draft (2026-11-09, S81PLAN):** written from the code, the spec, the findings and the decisions.
@@ -1556,6 +1604,14 @@ blocking step 6)
   - *Defaults taken (AGENTS.md §4):* workstreams with children start closed unless they hold the current item; a
     live re-publish re-opens the current item's ancestors; the "Archived" word is plain text in the muted colour
     (no pill, for the bundle); the pencil's browser checks use the Design Lab until step 6 renders it in the app.
+
+- **Step 6 (2026-11-13):** stopped on the bundle ceiling (State header, Open question 18); the work is in a stash.
+  - *Changed content:* Open question 18. No plan content changed yet: the deviations the stash makes (one deferred block
+    and one `@error` for both lifts; More's items without an `@if`; the column's page-settings stories and spec cases
+    moved to `page-settings-popover.spec.ts`; no popover story) are recorded here for the resumed step to keep or drop.
+  - *Defaults taken (AGENTS.md §4):* the popover keeps the heading "Pages" (the menu item names the root); More's two items
+    sit after Open archive, so the existing separator rule holds; a light dismiss leaves focus where the person put it,
+    as the gear's popover did.
 
 ## Outcome
 
