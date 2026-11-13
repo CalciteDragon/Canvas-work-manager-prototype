@@ -31,17 +31,17 @@ import { rootLevelOf } from './tree-model';
  * `Page → Store → Gateway` chain from quietly becoming `Component → Gateway`. §81's
  * "create project" is an output for the same reason — `AppShell` asks `ShellStore`.
  *
- * **Tooltips** (Slice 81, decision 3): an icon-only control carries its name in `data-tooltip`,
- * which `_controls.scss` draws on hover and keyboard focus (no `title`, so the name is not
+ * **Tooltips** (Slice 81, decision 3): an icon-only control marked `data-tooltip` has its
+ * `aria-label` drawn by `_controls.scss` on hover and keyboard focus (no `title`, so the name is not
  * announced twice). WCAG 1.4.13: the label is part of the control's box, so the pointer can move
  * onto it, and Escape on a control whose label shows hides it (`data-tooltip-hidden`) without
- * moving focus, keeping that Escape from the phone drawer. Escape only reaches a focused control,
- * so the dismissal lasts until focus leaves it. One
+ * moving focus: inside the tree, one that was showing keeps that Escape from the phone drawer;
+ * a merely hovered one hears it from the document. Leaving or blurring clears it. One
  * delegated listener here covers the chevron and the pencil.
  */
 @Component({
   selector: 'app-sidebar',
-  host: { '(keydown.escape)': 'hideTooltip($event)', '(focusout)': 'resetTooltip($event)' },
+  host: { '(keydown.escape)': 'hideTooltip($event)', '(document:keydown.escape)': 'hideTooltip()', '(focusout)': 'resetTooltip($event)', '(mouseout)': 'resetTooltip($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ProjectTreeItem, EditProjectMenu, RouterLink, RouterLinkActive, Icon, FailureMessage],
   styleUrl: './sidebar.scss',
@@ -131,20 +131,21 @@ export class Sidebar {
 
   /** The chevron: the top level, with focus kept in the tree on the current root's row there. */
   protected goUp(): void {
-    const rootId = this.rootLevel()?.root.id;
     this.showTopLevel();
-    afterNextRender(() => this.host.querySelector<HTMLElement>(`[data-project-id="${rootId}"] a`)?.focus(), { injector: this.injector });
+    // The root's row carries the location there; the Projects label when the read has failed or
+    // not answered, so focus stays in the tree.
+    afterNextRender(() => (this.host.querySelector<HTMLElement>('[aria-current]') ?? this.host.querySelector<HTMLElement>('[data-projects-label]'))?.focus(), { injector: this.injector });
   }
 
-  protected hideTooltip(event: Event): void {
-    const target = event.target as HTMLElement;
-    if (!target.hasAttribute?.('data-tooltip') || target.hasAttribute('data-tooltip-hidden')) return;
-    target.setAttribute('data-tooltip-hidden', '');
-    event.stopPropagation();
+  protected hideTooltip(event?: Event): void {
+    const shown = this.host.querySelector('[data-tooltip]:is(:focus-visible, :hover):not([data-tooltip-hidden])');
+    shown?.setAttribute('data-tooltip-hidden', '');
+    if (shown) event?.stopPropagation();
   }
 
+  /** Focus or the pointer has left the control (its icon takes no pointer events, `_controls.scss`). */
   protected resetTooltip(event: Event): void {
-    (event.target as HTMLElement).removeAttribute?.('data-tooltip-hidden');
+    (event.target as Element).removeAttribute?.('data-tooltip-hidden');
   }
 
   protected toggleWork(id: ProjectId): void {
@@ -184,7 +185,9 @@ export class Sidebar {
     // A loaded place opens its ancestors: the person's own choices stay within a root.
     effect(() => {
       const place = this.projectPlace();
-      const rootId = this.rootLevel()?.root.id ?? null;
+      const rootId = this.rootLevel()?.root.id;
+      // A failed load has no root level; the person's choices wait for the retry.
+      if (rootId === undefined) return;
       untracked(() => {
         const open = new Set(rootId === this.expandedRootId ? this.expanded() : []);
         for (const { id } of place?.status === 'ready' ? place.ancestors : []) open.add(id);

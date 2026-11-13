@@ -406,7 +406,7 @@ textarea.field {
 
 // ── Disabled, the same for every control. ──
 
-:is(.button, .icon-button, .tool, .field, .select, .checkbox, .radio):is(:disabled, [aria-disabled='true']) {
+:is(.button, .icon-button, .tool, .field, .select, .checkbox, .radio, .menu__item):is(:disabled, [aria-disabled='true']) {
   cursor: var(--cursor-disabled);
   opacity: var(--opacity-disabled);
 }
@@ -727,8 +727,9 @@ button.link {
   list-style: none;
 }
 
-// Indentation stops growing after four levels (R3); deeper rows keep the fourth indent.
-.tree-children--flat {
+// Indentation stops growing after four levels (R3); deeper rows keep the fourth indent. The root's
+// work list is the first indent, so the fifth nested list and below add none.
+.tree-children .tree-children .tree-children .tree-children .tree-children {
   padding-inline-start: 0;
 }
 
@@ -750,18 +751,24 @@ button.link {
   }
 }
 
-// ── Tooltip (Slice 81, decision 3): an icon-only control's name, drawn from `data-tooltip` (the
-// `Tooltip` directive) on hover and on keyboard focus; Escape sets `data-tooltip-hidden`. Part of
+// ── Tooltip (Slice 81, decision 3): a `data-tooltip` control's accessible name (`aria-label`), drawn
+// on hover and on keyboard focus; Escape sets `data-tooltip-hidden`. Part of
 // the control's box, so the pointer can move onto it (WCAG 1.4.13). ──
 
 [data-tooltip] {
   position: relative;
 }
 
+// So the pointer leaving the control, not moving onto its icon, is what clears a dismissal.
+[data-tooltip] > * {
+  pointer-events: none;
+}
+
 [data-tooltip]::after {
-  content: attr(data-tooltip);
+  content: attr(aria-label);
   position: absolute;
-  inset-block-start: calc(100% + var(--space-1));
+  // Flush with the control: a gap would lose `:hover` on the way onto it (WCAG 1.4.13).
+  inset-block-start: 100%;
   inset-inline-start: 0;
   z-index: var(--z-lift);
   display: none;
@@ -778,12 +785,12 @@ button.link {
   inset-inline: auto 0;
 }
 
+[data-tooltip]:focus-visible:not([data-tooltip-hidden])::after {
+  display: block;
+}
+
 @media (hover: hover) {
   [data-tooltip]:hover:not([data-tooltip-hidden])::after {
     display: block;
   }
-}
-
-[data-tooltip]:focus-visible:not([data-tooltip-hidden])::after {
-  display: block;
 }

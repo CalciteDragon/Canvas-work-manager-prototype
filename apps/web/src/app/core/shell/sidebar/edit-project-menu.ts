@@ -68,7 +68,10 @@ export class EditProjectMenu {
   /** Back to the pencil, unless a light dismiss already sent focus somewhere the person chose. */
   private restoreFocus(): void {
     const active = document.activeElement;
-    if (active === null || active === document.body || this.menu().contains(active)) this.pencil().focus();
+    if (active !== null && active !== document.body && !this.menu().contains(active)) return;
+    // Its tooltip stays down, so the next Escape reaches the drawer, not the tooltip.
+    this.pencil().setAttribute('data-tooltip-hidden', '');
+    this.pencil().focus();
   }
 
   private afterRender(callback: () => void): void {

@@ -58,7 +58,6 @@
 
 .group__header-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
 }
@@ -101,6 +100,7 @@ hr {
 // B's action row (decision 3): the chevron at the start, the pencil at the end, on one line.
 .tree-actions {
   display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 

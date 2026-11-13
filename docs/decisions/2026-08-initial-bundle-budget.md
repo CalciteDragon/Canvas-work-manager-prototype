@@ -172,6 +172,7 @@ routes stay eager. The ceiling stays at 1150 kB and the 850 kB warning keeps rep
 2026-11-09).** The one navigation tree's interaction (step 5: the back-chevron, the pencil and its
 menu, workstream disclosures, tooltips) measured **1,155.08 kB** initial against step 4's 1,145.76 kB.
 As Q12 (a) pre-approved, `/settings` and then `/search` became `loadComponent` routes; with the step's
-own code trimmed the build measured **1,149.88 kB**. Dashboard and the two project routes stay
-eager. The ceiling stays at 1150 kB; the slice's later steps start with about 0.1 kB of room, and
-step 8's removal of the project column is where the slice gets room back.
+own code trimmed the build measured **1,150.00 kB** after the step's review fixes (within the
+budget, with no room left). Dashboard and the two project routes stay eager. The ceiling stays at
+1150 kB; step 6's deferred page-settings host and step 8's removal of the project column are where
+the slice gets room back.

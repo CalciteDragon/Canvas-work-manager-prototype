@@ -123,7 +123,7 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   leaked focused button reach `route-focus.spec.ts`, which now clears the body first.
 - *Bundle:* initial **1,145.76 kB** (+6.40 kB over step 3; the first cut was 1,147.99 before the row styles moved to one
   global copy). Under the 1,148 kB trigger, so no lazy route yet; the next web step will likely need lazy `/settings` (Q12 (a)).
-**Step 4 is complete.** Done in step 5 (`STEP5_IMPL` implementation, docs and e2e; review fixes in `STEP5_FIX`):
+**Step 4 is complete.** Done in step 5 (`b2c7546` implementation, docs and e2e; review fixes in the following commit):
 - *Action row:* the chevron ("All projects", `data-nav-up`, `.icon-button--sm`, 32/44 px) calls `showTopLevel()` and
   focuses the current root's row. The pencil is `core/shell/sidebar/edit-project-menu.ts` (`data-edit-project`,
   `data-edit-project-menu`, `-pages`, `-add`): `popovertarget` + `position-anchor: auto` (inline style), `menuKeys`,
@@ -141,16 +141,29 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   `.nav-action` and `.tree-disclosure` get `ButtonBorder` under forced colours.
 - *Lab and story:* the Navigation panel's `data-lab-root-level` sidebar (fixture `labProjectPlace`) and the
   `RootLevel` story. Browser checks of the pencil run against the Lab until step 6.
-- *E2E:* `navigation-tree.spec.ts` 12 cases (underlines, chevron tooltip/size/Enter, disclosure keys, archived axe in
+- *E2E:* `navigation-tree.spec.ts` cases (underlines, chevron tooltip/size/Enter, disclosure keys, archived axe in
   both themes, the pencil's size, row, tooltip and anchoring in the Lab, forced-colours borders, 44 px on touch).
-  Also green: `phone-layout`, `states`, `web`, `placement`, `work-navigation`.
+  Also green: `phone-layout`, `states`, `web`, `placement`, `work-navigation`, and (for the lazy routes)
+  `archived-projects`, `lifts`, `cascading-archive`, `theme`, `empty-archived-editing`, whose Kitchen → Cabinets step
+  now opens Kitchen's disclosure first (§77; no other spec follows a nested workstream link in the sidebar). The frozen
+  Slice 80 tool `ux/empty-archived-verification.ts:381` has the same step and would need it if ever re-run.
+  The depth cap's browser check (`navigation-tree.spec.ts`, five levels under Cabinets) makes 13 cases there.
+- *Review* (one cold reviewer over `b2c7546`; 3 substantive, 6 minor; each checked against the code and holding): the
+  tooltip sat 4 px below its control, so moving onto it lost `:hover` (now flush, e2e moves onto it); a hovered-only
+  tooltip could not be dismissed (a document Escape now hides it); Escape was stopped with no tooltip showing, so the
+  drawer took three Escapes after the menu (now stopped only when one shows, and the pencil keeps its tooltip down
+  after its menu; app-shell case). Minor, fixed: the archived Add looked enabled (`.menu__item` joins the shared
+  disabled look); the chevron lost focus while the read failed (falls to the Projects label); a `missing` frame reset
+  disclosures; `how.md`'s Dependencies. Left: the row's centring rests on two equal `--sm` buttons (e2e measures it);
+  "Enter opens" is the native `popovertarget` press, simulated as its toggle in jsdom.
 - *Bundle:* the first cut measured **1,155.08 kB**. Q12 (a)'s pre-approved payment taken: **`/settings` and `/search`
   are lazy** (`app.routes.ts`, spec, `web/what.md`, `web/why.md`, the bundle decision's amendment), then the step's own
-  code trimmed (no tooltip directive, no `LiftStack` in the pencil menu, no sticky action row, no "Archived" pill). Initial
-  **1,149.88 kB**: about 0.1 kB under the ceiling, with no pre-approved payment left.
+  code trimmed (no tooltip directive, no `LiftStack` in the pencil menu, no sticky action row, no "Archived" pill, the
+  tooltip text from `aria-label`, the depth cap as CSS). After the review fixes the initial is **1,150.00 kB**: within
+  the budget with **no room left** and no pre-approved payment left (Open question 17).
 - *Trap for step 6:* any eager addition crosses 1,150 kB. Step 6 moves the column's page-settings popover into a
-  deferred host, which should free room; measure before and after each part and stop per the standing bundle rule if a
-  build crosses. `.icon-button` is 40 px (32 px is `--sm`).
+  deferred host, which should free room: do that part first, measure after each part, and stop per the standing
+  bundle rule if a build crosses (Open question 17). `.icon-button` is 40 px (32 px is `--sm`).
 **Next: step 6** (lifts move, tests first).
 
 ## Goal
@@ -1305,6 +1318,23 @@ its question.
   `core/shell/root-pages.ts` is not built; the current root's enabled pages come from the context (R2). The
   column decision needs no amendment for an on-demand cache.
 
+**17. What pays for the rest of the slice once the initial bundle is at its ceiling?** (step 5, 2026-11-12; not
+blocking step 6)
+- *Context.* Step 5 measured 1,155.08 kB; Q12 (a)'s whole pre-approved payment (lazy `/settings`, then `/search`,
+  −3.4 kB) and trimming the step's own code bring it to **1,150.00 kB**, exactly the ceiling. Steps 6, 7, 10 and 11 add
+  eager code (More's two items and handler registration, the create path, the breadcrumb in the eager project header,
+  the `TitleStrategy` and skip link). Step 6 also moves the column's page-settings popover into a deferred chunk, and
+  step 8 deletes the column (eager today), which is where R4 expected the slice to get room back.
+- *Options.* (a) Keep the ceiling; each step frees before it adds (step 6 defers the popover first), and a step whose
+  build still crosses stops and asks. (b) Pre-approve bringing step 8's column deletion forward into step 6 if step 6
+  crosses (the column's gear and plus already go in step 6). (c) Pre-approve another lazy route (only the dashboard
+  and the project routes remain eager, and both are the main landings, so this is not recommended). (d) Raise the
+  ceiling for this slice.
+- *Recommendation.* (a), with (b) pre-approved as the fallback: it keeps the ceiling and the order of risk, and the
+  column has to go anyway.
+- *Impact.* (a) may stop step 6 or a later step for a decision. (b) merges part of step 8 into step 6's session and
+  moves `phone-layout.spec.ts:323`'s rewrite earlier. (d) reverses the bundle decision's standing rule.
+
 ## Revisions
 
 - **First draft (2026-11-09, S81PLAN):** written from the code, the spec, the findings and the decisions.
@@ -1519,7 +1549,8 @@ its question.
   - *Changed content:* R1's "Icon buttons reuse the header's `.icon-button` (32 px…)" was wrong about the class: the
     header's `.icon-button` is 40 px, so the tree uses `.icon-button--sm` (32 px, as New project) to keep the stated 32/44 px.
     The change list's `edit-project-menu.scss` is not created (the menu uses the global lift and menu styles; its anchor is
-    an inline `position-anchor: auto`). The tooltip is CSS plus the sidebar's one Escape listener, not a directive. Q12 (a)'s
+    an inline `position-anchor: auto`). The tooltip is CSS plus the sidebar's Escape listeners, not a directive, and
+    draws the control's `aria-label`. The depth cap is a CSS descendant rule (no `depth` input), measured in the browser. Q12 (a)'s
     lazy `/settings` and `/search` are taken (State header). Step 5's "sticky scrolling" is the shell's existing layout
     (the sidebar and `main` scroll separately); a sticky action row was tried and removed for the bundle.
   - *Defaults taken (AGENTS.md §4):* workstreams with children start closed unless they hold the current item; a

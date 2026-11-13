@@ -60,7 +60,7 @@ describe('EditProjectMenu — the tree’s pencil (Slice 81, decision 3)', () =>
     expect(pencil().getAttribute('popovertarget')).toBe(menu().id);
     expect(pencil().classList).toContain('icon-button');
     // The tooltip is drawn from the name, never a `title`, so the name is not announced twice.
-    expect(pencil().getAttribute('data-tooltip')).toBe('Edit project');
+    expect(pencil().getAttribute('data-tooltip')).toBe('');
     expect(pencil().hasAttribute('title')).toBe(false);
     expect(menu().getAttribute('popover')).toBe('auto');
     expect(menu().getAttribute('role')).toBe('menu');
@@ -107,6 +107,8 @@ describe('EditProjectMenu — the tree’s pencil (Slice 81, decision 3)', () =>
     expect(pencil().getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(pencil());
     expect(parentEscape).not.toHaveBeenCalled();
+    // Its tooltip stays down after the menu, so the next Escape reaches the drawer (step 5 review).
+    expect(pencil().hasAttribute('data-tooltip-hidden')).toBe(true);
   });
 
   it('closes on Tab', async () => {

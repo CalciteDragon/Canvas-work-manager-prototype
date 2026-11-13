@@ -15,7 +15,7 @@ import type { WorkRow } from './tree-model';
  *
  * Its data attributes are the tree's own (`data-nav-work`), so they never collide with the
  * project column's (`data-work-project`) while both exist. Unstyled: the row is the global
- * `.tree-link` (`_controls.scss`), one copy for the whole tree.
+ * `.tree-link` (`_controls.scss`), one copy for the whole tree, which also caps the indent.
  */
 @Component({
   // The host is the list item, so each `ul` holds `li`s directly (axe `list`/`listitem`).
@@ -55,10 +55,9 @@ import type { WorkRow } from './tree-model';
       }
     </div>
     @if (row().children.length > 0 && expanded().has(row().id)) {
-      <!-- Indentation stops growing after four levels; deeper rows keep it (R3, deep trees). -->
-      <ul class="tree-children" [class.tree-children--flat]="depth() >= 4">
+      <ul class="tree-children">
         @for (child of row().children; track child.id) {
-          <li app-project-tree-item [row]="child" [currentId]="currentId()" [expanded]="expanded()" [depth]="depth() + 1" (toggled)="toggled.emit($event)"></li>
+          <li app-project-tree-item [row]="child" [currentId]="currentId()" [expanded]="expanded()" (toggled)="toggled.emit($event)"></li>
         }
       </ul>
     }
@@ -70,8 +69,6 @@ export class ProjectTreeItem {
   readonly currentId = input<ProjectId | null>(null);
   /** The workstreams whose children are shown. */
   readonly expanded = input<ReadonlySet<ProjectId>>(new Set());
-  /** 1 for a workstream directly under the root. */
-  readonly depth = input(1);
   /** The person pressed this row's disclosure, or a descendant's. */
   readonly toggled = output<ProjectId>();
 }

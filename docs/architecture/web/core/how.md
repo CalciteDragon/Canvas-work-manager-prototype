@@ -57,12 +57,15 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    `missing` for a frame on every same-root move. `apps/e2e/navigation-tree.spec.ts` checks the
    marker's bar and weight in a browser, both themes and forced colours.
    The root level opens with an action row: the chevron calls `showTopLevel()` and focuses the
-   current root's row; the pencil (`EditProjectMenu`) is drawn only when `AppShell` passes
+   current root's row (the Projects label while the read has failed or not answered); the pencil (`EditProjectMenu`) is drawn only when `AppShell` passes
    `navigation.hasHandlers()` as `projectActions`, and its two requests are the sidebar's
    `pageSettingsRequested` / `addWorkstreamRequested` outputs. Disclosure state is the sidebar's
-   `expanded` set: a loaded place adds its ancestors, another root starts afresh. Tooltips are CSS
-   from `data-tooltip` (`_controls.scss`); the sidebar's one delegated Escape listener hides a
-   showing one and stops that Escape. Traps: `.icon-button` is 40 px, the tree's 32 px is
+   `expanded` set: a loaded place adds its ancestors, another root starts afresh (a `missing`
+   frame keeps it). The indent cap is a CSS descendant rule on `.tree-children`. Tooltips are CSS
+   drawing a `data-tooltip` control's `aria-label`, flush under it (a gap would lose `:hover`);
+   the sidebar hides a showing one on Escape (stopping that Escape only then) and, from the
+   document, a merely hovered one; leaving or blurring clears it, and the pencil keeps its tooltip
+   down after its menu closes, so the next Escape reaches the drawer. Traps: `.icon-button` is 40 px, the tree's 32 px is
    `.icon-button--sm`; a `popovertarget` menu without `position-anchor: auto` falls to the viewport
    corner (step 1's probe); the initial bundle is at its ceiling, so measure every addition.
    `navigation-tree.spec.ts` checks underlines, tooltips, sizes (32 and 44 px), the archived
@@ -132,6 +135,7 @@ returns feedback to that same toast and shares the header's transition guard.
 - `shared/feedback` — `ToastSlot` ownership used by `ReceiptToast` and suppression in the phone
   navigation drawer; the shell renders `PinnedFailureSlot` inside `.workspace`, which finds that
   port as its nearest scrolling ancestor. Shared feedback imports no core store or feature.
+- `shared/lifts/menu-keys` (Slice 81) — the tree's pencil menu keys, as More's. A pure function.
 
 **Depended on by**
 

@@ -327,7 +327,7 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
   });
 
   // Slice 81, step 3 review: Escape in the drawer's pencil menu closes only the menu; the next closes the drawer.
-  it('closes only the pencil menu on an Escape inside it, with focus on the pencil', async () => {
+  it('closes only the pencil menu on an Escape inside it, with focus on the pencil; the next Escape closes the drawer', async () => {
     const hide = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidePopover');
     Object.defineProperty(HTMLElement.prototype, 'hidePopover', { configurable: true, value() {
       this.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed', oldState: 'open' }));
@@ -350,6 +350,11 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
       expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
       expect(pencil.getAttribute('aria-expanded')).toBe('false');
       expect(document.activeElement).toBe(pencil);
+
+      // The second Escape closes the drawer: the pencil's tooltip stayed down (step 5 review).
+      pencil.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      await stable();
+      expect(q('#shell-navigation')!.getAttribute('role')).toBeNull();
     } finally {
       if (hide) Object.defineProperty(HTMLElement.prototype, 'hidePopover', hide);
       else Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');

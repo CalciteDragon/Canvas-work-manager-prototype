@@ -623,7 +623,7 @@ describe('Sidebar — tree interaction (Slice 81, step 5)', () => {
     expect(row.firstElementChild).toBe(chevron);
     expect(chevron.getAttribute('aria-label')).toBe('All projects');
     expect(chevron.classList).toContain('icon-button');
-    expect(chevron.getAttribute('data-tooltip')).toBe('All projects');
+    expect(chevron.getAttribute('data-tooltip')).toBe('');
     expect(chevron.hasAttribute('title')).toBe(false);
   });
 
@@ -707,6 +707,47 @@ describe('Sidebar — tree interaction (Slice 81, step 5)', () => {
     document.body.removeEventListener('keydown', parentEscape);
   });
 
+  // Step 5 review: Escape is kept from the drawer only when a tooltip was showing; a dismissed
+  // one lets it through at once. (jsdom treats programmatic focus as `:focus-visible`, so the
+  // pointer-focused case is the browser's.)
+  it('lets Escape through when the focused control’s tooltip is already dismissed', async () => {
+    const { element } = await renderAttached('/projects/project-renovation', place());
+    const parentEscape = vi.fn();
+    document.body.addEventListener('keydown', parentEscape);
+    const chevron = element.querySelector<HTMLElement>('[data-nav-up]')!;
+    chevron.focus();
+    chevron.setAttribute('data-tooltip-hidden', '');
+
+    chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    expect(parentEscape).toHaveBeenCalledOnce();
+    document.body.removeEventListener('keydown', parentEscape);
+  });
+
+  it('keeps focus in the tree when the chevron goes up while the projects read has failed', async () => {
+    const { fixture, element, settle } = await renderAttached('/projects/project-renovation', place());
+    fixture.componentRef.setInput('failure', { sentence: 'Couldn’t load your projects.', reason: 'offline' });
+    await settle();
+
+    element.querySelector<HTMLButtonElement>('[data-nav-up]')!.click();
+    await settle();
+
+    expect(document.activeElement).toBe(element.querySelector('[data-projects-label]'));
+  });
+
+  it('keeps disclosure choices across a failed load and a retry in the same root', async () => {
+    const { fixture, disclosure, settle } = await renderAttached('/projects/project-renovation', place());
+    disclosure('Kitchen')!.click();
+    await settle();
+
+    fixture.componentRef.setInput('projectPlace', place({ status: 'missing', root: null, current: null, pages: [], currentKind: null }));
+    await settle();
+    fixture.componentRef.setInput('projectPlace', place());
+    await settle();
+
+    expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('true');
+  });
+
   // Q4 (a): disclosure links, every control in the Tab order, in the tree's reading order.
   it('orders Tab as chevron, pencil, root, pages, then each workstream and its expand button', async () => {
     const { element } = await renderAttached('/projects/project-cabinets', CABINETS_PLACE(), { projectActions: true });
@@ -754,22 +795,15 @@ describe('Sidebar — tree interaction (Slice 81, step 5)', () => {
     expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('indents depth 6 as depth 4, and carries the whole path', async () => {
+  // R3, deep trees: every level is drawn, open down to the current item; the indent cap is CSS,
+  // measured by `navigation-tree.spec.ts`.
+  it('draws a six-deep current item with every ancestor open', async () => {
     const deepest = { id: 'project-level-6' as ProjectId, name: 'Level 6', status: 'active' as const };
     const ancestors = [1, 2, 3, 4, 5].map((level) => ({ id: `project-level-${level}` as ProjectId, name: `Level ${level}`, status: 'active' as const }));
     const { element } = await renderAttached('/projects/project-level-6', place({ projectId: deepest.id, current: deepest, ancestors: [HOME_RENOVATION, ...ancestors], currentKind: null }), { projectTree: chain(6) });
-    const indents = (id: string) => {
-      let count = 0;
-      for (let at = element.querySelector(`[data-nav-work-id="${id}"]`)?.parentElement ?? null; at !== null; at = at.parentElement) {
-        if (at.matches('ul.tree-children:not(.tree-children--flat)')) count++;
-      }
-      return count;
-    };
 
     expect(element.querySelector('[data-nav-work-id="project-level-6"] a')?.getAttribute('aria-current')).toBe('page');
-    expect(indents('project-level-4')).toBe(4);
-    expect(indents('project-level-5')).toBe(4);
-    expect(indents('project-level-6')).toBe(4);
+    expect([...element.querySelectorAll('[data-nav-disclosure]')].map((button) => button.getAttribute('aria-expanded'))).toEqual(['true', 'true', 'true', 'true', 'true']);
   });
 
   // Q11 (a): an archived row is muted by a contrast-passing token colour (the browser check

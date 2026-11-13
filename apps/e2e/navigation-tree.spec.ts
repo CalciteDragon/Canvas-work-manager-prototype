@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { seed } from './seed';
+import { api, createProject, seed } from './seed';
 
 /**
  * Slice 81's one navigation tree. Step 4 starts this file with the current marker, step 5 the tree's
@@ -73,6 +73,15 @@ test('the chevron is a 32 px icon button with its tooltip on hover and keyboard 
   expect([box.width, box.height]).toEqual([32, 32]);
   expect(await tooltipOf(chevron)).toEqual({ display: 'none', content: '"All projects"' });
 
+  await chevron.hover();
+  expect((await tooltipOf(chevron)).display).toBe('block');
+  // WCAG 1.4.13 hoverable: the pointer moves down onto the label and it stays.
+  await page.mouse.move(box.x + 4, box.y + box.height + 6, { steps: 4 });
+  expect((await tooltipOf(chevron)).display).toBe('block');
+  // Dismissible while only hovered (focus is elsewhere): Escape hides it.
+  await page.keyboard.press('Escape');
+  expect((await tooltipOf(chevron)).display).toBe('none');
+  await page.mouse.move(box.x + 600, box.y + 400);
   await chevron.hover();
   expect((await tooltipOf(chevron)).display).toBe('block');
   await page.mouse.move(box.x + 600, box.y + 400);
@@ -171,4 +180,19 @@ test('on touch the action row’s buttons are 44 px', async ({ browser }) => {
     expect([box.width, box.height], name).toEqual([44, 44]);
   }
   await context.close();
+});
+
+test('R3: indentation stops growing after four levels', async ({ page }) => {
+  await seed('nested-projects');
+  let parent = 'project-cabinets';
+  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
+  for (const level of [1, 2, 3, 4, 5]) parent = (await createProject({ workspaceId: workspace.id, kind: 'subproject', parentProjectId: parent, name: `Level ${level}` } as never)).id;
+  await page.goto(`/projects/${parent}`);
+  const left = async (name: string) => (await page.locator('app-sidebar').getByRole('link', { name, exact: true }).boundingBox())!.x;
+  // Kitchen is depth 1, Cabinets 2, Level 1 3, Level 2 4; Level 3 and deeper keep that indent.
+  await expect(page.locator('app-sidebar').getByRole('link', { name: 'Level 5', exact: true })).toHaveAttribute('aria-current', 'page');
+  const [kitchen, cabinets, level2, level3, level5] = [await left('Kitchen'), await left('Cabinets'), await left('Level 2'), await left('Level 3'), await left('Level 5')];
+  expect(cabinets).toBeGreaterThan(kitchen);
+  expect(level3).toBe(level2);
+  expect(level5).toBe(level2);
 });

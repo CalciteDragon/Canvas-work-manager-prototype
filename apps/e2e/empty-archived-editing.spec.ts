@@ -314,6 +314,8 @@ test.describe('editing', () => {
     await expect(brief).toContainText('Your unsaved draft is back.');
 
     // In-app navigation away and Back: the draft is still kept.
+    // Slice 81, step 5: Cabinets sits behind Kitchen's disclosure, open only for the current item's ancestors.
+    await page.locator('app-sidebar').getByRole('button', { name: 'Show Kitchen’s workstreams' }).click();
     await page.locator('app-sidebar').getByRole('link', { name: 'Cabinets', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${CABINETS}$`));
     await page.goBack();
