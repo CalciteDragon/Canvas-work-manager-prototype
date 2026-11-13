@@ -123,7 +123,7 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   leaked focused button reach `route-focus.spec.ts`, which now clears the body first.
 - *Bundle:* initial **1,145.76 kB** (+6.40 kB over step 3; the first cut was 1,147.99 before the row styles moved to one
   global copy). Under the 1,148 kB trigger, so no lazy route yet; the next web step will likely need lazy `/settings` (Q12 (a)).
-**Step 4 is complete.** Done in step 5 (`b2c7546` implementation, docs and e2e; review fixes in the following commit):
+**Step 4 is complete.** Done in step 5 (`b2c7546` implementation, docs and e2e; `a5db467` review fixes):
 - *Action row:* the chevron ("All projects", `data-nav-up`, `.icon-button--sm`, 32/44 px) calls `showTopLevel()` and
   focuses the current root's row. The pencil is `core/shell/sidebar/edit-project-menu.ts` (`data-edit-project`,
   `data-edit-project-menu`, `-pages`, `-add`): `popovertarget` + `position-anchor: auto` (inline style), `menuKeys`,
