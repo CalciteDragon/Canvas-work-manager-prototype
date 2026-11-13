@@ -39,18 +39,20 @@ routed project id, `loading | ready | missing`, the root, its ancestors, the cur
 root's enabled and renderable pages without its first page (Q5 (d): the root's row opens it), the
 current page kind and Add workstream's blocked reason. `ProjectWorkspaceShell` publishes it from its
 store; `AppShell` passes it to the presentational `Sidebar` as an input. A failed or not-found load
-publishes `missing`, which marks nothing. Commands are handlers: the feature registers
-`{ openPageSettings, openAddWorkstream }` with `register()`, which returns a disposer that removes
-only its own handlers (a re-created shell registers before the old one is destroyed); a trigger
-calls the current handler with `{ source, returnFocus }`; with no handler the triggers are not
-drawn. `core/` imports nothing from features. A default taken in Slice 81 step 4, from the accepted
-plan's R2.
+publishes `missing`, which marks nothing; until the load says so, a new project reads as
+`loading`, so a same-root move keeps the root's rows. Commands are handlers: `register()` takes
+`{ openPageSettings, openAddWorkstream }` and returns a disposer that removes only its own handlers
+(a re-created shell registers before the old one is destroyed), and `openPageSettings(request)` /
+`openAddWorkstream(request)` call the current one with `{ source, returnFocus }`. As of step 4 the
+context offers this and nothing registers yet: the feature registers at Slice 81 step 6, and the
+tree's triggers, drawn only while a handler exists, arrive in steps 5 and 6. `core/` imports nothing
+from features. A default taken in Slice 81 step 4, from the accepted plan's R2.
 
 **Confidence**
 
-High for keying and for handlers over signals (`navigation-context.spec.ts`,
-`project-workspace-shell.spec.ts`, `sidebar.spec.ts`). Medium for the loading rule, which has met
-the e2e journeys but not real use.
+High for keying and for handlers over signals (`navigation-context.spec.ts`; the shell spec
+checks every place published across a same-root move; `sidebar.spec.ts`). Medium for the loading
+rule, which has met the e2e journeys but not real use, and for handlers, which no feature calls yet.
 
 **Revisit when**
 

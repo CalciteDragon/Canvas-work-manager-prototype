@@ -1767,6 +1767,28 @@ describe('Slice 81: the project place for the navigation tree (R2)', () => {
     expect(placeOf()).toMatchObject({ status: 'missing', root: null, current: null });
   });
 
+  // Step 4 review: the publish effect runs before the load effect, so the old record is still
+  // loaded and `loading` still false; that frame must read as loading, never missing.
+  it('never publishes missing, or loses the root’s rows, on a same-root move', async () => {
+    const { harness, router } = await open('/projects/project-cabinets');
+    await settle(harness);
+    const context = TestBed.inject(NavigationContext);
+    const published: string[] = [];
+    const publish = context.publish.bind(context);
+    vi.spyOn(context, 'publish').mockImplementation((place) => { published.push(place.status); publish(place); });
+    const seen: (string | null)[] = [];
+    const watch = setInterval(() => seen.push(context.place()?.root?.id ?? null), 0);
+
+    await router.navigateByUrl('/projects/project-garden');
+    seen.push(context.place()?.root?.id ?? null);
+    await settle(harness);
+    clearInterval(watch);
+
+    expect(published).not.toContain('missing');
+    expect(published.at(-1)).toBe('ready');
+    expect(seen.every((rootId) => rootId === RENOVATION.id)).toBe(true);
+  });
+
   it('moves the place to the next project, and clears it on leaving for the dashboard', async () => {
     const { harness, router } = await open('/projects/project-cabinets');
     await settle(harness);

@@ -53,7 +53,7 @@ describe('NavigationContext', () => {
     expect(seen[2]).toMatchObject({ status: 'ready', currentKind: 'todos' });
   });
 
-  it('keeps nothing of the previous root while another project loads', async () => {
+  it('keeps the previous rows while another project loads, for the sidebar to place it', async () => {
     const { context } = await setup();
     context.publish(ready());
     context.publish({ projectId: KITCHEN.id, status: 'loading', root: null, ancestors: [], current: null, pages: [], currentKind: null, addBlockedReason: null });

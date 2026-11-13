@@ -23,7 +23,6 @@ import type { WorkRow } from './tree-model';
     <a
       class="tree-link"
       data-nav-work
-     
       [routerLink]="['/projects', row().id]"
       [attr.aria-current]="row().id === currentId() ? 'page' : null"
     >

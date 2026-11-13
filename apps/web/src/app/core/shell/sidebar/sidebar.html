@@ -109,7 +109,7 @@
             <p class="notice state-message state-message--loading" data-projects-loading>Loading projects…</p>
           }
         </div>
-        @if (failure() === null && !loading() && projectTree().length === 0) {
+        @if (failure() === null && !loading() && topRoots().length === 0) {
           <!-- Slice 79 (W4-034): with only archived projects, "No projects yet" would be false. -->
           <p class="notice state-message state-message--empty" data-projects-empty>
             {{ hasArchived() ? 'No active projects.' : 'No projects yet' }}
@@ -117,20 +117,23 @@
               <a class="link" data-projects-archived-link routerLink="/settings/archived-projects">View archives</a>
             }
           </p>
-        } @else if (failure() === null && projectTree().length > 0) {
+        } @else if (failure() === null && topRoots().length > 0) {
           <ul class="projects" aria-labelledby="projects-label">
-            @for (node of projectTree(); track node.project.id) {
-              <li [attr.data-project-id]="node.project.id">
+            @for (root of topRoots(); track root.id) {
+              <li [attr.data-project-id]="root.id">
                 <a
                   class="tree-link"
                   data-project
-                  [routerLink]="['/projects', node.project.id]"
-                  [attr.aria-current]="node.project.id === locationRootId() ? 'location' : null"
+                  [routerLink]="['/projects', root.id]"
+                  [attr.aria-current]="root.id === locationRootId() ? 'location' : null"
                 >
-                  @if (node.project.icon) {
-                    <span aria-hidden="true">{{ node.project.icon }}</span>
+                  @if (root.icon) {
+                    <span aria-hidden="true">{{ root.icon }}</span>
                   }
-                  <span class="name">{{ node.project.name }}</span>
+                  <span class="name">{{ root.name }}</span>
+                  @if (root.archived) {
+                    <span> Archived</span>
+                  }
                 </a>
               </li>
             }

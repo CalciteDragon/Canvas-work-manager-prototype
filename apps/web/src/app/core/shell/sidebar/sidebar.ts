@@ -73,6 +73,16 @@ export class Sidebar {
   protected readonly level = computed<'top' | 'root'>(() => (this.rootLevel() !== null && !this.upState() ? 'root' : 'top'));
   /** At the top level inside a project the current root is the location, not the page (R3, B's exception). */
   protected readonly locationRootId = computed(() => (this.level() === 'top' ? this.rootLevel()?.root.id ?? null : null));
+  /**
+   * The top level's roots: the live ones from the read, and an archived root while it is current,
+   * which the read leaves out but which has to carry the location (Q11 (a)).
+   */
+  protected readonly topRoots = computed(() => {
+    const roots = this.projectTree().map(({ project }) => ({ id: project.id, name: project.name, icon: project.icon ?? null, archived: false }));
+    const current = this.rootLevel()?.root;
+    if (current?.status === 'archived' && !roots.some(({ id }) => id === current.id)) roots.push({ ...current, archived: true });
+    return roots;
+  });
   protected readonly createOpen = signal(false);
   /** Survives the form closing, so a failed creation can hand the name back. */
   protected readonly draftName = signal('');
@@ -117,6 +127,8 @@ export class Sidebar {
     });
     const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     const onClick = (event: MouseEvent): void => {
+      // A plain primary activation only: a modified or middle click opens elsewhere and stays here.
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       if (event.target instanceof Element && event.target.closest('a[href]') !== null) this.upState.set(false);
     };
     host.addEventListener('click', onClick, { capture: true });

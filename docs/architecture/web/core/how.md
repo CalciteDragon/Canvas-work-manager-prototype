@@ -52,6 +52,10 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    the current item's path drawn in where the read does not list it (Q11 (a)). Destinations mark
    themselves with `routerLinkActive` + `ariaCurrentWhenActive`; the root level marks from the
    place. Trap: Settings' own link needs `exact`, or every Settings child marks two items.
+   `ProjectWorkspaceShell.place` reads a new `projectId` before its load effect sets `loading`, so
+   it calls anything not yet `missing` or failed "loading"; reading `loading()` alone published
+   `missing` for a frame on every same-root move. `apps/e2e/navigation-tree.spec.ts` checks the
+   marker's bar and weight in a browser, both themes and forced colours.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
    (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.

@@ -297,8 +297,8 @@ standalone connection matrix. Both processes still running. Full setup in
     widgets change with it, because they come from the persona's own record. Theme stays with
     the device or the explicit browser choice.
 47. **Feature flags.** The **Flags** control lists §47's flags. Turn **nestedProjects** off on
-    the `nested-projects` seed: open Home renovation and its workstreams leave the tree, with
-    **no reload**, and turning it back on restores them. Turn **gridProjectLayout** off and a grid project
+    the `nested-projects` seed: open Home renovation and its workstreams leave the tree (except
+    the path to one you have open), with **no reload**, and turning it back on restores them. Turn **gridProjectLayout** off and a grid project
     renders as flow without its stored choice being touched.
 48. **Notes (§79).** The panel's note field writes to `.prototype/notes.json`. Use it while
     doing this walkthrough — that is what it is for.

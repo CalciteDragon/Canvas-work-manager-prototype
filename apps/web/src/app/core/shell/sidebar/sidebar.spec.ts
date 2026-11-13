@@ -495,6 +495,34 @@ describe('Sidebar — one navigation tree (Slice 81, B)', () => {
     expect(current()).toEqual([['Home renovation', 'location']]);
   });
 
+  // Q11 (a) at the top level: the read leaves an archived root out, so while it is current it is
+  // drawn there, marked, to carry the location (step 4 review).
+  it('draws an archived current root at the top level as the location, marked Archived', async () => {
+    const archived = { ...HOME_RENOVATION, status: 'archived' as const };
+    const { fixture, element, current } = await renderAt('/projects/project-renovation', place({ root: archived, current: archived }), [node('project-launch', 'Website launch')]);
+    expect(current()).toEqual([['Home renovation Archived', 'page']]);
+
+    fixture.componentInstance.showTopLevel();
+    await fixture.whenStable();
+
+    expect(textOf(element, '[data-project]')).toEqual(['Website launch', 'Home renovation Archived']);
+    expect(current()).toEqual([['Home renovation Archived', 'location']]);
+  });
+
+  it('keeps the top level for a modified or middle click, which opens elsewhere', async () => {
+    const { fixture, element } = await renderAt('/projects/project-renovation', place());
+    fixture.componentInstance.showTopLevel();
+    await fixture.whenStable();
+    const link = element.querySelector<HTMLAnchorElement>('[data-project-id="project-launch"] a')!;
+    link.addEventListener('click', (event) => event.preventDefault());
+
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 1 }));
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-nav-root]')).toBeNull();
+  });
+
   it('returns to the current place’s level on a place change', async () => {
     const { fixture, element, current } = await renderAt('/projects/project-renovation', place());
     fixture.componentInstance.showTopLevel();

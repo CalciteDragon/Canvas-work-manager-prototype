@@ -2,12 +2,17 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subject } from 'rxjs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RouteFocus } from './route-focus';
 
 @Component({ template: '{{ revision() }}' })
 class RenderHost { readonly revision = signal(0); }
 
+// The builder runs spec files with `isolate: false`, so an earlier file in the same worker can leave a
+// focused element in the body (archived-projects-page.spec.ts's `elsewhere`). These cases assert on
+// `document.activeElement`, so each starts from an empty body (Slice 81 step 4's new spec file
+// moved that file ahead of this one).
+beforeEach(() => document.body.replaceChildren());
 afterEach(() => { TestBed.resetTestingModule(); document.body.replaceChildren(); vi.useRealTimers(); });
 
 describe('RouteFocus', () => {

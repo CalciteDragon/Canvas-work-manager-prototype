@@ -293,15 +293,18 @@ export class ProjectWorkspaceShell {
         addBlockedReason: this.workCreateBlocked(),
       };
     }
+    // Missing only once the load has said so. This computed reads a new `projectId` before the
+    // load effect has set `loading`, with the previous project still loaded: that is loading too.
+    const loading = !this.store.missing() && this.store.error() === null;
     const requested = ProjectPageKindSchema.safeParse(this.pageKind());
     return {
       projectId,
-      status: this.store.loading() ? 'loading' : 'missing',
+      status: loading ? 'loading' : 'missing',
       root: null,
       ancestors: [],
       current: null,
       pages: [],
-      currentKind: this.store.loading() && requested.success ? requested.data : null,
+      currentKind: loading && requested.success ? requested.data : null,
       addBlockedReason: null,
     };
   });
