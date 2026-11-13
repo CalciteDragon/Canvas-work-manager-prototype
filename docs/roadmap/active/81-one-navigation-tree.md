@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-10):** **step 3 (firm up the plan) done: the user picked B; next is step 4 (context and current place).** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-12):** **step 4 (context and current place) done; next is step 5 (tree interaction).** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -91,7 +91,39 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   "Step 3"). Trap for step 5/9: `menuKeys` does not stop Escape, and the drawer closes on any Escape that reaches it.
   The bundle estimate for B now reaches about 1,148.7 kB, so Q12 (a)'s lazy `/settings` may be needed (pre-approved).
 - *Bundle:* initial **1,139.36 kB** (back to the baseline after the route's removal).
-**Next: step 4** (context and current place, tests first).
+**Step 3 is complete.** Done in step 4 (`645a804` implementation, docs and e2e locators; `dda1632` review fixes):
+- *Context:* `core/shell/navigation-context.ts` (`NavigationContext`, `ProjectPlace`, `register()` with own-only
+  disposers, `openPageSettings`/`openAddWorkstream` returning whether a shell listened). `ProjectWorkspaceShell.place`
+  publishes it (enabled renderable pages without the first, Q5 (d); `currentKind` = `activeKind`; `addBlockedReason`);
+  not yet `missing` or failed counts as `loading`. **Nothing registers handlers yet** (step 6); `hasHandlers` is unused
+  until step 5's pencil. `AppShell` passes `navigation.place()` to the sidebar's `projectPlace` input.
+- *Tree:* `Sidebar` draws B's two levels; `sidebar/tree-model.ts` (`rootLevelOf`) is the root level's whole rule (loading:
+  same root keeps rows, another root's row alone, unplaceable keeps rows; the current path drawn in when unlisted, Q11 (a)).
+  `showTopLevel()` (public; step 5's chevron calls it, and moves focus) marks the root `location`, adding an archived
+  current root at the top level. The level resets on a place change (`projectId:currentKind`) or a plain link activation.
+  Projects is a `span` label (`data-projects-label`, `tabindex=-1`, `data-recovery-focus`); Settings lists AI & Agents and
+  Archived projects. Workstream rows are `ProjectTreeItem` (`li[app-project-tree-item]`, `data-nav-work`,
+  `data-nav-work-id`); root `data-nav-root`; pages `data-nav-page="<kind>"`; top roots keep `data-project`/`data-project-id`.
+  Disclosures, depth cap, the archived colour (only the "Archived" word now) are step 5.
+- *Marker:* one global `.tree-link` row in `_controls.scss` (bar = `--border-focus` in `--color-accent`, weight on `page`,
+  `Highlight` under forced colours); verified in Chromium by the new `apps/e2e/navigation-tree.spec.ts` (4 cases).
+- *Behaviour change:* `nestedProjects` off keeps only roots, no work under them (`shell-store.spec.ts`).
+- *E2E:* every one of the 28 specs ran green (in chunks); locators changed in `phone-layout.spec.ts` (drawer-open check is
+  level-neutral; the destination case picks the root last), `states.spec.ts` (Projects label), `web.spec.ts` (root row by
+  name), `placement.spec.ts` (New project from `/app`). **Interim gap until step 5:** inside a project the tree has no
+  way up (no chevron), so New project and other roots are reached by Home in the top bar or a URL.
+- *Docs:* decision `2026-11-navigation-reads-project-place-from-a-context.md` (indexed, linked from core `why.md`);
+  core `overview`/`what`/`how`/`why`; the walkthrough's `nestedProjects` step.
+- *Review* (one cold reviewer over `645a804`; 4 substantive, 5 minor; each checked and holding): a same-root move published
+  `missing` for a frame and dropped the rows (fixed, spec records every publish); no committed marker check (e2e added);
+  an archived current root went unmarked after going up (fixed); the decision documented handlers as registered (fixed).
+  Minor fixed: a test title, modified clicks reset the level, a stray template line, the guide's wording. Minor left: the
+  root row keys on `'home'` (only roots reach it); an unavailable root page marks nothing (deliberate: nothing renders).
+- *Trap:* web specs run with `isolate: false`; adding a spec file reshuffled workers and let `archived-projects-page.spec.ts`'s
+  leaked focused button reach `route-focus.spec.ts`, which now clears the body first.
+- *Bundle:* initial **1,145.76 kB** (+6.40 kB over step 3; the first cut was 1,147.99 before the row styles moved to one
+  global copy). Under the 1,148 kB trigger, so no lazy route yet; the next web step will likely need lazy `/settings` (Q12 (a)).
+**Next: step 5** (tree interaction, tests first).
 
 ## Goal
 
@@ -745,9 +777,10 @@ Confirmed for B at step 3 (2026-11-10).
 |---|---|---|
 | `apps/web/src/app/core/shell/navigation-context.ts` (+ `.spec.ts`) | create | R2's keyed project place and handler registration |
 | `apps/web/src/app/core/shell/sidebar/sidebar.ts`, `.html`, `.scss`, `.spec.ts`, `.stories.ts` | modify | B's tree: the two levels and the level state; destinations, Projects group, roots as links, settings children at the top; the action row, root row, pages and workstreams at the root level; marker; workstream disclosures; themed New project; forced-colours shapes |
-| `apps/web/src/app/core/shell/sidebar/project-tree-item.ts`, `.scss` | modify | One row for every workstream; depth cap; archived marks in a contrast-passing token colour |
+| `apps/web/src/app/core/shell/sidebar/tree-model.ts` | create (step 4) | `rootLevelOf`: the root level from the place over the projects read |
+| `apps/web/src/app/core/shell/sidebar/project-tree-item.ts` (`.scss` deleted at step 4; rows are the global `.tree-link`) | modify | One row for every workstream; depth cap; archived marks in a contrast-passing token colour |
 | `apps/web/src/app/core/shell/sidebar/edit-project-menu.ts`, `.html`, `.scss`, `.spec.ts` | create | The pencil button and its `popover="auto"` menu (two items, `menuKeys`), its tooltip, an archived root's unavailable Add |
-| `apps/web/src/styles/_controls.scss` | modify | The token-styled tooltip on hover and focus; 44 px below 48rem |
+| `apps/web/src/styles/_controls.scss` | modify | The tree's one `.tree-link` row and current marker (step 4); The token-styled tooltip on hover and focus; 44 px below 48rem |
 | `apps/web/src/app/core/shell/shell-commands.ts`, `shell-store.ts` (+ specs) | modify | `refresh()` made public; `SHELL_COMMANDS.refreshProjects()` calls it |
 | `apps/web/src/app/core/shell/app-shell.ts`, `.html`, `.scss`, `.spec.ts` | modify | Skip link; context input and handler calls; drawer closes before a lift; current item in view; lift tokens on the drawer; Close removed, the action row at the drawer's top, the focus-visible "Close navigation" as its last Tab stop |
 | `apps/web/src/app/core/navigation/document-title.ts` (+ spec) | create | `TitleStrategy` per Q6 |
@@ -786,7 +819,7 @@ Confirmed for B at step 3 (2026-11-10).
 
 | File | Change | Responsibility |
 |---|---|---|
-| `apps/e2e/navigation-tree.spec.ts` | create | Acceptance item 4 |
+| `apps/e2e/navigation-tree.spec.ts` | create (step 4: the marker; step 12: the journeys) | Acceptance item 4 |
 | `apps/e2e/phone-layout.spec.ts`, `work-navigation.spec.ts` | modify | §77 rewrites |
 | `apps/e2e/project-creation-history.spec.ts` | modify (step 7) | §77: the workstream half creates and lands on the new workstream; its toast assertion (`:101`) becomes "Created Field study under …", and the `[data-toast-open]` click and URL wait (`:103-105`) go, since the create already lands there; the header's Undo still lands on "Creation undone"; the root half is unchanged |
 | The fifteen specs under Behaviour vs. appearance | modify | Locators |
@@ -1444,6 +1477,15 @@ its question.
     control without navigating; the tooltip is CSS from the accessible name, shown on hover and focus, no
     `title`; the origin path keeps content link style (it is content, not navigation); the Projects label is not
     a toggle in B; the drawer's hidden dismiss is the last Tab stop.
+
+- **Step 4 (2026-11-12):** context, the two levels and the marker (State header).
+  - *Changed content:* the change list gains `tree-model.ts`, drops `project-tree-item.scss` (the row is one global
+    `.tree-link` in `_controls.scss`, to hold the bundle), and starts `navigation-tree.spec.ts` at step 4 with the marker's
+    browser check, because unit tests load no global styles. `route-focus.spec.ts` gets a clean-body `beforeEach`.
+  - *Defaults taken (AGENTS.md §4):* a failed or not-found project shows the top level with nothing marked; the feature
+    does not register handlers until step 6 (step 5's no-op outputs need no handler); Settings' children are always listed;
+    a place change is `projectId` + current kind, and a plain link activation also resets the level (choosing the current
+    page navigates nowhere).
 
 ## Outcome
 
