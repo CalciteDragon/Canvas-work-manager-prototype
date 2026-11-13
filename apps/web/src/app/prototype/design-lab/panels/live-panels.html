@@ -104,6 +104,8 @@
   <h3 class="panel__title">Navigation <span class="panel__badge">live component</span></h3>
   <div class="panel__body panel__body--row">
     <app-sidebar [projectTree]="projectTree" [failure]="null" />
+    <!-- Slice 81, B's root level: the action row (chevron, pencil), pages, disclosures, an archived current item. -->
+    <app-sidebar data-lab-root-level [projectTree]="projectTree" [failure]="null" [projectPlace]="projectPlace" [projectActions]="true" />
     <app-sidebar [projectTree]="emptyTree" [failure]="null" [loading]="true" />
     <app-sidebar [projectTree]="emptyTree" [failure]="sidebarFailure" />
   </div>

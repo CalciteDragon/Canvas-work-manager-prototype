@@ -685,10 +685,37 @@ button.link {
     font-weight: var(--font-weight-semibold);
   }
 
+  // Long names wrap (R3, deep trees): the breadcrumb carries the path, the row the whole name.
   .name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+// Q11 (a): an archived row stays muted, in a token colour that passes 4.5:1 on the sidebar in both
+// themes (never opacity, which failed axe), and says "Archived".
+.tree-link--archived.tree-link {
+  color: var(--color-text-muted);
+}
+
+// A workstream's link and its disclosure (Q4 (a)) on one row.
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  > .tree-link {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+}
+
+.tree-disclosure {
+  flex: none;
+  color: var(--color-text-muted);
+
+  &[aria-expanded='false'] app-icon {
+    rotate: -90deg;
   }
 }
 
@@ -698,6 +725,11 @@ button.link {
   // Lab's spacing density (§22) moves it with everything else.
   padding-inline-start: var(--space-4);
   list-style: none;
+}
+
+// Indentation stops growing after four levels (R3); deeper rows keep the fourth indent.
+.tree-children--flat {
+  padding-inline-start: 0;
 }
 
 @media (hover: none), (any-pointer: coarse) {
@@ -710,4 +742,48 @@ button.link {
   .tree-link[aria-current] {
     border-inline-start-color: Highlight;
   }
+
+  // Step 2's finding: once link colour goes, a borderless action reads as plain text.
+  .nav-action,
+  .tree-disclosure {
+    border-color: ButtonBorder;
+  }
+}
+
+// ── Tooltip (Slice 81, decision 3): an icon-only control's name, drawn from `data-tooltip` (the
+// `Tooltip` directive) on hover and on keyboard focus; Escape sets `data-tooltip-hidden`. Part of
+// the control's box, so the pointer can move onto it (WCAG 1.4.13). ──
+
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-start: 0;
+  z-index: var(--z-lift);
+  display: none;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--plane-lift-solid);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+[data-tooltip-end]::after {
+  inset-inline: auto 0;
+}
+
+@media (hover: hover) {
+  [data-tooltip]:hover:not([data-tooltip-hidden])::after {
+    display: block;
+  }
+}
+
+[data-tooltip]:focus-visible:not([data-tooltip-hidden])::after {
+  display: block;
 }

@@ -326,6 +326,36 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(document.activeElement).toBe(q('[data-shell-menu]'));
   });
 
+  // Slice 81, step 3 review: Escape in the drawer's pencil menu closes only the menu; the next closes the drawer.
+  it('closes only the pencil menu on an Escape inside it, with focus on the pencil', async () => {
+    const hide = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidePopover');
+    Object.defineProperty(HTMLElement.prototype, 'hidePopover', { configurable: true, value() {
+      this.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed', oldState: 'open' }));
+    } });
+    try {
+      const { q, stable, openDrawer } = await renderAt(true);
+      const context = TestBed.inject(NavigationContext);
+      const root = { id: 'project-1' as ProjectId, name: 'Personal workspace', status: 'active' as const };
+      context.publish({ projectId: root.id, status: 'ready', root, ancestors: [], current: root, pages: [], currentKind: 'home', addBlockedReason: null });
+      context.register({ openPageSettings: () => {}, openAddWorkstream: () => {} });
+      await openDrawer();
+      const pencil = q('[data-edit-project]')!;
+      pencil.focus();
+      q('[data-edit-project-menu]')!.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'open', oldState: 'closed' }));
+      await stable();
+
+      q('[data-edit-project-pages]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      await stable();
+
+      expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
+      expect(pencil.getAttribute('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(pencil);
+    } finally {
+      if (hide) Object.defineProperty(HTMLElement.prototype, 'hidePopover', hide);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    }
+  });
+
   // The development panel closes on a `document` Escape. One key must not close both.
   it('ignores an Escape that did not come from inside the drawer', async () => {
     const { q, stable, openDrawer } = await renderAt(true);

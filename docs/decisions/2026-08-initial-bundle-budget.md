@@ -167,3 +167,11 @@ at **1,149.69 kB**, 0.31 kB under the ceiling, and the cascading project archive
 other feature route stays eager" above for that one route. The build then measured **1,138.63 kB**
 initial, with the page in an 11.96 kB lazy chunk. Search, Settings and the project and dashboard
 routes stay eager. The ceiling stays at 1150 kB and the 850 kB warning keeps reporting.
+
+**Amended, 2026-11-12 — Slice 81, Settings and Search go lazy (user decision, Q12 (a), pre-approved
+2026-11-09).** The one navigation tree's interaction (step 5: the back-chevron, the pencil and its
+menu, workstream disclosures, tooltips) measured **1,155.08 kB** initial against step 4's 1,145.76 kB.
+As Q12 (a) pre-approved, `/settings` and then `/search` became `loadComponent` routes; with the step's
+own code trimmed the build measured **1,149.88 kB**. Dashboard and the two project routes stay
+eager. The ceiling stays at 1150 kB; the slice's later steps start with about 0.1 kB of room, and
+step 8's removal of the project column is where the slice gets room back.

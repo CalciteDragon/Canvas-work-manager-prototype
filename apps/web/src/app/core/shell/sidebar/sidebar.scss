@@ -97,3 +97,14 @@ hr {
     min-height: var(--size-hit-target);
   }
 }
+
+// B's action row (decision 3): the chevron at the start, the pencil at the end, on one line.
+.tree-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+// The shared chevron points down; the way up points back.
+[data-nav-up] app-icon {
+  rotate: 90deg;
+}

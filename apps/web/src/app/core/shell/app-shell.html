@@ -51,6 +51,7 @@
         [createError]="store.createError()"
         [hasArchived]="store.hasArchived()"
         [projectPlace]="navigation.place()"
+        [projectActions]="navigation.hasHandlers()"
         (createRequested)="createProject($event)"
         (retryRequested)="store.load()"
       />

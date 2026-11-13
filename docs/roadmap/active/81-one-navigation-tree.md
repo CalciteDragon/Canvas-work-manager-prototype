@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-12):** **step 4 (context and current place) done; next is step 5 (tree interaction).** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-12):** **step 5 (tree interaction) done; next is step 6 (lifts move).** Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -123,7 +123,35 @@ plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in
   leaked focused button reach `route-focus.spec.ts`, which now clears the body first.
 - *Bundle:* initial **1,145.76 kB** (+6.40 kB over step 3; the first cut was 1,147.99 before the row styles moved to one
   global copy). Under the 1,148 kB trigger, so no lazy route yet; the next web step will likely need lazy `/settings` (Q12 (a)).
-**Next: step 5** (tree interaction, tests first).
+**Step 4 is complete.** Done in step 5 (`STEP5_IMPL` implementation, docs and e2e; review fixes in `STEP5_FIX`):
+- *Action row:* the chevron ("All projects", `data-nav-up`, `.icon-button--sm`, 32/44 px) calls `showTopLevel()` and
+  focuses the current root's row. The pencil is `core/shell/sidebar/edit-project-menu.ts` (`data-edit-project`,
+  `data-edit-project-menu`, `-pages`, `-add`): `popovertarget` + `position-anchor: auto` (inline style), `menuKeys`,
+  Escape stopped, an item closes, focuses the pencil and emits it after the render; an archived root's Add is
+  `aria-disabled` with its reason. `Sidebar.projectActions` (from `navigation.hasHandlers()`) gates it, so **the pencil
+  is not drawn in the app until step 6 registers handlers**; `pageSettingsRequested`/`addWorkstreamRequested` are
+  left unbound in `AppShell` until then (the plan's "no-ops").
+- *Tooltips:* CSS from `data-tooltip` in `_controls.scss` (hover under `(hover: hover)`, `:focus-visible`);
+  the sidebar's one delegated Escape listener sets `data-tooltip-hidden` and stops that Escape; `focusout` clears it.
+- *Disclosures (Q4 (a)):* `ProjectTreeItem` has a `tree-row` (link, then "Show/Hide <name>’s workstreams" with
+  `aria-expanded`, `data-nav-disclosure`); children render only when open. The sidebar's `expanded` set: a loaded
+  place adds its ancestors; same-root choices persist; another root starts afresh. Depth cap: `tree-children--flat`
+  from depth 4. Long names wrap. Archived rows `tree-link--archived` (muted token; axe-clean in both themes).
+- *Decision 2:* View archives is a `.button--sm` link; nothing in the tree is underlined (browser-checked).
+  `.nav-action` and `.tree-disclosure` get `ButtonBorder` under forced colours.
+- *Lab and story:* the Navigation panel's `data-lab-root-level` sidebar (fixture `labProjectPlace`) and the
+  `RootLevel` story. Browser checks of the pencil run against the Lab until step 6.
+- *E2E:* `navigation-tree.spec.ts` 12 cases (underlines, chevron tooltip/size/Enter, disclosure keys, archived axe in
+  both themes, the pencil's size, row, tooltip and anchoring in the Lab, forced-colours borders, 44 px on touch).
+  Also green: `phone-layout`, `states`, `web`, `placement`, `work-navigation`.
+- *Bundle:* the first cut measured **1,155.08 kB**. Q12 (a)'s pre-approved payment taken: **`/settings` and `/search`
+  are lazy** (`app.routes.ts`, spec, `web/what.md`, `web/why.md`, the bundle decision's amendment), then the step's own
+  code trimmed (no tooltip directive, no `LiftStack` in the pencil menu, no sticky action row, no "Archived" pill). Initial
+  **1,149.88 kB**: about 0.1 kB under the ceiling, with no pre-approved payment left.
+- *Trap for step 6:* any eager addition crosses 1,150 kB. Step 6 moves the column's page-settings popover into a
+  deferred host, which should free room; measure before and after each part and stop per the standing bundle rule if a
+  build crosses. `.icon-button` is 40 px (32 px is `--sm`).
+**Next: step 6** (lifts move, tests first).
 
 ## Goal
 
@@ -1486,6 +1514,17 @@ its question.
     does not register handlers until step 6 (step 5's no-op outputs need no handler); Settings' children are always listed;
     a place change is `projectId` + current kind, and a plain link activation also resets the level (choosing the current
     page navigates nowhere).
+
+- **Step 5 (2026-11-12):** the tree's interaction (State header).
+  - *Changed content:* R1's "Icon buttons reuse the header's `.icon-button` (32 px…)" was wrong about the class: the
+    header's `.icon-button` is 40 px, so the tree uses `.icon-button--sm` (32 px, as New project) to keep the stated 32/44 px.
+    The change list's `edit-project-menu.scss` is not created (the menu uses the global lift and menu styles; its anchor is
+    an inline `position-anchor: auto`). The tooltip is CSS plus the sidebar's one Escape listener, not a directive. Q12 (a)'s
+    lazy `/settings` and `/search` are taken (State header). Step 5's "sticky scrolling" is the shell's existing layout
+    (the sidebar and `main` scroll separately); a sticky action row was tried and removed for the bundle.
+  - *Defaults taken (AGENTS.md §4):* workstreams with children start closed unless they hold the current item; a
+    live re-publish re-opens the current item's ancestors; the "Archived" word is plain text in the muted colour
+    (no pill, for the bundle); the pencil's browser checks use the Design Lab until step 6 renders it in the app.
 
 ## Outcome
 

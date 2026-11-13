@@ -62,9 +62,9 @@ so no presentational component knows a receipt (Slice 41, [decision](../../decis
 
 **Eager feature routes, lazy prototype routes.** Lazy boundaries are one more thing to
 move when a feature moves; the two `prototype/*` routes are lazy because most sessions
-never open them. Calendar, Settings › Agents and Settings › Archived projects are the three lazy
-feature routes: they are rarely opened, and loading them on demand kept the initial bundle under its
-ceiling in Slices 79 and 80 rather than raising it. `App` mounts the eager development-panel shell globally; its controls
+never open them. Calendar, Search, Settings, Settings › Agents and Settings › Archived projects are
+the five lazy feature routes: they are opened less than the dashboard and the projects, and loading
+them on demand kept the initial bundle under its ceiling in Slices 79, 80 and 81 rather than raising it. `App` mounts the eager development-panel shell globally; its controls
 load only when it opens ([decision](../../decisions/2026-08-initial-bundle-budget.md)).
 
 **Tokens structured around the knobs.** Each theme block holds only base literals and

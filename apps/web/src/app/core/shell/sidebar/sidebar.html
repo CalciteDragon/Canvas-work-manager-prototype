@@ -2,11 +2,26 @@
   @if (level() === 'root' && rootLevel(); as level) {
     <!-- B's root level (Slice 81): the root's row opens its first page (Q5 (d)), then its enabled
          pages (Q16 (b)), then its workstream hierarchy. Its own data attributes, not the column's. -->
+    <!-- B's one action row (decision 3): the chevron up a level at the start, the pencil at the end. -->
+    <div class="tree-actions" data-nav-actions>
+      <button type="button" class="icon-button icon-button--sm nav-action" data-nav-up aria-label="All projects" data-tooltip="All projects" (click)="goUp()">
+        <app-icon name="chevron" />
+      </button>
+      @if (projectActions()) {
+        <app-edit-project-menu
+          [rootName]="level.root.name"
+          [addBlockedReason]="addBlockedReason()"
+          (pageSettingsRequested)="pageSettingsRequested.emit($event)"
+          (addWorkstreamRequested)="addWorkstreamRequested.emit($event)"
+        />
+      }
+    </div>
     <ul class="group tree" data-nav-root-level>
       <li>
         <a
           class="tree-link"
           data-nav-root
+          [class.tree-link--archived]="level.root.status === 'archived'"
           [routerLink]="['/projects', level.root.id]"
           [attr.aria-current]="level.rootCurrent ? 'page' : null"
         >
@@ -34,7 +49,7 @@
         @if (level.work.length > 0) {
           <ul class="tree-children">
             @for (row of level.work; track row.id) {
-              <li app-project-tree-item [row]="row" [currentId]="level.currentWorkId"></li>
+              <li app-project-tree-item [row]="row" [currentId]="level.currentWorkId" [expanded]="expanded()" (toggled)="toggleWork($event)"></li>
             }
           </ul>
         }
@@ -55,7 +70,7 @@
         <span id="projects-label" class="group-label" data-projects-label data-recovery-focus tabindex="-1">Projects</span>
         <button
           type="button"
-          class="icon-button icon-button--sm group__new"
+          class="icon-button icon-button--sm nav-action group__new"
           data-new-project
           aria-label="New project"
           [attr.aria-expanded]="createOpen()"
@@ -114,7 +129,7 @@
           <p class="notice state-message state-message--empty" data-projects-empty>
             {{ hasArchived() ? 'No active projects.' : 'No projects yet' }}
             @if (hasArchived()) {
-              <a class="link" data-projects-archived-link routerLink="/settings/archived-projects">View archives</a>
+              <a class="button button--sm nav-action" data-projects-archived-link routerLink="/settings/archived-projects">View archives</a>
             }
           </p>
         } @else if (failure() === null && topRoots().length > 0) {
@@ -125,6 +140,7 @@
                   class="tree-link"
                   data-project
                   [routerLink]="['/projects', root.id]"
+                  [class.tree-link--archived]="root.archived"
                   [attr.aria-current]="root.id === locationRootId() ? 'location' : null"
                 >
                   @if (root.icon) {

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import type { Project, ProjectId } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Router, provideRouter } from '@angular/router';
 import { shellTestProviders } from '../../gateway/testing/shell-test-providers';
 import type { Failure } from '../../../shared/feedback/failure';
@@ -141,8 +141,8 @@ describe('Sidebar', () => {
     const link = empty.querySelector<HTMLAnchorElement>('a')!;
     expect(link.textContent?.trim()).toBe('View archives');
     expect(link.getAttribute('href')).toBe('/settings/archived-projects');
-    // The link primitive's 24 px target; the sidebar grows it to 44 px under a coarse pointer.
-    expect([link.classList.contains('link'), link.hasAttribute('data-projects-archived-link')]).toEqual([true, true]);
+    // Slice 81, decision 2: a themed small button-link, not an underlined content link; the sidebar grows it to 44 px under a coarse pointer.
+    expect([link.classList.contains('button'), link.hasAttribute('data-projects-archived-link')]).toEqual([true, true]);
   });
 
   it('says neither while loading or after a failure, with only archived projects', async () => {
@@ -448,8 +448,8 @@ describe('Sidebar — one navigation tree (Slice 81, B)', () => {
       ['Todos', '/projects/project-renovation/pages/todos'],
       ['Reflections', '/projects/project-renovation/pages/reflections'],
     ]);
-    expect(textOf(element, 'a[data-nav-work]')).toEqual(['Kitchen', 'Cabinets', 'Garden']);
-    expect(element.querySelector('[data-nav-work-id="project-cabinets"]')?.parentElement?.closest('[data-nav-work-id="project-kitchen"]')).not.toBeNull();
+    // Step 5 (Q4 (a)): a workstream's children are behind its disclosure, closed unless they hold the current item.
+    expect(textOf(element, 'a[data-nav-work]')).toEqual(['Kitchen', 'Garden']);
     for (const list of element.querySelectorAll('ul')) expect([...list.children].every((child) => child.tagName === 'LI')).toBe(true);
   });
 
@@ -587,5 +587,215 @@ describe('Sidebar — one navigation tree (Slice 81, B)', () => {
     expect(marked[0]!.classList).toContain('tree-link');
     expect(marked[0]!.getAttribute('style')).toBeNull();
     expect(element.querySelectorAll('a:not(.tree-link):not([data-projects-archived-link])')).toHaveLength(0);
+  });
+});
+
+/** A chain of `depth` workstreams under Home renovation, each the only child of the one before. */
+const chain = (depth: number): ProjectTreeNode[] => {
+  let nodes: ProjectTreeNode[] = [];
+  for (let level = depth; level >= 1; level--) nodes = [node(`project-level-${level}`, `Level ${level}`, nodes)];
+  return [node('project-renovation', 'Home renovation', nodes)];
+};
+
+const CABINETS_PLACE = (): ProjectPlace => place({
+  projectId: 'project-cabinets' as ProjectId, current: { id: 'project-cabinets' as ProjectId, name: 'Cabinets', status: 'active' }, ancestors: [HOME_RENOVATION, KITCHEN], currentKind: null,
+});
+
+/** Attached, so focus behaves as in a page. */
+const renderAttached = async (url: string, projectPlace: ProjectPlace | null, options: { projectTree?: ProjectTreeNode[]; projectActions?: boolean } = {}) => {
+  const rendered = await renderAt(url, projectPlace, options.projectTree);
+  if (options.projectActions !== undefined) rendered.fixture.componentRef.setInput('projectActions', options.projectActions);
+  document.body.appendChild(rendered.element);
+  await rendered.fixture.whenStable();
+  const settle = async () => { await rendered.fixture.whenStable(); await rendered.fixture.whenStable(); };
+  const disclosure = (name: string) => [...rendered.element.querySelectorAll<HTMLButtonElement>('button[data-nav-disclosure]')].find((button) => button.getAttribute('aria-label')?.endsWith(`${name}’s workstreams`));
+  return { ...rendered, settle, disclosure };
+};
+
+describe('Sidebar — tree interaction (Slice 81, step 5)', () => {
+  afterEach(() => document.body.replaceChildren());
+
+  it('puts a chevron named All projects at the start of the root level’s action row, with a tooltip from its name', async () => {
+    const { element } = await renderAttached('/projects/project-renovation', place());
+    const row = element.querySelector('[data-nav-actions]')!;
+    const chevron = row.querySelector<HTMLButtonElement>('button[data-nav-up]')!;
+
+    expect(row.firstElementChild).toBe(chevron);
+    expect(chevron.getAttribute('aria-label')).toBe('All projects');
+    expect(chevron.classList).toContain('icon-button');
+    expect(chevron.getAttribute('data-tooltip')).toBe('All projects');
+    expect(chevron.hasAttribute('title')).toBe(false);
+  });
+
+  it('has no action row outside a project', async () => {
+    const { element } = await renderAttached('/calendar', null, { projectActions: true });
+
+    expect(element.querySelector('[data-nav-actions], [data-nav-up], [data-edit-project]')).toBeNull();
+  });
+
+  it('goes up a level from the chevron without navigating, with focus on the current root’s row', async () => {
+    const { element, settle, current } = await renderAttached('/projects/project-cabinets', CABINETS_PLACE());
+    const url = TestBed.inject(Router).url;
+
+    element.querySelector<HTMLButtonElement>('[data-nav-up]')!.click();
+    await settle();
+
+    expect(TestBed.inject(Router).url).toBe(url);
+    expect(current()).toEqual([['Home renovation', 'location']]);
+    expect(document.activeElement).toBe(element.querySelector('[data-project-id="project-renovation"] a'));
+  });
+
+  it('draws the pencil only while a project shell listens, and names the root in its menu', async () => {
+    const without = await renderAttached('/projects/project-renovation', place());
+    expect(without.element.querySelector('[data-edit-project]')).toBeNull();
+    without.element.remove();
+    TestBed.resetTestingModule();
+
+    const { element } = await renderAttached('/projects/project-renovation', place(), { projectActions: true });
+    const row = element.querySelector('[data-nav-actions]')!;
+
+    expect(row.lastElementChild?.querySelector('[data-edit-project]')).not.toBeNull();
+    expect(element.querySelector('[data-edit-project-pages]')?.textContent?.trim()).toBe('Pages of Home renovation…');
+    const add = element.querySelector<HTMLElement>('[data-edit-project-add]')!;
+    expect(element.querySelector(`#${add.getAttribute('aria-describedby')}`)?.textContent?.trim()).toBe('in Home renovation');
+  });
+
+  it('hands an archived root’s reason to its unavailable Add workstream', async () => {
+    const reason = 'Home renovation is archived. Restore it to add workstreams.';
+    const { element } = await renderAttached('/projects/project-renovation', place({ addBlockedReason: reason }), { projectActions: true });
+    const add = element.querySelector<HTMLElement>('[data-edit-project-add]')!;
+
+    expect(add.getAttribute('aria-disabled')).toBe('true');
+    expect(element.querySelector(`#${add.getAttribute('aria-describedby')}`)?.textContent?.trim()).toBe(reason);
+  });
+
+  it('passes the pencil’s two requests on, with the pencil', async () => {
+    const { fixture, element, settle } = await renderAttached('/projects/project-renovation', place(), { projectActions: true });
+    const pages: HTMLElement[] = [];
+    const add: HTMLElement[] = [];
+    fixture.componentInstance.pageSettingsRequested.subscribe((source) => pages.push(source));
+    fixture.componentInstance.addWorkstreamRequested.subscribe((source) => add.push(source));
+
+    element.querySelector<HTMLElement>('[data-edit-project-pages]')!.click();
+    element.querySelector<HTMLElement>('[data-edit-project-add]')!.click();
+    await settle();
+
+    const pencil = element.querySelector('[data-edit-project]');
+    expect(pages).toEqual([pencil]);
+    expect(add).toEqual([pencil]);
+  });
+
+  // WCAG 1.4.13: a tooltip can be dismissed without moving focus. Inside the drawer, which closes
+  // on any Escape that reaches it, the first Escape hides the tooltip and the second closes it.
+  it.each([['the chevron', '[data-nav-up]'], ['the pencil', '[data-edit-project]']])('hides %s’s showing tooltip on Escape, keeping that Escape from a parent; a second reaches it', async (_name, selector) => {
+    const { element, settle } = await renderAttached('/projects/project-renovation', place(), { projectActions: true });
+    const parentEscape = vi.fn();
+    document.body.addEventListener('keydown', parentEscape);
+    const control = element.querySelector<HTMLElement>(selector)!;
+    const escape = () => control.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    control.focus();
+
+    escape();
+    expect(control.hasAttribute('data-tooltip-hidden')).toBe(true);
+    expect(parentEscape).not.toHaveBeenCalled();
+    escape();
+    expect(parentEscape).toHaveBeenCalledOnce();
+
+    control.blur();
+    await settle();
+    expect(control.hasAttribute('data-tooltip-hidden')).toBe(false);
+    document.body.removeEventListener('keydown', parentEscape);
+  });
+
+  // Q4 (a): disclosure links, every control in the Tab order, in the tree's reading order.
+  it('orders Tab as chevron, pencil, root, pages, then each workstream and its expand button', async () => {
+    const { element } = await renderAttached('/projects/project-cabinets', CABINETS_PLACE(), { projectActions: true });
+    const focusable = [...element.querySelectorAll<HTMLElement>('a[href], button')].filter((item) => item.tabIndex >= 0 && item.closest('[popover]') === null);
+
+    expect(focusable.map((item) => item.getAttribute('aria-label') ?? wordsOf(item))).toEqual([
+      'All projects', 'Edit project', 'Home renovation', 'Todos', 'Reflections',
+      'Kitchen', 'Hide Kitchen’s workstreams', 'Cabinets', 'Garden',
+    ]);
+  });
+
+  it('gives only a workstream with children a disclosure, closed unless it holds the current item', async () => {
+    const { element, disclosure, settle } = await renderAttached('/projects/project-renovation', place());
+    const kitchen = disclosure('Kitchen')!;
+
+    expect(element.querySelectorAll('button[data-nav-disclosure]')).toHaveLength(1);
+    expect(kitchen.getAttribute('aria-expanded')).toBe('false');
+    expect(kitchen.getAttribute('aria-label')).toBe('Show Kitchen’s workstreams');
+    expect(element.querySelector('[data-nav-work-id="project-cabinets"]')).toBeNull();
+
+    kitchen.click();
+    await settle();
+
+    expect(kitchen.getAttribute('aria-expanded')).toBe('true');
+    expect(kitchen.getAttribute('aria-label')).toBe('Hide Kitchen’s workstreams');
+    expect(element.querySelector('[data-nav-work-id="project-kitchen"] [data-nav-work-id="project-cabinets"]')).not.toBeNull();
+  });
+
+  it('expands the current item’s ancestors', async () => {
+    const { element, disclosure } = await renderAttached('/projects/project-cabinets', CABINETS_PLACE());
+
+    expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('true');
+    expect(element.querySelector('[data-nav-work-id="project-cabinets"] a')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('keeps a workstream opened by hand open across a place change in the same root', async () => {
+    const { fixture, disclosure, settle } = await renderAttached('/projects/project-renovation', place());
+    disclosure('Kitchen')!.click();
+    await settle();
+
+    await TestBed.inject(Router).navigateByUrl('/projects/project-renovation/pages/todos');
+    fixture.componentRef.setInput('projectPlace', place({ currentKind: 'todos' }));
+    await settle();
+
+    expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('indents depth 6 as depth 4, and carries the whole path', async () => {
+    const deepest = { id: 'project-level-6' as ProjectId, name: 'Level 6', status: 'active' as const };
+    const ancestors = [1, 2, 3, 4, 5].map((level) => ({ id: `project-level-${level}` as ProjectId, name: `Level ${level}`, status: 'active' as const }));
+    const { element } = await renderAttached('/projects/project-level-6', place({ projectId: deepest.id, current: deepest, ancestors: [HOME_RENOVATION, ...ancestors], currentKind: null }), { projectTree: chain(6) });
+    const indents = (id: string) => {
+      let count = 0;
+      for (let at = element.querySelector(`[data-nav-work-id="${id}"]`)?.parentElement ?? null; at !== null; at = at.parentElement) {
+        if (at.matches('ul.tree-children:not(.tree-children--flat)')) count++;
+      }
+      return count;
+    };
+
+    expect(element.querySelector('[data-nav-work-id="project-level-6"] a')?.getAttribute('aria-current')).toBe('page');
+    expect(indents('project-level-4')).toBe(4);
+    expect(indents('project-level-5')).toBe(4);
+    expect(indents('project-level-6')).toBe(4);
+  });
+
+  // Q11 (a): an archived row is muted by a contrast-passing token colour (the browser check
+  // measures it), not by opacity.
+  it('marks archived rows with the archived row class and no inline opacity', async () => {
+    const { element } = await renderAttached('/projects/project-shelving', place({ projectId: LEGACY_SHELVING.id, current: LEGACY_SHELVING, ancestors: [HOME_RENOVATION, LEGACY_ATTIC], currentKind: null }));
+    const attic = element.querySelector<HTMLElement>('[data-nav-work-id="project-attic"] > .tree-row > a')!;
+
+    expect(attic.classList).toContain('tree-link--archived');
+    expect(attic.getAttribute('style')).toBeNull();
+  });
+
+  it('puts no heading in the tree, at either level', async () => {
+    const inside = await renderAttached('/projects/project-renovation', place(), { projectActions: true });
+    expect(inside.element.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]')).toBeNull();
+    inside.fixture.componentInstance.showTopLevel();
+    await inside.settle();
+    expect(inside.element.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]')).toBeNull();
+  });
+
+  // Decision 2: no underlined blue link in the navigation. View archives is a themed button-link.
+  it('draws View archives as a themed control, not a content link', async () => {
+    const { element } = await render({ projectTree: [], hasArchived: true });
+    const link = element.querySelector('[data-projects-archived-link]')!;
+
+    expect(link.classList).toContain('button');
+    expect(link.classList).not.toContain('link');
   });
 });

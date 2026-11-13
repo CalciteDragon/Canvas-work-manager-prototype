@@ -56,6 +56,18 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    it calls anything not yet `missing` or failed "loading"; reading `loading()` alone published
    `missing` for a frame on every same-root move. `apps/e2e/navigation-tree.spec.ts` checks the
    marker's bar and weight in a browser, both themes and forced colours.
+   The root level opens with an action row: the chevron calls `showTopLevel()` and focuses the
+   current root's row; the pencil (`EditProjectMenu`) is drawn only when `AppShell` passes
+   `navigation.hasHandlers()` as `projectActions`, and its two requests are the sidebar's
+   `pageSettingsRequested` / `addWorkstreamRequested` outputs. Disclosure state is the sidebar's
+   `expanded` set: a loaded place adds its ancestors, another root starts afresh. Tooltips are CSS
+   from `data-tooltip` (`_controls.scss`); the sidebar's one delegated Escape listener hides a
+   showing one and stops that Escape. Traps: `.icon-button` is 40 px, the tree's 32 px is
+   `.icon-button--sm`; a `popovertarget` menu without `position-anchor: auto` falls to the viewport
+   corner (step 1's probe); the initial bundle is at its ceiling, so measure every addition.
+   `navigation-tree.spec.ts` checks underlines, tooltips, sizes (32 and 44 px), the archived
+   colour by axe, and forced-colours borders; the pencil's checks use the Design Lab's
+   root-level specimen until step 6 registers handlers.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
    (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
@@ -99,6 +111,7 @@ returns feedback to that same toast and shares the header's transition guard.
 | `PrototypeLiveUpdates` | injectable | `EventSource` client with reconnect | [API](../../../api/injectables/PrototypeLiveUpdates.html) |
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |
 | `ThemeService` | injectable | `data-theme` | [API](../../../api/injectables/ThemeService.html) |
+| `EditProjectMenu` | component | The tree's pencil menu (Slice 81) | [API](../../../api/components/EditProjectMenu.html) |
 | `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer; `ProjectTreeItem`'s host is its `li` (`li[app-project-tree-item]`), so each list holds list items directly | [API](../../../api/components/AppShell.html) |
 | `SHELL_NARROW_QUERY` | constant | The drawer query, built from the shared breakpoint checked against Sass | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
 | `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and project navigation thresholds, equal to the CSS-free Sass partial by token-lint check | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |

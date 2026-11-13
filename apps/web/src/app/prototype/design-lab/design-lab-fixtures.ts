@@ -9,10 +9,12 @@ import {
   type DashboardResult,
   type DashboardWidget,
   type Project,
+  type ProjectId,
   type ProjectSection,
   type SectionConfig,
   type Task,
 } from '@cwm/contracts';
+import type { ProjectPlace } from '../../core/shell/navigation-context';
 import type { ProjectTreeNode } from '../../core/shell/shell-store';
 import type { Failure } from '../../shared/feedback/failure';
 import { FailureMessage } from '../../shared/feedback/failure-message';
@@ -134,6 +136,20 @@ export const labProjectTree = (): ProjectTreeNode[] => [
     children: [{ project: labProject({ id: 'project-lab-child', name: 'Copy review', icon: '📝' }), children: [] }],
   },
 ];
+
+/**
+ * The navigation tree's root level (Slice 81): Website launch with a workstream, its child current,
+ * an archived sibling drawn in while current would be; the pencil shows (`projectActions`).
+ */
+export const labProjectPlace = (): ProjectPlace => {
+  const root = { id: 'project-lab' as ProjectId, name: 'Website launch', status: 'active' as const };
+  const child = { id: 'project-lab-child' as ProjectId, name: 'Copy review', status: 'active' as const };
+  const current = { id: 'project-lab-legal' as ProjectId, name: 'Legal sign-off', status: 'archived' as const };
+  return {
+    projectId: current.id, status: 'ready', root, ancestors: [root, child], current,
+    pages: [{ kind: 'todos', label: 'Todos' }, { kind: 'reflections', label: 'Reflections' }], currentKind: null, addBlockedReason: null,
+  };
+};
 
 export const labDashboard = (): DashboardResult => ({
   generatedAt: AT,

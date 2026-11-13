@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectId } from '@cwm/contracts';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -8,6 +8,10 @@ import type { WorkRow } from './tree-model';
  * One workstream in the navigation tree's root level, and the work under it (Slice 81): the one
  * row component for every workstream. Recursive rather than fixed-depth: §23 puts no limit on
  * the hierarchy and the `nested-projects` seed is already three levels deep.
+ *
+ * A row with children has a disclosure button after its link (Q4 (a)): both in the Tab order, the
+ * button named "Show/Hide <name>’s workstreams" with `aria-expanded`. Which rows are open is the
+ * sidebar's state, handed down as `expanded`; a toggle bubbles up as `toggled`.
  *
  * Its data attributes are the tree's own (`data-nav-work`), so they never collide with the
  * project column's (`data-work-project`) while both exist. Unstyled: the row is the global
@@ -20,24 +24,41 @@ import type { WorkRow } from './tree-model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, Icon],
   template: `
-    <a
-      class="tree-link"
-      data-nav-work
-      [routerLink]="['/projects', row().id]"
-      [attr.aria-current]="row().id === currentId() ? 'page' : null"
-    >
-      <span aria-hidden="true">{{ row().icon ?? '🧩' }}</span>
-      <span class="name">{{ row().name }}</span>
-      @if (row().archived) {
-        <!-- The leading space keeps the name "Legacy attic Archived", not one word. --><span> Archived</span>
-      } @else if (row().completed) {
-        <span role="img" aria-label="Completed"><app-icon name="check" /></span>
+    <div class="tree-row">
+      <a
+        class="tree-link"
+        data-nav-work
+        [class.tree-link--archived]="row().archived"
+        [routerLink]="['/projects', row().id]"
+        [attr.aria-current]="row().id === currentId() ? 'page' : null"
+      >
+        <span aria-hidden="true">{{ row().icon ?? '🧩' }}</span>
+        <span class="name">{{ row().name }}</span>
+        @if (row().archived) {
+          <!-- The leading space keeps the name "Legacy attic Archived", not one word. --><span> Archived</span>
+        } @else if (row().completed) {
+          <span role="img" aria-label="Completed"><app-icon name="check" /></span>
+        }
+      </a>
+      @if (row().children.length > 0) {
+        @let open = expanded().has(row().id);
+        <button
+          type="button"
+          class="icon-button icon-button--sm tree-disclosure"
+          data-nav-disclosure
+          [attr.aria-expanded]="open"
+          [attr.aria-label]="(open ? 'Hide ' : 'Show ') + row().name + '’s workstreams'"
+          (click)="toggled.emit(row().id)"
+        >
+          <app-icon name="chevron" />
+        </button>
       }
-    </a>
-    @if (row().children.length > 0) {
-      <ul class="tree-children">
+    </div>
+    @if (row().children.length > 0 && expanded().has(row().id)) {
+      <!-- Indentation stops growing after four levels; deeper rows keep it (R3, deep trees). -->
+      <ul class="tree-children" [class.tree-children--flat]="depth() >= 4">
         @for (child of row().children; track child.id) {
-          <li app-project-tree-item [row]="child" [currentId]="currentId()"></li>
+          <li app-project-tree-item [row]="child" [currentId]="currentId()" [expanded]="expanded()" [depth]="depth() + 1" (toggled)="toggled.emit($event)"></li>
         }
       </ul>
     }
@@ -47,4 +68,10 @@ export class ProjectTreeItem {
   readonly row = input.required<WorkRow>();
   /** The workstream that is the current item, if any. */
   readonly currentId = input<ProjectId | null>(null);
+  /** The workstreams whose children are shown. */
+  readonly expanded = input<ReadonlySet<ProjectId>>(new Set());
+  /** 1 for a workstream directly under the root. */
+  readonly depth = input(1);
+  /** The person pressed this row's disclosure, or a descendant's. */
+  readonly toggled = output<ProjectId>();
 }

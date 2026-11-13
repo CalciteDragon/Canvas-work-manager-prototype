@@ -1,8 +1,6 @@
 import { Routes } from '@angular/router';
 import { DashboardPage } from './features/dashboard/dashboard-page';
 import { ProjectWorkspaceShell } from './features/projects/project-workspace-shell';
-import { SearchPage } from './features/search/search-page';
-import { SettingsPage } from './features/settings/settings-page';
 import { NotFoundPage } from './shared/components/placeholder-page/not-found-page';
 
 /**
@@ -21,7 +19,8 @@ import { NotFoundPage } from './shared/components/placeholder-page/not-found-pag
  * and loading them on demand holds the initial bundle under its 1,150 kB ceiling
  * (`docs/decisions/2026-08-initial-bundle-budget.md`) rather than raising it. **Settings ›
  * Archived projects joined them** (Slice 80, Q1 (a)), a recovery route opened rarely, to pay for
- * the cascading archive. Every other feature route stays eager.
+ * the cascading archive. **Settings and Search followed** (Slice 81, Q12 (a), pre-approved), to pay
+ * for the one navigation tree's interaction. Every other feature route stays eager.
  */
 export const routes: Routes = [
   // `pathMatch: 'full'` is not decoration — without it this redirect swallows every URL.
@@ -38,8 +37,8 @@ export const routes: Routes = [
     path: 'calendar',
     loadComponent: () => import('./features/calendar/calendar-page').then((m) => m.CalendarPage),
   },
-  { path: 'search', component: SearchPage },
-  { path: 'settings', component: SettingsPage },
+  { path: 'search', loadComponent: () => import('./features/search/search-page').then((m) => m.SearchPage) },
+  { path: 'settings', loadComponent: () => import('./features/settings/settings-page').then((m) => m.SettingsPage) },
   {
     path: 'settings/agents',
     loadComponent: () => import('./features/settings/agents/agent-connections-page').then((m) => m.AgentConnectionsPage),

@@ -10,6 +10,7 @@ import { TaskRow } from '../../../features/tasks/task-row';
 import {
   labActivity,
   labDashboard,
+  labProjectPlace,
   labProjectTree,
   labSection,
   labTask,
@@ -90,6 +91,7 @@ export class LivePanels {
   protected readonly dashboard = labDashboard();
 
   protected readonly projectTree = labProjectTree();
+  protected readonly projectPlace = labProjectPlace();
   protected readonly emptyTree = [];
   protected readonly sidebarFailure: Failure = readFailure({ code: 'unreachable', message: 'the prototype host is not running' }, 'your projects');
   protected readonly activity = labActivity();

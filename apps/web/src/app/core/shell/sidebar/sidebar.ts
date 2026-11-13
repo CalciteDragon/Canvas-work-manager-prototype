@@ -15,11 +15,13 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import type { ProjectId } from '@cwm/contracts';
 import type { ProjectPlace } from '../navigation-context';
 import type { ProjectTreeNode } from '../shell-store';
 import { Icon } from '../../../shared/components/icon/icon';
 import type { Failure } from '../../../shared/feedback/failure';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
+import { EditProjectMenu } from './edit-project-menu';
 import { ProjectTreeItem } from './project-tree-item';
 import { rootLevelOf } from './tree-model';
 
@@ -28,11 +30,20 @@ import { rootLevelOf } from './tree-model';
  * inputs and injects neither the store nor the gateway, which is what keeps §19's
  * `Page → Store → Gateway` chain from quietly becoming `Component → Gateway`. §81's
  * "create project" is an output for the same reason — `AppShell` asks `ShellStore`.
+ *
+ * **Tooltips** (Slice 81, decision 3): an icon-only control carries its name in `data-tooltip`,
+ * which `_controls.scss` draws on hover and keyboard focus (no `title`, so the name is not
+ * announced twice). WCAG 1.4.13: the label is part of the control's box, so the pointer can move
+ * onto it, and Escape on a control whose label shows hides it (`data-tooltip-hidden`) without
+ * moving focus, keeping that Escape from the phone drawer. Escape only reaches a focused control,
+ * so the dismissal lasts until focus leaves it. One
+ * delegated listener here covers the chevron and the pencil.
  */
 @Component({
   selector: 'app-sidebar',
+  host: { '(keydown.escape)': 'hideTooltip($event)', '(focusout)': 'resetTooltip($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectTreeItem, RouterLink, RouterLinkActive, Icon, FailureMessage],
+  imports: [ProjectTreeItem, EditProjectMenu, RouterLink, RouterLinkActive, Icon, FailureMessage],
   styleUrl: './sidebar.scss',
   templateUrl: './sidebar.html',
 })
@@ -62,6 +73,19 @@ export class Sidebar {
   readonly createRequested = output<string>();
   /** Try again on a failed read; `AppShell` asks `ShellStore` to read again. */
   readonly retryRequested = output<void>();
+  /**
+   * A project shell has registered its handlers (`NavigationContext.hasHandlers`). Without one
+   * the pencil is not drawn: a control that can do nothing is absent (R2).
+   */
+  readonly projectActions = input(false);
+  /**
+   * The pencil's "Pages of <root>…", with the pencil as the lift's anchor and focus return.
+   * `AppShell` leaves both requests unbound until step 6 registers the handlers that answer them;
+   * until then no handler means no pencil.
+   */
+  readonly pageSettingsRequested = output<HTMLElement>();
+  /** The pencil's "Add workstream", with the pencil. */
+  readonly addWorkstreamRequested = output<HTMLElement>();
 
   /**
    * B's level is view state, not a route (Slice 81): set by `showTopLevel()`, reset by every
@@ -83,6 +107,13 @@ export class Sidebar {
     if (current?.status === 'archived' && !roots.some(({ id }) => id === current.id)) roots.push({ ...current, archived: true });
     return roots;
   });
+  /**
+   * Workstream disclosures (Q4 (a)): which rows are open. A place change opens the current item's
+   * ancestors and keeps the person's own choices in the same root; another root starts afresh.
+   */
+  protected readonly expanded = signal<ReadonlySet<ProjectId>>(new Set());
+  private expandedRootId: ProjectId | null = null;
+  protected readonly addBlockedReason = computed(() => this.projectPlace()?.addBlockedReason ?? null);
   protected readonly createOpen = signal(false);
   /** Survives the form closing, so a failed creation can hand the name back. */
   protected readonly draftName = signal('');
@@ -91,10 +122,35 @@ export class Sidebar {
 
   private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('newName');
   private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   /** The top level, without navigating (B's back-chevron, Slice 81). */
   showTopLevel(): void {
     this.upState.set(true);
+  }
+
+  /** The chevron: the top level, with focus kept in the tree on the current root's row there. */
+  protected goUp(): void {
+    const rootId = this.rootLevel()?.root.id;
+    this.showTopLevel();
+    afterNextRender(() => this.host.querySelector<HTMLElement>(`[data-project-id="${rootId}"] a`)?.focus(), { injector: this.injector });
+  }
+
+  protected hideTooltip(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (!target.hasAttribute?.('data-tooltip') || target.hasAttribute('data-tooltip-hidden')) return;
+    target.setAttribute('data-tooltip-hidden', '');
+    event.stopPropagation();
+  }
+
+  protected resetTooltip(event: Event): void {
+    (event.target as HTMLElement).removeAttribute?.('data-tooltip-hidden');
+  }
+
+  protected toggleWork(id: ProjectId): void {
+    const open = new Set(this.expanded());
+    if (!open.delete(id)) open.add(id);
+    this.expanded.set(open);
   }
 
   /** Opening the form moves focus into its name (slice 72), after the render that creates it. */
@@ -125,7 +181,18 @@ export class Sidebar {
       this.placeKey();
       untracked(() => this.upState.set(false));
     });
-    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    // A loaded place opens its ancestors: the person's own choices stay within a root.
+    effect(() => {
+      const place = this.projectPlace();
+      const rootId = this.rootLevel()?.root.id ?? null;
+      untracked(() => {
+        const open = new Set(rootId === this.expandedRootId ? this.expanded() : []);
+        for (const { id } of place?.status === 'ready' ? place.ancestors : []) open.add(id);
+        this.expandedRootId = rootId;
+        this.expanded.set(open);
+      });
+    });
+    const host = this.host;
     const onClick = (event: MouseEvent): void => {
       // A plain primary activation only: a modified or middle click opens elsewhere and stays here.
       if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;

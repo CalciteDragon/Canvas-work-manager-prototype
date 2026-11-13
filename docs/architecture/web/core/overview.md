@@ -45,8 +45,9 @@ can confirm a write and undo it without importing another feature's store.
 - `ThemeService`: the sole `data-theme` owner; follows the device live, with guarded browser persistence for explicit choices and Match device to clear them. An app initializer constructs it on every route.
 - `RouteFocus`: a root initializer-backed service that recovers body focus after trusted-input
   navigation, waits for a page/header landing heading, and falls back to main after two seconds.
-- `AppShell`, `ShellStore`, `Sidebar`, `ProjectTreeItem`, `TopBar`: §23's layout and the
-  navigation tree; `ShellStore.createProject` is where a root is created. The tree's project
+- `AppShell`, `ShellStore`, `Sidebar`, `ProjectTreeItem`, `EditProjectMenu`, `TopBar`: §23's layout and the
+  navigation tree, with its action row (the back-chevron and the pencil's "Edit project" menu) and
+  workstream disclosures; `ShellStore.createProject` is where a root is created. The tree's project
   place comes from `NavigationContext`, which the project route publishes (Slice 81,
   [decision](../../../decisions/2026-11-navigation-reads-project-place-from-a-context.md)). Below 48rem the same
   sidebar instance becomes a modal navigation drawer behind the top bar's **Menu**, whose

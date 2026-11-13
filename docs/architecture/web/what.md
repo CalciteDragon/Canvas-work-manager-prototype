@@ -63,8 +63,8 @@ C4Component
 | `/projects/:projectId/pages/:pageKind` | `ProjectWorkspaceShell` | Declared before the shorter route or it would never match |
 | `/projects/:projectId` | `ProjectWorkspaceShell` | A root opens on Home; a subproject on its work canvas |
 | `/calendar` | `CalendarPage` (lazy) | Placeholder, Slice 18; lazy since Slice 79 (Q8 (a)) |
-| `/search` | `SearchPage` | Slice 21 |
-| `/settings` | `SettingsPage` | |
+| `/search` | `SearchPage` (lazy) | Slice 21; lazy since Slice 81 (Q12 (a)) |
+| `/settings` | `SettingsPage` (lazy) | Lazy since Slice 81 (Q12 (a)) |
 | `/settings/agents` | `AgentConnectionsPage` (lazy) | §53; lazy since Slice 79 (Q8 (a)) |
 | `/settings/archived-projects` | `ArchivedProjectsPage` (lazy) | Workspace recovery, independent of optional Archive pages; lazy since Slice 80 (Q1 (a)) |
 | `/prototype/design` | `DesignLabPage` (lazy) | §67 |

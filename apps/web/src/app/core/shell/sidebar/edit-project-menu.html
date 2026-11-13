@@ -1,0 +1,37 @@
+<button
+  type="button"
+  class="icon-button icon-button--sm nav-action"
+  data-edit-project
+  aria-label="Edit project"
+  aria-haspopup="menu"
+  data-tooltip="Edit project"
+  data-tooltip-end
+  [attr.popovertarget]="menuId"
+  [attr.aria-expanded]="open()"
+>
+  <app-icon name="rename" />
+</button>
+<div
+  class="lift lift--popover menu"
+  data-edit-project-menu
+  popover="auto"
+  role="menu"
+  aria-label="Edit project"
+  style="position-anchor: auto"
+  [id]="menuId"
+  (toggle)="toggled($event)"
+  (keydown)="keydown($event)"
+>
+  <button type="button" class="menu__item" role="menuitem" tabindex="-1" data-edit-project-pages (click)="choose(pageSettingsRequested)">Pages of {{ rootName() }}…</button>
+  <button
+    type="button"
+    class="menu__item"
+    role="menuitem"
+    tabindex="-1"
+    data-edit-project-add
+    [attr.aria-disabled]="addBlockedReason() !== null ? 'true' : null"
+    [attr.aria-describedby]="menuId + '-add'"
+    (click)="choose(addWorkstreamRequested, addBlockedReason() !== null)"
+  >Add workstream</button>
+  <span hidden [id]="menuId + '-add'">{{ addBlockedReason() ?? 'in ' + rootName() }}</span>
+</div>

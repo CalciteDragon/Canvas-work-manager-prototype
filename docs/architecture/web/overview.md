@@ -16,7 +16,7 @@ properties, and it depends on the host **only** through gateway interfaces and o
 **Code:** `apps/web/src/app` · **Styles:** `apps/web/src/styles/_tokens.scss`,
 `_base.scss`, `_controls.scss`, `_lifts.scss` · **Tests:** `*.spec.ts` beside each file, run by `ng test` (vitest under
 `@angular/build:unit-test`); `*.stories.ts` for Storybook · **Package:** `web` ·
-**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`. Within the app, `core` imports only `shared/components/icon` and `shared/feedback` from outside itself.
+**Depends on:** `@angular/*`, `@angular/cdk`, `@cwm/contracts`, `zod`, lazy `markdown-it`. Within the app, `core` imports only `shared/components/icon`, `shared/feedback` and `shared/lifts/menu-keys` (the tree's pencil menu, Slice 81) from outside itself.
 
 ## Responsibilities
 
