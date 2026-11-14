@@ -216,6 +216,8 @@ test('J7: the phone drawer opens on the root level with Cabinets current, its ac
   const open = async () => {
     await menu.tap();
     await expect(drawer).toHaveAttribute('role', 'dialog');
+    // The entrance (a lift's slide) has ended, so boxes measure where they rest.
+    await page.locator('.side').evaluate((side) => Promise.all(side.getAnimations().map((animation) => animation.finished)));
   };
   await open();
   const cabinets = drawer.getByRole('link', { name: 'Cabinets', exact: true });
@@ -249,7 +251,9 @@ test('J7: the phone drawer opens on the root level with Cabinets current, its ac
   // Reached by Tab from the last row, and visible once focused.
   await open();
   const dismiss = drawer.getByRole('button', { name: 'Close navigation' });
-  await drawer.locator('app-sidebar :is(a[href], button):not([tabindex="-1"])').last().focus();
+  const lastRow = drawer.locator('app-sidebar :is(a[href], button):not([tabindex="-1"])').last();
+  await lastRow.focus();
+  await expect.poll(() => isFocused(lastRow)).toBe(true);
   await page.keyboard.press('Tab');
   await expect.poll(() => isFocused(dismiss)).toBe(true);
   const box = (await dismiss.boundingBox())!;

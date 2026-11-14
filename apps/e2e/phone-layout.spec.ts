@@ -53,9 +53,14 @@ const expectDrawerOpen = async (page: Page) => {
   await expect(drawer(page).locator('app-sidebar a').first()).toBeVisible();
 };
 
+/** The drawer's entrance (a lift's slide) has ended, so boxes measure where they rest. */
+const settled = (page: Page) =>
+  page.locator('.side').evaluate((side) => Promise.all(side.getAnimations().map((animation) => animation.finished)).then(() => undefined));
+
 const openByTap = async (page: Page) => {
   await menu(page).tap();
   await expectDrawerOpen(page);
+  await settled(page);
   await expectFocus(page, '#shell-navigation');
 };
 
@@ -461,4 +466,19 @@ test.describe('across a resize', () => {
     await expectInlineSidebar(page);
     await expectFocus(page, 'a[data-nav-item][href="/app"]');
   });
+});
+
+test('the open drawer enters as a lift: a sideways fade, only the fade under reduced motion', async ({ browser }) => {
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    const context = await browser.newContext({ ...PHONE, reducedMotion });
+    const page = await context.newPage();
+    await page.goto('/app');
+    await menu(page).tap();
+    await expectDrawerOpen(page);
+    const keyframes = await page.locator('.side').evaluate((side) => side.getAnimations().map((animation) => (animation.effect as KeyframeEffect).getKeyframes()[0]));
+    expect(keyframes, reducedMotion).toHaveLength(1);
+    expect(keyframes[0]!['opacity'], reducedMotion).toBe('0');
+    expect(String(keyframes[0]!['transform']), reducedMotion).toMatch(reducedMotion === 'reduce' ? /translateX\((0|calc\(0)/ : /translateX\((-|calc\(-)/);
+    await context.close();
+  }
 });

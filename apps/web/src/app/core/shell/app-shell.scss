@@ -119,14 +119,14 @@
     --plane-pane-background: var(--plane-lift-background);
     --plane-pane-filter: var(--plane-lift-filter);
     box-shadow: var(--lift-shadow);
-    transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+    // A keyframe, not `@starting-style`: the drawer is never `display: none`, so a class change
+    // has no starting style to transition from.
+    animation: drawer-enter var(--duration-base) var(--ease-out);
   }
 
-  @starting-style {
-    .side--open {
-      opacity: 0;
-      transform: translateX(calc(-1 * var(--lift-enter-offset)));
-    }
+  // The focused dismiss is the drawer's, so 44 px with any pointer, as the action row is.
+  .drawer__dismiss:focus {
+    min-block-size: var(--size-hit-target);
   }
 
   // Closed, it is hidden as well as `inert`, taking its links out of sight and the tab order.
@@ -135,5 +135,23 @@
   // link then would drop focus to the document before the shell could see where it was.
   .side--closed {
     visibility: hidden;
+  }
+}
+
+// The lift's entrance, sideways. As the lifts: no movement under reduced motion, only the fade.
+.side {
+  --drawer-enter-offset: calc(-1 * var(--lift-enter-offset));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side {
+    --drawer-enter-offset: calc(0 * var(--lift-enter-offset));
+  }
+}
+
+@keyframes drawer-enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--drawer-enter-offset));
   }
 }
