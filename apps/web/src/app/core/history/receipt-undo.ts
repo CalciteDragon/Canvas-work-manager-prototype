@@ -16,6 +16,8 @@ export interface ReceiptUndoResult {
   /** A failure's raw reason, opened from the toast's View details and never announced (Slice 78). */
   detail?: string;
   link?: { projectId: ProjectId; label: string };
+  /** The Undo transition committed: a stale answer is `status` too (Slice 81, Q13 (b)). */
+  committed?: true;
 }
 
 /** The workspace's receipt-specific Undo port; features never import its implementation. */

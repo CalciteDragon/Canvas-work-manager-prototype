@@ -259,7 +259,8 @@ immediate status choices stay short, while editing Name, Description and date cr
 history step. [Route focus](../../../decisions/2026-10-route-focus-lands-lost-focus.md)
 recovers generic lost focus; explicit Archive intent belongs to root-lived projects state because
 navigation can destroy its initiating shell. [Creation defaults](../../../decisions/2026-10-creation-defaults-follow-the-open-work.md)
-now keep task quick-add in the list; workstream default/navigation changes remain pending.
+keep task quick-add in the list, and a new workstream opens itself; Undo from its create's toast
+[returns to the parent](../../../decisions/2026-11-undoing-a-new-workstream-returns-to-its-parent.md).
 
 [One toast with receipt Undo](../../../decisions/2026-10-feedback-is-one-toast-with-undo.md) keeps confirmations reachable from each acted region. [Always-visitable Archive](../../../decisions/2026-10-archive-is-always-visitable.md) makes visiting recovery navigation only, preserving the removal as the latest Undo.
 

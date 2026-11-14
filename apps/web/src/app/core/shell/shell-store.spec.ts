@@ -320,6 +320,21 @@ describe('ShellStore and live updates (§62)', () => {
     expect(store.loading()).toBe(false);
   });
 
+  // Slice 81 (W2-007): a new workstream's row must exist before focus lands on it, so the shell can
+  // ask for the quiet re-read directly rather than wait for the live frame.
+  it('re-reads the tree once, quietly, when asked, and resolves after the read', async () => {
+    const { store, gateway } = storeWith({ projects: [project('project-1', 'Personal workspace')] });
+    await store.load();
+    const before = projectReads(gateway);
+    gateway.options.projects = [project('project-1', 'Personal workspace'), project('project-2', 'Pantry', 'project-1')];
+
+    await store.refresh();
+
+    expect(projectReads(gateway)).toBe(before + 1);
+    expect(store.projects().map(({ name }) => name)).toEqual(['Personal workspace', 'Pantry']);
+    expect(store.loading()).toBe(false);
+  });
+
   it('ignores a task event — the sidebar renders no tasks', async () => {
     const { store, gateway, live } = storeWith({ projects: [project('project-1', 'Personal workspace')] });
     await store.load();

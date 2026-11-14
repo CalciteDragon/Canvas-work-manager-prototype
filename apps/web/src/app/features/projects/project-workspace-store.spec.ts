@@ -130,11 +130,15 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
       gateway.projects.list = async (query) => [...await list(query), written.project];
       return written;
     };
-    expect(await store.createWorkstream('project-kitchen' as ProjectId, '  Paint samples  ')).toBeNull();
+    // Slice 81 (W2-007): the create returns its report, which names the new workstream, so the
+    // shell can open it; `feedback: 'own'` keeps the parent's history from wording it cross-owner (Q13 (b)).
+    const result = await store.createWorkstream('project-kitchen' as ProjectId, '  Paint samples  ');
     expect(gateway.argumentTo('projects.create')).toEqual({ workspaceId: 'workspace-demo', kind: 'subproject', parentProjectId: 'project-kitchen', name: 'Paint samples' });
     for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
     const created = (await gateway.projects.list({})).find((item) => item.name === 'Paint samples')!;
-    expect(reporter.reports()).toEqual([{ projectId: created.id, projectName: created.name, receipt: expect.objectContaining({ projectId: created.id }) }]);
+    const report = { projectId: created.id, projectName: created.name, receipt: expect.objectContaining({ projectId: created.id }), feedback: 'own' };
+    expect(result).toEqual(report);
+    expect(reporter.reports()).toEqual([report]);
     expect(store.subprojectTree()[0]?.children.map((node) => node.project.name)).toContain('Paint samples');
   });
 
@@ -157,11 +161,11 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     expect(await store.createWorkstream('project-renovation' as ProjectId, 'Duplicate')).toBeTruthy();
     await store.load('project-kitchen' as ProjectId);
     gateway.projects.create = original;
-    expect(await store.createWorkstream('project-kitchen' as ProjectId, 'Second')).toBeNull();
+    expect(await store.createWorkstream('project-kitchen' as ProjectId, 'Second')).toMatchObject({ projectName: 'Second' });
     for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
     const reads = gateway.calls.filter(({ method }) => method === 'projects.get' || method === 'pages.list').length;
     held.resolve(await original({ workspaceId: 'workspace-demo' as Project['workspaceId'], kind: 'subproject', parentProjectId: 'project-renovation' as ProjectId, name: 'First' }));
-    expect(await first).toBeNull();
+    expect(await first).toMatchObject({ projectName: 'First' });
     expect(gateway.calls.filter(({ method }) => method === 'projects.get' || method === 'pages.list')).toHaveLength(reads);
   });
 

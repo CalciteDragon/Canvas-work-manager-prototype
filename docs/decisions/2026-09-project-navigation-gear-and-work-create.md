@@ -47,3 +47,7 @@ popover opens as a sheet with no source and Menu as its focus return. Chosen dia
 focus to the request's opener (the pencil, More or Menu), not the plus or the collapsed-column
 toggle. An archived root's Add workstream stays a focusable no-op described by its reason. Parent
 selection and the awaited, same-URL create are unchanged ([plan](../roadmap/active/81-one-navigation-tree.md)).
+
+**Amended, 2026-11-13 (Slice 81, step 7).** The create no longer stays on the current URL: it
+re-reads the tree, opens the new workstream and focuses its heading; its toast names the parent
+and has no Open link ([decision](2026-11-undoing-a-new-workstream-returns-to-its-parent.md)).

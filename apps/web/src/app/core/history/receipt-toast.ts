@@ -68,17 +68,18 @@ export class ReceiptToast {
     return this.host?.nativeElement.querySelector<HTMLElement>(':scope > app-toast [data-toast]') ?? null;
   }
 
-  async undo(afterUndo?: () => void): Promise<void> {
+  /** Resolves the result it shows, or `null` when nothing ran or a newer toast replaced this one. */
+  async undo(afterUndo?: () => void): Promise<ReceiptUndoResult | null> {
     const report = this.report();
-    if (report === null || this.offer() !== 'ready' || this.pendingUndo()) return;
+    if (report === null || this.offer() !== 'ready' || this.pendingUndo()) return null;
     const version = this.version;
     const originalFocus = document.activeElement;
     const startedInside = this.element()?.contains(originalFocus) === true;
     this.pendingUndo.set(true);
     const result = await this.receiptUndo.undo(report);
-    if (version !== this.version) return;
+    if (version !== this.version) return null;
     this.pendingUndo.set(false);
-    if (result === null) return;
+    if (result === null) return null;
     const focused = startedInside && (document.activeElement === document.body || document.activeElement === originalFocus || this.element()?.contains(document.activeElement) === true);
     this.report.set(null);
     this.state.set(result);
@@ -89,5 +90,6 @@ export class ReceiptToast {
         if (result.tone === 'status') afterUndo?.();
       }
     }, { injector: this.injector });
+    return result;
   }
 }

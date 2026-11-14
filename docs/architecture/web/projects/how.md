@@ -74,11 +74,18 @@ deferred until a pending submit settles. The shell closes both lifts on `store.l
 a chosen close of the dialog returns focus to the request's `returnFocus` after rendering
 (`LiftFocus`, falling back to the project `h1`). Loads move no focus.
 `ProjectWorkspaceStore.createWorkstream` trims and validates the draft, guards a single flight per
-load generation, reports the child's creation receipt and requests a quiet context read only in
-the generation that started it. It resolves `null` or a `Failure`: a refusal before sending is a
+load generation, reports the child's creation receipt (`feedback: 'own'`) and requests a quiet context read only in
+the generation that started it. It resolves the create's `OperationWriteReport` or a `Failure`: a refusal before sending is a
 sentence with no reason, a refused write "Couldn’t add “X”. Try again." with the reason, which the
-dialog shows as an inline `FailureMessage` (`data-create-work-error`) that describes the name field. Creation keeps the URL and uses the header's existing cross-owner
-history feedback. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
+dialog shows as an inline `FailureMessage` (`data-create-work-error`) that describes the name field. On success the shell's `createWorkstream` closes the dialog, awaits `ShellCommands.refreshProjects()`
+(a failed re-read still navigates) and lands on the new workstream: after it renders, `focusLanding`
+(in `afterEveryRender`) focuses its `h1` and shows "Created Pantry under Kitchen." with Undo. The
+toast's Undo (`undoToast`) of that create, when the result is `committed`, pushes to the parent,
+focuses its `h1` and shows "Open Pantry to redo"; a stale or refused Undo, or one answering after the
+route moved, stays put. A create answering after the person left moves nothing (Slice 81, Q13 (b),
+[decision](../../../decisions/2026-11-undoing-a-new-workstream-returns-to-its-parent.md)). Trap: in
+the shell spec a held history transition keeps a pending task, so navigate and answer it before
+`settle()`. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
 Both lifts stay out of the initial bundle, which is measured against its ceiling in the
 [Slice 81 plan](../../../roadmap/active/81-one-navigation-tree.md). The workspace is one grid
 track: header, notice, renderer.

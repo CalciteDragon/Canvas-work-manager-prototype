@@ -8,6 +8,7 @@ import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-
 import { AppShell } from './app-shell';
 import { NavigationContext } from './navigation-context';
 import { SHELL_COMMANDS } from './shell-commands';
+import { ShellStore } from './shell-store';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
 
 const render = async (options: Parameters<typeof shellTestProviders>[0] = {}) => {
@@ -164,6 +165,21 @@ describe('AppShell — ShellCommands', () => {
     const { fixture } = await renderShell({ projects: [ProjectSchema.parse({ id: 'project-1', workspaceId: 'workspace-demo', kind: 'root', name: 'One', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' })] });
 
     expect(fixture.debugElement.injector.get(SHELL_COMMANDS).workspaceEmpty()).toBe(false);
+  });
+
+  it('refreshProjects resolves after the shell’s quiet re-read (Slice 81, W2-007)', async () => {
+    const { fixture } = await renderShell({ projects: [] });
+    const store = fixture.debugElement.injector.get(ShellStore);
+    let read!: () => void;
+    const refresh = vi.spyOn(store, 'refresh').mockImplementation(() => new Promise<void>((resolve) => (read = resolve)));
+    let resolved = false;
+    const request = fixture.debugElement.injector.get(SHELL_COMMANDS).refreshProjects().then(() => (resolved = true));
+    await Promise.resolve();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(resolved).toBe(false);
+    read();
+    await request;
+    expect(resolved).toBe(true);
   });
 
   it('reopens the one form on each request, never a second', async () => {

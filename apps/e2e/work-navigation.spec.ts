@@ -68,7 +68,7 @@ for (const theme of ['dark', 'light'] as const) {
   });
 }
 
-test('Add workstream creates once without navigation, refreshes a second tab and resets a departed parent', async ({ page }) => {
+test('Add workstream creates once and opens it, its toast Undo returns to the parent, a second tab refreshes and a departed parent resets', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto(`/projects/${ROOT}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
@@ -91,7 +91,6 @@ test('Add workstream creates once without navigation, refreshes a second tab and
   await watcher.goto(`/projects/${ROOT}/pages/todos`);
   await stream;
   await expect(watcher.locator('section.todos')).toBeVisible();
-  const url = page.url();
   await fromPencil(page, 'add');
   await nameOf(page).fill('Paint samples');
   await expect(dialogOf(page)).toContainText('Inside Home renovation');
@@ -99,15 +98,38 @@ test('Add workstream creates once without navigation, refreshes a second tab and
   await dialogOf(page).getByRole('button', { name: 'Create', exact: true }).dblclick();
   const child = ((await (await created).json()) as ProjectWriteResult).project;
   await expect(dialogOf(page)).toHaveCount(0);
-  expect(page.url()).toBe(url);
   const after = await projects();
   expect(after.length).toBe(before.length + 1);
   expect(after.filter(({ name }) => name === 'Paint samples')).toHaveLength(1);
   expect(child.parentProjectId).toBe(ROOT);
-  await expect(page.locator('[data-toast]:popover-open')).toContainText('Created “Paint samples”.');
-  await expect(page.locator('[data-toast]:popover-open [data-toast-open]')).toHaveAttribute('href', `/projects/${child.id}`);
+  // Slice 81 (W1-014, W2-007): the create opens the new workstream, its heading focused and its row current.
+  await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
+  await expect(page.locator('h1[data-project-name]')).toHaveText('Paint samples');
+  await expect(page.locator('h1[data-project-name]')).toBeFocused();
+  await expect(treeWork(page, child.id).locator(':scope > .tree-row > a')).toHaveAttribute('aria-current', 'page');
+  const toast = page.locator('[data-toast]:popover-open');
+  await expect(toast).toContainText('Created Paint samples under Home renovation.');
+  await expect(toast.locator('[data-toast-open]')).toHaveCount(0);
   await expect(treeWork(watcher, child.id)).toBeVisible();
   await expect(watcher.locator(`[data-todo-id="${child.id}"]`)).toContainText('Workstream');
+
+  // Q13 (b): the toast's Undo returns to the parent, a push; its link reaches the new workstream's Redo.
+  await toast.locator('[data-toast-undo]:not([aria-disabled])').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${ROOT}$`));
+  await expect(page.locator('h1[data-project-name]')).toHaveText('Home renovation');
+  await expect(page.locator('h1[data-project-name]')).toBeFocused();
+  await expect(treeWork(page, child.id)).toHaveCount(0);
+  await expect(toast).toContainText('Undone: Created “Paint samples”.');
+  await expect(toast.locator('[data-toast-undo]')).toHaveCount(0);
+  await expect(toast.locator('[data-toast-open]')).toHaveText('Open Paint samples to redo');
+  await toast.locator('[data-toast-open]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
+  await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/projects/${ROOT}$`));
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
+  await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
 
   await page.goto('/projects/project-cabinets');
   await fromPencil(page, 'add');
@@ -121,8 +143,10 @@ test('Add workstream creates once without navigation, refreshes a second tab and
   await dialogOf(page).getByRole('button', { name: 'Create', exact: true }).click();
   const nested = ((await (await nestedResponse).json()) as ProjectWriteResult).project;
   expect((await api.get<Project>(`/api/projects/${nested.id}`)).parentProjectId).toBe('project-kitchen');
-  await expect(page).toHaveURL(/\/projects\/project-cabinets$/);
+  await expect(page).toHaveURL(new RegExp(`/projects/${nested.id}$`));
+  await expect(page.locator('[data-toast]:popover-open')).toContainText('Created Cabinet hardware under Kitchen.');
 
+  await page.goto('/projects/project-cabinets');
   await fromPencil(page, 'add');
   await parentOf(page).selectOption('project-garden');
   await api.patch('/api/projects/project-garden', { status: 'archived' });

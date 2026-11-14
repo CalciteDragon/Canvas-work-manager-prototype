@@ -37,7 +37,8 @@ describe('ReceiptToast (Slice 74)', () => {
     const { toast, undo, ready } = setup();
     ready.set('ready');
     toast.show({ tone: 'status', message: 'Removed Notes.' }, report);
-    await toast.undo();
+    // Slice 81, Q13 (b): the result resolves to the caller, which may land elsewhere on a commit.
+    expect(await toast.undo()).toEqual({ tone: 'status', message: 'Undone: Removed Notes.' });
     expect(undo.undo).toHaveBeenCalledExactlyOnceWith(report);
     expect(toast.state()?.message).toBe('Undone: Removed Notes.');
     expect(toast.offer()).toBe('unavailable');
@@ -52,7 +53,7 @@ describe('ReceiptToast (Slice 74)', () => {
     const pending = toast.undo();
     toast.show({ tone: 'status', message: 'A newer confirmation.' });
     resolve({ tone: 'status', message: 'Undone.' });
-    await pending;
+    expect(await pending).toBeNull();
     expect(toast.state()?.message).toBe('A newer confirmation.');
   });
 

@@ -141,7 +141,7 @@
   (dismissed)="toast.close(); history.dismissFeedback()">
   @if (toast.offer() !== 'unavailable') {
     <button data-toast-undo type="button" class="button" [attr.aria-disabled]="toast.offer() !== 'ready' || toast.pendingUndo() ? 'true' : null"
-      [attr.aria-label]="toast.offer() === 'saving' ? 'Undo (saving…)' : 'Undo'" (click)="toast.undo()">Undo</button>
+      [attr.aria-label]="toast.offer() === 'saving' ? 'Undo (saving…)' : 'Undo'" (click)="undoToast()">Undo</button>
   }
   @if (toast.state()?.link; as link) {
     <a class="button" data-toast-open [routerLink]="['/projects', link.projectId]">{{ link.label }}</a>

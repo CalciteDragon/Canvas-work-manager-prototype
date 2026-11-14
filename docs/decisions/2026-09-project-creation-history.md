@@ -66,3 +66,9 @@ and the browser exercise same-id Redo and creator-only recovery.
 The product adds project deletion outside creation Undo, changes Activity ordering/removal, or
 allows a history to be pruned while its project is absent; or real use shows that the recovery URL
 or summary is insufficient to reach the creator's Redo.
+
+**Amended, 2026-11-13 (Slice 81, step 7).** A new workstream's create now opens it, and Undo from
+that create's toast leaves its URL for the parent (a push) with "Open <name> to redo", which reaches
+the recovery state described here; Back from the parent reaches it too. Recovery at the URL, its
+Redo and the header's Undo on the new workstream are unchanged
+([decision](2026-11-undoing-a-new-workstream-returns-to-its-parent.md)).

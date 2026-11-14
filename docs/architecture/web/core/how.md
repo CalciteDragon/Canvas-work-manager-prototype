@@ -97,7 +97,9 @@ its history store. A component's `ReceiptToast` claims the shared `ToastSlot`, c
 write sequence and generation, and closes when either changes. Retry remove uses an exempt write
 handle so it retains its toast. A writer with its own confirmation marks the report
 `feedback: 'own'`; cross-owner reporting reconciles history without a second announcement. Receipt Undo
-returns feedback to that same toast and shares the header's transition guard.
+returns feedback to that same toast and shares the header's transition guard; `ReceiptToast.undo`
+resolves that result, whose `committed` tells a committed Undo from a stale one (Slice 81), so a
+caller can move elsewhere on a commit.
 
 ## Key symbols
 
@@ -124,7 +126,7 @@ returns feedback to that same toast and shares the header's transition guard.
 | `SHELL_NARROW_BREAKPOINT`, `WORKSPACE_NARROW_BREAKPOINT` | constants | Shell and workspace thresholds, equal to the CSS-free Sass partial by token-lint check; no component reads `WORKSPACE_NARROW_BREAKPOINT` since the column was deleted (Slice 81), and it stays because the lint pins it against `$workspace-narrow`, which the dashboard uses | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_BREAKPOINT) |
 | `NavigationContext`, `ProjectPlace`, `ProjectPlaceHandlers` | injectable / interfaces | The project route's place for the tree, and its handlers (Slice 81) | [API](../../../api/injectables/NavigationContext.html) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
-| `SHELL_COMMANDS`, `ShellCommands` | token / interface | What a routed page may ask of the shell: `workspaceEmpty`, `requestCreate()`; `AppShell` provides it as itself | [API](../../../api/interfaces/ShellCommands.html) |
+| `SHELL_COMMANDS`, `ShellCommands` | token / interface | What a routed page may ask of the shell: `workspaceEmpty`, `requestCreate()`, `refreshProjects()` (the tree's quiet re-read, awaited before a new workstream opens); `AppShell` provides it as itself | [API](../../../api/interfaces/ShellCommands.html) |
 
 ## Dependencies
 

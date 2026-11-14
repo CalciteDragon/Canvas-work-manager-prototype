@@ -13,15 +13,18 @@ import {
   type OperationHistoryEntry,
   type OperationHistorySummary,
   type OperationHistoryTransitionResult,
+  type OperationReceipt,
   type Project,
   type ProjectPage,
   type ProjectTodosResult,
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
+import { signal } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { NavigationContext } from '../../core/shell/navigation-context';
+import { SHELL_COMMANDS, type ShellCommands } from '../../core/shell/shell-commands';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
@@ -132,6 +135,8 @@ type Options = Partial<ReturnType<typeof defaults>> & {
   /** §34's chronology, as the query would answer it. The shell only routes to it. */
   todos?: ProjectTodosResult;
   historySummaries?: OperationHistorySummary[];
+  /** `AppShell`'s commands, when a case needs them (Slice 81's create path). */
+  shell?: ShellCommands;
 };
 
 const open = async (url: string, options: Options = {}, deferBlockBehavior = DeferBlockBehavior.Playthrough) => {
@@ -153,6 +158,7 @@ const open = async (url: string, options: Options = {}, deferBlockBehavior = Def
       { provide: LIVE_UPDATES, useValue: live },
       // A test that leaves the workspace lands on the dashboard, which reads the persona.
       { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(testIdentity()) },
+      ...(options.shell === undefined ? [] : [{ provide: SHELL_COMMANDS, useValue: options.shell }]),
     ],
   });
   const harness = await RouterTestingHarness.create();
@@ -357,14 +363,21 @@ describe('ProjectWorkspaceShell — §23’s workspace and §68’s routes', () 
     expect(TestBed.inject(NavigationContext).place()?.root?.name).toBe('Other');
     expect(query(harness, '[role="dialog"]')).toBeNull();
   });
-  it('opens work creation from the handler with root-first parents and Parent on the open workstream, closes on success and returns focus to the request’s returnFocus', async () => {
+  it('opens work creation from the handler with root-first parents and Parent on the open workstream; Cancel returns focus to the request’s returnFocus; a create leaves for the new workstream', async () => {
     const { harness, gateway, router } = await open('/projects/project-cabinets');
     const from = await requestWork(harness);
     expect(query(harness, '[role="dialog"]')).not.toBeNull();
-    const select = query(harness, 'select') as HTMLSelectElement;
+    let select = query(harness, 'select') as HTMLSelectElement;
     expect([...select.options].map((option) => option.textContent?.trim())).toEqual(['Home renovation', 'Kitchen', 'Cabinets', 'Garden']);
     // Slice 81, Q15 (a): the open workstream, not the root.
     expect(select.value).toBe('project-cabinets');
+    query(harness, '[data-create-work-cancel]')!.click();
+    await settle(harness);
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(from);
+
+    await requestWork(harness, from);
+    select = query(harness, 'select') as HTMLSelectElement;
     const name = query(harness, '[role="dialog"] input') as HTMLInputElement;
     name.value = 'Paint'; name.dispatchEvent(new Event('input'));
     select.value = 'project-kitchen'; select.dispatchEvent(new Event('change'));
@@ -372,8 +385,7 @@ describe('ProjectWorkspaceShell — §23’s workspace and §68’s routes', () 
     await settle(harness);
     expect(gateway.argumentTo('projects.create')).toEqual(expect.objectContaining({ parentProjectId: 'project-kitchen', name: 'Paint' }));
     expect(query(harness, '[role="dialog"]')).toBeNull();
-    expect(document.activeElement).toBe(from);
-    expect(router.url).toBe('/projects/project-cabinets');
+    expect(router.url).toBe('/projects/project-created');
   });
 
   it('closes work creation when navigating to another root', async () => {
@@ -1559,5 +1571,198 @@ describe('Slice 81: the project place for the navigation tree (R2)', () => {
     await router.navigateByUrl('/app');
     await settle(harness);
     expect(placeOf()).toBeNull();
+  });
+});
+
+/**
+ * Slice 81 step 7 (W1-014, W2-007, Q13 (b)): a new workstream opens. The fake's create answers
+ * `project-created`; this adds it to the workspace with a page and its own history, whose first
+ * step is the creation, as the host records it.
+ */
+describe('Slice 81: creating a workstream opens it (W2-007, Q13 (b))', () => {
+  const PANTRY = 'project-created';
+  const shellCommands = (refresh: () => Promise<void> = async () => undefined): ShellCommands =>
+    ({ workspaceEmpty: signal(false), requestCreate: vi.fn(), refreshProjects: vi.fn(refresh) });
+  const entryOf = (receipt: OperationReceipt): OperationHistoryEntry =>
+    ({ actionId: receipt.actionId, operation: 'project.add', label: receipt.label, expiresAt: receipt.expiresAt, blockedBy: null });
+  const undoneSummary = (receipt: OperationReceipt): OperationHistorySummary => ({
+    projectId: PANTRY as never, historyId: receipt.historyId, revision: receipt.revision + 1, undo: null, redo: entryOf(receipt), blockedBy: null,
+  });
+
+  const createPantry = async (opened: Awaited<ReturnType<typeof open>>, parent?: string) => {
+    const { harness, gateway } = opened;
+    const create = gateway.projects.create.bind(gateway.projects);
+    const made: { receipt?: OperationReceipt } = {};
+    gateway.projects.create = async (input) => {
+      const result = await create(input);
+      made.receipt = result.operation!;
+      gateway.options.projects = [...gateway.options.projects!, result.project];
+      gateway.options.pages = [...gateway.options.pages!, page('page-pantry-work', PANTRY, 'work')];
+      gateway.historySummaries.set(PANTRY as never, {
+        projectId: PANTRY as never, historyId: made.receipt.historyId, revision: made.receipt.revision,
+        undo: entryOf(made.receipt), redo: null, blockedBy: null,
+      });
+      return result;
+    };
+    await requestWork(harness);
+    const name = query(harness, '[data-create-work-name]') as HTMLInputElement;
+    name.value = 'Pantry';
+    name.dispatchEvent(new Event('input'));
+    if (parent !== undefined) {
+      const select = query(harness, '[data-create-work-parent]') as HTMLSelectElement;
+      select.value = parent;
+      select.dispatchEvent(new Event('change'));
+    }
+    harness.fixture.detectChanges();
+    query(harness, '[data-create-work-submit]')!.click();
+    await settle(harness);
+    return made;
+  };
+  const toastText = (harness: RouterTestingHarness) => query(harness, 'app-project-workspace-shell > app-toast [data-toast]')?.textContent ?? '';
+  const toastUndo = (harness: RouterTestingHarness) => query(harness, 'app-project-workspace-shell > app-toast [data-toast-undo]');
+  const heading = (harness: RouterTestingHarness) => query(harness, 'h1[data-project-name]');
+
+  it('awaits the shell’s refresh, then navigates to the new workstream and focuses its heading', async () => {
+    const order: string[] = [];
+    const shell = shellCommands(async () => { order.push('refresh'); });
+    const opened = await open('/projects/project-kitchen', { shell });
+    const navigate = opened.router.navigate.bind(opened.router);
+    vi.spyOn(opened.router, 'navigate').mockImplementation((commands, extras) => { order.push(`navigate ${String(commands)}`); return navigate(commands, extras); });
+    await createPantry(opened);
+
+    expect(shell.refreshProjects).toHaveBeenCalledTimes(1);
+    expect(order.slice(0, 2)).toEqual(['refresh', `navigate /projects,${PANTRY}`]);
+    expect(opened.router.url).toBe(`/projects/${PANTRY}`);
+    expect(heading(opened.harness)?.textContent?.trim()).toBe('Pantry');
+    expect(document.activeElement).toBe(heading(opened.harness));
+    expect(query(opened.harness, '[data-work-create-dialog]')).toBeNull();
+  });
+
+  it('still navigates when the refresh fails', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands(() => Promise.reject(new Error('offline'))) });
+    await createPantry(opened);
+    expect(opened.router.url).toBe(`/projects/${PANTRY}`);
+    expect(document.activeElement).toBe(heading(opened.harness));
+  });
+
+  it('says “Created Pantry under Kitchen.” after the navigation, with Undo once Pantry’s history is read and no link', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands() });
+    const summary = vi.spyOn(opened.gateway.history, 'summary');
+    await createPantry(opened);
+
+    expect(summary).toHaveBeenLastCalledWith(PANTRY);
+    expect(toastText(opened.harness)).toContain('Created Pantry under Kitchen.');
+    // No cross-owner “Created “Pantry”.” with Open Pantry before the navigation, nor after it.
+    expect(toastText(opened.harness)).not.toContain('Created “Pantry”.');
+    expect(query(opened.harness, 'app-project-workspace-shell > app-toast a[data-toast-open]')).toBeNull();
+    expect(toastUndo(opened.harness)?.getAttribute('aria-disabled')).toBeNull();
+    expect(toastUndo(opened.harness)?.getAttribute('aria-label')).toBe('Undo');
+  });
+
+  it('a committed toast Undo returns to Kitchen with a push, focuses its heading and offers “Open Pantry to redo”', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands() });
+    const { harness, gateway, router, location } = opened;
+    const { receipt } = await createPantry(opened);
+    gateway.options.projects = gateway.options.projects!.filter(({ id }) => id !== PANTRY);
+    gateway.historySummaries.set(PANTRY as never, undoneSummary(receipt!));
+    gateway.transitionAnswers.push(creationTransition('undo', undoneSummary(receipt!), { operation: 'project.add', outcome: 'removed', projectId: PANTRY }));
+    const navigate = vi.spyOn(router, 'navigate');
+    document.body.focus();
+
+    toastUndo(harness)!.click();
+    await settle(harness);
+
+    expect(router.url).toBe('/projects/project-kitchen');
+    expect(navigate.mock.calls.at(-1)?.[1]?.replaceUrl).toBeFalsy();
+    expect(heading(harness)?.textContent?.trim()).toBe('Kitchen');
+    expect(document.activeElement).toBe(heading(harness));
+    expect(toastText(harness)).toContain('Undone: Created “Pantry”.');
+    expect(toastUndo(harness)).toBeNull();
+    const redo = query(harness, 'app-project-workspace-shell > app-toast a[data-toast-open]');
+    expect(redo?.textContent?.trim()).toBe('Open Pantry to redo');
+    expect(redo?.getAttribute('href')).toBe(`/projects/${PANTRY}`);
+
+    // Back reaches Pantry's URL and its “Creation undone” with Redo, after the toast has gone.
+    location.back();
+    await settle(harness);
+    expect(router.url).toBe(`/projects/${PANTRY}`);
+    expect(query(harness, '[data-project-creation-recovery]')?.textContent).toContain('Creation undone');
+    expect(query(harness, '[data-history-redo]')).not.toBeNull();
+  });
+
+  it('focuses the landing heading when focus was in the toast, and lands on the root when it was the parent', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands() });
+    const { harness, gateway, router } = opened;
+    const { receipt } = await createPantry(opened, 'project-renovation');
+    expect(toastText(harness)).toContain('Created Pantry under Home renovation.');
+    gateway.options.projects = gateway.options.projects!.filter(({ id }) => id !== PANTRY);
+    gateway.transitionAnswers.push(creationTransition('undo', undoneSummary(receipt!), { operation: 'project.add', outcome: 'removed', projectId: PANTRY }));
+    toastUndo(harness)!.focus();
+
+    toastUndo(harness)!.click();
+    await settle(harness);
+
+    expect(router.url).toBe('/projects/project-renovation');
+    expect(heading(harness)?.textContent?.trim()).toBe('Home renovation');
+    expect(document.activeElement).toBe(heading(harness));
+  });
+
+  it('stays on Pantry with today’s toast when the Undo is stale or refused', async () => {
+    const stale = await open('/projects/project-kitchen', { shell: shellCommands() });
+    const { receipt } = await createPantry(stale);
+    // Something newer in Pantry's history: the re-read summary no longer names the creation, so the
+    // toast keeps its sentence and loses its Undo, and nothing navigates.
+    stale.gateway.historySummaries.set(PANTRY as never, { projectId: PANTRY as never, historyId: receipt!.historyId, revision: receipt!.revision + 1,
+      undo: { ...entryOf(receipt!), actionId: 'operation-newer' as never }, redo: null, blockedBy: null });
+    stale.live.emit({ type: 'task.task_updated', entityType: 'task', entityId: 'task-1', projectId: PANTRY as never } as never);
+    await settle(stale.harness);
+    expect(toastText(stale.harness)).toContain('Created Pantry under Kitchen.');
+    expect(toastUndo(stale.harness)).toBeNull();
+    expect(stale.router.url).toBe(`/projects/${PANTRY}`);
+
+    const refused = await open('/projects/project-kitchen', { shell: shellCommands() });
+    await createPantry(refused);
+    refused.gateway.transitionAnswers.push(new GatewayError('not_found', 404, 'gone'));
+    toastUndo(refused.harness)!.click();
+    await settle(refused.harness);
+    expect(refused.router.url).toBe(`/projects/${PANTRY}`);
+    expect(toastText(refused.harness)).toContain('That change can no longer be undone.');
+  });
+
+  it('moves nothing when the Undo lands after the route left Pantry', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands() });
+    const { harness, gateway, router } = opened;
+    const { receipt } = await createPantry(opened);
+    let answer!: (result: OperationHistoryTransitionResult) => void;
+    vi.spyOn(gateway.history, 'transition').mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    toastUndo(harness)!.click();
+    // Not settled while the transition is held: its pending task would keep the fixture unstable.
+    await router.navigateByUrl('/projects/project-garden');
+    answer(creationTransition('undo', undoneSummary(receipt!), { operation: 'project.add', outcome: 'removed', projectId: PANTRY }));
+    await settle(harness);
+    expect(router.url).toBe('/projects/project-garden');
+  });
+
+  it('keeps the header’s Undo on Pantry landing on “Creation undone” at Pantry’s URL', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands() });
+    const { harness, gateway, router } = opened;
+    const { receipt } = await createPantry(opened);
+    gateway.options.projects = gateway.options.projects!.filter(({ id }) => id !== PANTRY);
+    gateway.historySummaries.set(PANTRY as never, undoneSummary(receipt!));
+    gateway.transitionAnswers.push(creationTransition('undo', undoneSummary(receipt!), { operation: 'project.add', outcome: 'removed', projectId: PANTRY }));
+
+    (query(harness, '[data-history-undo]') as HTMLButtonElement).click();
+    await settle(harness);
+
+    expect(router.url).toBe(`/projects/${PANTRY}`);
+    expect(query(harness, '[data-project-creation-recovery]')?.textContent).toContain('Creation undone');
+  });
+
+  it('keeps the dialog, its draft and no navigation when the create is refused', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands(), failOn: { 'projects.create': new GatewayError('conflict', 409, 'The parent is archived.') } });
+    await createPantry(opened);
+    expect(opened.router.url).toBe('/projects/project-kitchen');
+    expect((query(opened.harness, '[data-create-work-name]') as HTMLInputElement).value).toBe('Pantry');
+    expect(query(opened.harness, '[data-create-work-error]')).not.toBeNull();
   });
 });

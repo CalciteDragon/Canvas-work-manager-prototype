@@ -161,8 +161,10 @@ export class ShellStore {
    * A quiet re-read of the tree: no `loading`, and the rendered sidebar survives a failure.
    * Navigation flickering because an agent renamed something is worse than a stale label,
    * and an error banner over the sidebar for a write the user did not make is worse again.
+   * Public for `ShellCommands.refreshProjects` (Slice 81): a new workstream's row exists before
+   * focus lands on it. Never rejects.
    */
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     return this.read(true);
   }
 

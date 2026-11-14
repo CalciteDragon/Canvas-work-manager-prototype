@@ -207,7 +207,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter, ReceiptUnd
       if (!this.current(generation)) return null;
       if (sameHistory) this.adopt(transition.summary);
       withdraw();
-      return transitionResultFeedback('undo', receipt.label, transition.result);
+      return { ...transitionResultFeedback('undo', receipt.label, transition.result), committed: true };
     } catch (error) {
       if (!this.current(generation)) return null;
       withdraw();

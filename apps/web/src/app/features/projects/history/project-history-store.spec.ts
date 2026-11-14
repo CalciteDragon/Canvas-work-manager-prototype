@@ -140,7 +140,8 @@ describe('receipt Undo (Slice 74)', () => {
     expect(transition).toHaveBeenCalledTimes(1);
     expect(transition).toHaveBeenCalledWith(HISTORY, { actionId: 'operation-3', direction: 'undo', expectedRevision: 3 });
     transitions[0]!.resolve({ direction: 'undo', actionId: 'operation-3' as OperationActionId, result: { operation: 'section.update' } as never, summary: summaryOf({ revision: 4, undo: null }) });
-    expect((await undoing)?.message).toBe('Undone: Completed “Tile”.');
+    // Slice 81, Q13 (b): a committed Undo is marked, because its tone alone cannot tell it from a stale one.
+    expect(await undoing).toMatchObject({ message: 'Undone: Completed “Tile”.', committed: true });
     expect(store.feedback()).toBeNull(); expect(store.offer(root)).toBe('unavailable');
   });
   it('reads cross-owner revision, excludes header transitions and never adopts', async () => {
@@ -165,7 +166,8 @@ describe('receipt Undo (Slice 74)', () => {
     const expected = failure === 'mismatch' || failure === 'blocked' ? 'That is no longer the latest change in Kitchen.'
       : failure === 'forbidden' ? 'You cannot undo changes in Kitchen.' : failure === 'not_found' ? 'That change can no longer be undone.'
       : failure === 'rule_violation' ? 'Someone changed this project since. Try Undo again.' : 'Undo may not have completed. Check Kitchen before trying again.';
-    expect((await undoing)?.message).toBe(expected); expect(store.summary()).toBe(held);
+    const result = await undoing;
+    expect(result?.message).toBe(expected); expect(result?.committed).toBeUndefined(); expect(store.summary()).toBe(held);
     expect(store.feedback()).toBeNull(); expect(store.offer(kitchen)).toBe('unavailable');
   });
   it('exempts retry begins from writeSequence and header Undo withdraws a receipt', async () => {

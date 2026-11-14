@@ -62,5 +62,7 @@ defaults to the open workstream, and to the root on a root page. When the open w
 Parent option (it is archived, or sits under an archived ancestor), the default is its nearest
 ancestor that is one (Slice 81 Q15 (a)): under an archived Cabinets inside Kitchen, that is Kitchen,
 not the root. A chosen parent that disappears resets to the same default with its note. Navigating to
-a newly created workstream (W1-014, W2-007) is not yet shipped: its build crosses the bundle ceiling
-and waits on the user ([plan](../roadmap/active/81-one-navigation-tree.md), Open question 19).
+a newly created workstream (W1-014, W2-007) shipped later the same day, after the bundle audit made
+room ([plan](../roadmap/active/81-one-navigation-tree.md), Open question 19): the create opens the
+new workstream and focuses its heading
+([decision](2026-11-undoing-a-new-workstream-returns-to-its-parent.md)).

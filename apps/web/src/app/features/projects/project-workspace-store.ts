@@ -358,7 +358,8 @@ export class ProjectWorkspaceStore {
    * Creates named work through the existing project gateway; the new child's history owns it.
    * Resolves `null`, or the dialog's `Failure`: a refusal before sending has no reason (Slice 78).
    */
-  createWorkstream(parentId: ProjectId, rawName: string): Promise<Failure | null> {
+  /** Resolves the create's report (it names the new workstream, Slice 81), or the failure to show beside the form. */
+  createWorkstream(parentId: ProjectId, rawName: string): Promise<Failure | OperationWriteReport> {
     const refuse = (sentence: string) => Promise.resolve({ sentence, reason: null });
     const name = rawName.trim();
     if (name === '') return refuse('A workstream name is required.');
@@ -375,11 +376,13 @@ export class ProjectWorkspaceStore {
     this.workCreateGeneration = generation;
     return this.track(async () => {
       try {
+        let report!: OperationWriteReport;
         await reportedWrite(this.reporter,
           () => this.gateway.projects.create({ workspaceId: root.workspaceId, kind: 'subproject', parentProjectId: parentId, name }),
-          ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
+          // `own`: the shell opens the new workstream and words its toast there (Q13 (b)).
+          ({ project, operation }) => (report = { projectId: project.id, projectName: project.name, receipt: operation, feedback: 'own' }));
         if (!this.destroyed && generation === this.loadGeneration) this.refreshContext();
-        return null;
+        return report;
       } catch (error) {
         return writeFailure(error, `Couldn’t add “${name}”. Try again.`);
       } finally {

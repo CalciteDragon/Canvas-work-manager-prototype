@@ -12,6 +12,8 @@ export interface ShellCommands {
   readonly workspaceEmpty: Signal<boolean>;
   /** Opens the one creation form, the sidebar's, with focus in its name (the Menu first when narrow). */
   requestCreate(): void;
+  /** Re-reads the tree quietly; resolves once the read has settled (Slice 81, W2-007). */
+  refreshProjects(): Promise<void>;
 }
 
 export const SHELL_COMMANDS = new InjectionToken<ShellCommands>('SHELL_COMMANDS');

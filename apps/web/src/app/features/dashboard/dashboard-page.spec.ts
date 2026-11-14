@@ -355,7 +355,7 @@ it('opens dashboard tasks at their canonical owner section and hides decorative 
 // Slice 79 (W1-001, W4-001, L4-020): an empty workspace's Home says what the product is for and
 // offers New project, above the widgets, which stay below with their own empty sentences (Q3 (a)).
 describe('DashboardPage — first run', () => {
-  const commands = (empty: boolean) => ({ workspaceEmpty: signal(empty), requestCreate: vi.fn() });
+  const commands = (empty: boolean) => ({ workspaceEmpty: signal(empty), requestCreate: vi.fn(), refreshProjects: vi.fn(async () => undefined) });
   const settle = async (fixture: Awaited<ReturnType<typeof renderPage>>['fixture']) => {
     await fixture.whenStable();
     fixture.detectChanges();

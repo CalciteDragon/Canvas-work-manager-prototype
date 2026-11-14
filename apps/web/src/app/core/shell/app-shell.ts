@@ -151,6 +151,9 @@ export class AppShell implements ShellCommands {
     this.afterRender(() => this.sidebar()?.reopenCreate());
   }
 
+  /** `ShellCommands.refreshProjects`: the store's quiet re-read (Slice 81). */
+  refreshProjects(): Promise<void> { return this.store.refresh(); }
+
   /**
    * The pencil's two items (Slice 81, R2). At desktop width the pencil is the lift's anchor and
    * focus return. In the drawer the drawer closes first — it is hidden and inert behind a lift,

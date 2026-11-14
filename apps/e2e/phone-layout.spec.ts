@@ -272,13 +272,13 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
     await expect(dialog.getByRole('combobox', { name: 'Parent', exact: true })).toHaveValue('project-renovation');
     await expect(dialog).toContainText('Inside Home renovation');
-    const url = page.url();
     await dialog.getByRole('button', { name: 'Create', exact: true }).tap();
     await expect(dialog).toHaveCount(0);
-    expect(page.url()).toBe(url);
-    await expectFocus(page, '[data-shell-menu]');
     const child = (await api.get<Array<{ id: string; name: string; parentProjectId?: string }>>('/api/projects')).find((project) => project.name === name)!;
     expect(child.parentProjectId).toBe('project-renovation');
+    // Slice 81 (Q13 (b)): the create opens the new workstream and focuses its heading.
+    await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
+    await expectFocus(page, 'h1[data-project-name]');
     await openByTap(page);
     await expect(drawer(page).locator(`li[data-nav-work-id="${child.id}"]`)).toBeVisible();
     await expectNoHorizontalOverflow(page, 'Created workstream');

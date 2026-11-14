@@ -24,7 +24,7 @@ const meta: Meta<DashboardPage> = {
     provideRouter([]),
     { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway({ dashboard: emptyDashboard() }) },
     { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(testIdentity()) },
-    { provide: SHELL_COMMANDS, useValue: { workspaceEmpty: signal(true), requestCreate } },
+    { provide: SHELL_COMMANDS, useValue: { workspaceEmpty: signal(true), requestCreate, refreshProjects: async () => undefined } },
   ] })],
 };
 export default meta;

@@ -22,15 +22,16 @@ import { ProjectPageKindSchema, canonicalPageKindFor, type Project, type Project
 import { TaskDrawerCoordinator } from '../tasks/task-drawer-coordinator';
 import { LiftStack } from '../../shared/lifts/lift-stack';
 import { LiftFocus } from '../../shared/lifts/lift-focus';
-import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { OPERATION_HISTORY_REPORTER, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { NavigationContext, type PlaceProject, type ProjectPlace, type ProjectPlaceRequest } from '../../core/shell/navigation-context';
-import { RECEIPT_UNDO } from '../../core/history/receipt-undo';
+import { RECEIPT_UNDO, type ReceiptUndoResult } from '../../core/history/receipt-undo';
+import { SHELL_COMMANDS } from '../../core/shell/shell-commands';
 import { ReceiptToast } from '../../core/history/receipt-toast';
 import { FailureMessage } from '../../shared/feedback/failure-message';
 import { UnavailablePage } from '../../shared/components/unavailable-page/unavailable-page';
 import type { Failure } from '../../shared/feedback/failure';
 import { Toast } from '../../shared/feedback/toast';
-import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
+import { archivedHereFeedback, createdSubjectOf, createdUnderFeedback } from './history/history-feedback';
 import { ProjectHistoryControls } from './history/project-history-controls';
 import { ProjectHistoryStore } from './history/project-history-store';
 import { ArchivedBanner } from './archived-banner';
@@ -81,6 +82,9 @@ export class ArchiveFocusRequest {
       });
   }
 }
+
+/** A workstream this shell created and opened (Slice 81, Q13 (b)). */
+interface CreatedWorkstream { readonly report: OperationWriteReport; readonly parentId: ProjectId }
 
 /**
  * §23's project workspace, and §68's two project routes: `/projects/:projectId` and
@@ -172,7 +176,53 @@ export class ProjectWorkspaceShell {
     visit(this.store.subprojectTree(), 1);
     return result;
   });
-  readonly createWorkstream = (parentId: ProjectId, name: string): Promise<Failure | null> => this.store.createWorkstream(parentId, name);
+  private readonly shellCommands = inject(SHELL_COMMANDS, { optional: true });
+  /** A navigation this shell started, landing on the project's heading and toast (Slice 81, Q13 (b)). */
+  private landing: { projectId: ProjectId; feedback: ReceiptUndoResult; created?: CreatedWorkstream } | null = null;
+  /** The shown toast's new workstream, whose committed Undo returns to its parent. */
+  private created: CreatedWorkstream | null = null;
+
+  /**
+   * A new workstream opens (W1-014, W2-007): the dialog closes, the tree re-reads so the row exists,
+   * then the route moves to it; its heading takes focus and its toast follows. A refusal stays in
+   * the dialog. A create that lands after the person left this project moves nothing.
+   */
+  readonly createWorkstream = async (parentId: ProjectId, name: string): Promise<Failure | null> => {
+    const from = this.projectId();
+    const parentName = this.workCreateParents().find(({ id }) => id === parentId)?.name ?? '';
+    const report = await this.store.createWorkstream(parentId, name);
+    if ('sentence' in report) return report;
+    this.workCreateReturn = null;
+    this.closeWorkCreate();
+    await this.shellCommands?.refreshProjects().catch(() => undefined);
+    if (this.projectId() === from) this.land(report.projectId, createdUnderFeedback(report.projectName!, parentName), { report, parentId });
+    return null;
+  };
+
+  /** The create toast's Undo: a commit returns to the parent, a push so Back reaches “Creation undone”. */
+  async undoToast(): Promise<void> {
+    const created = this.toast.report() === this.created?.report ? this.created : null;
+    const result = await this.toast.undo();
+    if (created !== null && result?.committed && this.projectId() === created.report.projectId) {
+      this.land(created.parentId, { ...result, link: { projectId: created.report.projectId, label: `Open ${created.report.projectName} to redo` } });
+    }
+  }
+
+  private land(projectId: ProjectId, feedback: ReceiptUndoResult, created?: CreatedWorkstream): void {
+    this.landing = { projectId, feedback, created };
+    void this.router.navigate(['/projects', projectId]).then((moved) => { if (!moved) this.landing = null; });
+  }
+
+  /** After the landing project has rendered: its history's generation has started, so the toast stays. */
+  private focusLanding(): void {
+    const landing = this.landing;
+    const heading = this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]');
+    if (landing === null || heading === null || this.store.loading() || this.store.project()?.id !== landing.projectId) return;
+    this.landing = null;
+    heading.focus();
+    this.created = landing.created ?? null;
+    this.toast.show(landing.feedback, landing.created?.report, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]'));
+  }
 
   readonly notice = this.noticeState.asReadonly();
   readonly noticeEnableKind = this.noticeEnableKindState.asReadonly();
@@ -338,7 +388,7 @@ export class ProjectWorkspaceShell {
     });
     // A direct load resolves asynchronously and a fragment-only navigation can reuse the shell.
     // Inspect the current URL after each render until its matching header exists, then focus once.
-    afterEveryRender(() => { this.focusHistoryFragment(); this.focusArchiveLanding(); }, { injector: this.injector });
+    afterEveryRender(() => { this.focusHistoryFragment(); this.focusArchiveLanding(); this.focusLanding(); }, { injector: this.injector });
 
     // Re-loads when the route changes projects, which sidebar navigation does without
     // re-creating this component. Moving between two pages of the same project changes only
@@ -346,6 +396,7 @@ export class ProjectWorkspaceShell {
     effect(() => {
       const projectId = this.projectId();
       untracked(() => {
+        if (this.landing?.projectId !== projectId) this.landing = null;
         void this.store.load(projectId);
         this.history.load(projectId);
       });
