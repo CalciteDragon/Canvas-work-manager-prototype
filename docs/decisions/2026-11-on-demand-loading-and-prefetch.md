@@ -60,3 +60,9 @@ user's stated bar written down, and the two "needs user" items are where it will
 The bundle approaches the ceiling again: take the audit's small deferrals (task drawer, More menu,
 pencil menu) biggest first, then ask about the page kinds and project routes. Or Zod changes
 how it exports `z`.
+
+**Amended, 2026-11-13 — the lazy routes are prefetched.** Under the rule above, the existing lazy
+routes (Calendar, Search, Settings, Settings › Agents and › Archived projects, the two prototype
+tools) used to load on their first click. `app.config.ts` now adds `withPreloading(PreloadAllModules)`,
+so the router fetches them once the first navigation settles. Pinned by `app.spec.ts`. The
+preloader costs 2.06 kB: the initial bundle measures **919.10 kB**.

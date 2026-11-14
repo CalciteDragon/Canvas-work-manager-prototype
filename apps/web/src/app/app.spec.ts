@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { PreloadAllModules, PreloadingStrategy } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { App } from './app';
 import { appConfig } from './app.config';
@@ -33,5 +34,16 @@ describe('appConfig', () => {
     TestBed.configureTestingModule({ providers: appConfig.providers });
 
     expect(TestBed.inject(LIVE_UPDATES)).toBeInstanceOf(PrototypeLiveUpdates);
+  });
+
+  /**
+   * The lazy routes (Calendar, Search, Settings and its two subpages, the prototype tools) are
+   * fetched after the first navigation, so a person's first click on one does not wait for its
+   * chunk (`docs/decisions/2026-11-on-demand-loading-and-prefetch.md`).
+   */
+  it('prefetches every lazy route once the first navigation settles', () => {
+    TestBed.configureTestingModule({ providers: appConfig.providers });
+
+    expect(TestBed.inject(PreloadingStrategy)).toBeInstanceOf(PreloadAllModules);
   });
 });

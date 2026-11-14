@@ -20,7 +20,9 @@ import { NotFoundPage } from './shared/components/placeholder-page/not-found-pag
  * (`docs/decisions/2026-08-initial-bundle-budget.md`) rather than raising it. **Settings ›
  * Archived projects joined them** (Slice 80, Q1 (a)), a recovery route opened rarely, to pay for
  * the cascading archive. **Settings and Search followed** (Slice 81, Q12 (a), pre-approved), to pay
- * for the one navigation tree's interaction. Every other feature route stays eager.
+ * for the one navigation tree's interaction. Every other feature route stays eager. `app.config.ts`
+ * prefetches every lazy route once the first navigation settles, so a first click does not wait
+ * (`docs/decisions/2026-11-on-demand-loading-and-prefetch.md`).
  */
 export const routes: Routes = [
   // `pathMatch: 'full'` is not decoration — without it this redirect swallows every URL.

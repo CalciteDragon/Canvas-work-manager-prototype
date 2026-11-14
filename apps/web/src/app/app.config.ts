@@ -1,7 +1,7 @@
 import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { ThemeService } from './core/theme/theme-service';
 import { RouteFocus } from './core/a11y/route-focus';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { PreloadAllModules, provideRouter, withComponentInputBinding, withPreloading } from '@angular/router';
 import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
 import { PrototypeWorkManagerGateway } from './core/gateway/prototype-work-manager-gateway';
 import { IDENTITY_PROVIDER } from './core/identity/identity-provider';
@@ -25,7 +25,9 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideAppInitializer(() => { inject(ThemeService); }),
     provideAppInitializer(() => { inject(RouteFocus); }),
-    provideRouter(routes, withComponentInputBinding()),
+    // Lazy routes are fetched once the first navigation settles, so a first click on Settings,
+    // Search or Calendar does not wait for its chunk (`docs/decisions/2026-11-on-demand-loading-and-prefetch.md`).
+    provideRouter(routes, withComponentInputBinding(), withPreloading(PreloadAllModules)),
     PrototypeIdentityProvider,
     { provide: IDENTITY_PROVIDER, useExisting: PrototypeIdentityProvider },
     PrototypeWorkManagerGateway,
