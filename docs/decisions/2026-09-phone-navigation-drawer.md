@@ -120,3 +120,18 @@ Project column rule above: no narrow re-collapse, no toggle focus hand-off, no
 §68 redirect of a tree link leaves focus on the pressed link. The drawer's pencil opens page
 settings and Add workstream by closing the drawer, focusing Menu and opening the lift with Menu as
 its return ([plan](../roadmap/active/81-one-navigation-tree.md)).
+
+**Amended, 2026-11-14 (Slice 81, step 9).** The drawer has **no visible Close** (the user's
+decision 4 at the pick, 2026-11-10). Its top row is the tree's action row — the chevron at the
+start, the pencil at the end where Close was — 44 px at drawer width with any pointer; outside a
+project the row is not drawn. Dismissal is Escape, the backdrop (a button named "Close
+navigation", which also covers Menu's spot), choosing a destination, a resize, and a **"Close
+navigation" button that is the drawer's last Tab stop**, visually hidden until it has focus, so a
+keyboard user sees it and a screen reader, kept inside by `aria-modal`, can reach it. Every
+dismissal still returns focus to Menu; widening from that button moves focus to the first
+navigation item, as from Close. The drawer opens with its current item scrolled into view, and
+answers Slice 73's deferral, "the navigation drawer as a lift": it takes the lift's plane, blur,
+shadow and entrance motion, and keeps its own focus rules and its `--z-navigation` layer above
+`--z-lift`. The "768 px tablet keeps the inline sidebar" sentence above was always wrong: the
+query is `max-width: 48rem`, which includes 768 px, so a 768 px viewport gets the drawer. The
+rules of this entry otherwise stand ([plan](../roadmap/active/81-one-navigation-tree.md)).

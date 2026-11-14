@@ -38,11 +38,6 @@
       (keydown.escape)="dismissDrawer()"
       (click)="onDrawerClick($event)"
     >
-      @if (drawerOpen()) {
-        <div class="drawer__header">
-          <button type="button" class="icon-button" data-shell-drawer-close aria-label="Close" (click)="dismissDrawer()"><app-icon name="close" /></button>
-        </div>
-      }
       <app-sidebar
         class="drawer__nav"
         [projectTree]="store.projectTree()"
@@ -57,6 +52,13 @@
         (pageSettingsRequested)="toPlace($event, 'openPageSettings')"
         (addWorkstreamRequested)="toPlace($event, 'openAddWorkstream')"
       />
+      @if (drawerOpen()) {
+        <!-- Slice 81 (decision 4): no visible Close; the tree's action row is the drawer's top row.
+             The last Tab stop dismisses, visually hidden until it has focus (the skip link's
+             pattern), so a keyboard user sees it and a screen reader, kept inside by
+             `aria-modal`, can reach it. -->
+        <button type="button" class="button drawer__dismiss" data-shell-drawer-dismiss (click)="dismissDrawer()">Close navigation</button>
+      }
     </div>
   </div>
 

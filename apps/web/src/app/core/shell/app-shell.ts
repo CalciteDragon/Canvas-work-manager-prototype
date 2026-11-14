@@ -19,15 +19,15 @@ import { SHELL_NARROW_BREAKPOINT } from '../layout/breakpoints';
 import { SHELL_COMMANDS, type ShellCommands } from './shell-commands';
 import { NavigationContext, type ProjectPlaceHandlers } from './navigation-context';
 import { ShellStore } from './shell-store';
-import { Icon } from '../../shared/components/icon/icon';
 import { PinnedFailureSlot } from '../../shared/feedback/pinned-failure-slot';
 import { ToastSlot } from '../../shared/feedback/toast-slot';
 import { Sidebar } from './sidebar/sidebar';
 import { TopBar } from './top-bar/top-bar';
 
 /**
- * Slice 58's phone breakpoint, below which the sidebar becomes a drawer. The canvas's existing
- * single-column breakpoint, so a 768 px tablet keeps the inline sidebar.
+ * Slice 58's phone breakpoint, at and below which the sidebar becomes a drawer. The canvas's
+ * existing single-column breakpoint; `max-width` includes it, so a 768 px viewport gets the drawer
+ * too (Slice 81).
  *
  * The token lint checks the shared TS value against the CSS-free Sass breakpoint partial
  * used by `app-shell.scss` and `top-bar.scss`.
@@ -64,7 +64,7 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkTrapFocus, RouterOutlet, Sidebar, TopBar, Icon, PinnedFailureSlot],
+  imports: [CdkTrapFocus, RouterOutlet, Sidebar, TopBar, PinnedFailureSlot],
   providers: [ShellStore, { provide: SHELL_COMMANDS, useExisting: AppShell }],
   styleUrl: './app-shell.scss',
   templateUrl: './app-shell.html',
@@ -137,7 +137,13 @@ export class AppShell implements ShellCommands {
     this.drawerOpenState.set(true);
     // Explicitly, as `DevPanel` does: `cdkTrapFocusAutoCapture` resolves on zone stability and
     // never fires zoneless. The trap still keeps Tab inside once focus is there.
-    this.afterRender(() => this.drawer()?.nativeElement.focus());
+    // The current item is brought into the drawer's scroll port (Slice 81): a deep tree can
+    // start below the fold, and the person opened the drawer from where they are.
+    this.afterRender(() => {
+      const drawer = this.drawer()?.nativeElement;
+      drawer?.focus();
+      drawer?.querySelector('[aria-current]')?.scrollIntoView?.({ block: 'nearest' });
+    });
   }
 
   /**
@@ -172,7 +178,7 @@ export class AppShell implements ShellCommands {
     });
   }
 
-  /** Escape, Close and the backdrop: the drawer goes and focus returns to the Menu that opened it. */
+  /** Escape, Close navigation and the backdrop: the drawer goes and focus returns to the Menu that opened it. */
   protected dismissDrawer(): void {
     if (!this.drawerOpen()) return;
     this.closeDrawerThen(() => this.topBar().focusMenu());
@@ -211,7 +217,7 @@ export class AppShell implements ShellCommands {
     const inDrawer = active !== null && drawer.contains(active);
     const onPhoneChrome =
       active === drawer ||
-      (active?.hasAttribute('data-shell-drawer-close') ?? false) ||
+      (active?.hasAttribute('data-shell-drawer-dismiss') ?? false) ||
       (active?.hasAttribute('data-shell-menu') ?? false);
     this.drawerOpenState.set(false);
     this.narrow.set(narrow);
@@ -219,7 +225,7 @@ export class AppShell implements ShellCommands {
       // The inline sidebar is about to become a hidden, inert drawer.
       this.afterRender(() => this.topBar().focusMenu());
     } else if (!narrow && onPhoneChrome) {
-      // Menu, Close and the dialog container do not exist at desktop width — Menu holds focus
+      // Menu, Close navigation and the dialog container do not exist at desktop width — Menu holds focus
       // after every dismissal — but the sidebar they stood for does.
       this.afterRender(() => drawer.querySelector<HTMLElement>('[data-nav-item]')?.focus());
     }

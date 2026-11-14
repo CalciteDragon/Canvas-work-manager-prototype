@@ -20,7 +20,7 @@
   min-height: 0;
 }
 
-// The sidebar fills the drawer below its Close row; at desktop width it is the only child.
+// The sidebar fills the drawer above its hidden dismiss; at desktop width it is the only child.
 .drawer {
   display: flex;
   flex-direction: column;
@@ -70,12 +70,24 @@
   cursor: pointer;
 }
 
-.drawer__header {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--space-2) var(--space-3);
-  border-inline-end: var(--border-hairline) solid var(--color-border);
-  background: var(--color-surface);
+// The drawer's last Tab stop (Slice 81, decision 4): out of sight until it has focus, then a row
+// of its own under the tree. Absolute inside the fixed drawer, so hidden it takes no space.
+.drawer__dismiss {
+  flex: none;
+  margin: var(--space-2) var(--space-3);
+}
+
+.drawer__dismiss:not(:focus) {
+  position: absolute;
+  inline-size: var(--border-hairline);
+  block-size: var(--border-hairline);
+  min-block-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 // Slice 58's phone breakpoint. Mirrors `SHELL_NARROW_QUERY` in `app-shell.ts` and the query in
@@ -98,8 +110,23 @@
     width: min(var(--layout-sidebar-width), calc(100vw - var(--size-hit-target)));
   }
 
+  // Slice 73's deferral, answered in Slice 81: the open drawer is a lift in look and motion —
+  // its plane, blur, shadow and entrance — and keeps its own focus rules and layer. The sidebar
+  // paints the plane, so the drawer hands it the lift's through the plane properties.
+  // `--z-navigation` stays above `--z-lift`: a tooltip or notice in the workspace behind must
+  // not draw over a modal drawer and its scrim.
   .side--open {
-    box-shadow: var(--shadow-md);
+    --plane-pane-background: var(--plane-lift-background);
+    --plane-pane-filter: var(--plane-lift-filter);
+    box-shadow: var(--lift-shadow);
+    transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+  }
+
+  @starting-style {
+    .side--open {
+      opacity: 0;
+      transform: translateX(calc(-1 * var(--lift-enter-offset)));
+    }
   }
 
   // Closed, it is hidden as well as `inert`, taking its links out of sight and the tab order.

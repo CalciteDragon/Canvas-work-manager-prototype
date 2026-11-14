@@ -275,7 +275,7 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(slot.suppressed()).toBe(false);
     await openDrawer();
     expect(slot.suppressed()).toBe(true);
-    q('[data-shell-drawer-close]')!.click();
+    q('[data-shell-drawer-dismiss]')!.click();
     await stable();
     expect(slot.suppressed()).toBe(false);
     await openDrawer();
@@ -294,7 +294,7 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(drawer.hasAttribute('inert')).toBe(false);
     expect(q('app-top-bar')!.hasAttribute('inert')).toBe(false);
     expect(q('main')!.hasAttribute('inert')).toBe(false);
-    expect(q('[data-shell-drawer-close]')).toBeNull();
+    expect(q('[data-shell-drawer-dismiss]')).toBeNull();
     expect(q('[data-shell-drawer-backdrop]')).toBeNull();
   });
 
@@ -324,10 +324,10 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     [
       'Escape inside the drawer',
       (q: Query) =>
-        q('[data-shell-drawer-close]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+        q('a[data-nav-item]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
     ],
     ['the backdrop', (q: Query) => q('[data-shell-drawer-backdrop]')!.click()],
-    ['Close', (q: Query) => q('[data-shell-drawer-close]')!.click()],
+    ['its last Tab stop, Close navigation', (q: Query) => q('[data-shell-drawer-dismiss]')!.click()],
   ])('closes on %s and returns focus to Menu', async (_case, dismiss) => {
     const { q, stable, openDrawer } = await renderAt(true);
     await openDrawer();
@@ -340,6 +340,46 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(q('main')!.hasAttribute('inert')).toBe(false);
     expect(q('[data-shell-menu]')!.getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(q('[data-shell-menu]'));
+  });
+
+  // Slice 81, step 9 (decision 4): no visible Close. The tree's action row is the drawer's top row,
+  // and a "Close navigation" button, visually hidden until focused, is its last Tab stop.
+  it('has no Close button: the action row opens the drawer and Close navigation is its last Tab stop', async () => {
+    const { q, openDrawer } = await renderAt(true);
+    const context = TestBed.inject(NavigationContext);
+    const root = { id: 'project-1' as ProjectId, name: 'Personal workspace', status: 'active' as const };
+    context.publish({ projectId: root.id, status: 'ready', root, ancestors: [], current: root, pages: [], currentKind: 'home', addBlockedReason: null });
+    context.register({ openPageSettings: () => {}, openAddWorkstream: () => {} });
+    await openDrawer();
+
+    const drawer = q('#shell-navigation')!;
+    const buttons = [...drawer.querySelectorAll('button')];
+    expect(buttons.filter((button) => (button.getAttribute('aria-label') ?? button.textContent!.trim()) === 'Close')).toEqual([]);
+    expect(q('[data-shell-drawer-close]')).toBeNull();
+    const focusable = [...drawer.querySelectorAll<HTMLElement>('a[href], button')].filter((element) => !element.closest('[popover]'));
+    expect(focusable[0]!.hasAttribute('data-nav-up')).toBe(true);
+    expect(focusable[1]!.hasAttribute('data-edit-project')).toBe(true);
+    const last = focusable.at(-1)!;
+    expect(last.hasAttribute('data-shell-drawer-dismiss')).toBe(true);
+    expect(last.textContent!.trim()).toBe('Close navigation');
+    expect(last.getAttribute('type')).toBe('button');
+  });
+
+  it('opens with the current item scrolled into view, focus on the drawer', async () => {
+    const scrolled: Element[] = [];
+    Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value(this: Element) { scrolled.push(this); } });
+    try {
+      const { q, openDrawer } = await renderAt(true);
+      const context = TestBed.inject(NavigationContext);
+      const root = { id: 'project-1' as ProjectId, name: 'Personal workspace', status: 'active' as const };
+      context.publish({ projectId: root.id, status: 'ready', root, ancestors: [], current: root, pages: [], currentKind: 'home', addBlockedReason: null });
+      await openDrawer();
+
+      expect(scrolled).toEqual([q('#shell-navigation [aria-current]')]);
+      expect(document.activeElement).toBe(q('#shell-navigation'));
+    } finally {
+      Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+    }
   });
 
   // Slice 81, step 3 review: Escape in the drawer's pencil menu closes only the menu; the next closes the drawer.
@@ -656,7 +696,7 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
   });
 
   it.each([
-    ['Close', (q: Query) => q('[data-shell-drawer-close]')!.focus()],
+    ['Close navigation', (q: Query) => q('[data-shell-drawer-dismiss]')!.focus()],
     ['the dialog itself', (_q: Query) => undefined],
   ])('moves focus to the first navigation item when widening removes %s', async (_case, place) => {
     const { q, stable, openDrawer } = await renderAt(true);

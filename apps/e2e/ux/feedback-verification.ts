@@ -182,7 +182,7 @@ test('Feedback runtime evidence', async ({ browser }) => {
         if (touch) {
           await page.getByRole('button', { name: 'Menu', exact: true }).click();
           await expect(toast(page)).toHaveCount(0);
-          await page.locator('[data-shell-drawer-close]').click();
+          await page.keyboard.press('Escape');
           await expect(toast(page)).toBeVisible();
           suppression = { hidden: true, returned: true };
         }

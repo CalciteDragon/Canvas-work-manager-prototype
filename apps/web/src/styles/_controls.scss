@@ -739,6 +739,15 @@ button.link {
   }
 }
 
+// The phone drawer's top row (Slice 81, decision 4): the chevron and the pencil, where Close was,
+// are 44 px at drawer width with any pointer, as the coarse-pointer rule makes them everywhere.
+@media (max-width: bp.$shell-narrow) {
+  [data-nav-actions] .icon-button--sm {
+    inline-size: var(--size-hit-target);
+    block-size: var(--size-hit-target);
+  }
+}
+
 @media (forced-colors: active) {
   .tree-link[aria-current] {
     border-inline-start-color: Highlight;

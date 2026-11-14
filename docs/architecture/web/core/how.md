@@ -77,8 +77,12 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    colour by axe, and forced-colours borders.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
-   (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
-   Escape inside it, Close and the backdrop return focus to Menu; a plain activation of any link
+   (`#shell-navigation`, CDK focus trap, backdrop) and inerts the top bar and `<main>`. It has no
+   visible Close (Slice 81, decision 4): the tree's action row is its top row, 44 px at drawer
+   width, and its last Tab stop is a "Close navigation" button visually hidden until focused. It
+   opens with the current item scrolled into view and wears the lift's plane, blur, shadow and
+   entrance, handed to the sidebar through `--plane-pane-*`.
+   Escape inside it, Close navigation and the backdrop return focus to Menu; a plain activation of any link
    in it closes it and focuses `<main>` (`tabindex="-1"`), including the route already current.
    A create that fails after the drawer was dismissed reopens it, so the error and the restored
    form are reachable. A resize resets it to closed, keeps or rescues focus
@@ -136,7 +140,7 @@ caller can move elsewhere on a commit.
 - [prototype-host / api](../../prototype-host/api/overview.md) and
   [live-updates](../../prototype-host/live-updates/overview.md) — over HTTP.
 - `@angular/core`, `router`, `common`.
-- `shared/components/icon` (slice 72) — the sidebar's New project plus and the drawer's Close.
+- `shared/components/icon` (slice 72) — the sidebar's New project plus, the chevron and the pencil.
   It imports nothing from `core`, `features` or `prototype`.
 - `shared/feedback` — `ToastSlot` ownership used by `ReceiptToast` and suppression in the phone
   navigation drawer; the shell renders `PinnedFailureSlot` inside `.workspace`, which finds that

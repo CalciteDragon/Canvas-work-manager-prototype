@@ -188,7 +188,8 @@ const starred: { row: string; route: string; act: (page: Page, mode: Mode) => Pr
       await expect(page.locator('[data-history-undo]')).not.toHaveAttribute('aria-disabled', 'true');
       await press(page.locator('[data-history-undo]'), mode);
     } },
-  { row: 'Cross-owner write', route: kitchen, message: /\.$/, expected: ['Undo', /^Open /, 'Dismiss'], focusInToast: false,
+  // Slice 81 (Q13 (b)): the create opens the new workstream, so its toast offers no "Open …".
+  { row: 'Cross-owner write', route: kitchen, message: /^Created Lighting under Kitchen\.$/, expected: ['Undo', 'Dismiss'], focusInToast: false,
     act: async (page, mode) => {
       // Slice 81: the header's More offers Add workstream at every width.
       await press(page.locator('[data-project-more]'), mode);
@@ -264,7 +265,7 @@ test('the phone navigation drawer hides the toast, which returns when it closes'
   await expect(toast(page)).toBeVisible();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await expect(toast(page)).toHaveCount(0);
-  await page.locator('[data-shell-drawer-close]').click();
+  await page.keyboard.press('Escape');
   await expect(toast(page)).toBeVisible();
 });
 

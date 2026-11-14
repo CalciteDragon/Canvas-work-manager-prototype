@@ -150,7 +150,7 @@ for (const theme of THEMES) {
     }
   });
 
-  test(`${theme}: the drawer opens by tap, Enter and Space, traps focus, and closes by Escape, backdrop and Close`, async ({ browser }) => {
+  test(`${theme}: the drawer opens by tap, Enter and Space, traps focus, and closes by Escape, backdrop and Close navigation`, async ({ browser }) => {
     const context = await phoneContext(browser, theme);
     const page = await context.newPage();
     await page.goto('/app');
@@ -167,7 +167,9 @@ for (const theme of THEMES) {
     expect((await page.locator('[data-identity-name]').boundingBox())!.width).toBeLessThanOrEqual(1);
 
     await openByTap(page);
-    for (const control of ['[data-shell-drawer-close]', 'a[data-nav-item]', '[data-new-project]', 'a[data-project]']) {
+    // Slice 81 (decision 4): no visible Close; nothing in the drawer is named "Close".
+    await expect(drawer(page).getByRole('button', { name: 'Close', exact: true })).toHaveCount(0);
+    for (const control of ['a[data-nav-item]', '[data-new-project]', 'a[data-project]']) {
       expect((await page.locator(control).first().boundingBox())!.height, `${control} touch target`).toBeGreaterThanOrEqual(44);
     }
     for (const key of ['Tab', 'Shift+Tab'] as const) {
@@ -191,9 +193,16 @@ for (const theme of THEMES) {
     await expectDrawerClosed(page);
     await expectFocus(page, '[data-shell-menu]');
 
+    // The last Tab stop, "Close navigation": out of sight until focused, then a 44 px button.
     await menu(page).press('Space');
     await expectDrawerOpen(page);
-    await page.locator('[data-shell-drawer-close]').tap();
+    const dismiss = drawer(page).locator('[data-shell-drawer-dismiss]');
+    expect((await dismiss.boundingBox())!.height, 'hidden until focused').toBeLessThanOrEqual(1);
+    await page.keyboard.press('Shift+Tab');
+    await expectFocus(page, '[data-shell-drawer-dismiss]');
+    await expect(dismiss).toHaveAccessibleName('Close navigation');
+    expect((await dismiss.boundingBox())!.height, 'focused touch target').toBeGreaterThanOrEqual(44);
+    await page.keyboard.press('Enter');
     await expectDrawerClosed(page);
     await expectFocus(page, '[data-shell-menu]');
 
@@ -437,7 +446,7 @@ test.describe('across a resize', () => {
     await expectDrawerClosed(page);
     await menu(page).click();
     await expectDrawerOpen(page);
-    await page.locator('[data-shell-drawer-close]').focus();
+    await page.locator('[data-shell-drawer-dismiss]').focus();
     await page.setViewportSize({ width: 1280, height: 800 });
     await expectInlineSidebar(page);
     await expectFocus(page, 'a[data-nav-item][href="/app"]');

@@ -196,3 +196,79 @@ test('R3: indentation stops growing after four levels', async ({ page }) => {
   expect(level3).toBe(level2);
   expect(level5).toBe(level2);
 });
+
+/**
+ * J7 (Acceptance item 4, step 9's part; the breadcrumb and the header's height are step 10's): at
+ * 375 by touch one navigation control, Menu; the drawer opens on the root level with the current
+ * item in view, the chevron and the pencil on its top row and nothing named "Close" (decision 4).
+ */
+test('J7: the phone drawer opens on the root level with Cabinets current, its action row on top, and every dismissal returns to Menu', async ({ browser }) => {
+  await seed('nested-projects');
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await page.goto('/projects/project-cabinets');
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  const drawer = page.locator('#shell-navigation');
+  const isFocused = (locator: Locator) => locator.evaluate((element) => element === document.activeElement);
+  await expect(page.getByRole('navigation', { name: 'Workspace' })).toBeHidden();
+  await expect(page.getByRole('button', { name: /navigation/i })).toHaveCount(0);
+
+  const open = async () => {
+    await menu.tap();
+    await expect(drawer).toHaveAttribute('role', 'dialog');
+  };
+  await open();
+  const cabinets = drawer.getByRole('link', { name: 'Cabinets', exact: true });
+  await expect(cabinets).toHaveAttribute('aria-current', 'page');
+  await expect(cabinets).toBeInViewport();
+  await expect(drawer.locator('[data-nav-root]')).toHaveAccessibleName(/Home renovation/);
+  await expect(drawer.getByRole('button', { name: 'Close', exact: true })).toHaveCount(0);
+  const up = (await drawer.getByRole('button', { name: 'All projects' }).boundingBox())!;
+  const pencil = (await drawer.getByRole('button', { name: 'Edit project' }).boundingBox())!;
+  for (const box of [up, pencil]) expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(up.y + up.height / 2 - (pencil.y + pencil.height / 2))).toBeLessThanOrEqual(2);
+  expect(up.x).toBeLessThan(pencil.x);
+  const firstRow = (await drawer.locator('[data-nav-root]').boundingBox())!;
+  expect(up.y + up.height).toBeLessThanOrEqual(firstRow.y);
+
+  await drawer.getByRole('link', { name: 'Garden Completed', exact: true }).tap();
+  await expect(drawer).not.toHaveAttribute('role', 'dialog');
+  await expect(page).toHaveURL(/\/projects\/project-garden$/);
+  await expect.poll(() => isFocused(page.locator('main'))).toBe(true);
+
+  await open();
+  await page.keyboard.press('Escape');
+  await expect(drawer).not.toHaveAttribute('role', 'dialog');
+  await expect.poll(() => isFocused(menu)).toBe(true);
+
+  await open();
+  await page.touchscreen.tap(360, 600);
+  await expect(drawer).not.toHaveAttribute('role', 'dialog');
+  await expect.poll(() => isFocused(menu)).toBe(true);
+
+  // Reached by Tab from the last row, and visible once focused.
+  await open();
+  const dismiss = drawer.getByRole('button', { name: 'Close navigation' });
+  await drawer.locator('app-sidebar :is(a[href], button):not([tabindex="-1"])').last().focus();
+  await page.keyboard.press('Tab');
+  await expect.poll(() => isFocused(dismiss)).toBe(true);
+  const box = (await dismiss.boundingBox())!;
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.width).toBeGreaterThan(44);
+  await page.keyboard.press('Enter');
+  await expect(drawer).not.toHaveAttribute('role', 'dialog');
+  await expect.poll(() => isFocused(menu)).toBe(true);
+  await context.close();
+});
+
+test('J7: a resize to 1440 closes the drawer', async ({ page }) => {
+  await seed('nested-projects');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/projects/project-cabinets');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.locator('#shell-navigation')).toHaveAttribute('role', 'dialog');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('#shell-navigation')).not.toHaveAttribute('role', 'dialog');
+  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toHaveCount(0);
+  await expect(page.locator('app-sidebar [aria-current="page"]')).toHaveAccessibleName('Cabinets');
+});
