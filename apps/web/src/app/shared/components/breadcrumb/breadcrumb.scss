@@ -11,7 +11,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1);
+  // Q14 (a): at least 24 px between two pills, the separator included.
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -21,7 +22,7 @@
 .breadcrumb__item {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-3);
   min-inline-size: 0;
 }
 

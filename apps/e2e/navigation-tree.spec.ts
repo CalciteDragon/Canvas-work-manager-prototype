@@ -198,7 +198,7 @@ test('R3: indentation stops growing after four levels', async ({ page }) => {
 });
 
 /**
- * J7 (Acceptance item 4, step 9's part; the breadcrumb and the header's height are step 10's): at
+ * J7 (Acceptance item 4, step 9's part; the breadcrumb and the header's height join at step 12): at
  * 375 by touch one navigation control, Menu; the drawer opens on the root level with the current
  * item in view, the chevron and the pencil on its top row and nothing named "Close" (decision 4).
  */

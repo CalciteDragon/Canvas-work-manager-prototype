@@ -82,9 +82,14 @@ export class ArchivedRegion {
 
   private originPath(item: ProjectArchiveItem): readonly BreadcrumbItem[] {
     const sectionName = item.origin.sectionName;
+    const route = this.originRoute(item);
+    const fragment = this.originFragment(item);
+    // A workstream's Work canvas with no section to scroll to opens exactly what its project link
+    // opens; one tab stop per place, so the page is then text.
+    const repeatsProject = route !== null && route.length === 2 && fragment === undefined;
     return [
       ...item.origin.breadcrumb.map(({ projectId, name }) => ({ label: name, link: ['/projects', projectId] })),
-      { label: this.originPageLabel(item), link: this.originRoute(item), fragment: this.originFragment(item) },
+      { label: this.originPageLabel(item), link: repeatsProject ? null : route, fragment },
       ...(sectionName === undefined ? [] : [{ label: sectionName, link: null }]),
     ];
   }

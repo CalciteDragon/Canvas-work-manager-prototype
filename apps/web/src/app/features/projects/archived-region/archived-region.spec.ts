@@ -110,7 +110,7 @@ describe('ArchivedRegion', () => {
 
   // Slice 81 (W2-030, note-2026-10-15-004, Q14 (a)): the origin reads as a path, every project on it
   // a link, written with the breadcrumb's inline variant: content links in the sentence, no landmark.
-  it('writes the origin as a path of links, the breadcrumb’s inline variant', async () => {
+  it('writes the origin as a path of links, the breadcrumb’s inline variant, with no second link to the same place', async () => {
     const fixture = await render();
     const childOrigin = all(fixture, '[data-archived-kind="subproject"] [data-archived-origin]')[0]!;
     expect(childOrigin.textContent?.replace(/\s+/g, ' ').trim()).toBe('Origin: Website launch › Kitchen › Work canvas');
@@ -120,7 +120,6 @@ describe('ArchivedRegion', () => {
     expect(links.map((link) => [link.textContent?.trim(), link.getAttribute('href')])).toEqual([
       ['Website launch', `/projects/${ROOT_ID}`],
       ['Kitchen', '/projects/project-subproject'],
-      ['Work canvas', '/projects/project-subproject'],
     ]);
     for (const link of links) expect(link.classList.contains('link--inline')).toBe(true);
   });
