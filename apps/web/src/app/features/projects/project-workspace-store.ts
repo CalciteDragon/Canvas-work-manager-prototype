@@ -356,9 +356,9 @@ export class ProjectWorkspaceStore {
 
   /**
    * Creates named work through the existing project gateway; the new child's history owns it.
-   * Resolves `null`, or the dialog's `Failure`: a refusal before sending has no reason (Slice 78).
+   * Resolves the create's report (it names the new workstream, Slice 81), or the dialog's `Failure`:
+   * a refusal before sending has no reason (Slice 78).
    */
-  /** Resolves the create's report (it names the new workstream, Slice 81), or the failure to show beside the form. */
   createWorkstream(parentId: ProjectId, rawName: string): Promise<Failure | OperationWriteReport> {
     const refuse = (sentence: string) => Promise.resolve({ sentence, reason: null });
     const name = rawName.trim();

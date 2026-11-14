@@ -1621,6 +1621,7 @@ describe('Slice 81: creating a workstream opens it (W2-007, Q13 (b))', () => {
   const toastText = (harness: RouterTestingHarness) => query(harness, 'app-project-workspace-shell > app-toast [data-toast]')?.textContent ?? '';
   const toastUndo = (harness: RouterTestingHarness) => query(harness, 'app-project-workspace-shell > app-toast [data-toast-undo]');
   const heading = (harness: RouterTestingHarness) => query(harness, 'h1[data-project-name]');
+  const withTodos = () => [...defaults().pages, page('page-renovation-todos', 'project-renovation', 'todos')];
 
   it('awaits the shell’s refresh, then navigates to the new workstream and focuses its heading', async () => {
     const order: string[] = [];
@@ -1636,6 +1637,45 @@ describe('Slice 81: creating a workstream opens it (W2-007, Q13 (b))', () => {
     expect(heading(opened.harness)?.textContent?.trim()).toBe('Pantry');
     expect(document.activeElement).toBe(heading(opened.harness));
     expect(query(opened.harness, '[data-work-create-dialog]')).toBeNull();
+  });
+
+  // Review finding: the two project routes are two configs, so leaving a page URL re-creates the shell.
+  it('lands, focuses and says the toast when the create starts on a page URL, which re-creates the shell', async () => {
+    const opened = await open('/projects/project-renovation/pages/todos', { shell: shellCommands(), pages: withTodos() });
+    expect(opened.router.url).toBe('/projects/project-renovation/pages/todos');
+    await createPantry(opened);
+    expect(opened.router.url).toBe(`/projects/${PANTRY}`);
+    expect(heading(opened.harness)?.textContent?.trim()).toBe('Pantry');
+    expect(document.activeElement).toBe(heading(opened.harness));
+    expect(toastText(opened.harness)).toContain('Created Pantry under Home renovation.');
+  });
+
+  it('moves nothing when the create answers after the person left for another route', async () => {
+    const opened = await open('/projects/project-kitchen', { shell: shellCommands(), pages: withTodos() });
+    const { harness, gateway, router } = opened;
+    const create = gateway.projects.create.bind(gateway.projects);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let started = false;
+    let answered = false;
+    gateway.projects.create = async (input) => { started = true; await held; const result = await create(input); answered = true; return result; };
+    await requestWork(harness);
+    const name = query(harness, '[data-create-work-name]') as HTMLInputElement;
+    name.value = 'Pantry'; name.dispatchEvent(new Event('input'));
+    harness.fixture.detectChanges();
+    query(harness, '[data-create-work-submit]')!.click();
+    await vi.waitFor(() => expect(started).toBe(true));
+    // A page URL is the other route config: the shell that started the create is destroyed.
+    await router.navigateByUrl('/projects/project-renovation/pages/todos');
+    expect(router.url).toBe('/projects/project-renovation/pages/todos');
+    const navigate = vi.spyOn(router, 'navigate');
+    release();
+    await vi.waitFor(() => expect(answered).toBe(true));
+    await settle(harness);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await settle(harness);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(router.url).toBe('/projects/project-renovation/pages/todos');
   });
 
   it('still navigates when the refresh fails', async () => {

@@ -191,7 +191,8 @@ export const crossOwnerFeedback = (label: string, projectId: ProjectId, projectN
 });
 
 /** A new workstream's create, said once it is open (Slice 81, Q13 (b)): no link, it is the page. */
-export const createdUnderFeedback = (name: string, parentName: string): HistoryFeedback => ({ tone: 'status', message: `Created ${name} under ${parentName}.` });
+export const createdUnderFeedback = (name: string, parentName: string): HistoryFeedback =>
+  ({ tone: 'status', message: parentName === '' ? `Created ${name}.` : `Created ${name} under ${parentName}.` });
 
 /** The sentence a header archive leaves, on the page that stays (Slice 41). */
 export const archivedHereFeedback = (projectName: string, workstreams = 0): HistoryFeedback => ({

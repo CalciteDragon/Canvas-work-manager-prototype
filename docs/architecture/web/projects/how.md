@@ -78,11 +78,13 @@ load generation, reports the child's creation receipt (`feedback: 'own'`) and re
 the generation that started it. It resolves the create's `OperationWriteReport` or a `Failure`: a refusal before sending is a
 sentence with no reason, a refused write "Couldn’t add “X”. Try again." with the reason, which the
 dialog shows as an inline `FailureMessage` (`data-create-work-error`) that describes the name field. On success the shell's `createWorkstream` closes the dialog, awaits `ShellCommands.refreshProjects()`
-(a failed re-read still navigates) and lands on the new workstream: after it renders, `focusLanding`
+(a failed re-read still navigates) and lands on the new workstream through the root-scoped `ProjectLandingRequest` (leaving a page URL
+re-creates the shell, so a field would be lost): after it renders, `focusLanding`
 (in `afterEveryRender`) focuses its `h1` and shows "Created Pantry under Kitchen." with Undo. The
 toast's Undo (`undoToast`) of that create, when the result is `committed`, pushes to the parent,
 focuses its `h1` and shows "Open Pantry to redo"; a stale or refused Undo, or one answering after the
-route moved, stays put. A create answering after the person left moves nothing (Slice 81, Q13 (b),
+route moved, stays put. A create answering after the person left moves nothing; the check reads
+`Router.url`, because the shell that started it may already be destroyed (Slice 81, Q13 (b),
 [decision](../../../decisions/2026-11-undoing-a-new-workstream-returns-to-its-parent.md)). Trap: in
 the shell spec a held history transition keeps a pending task, so navigate and answer it before
 `settle()`. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
@@ -659,6 +661,7 @@ choice of the row now at the restored row's place) or the heading.
 | ProjectDetailsDialog | component | Single-commit project draft | [API](../../../api/components/ProjectDetailsDialog.html) |
 | ProjectArchiveConfirm | component | Modal archive confirmation; lists live workstreams and names them at the press | [API](../../../api/components/ProjectArchiveConfirm.html) |
 | ArchiveFocusRequest | injectable | Cross-shell Archive focus request | [API](../../../api/injectables/ArchiveFocusRequest.html) |
+| ProjectLandingRequest | injectable | Cross-shell landing of a new workstream and its toast Undo (Slice 81) | [API](../../../api/injectables/ProjectLandingRequest.html) |
 
 
 Task Lists disable CDK sorting within a list. The dragged list announces cross-list movement and clears that hint on drag end; dropTask still calls receive only for a different container. Read-only Task Lists pass sourceLink into TaskRow and distinguish an empty source. Todos uses the same object-row anatomy and taskMeta while retaining its own write store and exact status hooks. ArchivedRegion renders static object rows with separate Restore controls. Progress emphasises the pressed formula, without a lone primary. Settings archived-project cards show ancestor names only or Top-level project.

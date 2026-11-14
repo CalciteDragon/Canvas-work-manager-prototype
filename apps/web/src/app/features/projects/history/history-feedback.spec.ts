@@ -112,6 +112,7 @@ describe('history feedback (Slice 41)', () => {
     });
     // Slice 81, Q13 (b): the new workstream is open, so its create's toast names the parent and links nowhere.
     expect(createdUnderFeedback('Pantry', 'Kitchen')).toEqual({ tone: 'status', message: 'Created Pantry under Kitchen.' });
+    expect(createdUnderFeedback('Pantry', '')).toEqual({ tone: 'status', message: 'Created Pantry.' });
     expect(archivedHereFeedback('Garden').message).toBe('Archived Garden.');
     expect(archivedHereFeedback('Kitchen', 1).message).toBe('Archived Kitchen and 1 workstream.');
     expect(archivedHereFeedback('Home renovation', 3).message).toBe('Archived Home renovation and 3 workstreams.');

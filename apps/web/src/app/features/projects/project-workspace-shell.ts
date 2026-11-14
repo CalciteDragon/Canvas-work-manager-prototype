@@ -86,6 +86,33 @@ export class ArchiveFocusRequest {
 /** A workstream this shell created and opened (Slice 81, Q13 (b)). */
 interface CreatedWorkstream { readonly report: OperationWriteReport; readonly parentId: ProjectId }
 
+/** A navigation the shell started, to land on a project's heading and then its toast. */
+interface ProjectLanding { readonly url: string; readonly projectId: ProjectId; readonly feedback: ReceiptUndoResult; readonly created?: CreatedWorkstream }
+
+/**
+ * The create's and its Undo's landing (Slice 81, Q13 (b)). Root-scoped for the same reason as
+ * `ArchiveFocusRequest`: leaving a page URL re-creates the shell, which would lose a field.
+ */
+@Injectable({ providedIn: 'root' })
+export class ProjectLandingRequest {
+  readonly landing = signal<ProjectLanding | null>(null);
+
+  constructor() {
+    // A navigation that lands anywhere else ends the request.
+    inject(Router)
+      .events.pipe(takeUntilDestroyed())
+      .subscribe((event) => {
+        if (event instanceof NavigationEnd && this.landing() !== null && event.urlAfterRedirects !== this.landing()!.url) this.landing.set(null);
+      });
+  }
+}
+
+/** The project the router shows now, which a destroyed shell's input no longer tracks. */
+const routedProjectId = (url: string): string | null => {
+  const match = /^\/projects\/([^/?#]+)/.exec(url);
+  return match ? decodeURIComponent(match[1]!) : null;
+};
+
 /**
  * §23's project workspace, and §68's two project routes: `/projects/:projectId` and
  * `/projects/:projectId/pages/:pageKind` both resolve here.
@@ -177,25 +204,26 @@ export class ProjectWorkspaceShell {
     return result;
   });
   private readonly shellCommands = inject(SHELL_COMMANDS, { optional: true });
-  /** A navigation this shell started, landing on the project's heading and toast (Slice 81, Q13 (b)). */
-  private landing: { projectId: ProjectId; feedback: ReceiptUndoResult; created?: CreatedWorkstream } | null = null;
+  private readonly landingRequest = inject(ProjectLandingRequest);
+  /** Set on destroy: a create may answer after its shell is gone, which then has no dialog to close. */
+  private destroyed = false;
   /** The shown toast's new workstream, whose committed Undo returns to its parent. */
   private created: CreatedWorkstream | null = null;
 
   /**
    * A new workstream opens (W1-014, W2-007): the dialog closes, the tree re-reads so the row exists,
    * then the route moves to it; its heading takes focus and its toast follows. A refusal stays in
-   * the dialog. A create that lands after the person left this project moves nothing.
+   * the dialog. A create that answers after the person left this project moves nothing; it reads the
+   * router, since the shell that started it may be gone (a page URL is the other route config).
    */
   readonly createWorkstream = async (parentId: ProjectId, name: string): Promise<Failure | null> => {
     const from = this.projectId();
     const parentName = this.workCreateParents().find(({ id }) => id === parentId)?.name ?? '';
     const report = await this.store.createWorkstream(parentId, name);
     if ('sentence' in report) return report;
-    this.workCreateReturn = null;
-    this.closeWorkCreate();
+    if (!this.destroyed) { this.workCreateReturn = null; this.closeWorkCreate(); }
     await this.shellCommands?.refreshProjects().catch(() => undefined);
-    if (this.projectId() === from) this.land(report.projectId, createdUnderFeedback(report.projectName!, parentName), { report, parentId });
+    if (routedProjectId(this.router.url) === from) this.land(report.projectId, createdUnderFeedback(report.projectName!, parentName), { report, parentId });
     return null;
   };
 
@@ -203,22 +231,24 @@ export class ProjectWorkspaceShell {
   async undoToast(): Promise<void> {
     const created = this.toast.report() === this.created?.report ? this.created : null;
     const result = await this.toast.undo();
-    if (created !== null && result?.committed && this.projectId() === created.report.projectId) {
+    if (created !== null && result?.committed && routedProjectId(this.router.url) === created.report.projectId) {
       this.land(created.parentId, { ...result, link: { projectId: created.report.projectId, label: `Open ${created.report.projectName} to redo` } });
     }
   }
 
   private land(projectId: ProjectId, feedback: ReceiptUndoResult, created?: CreatedWorkstream): void {
-    this.landing = { projectId, feedback, created };
-    void this.router.navigate(['/projects', projectId]).then((moved) => { if (!moved) this.landing = null; });
+    const target = ['/projects', projectId];
+    const landing: ProjectLanding = { url: this.router.serializeUrl(this.router.createUrlTree(target)), projectId, feedback, created };
+    this.landingRequest.landing.set(landing);
+    void this.router.navigate(target).then((moved) => { if (!moved && this.landingRequest.landing() === landing) this.landingRequest.landing.set(null); });
   }
 
   /** After the landing project has rendered: its history's generation has started, so the toast stays. */
   private focusLanding(): void {
-    const landing = this.landing;
+    const landing = this.landingRequest.landing();
     const heading = this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]');
     if (landing === null || heading === null || this.store.loading() || this.store.project()?.id !== landing.projectId) return;
-    this.landing = null;
+    this.landingRequest.landing.set(null);
     heading.focus();
     this.created = landing.created ?? null;
     this.toast.show(landing.feedback, landing.created?.report, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]'));
@@ -376,7 +406,7 @@ export class ProjectWorkspaceShell {
         if (feedback !== null) this.toast.show(feedback, feedback.report, () => this.host.nativeElement.querySelector<HTMLElement>('[data-project-name], #project-creation-recovery-heading'));
       });
     });
-    inject(DestroyRef).onDestroy(() => this.releaseWorkLift?.());
+    inject(DestroyRef).onDestroy(() => { this.destroyed = true; this.releaseWorkLift?.(); });
     effect(() => {
       const loading = this.store.loading();
       const rootId = this.store.root()?.id ?? null;
@@ -396,7 +426,6 @@ export class ProjectWorkspaceShell {
     effect(() => {
       const projectId = this.projectId();
       untracked(() => {
-        if (this.landing?.projectId !== projectId) this.landing = null;
         void this.store.load(projectId);
         this.history.load(projectId);
       });
