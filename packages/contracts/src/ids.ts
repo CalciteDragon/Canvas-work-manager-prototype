@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 /**
  * Ids are plain strings — the seeds use readable ones like `task-123` and `user-a`, and

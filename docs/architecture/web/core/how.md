@@ -72,7 +72,7 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    document, a merely hovered one; leaving or blurring clears it, and the pencil keeps its tooltip
    down after its menu closes, so the next Escape reaches the drawer. Traps: `.icon-button` is 40 px, the tree's 32 px is
    `.icon-button--sm`; a `popovertarget` menu without `position-anchor: auto` falls to the viewport
-   corner (step 1's probe); the initial bundle is at its ceiling, so measure every addition.
+   corner (step 1's probe); measure every addition to the initial bundle.
    `navigation-tree.spec.ts` checks underlines, tooltips, sizes (32 and 44 px), the archived
    colour by axe, and forced-colours borders.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes

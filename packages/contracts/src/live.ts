@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { ActivityActionSchema, ActivityEntityTypeSchema } from './activity';
 import { ProjectIdSchema } from './ids';
 

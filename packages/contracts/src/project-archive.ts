@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { AgentPermissionSchema } from './agent';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema } from './ids';
 import { ProjectPageKindSchema } from './project-page';

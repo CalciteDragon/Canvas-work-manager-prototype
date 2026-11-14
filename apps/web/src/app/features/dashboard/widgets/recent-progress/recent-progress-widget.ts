@@ -2,7 +2,7 @@ import { RouterLink } from '@angular/router';
 import { taskMeta } from '../../../tasks/task-meta';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DashboardQuerySchema, type DashboardResult, type DashboardWidget } from '@cwm/contracts';
-import { z } from 'zod';
+import * as z from 'zod';
 
 /** This widget's own config: how far back "recently" reaches (§24). */
 export const RecentProgressWidgetConfigSchema = z.object({ days: DashboardQuerySchema.shape.recentDays });

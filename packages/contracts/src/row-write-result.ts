@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { OperationReceiptSchema } from './operation-receipt';
 import { ReflectionSchema } from './reflection';
 import { TaskSchema } from './task';

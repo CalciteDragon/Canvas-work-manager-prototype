@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionShortcutIdSchema } from './ids';
 import { OperationReceiptSchema } from './operation-receipt';
 import { ResolvedSectionShortcutSchema } from './section-shortcut';

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { IsoDateTimeSchema } from './common';
 import { OperationActionIdSchema, OperationHistoryIdSchema, ProjectIdSchema } from './ids';
 import { OperationKindSchema } from './operation-receipt';

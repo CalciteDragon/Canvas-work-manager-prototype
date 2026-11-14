@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { ActivityEventSchema } from './activity';
 import { AgentConnectionSchema } from './agent';
 import { MilestoneSchema } from './milestone';

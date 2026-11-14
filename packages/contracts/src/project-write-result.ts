@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { OperationReceiptSchema } from './operation-receipt';
 import { ProjectSchema } from './project';
 

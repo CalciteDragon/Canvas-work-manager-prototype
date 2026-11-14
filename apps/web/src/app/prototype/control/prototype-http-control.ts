@@ -6,7 +6,7 @@ import {
   type PrototypeNote,
   type PrototypeState,
 } from '@cwm/contracts';
-import { z } from 'zod';
+import * as z from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../../core/config/prototype-config';
 import { GatewayError, toGatewayError, toUnreachableError } from '../../core/gateway/gateway-error';
 import type { PrototypeControlPort } from './prototype-control';

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectPageIdSchema, ReflectionIdSchema, SectionIdSchema, TaskIdSchema } from './ids';
 

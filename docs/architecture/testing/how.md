@@ -137,6 +137,10 @@ complete `chrome-verification.json`. Earlier slices' runtime scripts remain froz
    makes Calendar and Settings › Agents lazy routes and defers its archived banner and first-run
    block, measuring 1,149.35 kB at its review. Slice 80 makes Settings › Archived projects lazy too
    (every other feature route stays eager), measuring 1,138.63 kB before its own additions.
+   Slice 81's bundle audit (2026-11-13) found every Zod locale in the initial bundle through
+   `import { z } from 'zod'`; the namespace import, guarded by `scripts/check-zod-imports.mjs` in
+   the contracts and web lints, took it from 1,149.73 kB to 917.04 kB
+   ([audit](../../roadmap/70-ui-ux/bundle-audit-2026-11.md)).
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through

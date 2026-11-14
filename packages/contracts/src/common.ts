@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 /**
  * An instant, UTC only: `2026-08-26T10:00:00.000Z` parses, a `+02:00` offset does not.

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema } from './ids';
 import { SubprojectSchema } from './project';
 import { ProjectPageKindSchema } from './project-page';

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { IsoDateSchema, IsoDateTimeSchema } from './common';
 import { DashboardTaskSchema } from './dashboard';
 import { ProjectIdSchema } from './ids';

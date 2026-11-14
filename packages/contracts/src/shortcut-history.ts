@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { PlacementSnapshotSchema, TransitionPlacementSchema } from './history-placement';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionShortcutIdSchema } from './ids';
 import { SectionColumnSpanSchema } from './section';

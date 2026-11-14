@@ -77,8 +77,10 @@ themes; the token lint permits literals in exactly one file
 - A production adapter replaces `prototype-work-manager-gateway.ts` and nothing else.
 - Every component test runs with a fake gateway from `core/gateway/testing`; no test
   needs the host.
-- The initial bundle is over its 850 kB *warning* budget and under the 1100 kB error budget; the
+- The initial bundle is over its 850 kB *warning* budget and under the 1150 kB error budget; the
   warning remains visible and the hard ceiling is watched rather than hidden by raising both.
+  Zod is imported as a namespace (`import * as z from 'zod'`), so its locales stay out of the
+  bundle ([decision](../../decisions/2026-11-on-demand-loading-and-prefetch.md)).
 - A store that forgets its in-flight guard will have a live frame overwrite its
   optimistic write — the defect class that closed Slice 16 and Slice 17.
 
@@ -95,6 +97,7 @@ themes; the token lint permits literals in exactly one file
 - [The activity feed composes its line](../../decisions/2026-08-activity-feed-composes-from-parts.md)
 - [Historical Activity identity survives a removed task or reflection](../../decisions/2026-09-historical-activity-identity.md)
 - [The initial bundle budget is set deliberately at 850 kB](../../decisions/2026-08-initial-bundle-budget.md)
+- [On-demand loading: what may leave the initial bundle, and how it is prefetched](../../decisions/2026-11-on-demand-loading-and-prefetch.md)
 - [Storybook runs on the Vite framework, not the webpack one](../../decisions/2026-08-storybook-runs-on-the-vite-framework.md)
 - [The Design Lab is a route with live knobs, not a third theme](../../decisions/2026-08-design-lab-tokens-are-session-knobs.md)
 

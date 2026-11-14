@@ -62,7 +62,7 @@ import {
   type OperationHistoryId,
   type OperationHistoryTransitionInput,
 } from '@cwm/contracts';
-import { z } from 'zod';
+import * as z from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';

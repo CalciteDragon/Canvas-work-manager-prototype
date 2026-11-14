@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { AgentPermissionSchema } from './agent';
 import { OperationFamilySchema } from './operation-receipt';
 

@@ -190,6 +190,7 @@ list while `type` stays open for new types
 - [An existing project's writes are one action family](../../decisions/2026-09-project-update-operation-history.md) — `project-history.ts`, `project-write-result.ts`, the `project` conflict entity kind and the sixth operation family
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `project.add`, its canonical page and absence anchors
 - [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
+- [On-demand loading: what may leave the initial bundle, and how it is prefetched](../../decisions/2026-11-on-demand-loading-and-prefetch.md) — the schemas import Zod as a namespace, so the web bundle drops its locales
 
 ## Spec sections
 

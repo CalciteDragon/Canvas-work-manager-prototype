@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { ActivityActorSchema } from './activity';
 import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';

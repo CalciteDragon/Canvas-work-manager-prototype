@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { ProjectIdSchema } from './ids';
 import { ProgressFormulaSchema } from './project';
 

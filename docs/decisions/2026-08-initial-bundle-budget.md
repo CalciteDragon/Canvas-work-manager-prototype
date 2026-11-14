@@ -176,3 +176,11 @@ own code trimmed the build measured **1,150.00 kB** after the step's review fixe
 budget, with no room left). Dashboard and the two project routes stay eager. The ceiling stays at
 1150 kB; step 6's deferred page-settings host and step 8's removal of the project column are where
 the slice gets room back.
+
+**Amended, 2026-11-13 — Slice 81's bundle audit (user decision on Open question 19).** Step 7
+measured 1,151.16 kB. The user kept the ceiling and asked for an audit with on-demand loading.
+The audit found every Zod locale in the initial bundle through `import { z } from 'zod'`. With the
+namespace import, the build measures **917.04 kB** from 1,149.73 kB, with no route or component
+moved ([on-demand loading](2026-11-on-demand-loading-and-prefetch.md),
+[audit](../roadmap/70-ui-ux/bundle-audit-2026-11.md)). The ceiling stays at 1150 kB and the 850 kB
+warning keeps reporting.

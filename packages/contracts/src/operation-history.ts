@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { ActivityActorSchema, assertActorIsAttributable } from './activity';
 import { IsoDateTimeSchema } from './common';
 import {
