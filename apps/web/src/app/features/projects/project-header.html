@@ -97,12 +97,12 @@
       (treeActionRequested)="requestTreeAction($event)"
       (dismissed)="closeMore()"
     />
-  @defer (when detailsOpen()) {
+  @defer (when detailsOpen(); prefetch on idle) {
     @if (detailsOpen()) {
       <app-project-details-dialog [project]="project()" [opener]="moreButton" [save]="saveDetails()" [writeError]="writeError()" (closed)="closeDetails()" />
     }
   }
-  @defer (when archiveOpen()) {
+  @defer (when archiveOpen(); prefetch on idle) {
     @if (archiveOpen()) {
       <app-project-archive-confirm [project]="project()" [opener]="moreButton" [archive]="confirmArchive()" (closed)="archiveOpen.set(false)" />
     }

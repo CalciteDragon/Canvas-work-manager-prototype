@@ -17,7 +17,7 @@ the initial bundle, what must stay, and how does a deferred piece avoid a visibl
 
 **What we learned**
 
-**Every Zod locale was in the initial bundle: about 219 kB, a fifth of it.** `@cwm/contracts` and the
+**Every Zod locale was in the initial bundle: about 180 kB of it, a sixth.** `@cwm/contracts` and the
 web app wrote `import { z } from 'zod'`. Zod's `z` is a namespace object (`export * as z`), and a
 bound `z` used as a value hides from esbuild which members are used. So it kept all of them:
 `z.locales` with every translation of every error message, and the JSON Schema converters the web
@@ -59,10 +59,23 @@ user's stated bar written down, and the two "needs user" items are where it will
 
 The bundle approaches the ceiling again: take the audit's small deferrals (task drawer, More menu,
 pencil menu) biggest first, then ask about the page kinds and project routes. Or Zod changes
-how it exports `z`.
+how it exports `z`. Or the web app starts importing another workspace package that writes
+`import { z }` (domain, prototype data): the lint covers only the contracts and the web app, so
+that package's imports must change too, or the locales come back with no lint failing.
 
 **Amended, 2026-11-13 — the lazy routes are prefetched.** Under the rule above, the existing lazy
 routes (Calendar, Search, Settings, Settings › Agents and › Archived projects, the two prototype
 tools) used to load on their first click. `app.config.ts` now adds `withPreloading(PreloadAllModules)`,
 so the router fetches them once the first navigation settles. Pinned by `app.spec.ts`. The
 preloader costs 2.06 kB: the initial bundle measures **919.10 kB**.
+
+**Amended, 2026-11-13 — the existing deferred blocks prefetch on idle (review finding).** The rule
+says each deferred piece is prefetched, but the blocks already behind `@defer (when …)` loaded on
+their trigger: the project details and archive-confirm dialogs, section create, Page settings and
+Work create, the archived banner, the Archive list and the dashboard's first-run block. So a
+first click on Details waited for its chunk before the dialog painted and took focus. Each now
+reads `@defer (when …; prefetch on idle)`; what renders, and when, is unchanged. The idle
+scheduler costs 1.66 kB: the initial bundle measures **920.76 kB**. The lint
+(`scripts/check-zod-imports.mjs`) now also refuses `zod/…` subpaths, `export { z } from` and
+`import z = require`.
+

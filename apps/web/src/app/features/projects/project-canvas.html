@@ -251,7 +251,7 @@
   }
 </app-toast>
 
-@defer (when createDialogOpen()) {
+@defer (when createDialogOpen(); prefetch on idle) {
   @if (createDialogOpen()) {
     <app-section-create-dialog
       [types]="registry"

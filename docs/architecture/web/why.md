@@ -64,7 +64,7 @@ so no presentational component knows a receipt (Slice 41, [decision](../../decis
 move when a feature moves; the two `prototype/*` routes are lazy because most sessions
 never open them. Calendar, Search, Settings, Settings › Agents and Settings › Archived projects are
 the five lazy feature routes: they are opened less than the dashboard and the projects, and loading
-them on demand kept the initial bundle under its ceiling in Slices 79, 80 and 81 rather than raising it. The router prefetches every lazy route once the first navigation settles, so a first click does not wait for a chunk ([on-demand loading](../../decisions/2026-11-on-demand-loading-and-prefetch.md)). `App` mounts the eager development-panel shell globally; its controls
+them on demand kept the initial bundle under its ceiling in Slices 79, 80 and 81 rather than raising it. The router prefetches every lazy route once the first navigation settles, so a first click does not wait for a chunk, and every `@defer (when …)` block prefetches on idle for the same reason ([on-demand loading](../../decisions/2026-11-on-demand-loading-and-prefetch.md)). `App` mounts the eager development-panel shell globally; its controls
 load only when it opens ([decision](../../decisions/2026-08-initial-bundle-budget.md)).
 
 **Tokens structured around the knobs.** Each theme block holds only base literals and

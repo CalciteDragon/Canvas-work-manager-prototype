@@ -39,7 +39,7 @@
     }
   }
 
-  @defer (when !store.loading()) {
+  @defer (when !store.loading(); prefetch on idle) {
     <app-archived-region
       [items]="store.items()"
       [rootProjectId]="projectId()"

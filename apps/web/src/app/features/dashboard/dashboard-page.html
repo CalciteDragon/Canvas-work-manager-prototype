@@ -12,7 +12,7 @@
 
   <!-- Slice 79: first run, above the widgets (Q3 (a)), its chunk loaded only for an empty
        workspace (Q6 (a)). -->
-  @defer (when shell?.workspaceEmpty()) {
+  @defer (when shell?.workspaceEmpty(); prefetch on idle) {
     <app-first-run-block />
   }
 

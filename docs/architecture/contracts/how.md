@@ -147,7 +147,7 @@ a type with no schema, registered or not, is never checked
 
 - `zod` (v4). Nothing else, and nothing from this workspace. Imported as a namespace,
   `import * as z from 'zod'`, never `import { z }` or the default: the web app bundles these
-  schemas, and the bound `z` object kept every Zod locale (about 219 kB) in its initial bundle.
+  schemas, and the bound `z` object kept every Zod locale in its initial bundle (the fix saved 232.69 kB).
   `scripts/check-zod-imports.mjs`, part of this package's and the web app's `lint`, refuses the
   other forms ([decision](../../decisions/2026-11-on-demand-loading-and-prefetch.md)).
 
