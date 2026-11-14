@@ -640,6 +640,12 @@ button.link {
   }
 }
 
+// Slice 81, Q14 (a): a link in running text (the breadcrumb's inline variant, Archive's origin path)
+// stays a run of words on touch, inline under WCAG 2.5.8's exception, with a named census exception.
+.link--inline {
+  display: inline;
+}
+
 @media (hover: hover) {
   .link:hover {
     text-decoration-thickness: var(--border-focus);

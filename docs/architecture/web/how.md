@@ -115,6 +115,7 @@ restore rows do not. The Task List's sticky quick-add carries `data-pin-clearanc
 | `SECTION_REGISTRY`, `DASHBOARD_WIDGET_REGISTRY`, `PROJECT_PAGE_REGISTRY` | consts | The three open-ended lists | [API](../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
 | `MarkdownRenderer`, `renderMarkdown` | component / function | Safe source presentation | [API](../../api/components/MarkdownRenderer.html) |
 | `Icon` | component | Shared decorative SVG marks (`shared/components/icon`) | [API](../../api/components/Icon.html) |
+| `Breadcrumb` | component | The path to a place, and its inline variant in a sentence (`shared/components/breadcrumb`) | [API](../../api/components/Breadcrumb.html) |
 
 | `Toast` | component | Presentational feedback, live regions and timer | [API](../../api/components/Toast.html) |
 | `FailureMessage` | component | One failure form: sentence, optional recovery, reason under Details | [API](../../api/components/FailureMessage.html) |

@@ -88,7 +88,7 @@ test('root projections lead to descendant history without merging actor or proje
   await page.goto(`/projects/${root}/pages/archive`);
   const archived = page.locator(`[data-archived-item][data-archived-id="${saved.section.id}"]`);
   await expect(archived.locator('[data-archived-history-link]')).toHaveAttribute('href', `/projects/${child}#history-controls`);
-  await expect(archived.locator('[data-archived-origin-link]')).toBeVisible();
+  await expect(archived.locator('[data-archived-origin] a').last()).toBeVisible();
   await expect(archived.locator('[data-archived-restore]')).toBeVisible();
   await archived.locator('[data-archived-history-link]').focus();
   await page.keyboard.press('Enter');

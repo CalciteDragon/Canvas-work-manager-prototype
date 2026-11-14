@@ -96,3 +96,9 @@ restoring an owner, or workspace Settings becoming too dense for many archived p
 **Amended, 2026-11-06 — Slice 80.** Both surfaces' rows say "Comes back with N workstreams" when a
 restore brings a [group](2026-11-cascading-project-archive.md) back, and their toasts count it from
 the response. The status a person chooses here is the owner's alone; the group returns as it was.
+
+**Amended, 2026-11-14 — Slice 81.** A row's "Origin: …" reads as a path, "Home renovation › Legacy
+attic › Work canvas", every project on it a link and the page a link where it can open, written with
+the breadcrumb's inline variant: content links in the sentence, no landmark, nothing current, and
+text-sized on touch under WCAG 2.5.8's inline exception (Q14 (a), W2-030, `note-2026-10-15-004`).
+See [one navigation tree](2026-10-one-navigation-tree.md).

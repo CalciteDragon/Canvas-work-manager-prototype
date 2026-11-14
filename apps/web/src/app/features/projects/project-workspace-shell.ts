@@ -29,6 +29,7 @@ import { SHELL_COMMANDS } from '../../core/shell/shell-commands';
 import { ReceiptToast } from '../../core/history/receipt-toast';
 import { FailureMessage } from '../../shared/feedback/failure-message';
 import { UnavailablePage } from '../../shared/components/unavailable-page/unavailable-page';
+import type { BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb';
 import type { Failure } from '../../shared/feedback/failure';
 import { Toast } from '../../shared/feedback/toast';
 import { archivedHereFeedback, createdSubjectOf, createdUnderFeedback } from './history/history-feedback';
@@ -301,6 +302,21 @@ export class ProjectWorkspaceShell {
   readonly activeKind = computed<ProjectPageKind | null>(() => {
     const rendered = this.rendered();
     return rendered === null || rendered.kind === 'work' ? null : rendered.kind;
+  });
+
+  /**
+   * The header's path (Slice 81, L7-004): a workstream's ancestors from the root, then itself; on a
+   * root's other pages, the root then the page. None on a root's first page, where one step would
+   * repeat the heading.
+   */
+  readonly headerPath = computed<readonly BreadcrumbItem[]>(() => {
+    const project = this.store.project();
+    if (project === null) return [];
+    const step = ({ id, name }: Project): BreadcrumbItem => ({ label: name, link: ['/projects', id] });
+    if (project.kind === 'subproject') return [...this.store.breadcrumbs().map(step), { label: project.name, link: null }];
+    const kind = this.activeKind();
+    if (kind === null || kind === canonicalPageKindFor(project.kind)) return [];
+    return [step(project), { label: pageDefinitionFor(kind)?.label ?? kind, link: null }];
   });
 
   /**

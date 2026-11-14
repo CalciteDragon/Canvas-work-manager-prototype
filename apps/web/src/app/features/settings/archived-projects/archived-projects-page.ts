@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, PendingTasks, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { Breadcrumb, type BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 import { RouterLink } from '@angular/router';
 import type { ProjectId } from '@cwm/contracts';
 import { ArchivedProjectsStore } from './archived-projects-store';
@@ -12,12 +13,15 @@ import { restoredProjectFeedback } from '../../projects/history/history-feedback
 @Component({
   selector: 'app-archived-projects-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Toast, FailureMessage, RestoreStatusChoice],
+  imports: [Breadcrumb, RouterLink, Toast, FailureMessage, RestoreStatusChoice],
   providers: [ArchivedProjectsStore],
   templateUrl: './archived-projects-page.html',
   styleUrl: './archived-projects-page.scss',
 })
 export class ArchivedProjectsPage {
+  /** Slice 81 (L7-010): where this Settings child is, with the way back. */
+  protected readonly path: readonly BreadcrumbItem[] = [{ label: 'Settings', link: '/settings' }, { label: 'Archived projects', link: null }];
+
   protected readonly store = inject(ArchivedProjectsStore);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);

@@ -347,6 +347,8 @@ test.describe('editing', () => {
     const open = rows.filter({ has: page.getByRole('checkbox', { checked: false }) }).first();
     const still = rows.filter({ hasNot: page.getByRole('checkbox', { checked: false }) }).first();
     const tops = () => rows.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
+    // Slice 81: the header's breadcrumb row can push the row below a 720 px viewport; the mouse needs it on screen.
+    await open.scrollIntoViewIfNeeded();
     const before = await still.evaluate((element) => element.getBoundingClientRect().top);
     const firstBefore = (await tops())[0]!;
     const box = (await open.locator('[data-task-title]').boundingBox())!;

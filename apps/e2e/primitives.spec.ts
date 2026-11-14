@@ -84,9 +84,13 @@ test('icon conversions keep the drawer Close names', async ({ browser }) => {
   await page.goto('/projects/project-launch');
   await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
 
+  // Slice 81, decision 4: the drawer has no visible Close; its dismiss is "Close navigation".
   await page.locator('[data-shell-menu]').tap();
-  await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(page.locator('#shell-navigation')).toHaveAttribute('role', 'dialog');
+  await expect(page.getByRole('button', { name: 'Close', exact: true })).toHaveCount(0);
+  await expect(page.locator('[data-shell-drawer-dismiss]')).toHaveAccessibleName('Close navigation');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#shell-navigation')).not.toHaveAttribute('role', 'dialog');
 
   await page.getByRole('button', { name: /, open details$/ }).first().tap();
   await expect(page.getByRole('button', { name: 'Close task details' })).toBeVisible();

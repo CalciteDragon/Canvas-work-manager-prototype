@@ -52,6 +52,7 @@ describe('DesignLabPage (§22, §67)', () => {
       'section-states',
       'widget-frame',
       'navigation',
+      'breadcrumb',
       'drawer',
       'activity',
       'buttons',

@@ -92,3 +92,10 @@ unavailable*. A landed creation Undo or Redo frame triggers one context reload f
 revision, which refreshes the former root's tree too ([project creation history](2026-09-project-creation-history.md)).
 
 **Amended, 2026-10-17 (Slice 74).** Header Undo and Redo remain the full-history controls. They report into the single toast instead of a header row. Local confirmations also offer one receipt-specific Undo; the header is no longer the only browser Undo surface. See [one toast with Undo](2026-10-feedback-is-one-toast-with-undo.md) and [always-visitable Archive](2026-10-archive-is-always-visitable.md).
+
+**Amended, 2026-11-14 (Slice 81, Q10 (a)).** Below 48rem the header's Undo, Redo and More stay on
+the name row instead of moving to a row of their own, and the description and facts fold behind a
+"Details" disclosure, so the header ends inside a quarter of a 375 × 812 screen (L1-014). Above
+48rem nothing changes. The path to the place (a breadcrumb) now sits above the name on a workstream
+and on a root's other pages; the header's inline padding is a section frame's, so its first column
+starts on the content's edge (L1-006). See [one navigation tree](2026-10-one-navigation-tree.md).

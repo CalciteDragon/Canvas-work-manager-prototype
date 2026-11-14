@@ -47,6 +47,7 @@
       <app-project-header
         [project]="project"
         [progress]="store.progress()"
+        [breadcrumb]="headerPath()"
         [writeError]="store.writeError()"
         [saveDetails]="saveDetails"
         [confirmArchive]="archiveProject"

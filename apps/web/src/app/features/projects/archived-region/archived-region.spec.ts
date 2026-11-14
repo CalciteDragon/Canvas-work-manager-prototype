@@ -102,10 +102,27 @@ describe('ArchivedRegion', () => {
     expect(all(fixture, '[data-archived-kind="subproject"] [data-archived-type]')[0]?.textContent?.trim()).toBe('Workstream');
     expect(all(fixture, '[data-archived-kind="section"] [data-archived-name]')[0]?.textContent).toContain('Backlog');
     expect(all(fixture, '[data-archived-origin]')[0]?.textContent).toContain('Website launch');
-    expect(all(fixture, '[data-archived-origin-link]')[0]?.textContent).toContain('Home');
+    expect([...all(fixture, '[data-archived-origin]')[0]!.querySelectorAll('a')].at(-1)?.textContent).toContain('Home');
     expect(fixture.nativeElement.querySelector('[data-archived-cascade-count]')?.textContent).toContain('1 task');
     expect(all(fixture, '[data-archived-cause]')[1]?.textContent).toContain('directly');
     expect(all(fixture, '[data-archived-blocker]')).toHaveLength(0);
+  });
+
+  // Slice 81 (W2-030, note-2026-10-15-004, Q14 (a)): the origin reads as a path, every project on it
+  // a link, written with the breadcrumb's inline variant: content links in the sentence, no landmark.
+  it('writes the origin as a path of links, the breadcrumb’s inline variant', async () => {
+    const fixture = await render();
+    const childOrigin = all(fixture, '[data-archived-kind="subproject"] [data-archived-origin]')[0]!;
+    expect(childOrigin.textContent?.replace(/\s+/g, ' ').trim()).toBe('Origin: Website launch › Kitchen › Work canvas');
+    expect(childOrigin.querySelector('app-breadcrumb .breadcrumb--inline')).not.toBeNull();
+    expect(childOrigin.querySelector('nav, [aria-current]')).toBeNull();
+    const links = [...childOrigin.querySelectorAll('a')];
+    expect(links.map((link) => [link.textContent?.trim(), link.getAttribute('href')])).toEqual([
+      ['Website launch', `/projects/${ROOT_ID}`],
+      ['Kitchen', '/projects/project-subproject'],
+      ['Work canvas', '/projects/project-subproject'],
+    ]);
+    for (const link of links) expect(link.classList.contains('link--inline')).toBe(true);
   });
 
   it('links a descendant owner to its history while keeping origin and Restore separate', async () => {
@@ -116,7 +133,7 @@ describe('ArchivedRegion', () => {
     expect(child.querySelector('[data-archived-history-link]')?.textContent?.trim()).toBe('Open Kitchen history');
     expect(child.querySelector('[data-archived-history-link]')?.getAttribute('href'))
       .toBe('/projects/project-subproject#history-controls');
-    expect(child.querySelector('[data-archived-origin-link]')).not.toBeNull();
+    expect(child.querySelector('[data-archived-origin] a')).not.toBeNull();
     expect(child.querySelector('[data-restore-action]')).not.toBeNull();
   });
 

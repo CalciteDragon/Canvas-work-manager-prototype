@@ -1,0 +1,80 @@
+:host {
+  display: block;
+  min-inline-size: 0;
+}
+
+:host:has(.breadcrumb--inline) {
+  display: inline;
+}
+
+.breadcrumb__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+}
+
+.breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.breadcrumb__separator {
+  color: var(--color-text-muted);
+}
+
+// Decision 2: a soft, rounded, themed control, never blue underlined text. The ring is the shared
+// `:focus-visible` one.
+.breadcrumb__link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border: var(--control-line) solid transparent;
+  border-radius: var(--radius-pill);
+  background-color: var(--control-secondary-fill);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.breadcrumb__link:active {
+  background-color: var(--control-secondary-fill-pressed);
+}
+
+.breadcrumb__current,
+.breadcrumb__step {
+  overflow-wrap: anywhere;
+}
+
+.breadcrumb__current {
+  color: var(--color-text-muted);
+}
+
+@media (hover: hover) {
+  .breadcrumb__link:hover {
+    background-color: var(--control-secondary-fill-hover);
+  }
+}
+
+// Q14 (a): the navigation breadcrumb is tapped on phones.
+@media (hover: none), (any-pointer: coarse) {
+  .breadcrumb__link {
+    min-block-size: var(--size-hit-target);
+  }
+}
+
+// R3: once forced colours drop the fill, the pill keeps a shape.
+@media (forced-colors: active) {
+  .breadcrumb__link {
+    border-color: ButtonBorder;
+  }
+}

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Breadcrumb, type BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 import type { AgentConnection, AgentConnectionId, AgentPermission } from '@cwm/contracts';
 import { AgentConnectionsStore } from './agent-connections-store';
 import { FailureMessage } from '../../../shared/feedback/failure-message';
@@ -41,12 +42,15 @@ const PERMISSIONS: readonly PermissionRow[] = [
 @Component({
   selector: 'app-agent-connections-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FailureMessage],
+  imports: [Breadcrumb, FailureMessage],
   providers: [AgentConnectionsStore],
   templateUrl: './agent-connections-page.html',
   styleUrl: './agent-connections-page.scss',
 })
 export class AgentConnectionsPage {
+  /** Slice 81 (L7-010): where this Settings child is, with the way back. */
+  protected readonly path: readonly BreadcrumbItem[] = [{ label: 'Settings', link: '/settings' }, { label: 'AI & Agents', link: null }];
+
   protected readonly store = inject(AgentConnectionsStore);
   protected readonly permissions = PERMISSIONS;
 

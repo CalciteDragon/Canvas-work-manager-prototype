@@ -111,6 +111,18 @@
   </div>
 </section>
 
+<section class="panel" data-panel="breadcrumb" data-panel-kind="live">
+  <h3 class="panel__title">Breadcrumb <span class="panel__badge">live component</span></h3>
+  <div class="panel__body panel__body--stack">
+    <!-- Slice 81 (L7-004): a workstream's path, a root page's, a Settings child's, and the inline
+         variant inside Archive's origin sentence (W2-030). -->
+    <app-breadcrumb [items]="breadcrumbWorkstream" />
+    <app-breadcrumb [items]="breadcrumbRootPage" />
+    <app-breadcrumb [items]="breadcrumbSettings" />
+    <p>Origin: <app-breadcrumb variant="inline" [items]="breadcrumbOrigin" /></p>
+  </div>
+</section>
+
 <section class="panel" data-panel="drawer" data-panel-kind="live">
   <h3 class="panel__title">Drawer <span class="panel__badge">live component</span></h3>
   <div class="panel__body">

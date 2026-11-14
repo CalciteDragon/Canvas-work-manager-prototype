@@ -103,6 +103,7 @@ header's history (Slice 41).
 | Placeholders | `src/app/features/calendar/`, `features/search/`, `shared/components/placeholder-page/` | `CalendarPage`, `SearchPage`, `PlaceholderPage`, `NotFoundPage` |
 | Unavailable page | `src/app/shared/components/unavailable-page/` | `UnavailablePage` — the shared layout of an unavailable project and the `**` page: route-focus heading, one sentence, Go to Home, no Try again or Details; a caller may project one more control |
 | Markdown renderer | `src/app/shared/components/markdown-renderer/` | `renderMarkdown` and `MarkdownRenderer`, loaded with the section body |
+| Breadcrumb | `src/app/shared/components/breadcrumb/` | `Breadcrumb`, `BreadcrumbItem`: `nav aria-label="Breadcrumb"` over an `ol`, ancestors as themed pill links (no underline, 44 px on touch, a `ButtonBorder` under forced colours), the current item last as text with `aria-current="page"`; the `inline` variant has no landmark and nothing current, its links `.link--inline` (Slice 81) |
 | Icons | `src/app/shared/components/icon/` | `Icon` and `ICON_NAMES`: the one monochrome SVG set for app-owned marks; the owning control or text carries the accessible name |
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |
 | Control primitives | `src/styles/_controls.scss`, `_control-states.scss` | Slice 72's global control classes and their shared state mixins; `.state-message` in its loading, failed, empty and archived variants (slices 78, 79) |

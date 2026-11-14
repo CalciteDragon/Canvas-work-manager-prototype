@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { AgentConnectionSchema, type AgentConnection } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
@@ -18,7 +19,7 @@ const connection = (overrides: Record<string, unknown> = {}): AgentConnection =>
   });
 
 const render = async (gateway = new FakeWorkManagerGateway({ agentConnections: [connection()] })) => {
-  TestBed.configureTestingModule({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+  TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
   const fixture = TestBed.createComponent(AgentConnectionsPage);
   fixture.detectChanges();
   await fixture.whenStable();
@@ -36,6 +37,16 @@ const text = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: 
   (fixture.nativeElement.querySelector(selector) as HTMLElement | null)?.textContent?.trim() ?? '';
 
 describe('AgentConnectionsPage (§53)', () => {
+  // Slice 81 (L7-010): a Settings child says where it is, with the way back.
+  it('draws "Settings › AI & Agents" above its heading', async () => {
+    const { fixture } = await render();
+    const nav = (fixture.nativeElement as HTMLElement).querySelector('nav[aria-label="Breadcrumb"]')!;
+    expect(nav.querySelector('a')?.textContent?.trim()).toBe('Settings');
+    expect(nav.querySelector('a')?.getAttribute('href')).toBe('/settings');
+    expect(nav.querySelector('[aria-current="page"]')?.textContent?.trim()).toBe('AI & Agents');
+    expect(nav.compareDocumentPosition(fixture.nativeElement.querySelector('h1')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   // Slice 72 (W3-017): Revoke says which agent it revokes, and each agent's boxes are one group.
   it('names Revoke by its agent and groups the permissions under the agent', async () => {
     const { fixture } = await render(new FakeWorkManagerGateway({ agentConnections: [connection(), connection({ id: 'agent-codex', name: 'Codex' })] }));

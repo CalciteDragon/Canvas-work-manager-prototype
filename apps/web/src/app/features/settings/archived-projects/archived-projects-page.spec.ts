@@ -46,6 +46,16 @@ const render = async (gateway = new FakeWorkManagerGateway({ projects: [project]
 };
 
 describe('ArchivedProjectsPage (Slice 44)', () => {
+  // Slice 81 (L7-010): a Settings child says where it is, with the way back.
+  it('draws "Settings › Archived projects" above its heading', async () => {
+    const { fixture } = await render();
+    const nav = (fixture.nativeElement as HTMLElement).querySelector('nav[aria-label="Breadcrumb"]')!;
+    expect(nav.querySelector('a')?.textContent?.trim()).toBe('Settings');
+    expect(nav.querySelector('a')?.getAttribute('href')).toBe('/settings');
+    expect(nav.querySelector('[aria-current="page"]')?.textContent?.trim()).toBe('Archived projects');
+    expect(nav.compareDocumentPosition(fixture.nativeElement.querySelector('h1')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('closes a restore toast on persona reload outside a project shell', async () => {
     const { fixture, gateway, live } = await render();
     const host = fixture.nativeElement as HTMLElement;

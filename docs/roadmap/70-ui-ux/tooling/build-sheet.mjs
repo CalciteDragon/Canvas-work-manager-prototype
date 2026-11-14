@@ -56,6 +56,8 @@ const CENSUS_EXCEPTIONS = [
   { owner: 'slice 5, L6-009: section title button', classes: ['section-frame__title-button'], test: c => /\bsection-frame__title-button\b/.test(c.class ?? '') },
   { owner: 'slice 6, TH09: task row title', classes: ['task-row__title'], test: c => /\btask-row__title\b/.test(c.class ?? '') },
   { owner: 'slice 7: project navigation breadcrumbs (listed after the after census; see the plan)', classes: ['project-nav__breadcrumb'], test: c => /\bproject-nav__breadcrumb\b/.test(c.class ?? '') },
+  // Slice 81, Q14 (a): Archive's origin path is content, inline under WCAG 2.5.8's exception. Profile 81 (step 13) activates it.
+  { owner: 'slice 7 (81), Q14 (a): Archive origin path links, inline in the sentence', classes: ['link--inline'], test: c => /\blink--inline\b/.test(c.class ?? '') },
   { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
 ];
 const activeExceptions = ['77', '78', '79', '80'].includes(profile) ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;

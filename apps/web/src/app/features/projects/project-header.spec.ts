@@ -1,7 +1,9 @@
 import { DeferBlockBehavior, TestBed } from '@angular/core/testing';
 import { ProjectSchema, type Project } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { provideRouter } from '@angular/router';
 import { NavigationContext } from '../../core/shell/navigation-context';
+import type { BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb';
 import { ProjectHeader } from './project-header';
 
 const root = (overrides: Record<string, unknown> = {}): Project => ProjectSchema.parse({
@@ -29,10 +31,11 @@ beforeEach(() => {
   Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() { this.removeAttribute('open'); } });
 });
 
-const render = async (project = root()) => {
-  TestBed.configureTestingModule({ deferBlockBehavior: DeferBlockBehavior.Playthrough });
+const render = async (project = root(), breadcrumb: readonly BreadcrumbItem[] = []) => {
+  TestBed.configureTestingModule({ deferBlockBehavior: DeferBlockBehavior.Playthrough, providers: [provideRouter([])] });
   const fixture = TestBed.createComponent(ProjectHeader);
   fixture.componentRef.setInput('project', project);
+  fixture.componentRef.setInput('breadcrumb', breadcrumb);
   fixture.componentRef.setInput('progress', 50);
   fixture.detectChanges();
   await fixture.whenStable();
@@ -299,5 +302,52 @@ describe('ProjectHeader lifts (§26)', () => {
     expect(archive).toHaveBeenCalledOnce();
     expect(query(fixture, '[data-project-archive-confirm]')).toBeNull();
     expect(document.activeElement).toBe(query(fixture, '[data-project-more]'));
+  });
+});
+
+describe('ProjectHeader path and phone fold (Slice 81, L7-004, Q10 (a))', () => {
+  const cabinets = root({ id: 'project-cabinets', kind: 'subproject', parentProjectId: 'project-kitchen', name: 'Cabinets', description: 'Doors and hinges' });
+  const path: BreadcrumbItem[] = [
+    { label: 'Home renovation', link: ['/projects', 'project-renovation'] },
+    { label: 'Kitchen', link: ['/projects', 'project-kitchen'] },
+    { label: 'Cabinets', link: null },
+  ];
+
+  it('draws the breadcrumb above the name, and none for an empty path', async () => {
+    const fixture = await render(cabinets, path);
+    const nav = query(fixture, 'nav[aria-label="Breadcrumb"]');
+    expect([...nav.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual(['Home renovation', 'Kitchen']);
+    expect(nav.querySelector('[aria-current="page"]')?.textContent?.trim()).toBe('Cabinets');
+    expect(nav.compareDocumentPosition(query(fixture, '[data-project-name]')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fixture.componentRef.setInput('breadcrumb', []);
+    await settle(fixture);
+    expect(query(fixture, 'nav[aria-label="Breadcrumb"]')).toBeNull();
+  });
+
+  it('folds the description and the facts behind a Details disclosure, after the name row’s history and More', async () => {
+    const fixture = await render(cabinets, path);
+    const toggle = query(fixture, '[data-project-details-toggle]') as HTMLButtonElement;
+    const region = query(fixture, '[data-project-details]');
+    expect(toggle.tagName).toBe('BUTTON');
+    expect(toggle.textContent?.trim()).toBe('Details');
+    expect(toggle.getAttribute('aria-controls')).toBe(region.id);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(region.querySelector('[data-project-description]')).not.toBeNull();
+    expect(region.querySelector('[data-project-status]')).not.toBeNull();
+    expect(region.querySelector('[data-project-target-date]')).not.toBeNull();
+    // The name row holds the history controls and More; Details comes after them.
+    expect(query(fixture, '.project-header__actions').compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(region.hasAttribute('data-open')).toBe(false);
+
+    toggle.click();
+    await settle(fixture);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(region.hasAttribute('data-open')).toBe(true);
+
+    toggle.click();
+    await settle(fixture);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(region.hasAttribute('data-open')).toBe(false);
   });
 });

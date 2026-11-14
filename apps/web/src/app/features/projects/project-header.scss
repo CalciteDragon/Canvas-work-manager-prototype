@@ -4,33 +4,64 @@
   display: block;
 }
 
+// Slice 81: the header's grid, by area. The path spans the top row; the icon, name and actions share
+// the name row; the description and facts sit under the name. L1-006: the header's inline padding
+// is a section frame's, so its first column (path, icon) starts on the content's edge.
 .project-header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'path path path'
+    'icon name actions'
+    '. details .'
+    'error error error';
   align-items: start;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-5);
+  // Rows are spaced by their own margins: an empty row (no path, no error, the folded facts) adds nothing.
+  gap: 0 var(--space-4);
+  padding: var(--space-5) var(--space-4);
   border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--plane-sheet-background);
   backdrop-filter: var(--plane-sheet-filter);
 }
 
-.project-header__icon {
-  font-size: var(--font-size-xl);
+.project-header__path {
+  grid-area: path;
+  margin-block-end: var(--space-2);
 }
 
-.project-header__identity {
-  min-width: 0;
+.project-header__icon {
+  grid-area: icon;
+  font-size: var(--font-size-xl);
 }
 
 .project-header__name {
+  grid-area: name;
+  min-width: 0;
   margin: 0;
   font-size: var(--font-size-xl);
+  overflow-wrap: anywhere;
+}
+
+.project-header__details {
+  grid-area: details;
+  min-width: 0;
+  margin-block-start: var(--space-1);
+}
+
+.project-header__details-toggle {
+  display: none;
+  grid-area: toggle;
+  justify-self: start;
+  margin-block-start: var(--space-1);
+}
+
+.project-header__details-toggle[aria-expanded='false'] .project-header__details-mark {
+  rotate: -90deg;
 }
 
 .project-header__description {
-  margin: var(--space-1) 0 0;
+  margin: 0;
   color: var(--color-text-muted);
 }
 
@@ -38,8 +69,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-5);
-  grid-column: 2;
-  margin: 0;
+  margin: var(--space-2) 0 0;
+}
+
+.project-header__description + .project-header__facts {
+  margin-block-start: var(--space-3);
 }
 
 .project-header__facts dt {
@@ -62,11 +96,10 @@
 }
 
 .project-header__actions {
+  grid-area: actions;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  grid-column: 3;
-  grid-row: 1;
 }
 
 
@@ -76,19 +109,39 @@
 [data-project-more-menu] { position-anchor: --project-more; }
 
 .project-header__error {
-  grid-column: 1 / -1;
-  margin: 0;
+  grid-area: error;
+  margin: var(--space-3) 0 0;
 }
 
-// Slice 41: the actions cell holds Undo, Redo and More. At narrow widths it moves to its own row
-// under the identity, so the project name keeps the width it needs. Slice 45: it also wraps. At
-// 375 px the global sidebar keeps its width and leaves the header ~115 px, and an unwrapped
-// flex-end row overflowed leftwards beneath the sidebar, where Undo could not be tapped.
-@media (max-width: breakpoints.$compact) {
+// Q10 (a), below 48rem (the drawer's breakpoint): the history controls and More stay on the name
+// row, and the description and facts fold behind Details, so the header ends inside a quarter of
+// a 375 × 812 screen (L1-014). The name takes the narrower type step, so a short name keeps one line.
+@media (max-width: breakpoints.$shell-narrow) {
+  .project-header {
+    grid-template-areas:
+      'path path path'
+      'icon name actions'
+      'toggle toggle toggle'
+      'details details details'
+      'error error error';
+    column-gap: var(--space-2);
+    padding-block: var(--space-4);
+  }
+
+  .project-header__icon,
+  .project-header__name {
+    font-size: var(--font-size-lg);
+  }
+
   .project-header__actions {
-    flex-wrap: wrap;
-    grid-column: 1 / -1;
-    grid-row: auto;
-    justify-content: flex-end;
+    gap: 0;
+  }
+
+  .project-header__details-toggle {
+    display: inline-flex;
+  }
+
+  .project-header__details:not([data-open]) {
+    display: none;
   }
 }

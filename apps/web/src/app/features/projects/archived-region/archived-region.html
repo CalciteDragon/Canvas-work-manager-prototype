@@ -20,25 +20,7 @@
           <div class="archived-region__identity object-row__context">
             <span data-archived-type class="archived-region__meta">{{ typeLabel(item) }}</span>
             <span data-archived-origin class="archived-region__meta">
-              Origin:
-              @for (step of item.origin.breadcrumb; track step.projectId) {
-                @if (!$first) { <span aria-hidden="true"> / </span> }
-                <span>{{ step.name }}</span>
-              }
-              <span aria-hidden="true"> / </span>
-              @if (originRoute(item); as route) {
-                <a
-                  class="link"
-                  data-archived-origin-link
-                  [routerLink]="route"
-                  [fragment]="originFragment(item)"
-                >{{ originPageLabel(item) }}</a>
-              } @else {
-                <span>{{ originPageLabel(item) }}</span>
-              }
-              @if (item.origin.sectionName; as sectionName) {
-                <span aria-hidden="true"> / </span><span>{{ sectionName }}</span>
-              }
+              Origin: <app-breadcrumb variant="inline" [items]="originPaths().get(item) ?? []" />
             </span>
             @if (historyOwner(item); as owner) {
               <a class="link" data-archived-history-link [routerLink]="owner.route" fragment="history-controls">

@@ -255,8 +255,9 @@ describe('ArchivePage (§31)', () => {
 
     expect(fixture.nativeElement.querySelector('[data-archive-root-guidance]')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('[data-archived-item]')).toHaveLength(1);
-    expect(fixture.nativeElement.querySelector('[data-archived-origin-link]')?.textContent).toContain('Home');
-    expect(fixture.nativeElement.querySelector('[data-archived-origin-link]')?.getAttribute('href')).toBe(
+    const pageLink = [...fixture.nativeElement.querySelectorAll('[data-archived-origin] a')].at(-1) as HTMLAnchorElement | undefined;
+    expect(pageLink?.textContent).toContain('Home');
+    expect(pageLink?.getAttribute('href')).toBe(
       '/projects/project-archive-page/pages/home#section-section-archive-page',
     );
   });

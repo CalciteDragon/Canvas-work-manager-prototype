@@ -53,6 +53,9 @@ schema-version-6 converter was removed in Slice 66.
   state that covers each write's owed re-read and a shared transition guard. It implements
   `RECEIPT_UNDO` for the component-owned toast; pure `history-feedback.ts` words every confirmation.
 - `ProjectHeader`, `ProjectMoreMenu`, `ProjectDetailsDialog`, `ProjectArchiveConfirm`: the
+  path above the name (the shell's `headerPath`: a workstream's ancestors, or the root and the page on
+  a root's other pages, none on its first page); below 48rem Undo, Redo and More on the name row
+  and the description and facts behind "Details" (Slice 81, Q10 (a)); the
   native menu, single-commit details draft and archive confirmation, with focus returned to More.
   More also offers "Pages of <root>…" and Add workstream, which the header hands to
   `NavigationContext` with More as anchor and focus return (Slice 81).

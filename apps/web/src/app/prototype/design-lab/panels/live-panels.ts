@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { Sidebar } from '../../../core/shell/sidebar/sidebar';
+import { Breadcrumb, type BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 import { ActivityFeed } from '../../../features/activity/activity-feed';
 import { widgetDefinitionFor } from '../../../features/dashboard/widgets/registry';
 import { DashboardWidgetFrame } from '../../../features/dashboard/widgets/widget-frame/dashboard-widget-frame';
@@ -36,6 +37,7 @@ import { readFailure, type Failure } from '../../../shared/feedback/failure';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ActivityFeed,
+    Breadcrumb,
     DashboardWidgetFrame,
     ProjectSectionFrame,
     SectionCanvasFrame,
@@ -92,6 +94,18 @@ export class LivePanels {
 
   protected readonly projectTree = labProjectTree();
   protected readonly projectPlace = labProjectPlace();
+  protected readonly breadcrumbWorkstream: readonly BreadcrumbItem[] = [
+    { label: 'Home renovation', link: '/prototype/design' },
+    { label: 'Kitchen', link: '/prototype/design' },
+    { label: 'Cabinets', link: null },
+  ];
+  protected readonly breadcrumbRootPage: readonly BreadcrumbItem[] = [{ label: 'Home renovation', link: '/prototype/design' }, { label: 'Todos', link: null }];
+  protected readonly breadcrumbSettings: readonly BreadcrumbItem[] = [{ label: 'Settings', link: '/prototype/design' }, { label: 'AI & Agents', link: null }];
+  protected readonly breadcrumbOrigin: readonly BreadcrumbItem[] = [
+    { label: 'Home renovation', link: '/prototype/design' },
+    { label: 'Legacy attic', link: '/prototype/design' },
+    { label: 'Work canvas', link: '/prototype/design' },
+  ];
   protected readonly emptyTree = [];
   protected readonly sidebarFailure: Failure = readFailure({ code: 'unreachable', message: 'the prototype host is not running' }, 'your projects');
   protected readonly activity = labActivity();

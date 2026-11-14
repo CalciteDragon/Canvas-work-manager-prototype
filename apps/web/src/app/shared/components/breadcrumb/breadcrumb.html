@@ -1,0 +1,29 @@
+@if (variant() === 'inline') {
+  <span class="breadcrumb breadcrumb--inline">
+    @for (item of items(); track $index) {
+      @if (!$first) {<span class="breadcrumb__separator" aria-hidden="true"> › </span>}
+      @if (item.link !== null) {
+        <a class="link link--inline" [routerLink]="item.link" [fragment]="item.fragment">{{ item.label }}</a>
+      } @else {
+        <span>{{ item.label }}</span>
+      }
+    }
+  </span>
+} @else {
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <ol class="breadcrumb__list">
+      @for (item of items(); track $index) {
+        <li class="breadcrumb__item">
+          @if (!$first) {<span class="breadcrumb__separator" aria-hidden="true">›</span>}
+          @if ($last) {
+            <span class="breadcrumb__current" aria-current="page">{{ item.label }}</span>
+          } @else if (item.link !== null) {
+            <a class="breadcrumb__link" [routerLink]="item.link" [fragment]="item.fragment">{{ item.label }}</a>
+          } @else {
+            <span class="breadcrumb__step">{{ item.label }}</span>
+          }
+        </li>
+      }
+    </ol>
+  </nav>
+}

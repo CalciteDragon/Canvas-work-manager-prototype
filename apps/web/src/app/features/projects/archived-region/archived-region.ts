@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RestoreStatusChoice } from '../../../shared/projects/restore-status-choice';
+import { Breadcrumb, type BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 import { nameOf, ownedKindOf, type ProjectArchiveItem, type ProjectId, type ProjectRestoreStatus } from '@cwm/contracts';
 
 export interface ArchiveRestoreRequest {
@@ -17,7 +18,7 @@ export interface ArchiveRestoreRequest {
 @Component({
   selector: 'app-archived-region',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RestoreStatusChoice],
+  imports: [Breadcrumb, RouterLink, RestoreStatusChoice],
   templateUrl: './archived-region.html',
   styleUrl: './archived-region.scss',
 })
@@ -70,6 +71,22 @@ export class ArchivedRegion {
       case 'reflection':
         return 'Reflection';
     }
+  }
+
+  /**
+   * Each row's origin as a path (Slice 81, W2-030): every project on it a link, then the page
+   * (a link where it can open), then the section. Memoised per item, so the inline breadcrumb's
+   * input keeps its identity between change-detection passes.
+   */
+  readonly originPaths = computed(() => new Map(this.items().map((item) => [item, this.originPath(item)])));
+
+  private originPath(item: ProjectArchiveItem): readonly BreadcrumbItem[] {
+    const sectionName = item.origin.sectionName;
+    return [
+      ...item.origin.breadcrumb.map(({ projectId, name }) => ({ label: name, link: ['/projects', projectId] })),
+      { label: this.originPageLabel(item), link: this.originRoute(item), fragment: this.originFragment(item) },
+      ...(sectionName === undefined ? [] : [{ label: sectionName, link: null }]),
+    ];
   }
 
   originPageLabel(item: ProjectArchiveItem): string {

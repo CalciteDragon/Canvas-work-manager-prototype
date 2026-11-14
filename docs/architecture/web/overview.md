@@ -63,13 +63,17 @@ Smaller features that do not earn a folder of their own:
   structured parts, including the host's captured label when a task or reflection has since been
   removed ([decision](../../decisions/2026-08-activity-feed-composes-from-parts.md)).
 - `features/settings` — `SettingsPage` is a way in; `settings/agents` is §53's
-  permission grid and revoke (`AgentConnectionsPage`, `AgentConnectionsStore`).
+  permission grid and revoke (`AgentConnectionsPage`, `AgentConnectionsStore`). Both children open
+  with the breadcrumb "Settings › …" (Slice 81, L7-010).
 - `features/calendar`, `features/search` — placeholders until Slices 18 and 21.
 - `shared/components/placeholder-page` — `PlaceholderPage`, `NotFoundPage` (which renders
   `UnavailablePage`).
 - `shared/components/unavailable-page` — `UnavailablePage`, the way back from an unavailable
   project or an unknown address: heading, one sentence, Go to Home.
 - `shared/components/markdown-renderer` — safe source presentation, lazy with the Markdown body.
+- `shared/components/breadcrumb` — `Breadcrumb` (Slice 81): the path to a place, above the project
+  header's name and on Settings children, its links themed pills (44 px on touch); its `inline`
+  variant writes Archive's origin path as content links inside the sentence.
 - `shared/components/icon` — `Icon`, the one monochrome SVG set for app-owned marks (chrome glyphs,
   page kinds, section types, widgets, activity actors), listed in `ICON_NAMES`. User-chosen
   project emoji are content and never pass through it.

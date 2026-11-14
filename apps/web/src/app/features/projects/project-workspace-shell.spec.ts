@@ -1464,6 +1464,39 @@ describe('ProjectWorkspaceShell — read-only projects and the archived banner (
   });
 });
 
+describe('Slice 81: the header’s breadcrumb (L7-004, W1-016)', () => {
+  const crumbs = (harness: RouterTestingHarness) => {
+    const nav = query(harness, 'app-project-header nav[aria-label="Breadcrumb"]');
+    if (nav === null) return null;
+    return {
+      links: [...nav.querySelectorAll('a')].map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
+      current: nav.querySelector('[aria-current="page"]')?.textContent?.trim(),
+    };
+  };
+
+  it('draws none on a root’s first page: a one-step path would repeat the heading', async () => {
+    const { harness } = await open('/projects/project-renovation');
+    await settle(harness);
+    expect(crumbs(harness)).toBeNull();
+  });
+
+  it('names the root and the page on a root’s other page', async () => {
+    const pages = [...defaults().pages, page('page-todos', RENOVATION.id, 'todos')];
+    const { harness } = await open('/projects/project-renovation/pages/todos', { pages });
+    await settle(harness);
+    expect(crumbs(harness)).toEqual({ links: [['Home renovation', '/projects/project-renovation']], current: 'Todos' });
+  });
+
+  it('walks a workstream’s ancestors to it', async () => {
+    const { harness } = await open('/projects/project-cabinets');
+    await settle(harness);
+    expect(crumbs(harness)).toEqual({
+      links: [['Home renovation', '/projects/project-renovation'], ['Kitchen', '/projects/project-kitchen']],
+      current: 'Cabinets',
+    });
+  });
+});
+
 describe('Slice 81: the project place for the navigation tree (R2)', () => {
   const placeOf = () => TestBed.inject(NavigationContext).place();
 

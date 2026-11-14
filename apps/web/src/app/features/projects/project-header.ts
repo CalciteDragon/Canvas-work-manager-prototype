@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { isSubproject, type Project, type ProjectId, type UpdateProjectInput } from '@cwm/contracts';
+import { Breadcrumb, type BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb';
 import { Icon } from '../../shared/components/icon/icon';
 import { FailureMessage } from '../../shared/feedback/failure-message';
 import type { Failure } from '../../shared/feedback/failure';
@@ -19,9 +20,12 @@ export type ProgressFact = 'pending' | 'empty' | 'failed' | number;
 
 /**
  * §26's Project Header, rendered once per project by `ProjectWorkspaceShell` — at the top of
- * the workspace track, beside the full-height navigation column and above whichever page is
- * showing. §23's diagram is the one describing the shell, so it wins over reading §26's
- * structure list as a strict vertical stack.
+ * the workspace track, above whichever page is showing. §23's diagram is the one describing the
+ * shell, so it wins over reading §26's structure list as a strict vertical stack.
+ *
+ * Slice 81: the path to this place sits above the name (`breadcrumb`, L7-004), and below 48rem the
+ * description and facts fold behind "Details" while the history controls and More stay on the
+ * name row, so the header takes at most a quarter of a phone's first screen (Q10 (a), L1-014).
  *
  * It lives here rather than inside a page renderer because it belongs to the **project**: a
  * root has several canvases and one identity, and a header inside Home would disappear the
@@ -35,13 +39,15 @@ export type ProgressFact = 'pending' | 'empty' | 'failed' | number;
 @Component({
   selector: 'app-project-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectMoreMenu, ProjectDetailsDialog, ProjectArchiveConfirm, Icon, FailureMessage],
+  imports: [Breadcrumb, ProjectMoreMenu, ProjectDetailsDialog, ProjectArchiveConfirm, Icon, FailureMessage],
   templateUrl: './project-header.html',
   styleUrl: './project-header.scss',
 })
 export class ProjectHeader {
   readonly project = input.required<Project>();
   readonly progress = input<ProgressFact>('pending');
+  /** The path to this place, the current item last; empty on a root's first page (a one-step path repeats the name). */
+  readonly breadcrumb = input<readonly BreadcrumbItem[]>([]);
   readonly writeError = input<Failure | null>(null);
   readonly routeLanding = input(true);
   readonly saveDetails = input<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>(async () => false);
@@ -54,6 +60,8 @@ export class ProjectHeader {
   readonly moreOpen = signal(false);
   readonly detailsOpen = signal(false);
   readonly archiveOpen = signal(false);
+  /** The phone fold's state (Q10 (a)). Above 48rem the toggle is not drawn and the facts always show. */
+  readonly factsShown = signal(false);
   readonly moreButton = viewChild.required<ElementRef<HTMLButtonElement>>('moreButton');
   private readonly menuElement = viewChild.required<ProjectMoreMenu>(ProjectMoreMenu);
   private readonly menuHost = viewChild.required('menuHost', { read: ElementRef<HTMLElement> });
