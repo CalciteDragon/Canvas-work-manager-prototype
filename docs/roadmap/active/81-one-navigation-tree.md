@@ -1,7 +1,7 @@
 <!-- plan id="81" status="active" summary="Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work" -->
 # Slice 81 — One navigation tree
 
-**State (2026-11-13):** **Open question 19 is answered by the bundle audit session: the initial bundle is 920.76 kB (229.2 kB under the unchanged 1,150 kB ceiling), so step 7 resumes from `git stash` as written.** Audit: [`bundle-audit-2026-11.md`](../70-ui-ux/bundle-audit-2026-11.md); `9320be1` (Zod imported as a namespace, 1,149.73 → 917.04 kB, with `scripts/check-zod-imports.mjs` in the contracts and web lints), `eee3f85` (lazy routes prefetched, +2.06 kB), then the review's fixes (every `@defer (when …)` prefetches on idle, +1.66 kB; the Zod lint covers subpaths and re-exports); full `pnpm e2e` 299/299 on `eee3f85`, the touched specs green after the fixes; [decision](../../decisions/2026-11-on-demand-loading-and-prefetch.md). Step 7's Parent default (Q15 (a)) is committed; the rest is still parked in `git stash@{0}`. Step 6 (lifts move, with step 8's column deletion brought forward per Open question 18 (a)) is done. Step 5 is done. Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
+**State (2026-11-13):** **Step 7 is done** (`6ad95a3`, `7c4e86b`; bundle **922.84 kB**, ceiling 1,150 kB unchanged): a new workstream opens with its `h1` focused and "Created Pantry under Kitchen."; the toast's committed Undo returns to the parent (Q13 (b)). **Next: step 8 is empty (moved into step 6), so the next session starts step 9 (the phone pattern).** Earlier: Open question 19 was answered by the bundle audit session (920.76 kB before step 7). Audit: [`bundle-audit-2026-11.md`](../70-ui-ux/bundle-audit-2026-11.md); `9320be1` (Zod imported as a namespace, 1,149.73 → 917.04 kB, with `scripts/check-zod-imports.mjs` in the contracts and web lints), `eee3f85` (lazy routes prefetched, +2.06 kB), then the review's fixes (every `@defer (when …)` prefetches on idle, +1.66 kB; the Zod lint covers subpaths and re-exports); full `pnpm e2e` 299/299 on `eee3f85`, the touched specs green after the fixes; [decision](../../decisions/2026-11-on-demand-loading-and-prefetch.md). Step 7's Parent default (Q15 (a)) is committed; the rest is still parked in `git stash@{0}`. Step 6 (lifts move, with step 8's column deletion brought forward per Open question 18 (a)) is done. Step 5 is done. Plan accepted on 2026-11-09 with Q1 (a), Q2 (a),
 Q3 (a), Q12 (a), Q13 (b) and Q15 (a); Q4–Q11, Q14 and Q16 are answered at the pick after step 2. Plan review: six cold rounds (`ba4a454` … `af3f373`)
 plus two on the acceptance amendment. `CURRENT_SLICE = 81` is `14ea6ec`. Done in step 0:
 - *Rig* (`d3aa6d7`): `apps/e2e/ux/slice81.config.ts` (4257/4357, `.prototype/ux-slice81.json`, seeded from
@@ -221,7 +221,7 @@ and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locato
 - *Noted, not changed:* at desktop a tree link leaves focus on the link (as the column's wide selection did);
   opening the pencil does not close the task drawer, choosing "Pages of …" does; an archived root lists no archived
   workstreams under it.
-**Step 7 — stopped (2026-11-13) on the bundle ceiling; Open question 19.**
+**Step 7 — done (2026-11-13); it first stopped on the bundle ceiling (Open question 19), then resumed after the audit.**
 - *Committed:* the Parent default (Q15 (a)). `WorkCreateDialog` gains `openId` and `openPath` (the shell binds
   `projectId()` and `store.breadcrumbs()`); Parent defaults to the open project, else its nearest ancestor that is
   still an option (archived work and work under it are not), and a vanished choice resets to that default.
@@ -251,7 +251,26 @@ and the branch stays at step 5's 1,150.00 kB. Not yet done on it: the e2e locato
   To resume: `git stash pop` (the dialog and shell-template hunks are already committed and may conflict trivially; keep HEAD's).
 - *Trap:* in the shell spec, a held `history.transition` keeps a pending task, so `settle()` (which awaits
   `whenStable`) hangs until it is answered; navigate first, answer, then settle.
-**Next:** resume step 7 from the stash (`git stash pop`; Open question 19 answered, room 229.2 kB). Expect the stash's +1.53 kB to land near 922.3 kB.
+- *Resumed and finished (2026-11-13):* the stash popped cleanly apart from two spec hunks (HEAD's dialog case kept,
+  the stash's shell case taken); stash dropped. E2E rewritten: `work-navigation.spec.ts` (the create lands on the new
+  workstream, its row current, the toast without a link; the toast Undo returns to Home renovation, focused, with "Open
+  Paint samples to redo" → "Creation undone"; Back/Back reach the same pages; the nested create lands too),
+  `project-creation-history.spec.ts` (both workstream creates already land; no `[data-toast-open]` click), and
+  `phone-layout.spec.ts:231` (the create lands and focuses the `h1`, not Menu). Decision
+  [`2026-11-undoing-a-new-workstream-returns-to-its-parent.md`](../../decisions/2026-11-undoing-a-new-workstream-returns-to-its-parent.md);
+  amendments to creation history, creation defaults and gear/work create; `web/projects` and `web/core` docs.
+  `6ad95a3` at 922.21 kB.
+- *Review* (one cold reviewer over `6ad95a3`), two substantive findings, both confirmed and fixed in `7c4e86b`:
+  (1) the two project routes are two configs, so a create from a page URL (e.g. the root's Todos) re-created the shell
+  and lost the landing (no focus, no toast) — the landing now lives in a root-scoped `ProjectLandingRequest`, like
+  `ArchiveFocusRequest`; (2) a create answering after its shell was destroyed checked the dead shell's input — it was
+  kept in place only by `afterNextRender` throwing on a destroyed injector; now the check reads `Router.url` and a
+  destroyed shell skips the dialog close. Two shell cases added (each fails without its fix). Minor, fixed: an empty
+  parent name says "Created Pantry."; a stale store doc comment. Left: no unit case clicks a toast Undo that answers
+  "That is no longer the latest change" (the store spec pins that such a result has no `committed`).
+- *Green:* `pnpm test`, `pnpm lint`; e2e `work-navigation`, `project-creation-history`, `phone-layout` (the drawer case
+  failed once in 11 runs, then 8/8 on `--repeat-each=4`; the 375 px overflow case failed once on a cold run, then passed).
+**Next:** step 8 is empty; start step 9.
 
 ## Goal
 
@@ -1722,6 +1741,9 @@ blocking step 6)
 
 - **Bundle audit session (2026-11-13), Open question 19 answered.** No step content changed. Q19 gains its answer; the State
   header and step 7's Next line point to the resumed stash. Commits `9320be1`, `eee3f85`.
+
+- **Step 7 resumed (2026-11-13).** No step content changed. The shell gains a root-scoped `ProjectLandingRequest`
+  (review finding), inside the File-level change list's shell row. Commits `6ad95a3`, `7c4e86b`.
 
 ## Outcome
 
