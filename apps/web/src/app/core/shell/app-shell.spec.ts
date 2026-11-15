@@ -358,6 +358,14 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
 
   // Slice 81, step 9 (decision 4): no visible Close. The tree's action row is the drawer's top row,
   // and a "Close navigation" button, visually hidden until focused, is its last Tab stop.
+  // Review of step 11: behind the open drawer the skip link is inert, as the top bar and main are.
+  it('inerts the skip link while the drawer is open', async () => {
+    const { q, openDrawer } = await renderAt(true);
+    expect(q('[data-skip-link]')?.hasAttribute('inert')).toBe(false);
+    await openDrawer();
+    expect(q('[data-skip-link]')?.hasAttribute('inert')).toBe(true);
+  });
+
   it('has no Close button: the action row opens the drawer and Close navigation is its last Tab stop', async () => {
     const { q, openDrawer } = await renderAt(true);
     const context = TestBed.inject(NavigationContext);

@@ -398,6 +398,7 @@ export class ProjectWorkspaceShell {
     return {
       projectId,
       status: loading ? 'loading' : 'missing',
+      ...(loading ? {} : { missingReason: this.creationRecovery() !== null ? 'creation-undone' as const : this.store.missing() ? 'not-found' as const : 'failed' as const }),
       root: null,
       ancestors: [],
       current: null,

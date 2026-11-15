@@ -1563,7 +1563,7 @@ describe('Slice 81: the project place for the navigation tree (R2)', () => {
     await settle(harness);
 
     expect(placeOf()).toEqual({
-      projectId: RENOVATION.id, status: 'missing', root: null, ancestors: [], current: null, pages: [], currentKind: null, addBlockedReason: null,
+      projectId: RENOVATION.id, status: 'missing', missingReason: 'not-found', root: null, ancestors: [], current: null, pages: [], currentKind: null, addBlockedReason: null,
     });
   });
 
@@ -1573,7 +1573,7 @@ describe('Slice 81: the project place for the navigation tree (R2)', () => {
     });
     await settle(harness);
 
-    expect(placeOf()).toMatchObject({ status: 'missing', root: null, current: null });
+    expect(placeOf()).toMatchObject({ status: 'missing', missingReason: 'failed', root: null, current: null });
   });
 
   // Step 4 review: the publish effect runs before the load effect, so the old record is still

@@ -34,10 +34,13 @@ became `h2`s so the outline does not skip a level.
   Static routes carry `title` in `app.routes.ts` ("Home", "Calendar", "Search", "Settings",
   "AI & Agents · Settings", "Archived projects · Settings", "Design Lab", "Prototype state",
   "Page not found"), each followed by " · Canvas Work Manager". A project route: a root's first page
-  is "<root>", its other pages "<page> · <root>", a workstream "<workstream> · <root>", a failed or
-  not-found load "Project not available". While a project loads the previous title stays.
+  is "<root>", its other pages "<page> · <root>", a workstream "<workstream> · <root>"; a missing
+  place says what its page says (`ProjectPlace.missingReason`): not found "Project not available",
+  a failed load "Couldn’t load project", an undone creation "Creation undone". While a project loads
+  the previous title stays, so a move between projects briefly keeps the previous project's name.
 - `AppShell`'s first focusable element is "Skip to content" (`data-skip-link`), visually hidden
-  until focused; it focuses `main#main-content` without the fragment reaching the router.
+  until focused and inert behind the open phone drawer; it focuses `main#main-content` without the
+  fragment reaching the router.
 - The dashboard is a `section` labelled by its `h1`; the shell's workspace is the one `main`.
 - `ProjectHeader`'s `h1` (`data-page-heading`, always the route's landing) shows `heading` when the
   shell passes one: the page's label on a root's non-first page; otherwise the project's name, and

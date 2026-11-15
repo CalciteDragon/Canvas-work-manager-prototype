@@ -29,6 +29,8 @@ export interface ProjectPlace {
   /** The project the route names, known before its load answers. */
   readonly projectId: ProjectId;
   readonly status: 'loading' | 'ready' | 'missing';
+  /** Why a `missing` place shows nothing, as the page says it (the document title follows); absent means not found. */
+  readonly missingReason?: 'not-found' | 'failed' | 'creation-undone';
   readonly root: PlaceProject | null;
   /** Root first, immediate parent last; empty on a root. */
   readonly ancestors: readonly PlaceProject[];

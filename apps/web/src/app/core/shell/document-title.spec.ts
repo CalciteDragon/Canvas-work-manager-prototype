@@ -98,6 +98,17 @@ describe('DocumentTitle (Slice 81, L7-019, Q6 (a))', () => {
     expect(title()).toBe('Project not available · Canvas Work Manager');
   });
 
+  // Review of step 11: the title says what the page says.
+  it.each([
+    ['failed', 'Couldn’t load project · Canvas Work Manager'],
+    ['creation-undone', 'Creation undone · Canvas Work Manager'],
+  ] as const)('titles a %s place as its page does', async (missingReason, expected) => {
+    const { go, publish, title } = await setup();
+    await go('/projects/project-gone');
+    publish({ ...ready(), projectId: 'project-gone' as ProjectId, status: 'missing', missingReason, root: null, current: null, pages: [] });
+    expect(title()).toBe(expected);
+  });
+
   it('ignores a place published for another project than the route’s', async () => {
     const { go, publish, title } = await setup();
     await go('/app');

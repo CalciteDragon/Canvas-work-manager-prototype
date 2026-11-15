@@ -16,7 +16,7 @@ type RouteTitle = { readonly kind: 'static'; readonly title: string } | { readon
  * Static routes carry their words in the route's `title` (`app.routes.ts`). Project routes carry
  * none: the names arrive after the async load, so an effect rebuilds the title whenever the
  * `NavigationContext` publishes a `ready` place for the route's project, which also follows a live
- * rename. Until then the previous title stays, so a load draws no interim word. A root's first page
+ * rename; a failed load, a project not found and an undone creation each take their page's words. Until then the previous title stays, so a load draws no interim word. A root's first page
  * is named by its project alone (Q5 (d)); a workstream by itself, then its root.
  * See docs/decisions/2026-11-document-titles-and-skip-link.md.
  */
@@ -49,7 +49,10 @@ export class DocumentTitle extends TitleStrategy {
 
 function placeTitle(place: ProjectPlace | null, projectId: string): string | null {
   if (place === null || place.projectId !== projectId) return null;
-  if (place.status === 'missing') return 'Project not available';
+  if (place.status === 'missing') {
+    return place.missingReason === 'failed' ? 'Couldn’t load project'
+      : place.missingReason === 'creation-undone' ? 'Creation undone' : 'Project not available';
+  }
   if (place.status !== 'ready' || place.current === null || place.root === null) return null;
   if (place.current.id !== place.root.id) return [place.current.name, place.root.name].join(SEPARATOR);
   const page = place.pages.find(candidate => candidate.kind === place.currentKind);

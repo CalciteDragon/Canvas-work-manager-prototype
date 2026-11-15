@@ -2,7 +2,7 @@
   <!-- Slice 81 (L5-014): the first Tab stop, visible once focused; it moves focus to the page, past
        the top bar and the navigation tree. A link because it is one; the click moves focus itself so
        the router never sees the fragment. -->
-  <a class="button skip-link" href="#main-content" data-skip-link (click)="skipToContent($event)">Skip to content</a>
+  <a class="button skip-link" href="#main-content" data-skip-link [attr.inert]="drawerOpen() ? '' : null" (click)="skipToContent($event)">Skip to content</a>
 
   <app-top-bar
     class="top"
