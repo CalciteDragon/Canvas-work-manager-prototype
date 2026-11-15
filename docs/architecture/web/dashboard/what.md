@@ -37,7 +37,7 @@ flowchart LR
 
 | Part | Path | Role |
 |---|---|---|
-| `DashboardPage` | `dashboard-page.ts` | Renders each visible widget in its size; honest note for an unregistered type |
+| `DashboardPage` | `dashboard-page.ts` | Renders each visible widget in its size; honest note for an unregistered type; a `section` labelled by its `h1`, inside the shell's one `main` (Slice 81, L5-011) |
 | `FirstRunBlock` | `first-run-block.ts` | Home's first run (Slice 79): the sentence and New project (`data-first-run-create`, calling `requestCreate()`); behind `@defer (when shell?.workspaceEmpty())` above the widgets, and hides itself once the workspace stops being empty |
 | `DashboardStore` | `dashboard-store.ts` | Joins layout and content; re-reads on frames; its read failure is a `Failure`; `retryDigest` re-reads quietly with `digestPending` |
 | `DASHBOARD_WIDGET_REGISTRY`, `DashboardWidgetDefinition`, `DashboardWidgetComponent`, `DashboardWidgetInputs` | `widgets/registry.ts`, `widgets/widget-contract.ts` | The list and the contract every widget implements; each definition's `icon` is an `IconName` from the shared SVG set, rendered by the widget frame; an optional `failureOf` (the digest's `dailyDigestFailure`) makes the frame render a `FailureMessage` with Try again instead of the widget |

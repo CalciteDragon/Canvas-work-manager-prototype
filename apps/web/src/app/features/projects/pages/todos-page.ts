@@ -302,7 +302,8 @@ export class TodosPage {
     const rows = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')];
     const ordered = [...rows.slice(index), ...rows.slice(0, index).reverse()];
     return ordered.map(row => row.querySelector<HTMLElement>('[data-todo-toggle]:not([aria-disabled="true"]), [data-todo-complete]:not([aria-disabled="true"])')).find(control => control !== null)
-      ?? this.host.nativeElement.querySelector<HTMLElement>('#todos-heading');
+      ?? document.querySelector<HTMLElement>('main h1[data-page-heading]')
+      ?? this.host.nativeElement.querySelector<HTMLElement>('[data-todos-page]');
   }
 
   private focusToast(control: HTMLElement | null, projectId: ProjectId, generation: number): void {

@@ -73,10 +73,11 @@ export class ArchivePage implements ProjectPageRenderer {
       this.restoredFragment.set(item.kind === 'subproject' ? undefined : `section-${item.kind === 'section' ? item.section.id : item.kind === 'task' ? item.task.sectionId : item.reflection.sectionId}`);
       const feedback = item.kind === 'subproject' ? restoredProjectFeedback(item.project.name, request.status, this.store.restoredCascadeCount())
         : restoredItemFeedback(this.titleOf(item), item.origin.breadcrumb.map(step => step.name).join(' › '),
-          ({ home: 'Home', work: 'Work', todos: 'Todos', archive: 'Archive', reflections: 'Reflections' })[item.origin.pageKind], item.origin.pageEnabled);
+          ({ home: null, work: 'Work', todos: 'Todos', archive: 'Archive', reflections: 'Reflections' })[item.origin.pageKind], item.origin.pageEnabled);
       this.toast.show(feedback, this.store.restoreReport() ?? undefined, () => {
         const controls = this.host.nativeElement.querySelectorAll<HTMLElement>(RESTORE_CONTROLS);
-        return controls[index] ?? this.host.nativeElement.querySelector('#archive-page-title');
+        // Q6 (i): the page's heading is the shell header's h1, outside this page; without it, the region.
+        return controls[index] ?? document.querySelector<HTMLElement>('main h1[data-page-heading]') ?? this.host.nativeElement.querySelector<HTMLElement>('[data-archive-page]');
       });
       this.changeDetector.detectChanges();
       if (owned && (document.activeElement === document.body || document.activeElement === owner)) this.toast.focusFirst();

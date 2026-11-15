@@ -110,7 +110,7 @@ test('Open archive writes nothing, and reversing its navigation setting keeps Ar
   await page.locator('[data-project-more]').click();
   await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
-  await expect(page.locator('#archive-page-title')).toBeFocused();
+  await expect(page.locator('h1[data-page-heading]')).toBeFocused();
   const afterOpen = await history(root.id);
   expect(afterOpen).toEqual(beforeOpen);
   expect(await pageOf(root.id, 'archive')).toBeUndefined();

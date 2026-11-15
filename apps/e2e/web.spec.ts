@@ -364,7 +364,9 @@ test('injected gateway failures roll back a task but preserve confirmed optional
   await openDevPanel();
   await page.locator('[data-panel-persona][data-persona-id="user-demo"]').click();
   await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
-  await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
+  // Q6 (i): on the root's Todos the h1 names the page; the project is the path's first step.
+  await expect(page.locator('h1[data-page-heading]')).toHaveText('Todos');
+  await expect(page.locator('app-project-header app-breadcrumb')).toContainText('Home renovation');
 });
 
 /**

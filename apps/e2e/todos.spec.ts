@@ -528,7 +528,7 @@ test('Todos recovery opens hidden Archive without writes, preserving Delete as t
   });
   await recovery.locator('[data-toast-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/archive$`));
-  await expect(page.locator('#archive-page-title')).toBeFocused();
+  await expect(page.locator('h1[data-page-heading]')).toBeFocused();
   expect(attemptedWrites).toBe(0);
   const afterOpen = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
   expect(afterOpen).toMatchObject(afterDelete);

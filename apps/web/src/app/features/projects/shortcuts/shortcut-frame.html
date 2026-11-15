@@ -21,7 +21,7 @@
         }
       </div>
       <p data-shortcut-source class="shortcut-frame__source">
-        <span class="shortcut-frame__origin">{{ shortcut().breadcrumb.join(' / ') }} · {{ pageLabel() }}</span>
+        <span class="shortcut-frame__origin">{{ shortcut().breadcrumb.join(' / ') }}@if (pageLabel(); as page) { · {{ page }}}</span>
       </p>
     </div>
 

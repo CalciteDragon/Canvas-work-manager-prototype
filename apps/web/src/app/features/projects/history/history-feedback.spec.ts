@@ -129,7 +129,9 @@ describe('history feedback (Slice 41)', () => {
       [taskArchivedFeedback('Tile'), 'Archived “Tile”.'],
       [workstreamCompletedFeedback('Kitchen'), 'Completed Kitchen.'],
       [restoredItemFeedback('Tile', 'Renovation › Kitchen', 'Work'), 'Restored “Tile” to Renovation › Kitchen › Work.'],
-      [restoredItemFeedback('Tile', 'Renovation', 'Home', false), 'Restored “Tile” to Renovation › Home, which is switched off.'],
+      [restoredItemFeedback('Tile', 'Renovation', 'Todos', false), 'Restored “Tile” to Renovation › Todos, which is switched off.'],
+      // Q5 (d): a root's first page is named by its project.
+      [restoredItemFeedback('Tile', 'Renovation', null), 'Restored “Tile” to Renovation.'],
       [restoredProjectFeedback('Kitchen', 'active'), 'Restored Kitchen as Active.'],
       [restoredProjectFeedback('Kitchen', 'on_hold'), 'Restored Kitchen as On hold.'],
       [historyGoneFeedback(), 'That change can no longer be undone or redone.'],

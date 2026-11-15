@@ -247,12 +247,12 @@ export class ProjectWorkspaceShell {
   /** After the landing project has rendered: its history's generation has started, so the toast stays. */
   private focusLanding(): void {
     const landing = this.landingRequest.landing();
-    const heading = this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]');
+    const heading = this.host.nativeElement.querySelector<HTMLElement>('h1[data-page-heading]');
     if (landing === null || heading === null || this.store.loading() || this.store.project()?.id !== landing.projectId) return;
     this.landingRequest.landing.set(null);
     heading.focus();
     this.created = landing.created ?? null;
-    this.toast.show(landing.feedback, landing.created?.report, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]'));
+    this.toast.show(landing.feedback, landing.created?.report, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-page-heading]'));
   }
 
   readonly notice = this.noticeState.asReadonly();
@@ -317,6 +317,18 @@ export class ProjectWorkspaceShell {
     const kind = this.activeKind();
     if (kind === null || kind === canonicalPageKindFor(project.kind)) return [];
     return [step(project), { label: pageDefinitionFor(kind)?.label ?? kind, link: null }];
+  });
+
+  /**
+   * The header's h1 on a root's other pages (Slice 81, Q6 (i)): the page's name, which the path's
+   * last step repeats; `null` on the root's first page and on a workstream, where the h1 is the
+   * project's name.
+   */
+  readonly pageHeading = computed<string | null>(() => {
+    const project = this.store.project();
+    const kind = this.activeKind();
+    if (project === null || project.kind === 'subproject' || kind === null || kind === canonicalPageKindFor(project.kind)) return null;
+    return pageDefinitionFor(kind)?.label ?? kind;
   });
 
   /**
@@ -419,7 +431,7 @@ export class ProjectWorkspaceShell {
     effect(() => {
       const feedback = this.history.feedback();
       untracked(() => {
-        if (feedback !== null) this.toast.show(feedback, feedback.report, () => this.host.nativeElement.querySelector<HTMLElement>('[data-project-name], #project-creation-recovery-heading'));
+        if (feedback !== null) this.toast.show(feedback, feedback.report, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-page-heading], #project-creation-recovery-heading'));
       });
     });
     inject(DestroyRef).onDestroy(() => { this.destroyed = true; this.releaseWorkLift?.(); });
@@ -560,7 +572,7 @@ export class ProjectWorkspaceShell {
     this.releaseWorkLift?.(); this.releaseWorkLift = null;
     this.workCreateOpen.set(false);
     const opener = this.workCreateReturn;
-    afterNextRender(() => new LiftFocus(opener, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-project-name]')).restore(), { injector: this.injector });
+    afterNextRender(() => new LiftFocus(opener, () => this.host.nativeElement.querySelector<HTMLElement>('h1[data-page-heading]')).restore(), { injector: this.injector });
   }
 
   /**
@@ -638,7 +650,9 @@ export class ProjectWorkspaceShell {
   private focusArchiveLanding(): void {
     const url = this.archiveFocus.archiveUrl();
     if (url === null || this.router.url !== url) return;
-    const heading = this.host.nativeElement.querySelector<HTMLElement>('#archive-page-title');
+    // The header's h1 is the Archive heading only once this shell draws the Archive page (Q6 (i)).
+    if (this.host.nativeElement.querySelector('[data-archive-page]') === null) return;
+    const heading = this.host.nativeElement.querySelector<HTMLElement>('h1[data-page-heading]');
     if (heading) { this.archiveFocus.archiveUrl.set(null); heading.focus(); }
   }
 
@@ -679,7 +693,7 @@ export class ProjectWorkspaceShell {
     afterNextRender(() => {
       const host = this.host.nativeElement;
       const target = this.store.archivedOwner() === null
-        ? host.querySelector<HTMLElement>('h1[data-project-name]')
+        ? host.querySelector<HTMLElement>('h1[data-page-heading]')
         : host.querySelector<HTMLElement>('app-archived-banner select[data-restore-status]');
       target?.focus();
     }, { injector: this.injector });

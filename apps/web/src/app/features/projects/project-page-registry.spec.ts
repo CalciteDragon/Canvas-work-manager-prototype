@@ -72,6 +72,20 @@ describe('project page registry (§26, §68)', () => {
     });
   });
 
+  // Q5 (d): the fallback names the root's first page by its project, never "Home".
+  it.each([
+    ['todos', 'The Todos page is switched off for this project. Showing Root instead.'],
+    ['nonsense', 'There is no “nonsense” page. Showing Root instead.'],
+  ])('words the %s fallback with the project’s name', (requestedKind, reason) => {
+    const resolution = resolveProjectPage({
+      project: ROOT,
+      ownPages: [page('page-home', ROOT.id, 'home'), page('page-todos', ROOT.id, 'todos', false)],
+      requestedKind,
+    });
+
+    expect(resolution).toMatchObject({ outcome: 'redirect', reason });
+  });
+
   it.each([
     ['unknown', 'nonsense'],
     ['work', 'work'],
@@ -93,6 +107,7 @@ describe('project page registry (§26, §68)', () => {
       requestedKind: 'home',
     });
 
+    expect(resolution).toMatchObject({ outcome: 'unavailable', reason: 'This project has no first page to show.' });
     expect(resolution.outcome).toBe('unavailable');
     expect('enableKind' in resolution).toBe(false);
   });

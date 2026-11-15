@@ -15,6 +15,25 @@
   grid-area: top;
 }
 
+// Out of the grid: hidden as `.visually-hidden` until it has focus, then over the top bar's corner.
+.skip-link {
+  position: fixed;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: var(--z-navigation);
+}
+
+.skip-link:not(:focus) {
+  inline-size: var(--border-hairline);
+  block-size: var(--border-hairline);
+  min-block-size: 0;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .side {
   grid-area: side;
   min-height: 0;

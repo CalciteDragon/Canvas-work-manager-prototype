@@ -4,7 +4,8 @@ import { ProjectWorkspaceShell } from './features/projects/project-workspace-she
 import { NotFoundPage } from './shared/components/placeholder-page/not-found-page';
 
 /**
- * §68’s route map. Most feature routes are eagerly loaded on purpose: the prototype
+ * §68’s route map. Every static route carries its `title`, most specific first; the project routes
+ * carry none, since `DocumentTitle` names them from the published place (Slice 81, Q6 (a)). Most feature routes are eagerly loaded on purpose: the prototype
  * optimizes for time to change an idea, not for bundle size (§3.1), and lazy boundaries are
  * one more thing to move when a feature does.
  *
@@ -27,7 +28,7 @@ import { NotFoundPage } from './shared/components/placeholder-page/not-found-pag
 export const routes: Routes = [
   // `pathMatch: 'full'` is not decoration — without it this redirect swallows every URL.
   { path: '', pathMatch: 'full', redirectTo: '/app' },
-  { path: 'app', component: DashboardPage },
+  { path: 'app', component: DashboardPage, title: 'Home' },
   // §68's two project routes, in this order: the longer path must be declared first, or
   // `projects/:projectId` matches `projects/x/pages/home` and swallows the page.
   {
@@ -37,25 +38,30 @@ export const routes: Routes = [
   { path: 'projects/:projectId', component: ProjectWorkspaceShell },
   {
     path: 'calendar',
+    title: 'Calendar',
     loadComponent: () => import('./features/calendar/calendar-page').then((m) => m.CalendarPage),
   },
-  { path: 'search', loadComponent: () => import('./features/search/search-page').then((m) => m.SearchPage) },
-  { path: 'settings', loadComponent: () => import('./features/settings/settings-page').then((m) => m.SettingsPage) },
+  { path: 'search', title: 'Search', loadComponent: () => import('./features/search/search-page').then((m) => m.SearchPage) },
+  { path: 'settings', title: 'Settings', loadComponent: () => import('./features/settings/settings-page').then((m) => m.SettingsPage) },
   {
     path: 'settings/agents',
+    title: 'AI & Agents · Settings',
     loadComponent: () => import('./features/settings/agents/agent-connections-page').then((m) => m.AgentConnectionsPage),
   },
   {
     path: 'settings/archived-projects',
+    title: 'Archived projects · Settings',
     loadComponent: () => import('./features/settings/archived-projects/archived-projects-page').then((m) => m.ArchivedProjectsPage),
   },
   {
     path: 'prototype/design',
+    title: 'Design Lab',
     loadComponent: () => import('./prototype/design-lab/design-lab-page').then((m) => m.DesignLabPage),
   },
   {
     path: 'prototype/state',
+    title: 'Prototype state',
     loadComponent: () => import('./prototype/dev-panel/state-inspector-page').then((m) => m.StateInspectorPage),
   },
-  { path: '**', component: NotFoundPage },
+  { path: '**', component: NotFoundPage, title: 'Page not found' },
 ];

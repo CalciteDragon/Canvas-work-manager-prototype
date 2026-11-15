@@ -186,7 +186,7 @@ for (const theme of ['dark', 'light'] as const) {
         await expect(opener).toBeFocused();
         await more(page).click();
         await page.locator('[data-project-open-archive]').click();
-        await expect(page.locator('#archive-page-title')).toBeFocused();
+        await expect(page.locator('h1[data-page-heading]')).toBeFocused();
         await onlyOneLift(page);
       });
 
@@ -202,7 +202,7 @@ for (const theme of ['dark', 'light'] as const) {
         const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
         await brief.locator('[data-section-remove]').click();
         await page.locator('[data-toast]:popover-open [data-open-archive]').click();
-        await expect(page.locator('#archive-page-title')).toBeFocused();
+        await expect(page.locator('h1[data-page-heading]')).toBeFocused();
 
         await page.goto(`/projects/${ROOT}`);
         // Slice 81: the tree's Todos link. At 375 the tree is in the drawer, and a chosen link closes

@@ -49,7 +49,8 @@ export class ProjectHeader {
   /** The path to this place, the current item last; empty on a root's first page (a one-step path repeats the name). */
   readonly breadcrumb = input<readonly BreadcrumbItem[]>([]);
   readonly writeError = input<Failure | null>(null);
-  readonly routeLanding = input(true);
+  /** The current page's name when it is not the project's own (a root's Todos, Archive or Reflections); `null` names the project (Q6 (i)). */
+  readonly heading = input<string | null>(null);
   readonly saveDetails = input<(patch: Pick<UpdateProjectInput, 'name' | 'description' | 'targetDate'>) => Promise<boolean>>(async () => false);
   readonly confirmArchive = input<(workstreamIds: ProjectId[]) => Promise<boolean>>(async () => false);
   readonly clearWriteError = input<() => void>(() => {});

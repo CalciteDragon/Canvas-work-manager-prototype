@@ -118,25 +118,27 @@ export const resolveProjectPage = (input: {
 
   /**
    * Falling back *to* Home when Home is the thing that failed would loop, so that case answers
-   * `unavailable` — with its own sentence, because "Showing Home instead" is exactly what is
+   * `unavailable` — with its own sentence, because "Showing <project> instead" is exactly what is
    * not happening. §26 makes Home required and undisablable, so reaching this is a broken
    * document rather than an ordinary state, and it should read like one.
    */
+  // Slice 81, Q5 (d): the notices name the root's first page by its project, never "Home"
+  // (docs/decisions/2026-11-a-root-first-page-is-named-by-its-project.md).
   const toHome = (reason: string): ProjectPageResolution =>
     kind === 'home' || home === undefined
-      ? { outcome: 'unavailable', reason: 'This project has no Home page to show.' }
+      ? { outcome: 'unavailable', reason: 'This project has no first page to show.' }
       : { outcome: 'redirect', to: ['/projects', project.id, 'pages', 'home'], reason };
 
   const definition = PROJECT_PAGE_REGISTRY.find(({ kind: candidate }) => candidate === kind);
   if (!isPageKind(kind) || !isNavigablePageKind(kind)) {
-    return toHome(`There is no “${kind}” page. Showing Home instead.`);
+    return toHome(`There is no “${kind}” page. Showing ${project.name} instead.`);
   }
   const page = ownPages.find((candidate) => candidate.kind === kind);
   if (kind === 'archive' && definition !== undefined) {
     return { outcome: 'render', kind, pageId: page?.id ?? null, component: definition.component };
   }
   if (page === undefined || !page.enabled) {
-    const fallback = toHome(`The ${labelFor(kind)} page is switched off for this project. Showing Home instead.`);
+    const fallback = toHome(`The ${labelFor(kind)} page is switched off for this project. Showing ${project.name} instead.`);
     // Only a real, disabled optional record gets an enable affordance. A missing record is the
     // first-enable case, while Home/work and unknown kinds are different fallbacks entirely.
     return page !== undefined && !page.enabled && isOptionalProjectPageKind(kind) && fallback.outcome === 'redirect'
@@ -144,7 +146,7 @@ export const resolveProjectPage = (input: {
       : fallback;
   }
   if (definition === undefined) {
-    return toHome(`The ${labelFor(kind)} page is not built yet. Showing Home instead.`);
+    return toHome(`The ${labelFor(kind)} page is not built yet. Showing ${project.name} instead.`);
   }
   return { outcome: 'render', kind, pageId: page.id, component: definition.component };
 };

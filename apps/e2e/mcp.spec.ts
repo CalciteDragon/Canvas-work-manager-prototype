@@ -236,7 +236,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
     // they are, and the page stays listed while it is current.
     await expect.poll(async () => (await requestApi.get<Array<{ kind: string; enabled: boolean }>>(`/api/projects/${SHOWCASE_ROOT}/pages`)).find(({ kind }) => kind === 'archive')?.enabled).toBe(false);
     await expect(page).toHaveURL(new RegExp(`/projects/${SHOWCASE_ROOT}/pages/archive$`));
-    await expect(page.locator('#archive-page-title')).toBeVisible();
+    await expect(page.locator('h1[data-page-heading]')).toBeVisible();
     await expect(page.locator('[data-page-notice]')).toHaveCount(0);
     const enabled = await client.callTool({
       name: 'set_project_page_enabled',

@@ -71,6 +71,30 @@ describe('ProjectHeader lifts (§26)', () => {
     expect(query(fixture, '[data-project-progress]').textContent).toContain('0%');
   });
 
+  // Slice 81, Q6 (i): the h1 names the current page; on a root's other pages that is the page, and the
+  // project's name is the path's first step (L7-018).
+  it('names a root’s other page in its h1, the page’s one heading and route landing', async () => {
+    const fixture = await render(root(), [{ label: 'Website launch', link: ['/projects', 'project-1'] }, { label: 'Todos', link: null }]);
+    fixture.componentRef.setInput('heading', 'Todos');
+    await settle(fixture);
+    const heading = query(fixture, 'h1');
+
+    expect(heading.textContent?.trim()).toBe('Todos');
+    expect(heading.hasAttribute('data-page-heading')).toBe(true);
+    expect(heading.hasAttribute('data-route-page-focus')).toBe(true);
+    expect(query(fixture, '[data-project-name]')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+  });
+
+  it('names the project in its h1 when the page is the project’s own', async () => {
+    const fixture = await render();
+    const heading = query(fixture, 'h1');
+
+    expect(heading.textContent?.trim()).toBe('Website launch');
+    expect(heading.hasAttribute('data-project-name')).toBe(true);
+    expect(heading.hasAttribute('data-page-heading')).toBe(true);
+  });
+
   it('names the progress fact’s state, never "Not available" (§39, L4-017)', async () => {
     const fixture = await render();
     const fact = () => query(fixture, '[data-project-progress]');

@@ -230,6 +230,8 @@ undo its own receipt after checking that it remains next
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the same-URL recovery state and creator-only summary after Undo
 - [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header controls, per-step blockers, write reporting, archive stays on the project; amended for receipt Undo
 - [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — the drawer's pencil opens page settings and Add workstream as lifts returning to Menu; the column's narrow re-collapse is gone with the column (Slice 81)
+- [Titles name the place most specific first, the h1 names the current page](../../../decisions/2026-11-document-titles-and-skip-link.md) — the header's `h1` names a root's other pages; Todos, Archive and Reflections draw no heading
+- [A root's first page is named by its project](../../../decisions/2026-11-a-root-first-page-is-named-by-its-project.md) — fallback notices, Archive origins, restore toasts and shortcut sources
 
 ## Spec sections
 

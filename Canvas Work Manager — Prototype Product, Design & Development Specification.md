@@ -1082,6 +1082,8 @@ A 768 px tablet keeps the inline sidebar
 
 *Slice 78.* The sidebar says "Loading projects…" until its first read answers, and "No projects yet" only when a read has answered with none. A failed read says "Couldn’t load your projects." with Try again in a polite status region, so an outage that also fails Home is announced once ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
 
+*Slice 81 (step 11).* The first Tab stop on every route is **Skip to content**, visible once focused, which moves focus to the one `main`; no page draws a `main` of its own. The document title names the place most specific first: "Todos · Home renovation · Canvas Work Manager", "Cabinets · Home renovation · Canvas Work Manager", "AI & Agents · Settings · Canvas Work Manager"; a root's first page is "Home renovation · Canvas Work Manager" ([decision](docs/decisions/2026-11-document-titles-and-skip-link.md)). In-content mentions of a root's first page use the project's name ("Showing Home renovation instead"), never "Home" ([decision](docs/decisions/2026-11-a-root-first-page-is-named-by-its-project.md)).
+
 ---
 
 # 24. Home Dashboard
@@ -1217,6 +1219,13 @@ The header itself is rendered **once per project** — at the top of the workspa
 §23's full-height navigation column and above whichever page is showing. It describes the
 project, not the page, and a header living inside Home would vanish the moment another page
 rendered.
+
+*Corrected in Slice 81 (Q6 (i), 2026-11-10).* The header's `h1` names the **current page**: the
+project's name on a root's first page and on a workstream; on a root's Todos, Archive and
+Reflections the page's name ("Todos"), with the project's name as the breadcrumb's first step above
+it. The header still carries the project's facts, history and More; the pages draw no heading of
+their own, so a page is named once and the heading equals the navigation tree's current item
+([decision](docs/decisions/2026-11-document-titles-and-skip-link.md)).
 
 *Landed in Slice 41, amended in Slice 74.* **Undo** and **Redo** are two always-present icons in the header, before More.
 A committed write's toast also offers Undo of its exact receipt. Header controls act on the **displayed project's**

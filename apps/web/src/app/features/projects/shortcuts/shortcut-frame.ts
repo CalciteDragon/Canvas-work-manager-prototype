@@ -125,9 +125,10 @@ export class ShortcutFrame {
   }
 }
 
-const pageLabel = (kind: ProjectPageKind): string =>
+/** `null` for a root's first page: the path already ends with its project, which names it (Q5 (d)). */
+const pageLabel = (kind: ProjectPageKind): string | null =>
   kind === 'home'
-    ? 'Home'
+    ? null
     : kind === 'work'
       ? 'Work canvas'
       : kind.charAt(0).toUpperCase() + kind.slice(1);

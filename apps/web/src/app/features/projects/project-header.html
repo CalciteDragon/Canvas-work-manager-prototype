@@ -7,7 +7,9 @@
     project().icon ?? (isWorkUnit() ? '🧩' : '📁')
   }}</span>
 
-  <h1 data-project-name [attr.data-route-focus]="routeLanding() ? '' : null" data-recovery-focus tabindex="-1" class="project-header__name">{{ project().name }}</h1>
+  <!-- Slice 81, Q6 (i): the h1 names the current page, the route's landing. On a root's other pages
+       that is the page ("Todos"), and the project's name is the path's first step above it. -->
+  <h1 data-page-heading [attr.data-project-name]="heading() === null ? '' : null" data-route-focus data-route-page-focus data-recovery-focus tabindex="-1" class="project-header__name">{{ heading() ?? project().name }}</h1>
 
   <div class="project-header__actions">
     <!-- §26's Undo and Redo (Slice 41), projected by the shell, which owns the history store. -->

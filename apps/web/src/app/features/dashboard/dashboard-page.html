@@ -1,6 +1,6 @@
-<main class="dashboard">
+<section class="dashboard" aria-labelledby="dashboard-heading">
   <header class="dashboard__header">
-    <h1 class="dashboard__heading" tabindex="-1" data-route-focus data-recovery-focus>Home</h1>
+    <h1 id="dashboard-heading" class="dashboard__heading" tabindex="-1" data-route-focus data-recovery-focus>Home</h1>
     <!-- Gated on `!loading` as well as on the data: during a reload the previous day's
          date would otherwise sit above a body that says "Loading…". -->
     @if (!store.loading() && store.dashboard(); as dashboard) {
@@ -62,4 +62,4 @@
       </div>
     }
   }
-</main>
+</section>

@@ -102,6 +102,12 @@ export class AppShell implements ShellCommands {
     if (this.drawerOpen()) this.closeDrawerThen(() => this.main().nativeElement.focus());
   }
 
+  /** The skip link (Slice 81, L5-014): focus to `main`, without the fragment reaching the router. */
+  protected skipToContent(event: Event): void {
+    event.preventDefault();
+    this.main().nativeElement.focus();
+  }
+
   constructor() {
     void this.store.load();
     const toastSlot = inject(ToastSlot);

@@ -1,8 +1,8 @@
-<section class="reflections-page" data-reflections-page aria-labelledby="reflections-page-title">
+<!-- Slice 81, Q6 (i): the shell header's h1 names this page; it draws no heading of its own. -->
+<section class="reflections-page" data-reflections-page aria-label="Reflections" tabindex="-1">
   <header class="reflections-page__header">
     <div>
       <p class="reflections-page__eyebrow">Project journal</p>
-      <h2 id="reflections-page-title" tabindex="-1" data-route-focus data-route-page-focus data-recovery-focus>Reflections</h2>
       <p class="reflections-page__description">
         Notes from this project’s canvases, gathered in one chronology.
       </p>
@@ -26,7 +26,7 @@
   @if (!pageWritesBlocked()) {
     <section data-reflections-composer-region class="reflections-page__region" aria-labelledby="reflections-compose-title">
       <div class="reflections-page__region-heading">
-        <h3 id="reflections-compose-title" tabindex="-1" data-recovery-focus>Write a reflection</h3>
+        <h2 id="reflections-compose-title" tabindex="-1" data-recovery-focus>Write a reflection</h2>
         @if (store.container(); as container) {
           <span data-reflections-container-name class="reflections-page__muted">{{ container.title ?? 'Reflections' }}</span>
           @if (store.containerCount() > 1) {
@@ -66,7 +66,7 @@
 
     <section data-reflections-picker class="reflections-page__region" aria-labelledby="reflections-picker-title">
       <div class="reflections-page__region-heading">
-        <h3 id="reflections-picker-title" tabindex="-1" data-recovery-focus>About completed work</h3>
+        <h2 id="reflections-picker-title" tabindex="-1" data-recovery-focus>About completed work</h2>
         <span class="reflections-page__muted">Optional</span>
       </div>
       @if (store.pickerError(); as failure) {
@@ -90,7 +90,7 @@
 
   <section data-reflections-feed class="reflections-page__region" aria-labelledby="reflections-feed-title">
     <div class="reflections-page__region-heading">
-      <h3 id="reflections-feed-title" tabindex="-1" data-recovery-focus>Journal</h3>
+      <h2 id="reflections-feed-title" tabindex="-1" data-recovery-focus>Journal</h2>
       <span class="reflections-page__muted">Newest first</span>
     </div>
     @if (store.journalError(); as failure) {

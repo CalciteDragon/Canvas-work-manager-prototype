@@ -600,7 +600,7 @@ pending with `restorePending()` (the banner is `aria-busy`) and natively disable
 project write runs; `restoreFailure()` for the current owner renders inside it, inline, with
 Details, and with Try again (repeating the last status) only when `retryable`. The shell's
 `restoreFromBanner` calls `restoreOwner` and, once it resolves `true`, moves focus to
-`h1[data-project-name]` when no owner is left (the own project adds no toast, an ancestor gets the
+`h1[data-page-heading]` when no owner is left (the own project adds no toast, an ancestor gets the
 cross-owner toast with Open), or to the banner's status select when the next owner takes its place.
 `readOnly` is also a renderer input (`ProjectPageRendererInputs.readOnly`), declared by every page.
 `ProjectCanvas` reads it as `layoutEditable()` (`orderComplete() && !readOnly()`): with it false
@@ -644,7 +644,7 @@ openArchive(returnTo) records the target URL in root-lived ArchiveFocusRequest.a
 and navigates without a write. Root Archive resolves whether its page record is absent, hidden or
 shown; only its renderer accepts a nullable page id. The tree lists a hidden Archive while it
 is current, and the page-settings toggle reads “Archive” while controlling navigation visibility. A rendered shell consumes the
-matching request when #archive-page-title exists; a different winning URL clears it. This explicit
+matching request once it draws `[data-archive-page]`, focusing the header's `h1[data-page-heading]` ("Archive", Q6 (i)); a different winning URL clears it. This explicit
 request survives shell replacement. Generic core route focus remains a fallback.
 
 Archive restore toasts name the returned item's breadcrumb and page, with canonical Go to it and

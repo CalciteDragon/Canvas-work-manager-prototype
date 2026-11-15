@@ -96,6 +96,15 @@ const everyWidget = (): DashboardWidget[] =>
     .map((type, position) => widget(`w-${type}`, type, { position }));
 
 describe('DashboardPage (§24, §25)', () => {
+  // Slice 81 (L5-011): the shell's workspace is the page's one `main`; the dashboard is a section in it.
+  it('draws no main of its own, only a section named by its heading', async () => {
+    const element = await render([widget('w-today', 'today')]);
+
+    expect(element.querySelector('main')).toBeNull();
+    const region = element.querySelector('section.dashboard');
+    expect(region?.getAttribute('aria-labelledby')).toBe(element.querySelector('h1')?.id);
+  });
+
   it('renders one tile per visible widget, carrying its preset size', async () => {
     const element = await render([
       widget('w-today', 'today', { position: 0, size: 'wide' }),

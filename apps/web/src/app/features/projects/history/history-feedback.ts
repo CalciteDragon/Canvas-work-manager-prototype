@@ -41,9 +41,12 @@ export const canvasRefreshFailedFeedback = (): HistoryFeedback => ({ tone: 'stat
 export const taskArchivedFeedback = (title: string): HistoryFeedback => ({ tone: 'status', message: `Archived “${title}”.` });
 /** The workstream completion acknowledgement. */
 export const workstreamCompletedFeedback = (name: string): HistoryFeedback => ({ tone: 'status', message: `Completed ${name}.` });
-/** Restore names the actual destination, including a switched-off page. */
-export const restoredItemFeedback = (title: string, breadcrumb: string, page: string, pageEnabled = true): HistoryFeedback => ({
-  tone: 'status', message: `Restored “${title}” to ${breadcrumb} › ${page}${pageEnabled ? '.' : ', which is switched off.'}`,
+/**
+ * Restore names the actual destination, including a switched-off page. `page` is `null` for a
+ * root's first page, which its project's name already names (Slice 81, Q5 (d)).
+ */
+export const restoredItemFeedback = (title: string, breadcrumb: string, page: string | null, pageEnabled = true): HistoryFeedback => ({
+  tone: 'status', message: `Restored “${title}” to ${breadcrumb}${page === null ? '' : ` › ${page}`}${pageEnabled ? '.' : ', which is switched off.'}`,
 });
 /** Project restore names the selected resulting status. */
 export const restoredProjectFeedback = (name: string, status: string, workstreams = 0): HistoryFeedback => ({

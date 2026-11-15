@@ -40,6 +40,20 @@ describe('AppShell', () => {
     expect(element.querySelector('router-outlet')).not.toBeNull();
   });
 
+  // Slice 81 (L5-014, W3-001): the first focusable element skips the navigation and lands in `main`.
+  it('starts with a Skip to content link that moves focus to main', async () => {
+    const { fixture, element } = await renderShell();
+    document.body.append(element);
+    const first = element.querySelector<HTMLElement>('a[href], button, input, [tabindex]:not([tabindex="-1"])');
+
+    expect(first?.textContent?.trim()).toBe('Skip to content');
+    expect(first?.hasAttribute('data-skip-link')).toBe(true);
+    first!.click();
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(element.querySelector('main'));
+    element.remove();
+  });
+
   // Slice 78: off-screen write failures are pinned to the workspace's edges, drawn by one slot
   // inside the scroll port; it draws nothing while nothing is pinned.
   it('renders the pinned-failure slot inside the workspace, empty', async () => {

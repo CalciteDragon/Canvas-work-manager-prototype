@@ -102,7 +102,11 @@ describe('ArchivedRegion', () => {
     expect(all(fixture, '[data-archived-kind="subproject"] [data-archived-type]')[0]?.textContent?.trim()).toBe('Workstream');
     expect(all(fixture, '[data-archived-kind="section"] [data-archived-name]')[0]?.textContent).toContain('Backlog');
     expect(all(fixture, '[data-archived-origin]')[0]?.textContent).toContain('Website launch');
-    expect([...all(fixture, '[data-archived-origin]')[0]!.querySelectorAll('a')].at(-1)?.textContent).toContain('Home');
+    // Q5 (d): a root's first page is named by its project, so the path ends at the project, whose
+    // link opens that page.
+    const rootOrigin = all(fixture, '[data-archived-kind="section"] [data-archived-origin]')[0]!;
+    expect(rootOrigin.textContent?.replace(/\s+/g, ' ').trim()).toBe('Origin: Website launch');
+    expect([...rootOrigin.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual([`/projects/${ROOT_ID}/pages/home`]);
     expect(fixture.nativeElement.querySelector('[data-archived-cascade-count]')?.textContent).toContain('1 task');
     expect(all(fixture, '[data-archived-cause]')[1]?.textContent).toContain('directly');
     expect(all(fixture, '[data-archived-blocker]')).toHaveLength(0);

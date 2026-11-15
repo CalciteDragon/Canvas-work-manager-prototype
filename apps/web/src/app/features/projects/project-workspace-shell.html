@@ -52,7 +52,7 @@
         [saveDetails]="saveDetails"
         [confirmArchive]="archiveProject"
         [clearWriteError]="clearWriteError"
-        [routeLanding]="activeKind() === null || activeKind() === 'home'"
+        [heading]="pageHeading()"
         (statusRequested)="setStatus($event)"
         (openArchiveRequested)="openArchive($event)"
       >

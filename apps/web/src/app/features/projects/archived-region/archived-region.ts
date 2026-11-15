@@ -87,8 +87,16 @@ export class ArchivedRegion {
     // A workstream's Work canvas with no section to scroll to opens exactly what its project link
     // opens; one tab stop per place, so the page is then text.
     const repeatsProject = route !== null && route.length === 2 && fragment === undefined;
+    const projects = item.origin.breadcrumb.map(({ projectId, name }): BreadcrumbItem => ({ label: name, link: ['/projects', projectId] }));
+    const last = projects.at(-1);
+    // Q5 (d): a root's first page is named by its project, so the path ends there and the project's
+    // link opens the page (and its section) itself.
+    if (item.origin.pageKind === 'home' && route !== null && last !== undefined) {
+      return [...projects.slice(0, -1), { ...last, link: route, fragment },
+        ...(sectionName === undefined ? [] : [{ label: sectionName, link: null }])];
+    }
     return [
-      ...item.origin.breadcrumb.map(({ projectId, name }) => ({ label: name, link: ['/projects', projectId] })),
+      ...projects,
       { label: this.originPageLabel(item), link: repeatsProject ? null : route, fragment },
       ...(sectionName === undefined ? [] : [{ label: sectionName, link: null }]),
     ];

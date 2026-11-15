@@ -224,7 +224,7 @@ for (const theme of THEMES) {
 
     for (const [label, path, ready] of [
       ['project canvas', '/projects/project-renovation', '[data-section-canvas]'],
-      ['Todos', '/projects/project-renovation/pages/todos', '#todos-heading'],
+      ['Todos', '/projects/project-renovation/pages/todos', 'h1[data-page-heading]'],
       ['Archive', '/projects/project-renovation/pages/archive', '[data-archive-count]'],
       ['Settings', '/settings', 'main.workspace h1'],
     ] as const) {
@@ -350,11 +350,12 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
 
   // Slice 81: the project column is gone; its pages and workstreams are links in the drawer's tree.
   test('a chosen tree link closes the drawer, navigates and focuses the workspace', async ({ page }) => {
-    const choose = async (link: string, url: RegExp, project: string) => {
+    // Q6 (i): the header's h1 names the current page ("Todos" on a root's other page).
+    const choose = async (link: string, url: RegExp, heading: string) => {
       await openByTap(page);
       await drawer(page).locator(link).tap();
       await expect(page).toHaveURL(url);
-      await expect(page.locator('[data-project-name]')).toContainText(project);
+      await expect(page.locator('h1[data-page-heading]')).toHaveText(heading);
       await expectDrawerClosed(page);
       await expectFocus(page, 'main.workspace');
     };
@@ -362,7 +363,7 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await page.goto('/projects/project-renovation/pages/home');
     await useTheme(page, theme);
     // Todos on the same root: no project reload.
-    await choose('[data-nav-page="todos"]', /\/pages\/todos$/, 'Home renovation');
+    await choose('[data-nav-page="todos"]', /\/pages\/todos$/, 'Todos');
     // A workstream: the project reloads.
     await choose('li[data-nav-work-id="project-kitchen"] > .tree-row > a', /\/projects\/project-kitchen$/, 'Kitchen');
     // The root's row from that workstream goes back to the root.

@@ -1,6 +1,6 @@
 @if (!hidden()) {
-  <section data-archived-region class="archived-region" aria-labelledby="archived-region-title">
-    <h2 id="archived-region-title" class="archived-region__title">Archive</h2>
+  <!-- Slice 81 (L5-015): the page's list, not a second "Archive" region inside the Archive page. -->
+  <div data-archived-region class="archived-region">
 
     @if (restoreBlocked()) {
       <p data-archived-blocked class="archived-region__note">
@@ -66,5 +66,5 @@
         </li>
       }
     </ul>
-  </section>
+  </div>
 }

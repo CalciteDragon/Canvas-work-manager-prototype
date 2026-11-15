@@ -62,6 +62,7 @@ describe('ShortcutFrame (§27)', () => {
     fixture.detectChanges();
 
     expect(query(fixture, '[data-shortcut-source]')?.textContent).toContain('Website launch / Kitchen');
+    expect(query(fixture, '.shortcut-frame__origin')?.textContent?.trim()).toBe('Website launch / Kitchen · Work canvas');
     expect(query(fixture, 'app-markdown-renderer')?.textContent).toContain('Canonical source');
     expect(query(fixture, '[data-markdown-edit]')).toBeNull();
     expect(query(fixture, '[data-shortcut-open-source]')).not.toBeNull();
@@ -80,6 +81,14 @@ describe('ShortcutFrame (§27)', () => {
     expect(query(fixture, '[data-shortcut-drag-handle]')?.getAttribute('aria-label')).toBe('Move shortcut to Launch brief');
     expect(query(fixture, '[data-shortcut-collapse]')?.getAttribute('aria-label')).toBe('Collapse Launch brief');
     expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Launch brief');
+  });
+
+  // Q5 (d): a root's first page is named by its project, which the path already ends with.
+  it('names a source on a root’s first page by its path alone', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = render(shortcut({ sourcePageKind: 'home', breadcrumb: ['Website launch'] }));
+
+    expect(query(fixture, '.shortcut-frame__origin')?.textContent?.trim()).toBe('Website launch');
   });
 
   it('lets the canvas focus its heading without adding it to the tab order (Slice 75, W3-016)', () => {

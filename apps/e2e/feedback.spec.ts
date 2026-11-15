@@ -42,7 +42,7 @@ for (const touch of [false, true]) {
       const count = writes.length;
       await toast(page).getByRole('button', { name: 'Open archive', exact: true }).click();
       // The archived region below carries its own Archive heading once anything is archived.
-      await expect(page.locator('#archive-page-title')).toBeFocused();
+      await expect(page.locator('h1[data-page-heading]')).toBeFocused();
       expect(writes).toHaveLength(count);
       await page.goto(kitchen);
       await expect(page.locator('[data-history-undo]')).toHaveAttribute('aria-label', latest!);

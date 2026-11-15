@@ -119,14 +119,15 @@ describe('ArchivePage (§31)', () => {
     const restore = host.querySelector<HTMLButtonElement>('[data-archived-restore]')!;
     restore.focus(); restore.click();
     await fixture.whenStable(); fixture.detectChanges();
-    expect(host.querySelector('[data-toast]')?.textContent).toContain('Restored “Backlog” to Website launch › Home.');
+    expect(host.querySelector('[data-toast]')?.textContent).toContain('Restored “Backlog” to Website launch.');
     const go = host.querySelector<HTMLAnchorElement>('[data-restore-go]')!;
     expect(go?.getAttribute('href')).toBe('/projects/project-archive-page/pages/home#section-section-archive-page');
     expect(host.querySelector('[data-restore-undo]')).not.toBeNull();
     expect(document.activeElement).toBe(go);
     host.querySelector<HTMLButtonElement>('[data-toast-dismiss]')!.click();
     await fixture.whenStable(); fixture.detectChanges();
-    expect(document.activeElement).toBe(host.querySelector('#archive-page-title'));
+    // Q6 (i): with no page heading of its own, focus lands on the page's region.
+    expect(document.activeElement).toBe(host.querySelector('[data-archive-page]'));
   });
 
   it('names a saving Undo and withdraws it when the receipt becomes unavailable', async () => {
@@ -159,11 +160,11 @@ describe('ArchivePage (§31)', () => {
 
   it('names a disabled origin page and offers no Go to it', async () => {
     const item = archive.items[0]!;
-    const { fixture, gateway } = await render({ ...archive, items: [{ ...item, origin: { ...item.origin, pageEnabled: false } }] });
+    const { fixture, gateway } = await render({ ...archive, items: [{ ...item, origin: { ...item.origin, pageKind: 'todos', pageEnabled: false } }] });
     gateway.archive.get = vi.fn().mockResolvedValue({ ...archive, items: [] });
     fixture.nativeElement.querySelector('[data-archived-restore]').click();
     await fixture.whenStable(); fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('[data-toast]')?.textContent).toContain('Home, which is switched off.');
+    expect(fixture.nativeElement.querySelector('[data-toast]')?.textContent).toContain('Website launch › Todos, which is switched off.');
     expect(fixture.nativeElement.querySelector('[data-restore-go]')).toBeNull();
   });
 
@@ -256,7 +257,8 @@ describe('ArchivePage (§31)', () => {
     expect(fixture.nativeElement.querySelector('[data-archive-root-guidance]')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('[data-archived-item]')).toHaveLength(1);
     const pageLink = [...fixture.nativeElement.querySelectorAll('[data-archived-origin] a')].at(-1) as HTMLAnchorElement | undefined;
-    expect(pageLink?.textContent).toContain('Home');
+    // Q5 (d): the root's first page is named by its project; that link opens the page and section.
+    expect(pageLink?.textContent?.trim()).toBe('Website launch');
     expect(pageLink?.getAttribute('href')).toBe(
       '/projects/project-archive-page/pages/home#section-section-archive-page',
     );

@@ -108,6 +108,7 @@ the false "No projects yet"
 - [Pending, saved and failed feedback stays on the object](../../../decisions/2026-10-feedback-stays-on-the-object.md) — the sidebar's New project refuses a blank name beside its field
 - [A failure speaks product words](../../../decisions/2026-10-failures-speak-product-words.md) — the sidebar's loading line, and its polite failure with Try again
 - [The navigation tree reads project place from a context](../../../decisions/2026-11-navigation-reads-project-place-from-a-context.md) — `NavigationContext`, the tree's two levels and the `nestedProjects` change
+- [Titles name the place most specific first, the h1 names the current page, and a skip link leads into main](../../../decisions/2026-11-document-titles-and-skip-link.md) — `DocumentTitle`, the skip link
 - [An empty workspace offers the first project](../../../decisions/2026-11-empty-workspace-offers-the-first-project.md) — `workspaceEmpty`, `SHELL_COMMANDS`, and the sidebar's archived-only wording
 
 ## Spec sections

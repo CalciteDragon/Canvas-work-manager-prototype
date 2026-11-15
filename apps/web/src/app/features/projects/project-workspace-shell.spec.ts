@@ -247,7 +247,8 @@ describe('Slice 73 Archive landing', () => {
     const { harness, component, gateway } = await open('/projects/project-kitchen');
     await (component as ProjectWorkspaceShell).openArchive();
     await settle(harness);
-    expect(document.activeElement).toBe(query(harness, '#archive-page-title'));
+    expect(document.activeElement).toBe(query(harness, 'h1[data-page-heading]'));
+    expect(query(harness, 'h1[data-page-heading]')?.textContent?.trim()).toBe('Archive');
     expect(gateway.calls.some(({ method }) => method === 'pages.setEnabled')).toBe(false);
     expect(TestBed.inject(ArchiveFocusRequest).archiveUrl()).toBeNull();
   });
@@ -887,7 +888,8 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     // The Archive renderer resolves against Loft's context, never the project the user was
     // standing on.
     expect(router.url).toBe('/projects/project-loft/pages/archive');
-    expect(query(harness, '[data-project-name]')?.textContent).toContain('Loft conversion');
+    expect(query(harness, '[data-archive-page]')).not.toBeNull();
+    expect(query(harness, '[data-project-breadcrumb], app-breadcrumb')?.textContent).toContain('Loft conversion');
     expect(query(harness, '[data-archive-page]')).not.toBeNull();
   });
 
@@ -1151,6 +1153,9 @@ describe('ProjectWorkspaceShell — the Todos page (§34, §68)', () => {
       'task-1',
       'project-kitchen',
     ]);
+    // Slice 81, Q6 (i): the header's h1 names the page; the page draws no heading of its own.
+    expect(queryAll(harness, 'h1').map((heading) => heading.textContent?.trim())).toEqual(['Todos']);
+    expect(queryAll(harness, '[data-todos-page] h2, app-todos-page h2').map((heading) => heading.textContent?.trim())).not.toContain('What is coming up');
     // A projection, not a canvas: no sections are read for this page at all.
     expect(query(harness, '[data-section-canvas]')).toBeNull();
     expect(gateway.calls.filter(({ method }) => method === 'todos.get').map(({ argument }) => argument)).toEqual([

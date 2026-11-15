@@ -1,4 +1,9 @@
 <div class="shell">
+  <!-- Slice 81 (L5-014): the first Tab stop, visible once focused; it moves focus to the page, past
+       the top bar and the navigation tree. A link because it is one; the click moves focus itself so
+       the router never sees the fragment. -->
+  <a class="button skip-link" href="#main-content" data-skip-link (click)="skipToContent($event)">Skip to content</a>
+
   <app-top-bar
     class="top"
     [identity]="store.identity()"
@@ -63,7 +68,7 @@
   </div>
 
   <!-- Focusable so a drawer that closed behind a chosen link can hand focus to what it opened. -->
-  <main #main class="workspace" tabindex="-1" [attr.inert]="drawerOpen() ? '' : null">
+  <main #main id="main-content" class="workspace" tabindex="-1" [attr.inert]="drawerOpen() ? '' : null">
     <router-outlet />
     <!-- Off-screen write failures pinned to this scroll port's edges; out of flow, so no geometry. -->
     <app-pinned-failure-slot />
