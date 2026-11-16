@@ -204,3 +204,10 @@ See [the retirement decision](2026-10-retiring-the-sub-projects-section.md).
 explicit one, in which the caller names the whole live subtree. An implicit cascade stays ruled out,
 and the Archive page still makes work findable, not contagious. See
 [a project archive can take its named workstreams down with it](2026-11-cascading-project-archive.md).
+
+**Amended, 2026-11-16 (Slice 81).** The project column named in the Slice 66 amendment is gone.
+The sidebar's one navigation tree draws a root's pages and its workstream hierarchy, and Add
+workstream opens from the tree's pencil "Edit project" menu and from the header's More. The
+model recorded here is unchanged: the root's first page is still the `home` kind, though the tree
+and in-content mentions name it by its project. See [one navigation tree](2026-10-one-navigation-tree.md)
+and [a root's first page is named by its project](2026-11-a-root-first-page-is-named-by-its-project.md).

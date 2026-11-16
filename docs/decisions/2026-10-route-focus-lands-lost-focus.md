@@ -40,3 +40,10 @@ The one-tree redesign replaces existing phone and project-column hand-offs.
 **Amended, 2026-11-13 (Slice 81, step 6).** The project column and its narrow toggle hand-off are
 gone, so a narrow column link no longer races route focus to its toggle. Open archive's landing
 remains explicit, in `ArchiveFocusRequest` ([plan](../roadmap/active/81-one-navigation-tree.md)).
+
+**Amended, 2026-11-16 (Slice 81).** The redesign this entry waited for has landed, and the rule
+stands. On project routes the heading it waits for is now always the header's `h1`, which names the
+current page; the pages draw no heading of their own. The first Tab stop on every route is **Skip
+to content**, which moves focus to the one `main`. A new workstream's create focuses its heading
+itself, as an explicit hand-off. See [titles and skip link](2026-11-document-titles-and-skip-link.md)
+and [a new workstream opens](2026-11-undoing-a-new-workstream-returns-to-its-parent.md).

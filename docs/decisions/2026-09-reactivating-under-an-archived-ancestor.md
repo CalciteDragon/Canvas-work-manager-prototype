@@ -85,3 +85,7 @@ takes the whole live subtree. The escape hatch narrows for a project marked `arc
 refuses a status change or a reparent until its owner is restored, because leaving alone would break
 the group. A project archived in its own right keeps "reactivate and move in one call", and the
 freeze's message on a marked project names the owner rather than saying to reactivate it.
+
+**Amended, 2026-11-16 (Slice 81).** Reviewed against [one navigation tree](2026-10-one-navigation-tree.md);
+the rule stays as written. The tree lists live work only, and shows archived work, or work under an
+archived ancestor, only while it is the current place, under its real path.

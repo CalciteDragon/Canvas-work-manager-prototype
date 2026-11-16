@@ -155,7 +155,7 @@ use through the web and MCP found no defect. Its wording points join the umbrell
 **Now — [Slice 81, one navigation tree](active/81-one-navigation-tree.md) (redesign slice 7; the user's choice,
 2026-11-09).** It is active. The plan was reviewed in six rounds and accepted by the user on 2026-11-09, who
 answered Q1, Q2, Q3, Q12, Q13 (b: Undo from a new workstream's toast returns to its parent) and Q15. Three live shell alternatives were built and the user picked B, a focused tree that drills in
-(2026-11-10); the build starts at step 4. The §8 comb and redesign slice 8 come after it, in that order.
+(2026-11-10); the build started at step 4, and steps 4–12 are in: the project column is gone and the sidebar's tree is the navigation. The §8 comb and redesign slice 8 come after it, in that order.
 See the umbrella's [handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes

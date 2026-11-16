@@ -112,8 +112,9 @@ through transform and opacity, and every value a token
 [direction](../../roadmap/70-ui-ux/direction.md)).
 
 The same gate also decided four more things. Theme behavior and split accents are implemented;
-navigation and workstream creation-default changes remain for their redesign slices. Task quick-add
-now preserves selection without opening details (Slice 73).
+Slice 81 built the one navigation tree and the workstream creation default (Parent is the open
+workstream, and a new workstream opens). Task quick-add preserves selection without opening
+details (Slice 73).
 
 - The theme follows the device preference and persists an explicit choice
   ([decision](../../decisions/2026-10-theme-follows-device-and-persists.md)).

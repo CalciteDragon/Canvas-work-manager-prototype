@@ -64,3 +64,8 @@ same `/settings/archived-projects`. "No active projects." stays as it was, and s
 style and its 24/44 px target. A user decision, not a default. `sidebar.spec.ts`, the sidebar
 story, the e2e and the slice 79 sheet gate expect the new wording; the spec §23 line and the web
 core `how.md` say it.
+
+**Amended, 2026-11-16 (Slice 81).** Reviewed against [one navigation tree](2026-10-one-navigation-tree.md);
+this entry stays as written. The Projects group, its New project form and the "No projects yet" and
+"No active projects." states sit on the tree's top level, which is the level shown outside a
+project, so Home's New project still opens the one form with focus in its name.

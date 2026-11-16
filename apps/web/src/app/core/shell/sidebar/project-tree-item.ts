@@ -13,8 +13,7 @@ import type { WorkRow } from './tree-model';
  * button named "Show/Hide <name>’s workstreams" with `aria-expanded`. Which rows are open is the
  * sidebar's state, handed down as `expanded`; a toggle bubbles up as `toggled`.
  *
- * Its data attributes are the tree's own (`data-nav-work`), so they never collide with the
- * project column's (`data-work-project`) while both exist. Unstyled: the row is the global
+ * Its data attributes are the tree's own (`data-nav-work`). Unstyled: the row is the global
  * `.tree-link` (`_controls.scss`), one copy for the whole tree, which also caps the indent.
  */
 @Component({

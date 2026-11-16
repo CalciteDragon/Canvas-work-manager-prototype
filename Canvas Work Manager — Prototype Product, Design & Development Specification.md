@@ -992,6 +992,31 @@ Project hierarchy should optionally expand inline.
 
 ## The project navigation column
 
+*Superseded in Slice 81 (2026-11-16): there is no project navigation column; the sidebar's tree is
+the navigation.* The column this subsection describes, its gear, its Work plus and its narrow
+"Show project navigation" toggle are deleted; the notes below record how it stood until then, and
+the Slice 81 notes at the end of §23 are current. The sidebar draws **one tree in two levels**
+(alternative B, picked by the user; [decision](docs/decisions/2026-10-one-navigation-tree.md) and its
+2026-11-10 amendment). The **top level** lists Home, Projects (a label, not a toggle, with New project
+and the live roots as links), Calendar, Search, and Settings with its children. Inside a project the
+tree shows that **root's level**: the root's own row, which opens its first page (there is no "Home"
+row; [decision](docs/decisions/2026-11-a-root-first-page-is-named-by-its-project.md)); its other
+enabled pages this build can render, Archive also while current; then its workstreams, each parent
+followed by a "Show/Hide Kitchen’s workstreams" disclosure button, with the indent capped. Exactly one
+item is `aria-current="page"`. A row of icon actions tops the root level: a chevron ("All projects")
+goes up a level without navigating and keeps focus on the root's row there, which is
+`aria-current="location"` until the next navigation; a pencil ("Edit project") opens a menu with
+"Pages of Home renovation…" and "Add workstream", the two items the header's More also offers after
+Open archive. Page settings and the Add workstream dialog keep their content; Parent defaults to the
+open workstream ([decision](docs/decisions/2026-10-creation-defaults-follow-the-open-work.md)).
+Creating a workstream opens it and focuses its heading; the toast says "Created Pantry under
+Kitchen." and its Undo returns to the parent
+([decision](docs/decisions/2026-11-undoing-a-new-workstream-returns-to-its-parent.md)). The tree
+reads the root's pages and work from a `NavigationContext` the project route publishes, so
+`ShellStore` still loads no pages (§20;
+[decision](docs/decisions/2026-11-navigation-reads-project-place-from-a-context.md)). The workspace
+is one track: the header, with the breadcrumb above its `h1` (§26), then any notice, then the page.
+
 *Corrected in Slice 60 (2026-09-30).* The gear beside the root name opens the same root-scoped
 page settings from every route. Since Slice 73 it is a native auto popover with fixed Home,
 optional Todos/Archive/Reflections, pending/refusal/retry states and Escape focus return. Opening
@@ -1078,7 +1103,16 @@ collapses it again and focuses its toggle, so the chosen canvas is not pushed un
 A 768 px tablet keeps the inline sidebar
 ([why](docs/decisions/2026-09-phone-navigation-drawer.md)).
 
-*Corrected at Slice 70 Gate 1 (2026-10-14): one navigation tree.* The global sidebar and the project column condense into one hierarchy. Each root expands to its enabled pages and its workstreams, exactly one current item is marked, and phones get one pattern. The two-column layout above remains the implemented state until the shell-layer redesign slice lands ([decision](docs/decisions/2026-10-one-navigation-tree.md)).
+*Corrected in Slice 81 (2026-11-16).* The drawer holds the one tree and has **no visible Close**:
+its top row is the tree's chevron and pencil, 44 px at drawer width. It is dismissed by Escape, the
+backdrop (a button named "Close navigation"), choosing a destination, a resize, or a "Close
+navigation" button that is its last Tab stop and becomes visible on focus; each returns focus to
+Menu. The pencil's items close the drawer, focus Menu and open their lift with Menu as its return.
+The drawer takes the lift's plane, blur, shadow and entrance motion. With no project column there is
+no re-collapse hand-off. The 768 px sentence above was wrong: the query is `max-width: 48rem`, so a
+768 px viewport gets the drawer ([why](docs/decisions/2026-09-phone-navigation-drawer.md)).
+
+*Corrected at Slice 70 Gate 1 (2026-10-14): one navigation tree.* The global sidebar and the project column condense into one hierarchy. Each root expands to its enabled pages and its workstreams, exactly one current item is marked, and phones get one pattern. The two-column layout above remained the implemented state until Slice 81 landed the tree (see the start of this subsection) ([decision](docs/decisions/2026-10-one-navigation-tree.md)).
 
 *Slice 78.* The sidebar says "Loading projects…" until its first read answers, and "No projects yet" only when a read has answered with none. A failed read says "Couldn’t load your projects." with Try again in a polite status region, so an outage that also fails Home is announced once ([decision](docs/decisions/2026-10-failures-speak-product-words.md)).
 
@@ -1215,8 +1249,8 @@ owns section and shortcut creation at the point where each will appear.
 placement order is complete. It is a sibling after the drop list; the empty canvas keeps its
 primary add action. Small insertion marks remain visible before placements and in grid gaps.
 
-The header itself is rendered **once per project** — at the top of the workspace track, beside
-§23's full-height navigation column and above whichever page is showing. It describes the
+The header itself is rendered **once per project** — at the top of the workspace track, above
+whichever page is showing (*Slice 81:* there is no navigation column beside it; §23). It describes the
 project, not the page, and a header living inside Home would vanish the moment another page
 rendered.
 
@@ -1226,6 +1260,13 @@ Reflections the page's name ("Todos"), with the project's name as the breadcrumb
 it. The header still carries the project's facts, history and More; the pages draw no heading of
 their own, so a page is named once and the heading equals the navigation tree's current item
 ([decision](docs/decisions/2026-11-document-titles-and-skip-link.md)).
+
+*Slice 81.* The structure above has no navigation row: a root's pages and its work are in §23's
+navigation tree. The header begins with a **breadcrumb**, the path to the place, above the `h1`: on
+a workstream its ancestors as links and its own name as text ("Home renovation › Kitchen ›
+Cabinets"); on a root's other pages the project as a link and the page as text; none on a root's
+first page. Its links are themed pills, 44 px on touch; Archive's origin sentence uses the same
+component's inline variant ([decision](docs/decisions/2026-10-one-navigation-tree.md)).
 
 *Landed in Slice 41, amended in Slice 74.* **Undo** and **Redo** are two always-present icons in the header, before More.
 A committed write's toast also offers Undo of its exact receipt. Header controls act on the **displayed project's**
@@ -1560,7 +1601,7 @@ Sections reorder within their page. Reordering one page never renumbers another,
 duplicating a section leaves the copy on the page that owned the original.
 
 Subprojects are not sections and do not live on a page: they belong to the parent's work
-hierarchy. The project column's **Work** list shows it and **Add workstream** creates nested work.
+hierarchy. §23's navigation tree shows it and **Add workstream** creates nested work.
 The former Sub-Projects section is retired in Slice 66; no hierarchy view remains on the canvas
 ([decision](docs/decisions/2026-10-retiring-the-sub-projects-section.md)).
 
@@ -4128,7 +4169,7 @@ open browser aggregate
 
 *Slice 42 adds a creation-history journey: create a root in the sidebar, Undo it, reload at its
 same URL into creator-only recovery, Redo the same project and Home page ids, then create a child
-through **Add workstream** in the Work column and repeat Undo, cross-owner not-found and recovery
+through **Add workstream** and repeat Undo, cross-owner not-found and recovery
 (the original Sub-Projects creation surface was retired in Slice 66). The parent tree
 receives the child's committed Undo/Redo frames. Domain and HTTP/MCP checks also refuse Undo when
 the project gained content, children, references, changed fields or another actor's history, with

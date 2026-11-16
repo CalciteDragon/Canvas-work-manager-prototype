@@ -47,8 +47,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    to *Alex*: the name changes while the theme keeps following this device or your saved browser
    choice. Switch back to Demo User. Settings → Appearance and the panel offer **Match device**.
 2. **Sidebar.** The left column lists Home, Projects, Calendar, Search and Settings, with the
-   workspace's projects nested under Projects. Click **Projects** — the group collapses and
-   expands; it is a group header, not a link, because there is no `/projects` page.
+   workspace's live projects listed under Projects. **Projects** is a group label, not a link or a
+   toggle, because there is no `/projects` page; its **+** is New project.
 3. **Dashboard.** Click **Home**. The centre column is the dashboard: today's date, then the
    persona's widgets. Its detail is section 6.
 
@@ -64,15 +64,17 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    new root opens with exactly one page: required **Home**. The other page kinds are not merely
    empty tabs — they have not been enabled yet.
 5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. The navigation
-   tree now shows the root's level: Home, Todos, Archive and Reflections, followed by a
+   tree now shows the root's level: the **Home renovation** row (which opens its first page; there is
+   no separate Home row), Todos, Archive and Reflections, followed by a
    three-level work tree, **Kitchen → Cabinets** (open Kitchen's disclosure), plus **Garden**. Home contains the six seeded section kinds and
    four seeded shortcut frames, so this is the useful starting point for the rest of the pass.
 6. **Page settings and work creation.** Open the pencil (**Edit project**) at the top of the tree and choose **Pages of Home renovation…** (the header's **⋯** offers the same item). Home is checked and disabled;
    Todos, Archive and Reflections are ordinary persisted toggles. Disable Todos, visit its old
-   URL, and use **Enable Todos** in the Home fallback; the tab and route return only after the
+   URL, and use **Enable Todos** in the fallback notice on the first page; the tab and route return only after the
    setting has been saved and fresh page context has arrived. Reload to confirm the setting.
    Choose **Add workstream** from the same pencil menu (or **⋯**); choose Parent and check the "Inside …"
-   line before Create. The route stays put; the confirmation toast offers Undo and an Open link.
+   line before Create. The new workstream opens with focus on its heading, and the toast says
+   "Created … under …" with Undo, which returns to the parent.
 7. **Root context on a workstream.** Open **Kitchen**, then **Cabinets**. The tree keeps the root's
    level, with the current workstream marked, and the pencil's page settings remain the root's: there is no Work toggle and no `/pages/work` tab. The
    main area is the workstream's one canvas, and its breadcrumbs lead back through Home renovation
