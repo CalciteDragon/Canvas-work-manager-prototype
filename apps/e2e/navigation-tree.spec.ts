@@ -332,7 +332,7 @@ const PLACES = [
 /** The current item's drawn edge, so a neighbour without it can be told apart. */
 const edgeOf = (item: Locator) => item.evaluate((element) => {
   const style = getComputedStyle(element);
-  return [style.borderInlineStartStyle, style.borderInlineStartWidth, style.borderInlineStartColor, style.outlineStyle, style.outlineWidth, style.boxShadow, style.fontWeight].join('|');
+  return [style.borderInlineStartStyle, style.borderInlineStartWidth, style.borderInlineStartColor, style.outlineStyle, style.outlineWidth, style.boxShadow].join('|');
 });
 
 for (const device of ['desktop', 'phone'] as const) {
@@ -353,7 +353,9 @@ for (const device of ['desktop', 'phone'] as const) {
         expect(await page.title(), url).toContain(name);
         if (forcedColors === 'active') {
           const neighbour = navTree(page).locator('a.tree-link:not([aria-current])').first();
+          // The weight differs on every place, so only the drawn edge is compared (a lost bar must fail).
           expect(await edgeOf(current), url).not.toBe(await edgeOf(neighbour));
+          expect(await current.evaluate((element) => getComputedStyle(element).borderInlineStartStyle), url).toBe('solid');
         }
         if (device === 'phone') {
           await page.keyboard.press('Escape');
@@ -463,6 +465,12 @@ const pencilOf = (page: Page) => page.locator('app-sidebar [data-edit-project]')
 const moreOf = (page: Page) => page.locator('[data-project-more]');
 const toastOf = (page: Page) => page.locator('[data-toast]:popover-open');
 
+/** Moves focus down an open menu with ArrowDown until it reaches `item`. */
+const arrowTo = async (page: Page, item: Locator) => {
+  for (let step = 0; step < 12 && !(await isFocused(item)); step += 1) await page.keyboard.press('ArrowDown');
+  await expect(item).toBeFocused();
+};
+
 /** Opens Add workstream from the pencil or from More, by mouse, touch or keys. */
 const openAdd = async (page: Page, from: 'pencil' | 'more', input: 'mouse' | 'touch' | 'keyboard') => {
   if (input === 'touch' && from === 'pencil') await openDrawer(page);
@@ -471,8 +479,8 @@ const openAdd = async (page: Page, from: 'pencil' | 'more', input: 'mouse' | 'to
   if (input === 'keyboard') {
     await opener.press('Enter');
     await expect(page.locator(from === 'pencil' ? '[data-edit-project-pages]' : '[data-project-edit-details]')).toBeFocused();
-    await item.focus();
-    await item.press('Enter');
+    await arrowTo(page, item);
+    await page.keyboard.press('Enter');
   } else if (input === 'touch') {
     await opener.tap();
     await item.tap();
@@ -594,9 +602,9 @@ for (const input of ['mouse', 'touch', 'keyboard'] as const) {
     // The same item in More, its focus returning to More.
     if (input === 'keyboard') {
       await moreOf(page).press('Enter');
-      await page.locator('[data-project-pages]').focus();
+      await arrowTo(page, page.locator('[data-project-pages]'));
       await expect(page.locator('[data-project-pages]')).toHaveAccessibleName('Pages of Home renovation…');
-      await page.locator('[data-project-pages]').press('Enter');
+      await page.keyboard.press('Enter');
     } else {
       await (input === 'touch' ? moreOf(page).tap() : moreOf(page).click());
       await expect(page.locator('[data-project-pages]')).toHaveAccessibleName('Pages of Home renovation…');
@@ -622,6 +630,7 @@ test('J6: a page change from another tab reaches the tree through the live frame
   await expect(page.locator('app-sidebar [data-nav-page="reflections"]')).toBeVisible();
 });
 
+// J7 as written: the header's own height. Whether Q10 means its bottom edge instead is Open question 20.
 test('J7: at 375 Cabinets’s breadcrumb shows the path and the header is at most 203 px with the drawer closed', async ({ browser }) => {
   await seed('nested-projects');
   const { context, page } = await open(browser, 'phone');
@@ -663,6 +672,12 @@ for (const device of ['desktop', 'phone'] as const) {
     await expect(heading(page)).toHaveText('Kitchen');
     await expect(page.locator('app-sidebar [data-nav-work-id^="project-legacy"]')).toHaveCount(0);
     await expect(page.locator('app-sidebar')).not.toContainText('No workstreams yet');
+    // Leaving Legacy attic itself (not only its child) removes it too.
+    await page.goto('/projects/project-legacy');
+    await expect(page.locator('app-sidebar li[data-nav-work-id="project-legacy"]')).toHaveCount(1);
+    await page.goto('/projects/project-kitchen');
+    await expect(heading(page)).toHaveText('Kitchen');
+    await expect(page.locator('app-sidebar [data-nav-work-id^="project-legacy"]')).toHaveCount(0);
     await context.close();
   });
 }
@@ -677,14 +692,15 @@ test('J9 (keyboard): Tab runs chevron, pencil, root, pages, then each workstream
   const stops = await sidebar.locator('[data-nav-root-level] :is(a[href], button):visible').evaluateAll((items) => items.map((item) => item.outerHTML.slice(0, 120)));
   await page.locator('[data-nav-up]').focus();
   const visited: string[] = [];
-  for (let index = 0; index < stops.length; index += 1) {
+  const actionCount = await sidebar.locator('[data-nav-actions] button:visible').count();
+  for (let index = 0; index < stops.length + actionCount; index += 1) {
     visited.push(await page.evaluate(() => document.activeElement!.outerHTML.slice(0, 120)));
     await page.keyboard.press('Tab');
   }
   // The action row precedes the root level in the DOM.
   const actions = await sidebar.locator('[data-nav-actions] button:visible').evaluateAll((items) => items.map((item) => item.outerHTML.slice(0, 120)));
   expect(visited.slice(0, actions.length)).toEqual(actions);
-  expect(visited.slice(actions.length)).toEqual(stops.slice(0, stops.length - actions.length));
+  expect(visited.slice(actions.length)).toEqual(stops);
   expect(visited[0]).toContain('data-nav-up');
   expect(visited[1]).toContain('data-edit-project');
   expect(visited[2]).toContain('data-nav-root');
@@ -773,7 +789,7 @@ test('J11: at 1024×768 the tree is at most 256 px, the first section is in view
   await page.mouse.wheel(0, 1200);
   await expect.poll(() => page.evaluate(() => Math.max(window.scrollY, document.querySelector('main')!.scrollTop, ...[...document.querySelectorAll('main, main *')].map((element) => element.scrollTop)))).toBeGreaterThan(0);
   await expect(nav).toBeInViewport();
-  expect((await nav.boundingBox())!.y).toBe(before);
+  await expect.poll(async () => (await nav.boundingBox())!.y).toBe(before);
 });
 
 test('J12: document titles, most specific first', async ({ page }) => {
