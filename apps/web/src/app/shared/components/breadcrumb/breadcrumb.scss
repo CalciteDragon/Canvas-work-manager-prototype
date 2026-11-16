@@ -71,6 +71,12 @@
   .breadcrumb__link {
     min-block-size: var(--size-hit-target);
   }
+
+  // A wrapped path's rows are already 44 px pills, so they need no spacing for size; a tight row
+  // gap keeps a three-step path inside Q10's 203 px phone header (Cabinets at 375).
+  .breadcrumb__list {
+    row-gap: var(--space-1);
+  }
 }
 
 // R3: once forced colours drop the fill, the pill keeps a shape.

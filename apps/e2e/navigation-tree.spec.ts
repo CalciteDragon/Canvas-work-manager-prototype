@@ -1,6 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { api, createProject, seed } from './seed';
+import { api, createProject, seed, setPageEnabled } from './seed';
+
+// Acceptance item 4: every journey runs at 1440 unless it names another size.
+test.use({ viewport: { width: 1440, height: 900 } });
 
 /**
  * Slice 81's one navigation tree. Step 4 starts this file with the current marker, step 5 the tree's
@@ -275,4 +278,513 @@ test('J7: a resize to 1440 closes the drawer', async ({ page }) => {
   await expect(page.locator('#shell-navigation')).not.toHaveAttribute('role', 'dialog');
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toHaveCount(0);
   await expect(page.locator('app-sidebar [aria-current="page"]')).toHaveAccessibleName('Cabinets');
+});
+
+/*
+ * Step 12: the journeys (Acceptance item 4), on `nested-projects` unless named; each reseeds. All run at
+ * 1440 with a mouse; J1, J4, J5, J6, J7 and J8 again at 375 by touch; J3, J5, J6 and J9 by keyboard
+ * alone (focus moves only by Tab and keys; `locator.press` is a key press on the focused control).
+ */
+
+type Device = 'desktop' | 'phone';
+const ROOT = 'project-renovation';
+
+/** A 1440 mouse page or a 375 touch page in its own context. */
+const open = async (browser: import('@playwright/test').Browser, device: Device) => {
+  const context = await browser.newContext(device === 'desktop'
+    ? { viewport: { width: 1440, height: 900 } }
+    : { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+  return { context, page: await context.newPage() };
+};
+
+const navTree = (page: Page) => page.getByRole('navigation', { name: 'Workspace' });
+const drawer = (page: Page) => page.locator('#shell-navigation');
+const menuButton = (page: Page) => page.getByRole('button', { name: 'Menu', exact: true });
+const isFocused = (locator: Locator) => locator.evaluate((element) => element === document.activeElement);
+const focusInside = (locator: Locator) => locator.evaluate((element) => element.contains(document.activeElement));
+const heading = (page: Page) => page.locator('main h1').first();
+
+/** Opens the phone drawer and waits for its entrance to finish, so boxes measure where they rest. */
+const openDrawer = async (page: Page) => {
+  await menuButton(page).tap();
+  await expect(drawer(page)).toHaveAttribute('role', 'dialog');
+  await page.locator('.side').evaluate((side) => Promise.all(side.getAnimations().map((animation) => animation.finished)));
+};
+
+/** J1's places: the URL and the current item's name, less any status mark. */
+const PLACES = [
+  ['/app', 'Home'],
+  ['/calendar', 'Calendar'],
+  ['/search', 'Search'],
+  ['/settings', 'Settings'],
+  ['/settings/agents', 'AI & Agents'],
+  ['/settings/archived-projects', 'Archived projects'],
+  [`/projects/${ROOT}`, 'Home renovation'],
+  [`/projects/${ROOT}/pages/todos`, 'Todos'],
+  [`/projects/${ROOT}/pages/archive`, 'Archive'],
+  [`/projects/${ROOT}/pages/reflections`, 'Reflections'],
+  ['/projects/project-kitchen', 'Kitchen'],
+  ['/projects/project-cabinets', 'Cabinets'],
+  ['/projects/project-legacy', 'Legacy attic'],
+  ['/projects/project-legacy-child', 'Legacy shelving'],
+] as const;
+
+/** The current item's drawn edge, so a neighbour without it can be told apart. */
+const edgeOf = (item: Locator) => item.evaluate((element) => {
+  const style = getComputedStyle(element);
+  return [style.borderInlineStartStyle, style.borderInlineStartWidth, style.borderInlineStartColor, style.outlineStyle, style.outlineWidth, style.boxShadow, style.fontWeight].join('|');
+});
+
+for (const device of ['desktop', 'phone'] as const) {
+  test(`J1 (${device}): one current item per place, named as the page's h1 and in the title; a shape under forced colours`, async ({ browser }) => {
+    test.setTimeout(180_000);
+    await seed('nested-projects');
+    const { context, page } = await open(browser, device);
+    for (const forcedColors of ['none', 'active'] as const) {
+      await page.emulateMedia({ forcedColors });
+      for (const [url, name] of PLACES) {
+        await page.goto(url);
+        await expect(heading(page)).toBeVisible();
+        if (device === 'phone') await openDrawer(page);
+        const current = navTree(page).locator('[aria-current="page"]');
+        await expect(current, url).toHaveCount(1);
+        await expect(current, url).toHaveAccessibleName(new RegExp(`^${name.replace(/[&]/g, '\\$&')}( Archived)?$`));
+        await expect(heading(page), url).toHaveText(name);
+        expect(await page.title(), url).toContain(name);
+        if (forcedColors === 'active') {
+          const neighbour = navTree(page).locator('a.tree-link:not([aria-current])').first();
+          expect(await edgeOf(current), url).not.toBe(await edgeOf(neighbour));
+        }
+        if (device === 'phone') {
+          await page.keyboard.press('Escape');
+          await expect(drawer(page)).not.toHaveAttribute('role', 'dialog');
+        }
+      }
+    }
+    await context.close();
+  });
+}
+
+test('J1: Q5 (d): the root’s first page is called by its project, not "Home", in Archive’s origins and a fallback notice', async ({ page }) => {
+  await seed('nested-projects');
+  await page.goto(`/projects/${ROOT}/pages/archive`);
+  const origins = page.locator('[data-archived-origin]');
+  await expect(origins.first()).toBeVisible();
+  for (const text of await origins.allInnerTexts()) expect(text.split(/\s*›\s*|:\s*/).map((step) => step.trim())).not.toContain('Home');
+  await setPageEnabled(ROOT, 'reflections', false);
+  await page.goto(`/projects/${ROOT}/pages/reflections`);
+  const notice = page.locator('[data-page-notice] span').first();
+  await expect(notice).toBeVisible();
+  expect((await notice.innerText()).replaceAll('Home renovation', '')).not.toMatch(/\bHome\b/);
+});
+
+test('J1: the chevron shows Home renovation as the location with nothing current; Kitchen’s pill returns to the root level', async ({ page }) => {
+  await seed('nested-projects');
+  await page.goto('/projects/project-cabinets');
+  await page.getByRole('button', { name: 'All projects' }).click();
+  await expect(navTree(page).locator('[aria-current="location"]')).toHaveAccessibleName(/Home renovation/);
+  await expect(navTree(page).locator('[aria-current="page"]')).toHaveCount(0);
+  await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Kitchen' }).click();
+  await expect(page).toHaveURL(/\/projects\/project-kitchen$/);
+  await expect(navTree(page).locator('[data-nav-root]')).toBeVisible();
+  await expect(navTree(page).locator('[aria-current="page"]')).toHaveAccessibleName('Kitchen');
+});
+
+test('J2: one tree: Kitchen has one link in the tree and no "Show project navigation"', async ({ page }) => {
+  await seed('nested-projects');
+  await page.goto('/projects/project-kitchen');
+  await expect(heading(page)).toHaveText('Kitchen');
+  await expect(navTree(page).locator('a[href="/projects/project-kitchen"]')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Show project navigation' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Show project navigation' })).toHaveCount(0);
+});
+
+test('J3 (keyboard): the first Tab is Skip to content into main; every place has one main and opens on its h1', async ({ page }) => {
+  await seed('nested-projects');
+  await page.goto('/projects/project-cabinets');
+  await expect(heading(page)).toHaveText('Cabinets');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => focusInside(page.locator('main'))).toBe(true);
+  for (const [url, name] of PLACES) {
+    await page.goto(url);
+    await expect(heading(page), url).toHaveText(name);
+    await expect(page.locator('main'), url).toHaveCount(1);
+    const first = await page.evaluate(() => document.querySelector('h1, h2, h3, h4, h5, h6')?.tagName);
+    expect(first, url).toBe('H1');
+  }
+});
+
+for (const device of ['desktop', 'phone'] as const) {
+  test(`J4 (${device}): the breadcrumb: path, current text, themed pills with a focus ring${device === 'phone' ? ', 44 px tall' : ''}`, async ({ browser }) => {
+    await seed('nested-projects');
+    const { context, page } = await open(browser, device);
+    await page.goto('/projects/project-cabinets');
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' });
+    await expect(crumbs.locator('li')).toHaveText(['Home renovation', /Kitchen/, /Cabinets/]);
+    await expect(crumbs.locator('li').last().locator('[aria-current="page"]')).toHaveText('Cabinets');
+    const links = crumbs.getByRole('link');
+    await expect(links).toHaveCount(2);
+    for (const link of await links.all()) {
+      const rest = await link.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { decoration: style.textDecorationLine, background: style.backgroundColor, height: element.getBoundingClientRect().height };
+      });
+      expect(rest.decoration).not.toContain('underline');
+      expect(rest.background).not.toBe('rgba(0, 0, 0, 0)');
+      if (device === 'phone') expect(rest.height).toBeGreaterThanOrEqual(44);
+      await link.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(link).toBeFocused();
+      const ring = await link.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { outline: style.outlineStyle, width: parseFloat(style.outlineWidth), shadow: style.boxShadow };
+      });
+      expect(ring.outline !== 'none' && ring.width > 0 || ring.shadow !== 'none').toBe(true);
+    }
+    if (device === 'desktop') {
+      const underlined = await navTree(page).evaluate((root) => [...root.querySelectorAll('a')].filter((item) => getComputedStyle(item).textDecorationLine.includes('underline')).length);
+      expect(underlined).toBe(0);
+    }
+    await (device === 'phone' ? links.filter({ hasText: 'Kitchen' }).tap() : links.filter({ hasText: 'Kitchen' }).click());
+    await expect(page).toHaveURL(/\/projects\/project-kitchen$/);
+    await expect(heading(page)).toHaveText('Kitchen');
+    await page.goto('/settings/agents');
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).locator('li')).toHaveText(['Settings', /AI & Agents/]);
+    await context.close();
+  });
+}
+
+const dialogOf = (page: Page) => page.getByRole('dialog', { name: 'Add workstream' });
+const parentOf = (page: Page) => dialogOf(page).locator('[data-create-work-parent]');
+const pencilOf = (page: Page) => page.locator('app-sidebar [data-edit-project]');
+const moreOf = (page: Page) => page.locator('[data-project-more]');
+const toastOf = (page: Page) => page.locator('[data-toast]:popover-open');
+
+/** Opens Add workstream from the pencil or from More, by mouse, touch or keys. */
+const openAdd = async (page: Page, from: 'pencil' | 'more', input: 'mouse' | 'touch' | 'keyboard') => {
+  if (input === 'touch' && from === 'pencil') await openDrawer(page);
+  const opener = from === 'pencil' ? pencilOf(page) : moreOf(page);
+  const item = page.locator(from === 'pencil' ? '[data-edit-project-add]' : '[data-project-add-workstream]');
+  if (input === 'keyboard') {
+    await opener.press('Enter');
+    await expect(page.locator(from === 'pencil' ? '[data-edit-project-pages]' : '[data-project-edit-details]')).toBeFocused();
+    await item.focus();
+    await item.press('Enter');
+  } else if (input === 'touch') {
+    await opener.tap();
+    await item.tap();
+  } else {
+    await opener.click();
+    await item.click();
+  }
+  await expect(dialogOf(page)).toBeVisible();
+};
+
+for (const input of ['mouse', 'touch', 'keyboard'] as const) {
+  test(`J5 (${input}): Add workstream preselects the open place, opens the new one, and its toast Undo returns to Kitchen`, async ({ browser }) => {
+    test.setTimeout(120_000);
+    await seed('nested-projects');
+    const { context, page } = await open(browser, input === 'touch' ? 'phone' : 'desktop');
+    const returnTarget = (from: 'pencil' | 'more') => (input === 'touch' && from === 'pencil' ? menuButton(page) : from === 'pencil' ? pencilOf(page) : moreOf(page));
+    for (const [url, parent] of [['/projects/project-kitchen', 'project-kitchen'], [`/projects/${ROOT}`, ROOT], ['/projects/project-legacy-child', ROOT]] as const) {
+      await page.goto(url);
+      await expect(heading(page)).toBeVisible();
+      for (const from of ['pencil', 'more'] as const) {
+        if (url === '/projects/project-legacy-child' && from === 'more') continue;
+        await openAdd(page, from, input);
+        await expect(parentOf(page), `${url} ${from}`).toHaveValue(parent);
+        await page.keyboard.press('Escape');
+        await expect(dialogOf(page)).toHaveCount(0);
+        await expect.poll(() => isFocused(returnTarget(from)), `${url} ${from}`).toBe(true);
+      }
+    }
+
+    await page.goto('/projects/project-kitchen');
+    await openAdd(page, 'pencil', input);
+    const name = dialogOf(page).locator('[data-create-work-name]');
+    await name.fill('Pantry');
+    // A refused create (host fault) keeps the dialog, the draft and focus.
+    await page.route('**/api/projects', (route) => route.request().method() === 'POST'
+      ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal_error', message: 'Create failed for this journey' }) })
+      : route.fallback());
+    await name.press('Enter');
+    await expect(dialogOf(page).getByRole('alert')).toHaveText('Couldn’t add “Pantry”. Try again.');
+    await expect(name).toHaveValue('Pantry');
+    await expect.poll(() => focusInside(dialogOf(page))).toBe(true);
+    await page.unroute('**/api/projects');
+
+    const created = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/api/projects'));
+    await name.press('Enter');
+    const pantry = ((await (await created).json()) as { project: { id: string } }).project.id;
+    await expect(page).toHaveURL(new RegExp(`/projects/${pantry}$`));
+    await expect(heading(page)).toHaveText('Pantry');
+    await expect(heading(page)).toBeFocused();
+    const row = (id: string) => page.locator(`app-sidebar li[data-nav-work-id="${id}"] > .tree-row > a`);
+    await expect(page.locator(`app-sidebar li[data-nav-work-id="project-kitchen"] li[data-nav-work-id="${pantry}"]`)).toHaveCount(1);
+    await expect(row(pantry)).toHaveAttribute('aria-current', 'page');
+    const shape = (link: Locator) => link.evaluate((element) => [element.className.replace(/\bactive\b/, '').replace(/\s+/g, ' ').trim(), element.getBoundingClientRect().height, element.getBoundingClientRect().left + parseFloat(getComputedStyle(element).paddingInlineStart) + parseFloat(getComputedStyle(element).borderInlineStartWidth)].join('|'));
+    expect(await shape(row(pantry))).toBe(await shape(row('project-cabinets')));
+    await expect(toastOf(page)).toContainText('Created Pantry under Kitchen.');
+
+    const undo = toastOf(page).locator('[data-toast-undo]:not([aria-disabled])');
+    await (input === 'touch' ? undo.tap() : input === 'keyboard' ? undo.press('Enter') : undo.click());
+    await expect(page).toHaveURL(/\/projects\/project-kitchen$/);
+    await expect(heading(page)).toHaveText('Kitchen');
+    await expect(heading(page)).toBeFocused();
+    await expect(page.locator(`app-sidebar li[data-nav-work-id="${pantry}"]`)).toHaveCount(0);
+    await expect(toastOf(page)).toContainText('Undone: Created “Pantry”.');
+    const redo = toastOf(page).locator('[data-toast-open]');
+    await expect(redo).toHaveText('Open Pantry to redo');
+    await (input === 'touch' ? redo.tap() : input === 'keyboard' ? redo.press('Enter') : redo.click());
+    await expect(page).toHaveURL(new RegExp(`/projects/${pantry}$`));
+    await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
+    await expect(page.locator('[data-project-creation-recovery]').getByRole('button', { name: /Redo/ })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/projects\/project-kitchen$/);
+    await expect(toastOf(page)).toHaveCount(0);
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`/projects/${pantry}$`));
+    await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
+    await context.close();
+  });
+}
+
+for (const input of ['mouse', 'touch', 'keyboard'] as const) {
+  test(`J6 (${input}): page settings from the pencil, anchored under it, and from More; Reflections joins after Todos and Archive`, async ({ browser }) => {
+    test.setTimeout(120_000);
+    await seed('nested-projects');
+    await setPageEnabled(ROOT, 'reflections', false);
+    const { context, page } = await open(browser, input === 'touch' ? 'phone' : 'desktop');
+    const panel = page.locator('[data-project-page-manager]');
+    const reflections = panel.locator('[data-page-toggle-kind="reflections"] input');
+    const pages = page.locator('[data-edit-project-pages]');
+    const kinds = () => page.locator('app-sidebar [data-nav-page]').evaluateAll((links) => links.map((link) => link.getAttribute('data-nav-page')));
+    await page.goto('/projects/project-kitchen');
+    await expect(heading(page)).toHaveText('Kitchen');
+
+    if (input === 'touch') await openDrawer(page);
+    await expect(pages).toHaveCount(1);
+    if (input === 'keyboard') {
+      await pencilOf(page).press('Enter');
+      await expect(pages).toBeFocused();
+    } else await (input === 'touch' ? pencilOf(page).tap() : pencilOf(page).click());
+    await expect(pages).toHaveAccessibleName('Pages of Home renovation…');
+    await (input === 'touch' ? pages.tap() : input === 'keyboard' ? pages.press('Enter') : pages.click());
+    await expect(panel).toBeVisible();
+    if (input === 'touch') {
+      await expect(drawer(page)).not.toHaveAttribute('role', 'dialog');
+    } else {
+      const opener = (await pencilOf(page).boundingBox())!;
+      const box = (await panel.boundingBox())!;
+      expect(box.y - (opener.y + opener.height)).toBeGreaterThanOrEqual(0);
+      expect(box.y - (opener.y + opener.height)).toBeLessThanOrEqual(16);
+      expect(box.x < opener.x + opener.width && box.x + box.width > opener.x).toBe(true);
+    }
+    await expect(reflections).not.toBeChecked();
+    await (input === 'touch' ? reflections.tap() : input === 'keyboard' ? reflections.press('Space') : reflections.click());
+    await expect(reflections).toBeChecked();
+    await expect.poll(kinds).toEqual(['todos', 'archive', 'reflections']);
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect.poll(() => isFocused(input === 'touch' ? menuButton(page) : pencilOf(page))).toBe(true);
+
+    // The same item in More, its focus returning to More.
+    if (input === 'keyboard') {
+      await moreOf(page).press('Enter');
+      await page.locator('[data-project-pages]').focus();
+      await expect(page.locator('[data-project-pages]')).toHaveAccessibleName('Pages of Home renovation…');
+      await page.locator('[data-project-pages]').press('Enter');
+    } else {
+      await (input === 'touch' ? moreOf(page).tap() : moreOf(page).click());
+      await expect(page.locator('[data-project-pages]')).toHaveAccessibleName('Pages of Home renovation…');
+      await (input === 'touch' ? page.locator('[data-project-pages]').tap() : page.locator('[data-project-pages]').click());
+    }
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect.poll(() => isFocused(moreOf(page))).toBe(true);
+    await context.close();
+  });
+}
+
+test('J6: a page change from another tab reaches the tree through the live frame', async ({ page }) => {
+  await seed('nested-projects');
+  const stream = page.waitForResponse((response) => response.url().includes('/prototype/events') && response.status() === 200);
+  await page.goto('/projects/project-kitchen');
+  await stream;
+  await expect(page.locator('app-sidebar [data-nav-page="reflections"]')).toBeVisible();
+  await setPageEnabled(ROOT, 'reflections', false);
+  await expect(page.locator('app-sidebar [data-nav-page="reflections"]')).toHaveCount(0);
+  await setPageEnabled(ROOT, 'reflections', true);
+  await expect(page.locator('app-sidebar [data-nav-page="reflections"]')).toBeVisible();
+});
+
+test('J7: at 375 Cabinets’s breadcrumb shows the path and the header is at most 203 px with the drawer closed', async ({ browser }) => {
+  await seed('nested-projects');
+  const { context, page } = await open(browser, 'phone');
+  await page.goto('/projects/project-cabinets');
+  await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).locator('li')).toHaveText(['Home renovation', /Kitchen/, /Cabinets/]);
+  await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
+  const header = (await page.locator('header.project-header').boundingBox())!;
+  expect(header.height).toBeLessThanOrEqual(203);
+  await context.close();
+});
+
+for (const device of ['desktop', 'phone'] as const) {
+  test(`J8 (${device}): archived places are current and marked, pass contrast in both themes, and leave the tree when left`, async ({ browser }) => {
+    test.setTimeout(120_000);
+    await seed('nested-projects');
+    const { context, page } = await open(browser, device);
+    const scope = () => (device === 'phone' ? '#shell-navigation' : 'app-sidebar');
+    for (const theme of ['dark', 'light'] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.goto('/projects/project-legacy');
+      await page.evaluate((choice) => localStorage.setItem('cwm.theme', choice), theme);
+      await page.reload();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      if (device === 'phone') await openDrawer(page);
+      await expect(navTree(page).locator('[aria-current="page"]')).toHaveAccessibleName('Legacy attic Archived');
+      expect((await new AxeBuilder({ page }).include(scope()).withRules(['color-contrast']).analyze()).violations, theme).toEqual([]);
+      if (device === 'phone') await page.keyboard.press('Escape');
+
+      await page.goto('/projects/project-legacy-child');
+      if (device === 'phone') await openDrawer(page);
+      await expect(navTree(page).locator('[aria-current="page"]')).toHaveAccessibleName(/^Legacy shelving/);
+      const attic = page.locator('app-sidebar li[data-nav-work-id="project-legacy"]');
+      await expect(attic.locator(':scope > .tree-row > a')).toHaveAccessibleName('Legacy attic Archived');
+      await expect(attic.locator('li[data-nav-work-id="project-legacy-child"]')).toHaveCount(1);
+      expect((await new AxeBuilder({ page }).include(scope()).withRules(['color-contrast']).analyze()).violations, theme).toEqual([]);
+      if (device === 'phone') await page.keyboard.press('Escape');
+    }
+    await page.goto('/projects/project-kitchen');
+    await expect(heading(page)).toHaveText('Kitchen');
+    await expect(page.locator('app-sidebar [data-nav-work-id^="project-legacy"]')).toHaveCount(0);
+    await expect(page.locator('app-sidebar')).not.toContainText('No workstreams yet');
+    await context.close();
+  });
+}
+
+test('J9 (keyboard): Tab runs chevron, pencil, root, pages, then each workstream and its expand button; disclosures, chevron and pencil by keys', async ({ page }) => {
+  await seed('nested-projects');
+  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
+  await createProject({ workspaceId: workspace.id, kind: 'subproject', parentProjectId: 'project-garden', name: 'Raised beds' } as never);
+  await page.goto('/projects/project-cabinets');
+  await expect(heading(page)).toHaveText('Cabinets');
+  const sidebar = page.locator('app-sidebar');
+  const stops = await sidebar.locator('[data-nav-root-level] :is(a[href], button):visible').evaluateAll((items) => items.map((item) => item.outerHTML.slice(0, 120)));
+  await page.locator('[data-nav-up]').focus();
+  const visited: string[] = [];
+  for (let index = 0; index < stops.length; index += 1) {
+    visited.push(await page.evaluate(() => document.activeElement!.outerHTML.slice(0, 120)));
+    await page.keyboard.press('Tab');
+  }
+  // The action row precedes the root level in the DOM.
+  const actions = await sidebar.locator('[data-nav-actions] button:visible').evaluateAll((items) => items.map((item) => item.outerHTML.slice(0, 120)));
+  expect(visited.slice(0, actions.length)).toEqual(actions);
+  expect(visited.slice(actions.length)).toEqual(stops.slice(0, stops.length - actions.length));
+  expect(visited[0]).toContain('data-nav-up');
+  expect(visited[1]).toContain('data-edit-project');
+  expect(visited[2]).toContain('data-nav-root');
+
+  const garden = page.locator('app-sidebar li[data-nav-work-id="project-garden"] > .tree-row > [data-nav-disclosure]');
+  await expect(garden).toHaveAttribute('aria-expanded', 'false');
+  await garden.press('Enter');
+  await expect(garden).toHaveAttribute('aria-expanded', 'true');
+  await expect(sidebar.getByRole('link', { name: 'Raised beds' })).toBeVisible();
+  await garden.press('Space');
+  await expect(garden).toHaveAttribute('aria-expanded', 'false');
+  await garden.press('Enter');
+  await sidebar.locator('[data-nav-page="todos"]').press('Enter');
+  await expect(page).toHaveURL(/\/pages\/todos$/);
+  await expect(garden).toHaveAttribute('aria-expanded', 'true');
+
+  await page.goto('/projects/project-cabinets');
+  const pencil = pencilOf(page);
+  await pencil.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(pencil).toBeFocused();
+  expect((await tooltipOf(pencil)).display).toBe('block');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-edit-project-pages]')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('[data-edit-project-add]')).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('[data-edit-project-pages]')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(pencil).toBeFocused();
+  await expect(pencil).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-edit-project-pages]')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(pencil).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('[data-edit-project-menu]')).toBeHidden();
+  await pencil.hover();
+  expect((await tooltipOf(pencil)).display).toBe('block');
+
+  await page.locator('[data-nav-up]').press('Enter');
+  await expect(page.locator('app-sidebar [data-project-id="project-renovation"] a')).toBeFocused();
+});
+
+test('J9: at 375 in the open drawer, Escape in the pencil menu closes only the menu', async ({ browser }) => {
+  await seed('nested-projects');
+  const { context, page } = await open(browser, 'phone');
+  await page.goto('/projects/project-cabinets');
+  await openDrawer(page);
+  await pencilOf(page).press('Enter');
+  await expect(page.locator('[data-edit-project-pages]')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(drawer(page)).toHaveAttribute('role', 'dialog');
+  await expect.poll(() => isFocused(pencilOf(page))).toBe(true);
+  await context.close();
+});
+
+test('J10: five levels under Cabinets: the deepest current, its ancestors open, and the breadcrumb names all eight', async ({ page }) => {
+  await seed('nested-projects');
+  let parent = 'project-cabinets';
+  const ids: string[] = [];
+  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
+  for (const level of [1, 2, 3, 4, 5]) ids.push(parent = (await createProject({ workspaceId: workspace.id, kind: 'subproject', parentProjectId: parent, name: `Level ${level}` } as never)).id);
+  await page.goto(`/projects/${parent}`);
+  await expect(page.locator('app-sidebar [aria-current="page"]')).toHaveAccessibleName('Level 5');
+  for (const id of ['project-kitchen', 'project-cabinets', ...ids.slice(0, 4)]) {
+    await expect(page.locator(`app-sidebar li[data-nav-work-id="${id}"] > .tree-row > [data-nav-disclosure]`), id).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).locator('li')).toHaveText(['Home renovation', 'Kitchen', 'Cabinets', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5'].map((name, index) => (index === 0 ? name : new RegExp(name))));
+});
+
+test('J11: at 1024×768 the tree is at most 256 px, the first section is in view, and the tree stays while main scrolls', async ({ page }) => {
+  await seed('nested-projects');
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto(`/projects/${ROOT}`);
+  const nav = navTree(page);
+  await expect(nav).toBeVisible();
+  expect((await nav.boundingBox())!.width).toBeLessThanOrEqual(256);
+  const frame = page.locator('app-project-section-frame').first();
+  await expect(frame).toBeVisible();
+  const top = (await frame.boundingBox())!.y;
+  expect(top).toBeGreaterThanOrEqual(0);
+  expect(top).toBeLessThan(768);
+  const before = (await nav.boundingBox())!.y;
+  await page.locator('main').hover();
+  await page.mouse.wheel(0, 1200);
+  await expect.poll(() => page.evaluate(() => Math.max(window.scrollY, document.querySelector('main')!.scrollTop, ...[...document.querySelectorAll('main, main *')].map((element) => element.scrollTop)))).toBeGreaterThan(0);
+  await expect(nav).toBeInViewport();
+  expect((await nav.boundingBox())!.y).toBe(before);
+});
+
+test('J12: document titles, most specific first', async ({ page }) => {
+  await seed('nested-projects');
+  for (const [url, title] of [
+    ['/projects/project-cabinets', 'Cabinets · Home renovation · Canvas Work Manager'],
+    [`/projects/${ROOT}/pages/todos`, 'Todos · Home renovation · Canvas Work Manager'],
+    ['/settings/agents', 'AI & Agents · Settings · Canvas Work Manager'],
+    ['/projects/project-does-not-exist', 'Project not available · Canvas Work Manager'],
+  ] as const) {
+    await page.goto(url);
+    await expect(page, url).toHaveTitle(title);
+  }
 });
