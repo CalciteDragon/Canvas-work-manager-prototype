@@ -62,7 +62,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    yet**, and Home opens with a sentence on what projects are for and a **New project** button
    above the widgets. Press it (or the **+** beside *Projects*), type `Prototype review`, and press **Create**. The
    new root opens with exactly one page: required **Home**. The other page kinds are not merely
-   empty tabs — they have not been enabled yet.
+   empty pages — they have not been enabled yet.
 5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. The navigation
    tree now shows the root's level: the **Home renovation** row (which opens its first page; there is
    no separate Home row), Todos, Archive and Reflections, followed by a
@@ -70,13 +70,13 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    four seeded shortcut frames, so this is the useful starting point for the rest of the pass.
 6. **Page settings and work creation.** Open the pencil (**Edit project**) at the top of the tree and choose **Pages of Home renovation…** (the header's **⋯** offers the same item). Home is checked and disabled;
    Todos, Archive and Reflections are ordinary persisted toggles. Disable Todos, visit its old
-   URL, and use **Enable Todos** in the fallback notice on the first page; the tab and route return only after the
+   URL, and use **Enable Todos** in the fallback notice on the first page; the tree row and route return only after the
    setting has been saved and fresh page context has arrived. Reload to confirm the setting.
    Choose **Add workstream** from the same pencil menu (or **⋯**); choose Parent and check the "Inside …"
    line before Create. The new workstream opens with focus on its heading, and the toast says
    "Created … under …" with Undo, which returns to the parent.
 7. **Root context on a workstream.** Open **Kitchen**, then **Cabinets**. The tree keeps the root's
-   level, with the current workstream marked, and the pencil's page settings remain the root's: there is no Work toggle and no `/pages/work` tab. The
+   level, with the current workstream marked, and the pencil's page settings remain the root's: there is no Work toggle and no `/pages/work` page. The
    main area is the workstream's one canvas, and its breadcrumbs lead back through Home renovation
    and Kitchen.
 8. **Edit work metadata.** Open **⋯** in a root or workstream header. Set a name, description,
@@ -90,7 +90,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    archived rows remain archived. Each Restore sits beside **Restore as**, with Active preselected.
    An archived project's own pages are read-only, with a banner whose Restore brings it back in
    place. For an archived root, open **Settings → Archived projects** and Restore, or use the
-   root's banner. This works with the optional Archive tab disabled.
+   root's banner. This works with the optional Archive page disabled.
 
 ---
 
@@ -163,11 +163,11 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 18. **Workstreams and timeline.** The navigation tree shows and links the work hierarchy;
     **Add workstream**, from the pencil or **⋯**, creates nested work with an explicit parent. Timeline shows the project's
     dated records in order.
-19. **Todos.** Open the root's Todos tab. It is one chronological projection across root tasks,
+19. **Todos.** Open the root's Todos page in the tree. It is one chronological projection across root tasks,
     nested workstreams and their tasks: due dates first, equal instants by kind then ID, completed
     and cancelled rows retained, and undated work last. Follow **Choose appliance finishes** to
     its canonical Kitchen Task List; the link opens the owning container rather than copying it.
-20. **Reflections.** Open the root's Reflections tab. The journal combines general entries with
+20. **Reflections.** Open the root's Reflections page in the tree. The journal combines general entries with
     entries about the completed Garden workstream and lighting task. Complete **Confirm
     renovation budget**, choose it in the completed-work picker, and add a reflection. Uncheck
     the task on Todos or its Task List; it leaves the picker, while the reflection stays in the

@@ -160,7 +160,10 @@ const NAV81_LAB_PANEL = /^- heading ".+ (live component|shared|not yet a shared 
 const NAV81_LAB_CHANGED = /^- heading "(Navigation|Breadcrumb) live component" \[level=3\]$/;
 const nav81Parts = (aria, lab = false) => {
   const top = nav81Blocks(aria.split('\n'));
-  const nav = top.filter(block => /^- navigation "Workspace"/.test(block[0])).flat();
+  // The sidebar's landmark, top-level or inside the open drawer's `dialog "Navigation"`; the first in document order.
+  const lines = aria.split('\n'), at = lines.findIndex(line => /^\s*- navigation "Workspace"/.test(line));
+  const depth = at < 0 ? 0 : lines[at].search(/\S/), nav = [];
+  if (at >= 0) for (let i = at; i < lines.length && (i === at || lines[i].search(/\S/) > depth); i++) nav.push(lines[i].slice(depth));
   const main = top.find(block => /^- main/.test(block[0]));
   const kids = main ? nav81Blocks(main.slice(1).map(line => line.slice(2))) : [];
   let last = -1;
@@ -182,17 +185,19 @@ const nav81Diff = (was, now) => {
 const NAV81_EXPECTED = [
   { reason: 'dashboard main → section (R3, Q6)', cell: c => c.route === '/app', line: /^- (main:|region "Home":)$/ },
   { reason: 'Archive: one heading, no nested region, the origin path (Q6 (i), Q14 (a), Q5 (d))', cell: c => /\/pages\/archive$/.test(c.route ?? ''),
-    line: /^- (region "Archive":|heading "Archive" \[level=2\]|text: "?(Workstream|Section|Task|Shortcut) Origin:.*|link "[^"]+":|text: Work canvas)$/ },
+    line: /^- (region "Archive":|heading "Archive" \[level=2\]|text: "?(Workstream|Section|Task|Shortcut) Origin:.*|link "(Home|Home renovation|Legacy attic|Kitchen|Cabinets|Work canvas)":|text: Work canvas)$/ },
   { reason: 'Todos named once: “What is coming up” becomes the page (L7-018, Q6 (i))', cell: c => /\/pages\/todos$/.test(c.route ?? ''), line: /^- (region "What is coming up":|heading "What is coming up" \[level=2\]|region "Todos":)$/ },
   { reason: 'Reflections: the page heading is the header’s h1; its h3s become h2s (Q6 (i))', cell: c => /\/pages\/reflections$/.test(c.route ?? ''), line: /^- heading "(Reflections|Write a reflection|About completed work|Journal)" \[level=[23]\]$/ },
   { reason: 'More mirrors the pencil’s two items (decision 3)', cell: c => c.state === 'more', line: /^- menuitem "(Pages of .+…|Add workstream)"$/ },
-  { reason: 'Add workstream’s Parent defaults to the open workstream (Q15 (a))', cell: c => c.state === 'work-create', line: /^- (option "[^"]+"( \[selected\])?|paragraph: Inside .+)$/ },
+  { reason: 'Add workstream’s Parent defaults to the open workstream (Q15 (a))', cell: c => c.state === 'work-create', line: /^- (option "[^"]+"( \[selected\])?|paragraph: Inside .+)$/, paired: true },
 ];
 const nav81Compare = (cell, beforeAria, afterAria) => {
   const lab = cell.route === '/prototype/design';
   const [b, a] = [nav81Parts(beforeAria, lab), nav81Parts(afterAria, lab)];
   const out = { failures: [], expected: [], notes: [] };
-  if (!a.nav.length) out.notes.push('navigation not rendered (the closed drawer)');
+  const width = cell.viewport?.width ?? Number(cell.id.split('-').at(-1));
+  if (!a.nav.length && width === 375 && cell.state !== 'phone-menu') out.notes.push('navigation not rendered (the closed drawer)');
+  else if (!a.nav.length) out.failures.push({ cell: cell.id, reason: 'navigation region missing' });
   else if (a.nav.join('\n') === b.nav.join('\n')) out.failures.push({ cell: cell.id, reason: 'navigation region unchanged' });
   if (cell.route?.startsWith('/projects/')) {
     if (!a.header.length) out.notes.push('no project header in this state');
@@ -201,10 +206,13 @@ const nav81Compare = (cell, beforeAria, afterAria) => {
   // The before column's own lift (page settings) now opens outside it: its lines may reappear in the content.
   const moved = new Map(); for (const line of nav81Lines(b.column)) moved.set(line, (moved.get(line) ?? 0) + 1);
   const unexpected = [];
-  for (const d of nav81Diff(nav81Lines(b.content), nav81Lines(a.content))) {
-    const rule = NAV81_EXPECTED.find(r => r.cell(cell) && r.line.test(d.line));
+  const diffs = nav81Diff(nav81Lines(b.content), nav81Lines(a.content));
+  for (const d of diffs) {
+    // A paired rule only moves `[selected]`: the same option must appear with the opposite change.
+    const toggled = all => all.some(o => o.change !== d.change && o.count === d.count && o.line.replace(' [selected]', '') === d.line.replace(' [selected]', '') && o.line !== d.line);
+    const rule = NAV81_EXPECTED.find(r => r.cell(cell) && r.line.test(d.line) && (!r.paired || !d.line.startsWith('- option ') || toggled(diffs)));
     if (rule) { out.expected.push({ cell: cell.id, reason: rule.reason, ...d }); continue; }
-    if (d.change === 'added' && (moved.get(d.line) ?? 0) >= d.count) { moved.set(d.line, moved.get(d.line) - d.count); out.expected.push({ cell: cell.id, reason: 'the project column’s page settings now open from the pencil', ...d }); continue; }
+    if (cell.state === 'page-settings' && d.change === 'added' && (moved.get(d.line) ?? 0) >= d.count) { moved.set(d.line, moved.get(d.line) - d.count); out.expected.push({ cell: cell.id, reason: 'the project column’s page settings now open from the pencil', ...d }); continue; }
     unexpected.push(d);
   }
   if (unexpected.length) out.failures.push({ cell: cell.id, reason: 'content census changed', changes: unexpected.slice(0, 40) });
@@ -1152,7 +1160,7 @@ if (profile === '81') {
     const entry = find(contexts), cell = `${context}|${theme}|${width}`;
     const row = { context, theme, width, shows, afterOnly, before: find(contextsBefore)?.screenshot ?? null, after: entry?.screenshot ?? null, passed: false };
     nav81Checks.push(row);
-    if (!afterOnly && !find(contextsBefore)?.screenshot) failures.push({ cell, reason: 'before context missing' });
+    if (!afterOnly && (!find(contextsBefore)?.screenshot || find(contextsBefore).error)) failures.push({ cell, reason: 'before context missing' });
     if (!entry || entry.error) { if (contexts) failures.push({ cell, reason: 'context missing or errored', error: entry?.error }); continue; }
     if (!check(entry)) { failures.push({ cell, reason: 'context check failed: ' + shows, current: entry.current, location: entry.location, focus: entry.focus }); continue; }
     if (entry.overflow?.document > entry.overflow?.viewport) { failures.push({ cell, reason: 'scrolls sideways', ...entry.overflow }); continue; }
@@ -1161,6 +1169,7 @@ if (profile === '81') {
     if (own.length) { for (const v of own) failures.push({ cell, reason: 'axe ' + v.id + ' in the navigation, header or breadcrumb', nodes: v.nodes }); continue; }
     row.passed = true;
   }
+  if (!tasksBefore) failures.push({ reason: 'before navigation-tree-verification.json missing' });
   for (const [id, [clicks, keystrokes]] of Object.entries(NAV81_STEP0)) {
     const was = tasksBefore?.tasks?.find(t => t.id === id), now = tasks81?.tasks?.find(t => t.id === id);
     const limit = clicks + (NAV81_ACCEPTED[id] ?? 0);
