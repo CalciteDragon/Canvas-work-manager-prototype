@@ -9,12 +9,12 @@ import { pathToFileURL } from 'node:url';
 const args = process.argv.slice(2);
 const flag = name => { const at = args.indexOf(name); return at === -1 ? null : args[at + 1]; };
 const profile = flag('--profile') ?? '71';
-if (!['71', '72', '73', '74', '75', '76', '77', '78', '79', '80'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
+if (!['71', '72', '73', '74', '75', '76', '77', '78', '79', '80', '81'].includes(profile)) throw new Error(`Unknown profile ${profile}`);
 // Profile 75's slice-73 pair has its own "before": the pre-73 build's placement run.
 const pre73Dir = flag('--pre73') === null ? null : resolve(flag('--pre73'));
 const positional = args.filter((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
 const [beforeDir, afterDir, output, verificationDir = afterDir] = positional.map(p => resolve(p));
-if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75|76|77|78|79] [--pre73 <dir>]');
+if (!output) throw new Error('Usage: node build-sheet.mjs <before> <after> <output> [verification] [--profile 71|72|73|74|75|76|77|78|79|80|81] [--pre73 <dir>]');
 const liftCell = cell => ['more', 'project-details', 'archive-confirm', 'page-settings', 'task-drawer', 'task-drawer-scrolled', 'section-create', 'work-create'].includes(cell.state) || cell.route === '/prototype/design';
 /** Slice 74's one listed closed-state change: the project header exactly 12 px shorter at the same top. */
 const FEEDBACK_ROW = 12;
@@ -60,7 +60,8 @@ const CENSUS_EXCEPTIONS = [
   { owner: 'slice 7 (81), Q14 (a): Archive origin path links, inline in the sentence', classes: ['link--inline'], test: c => /\blink--inline\b/.test(c.class ?? '') },
   { owner: 'slice 6: dashboard widget row links', classes: ['widget-row__title'], test: c => /\bwidget-row__title\b/.test(c.class ?? '') },
 ];
-const activeExceptions = ['77', '78', '79', '80'].includes(profile) ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
+// Profile 81 retires slice 7's column breadcrumb exception (the column is gone) and activates Q14 (a)'s inline origin links.
+const activeExceptions = profile === '81' ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('link--inline')) : ['77', '78', '79', '80'].includes(profile) ? CENSUS_EXCEPTIONS.filter(e => e.classes.includes('project-nav__breadcrumb')) : profile === '76' ? CENSUS_EXCEPTIONS.slice(2) : CENSUS_EXCEPTIONS;
 const exceptionFor = c => activeExceptions.find(e => e.test(c));
 const objectCell = cell => cell.route === '/app' || cell.route?.startsWith('/projects/') || cell.route === '/settings/archived-projects';
 // A selector may stand in for an axe node only when its baseline predates the structural identity (`axeNodeIdentity`).
@@ -70,7 +71,13 @@ const structuralAnchor = node => /^(drag-preview|dragging)?\|/.test(node.stableA
  * so the list's pre-existing axe nodes gained a new structural anchor. Both forms name one
  * identity; every other anchor is compared as recorded.
  */
-const anchorOf = node => ['78', '79', '80'].includes(profile) && (/\|APP-SIDEBAR:\d+\|NAV:0\|DIV:1\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '') || /^\|data-projects-region=\|DIV\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '')) ? 'sidebar projects list' : node.stableAnchor;
+/**
+ * Profile 81: "Skip to content" is now the shell's first child, so the top bar's and `main`'s sibling
+ * indices rose by one; a carried node keeps its identity across that shift.
+ */
+const skipShift = anchor => profile === '81' && typeof anchor === 'string' ? anchor.replace(/\|APP-SHELL:0\|DIV:0\|(APP-TOP-BAR|MAIN):\d+\|/, '|APP-SHELL:0|DIV:0|$1:*|') : anchor;
+const anchorOf = node => skipShift(anchorOf80(node));
+const anchorOf80 = node => ['78', '79', '80', '81'].includes(profile) && (/\|APP-SIDEBAR:\d+\|NAV:0\|DIV:1\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '') || /^\|data-projects-region=\|DIV\|UL:\d+\|UL\|\|$/.test(node.stableAnchor ?? '')) ? 'sidebar projects list' : node.stableAnchor;
 const objectPanels = new Set(['cards', 'object-rows', 'primitives', 'task-row', 'widget-frame', 'activity']);
 const chromeCell = cell => cell.route?.startsWith('/projects/') && !/\/(todos|archive|reflections)(?:$|\?)/.test(cell.route);
 const censusFailures = [], censusExceptions = [], intendedChanges = [], geometryReport = [];
@@ -138,6 +145,80 @@ const countOnly = (was, now) => {
 const inFrame = (c, planes) => (planes ?? []).some(p => ['app-project-section-frame', 'app-shortcut-frame'].includes(p.selector) && [c.x, c.y, c.width, c.height, p.x, p.y, p.width, p.height].every(Number.isFinite) && c.x >= p.x - 1 && c.y >= p.y - 1 && c.x + c.width <= p.x + p.width + 1 && c.y + c.height <= p.y + p.height + 1);
 /** Q5 raised `--toast-max-block-size` on touch from 12rem to 16rem; the shell's toast clearance follows it. */
 const TOUCH_TOAST_CLEARANCE_RISE = 64;
+/**
+ * Profile 81 (Slice 81, one navigation tree): Capture scope's region rules, read from each cell's ARIA
+ * snapshot. The navigation region (the sidebar's "Workspace" landmark, also the drawer) must change
+ * wherever it is rendered; the header region must change on every project cell; the content below
+ * the header keeps its census of roles, names and text, compared as a multiset so the freed width's
+ * reflow and a removed wrapper do not count, except the plan's listed differences. The header is
+ * `main`'s leading run of header children; the before build's project column is in that run.
+ */
+const nav81Blocks = (lines, indent = 0) => { const out = []; for (const line of lines) { if (line.startsWith(' '.repeat(indent) + '- ')) out.push([line]); else if (out.length) out.at(-1).push(line); } return out; };
+const NAV81_HEADER_END = /^- (group "Project history"|button "More project actions"|button "Details"|term:|definition|button "Show project navigation"|navigation "Project navigation for |navigation "Breadcrumb")/;
+const NAV81_COLUMN = /^- navigation "Project navigation for /;
+const NAV81_LAB_PANEL = /^- heading ".+ (live component|shared|not yet a shared component)" \[level=3\]$/;
+const NAV81_LAB_CHANGED = /^- heading "(Navigation|Breadcrumb) live component" \[level=3\]$/;
+const nav81Parts = (aria, lab = false) => {
+  const top = nav81Blocks(aria.split('\n'));
+  const nav = top.filter(block => /^- navigation "Workspace"/.test(block[0])).flat();
+  const main = top.find(block => /^- main/.test(block[0]));
+  const kids = main ? nav81Blocks(main.slice(1).map(line => line.slice(2))) : [];
+  let last = -1;
+  kids.forEach((kid, i) => { if (i < 14 && NAV81_HEADER_END.test(kid[0])) last = i; });
+  const header = kids.slice(0, last + 1), column = header.filter(kid => NAV81_COLUMN.test(kid[0])).flat();
+  let rest = kids.slice(last + 1), skipping = false;
+  // The Design Lab's navigation and breadcrumb panels change on purpose; every other panel is content.
+  if (lab) rest = rest.filter(kid => { if (NAV81_LAB_PANEL.test(kid[0])) skipping = NAV81_LAB_CHANGED.test(kid[0]); return !skipping; });
+  return { nav, header: header.filter(kid => !NAV81_COLUMN.test(kid[0])).flat(), column, content: rest.flat() };
+};
+const nav81Lines = lines => lines.map(line => line.trim()).filter(line => line && !/^- \/(url|placeholder):/.test(line));
+const nav81Diff = (was, now) => {
+  const counts = new Map();
+  for (const line of was) counts.set(line, (counts.get(line) ?? 0) + 1);
+  for (const line of now) counts.set(line, (counts.get(line) ?? 0) - 1);
+  return [...counts].filter(([, n]) => n).map(([line, n]) => ({ line, change: n > 0 ? 'removed' : 'added', count: Math.abs(n) }));
+};
+/** The plan's expected census differences (Capture scope, "Must not change … except"). Anything else fails. */
+const NAV81_EXPECTED = [
+  { reason: 'dashboard main → section (R3, Q6)', cell: c => c.route === '/app', line: /^- (main:|region "Home":)$/ },
+  { reason: 'Archive: one heading, no nested region, the origin path (Q6 (i), Q14 (a), Q5 (d))', cell: c => /\/pages\/archive$/.test(c.route ?? ''),
+    line: /^- (region "Archive":|heading "Archive" \[level=2\]|text: "?(Workstream|Section|Task|Shortcut) Origin:.*|link "[^"]+":|text: Work canvas)$/ },
+  { reason: 'Todos named once: “What is coming up” becomes the page (L7-018, Q6 (i))', cell: c => /\/pages\/todos$/.test(c.route ?? ''), line: /^- (region "What is coming up":|heading "What is coming up" \[level=2\]|region "Todos":)$/ },
+  { reason: 'Reflections: the page heading is the header’s h1; its h3s become h2s (Q6 (i))', cell: c => /\/pages\/reflections$/.test(c.route ?? ''), line: /^- heading "(Reflections|Write a reflection|About completed work|Journal)" \[level=[23]\]$/ },
+  { reason: 'More mirrors the pencil’s two items (decision 3)', cell: c => c.state === 'more', line: /^- menuitem "(Pages of .+…|Add workstream)"$/ },
+  { reason: 'Add workstream’s Parent defaults to the open workstream (Q15 (a))', cell: c => c.state === 'work-create', line: /^- (option "[^"]+"( \[selected\])?|paragraph: Inside .+)$/ },
+];
+const nav81Compare = (cell, beforeAria, afterAria) => {
+  const lab = cell.route === '/prototype/design';
+  const [b, a] = [nav81Parts(beforeAria, lab), nav81Parts(afterAria, lab)];
+  const out = { failures: [], expected: [], notes: [] };
+  if (!a.nav.length) out.notes.push('navigation not rendered (the closed drawer)');
+  else if (a.nav.join('\n') === b.nav.join('\n')) out.failures.push({ cell: cell.id, reason: 'navigation region unchanged' });
+  if (cell.route?.startsWith('/projects/')) {
+    if (!a.header.length) out.notes.push('no project header in this state');
+    else if (a.header.join('\n') === b.header.join('\n')) out.failures.push({ cell: cell.id, reason: 'project header unchanged' });
+  }
+  // The before column's own lift (page settings) now opens outside it: its lines may reappear in the content.
+  const moved = new Map(); for (const line of nav81Lines(b.column)) moved.set(line, (moved.get(line) ?? 0) + 1);
+  const unexpected = [];
+  for (const d of nav81Diff(nav81Lines(b.content), nav81Lines(a.content))) {
+    const rule = NAV81_EXPECTED.find(r => r.cell(cell) && r.line.test(d.line));
+    if (rule) { out.expected.push({ cell: cell.id, reason: rule.reason, ...d }); continue; }
+    if (d.change === 'added' && (moved.get(d.line) ?? 0) >= d.count) { moved.set(d.line, moved.get(d.line) - d.count); out.expected.push({ cell: cell.id, reason: 'the project column’s page settings now open from the pencil', ...d }); continue; }
+    unexpected.push(d);
+  }
+  if (unexpected.length) out.failures.push({ cell: cell.id, reason: 'content census changed', changes: unexpected.slice(0, 40) });
+  return out;
+};
+const nav81Report = [], nav81Census = [], nav81Evidence = [];
+/** Applies the region rules to one matrix cell; a missing snapshot is a failure, not a pass. */
+const nav81Regions = async (a, b) => {
+  if (!a.artifacts.tree || !b.artifacts.tree) { failures.push({ cell: a.id, reason: 'ARIA snapshot missing' }); return; }
+  const [was, now] = await Promise.all([readFile(join(beforeDir, b.artifacts.tree), 'utf8'), readFile(join(afterDir, a.artifacts.tree), 'utf8')]);
+  const result = nav81Compare(a, was, now);
+  failures.push(...result.failures); nav81Census.push(...result.expected);
+  if (result.notes.length) nav81Report.push({ cell: a.id, notes: result.notes });
+};
 await mkdir(output, { recursive: true });
 const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const failures = [], exceptions = [], pairs = [], contrast = [];
@@ -163,6 +244,7 @@ for (const a of after.cells) {
       if(!now || ['x','y','width','height'].some(field=>!Number.isFinite(box[field]) || !Number.isFinite(now[field]) || Math.abs(box[field]-now[field])>1))failures.push({cell:a.id,reason:'objects matrix unchanged region moved more than 1 px',before:box,after:now});
     }
   }
+  if (profile === '81') await nav81Regions(a, b);
   const removedRow = profile === '74' ? removedFeedbackRow(bl, al) : null;
   const label = profile === '78' && objectCell(a) && !stateExempt(a) ? reflectionLabel(bl, al) : null;
   for (const family of ['planes', 'controls', 'scrollRegions']) {
@@ -306,7 +388,7 @@ for (const a of after.cells) {
       const fixed=family==='planes' ? changes.filter(change=>fixedPlanes.has(old[change.index]?.selector) || change.reason==='missing numeric geometry') : [];
       if(fixed.length)failures.push({cell:a.id,family,changes:fixed});
       if(changes.length>fixed.length)geometryReport.push({cell:a.id,family,changes:changes.filter(c=>!fixed.includes(c))});
-    } else if ((profile === '78' && stateExempt(a)) || (profile === '79' && eaExempt(a)) || (profile === '80' && cascadeExempt(a))) {
+    } else if ((profile === '78' && stateExempt(a)) || (profile === '79' && eaExempt(a)) || (profile === '80' && cascadeExempt(a)) || profile === '81') {
       // The matrix cells the slice changes on purpose: movement is reported; corrupt evidence still fails.
       const corrupt = changes.filter(change => change.reason === 'missing numeric geometry');
       if (corrupt.length) failures.push({ cell: a.id, family, changes: corrupt });
@@ -339,9 +421,11 @@ for (const a of after.cells) {
       }
     }
   }
-  if (['72', '76', '77', '78', '79', '80'].includes(profile)) {
+  if (['72', '76', '77', '78', '79', '80', '81'].includes(profile)) {
     const touch = (a.viewport?.width ?? Number(a.id.split('-').at(-1))) === 375;
-    const product = al.controls.filter(c => c.scope === 'product');
+    // Profile 81: the skip link and the drawer's "Close navigation" are visually hidden (1 px) until focused;
+    // their focused sizes are the skip-link-focused and drawer-dismiss-focused contexts' (and J3, J7).
+    const product = al.controls.filter(c => c.scope === 'product' && !(profile === '81' && /\b(skip-link|drawer__dismiss)\b/.test(c.class ?? '') && (c.target ?? c).height <= 1));
     for (const c of product) {
       const box = c.target ?? c;
       const small = touch ? box.height < 44 || box.width < 24 : box.height < 24 || box.width < 24;
@@ -380,11 +464,13 @@ for (const a of after.cells) {
     }
     if (!Array.isArray(bl.sectionContents) || !Array.isArray(al.sectionContents)) failures.push({ cell: a.id, reason: 'section content collector missing' });
   }
-  if ((profile === '76' && chromeCell(a)) || ['77', '78', '79', '80'].includes(profile)) {
+  if ((profile === '76' && chromeCell(a)) || ['77', '78', '79', '80', '81'].includes(profile)) {
     const [was, now] = await Promise.all([read(join(beforeDir, b.artifacts.axe)), read(join(afterDir, a.artifacts.axe))]);
     const key = (v, n) => v.id + ':' + (anchorOf(n) ?? n.target?.join(' '));
-    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(!['77', '78', '79', '80'].includes(profile) || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
+    const known = new Set((was.violations ?? []).flatMap(v => v.nodes.flatMap(n => [key(v,n), ...(!['77', '78', '79', '80', '81'].includes(profile) || !structuralAnchor(n) ? [v.id + ':' + n.target?.join(' ')] : [])])));
     for (const violation of now.violations ?? []) if (violation.id !== 'color-contrast') for (const node of violation.nodes) {
+      // Profile 81: the Lab's navigation, drawer and breadcrumb specimens repeat the product's labelled landmarks.
+      if (profile === '81' && a.route === '/prototype/design' && violation.id === 'landmark-unique' && /\[aria-label="(Workspace|Breadcrumb)"\]/.test(node.target?.join(' ') ?? '')) { exceptions.push({ cell: a.id, reason: 'Lab specimen repeats a product landmark label', target: node.target }); continue; }
       if (!known.has(key(violation,node)) && !known.has(violation.id + ':' + node.target?.join(' '))) failures.push({ cell: a.id, reason: 'new axe node ' + violation.id, target: node.target });
     }
   }
@@ -400,7 +486,7 @@ for (const a of after.cells) {
   pairs.push({ id: a.id, theme: a.theme });
 }
 // Section chrome owns its runtime evidence; the frozen Depth journey uses retired labels.
-const verification = ['76', '77', '78', '79', '80'].includes(profile) ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
+const verification = ['76', '77', '78', '79', '80', '81'].includes(profile) ? { tokens: {} } : await read(join(verificationDir, 'depth-verification.json'));
 const optional = path => read(path).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
 const lifts = profile === '73' ? await optional(join(verificationDir, 'lifts-verification.json')) : null;
 const liftBaseline = profile === '73' ? await optional(join(beforeDir, 'lift-baseline.json')) : null;
@@ -1026,6 +1112,67 @@ if (profile === '80') {
     if (!tree.includes('Archive “Kitchen” and its 1 workstream?') || !tree.includes('Cabinets · Active')) failures.push({ cell: a.id, reason: 'the confirmation does not list Cabinets' });
   }
 }
+/**
+ * Profile 81's runtime contexts (Capture scope) and core tasks (Acceptance item 6). The checks are the
+ * plan's: what each context exists to show. Step 0 recorded the baseline counts; the before run must
+ * equal them (a difference is a rig fault), and no after task may rise, except T08's accepted +1.
+ */
+const NAV81_P = [['light', 1440], ['dark', 375]];
+const nav81Has = (field, text) => e => String(e[field]?.text ?? '').includes(text);
+const nav81Current = name => e => String(e.current?.name ?? '').startsWith(name);
+const NAV81_CONTEXTS = [
+  ['kitchen', NAV81_P, false, 'Kitchen current; the root’s pages labelled (L7-002, L7-020)', nav81Current('Kitchen')],
+  ['cabinets', NAV81_P, false, 'the breadcrumb ends at Cabinets above the h1 (L7-004)', e => nav81Current('Cabinets')(e) && nav81Has('header', 'Kitchen')(e)],
+  ['kitchen-menu-open', [['dark', 375]], false, 'one pattern: the drawer shows Kitchen current (L7-005, L7-006)', e => e.navigation?.visible && nav81Current('Kitchen')(e)],
+  ['add-workstream-kitchen', NAV81_P, false, 'Parent “Kitchen” (W1-008, Q15 (a))', nav81Has('lift', 'Inside Kitchen')],
+  ['page-settings-open', NAV81_P, false, 'the page settings, opened from the pencil (W1-044, W2-026)', e => nav81Has('lift', 'Pages')(e) && nav81Has('lift', 'Reflections')(e)],
+  ['legacy-shelving', NAV81_P, false, 'Legacy shelving under Legacy attic, archived (Q11 (a), L7-008)', e => nav81Current('Legacy shelving')(e) && (nav81Has('navigation', 'Legacy attic')(e) || nav81Has('header', 'Legacy attic')(e))],
+  ['forced-colours-kitchen', NAV81_P, false, 'the current item keeps a drawn edge under forced colours (L5-008, L5-017)', e => nav81Current('Kitchen')(e) && (e.current.border !== 'none' || e.current.outline !== 'none')],
+  ['deep-tree', NAV81_P, true, 'five levels under Cabinets: the deepest current, the breadcrumb names its ancestors', e => nav81Current('Level 5')(e) && nav81Has('header', 'Level 4')(e)],
+  ['skip-link-focused', NAV81_P, true, 'the skip link on focus (L5-014)', e => e.focus === 'Skip to content'],
+  ['edit-project-menu-open', NAV81_P, true, 'chevron and pencil on one row; the menu’s two items (decision 3)', e => e.focus === 'Pages of Home renovation…' && nav81Has('lift', 'Add workstream')(e)],
+  ['all-projects-level', NAV81_P, true, 'the top level inside a project, the root marked as location (B)', e => e.location === 'Home renovation' && !e.current],
+  ['drawer-dismiss-focused', [['dark', 375]], true, 'the drawer without Close; its focus-visible dismiss (decision 4)', e => e.focus === 'Close navigation'],
+];
+const NAV81_STEP0 = { T01: [2, 16], T02: [3, 19], T03: [10, 38], T04: [1, 0], T05: [2, 0], T06: [2, 16], T07: [3, 0], T08: [3, 0], T09: [1, 0], T11: [1, 0], T12: [1, 0] };
+const NAV81_ACCEPTED = { T08: 1 };
+/** Tree, drawer, header and breadcrumb nodes: new in this slice, so any axe node there fails, contrast included (J8). */
+const NAV81_OWN = /app-sidebar|#shell-navigation|app-project-header|app-breadcrumb|\[data-edit-project|\[data-shell-drawer/;
+const nav81Checks = [], nav81TaskRows = [];
+if (profile === '81') {
+  const optional81 = file => read(file).catch(e => { if (e.code === 'ENOENT') return null; throw e; });
+  const [contexts, contextsBefore, tasks81, tasksBefore] = await Promise.all([optional81(join(verificationDir, 'navigation-tree-contexts.json')), optional81(join(beforeDir, 'navigation-tree-contexts.json')), optional81(join(verificationDir, 'navigation-tree-verification.json')), optional81(join(beforeDir, 'navigation-tree-verification.json'))]);
+  nav81Evidence.push(contexts, contextsBefore);
+  if (!contexts) failures.push({ reason: 'navigation-tree-contexts.json missing' });
+  if (!tasks81) failures.push({ reason: 'navigation-tree-verification.json missing' });
+  if (contexts && tasks81 && contexts.commit !== tasks81.commit) failures.push({ reason: 'runtime contexts and core tasks are from different commits', contexts: contexts.commit, tasks: tasks81.commit });
+  if (verificationDir === afterDir && contexts && contexts.commit !== after.commit) failures.push({ reason: 'navigation evidence is from another commit', evidence: contexts.commit, matrix: after.commit });
+  for (const [context, views, afterOnly, shows, check] of NAV81_CONTEXTS) for (const [theme, width] of views) {
+    const find = evidence => evidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
+    const entry = find(contexts), cell = `${context}|${theme}|${width}`;
+    const row = { context, theme, width, shows, afterOnly, before: find(contextsBefore)?.screenshot ?? null, after: entry?.screenshot ?? null, passed: false };
+    nav81Checks.push(row);
+    if (!afterOnly && !find(contextsBefore)?.screenshot) failures.push({ cell, reason: 'before context missing' });
+    if (!entry || entry.error) { if (contexts) failures.push({ cell, reason: 'context missing or errored', error: entry?.error }); continue; }
+    if (!check(entry)) { failures.push({ cell, reason: 'context check failed: ' + shows, current: entry.current, location: entry.location, focus: entry.focus }); continue; }
+    if (entry.overflow?.document > entry.overflow?.viewport) { failures.push({ cell, reason: 'scrolls sideways', ...entry.overflow }); continue; }
+    if (entry.consoleErrors?.length) { failures.push({ cell, reason: 'console errors', consoleErrors: entry.consoleErrors }); continue; }
+    const own = (entry.axe?.violations ?? []).map(v => ({ id: v.id, nodes: v.nodes.filter(n => NAV81_OWN.test(n.join(' '))) })).filter(v => v.nodes.length);
+    if (own.length) { for (const v of own) failures.push({ cell, reason: 'axe ' + v.id + ' in the navigation, header or breadcrumb', nodes: v.nodes }); continue; }
+    row.passed = true;
+  }
+  for (const [id, [clicks, keystrokes]] of Object.entries(NAV81_STEP0)) {
+    const was = tasksBefore?.tasks?.find(t => t.id === id), now = tasks81?.tasks?.find(t => t.id === id);
+    const limit = clicks + (NAV81_ACCEPTED[id] ?? 0);
+    nav81TaskRows.push({ id, step0: [clicks, keystrokes], before: was ? [was.clicks, was.keystrokes] : null, after: now ? [now.clicks, now.keystrokes] : null, status: now?.status ?? 'missing', accepted: NAV81_ACCEPTED[id] && now?.clicks === limit ? `+${NAV81_ACCEPTED[id]} accepted with the pick` : null });
+    if (tasksBefore && (!was || was.clicks !== clicks || was.keystrokes !== keystrokes)) failures.push({ reason: `${id}: the before run differs from step 0 (a rig fault)`, step0: [clicks, keystrokes], before: was && [was.clicks, was.keystrokes] });
+    if (!tasks81) continue;
+    if (now?.status !== 'completed') failures.push({ reason: `${id} did not complete`, status: now?.status });
+    else if (now.clicks > limit) failures.push({ reason: `${id} is above its baseline`, baseline: clicks, limit, after: now.clicks });
+  }
+  const t10 = tasks81?.tasks?.find(t => t.id === 'T10');
+  if (tasks81 && (t10?.status !== 'blocked' || t10.steps?.filter(s => s.status === 'blocked').map(s => s.action).join() !== 'Find Connect agent control')) failures.push({ reason: 'T10 differs from its known dead end (slice 8)', status: t10?.status });
+}
 const emptyArchivedChecks = [];
 const eaPairs = profile === '79' ? EA_VISUAL_PAIRS.map(([context, theme, width, findings]) => {
   const find = evidence => evidence?.entries?.find(e => e.context === context && e.theme === theme && e.width === width);
@@ -1263,7 +1410,7 @@ const composites = Object.entries(verification.tokens).map(([theme,t]) => {
   }), accentTextOnFill: ratio(rgb(get('color-accent-contrast')),rgb(get('color-accent'))) };
 });
 failures.push(...censusFailures);
-const report = { objects, objectsBefore, objectVisualPairs, chrome, chromeBefore, placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs, statesVisualPairs: stateVisualPairs, stateChecks, statesTasks: profile === '78' ? { before: stateBaseline?.tasks ?? null, after: stateEvidence?.tasks ?? null } : null, emptyArchivedPairs: eaPairs, emptyArchivedChecks, emptyArchivedTasks: profile === '79' ? { limits: EA_TASK_LIMITS, before: eaBaseline?.tasks ?? null, after: eaEvidence?.tasks ?? null } : null };
+const report = { objects, objectsBefore, objectVisualPairs, chrome, chromeBefore, placement, baselinePlacement, pre73Placement, placementPairs: placementPairs.map(({ before, after, beforeDir: _dir, ...pair }) => ({ ...pair, before: before?.screenshot ?? null, after: after?.screenshot ?? null })), profile, before: before.commit, after: after.commit, recaptures: after.recaptures ?? [], pairs: pairs.length, geometryFailures: failures, censusFailures, censusExceptions, intendedChanges, geometryReport, intentionalLabChanges: exceptions, contrast, composites, verification, baselineVerification, primitives, baselinePrimitives, lifts, liftBaseline, tasks, captureProvenance, finalBuild, feedback, feedbackFindings, feedbackVisualPairs, statesVisualPairs: stateVisualPairs, stateChecks, statesTasks: profile === '78' ? { before: stateBaseline?.tasks ?? null, after: stateEvidence?.tasks ?? null } : null, emptyArchivedPairs: eaPairs, emptyArchivedChecks, emptyArchivedTasks: profile === '79' ? { limits: EA_TASK_LIMITS, before: eaBaseline?.tasks ?? null, after: eaEvidence?.tasks ?? null } : null, navigationTree: profile === '81' ? { regions: nav81Report, census: nav81Census, tasks: nav81TaskRows, contexts: nav81Checks } : null };
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2));
 const figure = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><a href="${esc(file)}"><img loading="lazy" src="${esc(file)}" alt="${esc(caption)}"></a></figure>`;
 // Profile 73's "Visual acceptance pairs" table: which findings each core cell demonstrates.
@@ -1492,6 +1639,53 @@ if (profile === '80') {
   const matrix = pairs.filter(pair => cascadeExempt(pair));
   await writeFile(join(output, 'cascading-archive-verification.json'), JSON.stringify({ after: cascadeEvidence, before: cascadeBaseline }, null, 2));
   await writeFile(join(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 80 · Cascading archive · Gate 2</title><style>body{font:16px/1.5 system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain;object-position:top}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;min-width:0}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#ffad7f}@media(max-width:700px){body{margin:12px}.pair{grid-template-columns:1fr}}</style><h1>Cascading project archive / Slice 80</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ' + esc(before.commit) + ' → after ' + esc(after.commit) + '.</p><p>' + pairs.length + ' paired matrix cells · ' + failures.length + ' gate failures. Zero gate failures does not mean user acceptance.</p><p><a href="report.json">Full gate report</a></p><h2>What changed</h2>' + panels.join('') + '<h2>Kitchen’s confirmation, before / after</h2>' + matrix.map(card).join('') + '<h2>All matrix pairs</h2><details><summary>All ' + pairs.length + ' pairs, every other one required not to move</summary>' + pairs.map(card).join('') + '</details><h2>Checks and gate failures</h2><pre>' + esc(JSON.stringify(failures, null, 2)) + '</pre></html>');
+}
+if (profile === '81') {
+  const copied = new Set();
+  const copy = async (phase, dir, file) => { const name = phase + '-' + file; if (!copied.has(name)) { await copyFile(join(dir, file), join(output, name)); copied.add(name); } return name; };
+  // Visual acceptance: matrix pairs by cell id; runtime contexts by `context|theme|width`.
+  const VISUAL = [
+    ['Two trees → one, with the root’s pages; header edge (L7-001, L1-006)', ['nested-projects-project-light-1440']],
+    ['Kitchen marked; root-page scope labelled (L7-002, L7-020)', ['kitchen|light|1440']],
+    ['Breadcrumb ending at Cabinets above the h1 (L7-004)', ['cabinets|light|1440']],
+    ['The page named once (L7-018)', ['todos-light-1440']],
+    ['One Archive heading; origin path readable (W1-049, W2-030)', ['archive-light-1440', 'archive-dark-375']],
+    ['Content takes most of the width; first section in view (L7-007, L1-013)', ['nested-projects-project-light-1024']],
+    ['One pattern; current place visible closed (L7-005, L7-006)', ['kitchen|dark|375', 'kitchen-menu-open|dark|375', 'phone-menu-dark-375']],
+    ['Header within a quarter of the screen (L1-014)', ['nested-projects-project-dark-375']],
+    ['Settings child marked, breadcrumb back (L7-010)', ['settings-agents-light-1440']],
+    ['Q11’s archived cases (L7-008)', ['kitchen-archived-light-1440', 'legacy-shelving|light|1440', 'legacy-shelving|dark|375']],
+    ['“Home” per Q5; the same marker in both themes (L7-003, L2-012)', ['nested-projects-dashboard-light-1440', 'nested-projects-dashboard-dark-1440']],
+    ['Current item distinct under forced colours (L5-008, L5-017)', ['forced-colours-kitchen|light|1440', 'forced-colours-kitchen|dark|375']],
+    ['Parent “Kitchen” (W1-008)', ['add-workstream-kitchen|light|1440', 'add-workstream-kitchen|dark|375', 'kitchen-work-create-light-1440']],
+    ['Labelled control naming the root (W1-044, W2-026)', ['page-settings-open|light|1440', 'page-settings-open|dark|375', 'kitchen-page-settings-light-1440']],
+    ['The skip link on focus (L5-014)', ['skip-link-focused|light|1440']],
+    ['Chevron and pencil on one row; the menu’s two items (decision 3)', ['edit-project-menu-open|light|1440', 'edit-project-menu-open|dark|375']],
+    ['The top level inside a project, the root marked as location (B)', ['all-projects-level|light|1440']],
+    ['The drawer without Close; its focus-visible dismiss (decision 4)', ['drawer-dismiss-focused|dark|375']],
+    ['Five levels under Cabinets', ['deep-tree|light|1440']],
+  ];
+  const [contexts, contextsBefore] = nav81Evidence;
+  const find = (evidence, key) => evidence?.entries?.find(e => [e.context, e.theme, e.width].join('|') === key);
+  const panels = [], gaps81 = [];
+  for (const [shows, keys] of VISUAL) {
+    const pictures = [];
+    for (const key of keys) {
+      if (key.includes('|')) {
+        const was = find(contextsBefore, key), now = find(contexts, key);
+        if (was?.screenshot && !was.error) pictures.push(figure(await copy('before', beforeDir, was.screenshot), key + ' · before'));
+        if (now?.screenshot && !now.error) pictures.push(figure(await copy('after', verificationDir, now.screenshot), key + ' · after' + (was ? '' : ' (after only)')));
+        else gaps81.push(key);
+      } else if (pairs.some(p => p.id === key)) pictures.push(...['before', 'after'].map(phase => figure(`${phase}-${key}.png`, key + ' · ' + phase)));
+      else gaps81.push(key);
+    }
+    panels.push(`<article><h3>${esc(shows)}</h3><div class="pair">${pictures.join('')}</div></article>`);
+  }
+  const tasks = '<table><tr><th>Task</th><th>Step 0 clicks / keys</th><th>Before</th><th>After</th><th>Status</th><th>Note</th></tr>' + nav81TaskRows.map(r => `<tr><th>${esc(r.id)}</th><td>${r.step0.join(' / ')}</td><td>${esc(r.before?.join(' / ') ?? '—')}</td><td>${esc(r.after?.join(' / ') ?? '—')}</td><td>${esc(r.status)}</td><td>${esc(r.accepted ?? '')}</td></tr>`).join('') + '</table>';
+  const census = '<table><tr><th>Cell</th><th>Expected difference</th><th>Line</th></tr>' + nav81Census.map(c => `<tr><td>${esc(c.cell)}</td><td>${esc(c.reason)}</td><td><code>${esc(c.change + ' ×' + c.count + ' ' + c.line)}</code></td></tr>`).join('') + '</table>';
+  const checks = '<table><tr><th>Context</th><th>Shows</th><th>Passed</th></tr>' + nav81Checks.map(c => `<tr><td>${esc([c.context, c.theme, c.width].join(' · '))}</td><td>${esc(c.shows)}</td><td>${c.passed ? 'yes' : 'no'}</td></tr>`).join('') + '</table>';
+  const exceptionList = '<ul>' + censusExceptions.map(e => `<li>${esc(e.cell)} · ${esc(e.text ?? '')} · ${esc(e.owner)}</li>`).join('') + '</ul>';
+  await writeFile(join(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Slice 81 · One navigation tree · Gate 2</title><style>body{font:16px/1.5 system-ui;margin:24px;background:#11151f;color:#f2f4fa}img{width:100%;max-height:650px;object-fit:contain;object-position:top}.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}figure{margin:0;min-width:0}table{border-collapse:collapse}td,th{border:1px solid #3a4250;padding:4px 8px;text-align:left;vertical-align:top}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#ffad7f}@media(max-width:700px){body{margin:12px}}</style><h1>One navigation tree / Slice 81</h1><p>Gate 2 · awaiting visual acceptance. Matrix: before ' + esc(before.commit) + ' → after ' + esc(after.commit) + (contexts ? ' · runtime contexts ' + esc(contexts.commit) : '') + '.</p><p>' + pairs.length + ' paired matrix cells · ' + failures.length + ' gate failures. Zero gate failures does not mean user acceptance.</p><p><a href="report.json">Full gate report</a></p><h2>Visual acceptance</h2>' + panels.join('') + (gaps81.length ? '<p>Visual pairs without evidence: ' + esc(gaps81.join(', ')) + '</p>' : '') + '<h2>Core tasks (Acceptance item 6)</h2>' + tasks + '<h2>Runtime context checks</h2>' + checks + '<h2>Expected content census differences</h2><p>Every other content line of every cell kept its role, name and text.</p>' + census + '<h2>Census exceptions (reported, not failed)</h2>' + exceptionList + '<h2>All matrix pairs</h2><details><summary>All ' + pairs.length + ' pairs</summary>' + pairs.map(card).join('') + '</details><h2>Gate failures</h2><pre>' + esc(JSON.stringify(failures, null, 2)) + '</pre></html>');
 }
 if (profile === '79') {
   const copied = new Set();

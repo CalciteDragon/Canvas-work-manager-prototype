@@ -15,7 +15,83 @@ test('profile 80 fails without its runtime evidence: a dropped rig does not pass
   assert.match(await readFile(join(f.dirs[2], 'report.json'), 'utf8'), /cascading-archive-verification\.json missing/);
 });
 
-async function feedbackSheet(t, { changed = false, open = false, overflow = false, badGeometry = false, missingFocus = false } = {}) {
+// Profile 81: the navigation and header regions must change, the content below them keeps its census.
+const nav81Aria = ({ nav = '- link "Home renovation"', header = '- heading "Website launch" [level=1]\n  - button "More project actions"', content = '- region "Task List":\n    - heading "Task List" [level=2]' } = {}) =>
+  `- banner:\n  - text: Canvas Work Manager\n- navigation "Workspace":\n  ${nav}\n- main:\n  ${header}\n  ${content}\n`;
+const NAV81_TASKS = { T01: [2, 16], T02: [3, 19], T03: [10, 38], T04: [1, 0], T05: [2, 0], T06: [2, 16], T07: [3, 0], T08: [3, 0], T09: [1, 0], T11: [1, 0], T12: [1, 0] };
+const nav81Tasks = (edit = {}) => [...Object.entries(NAV81_TASKS).map(([id, [clicks, keystrokes]]) => ({ id, status: 'completed', clicks, keystrokes, deadEnds: 0, steps: [], ...edit[id] })), { id: 'T10', status: 'blocked', clicks: 0, keystrokes: 0, deadEnds: 1, steps: [{ action: 'Find Connect agent control', status: 'blocked' }] }];
+const nav81Entry = (context, theme, width, extra = {}) => ({ context, theme, width, screenshot: 'shot.png', consoleErrors: [], axe: { violations: [] }, overflow: { document: width, viewport: width },
+  current: { name: { cabinets: 'Cabinets', 'deep-tree': 'Level 5', 'legacy-shelving': 'Legacy shelving Archived' }[context] ?? 'Kitchen', border: 'solid', outline: 'none' },
+  navigation: { visible: true, text: 'Home renovation Legacy attic Pages of Home renovation… Add workstream' }, header: { text: 'Home renovation Kitchen Level 4' },
+  lift: { text: 'Inside Kitchen Reflections Pages of Home renovation… Add workstream' }, location: null, focus: null, ...extra });
+const nav81Contexts = (afterOnly = true) => {
+  const P = [['light', 1440], ['dark', 375]];
+  const rows = [['kitchen', P], ['cabinets', P], ['kitchen-menu-open', [['dark', 375]]], ['add-workstream-kitchen', P], ['page-settings-open', P], ['legacy-shelving', P], ['forced-colours-kitchen', P]];
+  const only = [['deep-tree', P], ['skip-link-focused', P, { focus: 'Skip to content' }], ['edit-project-menu-open', P, { focus: 'Pages of Home renovation…' }], ['all-projects-level', P, { current: null, location: 'Home renovation' }], ['drawer-dismiss-focused', [['dark', 375]], { focus: 'Close navigation' }]];
+  return [...rows, ...(afterOnly ? only : [])].flatMap(([context, views, extra]) => views.map(([theme, width]) => nav81Entry(context, theme, width, extra)));
+};
+async function nav81Sheet(t, { before = {}, after = {}, route, tasks = nav81Tasks(), contexts = nav81Contexts(), skip = [] } = {}) {
+  const f = await fixture(t);
+  const cell = { ...f.cell, ...(route ? { route } : {}), artifacts: { ...f.cell.artifacts, tree: 'tree.aria.yml' } };
+  for (const phase of [0, 1]) {
+    await f.json(phase, 'index.json', { commit: phase ? 'after' : 'before', cells: [cell] });
+    await writeFile(join(f.dirs[phase], 'tree.aria.yml'), nav81Aria(phase ? { nav: '- button "All projects"', header: '- navigation "Breadcrumb":\n  - heading "Website launch" [level=1]\n  - button "More project actions"', ...after } : before));
+  }
+  await f.json(0, 'navigation-tree-verification.json', { commit: 'before', before: true, tasks: nav81Tasks() });
+  await f.json(0, 'navigation-tree-contexts.json', { commit: 'before', before: true, entries: nav81Contexts(false) });
+  if (!skip.includes('tasks')) await f.json(1, 'navigation-tree-verification.json', { commit: 'after', before: false, tasks });
+  if (!skip.includes('contexts')) await f.json(1, 'navigation-tree-contexts.json', { commit: 'after', before: false, entries: contexts });
+  const result = spawnSync(process.execPath, [builder, ...f.dirs, '--profile', '81'], { encoding: 'utf8' });
+  return { result, report: await readFile(join(f.dirs[2], 'report.json'), 'utf8'), dirs: f.dirs };
+}
+
+test('profile 81 passes changed navigation and header with the content census kept, and lists T08’s accepted +1', async t => {
+  const { result, report } = await nav81Sheet(t, { tasks: nav81Tasks({ T02: { clicks: 3 }, T08: { clicks: 4 } }) });
+  assert.equal(result.status, 0, report);
+  assert.match(report, /"T08"[^}]*\+1 accepted with the pick/);
+});
+
+test('profile 81 fails without its runtime evidence or its core tasks', async t => {
+  for (const skip of ['contexts', 'tasks']) {
+    const { result, report } = await nav81Sheet(t, { skip: [skip] });
+    assert.notEqual(result.status, 0, skip);
+    assert.match(report, new RegExp(`navigation-tree-${skip === 'tasks' ? 'verification' : 'contexts'}\\.json missing`));
+  }
+});
+
+test('profile 81 fails when the navigation or a project header does not change', async t => {
+  const same = await nav81Sheet(t, { after: { nav: '- link "Home renovation"' } });
+  assert.notEqual(same.result.status, 0);
+  assert.match(same.report, /navigation region unchanged/);
+  const header = await nav81Sheet(t, { after: { header: '- heading "Website launch" [level=1]\n  - button "More project actions"' } });
+  assert.notEqual(header.result.status, 0);
+  assert.match(header.report, /project header unchanged/);
+});
+
+test('profile 81 fails an unlisted content census change and lists the plan’s expected ones', async t => {
+  const moved = await nav81Sheet(t, { after: { content: '- region "Checklist":\n    - heading "Task List" [level=2]' } });
+  assert.notEqual(moved.result.status, 0);
+  assert.match(moved.report, /content census changed/);
+  const dashboard = await nav81Sheet(t, { route: '/app', before: { header: '- heading "Home" [level=1]', content: '- main:\n    - heading "Today" [level=2]' }, after: { header: '- heading "Home" [level=1]', content: '- region "Home":\n    - heading "Today" [level=2]' } });
+  assert.equal(dashboard.result.status, 0, dashboard.report);
+  assert.match(dashboard.report, /main → section/);
+});
+
+test('profile 81 refuses a task above its baseline, a changed baseline and a failed context check', async t => {
+  for (const [options, reason] of [
+    [{ tasks: nav81Tasks({ T03: { clicks: 11 } }) }, /T03 is above its baseline/],
+    [{ tasks: nav81Tasks({ T08: { clicks: 5 } }) }, /T08 is above its baseline/],
+    [{ contexts: nav81Contexts().map(e => e.context === 'all-projects-level' ? { ...e, location: null } : e) }, /all-projects-level[\s\S]*?context check failed/],
+    [{ contexts: nav81Contexts().filter(e => e.context !== 'deep-tree') }, /deep-tree[\s\S]*?context missing/],
+    [{ contexts: nav81Contexts().map(e => e.context === 'kitchen' ? { ...e, axe: { violations: [{ id: 'color-contrast', nodes: [['app-sidebar', 'a']] }] } } : e) }, /kitchen\|light\|1440[\s\S]*?axe color-contrast/],
+  ]) {
+    const { result, report } = await nav81Sheet(t, options);
+    assert.notEqual(result.status, 0, String(reason));
+    assert.match(report, reason);
+  }
+});
+
+async function feedbackSheet(t,{ changed = false, open = false, overflow = false, badGeometry = false, missingFocus = false } = {}) {
   const f = await fixture(t);
   f.cell.state = open ? 'remove-feedback' : 'populated';
   f.cell.viewport = { width: 375, height: 812 };

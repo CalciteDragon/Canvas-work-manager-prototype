@@ -16,6 +16,12 @@ runs the core tasks under `UX_OBJECTS=1`. The navigation controls the tasks and 
 `UX_OBJECTS=1`; T02 skips choosing Kitchen as parent when the dialog already shows it. The "after" page-settings name
 ("Pages of Home renovation…") is the tree's pencil-menu item, drawn in the app since Slice 81's step 6
 registered the project shell's handlers; the "before" name is the deleted column's gear.
+The same file holds the Capture scope's runtime contexts (`CONTEXTS`, light at 1440 and dark at 375;
+`afterOnly` ones skip the baseline) into `navigation-tree-contexts.json`; `UX_NAV_MATCH` reruns a subset.
+`build-sheet.mjs <before> <after> <sheet> --profile 81` is the gate: it reads each cell's ARIA snapshot,
+requires the navigation region (where rendered) and every project header to change, compares the content
+below the header as a census of roles, names and text with the plan's listed differences (`NAV81_EXPECTED`),
+checks each context, and holds the core tasks to step 0's counts with T08's accepted +1.
 
 Slice 80 uses `ux/slice80.config.ts` on Slice 79's ports (web 4257, host 4357; the two rigs never run
 together), `.prototype/ux-slice80.json` and the `bfff1c6` baseline in
@@ -227,6 +233,9 @@ complete `chrome-verification.json`. Earlier slices' runtime scripts remain froz
    sees *This project isn’t available*. A nested-project journey checks the root Work tree, Todos, Archive
    and the parent's workstreams in the tree after create, Undo and Redo, then verifies the expired
    creation route has no stale recovery offer.
+   Slice 81's `navigation-tree.spec.ts` drives the one tree: journeys J1–J12 at 1440 by mouse,
+   J1 and J4–J8 at 375 by touch, and J3, J5, J6 and J9 by keyboard. It asserts no "Show project
+   navigation" control exists.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
 7. After every slice, §77: seed, use, try it through MCP, write the friction down.
