@@ -1598,6 +1598,24 @@ describe('Slice 81: the project place for the navigation tree (R2)', () => {
     expect(seen.every((rootId) => rootId === RENOVATION.id)).toBe(true);
   });
 
+  // Step 14 review: the store keeps a missing project's failure until the next load starts, and the
+  // publish effect runs first, so the next project's first frame must read as loading.
+  it('never publishes the next project as missing after a not-found one', async () => {
+    const { harness, router } = await open('/projects/project-nowhere');
+    await settle(harness);
+    expect(placeOf()).toMatchObject({ status: 'missing', missingReason: 'not-found' });
+    const context = TestBed.inject(NavigationContext);
+    const published: string[] = [];
+    const publish = context.publish.bind(context);
+    vi.spyOn(context, 'publish').mockImplementation((place) => { published.push(`${place.projectId}:${place.status}`); publish(place); });
+
+    await router.navigateByUrl('/projects/project-garden');
+    await settle(harness);
+
+    expect(published).not.toContain(`${GARDEN.id}:missing`);
+    expect(published.at(-1)).toBe(`${GARDEN.id}:ready`);
+  });
+
   it('moves the place to the next project, and clears it on leaving for the dashboard', async () => {
     const { harness, router } = await open('/projects/project-cabinets');
     await settle(harness);

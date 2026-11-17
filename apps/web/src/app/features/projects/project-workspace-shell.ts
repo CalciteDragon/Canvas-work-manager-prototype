@@ -391,9 +391,10 @@ export class ProjectWorkspaceShell {
         addBlockedReason: this.workCreateBlocked(),
       };
     }
-    // Missing only once the load has said so. This computed reads a new `projectId` before the
-    // load effect has set `loading`, with the previous project still loaded: that is loading too.
-    const loading = !this.store.missing() && this.store.error() === null;
+    // Missing only once this project's load has said so. This computed reads a new `projectId`
+    // before the load effect has run, with the previous project (or its failure) still in the
+    // store: that is loading too.
+    const loading = this.store.loadedFor() !== projectId || (!this.store.missing() && this.store.error() === null);
     const requested = ProjectPageKindSchema.safeParse(this.pageKind());
     return {
       projectId,
@@ -413,7 +414,7 @@ export class ProjectWorkspaceShell {
 
   constructor() {
     // Slice 81 (R2): the tree follows this route's place. Never cleared here: a re-created shell
-    // replaces it, and `NavigationContext` clears it when a navigation leaves `/projects/`.
+    // replaces it, and `NavigationContext` clears it when a navigation lands on no project route.
     const navigation = inject(NavigationContext);
     effect(() => {
       const place = this.place();

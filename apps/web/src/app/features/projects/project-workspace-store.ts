@@ -111,6 +111,8 @@ export class ProjectWorkspaceStore {
   private progressReadSequence = 0;
   private readonly loadingState = signal(true);
   private readonly missingState = signal(false);
+  /** The project the latest load asked for, so a reader can tell its failure from an earlier one's. */
+  private readonly loadedForState = signal<ProjectId | undefined>(undefined);
   /**
    * The project read's failure, in the product's words (Slice 78). Kept apart from every write
    * failure below. Try again keeps it until the read answers, so the button stays on screen, busy.
@@ -134,6 +136,8 @@ export class ProjectWorkspaceStore {
   readonly ownPages = this.ownPagesState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly missing = this.missingState.asReadonly();
+  /** The id the latest `load` was for: `missing` and `error` describe this project only. */
+  readonly loadedFor = this.loadedForState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly writeError = this.writeErrorState.asReadonly();
   readonly pageWritePending = this.pageWritePendingState.asReadonly();
@@ -303,6 +307,7 @@ export class ProjectWorkspaceStore {
     const current = () => generation === this.loadGeneration;
     const sameProject = this.requestedProjectId === projectId;
     this.requestedProjectId = projectId;
+    this.loadedForState.set(projectId);
     this.projectRefreshQueued = false;
 
     return this.track(async () => {

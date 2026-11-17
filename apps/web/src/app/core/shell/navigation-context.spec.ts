@@ -25,7 +25,7 @@ const ready = (overrides: Partial<ProjectPlace> = {}): ProjectPlace => ({
 
 const setup = async () => {
   TestBed.configureTestingModule({
-    providers: [provideRouter([{ path: 'app', component: Blank }, { path: 'projects/:id', component: Blank }, { path: 'projects/:id/pages/:kind', component: Blank }])],
+    providers: [provideRouter([{ path: 'app', component: Blank }, { path: 'projects/:projectId', component: Blank }, { path: 'projects/:projectId/pages/:pageKind', component: Blank }, { path: '**', component: Blank }])],
   });
   const router = TestBed.inject(Router);
   await router.navigateByUrl('/projects/project-home');
@@ -69,6 +69,15 @@ describe('NavigationContext', () => {
     await router.navigateByUrl('/projects/project-home/pages/todos');
     expect(context.place()).not.toBeNull();
     await router.navigateByUrl('/app');
+    expect(context.place()).toBeNull();
+  });
+
+  // Step 14 review: `/projects/…` URLs that match no project route land on the not-found page.
+  it('clears the place on a /projects/ URL that no project route matches', async () => {
+    const { context, router } = await setup();
+    context.publish(ready());
+
+    await router.navigateByUrl('/projects/project-home/oops');
     expect(context.place()).toBeNull();
   });
 

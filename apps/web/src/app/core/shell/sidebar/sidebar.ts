@@ -181,13 +181,14 @@ export class Sidebar {
       this.placeKey();
       untracked(() => this.upState.set(false));
     });
-    // A loaded place opens its ancestors: the person's own choices stay within a root.
+    // A loaded place opens its ancestors: the person's own choices stay within a root. Keyed, so a
+    // republished place or a refreshed tree (any live write) does not reopen a closed ancestor.
     effect(() => {
-      const place = this.projectPlace();
-      const rootId = this.rootLevel()?.root.id;
-      // A failed load has no root level; the person's choices wait for the retry.
-      if (rootId === undefined) return;
+      const key = this.ancestorsKey();
+      if (key === null) return;
       untracked(() => {
+        const place = this.projectPlace();
+        const rootId = key.rootId;
         const open = new Set(rootId === this.expandedRootId ? this.expanded() : []);
         for (const { id } of place?.status === 'ready' ? place.ancestors : []) open.add(id);
         this.expandedRootId = rootId;
@@ -203,6 +204,18 @@ export class Sidebar {
     host.addEventListener('click', onClick, { capture: true });
     inject(DestroyRef).onDestroy(() => host.removeEventListener('click', onClick, { capture: true }));
   }
+
+  /** Which root and which loaded place the ancestors were opened for; null without a root level. */
+  private readonly ancestorsKey = computed(
+    () => {
+      const rootId = this.rootLevel()?.root.id;
+      // A failed load has no root level; the person's choices wait for the retry.
+      if (rootId === undefined) return null;
+      const place = this.projectPlace();
+      return { rootId, place: place === null ? '' : `${place.projectId}:${place.status}` };
+    },
+    { equal: (a, b) => a?.rootId === b?.rootId && a?.place === b?.place },
+  );
 
   private readonly placeKey = computed(() => {
     const place = this.projectPlace();

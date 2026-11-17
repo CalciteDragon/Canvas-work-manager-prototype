@@ -65,8 +65,16 @@ export interface ProjectPlaceHandlers {
  *
  * **Keyed, not cleared.** `/projects/:id` and `/projects/:id/pages/:kind` are two route configs,
  * so moving between them re-creates the publishing shell. The place is replaced when the new one
- * publishes and cleared only by a `NavigationEnd` outside `/projects/`.
+ * publishes and cleared only by a `NavigationEnd` whose route has no `projectId` (a `/projects/…`
+ * URL that no project route matches is the not-found page, so it clears too).
  */
+/** The activated leaf route is a project route: it carries a `projectId`. */
+const landsOnProject = (router: Router): boolean => {
+  let route = router.routerState.snapshot.root;
+  while (route.firstChild !== null) route = route.firstChild;
+  return route.paramMap.has('projectId');
+};
+
 @Injectable({ providedIn: 'root' })
 export class NavigationContext {
   private readonly placeState = signal<ProjectPlace | null>(null);
@@ -77,11 +85,10 @@ export class NavigationContext {
   readonly hasHandlers = computed(() => this.handlersState() !== null);
 
   constructor() {
-    inject(Router)
-      .events.pipe(takeUntilDestroyed())
-      .subscribe((event) => {
-        if (event instanceof NavigationEnd && !event.urlAfterRedirects.startsWith('/projects/')) this.placeState.set(null);
-      });
+    const router = inject(Router);
+    router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof NavigationEnd && !landsOnProject(router)) this.placeState.set(null);
+    });
   }
 
   /**

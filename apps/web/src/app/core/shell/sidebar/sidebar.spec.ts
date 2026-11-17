@@ -783,6 +783,20 @@ describe('Sidebar — tree interaction (Slice 81, step 5)', () => {
     expect(element.querySelector('[data-nav-work-id="project-cabinets"] a')?.getAttribute('aria-current')).toBe('page');
   });
 
+  // Step 14 review: a republished place or a refreshed tree (any live write) is not a new place,
+  // so an ancestor the person closed stays closed.
+  it('keeps an ancestor closed by hand closed when the same place is republished', async () => {
+    const { fixture, disclosure, settle } = await renderAttached('/projects/project-cabinets', CABINETS_PLACE());
+    disclosure('Kitchen')!.click();
+    await settle();
+    expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('false');
+
+    fixture.componentRef.setInput('projectPlace', CABINETS_PLACE());
+    await settle();
+
+    expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('keeps a workstream opened by hand open across a place change in the same root', async () => {
     const { fixture, disclosure, settle } = await renderAttached('/projects/project-renovation', place());
     disclosure('Kitchen')!.click();
