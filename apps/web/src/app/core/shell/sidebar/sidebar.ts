@@ -205,16 +205,21 @@ export class Sidebar {
     inject(DestroyRef).onDestroy(() => host.removeEventListener('click', onClick, { capture: true }));
   }
 
-  /** Which root and which loaded place the ancestors were opened for; null without a root level. */
+  /**
+   * Which root and which loaded place the ancestors were opened for; null without a root level. A
+   * loading place keeps the last key, so a re-created shell loading the same place again (another
+   * route config of one project) is not a new place.
+   */
   private readonly ancestorsKey = computed(
     () => {
       const rootId = this.rootLevel()?.root.id;
       // A failed load has no root level; the person's choices wait for the retry.
       if (rootId === undefined) return null;
       const place = this.projectPlace();
-      return { rootId, place: place === null ? '' : `${place.projectId}:${place.status}` };
+      return { rootId, place: place === null ? '' : place.projectId, loading: place?.status === 'loading' };
     },
-    { equal: (a, b) => a?.rootId === b?.rootId && a?.place === b?.place },
+    // A held loading key (a direct load's first frame) gives way to its ready place.
+    { equal: (a, b) => a?.rootId === b?.rootId && ((a?.place === b?.place && a?.loading !== true) || b?.loading === true) },
   );
 
   private readonly placeKey = computed(() => {

@@ -597,8 +597,9 @@ const chain = (depth: number): ProjectTreeNode[] => {
   return [node('project-renovation', 'Home renovation', nodes)];
 };
 
-const CABINETS_PLACE = (): ProjectPlace => place({
+const CABINETS_PLACE = (overrides: Partial<ProjectPlace> = {}): ProjectPlace => place({
   projectId: 'project-cabinets' as ProjectId, current: { id: 'project-cabinets' as ProjectId, name: 'Cabinets', status: 'active' }, ancestors: [HOME_RENOVATION, KITCHEN], currentKind: null,
+  ...overrides,
 });
 
 /** Attached, so focus behaves as in a page. */
@@ -791,6 +792,30 @@ describe('Sidebar — tree interaction (Slice 81, step 5)', () => {
     await settle();
     expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('false');
 
+    fixture.componentRef.setInput('projectPlace', CABINETS_PLACE());
+    await settle();
+
+    expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  // Step 14's own review: a re-created shell (another route config of the same project) publishes
+  // loading, then ready; the same place loaded again is not a new place either.
+  it('opens the ancestors when a directly loaded place turns ready', async () => {
+    const { fixture, disclosure, settle } = await renderAttached('/projects/project-cabinets', CABINETS_PLACE({ status: 'loading' }));
+
+    fixture.componentRef.setInput('projectPlace', CABINETS_PLACE());
+    await settle();
+
+    expect(disclosure('Kitchen')!.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('keeps an ancestor closed by hand closed when a re-created shell loads the same place', async () => {
+    const { fixture, disclosure, settle } = await renderAttached('/projects/project-cabinets', CABINETS_PLACE());
+    disclosure('Kitchen')!.click();
+    await settle();
+
+    fixture.componentRef.setInput('projectPlace', CABINETS_PLACE({ status: 'loading' }));
+    await settle();
     fixture.componentRef.setInput('projectPlace', CABINETS_PLACE());
     await settle();
 
