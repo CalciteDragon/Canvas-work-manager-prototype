@@ -98,3 +98,8 @@ built by the slice's later steps (nothing here exists yet):
 - **Pages of a root (Q16 (b)):** only enabled pages; in B only the current root shows its pages, so no
   on-demand read of another root's pages is needed.
 - Details are in the Slice 81 plan's Open questions Q4–Q11, Q14 and Q16.
+
+**Amended, 2026-11-21 (Slice 81, step 14) — built.** B now exists as described above: the sidebar's
+one tree with a top level and a root's level, the chevron and pencil row (the pencil's menu mirrored
+in More), the phone drawer without a visible Close, the breadcrumb, the page `h1`s and titles. The
+project column is gone. Gate 2's sheet is the evidence; real use follows the gate.

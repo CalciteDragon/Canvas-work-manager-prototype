@@ -102,3 +102,7 @@ marked project names its owner. The hidden count includes rows under the group, 
 brings them back. More's status buttons are absent on a marked project, by this entry's rule that a
 control which can only be refused is absent. The project column's "No workstreams yet" is not shown
 on a read-only page, where it would be false under the banner.
+
+**Amended, 2026-11-21 — Slice 81.** The project column, and with it "No workstreams yet", is gone;
+the [navigation tree](2026-10-one-navigation-tree.md) shows no empty-workstreams line at all. The
+read-only rule above is unchanged.

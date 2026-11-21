@@ -431,7 +431,7 @@ for (const device of ['desktop', 'phone'] as const) {
     for (const link of await links.all()) {
       const rest = await link.evaluate((element) => {
         const style = getComputedStyle(element);
-        return { decoration: style.textDecorationLine, background: style.backgroundColor, height: element.getBoundingClientRect().height };
+        return { decoration: style.textDecorationLine, background: style.backgroundColor, height: element.getBoundingClientRect().height, ring: `${style.outlineStyle} ${style.outlineWidth} ${style.boxShadow}` };
       });
       expect(rest.decoration).not.toContain('underline');
       expect(rest.background).not.toBe('rgba(0, 0, 0, 0)');
@@ -445,6 +445,8 @@ for (const device of ['desktop', 'phone'] as const) {
         return { outline: style.outlineStyle, width: parseFloat(style.outlineWidth), shadow: style.boxShadow };
       });
       expect(ring.outline !== 'none' && ring.width > 0 || ring.shadow !== 'none').toBe(true);
+      // Step 14 review: the ring is drawn by focus, not a resting style that would pass anyway.
+      expect(`${ring.outline} ${ring.width}px ${ring.shadow}`).not.toBe(rest.ring);
     }
     if (device === 'desktop') {
       const underlined = await navTree(page).evaluate((root) => [...root.querySelectorAll('a')].filter((item) => getComputedStyle(item).textDecorationLine.includes('underline')).length);
@@ -501,7 +503,6 @@ for (const input of ['mouse', 'touch', 'keyboard'] as const) {
       await page.goto(url);
       await expect(heading(page)).toBeVisible();
       for (const from of ['pencil', 'more'] as const) {
-        if (url === '/projects/project-legacy-child' && from === 'more') continue;
         await openAdd(page, from, input);
         await expect(parentOf(page), `${url} ${from}`).toHaveValue(parent);
         await page.keyboard.press('Escape');
@@ -704,6 +705,12 @@ test('J9 (keyboard): Tab runs chevron, pencil, root, pages, then each workstream
   expect(visited[0]).toContain('data-nav-up');
   expect(visited[1]).toContain('data-edit-project');
   expect(visited[2]).toContain('data-nav-root');
+  // Step 14 review: the walk names its stops, so a missing page link or disclosure fails.
+  const count = (marker: string) => stops.filter((stop) => stop.includes(marker)).length;
+  expect(stops.filter((stop) => /data-nav-root(?!-)/.test(stop))).toHaveLength(1);
+  expect(count('data-nav-page')).toBeGreaterThanOrEqual(1);
+  expect(count('data-nav-disclosure')).toBe(2);
+  for (const id of ['project-kitchen', 'project-cabinets', 'project-garden']) expect(stops.some((stop) => stop.includes(`/projects/${id}"`))).toBe(true);
 
   const garden = page.locator('app-sidebar li[data-nav-work-id="project-garden"] > .tree-row > [data-nav-disclosure]');
   await expect(garden).toHaveAttribute('aria-expanded', 'false');

@@ -41,8 +41,8 @@ Archive-label revision; both entries record acceptance.
 | Entry | Settled | Status |
 |---|---|---|
 | [A failure speaks product words, keeps its reason under Details, and offers Try again for a read](2026-10-failures-speak-product-words.md) | One `Failure` shape and sentence by code; reason under Details; Try again repeats only the read, kept busy while it runs; read and write failures apart; no false empty; the polite sidebar; the digest fails alone | amended; Slice 79 adds the empty and archived variants and the late archive refusal's sentence, and moves a toast's Details behind View details; Slice 80 rewords the late archive refusal |
-| [Connecting an agent becomes a product surface in Settings › AI & Agents](2026-10-agent-connections-are-a-product-surface.md) | The five S1 findings; its own cross-system slice within §80 | current (Slice 70 Gate 1) |
-| [Prototype scaffolding stays visible during the redesign](2026-10-prototype-scaffolding-stays-for-now.md) | TH12 is restyled, not removed; its findings stay open | current (Slice 70 Gate 1) |
+| [Connecting an agent becomes a product surface in Settings › AI & Agents](2026-10-agent-connections-are-a-product-surface.md) | The five S1 findings; its own cross-system slice within §80 | current (built in Slice 81) |
+| [Prototype scaffolding stays visible during the redesign](2026-10-prototype-scaffolding-stays-for-now.md) | TH12 is restyled, not removed; its findings stay open | current (built in Slice 81) |
 | [Prototype data is disposable until further notice; working seeds are what must survive](2026-10-prototype-data-is-disposable.md) | No converters for local data; update seeds and refuse old files with a reset hint | amended; Slice 66 |
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
@@ -174,11 +174,11 @@ Archive-label revision; both entries record acceptance.
 
 | Entry | Settled | Status |
 |---|---|---|
-| [The redesign follows direction B, Depth, held to the eight principles and the glass constraints](2026-10-frosted-glass-depth-direction.md) | Depth aesthetic; principles and AA win where they conflict; blur budget settled by a spike | current (Slice 70 Gate 1) |
+| [The redesign follows direction B, Depth, held to the eight principles and the glass constraints](2026-10-frosted-glass-depth-direction.md) | Depth aesthetic; principles and AA win where they conflict; blur budget settled by a spike | current (built in Slice 81) |
 | [Depth blurs panes and leaves translucent sheets unblurred](2026-10-depth-blur-budget.md) | V2 chosen after the 90-run spike; pane blur, no per-sheet blur | current (Slice 71 checkpoint) |
 | [The theme follows the device preference, and an explicit choice persists](2026-10-theme-follows-device-and-persists.md) | prefers-color-scheme by default; explicit choice in localStorage; Match device in Settings and panel; no persona seeding | amended (Slice 71) |
-| [The accent stays orange in dark and blue in light](2026-10-accents-stay-split-per-theme.md) | Split accents kept; state cues by shape (principle 4) | current (Slice 70 Gate 1) |
-| [Navigation condenses into one tree](2026-10-one-navigation-tree.md) | One hierarchy with root pages and workstreams; one current marker; shell-layer slice | current (Slice 70 Gate 1) |
+| [The accent stays orange in dark and blue in light](2026-10-accents-stay-split-per-theme.md) | Split accents kept; state cues by shape (principle 4) | current (built in Slice 81) |
+| [Navigation condenses into one tree](2026-10-one-navigation-tree.md) | One hierarchy with root pages and workstreams; one current marker; shell-layer slice | current (built in Slice 81) |
 | [The navigation tree reads project place from a context the project route publishes](2026-11-navigation-reads-project-place-from-a-context.md) | `NavigationContext` keyed, not cleared; handlers, not signals; `nestedProjects` off hides work under roots | current (Slice 81); amended at step 6: the project shell registers handlers |
 | [Titles name the place most specific first, the h1 names the current page, and a skip link leads into main](2026-11-document-titles-and-skip-link.md) | "Todos · Home renovation · Canvas Work Manager"; header `h1` names the page (§26 corrected); Skip to content; one `main` | current (Slice 81, Q6 (a), (i)) |
 | [A root's first page is named by its project, never "Home"](2026-11-a-root-first-page-is-named-by-its-project.md) | No Home row; notices, origin paths, restore toasts and shortcut sources use the project's name | current (Slice 81, Q5 (d)) |

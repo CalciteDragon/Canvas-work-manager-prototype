@@ -1457,10 +1457,11 @@ pages are listed and toggled through `ProjectPageService`, `GET`/`PATCH
 "Defaulting to Home only" is the literal stored state: an optional page's record is created by
 its first enable, and disabling one writes a single boolean and keeps everything on it
 ([why](docs/decisions/2026-09-optional-pages-are-created-on-first-enable.md)). Slice 25.3 added the
-**navigation**: §23's second column, §68's two routes, and the renderer behind Home and a
-sub-project's work canvas. Slice 25.5 added Todos (§34), Slice 25.6 added Archive (§31), and
-Slice 25.7 added Reflections (§36). A page kind without a renderer is still not advertised in the
-column and a URL pointing at it falls back to Home saying it is not built yet. A sub-project's
+**navigation**: §23's second column (since Slice 81, the one navigation tree), §68's two routes,
+and the renderer behind Home and a sub-project's work canvas. Slice 25.5 added Todos (§34), Slice
+25.6 added Archive (§31), and Slice 25.7 added Reflections (§36). A page kind without a renderer is
+still not advertised in the navigation tree and a URL pointing at it falls back to Home saying it is
+not built yet. A sub-project's
 `/pages/…` URL is refused the same way, because it has no pages to name.
 
 Slice 25.5 adds a **fragment** to both project routes — `#section-<id>` — so §34's Todos rows can
@@ -2007,8 +2008,9 @@ shown. **Open archive** in More and recovery toasts navigates directly and write
 page-settings switch controls navigation visibility only; a hidden Archive remains listed while
 it is current. A workstream's page URL still redirects to that workstream's canonical canvas.
 
-*Landed in Slice 27.* The secondary navigation column has no Open archive button; the project's
-More menu is the single recovery entry point from root and nested work routes.
+*Landed in Slice 27.* The navigation (the secondary column then, the one tree since Slice 81) has no
+Open archive button; the project's More menu is the single recovery entry point from root and nested
+work routes.
 
 *Landed in Slice 29, amended in Slice 43: Archive lists **recoverable content**, not every section tombstone.* A
 removed or hidden section is listed only when something in it remains to recover: a Task List

@@ -42,3 +42,7 @@ may justify a later addition.
 **Revisit when**
 
 People need status or dates while scanning Work, or need the hierarchy placed on a canvas.
+
+**Amended, 2026-11-21 — Slice 81.** The project column is gone. Workstreams are navigated in the
+[one navigation tree](2026-10-one-navigation-tree.md) and created from its pencil ("Edit project")
+menu or the header's More menu; the rest of this entry stands.

@@ -114,7 +114,7 @@ Each HTML source has its corresponding component TypeScript file unless noted.
 | [ ] | Dashboard widgets | `features/dashboard/widgets/registry.ts`; child folders `today/`, `upcoming/`, `active-projects/`, `recent-progress/`, `daily-digest/`, `fun-fact/`, `recent-agent-activity/`; `widget-frame/dashboard-widget-frame.html` | Seven implementations: Today, Upcoming, Active Projects, Recent Progress, Daily Digest, Fun Fact, Recent Agent Activity. Empty/populated/dense content as applicable; widget size variants. Calendar and work-summary types render unavailable fallback. |
 | [ ] | `/projects/:projectId` and `/projects/:projectId/pages/:pageKind` workspace | `features/projects/project-workspace-shell.html`, `features/projects/project-page-registry.ts` | Root defaults Home; workstream resolves sole Work canvas. Loading/error/missing; navigation lazy-load placeholder/failure; unknown/disabled page fallback notice; enable-disabled-page action; missing canonical page unavailable; workstream page URL redirect. |
 | [ ] | Project header and More menu | `features/projects/project-header.html`, `features/projects/project-more-menu.html` | Root/workstream labels; optional description/date; progress absent/zero/positive; completed/archived; More open; rename/description/status/date editing; inline archive confirmation; write error; Archive opening retry. |
-| [ ] | Project navigation and page settings panel | `features/projects/project-page-navigation.html`, `features/projects/project-work-item.ts` | Expanded/collapsed; Home only/all optional pages; active page/workstream; nested breadcrumbs/tree; no workstreams; settings open; saving/refusal/refresh retry; archived root/Add workstream blocked. Nested seed supplies hierarchy. |
+| [ ] | Navigation tree, pencil menu, page settings and breadcrumb (Slice 81) | `core/shell/sidebar/sidebar.html`, `core/shell/sidebar/edit-project-menu.html`, `features/projects/page-settings-popover.html`, `shared/components/breadcrumb/breadcrumb.html` | Top level and a root's level; current page/location marker; workstream disclosures and depth cap; archived current and archived ancestor; pencil menu and More's mirrored items; page settings open, saving/refusal/retry; Add workstream blocked on an archived root; breadcrumb path and inline origin variant. Nested seed supplies hierarchy. |
 | [ ] | Project history controls and feedback | `features/projects/history/project-history-controls.html`, `features/projects/history/project-history-feedback.ts` | Nothing available; undo/redo/both; saving/loading/unavailable/retry; blocked archived ancestor; successful/refused transition; conflict lines; other-owner Open link; dismiss. Writes, undo/redo and `#history-controls`. |
 | [ ] | Creation-undone recovery | `features/projects/project-workspace-shell.html` | Missing project with captured creation; Redo available/pending/blocked by ancestor; history retry/feedback. Create then undo, or story fixture. |
 | [ ] | Home and workstream Work canvases | `features/projects/project-canvas.html` | Empty/populated/dense; flow/grid; loading/error; section write error; partial placement-order notice; missing deep-link target; selected/focused target; drag/drop, keyboard movement, resizing and insertion points; unknown section fallback. |
@@ -153,13 +153,14 @@ Relative to `apps/web/src/app/`:
 
 ```text
 shared/components/markdown-renderer/markdown-renderer.stories.ts
+shared/components/breadcrumb/breadcrumb.stories.ts
+core/shell/sidebar/sidebar.stories.ts
 features/tasks/task-row.stories.ts
 features/settings/archived-projects/archived-projects-page.stories.ts
 features/projects/work-create-dialog.stories.ts
 features/projects/shortcuts/shortcut-picker.stories.ts
 features/projects/shortcuts/shortcut-frame.stories.ts
 features/projects/project-canvas.stories.ts
-features/projects/project-page-navigation.stories.ts
 features/projects/project-creation-recovery.stories.ts
 features/projects/section-create-dialog.stories.ts
 features/projects/section-recovery-notice.stories.ts
