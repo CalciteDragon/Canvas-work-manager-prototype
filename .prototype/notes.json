@@ -1517,6 +1517,54 @@
       "projectId": "project-kitchen",
       "slice": 80,
       "note": "Slice 80 real use, seen in passing: a workstream created through the API with no icon (\"Late drawers\" under Kitchen) is drawn in the main sidebar with no icon and its name at 52 px, left of its parent Kitchen's name (65 px) and its sibling Cabinets' (81 px), so it reads as a sibling of Kitchen, not its child. The project navigation gives the same row a 🧩 fallback and the right indent. Predates Slice 80; the web cannot create an icon-less workstream, so only API and MCP callers meet it."
+    },
+    {
+      "id": "note-2026-11-24-001",
+      "createdAt": "2026-11-24T17:01:00.000Z",
+      "route": "/projects/project-legacy-child",
+      "projectId": "project-legacy-child",
+      "slice": 81,
+      "note": "Slice 81 real use (375 touch, nested-projects, drawer open on Legacy shelving or Legacy attic): the archived Legacy attic row broke its name inside a word, \"Lega / cy / attic\", because the rigid \"Archived\" mark and the 44 px disclosure squeezed the name below its longest word (overflow-wrap: anywhere). Fixed in 18efc35: the mark sits inside the name's text, so the row reads \"Legacy attic / Archived\"; J8 now checks that no word of the row is split across lines."
+    },
+    {
+      "id": "note-2026-11-24-002",
+      "createdAt": "2026-11-24T17:02:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 81,
+      "note": "Slice 81 real use (1440 and 375, nested-projects): on Kitchen, Kitchen's own workstreams are collapsed (only the current item's ancestors open, Q4 (a)), so Cabinets is one click away and a workstream an agent adds under Kitchen by MCP create_project arrives in the tree from the live frame (~30 ms, no reload) but stays hidden until Show Kitchen's workstreams is pressed. Worth a look in the comb: should the current item open its own children?"
+    },
+    {
+      "id": "note-2026-11-24-003",
+      "createdAt": "2026-11-24T17:03:00.000Z",
+      "route": "/projects/project-legacy",
+      "projectId": "project-legacy",
+      "slice": 81,
+      "note": "Slice 81 real use (nested-projects): Legacy shelving, live under the archived Legacy attic, cannot be reached from the tree or from Legacy attic's page (its row has no children while the attic is current); it was reached only by URL. Expected under Q11 (a) and the domain read, which drops live work under an archived ancestor, but it reads like a lost workstream. For the comb list."
+    },
+    {
+      "id": "note-2026-11-24-004",
+      "createdAt": "2026-11-24T17:04:00.000Z",
+      "route": "/projects/project-cabinets",
+      "projectId": null,
+      "slice": 81,
+      "note": "Slice 81 real use (1440 keyboard, nested-projects): after header Undo of a creation (\"Creation undone\") and after header Redo there, focus falls to <body>; the next Tab starts at Skip to content. The same happens on the pre-slice build (slice81-baseline-web), so it predates Slice 81. For the comb list (route-focus-lands-lost-focus territory)."
+    },
+    {
+      "id": "note-2026-11-24-005",
+      "createdAt": "2026-11-24T17:05:00.000Z",
+      "route": "/projects/project-course/pages/archive",
+      "projectId": "project-course",
+      "slice": 81,
+      "note": "Slice 81 real use (busy-week, all three modes): the project Archive page counts one entry as \"1 items\" (archive-page.html). Predates Slice 81. For the comb list."
+    },
+    {
+      "id": "note-2026-11-24-006",
+      "createdAt": "2026-11-24T17:06:00.000Z",
+      "route": "/projects/project-cabinets",
+      "projectId": "project-cabinets",
+      "slice": 81,
+      "note": "Slice 81 real use (375 touch, iPhone 13 emulation at 375x812): header.project-header measured 202 px tall on Cabinets (top 72, bottom 274), Kitchen and root Todos 178 (bottom 250), the root 136 (bottom 208). Open question 20 was answered (a), height check; the end edges recorded at step 12 (Cabinets ~290, Todos ~267, root ~225) came from a different measurement of the header's start (89 px) and are the figures in the Outcome. No action; recorded so the comb measures one way."
     }
   ]
 }

@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign: evidence and direction through Gate 1 (done), then the redesign slices in layer order until the protocol's stop rule | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 81 | Slice 81 — One navigation tree | Redesign slice 7: the global sidebar and the project column become one navigation tree with one you-are-here, one phone pattern, breadcrumbs, document titles, a skip link and Add workstream from the open work | [81-one-navigation-tree.md](active/81-one-navigation-tree.md) |
 
 ### Planned
 
@@ -120,4 +119,5 @@ verification follow-ups rather than feature slices.
 | 78 | Slice 78 — States: failures and loading | 2026-11-01 | Redesign slice 6b-1 (TH10): one failure form in product words with Try again, no false empty or loading states, the digest fails alone, not-found and no-access lead back, off-screen failures pin, focus returns to the recovered heading; Gate 2 accepted | [78-failures-and-loading.md](completed/78-failures-and-loading.md) |
 | 79 | Slice 79 — States: empty, archived and editing | 2026-11-05 | Redesign slice 6b-2 (TH10): first-run block on an empty workspace, archived pages read-only with restore in place and hidden counts, archive refusal said first, the digest's overdue tasks, Markdown drafts kept, Task List count, short toasts with View details; Gate 2 accepted | [79-empty-archived-and-editing.md](completed/79-empty-archived-and-editing.md) |
 | 80 | Slice 80 — Cascading project archive | 2026-11-09 | Archive a project with its named live workstreams in one confirmed step, marked with their statuses; every restore, Undo and Redo moves exactly that group; the web, MCP and history agree; real use on nested-projects found no defect; Gate 2 accepted | [80-cascading-project-archive.md](completed/80-cascading-project-archive.md) |
+| 81 | Slice 81 — One navigation tree | 2026-11-24 | One sidebar tree replaces the project column, with one current item, a back-chevron and a pencil menu (page settings, Add workstream, also in More); the phone has one Menu and a drawer with no Close; breadcrumbs, document titles, a skip link and one h1; 932.25 kB under the unchanged 1,150 kB ceiling; T08 +1 accepted, T10 the known dead end, Open question 20 (a); real use on nested-projects and busy-week in three modes plus MCP fixed one defect; Gate 2 accepted | [81-one-navigation-tree.md](completed/81-one-navigation-tree.md) |
 <!-- roadmap:end -->

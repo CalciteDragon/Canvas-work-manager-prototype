@@ -58,4 +58,4 @@ pencil "Edit project" menu ("Pages of <root>…") and from the header's More, ro
 page of the root. The controls, confirmed-state writes and Home/Work scope are unchanged; Escape or a
 navigation returns focus to the menu's button (Menu, from the phone drawer), and a light dismiss
 leaves focus where it was put. See [navigation controls](2026-09-project-navigation-gear-and-work-create.md)
-and the [plan](../roadmap/active/81-one-navigation-tree.md).
+and the [plan](../roadmap/completed/81-one-navigation-tree.md).

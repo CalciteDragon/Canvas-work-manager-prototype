@@ -85,4 +85,4 @@ place the project shell publishes ([decision](2026-11-navigation-reads-project-p
 The workspace is one grid track: header, notice, renderer. The ownership reasoning above still
 holds in that shape — the root's pages and work are the project route's state, not `ShellStore`'s —
 and the full-bleed attribute stays. Brought forward from step 8 by the user's 2026-11-13 decision
-([plan](../roadmap/active/81-one-navigation-tree.md), Open question 18 (a)).
+([plan](../roadmap/completed/81-one-navigation-tree.md), Open question 18 (a)).

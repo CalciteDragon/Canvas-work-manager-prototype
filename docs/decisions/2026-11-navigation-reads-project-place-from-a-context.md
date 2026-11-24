@@ -66,4 +66,4 @@ registers `{ openPageSettings, openAddWorkstream }` and disposes them on destroy
 closes it, focuses Menu and calls with no source and Menu as return. The header's More calls the
 context directly (`ProjectHeader.requestTreeAction`, a feature → core edge), with More as source
 and return; `ProjectMoreMenu` reads the root's name and Add workstream's blocked reason from
-`place()`. No pass-through inputs were added ([plan](../roadmap/active/81-one-navigation-tree.md)).
+`place()`. No pass-through inputs were added ([plan](../roadmap/completed/81-one-navigation-tree.md)).

@@ -119,7 +119,7 @@ Project column rule above: no narrow re-collapse, no toggle focus hand-off, no
 `ProjectColumnFocusRequest` (the Archive landing it also held is now `ArchiveFocusRequest`). A
 §68 redirect of a tree link leaves focus on the pressed link. The drawer's pencil opens page
 settings and Add workstream by closing the drawer, focusing Menu and opening the lift with Menu as
-its return ([plan](../roadmap/active/81-one-navigation-tree.md)).
+its return ([plan](../roadmap/completed/81-one-navigation-tree.md)).
 
 **Amended, 2026-11-14 (Slice 81, step 9).** The drawer has **no visible Close** (the user's
 decision 4 at the pick, 2026-11-10). Its top row is the tree's action row — the chevron at the
@@ -134,4 +134,4 @@ answers Slice 73's deferral, "the navigation drawer as a lift": it takes the lif
 shadow and entrance motion, and keeps its own focus rules and its `--z-navigation` layer above
 `--z-lift`. The "768 px tablet keeps the inline sidebar" sentence above was always wrong: the
 query is `max-width: 48rem`, which includes 768 px, so a 768 px viewport gets the drawer. The
-rules of this entry otherwise stand ([plan](../roadmap/active/81-one-navigation-tree.md)).
+rules of this entry otherwise stand ([plan](../roadmap/completed/81-one-navigation-tree.md)).

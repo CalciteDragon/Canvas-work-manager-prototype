@@ -9,7 +9,7 @@ the [decision](../../../decisions/2026-10-one-navigation-tree.md)'s 2026-11-10 a
 plan's R1 outcome.
 
 This is the committed summary of Slice 81's step 2
-([plan](../../active/81-one-navigation-tree.md), R1). It compares three live specimens of the
+([plan](../../completed/81-one-navigation-tree.md), R1). It compares three live specimens of the
 [one navigation tree](../../../decisions/2026-10-one-navigation-tree.md) and recommends one. The
 recommendation was the developer's; the user overruled it. Step 3 deleted the specimens, their rig
 and the sheet builder; they remain in the history at `ea12164`.

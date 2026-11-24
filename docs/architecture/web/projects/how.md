@@ -89,7 +89,7 @@ route moved, stays put. A create answering after the person left moves nothing; 
 the shell spec a held history transition keeps a pending task, so navigate and answer it before
 `settle()`. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
 Both lifts stay out of the initial bundle, which is measured against its ceiling in the
-[Slice 81 plan](../../../roadmap/active/81-one-navigation-tree.md). The workspace is one grid
+[Slice 81 plan](../../../roadmap/completed/81-one-navigation-tree.md). The workspace is one grid
 track: header, notice, renderer.
 
 Todos task checkboxes complete or reopen to `todo` through the canonical task gateway. Reopen

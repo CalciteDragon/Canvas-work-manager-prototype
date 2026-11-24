@@ -404,23 +404,23 @@ it.
   by touch, and through a real MCP client. It found no defect and changed no code. Its wording points are
   comb items 12–17 below; two more predate the slice and are in its Outcome.
 
-**Active: [Slice 81, one navigation tree](81-one-navigation-tree.md) (redesign slice 7; the user's choice,
-2026-11-09).** The user chose redesign slice 7 next, which supersedes the earlier "8 before 7" order (see
-"Answered after Gate 1"). The §8 comb and redesign slice 8 stay pending, in that order unless the user says otherwise.
-- **State.** The plan was reviewed in six cold rounds and **accepted by the user on 2026-11-09**, with answers to
-  Q1 (a), Q2 (a), Q3 (a), Q12 (a), Q13 (b) and Q15 (a). Steps 0–3 are done: the user picked **alternative B**
-  (a focused tree that drills in, with a pencil "Edit project" menu and themed controls) on 2026-11-10; next is
-  step 4. See the plan's State header.
-- **Scope** (Q1 (a)): 42 findings closed and 1 advanced from TH11, TH13 and TH15's
-  Add-workstream and gear part, plus 3 TH02 marker findings and 4 carried items. That includes comb item 1. The
-  six TH13 content-layout findings go to a follow-on slice 81.1.
-- **Shape.** Steps 1–2 build three live shell alternatives behind a lazy prototype route, with a comparison
-  sheet; the user picked B (the root's own level inside a project, "‹ All projects" as a back-chevron, page
-  settings and Add workstream in a pencil menu and in More, no Close in the phone drawer).
-- **Answered before step 0** (2026-11-09): Q1, Q2, Q3, Q12, Q13 (b: Undo from a new workstream's toast returns
-  to its parent) and Q15. Q4–Q11, Q14 and Q16 were answered at the pick (2026-11-10, B).
-- **Bundle:** 1,139.28 kB at the plan's start, with the ceiling unchanged at 1,150 kB. Q12 (a) pre-approves lazy
-  `/settings`, then lazy `/search`, as payment if a build would end above 1,148 kB.
+**Slice 81 completed — Gate 2 accepted (2026-11-24).** [One navigation tree](../completed/81-one-navigation-tree.md),
+redesign slice 7 (the user's choice, 2026-11-09; alternative B picked 2026-11-10).
+- **What changed.** The project column is gone. The sidebar holds one tree with one current item, a back-chevron
+  and a pencil "Edit project" menu (page settings, Add workstream, both also in More). The phone has one Menu and a
+  drawer with no Close. The header has a themed breadcrumb, and pages have document titles, a skip link and one `h1`.
+- **Bundle:** 932.25 kB initial, with the ceiling unchanged at 1,150 kB (the bundle audit paid for it).
+- **Accepted:** T08 +1 click; T10's dead end, which predates the slice; Open question 20 (a), the phone header
+  checked by height.
+- **Real use (step 15, 2026-11-24).** It ran on `nested-projects` and `busy-week` at 1440 mouse, 1440 keyboard and
+  375 touch, plus MCP `create_project` under Kitchen (the live frame refreshed the tree). One defect fixed
+  (`18efc35`: an archived row's name broke inside a word in the drawer). Comb items 18–22 below.
+- **Queued:** Slice 81.1, the six TH13 content-layout findings.
+
+**Next: the protocol §8 comb**, then redesign slice 8 (agent connections), in that order unless the user says
+otherwise. The comb is a full re-capture, the core-task scripts, a fresh comb with new auditors, theme
+re-prioritisation, Gate 3 if the direction needs amending, and the comb list below. It has no plan yet; a plan
+session writes it.
 
 ### §8 comb list
 
@@ -473,8 +473,21 @@ Added by Slice 80's real use (2026-11-09; nothing broken, all reads wrong):
 
 Item 4 ("Go to it" and "Open it") was met again in Slice 80's real use (`note-2026-11-09-006`).
 
-Item 1 is now partly closed: Slice 80 (Q6 (a)) drops "No workstreams yet" on a read-only page. Slice 81 plans to close the rest: the one tree draws no empty sentence under a root. A live
-root whose only workstreams are archived still says it.
+Item 1 is closed: Slice 80 (Q6 (a)) dropped "No workstreams yet" on a read-only page, and Slice 81's one tree
+draws no empty sentence under a root.
+
+Added by Slice 81's real use (2026-11-24; one defect fixed there, these left for the comb):
+
+18. On the current item, its own workstreams stay collapsed (only ancestors open, Q4 (a)). Cabinets is a
+    click away on Kitchen, and a workstream an agent adds under Kitchen arrives from the live frame but
+    stays hidden (`note-2026-11-24-002`).
+19. Legacy shelving, live under the archived Legacy attic, cannot be reached from the tree or the attic's
+    page, only by URL (`note-2026-11-24-003`).
+20. Focus falls to `body` after header Undo or Redo of a creation ("Creation undone"). This predates Slice 81
+    (`note-2026-11-24-004`).
+21. Archive counts one entry as "1 items" (`note-2026-11-24-005`).
+22. The phone header's end edge (Open question 20, answered (a) for Slice 81). It ends at about 290 px on
+    Cabinets, 267 on Todos and 225 on a root at 375 (`note-2026-11-24-006`). Only if the comb wants it.
 
 ### Redesign slice 6b (States) — planning brief
 
@@ -583,7 +596,7 @@ decision.
 ### Answered after Gate 1 (2026-10-14)
 
 - **Creation defaults.** The interpretation is confirmed: Parent defaults to the open workstream. A newly created workstream also opens itself.
-- **Agent connections** move ahead of the navigation-tree slice, so the order becomes 1–6, then 8, then 7, then 9. *Superseded 2026-11-09:* the user chose redesign slice 7 ([Slice 81](81-one-navigation-tree.md)) next, then the §8 comb, then slice 8.
+- **Agent connections** move ahead of the navigation-tree slice, so the order becomes 1–6, then 8, then 7, then 9. *Superseded 2026-11-09:* the user chose redesign slice 7 ([Slice 81](../completed/81-one-navigation-tree.md)) next, then the §8 comb, then slice 8.
 - **Comb after the patterns layer (answered 2026-10-25).** The protocol §8 re-capture and fresh comb run after 6b closes and before agent connections.
 - **Contrast.** The user accepted Depth's demo tints. Worst-case AA is reported on every sheet but no longer gates the work. The fallbacks and principles 4–5 still hold ([decision](../../decisions/2026-10-frosted-glass-depth-direction.md)).
 
