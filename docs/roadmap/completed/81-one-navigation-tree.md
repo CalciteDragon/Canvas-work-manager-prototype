@@ -1905,7 +1905,9 @@ with the production build served on 4261. Headless Chromium was driven by Playwr
   frame in about 30 ms, with no reload.
 - **Result.** One defect, fixed test first in `18efc35`: in the drawer, the archived Legacy attic row broke its name
   inside a word ("Lega / cy attic"). The "Archived" mark now sits inside the name's text, and J8 checks that no word
-  splits. No console errors. Notes `note-2026-11-24-001` to `-006` are in `.prototype/notes.json`. Apart from the
+  splits. After the fix, `navigation-tree`, `phone-layout` and `work-navigation` were re-run (63 tests). One load
+  hang (`navigation-tree.spec.ts:163`, forced colours, 6 min) passed alone in 1.5 s. The rest of Acceptance item 3's
+  list and the full `pnpm e2e` were not re-run after this fix: they last passed at step 14. No console errors. Notes `note-2026-11-24-001` to `-006` are in `.prototype/notes.json`. Apart from the
   fixed one, they predate the slice or follow answered choices, and they join the comb list.
 - **Header (Open question 20 (a)).** J7 stays a height check (`header.project-header` at most 203 px). The end edges
   at 375 recorded at step 12 are about **290 px on Cabinets, 267 on Todos and 225 on a root page**. This rig measured
