@@ -160,8 +160,10 @@ unchanged 1,150 kB ceiling. Real use across both seeds, three input modes and MC
 slice. What else it surfaced joins the [§8 comb list](active/70-ui-ux-overhaul.md#8-comb-list) as items 18–22.
 Slice 81.1, the six TH13 content-layout findings, stays queued.
 
-**Next — the protocol §8 comb**, then redesign slice 8 (agent connections), in that order unless the user says
-otherwise. See the umbrella's [handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
+**Active — [Slice 82, the protocol §8 comb](active/82-overhaul-comb.md)** (started 2026-11-24), then redesign slice 8
+(agent connections), in that order unless the user says otherwise. The comb's plan is written and reviewed and awaits
+the user's acceptance and answers; nothing is implemented. See the umbrella's
+[handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes
 after the Markdown and work navigation direction; both are now resolved:

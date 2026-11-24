@@ -417,10 +417,10 @@ redesign slice 7 (the user's choice, 2026-11-09; alternative B picked 2026-11-10
   (`18efc35`: an archived row's name broke inside a word in the drawer). Comb items 18–22 below.
 - **Queued:** Slice 81.1, the six TH13 content-layout findings.
 
-**Next: the protocol §8 comb**, then redesign slice 8 (agent connections), in that order unless the user says
-otherwise. The comb is a full re-capture, the core-task scripts, a fresh comb with new auditors, theme
-re-prioritisation, Gate 3 if the direction needs amending, and the comb list below. It has no plan yet; a plan
-session writes it.
+**Active: [Slice 82, the protocol §8 comb](82-overhaul-comb.md)** (started 2026-11-24), then redesign slice 8
+(agent connections), in that order unless the user says otherwise. The comb is a full re-capture, the core-task
+scripts, a fresh comb with new auditors, theme re-prioritisation, Gate 3, and the comb list below. Its plan is
+written and reviewed and **awaits the user's acceptance and answers to its Open questions**; nothing is implemented.
 
 ### §8 comb list
 
