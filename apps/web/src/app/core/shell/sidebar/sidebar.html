@@ -26,10 +26,8 @@
           [attr.aria-current]="level.rootCurrent ? 'page' : null"
         >
           <span aria-hidden="true">{{ level.root.icon ?? '📁' }}</span>
-          <span class="name">{{ level.root.name }}</span>
-          @if (level.root.status === 'archived') {
-            <!-- The leading space keeps the name "Legacy attic Archived", not one word. --><span> Archived</span>
-          }
+          <!-- The mark flows with the name's words, so a narrow row wraps between words, not inside one. -->
+          <span class="name">{{ level.root.name }}@if (level.root.status === 'archived') {<!-- The leading space keeps the name "Legacy attic Archived", not one word. --><span class="tree-mark"> Archived</span>}</span>
         </a>
         @if (level.pages.length > 0) {
           <ul class="tree-children">
@@ -146,10 +144,7 @@
                   @if (root.icon) {
                     <span aria-hidden="true">{{ root.icon }}</span>
                   }
-                  <span class="name">{{ root.name }}</span>
-                  @if (root.archived) {
-                    <span> Archived</span>
-                  }
+                  <span class="name">{{ root.name }}@if (root.archived) {<span class="tree-mark"> Archived</span>}</span>
                 </a>
               </li>
             }

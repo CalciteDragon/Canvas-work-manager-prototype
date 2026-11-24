@@ -74,7 +74,8 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    `.icon-button--sm`; a `popovertarget` menu without `position-anchor: auto` falls to the viewport
    corner (step 1's probe); measure every addition to the initial bundle.
    `navigation-tree.spec.ts` checks underlines, tooltips, sizes (32 and 44 px), the archived
-   colour by axe, and forced-colours borders.
+   colour by axe, that the archived row's name breaks only between words in the drawer, and
+   forced-colours borders.
 6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
    `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
    (`#shell-navigation`, CDK focus trap, backdrop) and inerts the top bar and `<main>`. It has no

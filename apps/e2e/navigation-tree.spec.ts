@@ -297,6 +297,22 @@ const open = async (browser: import('@playwright/test').Browser, device: Device)
   return { context, page: await context.newPage() };
 };
 
+/** The words of a link's text that are drawn on more than one line, i.e. broken inside the word. */
+const wordsSplitAcrossLines = (link: Locator): Promise<string[]> =>
+  link.evaluate((element) => {
+    const split: string[] = [];
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      for (const match of (node.textContent ?? '').matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        if (new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size > 1) split.push(match[0]);
+      }
+    }
+    return split;
+  });
+
 const navTree = (page: Page) => page.getByRole('navigation', { name: 'Workspace' });
 const drawer = (page: Page) => page.locator('#shell-navigation');
 const menuButton = (page: Page) => page.getByRole('button', { name: 'Menu', exact: true });
@@ -665,6 +681,8 @@ for (const device of ['desktop', 'phone'] as const) {
       await expect(navTree(page).locator('[aria-current="page"]')).toHaveAccessibleName(/^Legacy shelving/);
       const attic = page.locator('app-sidebar li[data-nav-work-id="project-legacy"]');
       await expect(attic.locator(':scope > .tree-row > a')).toHaveAccessibleName('Legacy attic Archived');
+      // Real use (step 15): beside its mark and disclosure in the drawer, the name broke inside a word ("Lega|cy").
+      expect(await wordsSplitAcrossLines(attic.locator(':scope > .tree-row > a')), theme).toEqual([]);
       await expect(attic.locator('li[data-nav-work-id="project-legacy-child"]')).toHaveCount(1);
       expect((await new AxeBuilder({ page }).include(scope()).withRules(['color-contrast']).analyze()).violations, theme).toEqual([]);
       if (device === 'phone') await page.keyboard.press('Escape');

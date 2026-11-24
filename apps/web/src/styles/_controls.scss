@@ -704,6 +704,11 @@ button.link {
   color: var(--color-text-muted);
 }
 
+// The "Archived" mark sits inside the name's text, so it wraps with the name's words (step 15).
+.tree-mark {
+  margin-inline-start: var(--space-1);
+}
+
 // A workstream's link and its disclosure (Q4 (a)) on one row.
 .tree-row {
   display: flex;

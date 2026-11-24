@@ -32,10 +32,9 @@ import type { WorkRow } from './tree-model';
         [attr.aria-current]="row().id === currentId() ? 'page' : null"
       >
         <span aria-hidden="true">{{ row().icon ?? '🧩' }}</span>
-        <span class="name">{{ row().name }}</span>
-        @if (row().archived) {
-          <!-- The leading space keeps the name "Legacy attic Archived", not one word. --><span> Archived</span>
-        } @else if (row().completed) {
+        <!-- The mark flows with the name's words, so a narrow row wraps between words, not inside one. -->
+        <span class="name">{{ row().name }}@if (row().archived) {<!-- The leading space keeps the name "Legacy attic Archived", not one word. --><span class="tree-mark"> Archived</span>}</span>
+        @if (!row().archived && row().completed) {
           <span role="img" aria-label="Completed"><app-icon name="check" /></span>
         }
       </a>
