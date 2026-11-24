@@ -1,9 +1,10 @@
 <!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 if the direction needs amending" -->
 # Slice 82 — Protocol §8 comb
 
-**State (2026-11-24):** plan written and in review (rounds 1–4 applied). No implementation. `CURRENT_SLICE = 82`
-(`2e0f500`). Next: further plan review rounds (AGENTS.md step 2), then the user's acceptance and answers to the Open
-questions; then step 0a.
+**State (2026-11-24):** **plan written and reviewed in five rounds** (round 5 returned no substantive findings),
+**awaiting the user's acceptance and answers to Open questions 1–8. No implementation yet.** `CURRENT_SLICE = 82`
+(`2e0f500`). Next, after acceptance: the acceptance session records `<plan-accept>` here; then **step 0a** (rig and
+tests). No bundle measured (no web code in this slice).
 
 ## Goal
 
@@ -247,11 +248,13 @@ green untouched.
   starts from a routed 500 (`tasks.ts:163-168`); the failure is the starting condition, not the answer, so the
   walker runs, from the repository root, `node apps/e2e/ux/walk/walk.mjs <ctl> seed busy-week`, then `… goto
   /projects/project-launch` (seeding is the daemon's own command, which knows the walker's host port and resets the
-  clock, `walkd.mjs:26`), then `… run -f docs/roadmap/70-ui-ux/comb-82/briefs/t12-setup.js`; the recovery is its
-  own. `run` passes only `page, context, expect, out` (`walkd.mjs:34`), so the file inlines the rest of
+  clock, `walkd.mjs:40`), then `… run -f docs/roadmap/70-ui-ux/comb-82/briefs/t12-setup.js`; the recovery is its
+  own. `run` passes only `page, context, expect, out` (`walkd.mjs:36`), so the file inlines the rest of
   `tasks.ts:163-171`: route `GET /api/tasks` to a 500 with `route.fallback()` for everything else, reload, wait for
   the task-list frame's failure text, then lift the failure (a flag or `page.unroute`) before handing over, so Try
-  again can succeed. Step 0c proves it once on a probe. T11 and T12 are new since
+  again can succeed. Step 0c proves it once on a probe. W4 runs T12 as a `T12-equiv` on its persona's own project:
+  it switches persona first, then runs the setup file with the path set to that project, so the failed read is in
+  place for the persona walking it. T11 and T12 are new since
   Gate 1, whose walks covered T01–T10; that difference is recorded in the digest.
 - **Lenses (L1–L7)** read the `C82` captures at full resolution (crops, `layout.json`, `aria.yml`, `axe.json`), may
   hold one walk-rig browser to confirm a fact, and use the given token-escape command (L2). **Themes:** `walkd` sets
@@ -528,6 +531,10 @@ on this machine, not by the test.
   findings, all held. Changes: Acceptance 4's id grep no longer matches the `C82-` ids a brief may show; T12's setup
   seeds and navigates with walkd's own commands before `run -f`, and the file only routes, waits and lifts; W1
   records a per-task `theme`; `report.ts` runs alone because it launches a browser.
+
+- **Round 5 (2026-11-24):** a cold closure reviewer re-checked the load-bearing facts and returned **no substantive
+  findings**, plus two minor ones, both applied: two `walkd.mjs` line citations (:40 seed, :36 run), and W4 runs T12
+  as a `T12-equiv` on the persona's own project. Review closed.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
