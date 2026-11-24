@@ -1,7 +1,7 @@
 <!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 if the direction needs amending" -->
 # Slice 82 — Protocol §8 comb
 
-**State (2026-11-24):** plan written and in review (round 1 applied). No implementation. `CURRENT_SLICE = 82`
+**State (2026-11-24):** plan written and in review (rounds 1–2 applied). No implementation. `CURRENT_SLICE = 82`
 (`2e0f500`). Next: further plan review rounds (AGENTS.md step 2), then the user's acceptance and answers to the Open
 questions; then step 0a.
 
@@ -38,30 +38,39 @@ the orchestrator's (protocol §2: synthesis is never delegated). Gate 3 sits bet
   code changes in this slice, so the ceiling is not in play).
 - **The walk rig works on Linux, driven by foreground commands.** `walk/env.sh` was written for Git Bash on Windows
   (`pwd -W` with no fallback on the data path, `env.sh:14`). Step 0a fixes that and proves the daemon lifecycle
-  that foreground-only sessions need (Open question 6).
+  that foreground-only sessions need (Open question 6). `walkd.mjs:24` hard-codes the static origin 4201, so the
+  **orchestrator** starts one `static.mjs` on 4201 per auditor step and stops it after; walkers start only their own
+  `env.sh`.
 - **A fresh comb.** Four task walkthroughs (W1 mouse 1440, W2 touch 375, W3 keyboard, W4 personas Alex and Sam)
   and seven lens audits (L1–L7), each a new cold subagent that has not seen the Gate 1 findings, the themes, the
   comb list or the slice records (§ Auditor isolation and method). At most two browser jobs at once.
 - **Admission.** The orchestrator reproduces every filed finding on a fresh seed or from the captures and records a
   verdict in Gate 1's vocabulary: `reproduced` and `reproduced-partly` (with a note) are admitted; `not-reproduced`,
-  `not-reached` and `unverified` are excluded. Each admitted finding is classified *new*, *still open* (it matches a
-  Gate 1 finding the ledger shows open), *regression* (it matches a Gate 1 finding a slice record says it closed) or
-  *introduced* (a surface or behaviour that did not exist at Gate 1). The orchestrator also confirms or attaches the
-  decision a finding would reopen (§ Auditor isolation).
+  `not-reached` and `unverified` are excluded (Gate 1's key, `status`). The orchestrator also confirms or attaches
+  the decision a finding would reopen (§ Auditor isolation). At step 5, after the ledger exists, each admitted
+  finding is classified *new*, *still open* (it matches a Gate 1 finding the ledger shows open), *regression* (it
+  matches one the ledger shows closed) or *introduced* (a surface or behaviour that did not exist at Gate 1).
 - **Ledger reconciliation.** The Gate 1 ledger has no per-finding status (`findings/*.json`, `themes.json`):
-  closures live only in the slice records' "Findings closed" tables (slices 71–81) and the umbrella's routing lines.
-  Step 4b builds `comb-82/ledger.json`: every one of the 296 admitted Gate 1 findings with its status (*closed by
-  Slice N*, *partly closed*, *open — routed to* redesign slice 8, 9 or 81.1, *open by decision* (TH12), or *open —
-  unrouted*) and the line it rests on.
+  closures live only in the slice records (71–81; 72.1 names no Gate 1 id) and the umbrella's routing lines. A
+  record's "Findings closed" table is written at plan time and some rows are conditional (Slice 81:661, :674) or say
+  "advanced", and ids are abbreviated (`L1-001, -002, -003`, Slice 71:74), so the rule is: ranges are expanded; a
+  *closed* or *partly closed* status cites the record's **Outcome** or its accepted answer, not only the table; an
+  id no record or umbrella line names (about 80 of 296 by a reviewer's scan, mostly TH14 and TH12) is *open*, routed
+  by its Gate 1 theme to the umbrella's sequence (TH14 → slice 9, TH12 → open by decision, others *open —
+  unrouted*). Step 4a builds `comb-82/ledger.json` with a status from a fixed vocabulary (`closed`, `partly-closed`,
+  `advanced`, `open-routed`, `open-by-decision`, `open-unrouted`) and the line each rests on.
 - **The §8 comb list.** Items 1–22 in the umbrella are re-verified at `C82` by the orchestrator (not by auditors)
   and filed in the finding format (`C82-CL-01` …); item 1 is checked and recorded closed (Slice 81's Outcome: the
   tree draws no empty sentence under a root).
 - **Synthesis.** Admitted findings join existing themes or new ones (TH16 …). The re-prioritised theme list is a
   **new file**, `comb-82/themes.json`, with each theme's status, priority, open Gate 1 ids and admitted comb ids;
   the Gate 1 `themes.json` is not edited, because `tooling/build-ledger.mjs:79` regenerates it wholesale. The
-  stop-rule tally (`comb-82/tally.json`: open S1, open S2 by theme with TH12 counted, the core-task table against
-  the baseline, serious/critical axe per colour theme and per cell) is generated by `tooling/build-comb.mjs`, not
-  written by hand.
+  stop-rule tally (`comb-82/tally.json`) is generated by `tooling/build-comb.mjs`, not written by hand, and has one
+  line per §8 criterion: open S1; open S2 by theme with TH12 counted; the core-task table against the baseline with
+  dead ends; serious/critical axe per colour theme and per cell, **plus** axe's `incomplete` `color-contrast` count
+  (at Slice 81 every one of the 194 cells reported contrast incomplete and none serious, so "zero serious" alone
+  measures nothing on glass) and L5's measured contrast results; and "mostly S3": the admitted comb findings by
+  severity, split new / still open / regression / introduced.
 - **Gate 3 artifact.** A digest the user can read in minutes plus the `C82` contact sheet (§ Visual acceptance).
   The user routes every open S1/S2, answers any direction amendment, and says whether a stop-rule number is set now.
 - **Closing.** Gate 3 answers become decision entries or dated amendments, `direction.md` amendments (dated), the
@@ -102,39 +111,48 @@ Gate 3. The comb list is re-verified and filed, not fixed (Open question 2).
 
 ## Acceptance check
 
-Run from the repository root at the step named. `C82` is the commit step 0b captures.
+Commands run from the repository root unless they say `(in apps/e2e)`. `C82` is the commit step 0b captures: the
+commit that adds the rig files; nothing is committed between the first capture command and the last.
 
 1. **Rig (step 0a).** `bash apps/e2e/ux/walk/env.sh --print-paths w-probe 4322 5322` prints a data path under
-   `apps/e2e/ux-output/walk-env/` (never `/w-probe.json`). With `node apps/e2e/ux/walk/static.mjs
-   apps/web/dist/web/browser 4201` and `env.sh w-probe 4322 5322` started detached (Open question 6), the foreground
-   commands `node apps/e2e/ux/walk/walk.mjs 5322 seed nested-projects`, `… goto /projects/project-kitchen`,
-   `… shot kitchen`, `… axe kitchen` and `… quit` succeed, leave a PNG and an axe JSON in
-   `apps/e2e/ux-output/walk/w-probe/`, and afterwards no process listens on 4201, 4322 or 5322.
-   `node --test apps/e2e/ux/harness.test.mjs` passes.
+   `apps/e2e/ux-output/walk-env/` (never `/w-probe.json`). Under Q6 (a): with the orchestrator's `node
+   apps/e2e/ux/walk/static.mjs apps/web/dist/web/browser 4201` and two probes, `env.sh w-probe 4322 5322` and
+   `env.sh w-probe2 4323 5323`, started detached, the foreground commands `node apps/e2e/ux/walk/walk.mjs 5322 seed
+   nested-projects`, `… goto /projects/project-kitchen`, `… shot kitchen`, `… axe kitchen` succeed on both probes and
+   leave a PNG and an axe JSON in `apps/e2e/ux-output/walk/w-probe*/`; stopping one probe (`… quit` and a kill of its
+   process group) leaves the other answering; after the orchestrator stops everything, nothing listens on 4201,
+   4322, 4323, 5322 or 5323. Under (a′): `node apps/e2e/ux/walk/session.mjs` runs a step file with the same four
+   actions in one foreground command and leaves the same files. `node --test apps/e2e/ux/harness.test.mjs` passes.
 2. **Capture (step 0b).** `pnpm --filter web build` succeeds; the initial bundle is recorded in the State header.
-   From `apps/e2e`, `UX_MATCH='^[a-m]' pnpm exec playwright test --config ux/slice82.config.ts capture.ts` and the
-   same with `'^[n-z]'` (about 6–8 minutes each at Slice 81) leave `apps/e2e/ux-output/<C82>/index.json` with
-   **194/194** cells `captured` and `gaps` equal to the three entries of `matrix.ts:22-26`. `node --import tsx
-   ux/report.ts ux-output/<C82>` writes `contact-sheet.html`, `axe-summary.json` and `coverage.json` (which lists
-   the umbrella's inventory rows, `coverage.ts:6-17`).
-3. **Core tasks and runtime surfaces (step 0b).** `pnpm exec playwright test --config ux/slice82.config.ts
-   comb-verification.ts` writes `ux-output/<C82>/tasks/tasks.json` with T01–T12 (clicks, keystrokes, surfaces, dead
+   (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test --config ux/slice82.config.ts capture.ts`, in four
+   ranges, `'^[a-d]'`, `'^[e-k]'`, `'^[l-o]'`, `'^[p-z]'` (Slice 81's halves took 8.6 and 5.3 minutes, near the
+   10-minute foreground cap; a range that still runs long is split again), leaves `ux-output/<C82>/index.json` with
+   **194/194** cells `captured` and `gaps` equal to the three entries of `matrix.ts:22-26`.
+3. **Core tasks and runtime surfaces (step 0b).** (in apps/e2e) `UX_COMB=tasks pnpm exec playwright test --config
+   ux/slice82.config.ts comb-verification.ts`, then `UX_COMB=surfaces` (split further by surface group if long),
+   write `ux-output/<C82>/tasks/tasks.json` with T01–T12 (clicks, keystrokes, surfaces, dead
    ends) and the runtime surfaces in `ux-output/<C82>/comb/`. `docs/roadmap/70-ui-ux/comb-82/core-tasks.json`
    compares them with `baseline.json` (T01–T10) and with Slice 81's after counts
    (`completed/81-one-navigation-tree.md:1887-1889`: all at or under baseline except T08 at 4, the accepted +1, and
-   T10's known dead end), and names every task over its baseline or with a dead end.
-4. **Briefs (step 0c).** `comb-82/briefs/` holds `common.md`, `inventory.md`, `decisions.md` and eleven auditor
-   briefs; `grep -rEn '\b(TH[0-9]{2}|[WL][0-9]-[0-9]{3}|note-20[0-9-]+)\b' docs/roadmap/70-ui-ux/comb-82/briefs`
+   T10's known dead end; T11 and T12, which have no Gate 0 baseline, are compared with those after counts only), and
+   names every task over its baseline or with a dead end. Then (in apps/e2e) `node --import tsx ux/report.ts
+   ux-output/<C82>` writes `contact-sheet.html` (with the task table, `report.ts:15`), `axe-summary.json` and
+   `coverage.json` (the umbrella's inventory rows, `coverage.ts:6-17`). The sheet's heading says "Gate 0"
+   (`report.ts:21`); the digest says so rather than the rig being changed.
+4. **Briefs (step 0c).** `comb-82/briefs/` holds `common.md`, `inventory.md`, `decisions.md`, `t12-setup.js` (the
+   routed failed read T12 starts from, using `route.fallback()`) and eleven auditor briefs; `grep -rEn '\b(TH[0-9]{2}|[WL][0-9]-[0-9]{3}|note-20[0-9-]+)\b' docs/roadmap/70-ui-ux/comb-82/briefs`
    finds nothing.
 5. **Comb filed (steps 1–3).** `comb-82/findings/` holds eleven files (`w1`–`w4`, `l1`–`l7`) and
    `comb-82/walkthroughs/` four, all passing `node --test docs/roadmap/70-ui-ux/tooling/comb.test.mjs`. Each
-   walkthrough names T01–T11 for each persona it ran (T12 is script-only, § Auditor method), with outcome, clicks,
-   keystrokes, dead ends and discoverability; W2's file says `375x812` and `touch: true`. `wc -l
+   walkthrough names T01–T12 for each persona it ran (W4 may use Gate 1's `Tnn-equiv` own-content ids), with
+   outcome, clicks, keystrokes, dead ends and discoverability; W2's file says `viewport: "375x812"` and
+   `inputMode: "touch"`, W3's `inputMode: "keyboard"`. L5's file has a `contrastTable` measured in both themes. `wc -l
    .prototype/notes.json` is the same before and after each auditor step.
-6. **Admission (step 4).** `comb-82/reproduction.json` has a verdict for every filed id and no other.
-   `comb-82/comb-list.json` has a status for items 1–22. `comb-82/ledger.json` has a status and a source for each of
-   the 296 admitted Gate 1 ids. `comb.test.mjs` passes.
-7. **Synthesis (step 5).** `node docs/roadmap/70-ui-ux/tooling/build-comb.mjs` regenerates `comb-82/tally.json`
+6. **Admission (step 4).** `comb-82/ledger.json` has a status from the fixed vocabulary and a source for each of
+   the 296 admitted Gate 1 ids. `comb-82/comb-list.json` has a status for items 1–22. `comb-82/reproduction.json`
+   has a verdict (`status`) for every filed id and no other. `comb.test.mjs` passes.
+7. **Synthesis (step 5).** Every admitted verdict has a `classification`. `node
+   docs/roadmap/70-ui-ux/tooling/build-comb.mjs` regenerates `comb-82/tally.json`
    with no diff; `comb-82/themes.json` lists TH01–TH15 and any new theme with `status` and `priority`, and every
    admitted comb id is in exactly one theme. `git diff <plan-accept> -- docs/roadmap/70-ui-ux/themes.json
    docs/roadmap/70-ui-ux/reproduction.json docs/roadmap/70-ui-ux/findings` is empty.
@@ -155,9 +173,13 @@ Run from the repository root at the step named. `C82` is the commit step 0b capt
   recent captures use, `capture.ts:136`), `outputDir: ../ux-output/slice82-capture-results`,
   `testMatch: ['capture.ts', 'comb-verification.ts']`. No `UX_BEFORE` build: there is one build.
 - **`comb-verification.ts`** holds the core-task test (`runCoreTasks`, as `objects-verification.ts:167` and
-  `navigation-tree-verification.ts` do) and the runtime surfaces, run as its own command after the matrix halves.
-- **Walk rig ports.** Static build **4201** (walkd's fixed origin, `walkd.mjs:24`), serving the `C82` build; auditor
-  hosts 4322–4325, control ports 5322–5325; reproduction host 4320 on control 5320. Never 4200/4310 as listeners
+  `navigation-tree-verification.ts` do) and the runtime surfaces, selected by `UX_COMB=tasks|surfaces[:group]` and
+  run as its own commands after the matrix ranges. All rig files write to `ux-output/<HEAD>` (`capture.ts:16,21`),
+  so step 0b commits them first, records that commit as `C82`, and commits nothing else until the last capture
+  command has run.
+- **Walk rig ports.** Static build **4201** (walkd's fixed origin, `walkd.mjs:24`), serving the `C82` build, one per
+  step, started and stopped by the orchestrator; walker hosts 4322–4325 and control ports 5322–5325; lens browsers
+  4326–4327 and 5326–5327; reproduction host 4320 on control 5320. Never 4200/4310 as listeners
   (walkd routes the app's 4200/4310 requests to these, `walkd.mjs:24-25`).
 - **The matrix:** all 194 cells of `matrix.ts`, both themes, 1440/1024/375 as the matrix assigns them, all six seeds.
 - **Runtime surfaces** the matrix does not reach but the comb must see, captured once each (light 1440 and dark 375)
@@ -201,10 +223,12 @@ green untouched.
   not open them: when a finding contradicts a decision it names the decision by its title from `decisions.md` in
   `decisionReopened`; the orchestrator confirms or attaches the citation at admission (protocol §4.3 is met at
   admission, before synthesis).
-- **Forbidden reading**, named in every brief: all of `docs/roadmap/` except the auditor's own brief and output
-  files and the three shared brief files; `docs/decisions/` entries; `.prototype/notes.json`; git history;
-  `apps/e2e/ux/walk/repro/`, `apps/e2e/ux/*-verification.ts`, `apps/e2e/ux/tasks.ts`; `apps/e2e/ux-output/` except
-  `<C82>/` and its own `walk/<name>/`; and source comments (`apps/web/src/**/*.ts` and `.html`). L2's token-escape
+- **Forbidden reading**, named in every brief: all of `docs/roadmap/` (including the umbrella) except the
+  auditor's own brief and output files and the shared brief files; `docs/decisions/` entries; `docs/architecture/`;
+  `.prototype/notes.json`; git history; all of `apps/e2e/` except `ux/walk/*.mjs` and `walk/env.sh`;
+  `apps/e2e/ux-output/` except `<C82>/` and its own `walk/<name>/`; and source comments (`apps/web/src/**/*.ts` and
+  `.html`). Every brief opens by **overriding AGENTS.md's start-up instruction** to read the roadmap: the auditor
+  reads AGENTS.md §1 for orientation only and nothing in `docs/` beyond its brief files. L2's token-escape
   check is one given command over `apps/web/src/**/*.scss` that prints only lines with a literal value and drops
   comment lines. Each findings file carries an `attestation` string saying the auditor kept to this; the
   orchestrator spot-checks any finding that echoes Gate 1 wording. *Known limit:* a determined auditor could still
@@ -214,11 +238,14 @@ green untouched.
   W3: Demo, keyboard only, 1440. W4: Alex and Sam, mouse, 1440, own-content equivalents. Each runs **T01–T11** and
   records Gate 1's walkthrough fields (outcome, clicks, keystrokes, surfaces, dead ends,
   `firstCorrectActionFoundImmediately`, discoverability, steps). **T12** (recover a section after a failed read)
-  needs a routed 500 (`tasks.ts:163-168`) a cold walker cannot cause without being told the answer; it stays
-  script-only (step 0b). T11 is new since Gate 1, whose walks covered T01–T10 only; both are recorded as deviations
-  from Gate 1's shape.
+  starts from a routed 500 (`tasks.ts:163-168`); the failure is the starting condition, not the answer, so the
+  walker runs `walk.mjs <ctl> run -f briefs/t12-setup.js` and the recovery is its own. T11 and T12 are new since
+  Gate 1, whose walks covered T01–T10; that difference is recorded in the digest.
 - **Lenses (L1–L7)** read the `C82` captures at full resolution (crops, `layout.json`, `aria.yml`, `axe.json`), may
-  hold one walk-rig browser to confirm a fact, and use the given token-escape command (L2).
+  hold one walk-rig browser to confirm a fact, and use the given token-escape command (L2). **L5** measures contrast
+  itself, because axe marks `color-contrast` incomplete over glass: computed foreground and backdrop colours
+  (`getComputedStyle` plus pixel sampling of the screenshot behind the text) for body, muted and control text in
+  both themes on a named cell list, filed as Gate 1's `contrastTable` shape; keyboard-only completion is W3's.
 - **Ids.** `C82-W1-001` …, `C82-L3-004` …, `C82-CL-01` … (comb list). Records carry Gate 1's fields (id, surface,
   inventoryRow, seed, theme, viewport, state, persona, evidence, repro, expected, actual, lens, heuristic, severity,
   confidence, decisionReopened) plus `auditor`, and no fix.
@@ -258,7 +285,7 @@ Routes to slices 8, 9 and 81.1 are written as id lists in the umbrella's sequenc
 | `apps/e2e/ux/walk/session.mjs` | create only if Q6 needs it (0a) | Foreground fallback: one process per walker step file, replaying from the seed, so page state is explicit |
 | `apps/e2e/ux/slice82.config.ts` | create (0b) | Capture config on 4258/4358, `.prototype/ux-slice82.json`, `UX_OBJECTS=1` |
 | `apps/e2e/ux/comb-verification.ts` | create (0b) | Core tasks T01–T12 and the runtime surfaces |
-| `apps/e2e/ux/walk/repro/c82-*.js` | create (4a) | The orchestrator's reproduction scripts |
+| `apps/e2e/ux/walk/repro/c82-*.js` | create (4a–4b) | The orchestrator's reproduction scripts |
 
 ### Evidence and tooling (`docs/roadmap/70-ui-ux/`)
 
@@ -267,12 +294,12 @@ Routes to slices 8, 9 and 81.1 are written as id lists in the umbrella's sequenc
 | `tooling/comb.test.mjs` | create (0a, test first) | Schema and consistency tests (§ Test plan) |
 | `tooling/build-comb.mjs` | create (0a skeleton, 5) | Validates the comb files, generates `tally.json` |
 | `comb-82/core-tasks.json` | create (0b) | T01–T12 at `C82` against the baseline |
-| `comb-82/briefs/*.md` | create (0c) | Common brief, inventory, decisions list, eleven auditor briefs |
+| `comb-82/briefs/*.md`, `briefs/t12-setup.js` | create (0c) | Common brief, inventory, decisions list, the T12 starting failure, eleven auditor briefs |
 | `comb-82/findings/{w1..w4,l1..l7}.json` | create (1–3) | Filed findings, by auditor |
 | `comb-82/walkthroughs/{w1..w4}.json` | create (1–2) | Task runs, Gate 1 walkthrough shape |
-| `comb-82/reproduction.json` | create (4a) | Verdict per filed id, method, classification |
-| `comb-82/ledger.json` | create (4b) | Status of the 296 Gate 1 admitted findings with a source line each |
-| `comb-82/comb-list.json` | create (4b) | Items 1–22: status at `C82`, note id, the `C82-CL-nn` record where still open |
+| `comb-82/reproduction.json` | create (4b; classification added at 5) | Verdict per filed id, method, classification |
+| `comb-82/ledger.json` | create (4a) | Status of the 296 Gate 1 admitted findings with a source line each |
+| `comb-82/comb-list.json` | create (4a) | Items 1–22: status at `C82`, note id, the `C82-CL-nn` record where still open |
 | `comb-82/themes.json` | create (5) | Re-prioritised themes: status, priority, open Gate 1 ids, admitted comb ids, new TH16+ |
 | `comb-82/tally.json` | create (5, generated) | The stop-rule tally |
 | `comb-82/gate3.md` | create (5) | Digest and decisions for Gate 3 |
@@ -299,20 +326,25 @@ Each step is one fresh session; each ends with a State header update and a commi
 - **0a. Rig and tests.** Write `harness.test.mjs`'s `--print-paths` test (red on Linux) and `comb.test.mjs`'s
   schema tests against small fixtures (red: no validator); fix `env.sh`, write `build-comb.mjs`'s validator, prove
   the detached walk lifecycle (Acceptance 1), and write `session.mjs` only if Q6 says so. Update `testing/how.md`.
-- **0b. Recapture.** Build the web app, record the bundle and `C82`, check disk. Write `slice82.config.ts` and
-  `comb-verification.ts`; capture the two matrix halves, then the core tasks and runtime surfaces; run `report.ts`;
-  write `core-tasks.json`.
-- **0c. Briefs.** Write the three shared brief files and the eleven auditor briefs; check them with Acceptance 4.
+- **0b. Recapture.** Write `slice82.config.ts` and `comb-verification.ts` and commit them (`C82`); build the web app,
+  record the bundle, check disk. Capture the four matrix ranges, then the core tasks and runtime surfaces; run
+  `report.ts`; then write and commit `core-tasks.json` and the State header.
+- **0c. Briefs.** Write the shared brief files, `t12-setup.js` and the eleven auditor briefs; check them with
+  Acceptance 4.
 - **1. Walkthroughs W1 (mouse 1440) and W2 (touch 375).** Two cold foreground subagents, two browsers. The
   orchestrator checks each file passes `comb.test.mjs` and the notes line count; it does not edit findings.
 - **2. Walkthroughs W3 (keyboard) and W4 (personas).** Same.
 - **3. Lenses L1–L7.** Seven cold foreground subagents over the captures, at most two holding a browser; two batches
   (L1–L4, L5–L7) if one session cannot hold seven reports.
-- **4a. Reproduction.** Reproduce every filed finding (host 4320, scripts `repro/c82-*.js`), confirm decision
+- **4a. Ledger and comb list.** Build `ledger.json` by the rule in § Build; re-verify comb items 1–22 and write
+  `comb-list.json` and the `C82-CL-*` records. Items that need more than a click: item 6 (a write failing while the
+  workspace is unreachable) by a routed failure with `route.fallback()`; items 12 and 13 (`restore_project` and the
+  archive refusal as agents see them) through MCP at `http://127.0.0.1:4320/mcp` with a fixture token from
+  `packages/prototype-data`; item 16 (a live frame rewriting an open confirmation) by a second write to host 4320
+  while the confirmation is open.
+- **4b. Reproduction.** Reproduce every filed finding (host 4320, scripts `repro/c82-*.js`), confirm decision
   citations, write `reproduction.json`, record friction notes.
-- **4b. Ledger and comb list.** Build `ledger.json` from the slice records' "Findings closed" tables and the
-  umbrella routes; re-verify comb items 1–22 and write `comb-list.json` and the `C82-CL-*` records.
-- **5. Synthesis and the Gate 3 artifact.** Classify, cluster, write `comb-82/themes.json`, generate `tally.json`,
+- **5. Synthesis and the Gate 3 artifact.** Classify against the ledger, cluster, write `comb-82/themes.json`, generate `tally.json`,
   write `gate3.md`. State header: awaiting Gate 3. End with `CHAIN: STOP`.
 - **6. Gate 3** (the user). Nothing runs until the answers are in.
 - **7. Record and close.** Decision entries and amendments, `direction.md` amendments if any, the 82.1 candidate and
@@ -330,15 +362,19 @@ No product behaviour changes, so no product test is written or changed. The tool
 | `comb.test.mjs`: `decisionReopened` is null or a title or path listed in `briefs/decisions.md` | A reopened decision is cited in a checkable form |
 | `comb.test.mjs`: every findings file has a non-empty `attestation` | The isolation statement is present |
 | `comb.test.mjs`: ids are unique across all files | No collisions between auditors |
-| `comb.test.mjs`: every filed id has exactly one verdict from the five-value vocabulary, and no verdict names an unfiled id | Nothing enters synthesis unverified |
+| `comb.test.mjs`: every filed id has exactly one verdict whose `status` is one of Gate 1's five values, and no verdict names an unfiled id | Nothing enters synthesis unverified |
+| `comb.test.mjs`: a *regression* names a Gate 1 id the ledger marks `closed` or `partly-closed`; a *still open* names one it marks open | The classification agrees with the ledger |
+| `comb.test.mjs`: ledger statuses are from the six-value vocabulary, and `closed`/`partly-closed` cite a record's Outcome or answer line | The reconciliation rule is kept |
 | `comb.test.mjs`: every admitted id (`reproduced`, `reproduced-partly`) is in exactly one theme in `comb-82/themes.json`; no excluded id is | Clustering is total and clean |
 | `comb.test.mjs`: every Gate 1 admitted id appears once in `ledger.json` with a status and a source | The reconciliation is complete |
 | `comb.test.mjs`: the comb list has items 1–22, each with a status, and an open item has a `C82-CL` record | The comb list is accounted for |
 | `comb.test.mjs`: `tally.json` equals what `build-comb.mjs` computes from the files | The tally is generated, not hand-edited |
-| `comb.test.mjs`: each walkthrough has T01–T11 for each persona it names; W2's viewport is `375x812` with touch | The task walks are complete, and the touch pass is one |
+| `comb.test.mjs`: each walkthrough has T01–T12 (or `Tnn-equiv`) for each persona it names; W2 is `375x812` with `inputMode: "touch"`, W3 `keyboard` | The task walks are complete, and the touch and keyboard passes are those |
+| `comb.test.mjs`: `tally.json` has a line for each §8 criterion, including contrast-incomplete and comb severity split | The tally answers the whole stop rule |
 
 Each consistency test is skipped while its input file does not yet exist (the comb is mid-run between steps) and is
-required from the step that writes it; the fixtures exercise every test from 0a. Where `comb.test.mjs` runs is Open
+required from the step that writes it. The fixtures hold one good set and one bad file per check, and each check is
+seen rejecting its bad file at 0a. Where `comb.test.mjs` runs is Open
 question 7. Evidence paths (screenshots under the git-ignored `ux-output/`) are checked by `build-comb.mjs` at step 4a
 on this machine, not by the test.
 
@@ -401,9 +437,9 @@ on this machine, not by the test.
 6. **Auditor method, count and rig lifecycle.** *Context:* Gate 1 used eleven auditors (four walks, seven lenses)
    and the walk rig's daemon (`env.sh` + `walkd.mjs`, one persistent page per auditor). This environment runs
    subagents and long commands in the foreground and allows two browser jobs. *Options:* (a) eleven auditors as Gate
-   1; each walker starts `static.mjs` and `env.sh` **detached** (`setsid … &` inside one foreground command, with
-   `walk.mjs … quit` and a kill of the process group before it reports), so its page persists across its foreground
-   `walk.mjs` commands; step 0a proves this, and if it fails, (a′) `session.mjs` replays each step file from a fresh
+   1; the orchestrator starts one `static.mjs` on 4201 per step, and each walker starts its own `env.sh`
+   **detached** (`setsid … &` inside one foreground command, with `walk.mjs … quit` and a kill of its process group
+   before it reports), so its page persists across its foreground `walk.mjs` commands; step 0a proves this, and if it fails, (a′) `session.mjs` replays each step file from a fresh
    seed in one foreground process; (b) six auditors (a mouse-and-keyboard walk, a touch walk, a personas walk, three
    merged lenses); (c) walks only. *Recommendation:* (a), for comparability with Gate 1. *Impact:* (a) is about four
    auditor sessions; a detached daemon is outside the "never background" rule's letter only in that it outlives one
@@ -414,6 +450,16 @@ on this machine, not by the test.
    *Options:* (a) by hand at each step and in the Acceptance check only; (b) add it to the root `test` script.
    *Recommendation:* (a), matching `build-sheet.test.mjs`. *Impact:* (b) puts disposable evidence checks into the
    offline gate; its skip-while-absent rule keeps it green mid-run, but a half-written file would fail `pnpm test`.
+8. **Contrast and the stop rule.** *Context:* §8 asks for zero serious or critical axe violations in either theme.
+   Over frosted glass axe cannot decide contrast: at Slice 81 all 194 cells reported `color-contrast` *incomplete*
+   and none serious, so the criterion passes without measuring. The user accepted Depth's demo tints at Gate 1:
+   worst-case AA "is reported on every sheet but no longer gates" (umbrella, *Answered after Gate 1*). *Options:*
+   (a) report L5's measured contrast and the incomplete count in the tally and digest, outside the stop rule, as the
+   Gate 1 answer says; (b) count L5's measured AA failures as serious axe-equivalent violations in the stop rule;
+   (c) as (a) now, and ask again at the final comb. *Recommendation:* (a), which keeps the Gate 1 answer; L5's
+   failures are still findings with a severity. *Impact:* (b) reopens the contrast answer and could block the stop
+   rule on the accepted tints; (a) leaves the axe criterion as "zero serious on what axe can decide", which the digest
+   says plainly.
 
 ## Revisions
 
@@ -433,6 +479,21 @@ on this machine, not by the test.
   `decisionReopened`, the verdict vocabulary and W2's touch pass; auditors may not save notes (the host writes the
   real `notes.json`, `notes.ts:18`) and Acceptance 5 checks it; routes to slices 8, 9 and 81.1 are umbrella id lists,
   not plans; 82.1 is created with `roadmap.mjs new`; `planned/README.md` and `testing/what.md` joined the change list.
+
+- **Round 2 (2026-11-24):** a cold reviewer returned 6 substantive and 4 minor findings; spot-checked (194/194
+  Slice 81 cells report `color-contrast` incomplete with zero serious; Gate 1 uses `inputMode: "touch"`; Slice 81's
+  table has conditional closes at :661/:674) and all held. Changes: the orchestrator owns the one static server on
+  4201 per step (two walkers could not each bind it), and Acceptance 1 proves two probes side by side; the tally
+  covers every §8 criterion, adding axe's contrast-incomplete count, L5's measured contrast and the "mostly S3" split;
+  L5 gets a contrast method; new Open question 8 on contrast and the stop rule; the ledger rule (expanded ranges,
+  closed only on an Outcome or answer line, unnamed ids open by theme, a fixed status vocabulary); the ledger is
+  built before reproduction and classification moves to step 5; the matrix runs in four ranges and the verification
+  file by `UX_COMB`, under the 10-minute cap; `C82` is the rig commit and nothing is committed mid-capture; forbidden
+  reading adds `docs/architecture/`, `apps/e2e/**` and the umbrella, and briefs override AGENTS.md's read-the-roadmap
+  instruction; T12 is walked from a setup file instead of script-only; tests for the ledger vocabulary, the
+  classification against the ledger, bad fixtures per check, `inputMode`, `Tnn-equiv` and Gate 1's `status` key;
+  cwd per command; `report.ts` after the tasks; the sheet's "Gate 0" heading is named in the digest; lens ports;
+  methods for comb items 6, 12, 13 and 16; an Acceptance 1 variant for (a′).
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
