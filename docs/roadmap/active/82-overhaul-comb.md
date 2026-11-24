@@ -1,7 +1,7 @@
 <!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 if the direction needs amending" -->
 # Slice 82 — Protocol §8 comb
 
-**State (2026-11-24):** plan written and in review (rounds 1–3 applied). No implementation. `CURRENT_SLICE = 82`
+**State (2026-11-24):** plan written and in review (rounds 1–4 applied). No implementation. `CURRENT_SLICE = 82`
 (`2e0f500`). Next: further plan review rounds (AGENTS.md step 2), then the user's acceptance and answers to the Open
 questions; then step 0a.
 
@@ -143,8 +143,9 @@ captures: the commit that adds the rig files; nothing is committed between the f
    `coverage.json` (the umbrella's inventory rows, `coverage.ts:6-17`). The sheet's heading says "Gate 0"
    (`report.ts:21`); the digest says so rather than the rig being changed.
 4. **Briefs (step 0c).** `comb-82/briefs/` holds `common.md`, `inventory.md`, `decisions.md`, `t12-setup.js` (the
-   routed failed read T12 starts from) and eleven auditor briefs; `grep -rEn '\b(TH[0-9]{2}|[WL][0-9]-[0-9]{3}|note-20[0-9-]+)\b' docs/roadmap/70-ui-ux/comb-82/briefs`
-   finds nothing.
+   routed failed read T12 starts from) and eleven auditor briefs; `grep -rEn
+   '(^|[^-0-9A-Z])([WL][0-9]-[0-9]{3}|TH[0-9]{2})|note-20[0-9-]+' docs/roadmap/70-ui-ux/comb-82/briefs` finds nothing
+   (the pattern skips the `C82-` ids briefs may show).
 5. **Comb filed (steps 1–3).** `comb-82/findings/` holds eleven files (`w1`–`w4`, `l1`–`l7`) and
    `comb-82/walkthroughs/` four, all passing `node --test docs/roadmap/70-ui-ux/tooling/comb.test.mjs`. Each
    walkthrough names T01–T12 for each persona it ran (W4 may use Gate 1's `Tnn-equiv` own-content ids), with
@@ -244,17 +245,19 @@ green untouched.
   records Gate 1's walkthrough fields (outcome, clicks, keystrokes, surfaces, dead ends,
   `firstCorrectActionFoundImmediately`, discoverability, steps). **T12** (recover a section after a failed read)
   starts from a routed 500 (`tasks.ts:163-168`); the failure is the starting condition, not the answer, so the
-  walker runs `node apps/e2e/ux/walk/walk.mjs <ctl> run -f docs/roadmap/70-ui-ux/comb-82/briefs/t12-setup.js` from
-  the repository root, and the recovery is its own. `walkd`'s `run` passes only `page, context, expect, out`
-  (`walkd.mjs:34`), so the file inlines what `tasks.ts:163-171` does with its own helper: seed busy-week, open
-  `/projects/project-launch`, route `GET /api/tasks` to a 500 with `route.fallback()` for everything else, reload,
-  wait for the task-list frame's failure text, then lift the failure (a flag or `page.unroute`) before handing over,
-  so Try again can succeed. Step 0c proves it once on a probe. T11 and T12 are new since
+  walker runs, from the repository root, `node apps/e2e/ux/walk/walk.mjs <ctl> seed busy-week`, then `… goto
+  /projects/project-launch` (seeding is the daemon's own command, which knows the walker's host port and resets the
+  clock, `walkd.mjs:26`), then `… run -f docs/roadmap/70-ui-ux/comb-82/briefs/t12-setup.js`; the recovery is its
+  own. `run` passes only `page, context, expect, out` (`walkd.mjs:34`), so the file inlines the rest of
+  `tasks.ts:163-171`: route `GET /api/tasks` to a 500 with `route.fallback()` for everything else, reload, wait for
+  the task-list frame's failure text, then lift the failure (a flag or `page.unroute`) before handing over, so Try
+  again can succeed. Step 0c proves it once on a probe. T11 and T12 are new since
   Gate 1, whose walks covered T01–T10; that difference is recorded in the digest.
 - **Lenses (L1–L7)** read the `C82` captures at full resolution (crops, `layout.json`, `aria.yml`, `axe.json`), may
   hold one walk-rig browser to confirm a fact, and use the given token-escape command (L2). **Themes:** `walkd` sets
   the colour scheme at launch (`--theme`, default dark, `walkd.mjs:23`); each brief names the theme per daemon, and
-  W1 switches with `page.emulateMedia({ colorScheme })` through `run` halfway through its tasks; a persona's stored
+  W1 switches with `page.emulateMedia({ colorScheme })` through `run` halfway through its tasks and records a
+  per-task `theme` field (Gate 1's file-level `theme` stays as the starting theme); a persona's stored
   theme preference overrides the device and is recorded as such. **L5** measures contrast
   itself, because axe marks `color-contrast` incomplete over glass: computed foreground and backdrop colours
   (`getComputedStyle` plus pixel sampling of the screenshot behind the text) for body, muted and control text in
@@ -341,7 +344,8 @@ Each step is one fresh session; each ends with a State header update and a commi
   the detached walk lifecycle (Acceptance 1), and write `session.mjs` only if Q6 says so. Update `testing/how.md`.
 - **0b. Recapture.** Write `slice82.config.ts` and `comb-verification.ts` and commit them (`C82`); build the web app,
   record the bundle, check disk. Capture the four matrix ranges, then the core tasks and runtime surfaces; run
-  `report.ts`; then write and commit `core-tasks.json` and the State header.
+  `report.ts` (it launches Chromium for `contact-sheet.png`, `report.ts:27`, so it runs alone); then write and
+  commit `core-tasks.json` and the State header.
 - **0c. Briefs.** Write the shared brief files, `t12-setup.js` and the eleven auditor briefs; check them with
   Acceptance 4.
 - **1. Walkthroughs W1 (mouse 1440) and W2 (touch 375).** Two cold foreground subagents, two browsers. The
@@ -519,6 +523,11 @@ on this machine, not by the test.
   field; walk themes have a method; the orchestrator also serves 4201 for 4a/4b, and 0a may use any current build;
   the MCP route, token, seed and client for comb items 12–13; detached starts redirect their streams; `gate3.md`
   names `ux-output/` paths as code spans, since the folder is git-ignored and `check-docs` checks links.
+
+- **Round 4 (2026-11-24):** a cold closure reviewer confirmed the cited facts and returned 2 substantive and 3 minor
+  findings, all held. Changes: Acceptance 4's id grep no longer matches the `C82-` ids a brief may show; T12's setup
+  seeds and navigates with walkd's own commands before `run -f`, and the file only routes, waits and lifts; W1
+  records a per-task `theme`; `report.ts` runs alone because it launches a browser.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
