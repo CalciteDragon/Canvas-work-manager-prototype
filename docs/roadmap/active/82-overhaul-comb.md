@@ -53,7 +53,25 @@ surface clicks the page's first unchecked boxes rather than the first Task List'
 List, ARIA lines 71 and 80, so the capture holds); the core-task test does not assert all twelve ids (all twelve are
 present); `build-comb.mjs --check` does not validate `core-tasks.json` (only the step 5 tally reads it); the moderate
 axe counts (now above); `surfaces.json` keeps entries of removed surfaces (none removed). None changes the rig, which
-is frozen at `C82`. **Next: step 0c** (briefs). Rerun: (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test
+is frozen at `C82`.
+**Step 0c done (2026-11-24): briefs.** [`comb-82/briefs/`](../70-ui-ux/comb-82/briefs/common.md) holds `common.md` (override of
+AGENTS.md's start-up reading, forbidden and allowed reading, the detached rig lifecycle with the stop-before-report rule
+and the 0a traps, no notes, the record and file shapes `build-comb.mjs` enforces, attestation, and § 10, the walkers'
+task table and walkthrough shape), `inventory.md` (the umbrella's Surface inventory and seed anchors, verbatim: no ids
+to strip), `decisions.md` (140 titles and paths from each entry's first heading, none carrying an id;
+`parseDecisions` reads all 140), `t12-setup.js` and `w1`–`w4`, `l1`–`l7`.md. **Acceptance 4:** the id grep finds
+nothing. **`t12-setup.js` proven** on probe `w-t12` (4322/5322) with `static.mjs` on 4201 serving the `C82` build:
+`seed busy-week`, `goto /projects/project-launch`, `run -f …t12-setup.js` returned `ready: true`; the Task List
+showed "Couldn’t load this task list." and Try again; pressing Try again rendered its three tasks without a reload
+(the failure was lifted). Theme probe `w-theme`: Demo renders by the browser's colour scheme and `emulateMedia`
+switches it, but the app's own theme switch sticks across a reseed, so W1 switches only with `emulateMedia`.
+Afterwards 4201, 4322 and 5322 were free and `.prototype/notes.json` stayed at 1570 lines. L2's token-escape command
+prints 7 lines, none with an id. `comb.test.mjs` by hand: 59 pass, 20 skipped, 0 fail. **Ports:** W1 4322/5322, W2
+4323/5323, W3 4324/5324, W4 4325/5325; lens browsers L3 and L5 on 4326/5326, L4 and L7 on 4327/5327 (one pair each per
+batch, L1–L4 then L5–L7); L1, L2, L6 work from the captures. **Lens briefs depend on Open question 9:** a lens holds
+a browser only if its launch message says so; L5's `contrastTable` needs one. **Next: step 1** (W1 and W2): the
+orchestrator starts `static.mjs` on 4201 (`setsid`, pgid file, as 0a), counts `.prototype/notes.json` lines, launches
+W1 and W2 as two cold foreground subagents each told to read `briefs/common.md` and its own brief, then stops 4201. Rerun: (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test
 --config ux/slice82.config.ts capture.ts`; `UX_COMB=tasks|surfaces[:group] … comb-verification.ts`; `node --import
 tsx ux/report.ts ux-output/37dd16e2303e7d8968905de74767710d6b02b85c`.
 
@@ -664,6 +682,18 @@ question carries its answer, and the plan above reads the answers as settled.
   answer basis) and 4 minor ones (bad fixtures changing two things, lens range, auditor vs file name, stale tally
   blocking regeneration, doc order); all checked against the code, all applied, except an eleven-file completeness
   check, which stays with Acceptance 5's listing.
+
+- **Step 0c (2026-11-24):** small defaults the plan left open, in the briefs: every walk task starts from a fresh
+  seed at `/app` (as Gate 1's walks did), except T12; task goals are worded as a user would be told them, without
+  routes or control names; walkers do not read the `C82` captures at all, and no auditor reads `<C82>/tasks/` or
+  `index.html` (they show the scripted path); the walkers' task table and walkthrough shape sit in `common.md` § 10
+  rather than a fourth shared file; W1 runs T01–T06 light and T07–T12 dark by `emulateMedia` and records the rendered
+  `data-theme` per task; W2 is light and W3 dark throughout; W4 runs each persona on `nested-projects` without
+  reseeding, T10 last from `agent-heavy`, one run per task (`Tnn` or `Tnn-equiv`, since `comb.test.mjs` counts them
+  together), with an `equivalent` field and file-level `setupObservations`, persona switched by the development
+  dialog (a `localStorage` fallback named); T12's file is path-free (it reloads the current page), so W4 runs it from
+  its own project; lens browsers are gated on the launch message until Open question 9 is answered; L5's contrast
+  cells, elements and the pixel-sampling method are named, and its `contrastTable` rows add `cell` and `method`.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

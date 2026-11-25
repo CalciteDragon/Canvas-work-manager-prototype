@@ -1,0 +1,153 @@
+# Decisions you may cite (Slice 82 comb)
+
+The product's decision log, reduced to each entry's title and path, sorted by path. Do **not** open
+the entries themselves (see `common.md`, *Forbidden reading*): this list is all you get.
+
+When a finding contradicts something a title here says was decided, the finding is still valid:
+put that decision's **exact title** (or its exact path) in the record's `decisionReopened`. Copy it
+character for character; anything else fails the format check. When no decision applies, use `null`.
+The orchestrator confirms or attaches the citation when it admits the finding.
+
+Generated at step 0c from the first `# ` heading of every `docs/decisions/*.md` except the index
+(140 entries; none of their titles carries a finding or theme id).
+
+- The activity feed composes its line; summary stays a log line — `docs/decisions/2026-08-activity-feed-composes-from-parts.md`
+- What ActivityEvent.summary is for, and what it is not — `docs/decisions/2026-08-activity-summary-ownership.md`
+- What §46's Agent Connection control is — `docs/decisions/2026-08-agent-connection-panel-control-is-a-roster.md`
+- §4's *Agent Modified* task row has no data behind it — `docs/decisions/2026-08-agent-modified-has-no-data-behind-it.md`
+- Where §51's bearer tokens live — `docs/decisions/2026-08-agent-tokens-are-fixtures-not-records.md`
+- The dashboard splits layout from content — `docs/decisions/2026-08-dashboard-layout-and-content-split.md`
+- Where dashboard widgets live — `docs/decisions/2026-08-dashboard-widget-ownership.md`
+- The Design Lab is a route with live knobs, not a third theme — `docs/decisions/2026-08-design-lab-tokens-are-session-knobs.md`
+- The development panel is an overlay and a route, sharing one control set — `docs/decisions/2026-08-development-panel-surface.md`
+- The end-to-end suite starts its own servers and writes its own data file — `docs/decisions/2026-08-e2e-owns-its-servers-and-its-data.md`
+- Flow and grid both remain prototype layout candidates — `docs/decisions/2026-08-flow-vs-grid-layout-experiment.md`
+- The gateway interface grows with its implementations — `docs/decisions/2026-08-gateway-surface-grows-with-implementations.md`
+- CORS on the host, not a dev-server proxy — `docs/decisions/2026-08-host-cors-over-dev-proxy.md`
+- The host's port variable is CWM_HOST_PORT, not PORT — `docs/decisions/2026-08-host-port-is-not-the-generic-port.md`
+- What an Identity is, and where it comes from — `docs/decisions/2026-08-identity-contract-and-me-route.md`
+- The initial bundle budget is set deliberately at 850 kB — `docs/decisions/2026-08-initial-bundle-budget.md`
+- How §53's "Last used" is recorded — `docs/decisions/2026-08-last-used-is-a-throttled-write.md`
+- Latency and failure injection live in the client, not the host — `docs/decisions/2026-08-latency-and-failure-live-in-the-client.md`
+- Where a live event is emitted, and when it is delivered — `docs/decisions/2026-08-live-events-ride-the-activity-record.md`
+- How live reconnects recover derived project views — `docs/decisions/2026-08-live-recovery-invalidates-derived-views.md`
+- Live updates reach the browser over HTTP, and not over stdio — `docs/decisions/2026-08-live-updates-are-http-only.md`
+- MCP tools advertise their required permission in namespaced metadata — `docs/decisions/2026-08-mcp-tool-permission-metadata.md`
+- Where the agent permission model is enforced — `docs/decisions/2026-08-permissions-live-on-the-actor.md`
+- Persona contract fields — `docs/decisions/2026-08-persona-contract-fields.md`
+- Persona workspace topology in seeds — `docs/decisions/2026-08-persona-workspace-topology.md`
+- Progress formulas are selectable per project — `docs/decisions/2026-08-progress-formula-experiment.md`
+- The smallest surface that makes §81's project verbs demonstrable — `docs/decisions/2026-08-project-create-edit-archive-surface.md`
+- The project header's Quick Add adds a section — `docs/decisions/2026-08-project-header-quick-add.md`
+- Project nesting rules and what archiving a parent does — `docs/decisions/2026-08-project-nesting-and-archive-rules.md`
+- Project progress has one canonical formula, and "no tasks" is not "0%" — `docs/decisions/2026-08-project-progress-count-based.md`
+- What counts as AI in the prototype — `docs/decisions/2026-08-prototype-ai-scope-and-fun-fact.md`
+- Reflections use reverse chronology and optional prompts — `docs/decisions/2026-08-reflection-chronology-and-prompts.md`
+- How repository queries combine and compare values — `docs/decisions/2026-08-repository-query-semantics.md`
+- A section's activity event names its project, not the section — `docs/decisions/2026-08-section-activity-targets-the-project.md`
+- A section config is an object at rest, replaced whole on write — `docs/decisions/2026-08-section-config-ownership.md`
+- Project statuses, milestone statuses, task priorities — `docs/decisions/2026-08-status-and-priority-value-sets.md`
+- Stdio uses an environment token and reloads identity per call — `docs/decisions/2026-08-stdio-token-and-live-auth.md`
+- Storybook runs on the Vite framework, not the webpack one — `docs/decisions/2026-08-storybook-runs-on-the-vite-framework.md`
+- A date-only task due date is stored at UTC end-of-day — `docs/decisions/2026-08-task-date-only-due-time.md`
+- Task status transitions, completedAt, and how a task is archived — `docs/decisions/2026-08-task-status-transitions-and-archive.md`
+- A theme change lasts the session, not the persona — `docs/decisions/2026-08-theme-selection-is-session-only.md`
+- Timeline derives ranges without inventing a project start date — `docs/decisions/2026-08-timeline-range-semantics.md`
+- What the tool registry knows about MCP — `docs/decisions/2026-08-tool-registry-is-transport-free.md`
+- View Mode shows work; Edit Layout Mode shows canvas chrome — `docs/decisions/2026-08-view-mode-section-chrome.md`
+- The web app and the host start separately — `docs/decisions/2026-08-web-and-host-start-separately.md`
+- Workspace scoping, and why a foreign id is 404 rather than 409 — `docs/decisions/2026-08-workspace-scoping-and-not-found.md`
+- Why workspace.read needed a service of its own — `docs/decisions/2026-08-workspace-tools-need-their-own-service.md`
+- A disabled page refuses new content and keeps everything already on it — `docs/decisions/2026-09-a-disabled-page-hides-navigation-not-data.md`
+- A section has a name, and the default is derived rather than stored — `docs/decisions/2026-09-a-section-has-a-name.md`
+- A shortcut resolves source identity, not source content — `docs/decisions/2026-09-a-shortcut-resolves-identity-not-content.md`
+- Actionable Archive and archived-project recovery — `docs/decisions/2026-09-actionable-archive-and-archived-projects.md`
+- Completion history respects an archived task — `docs/decisions/2026-09-archived-task-completion-history.md`
+- Canvas chrome is revealed in place, not gated by an editing mode — `docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md`
+- Content-oriented Archive policy — `docs/decisions/2026-09-content-oriented-archive-policy.md`
+- Contextual insertion remembers its target and creates in one positioned write — `docs/decisions/2026-09-contextual-insertion-names-its-position.md`
+- Descendant rows link to their owner's existing header history — `docs/decisions/2026-09-descendant-history-discovery.md`
+- Direct canvas editing is the next development direction — `docs/decisions/2026-09-direct-canvas-editing-direction.md`
+- Disposable removal keeps required references and offers immediate canvas Undo — `docs/decisions/2026-09-disposable-removal-and-immediate-undo.md`
+- A forward reparent refuses a Home shortcut it would carry across roots — `docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md`
+- Activity captures target identity so an audit line outlives its row — `docs/decisions/2026-09-historical-activity-identity.md`
+- Stage A defers historical activity identity and the retry cache, and uses one transition route — `docs/decisions/2026-09-history-stage-a-deferrals.md`
+- Home orders sections and shortcuts together — `docs/decisions/2026-09-home-orders-sections-and-shortcuts-together.md`
+- MCP history conflicts explain their repair in words — `docs/decisions/2026-09-mcp-history-conflict-guidance.md`
+- Section removal is one cascade gesture, and task Delete is reversible — `docs/decisions/2026-09-one-step-section-removal-and-task-delete.md`
+- One writer per data file: an advisory owner record, held by the host for life and by stdio per call — `docs/decisions/2026-09-one-writer-per-data-file.md`
+- A history transition requires the stored operation family's write grant — `docs/decisions/2026-09-operation-family-permissions.md`
+- One explicit write is one history action, kept for 24 hours and at most 50 per history — `docs/decisions/2026-09-operation-history-retention.md`
+- Applied-state checks and an archive generation replace supersession; unrepairable actions retire — `docs/decisions/2026-09-operation-history-retired-actions.md`
+- Undo and Redo follow one history per exact actor, per owning project — `docs/decisions/2026-09-operation-history-scope.md`
+- Optional page management lives in project navigation — `docs/decisions/2026-09-optional-page-management-lives-in-project-navigation.md`
+- Undoing a first enable deletes the page it created; undoing a toggle moves one boolean — `docs/decisions/2026-09-optional-page-operation-history.md`
+- A root's optional pages are created on first enable, and enabling one escapes the archive freeze — `docs/decisions/2026-09-optional-pages-are-created-on-first-enable.md`
+- Below 48rem the global sidebar is a modal drawer, and a chosen link hands focus to what it opened — `docs/decisions/2026-09-phone-navigation-drawer.md`
+- Project creation belongs to the created project's history and can be recovered at its URL — `docs/decisions/2026-09-project-creation-history.md`
+- The project header offers Undo and Redo of the displayed project's history, and nothing else does — `docs/decisions/2026-09-project-header-history-controls.md`
+- Page settings and work creation live beside their navigation — `docs/decisions/2026-09-project-navigation-gear-and-work-create.md`
+- An existing project's writes are one action family, and its own archive can be undone while archived — `docs/decisions/2026-09-project-update-operation-history.md`
+- A root project is a workspace with pages; a subproject is a unit of work — `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`
+- Live work under an archived ancestor is hidden, and cannot be newly created — `docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md`
+- Reassigning a container's rows may cross pages within a project — `docs/decisions/2026-09-reassign-may-cross-pages.md`
+- A recovery route is offered only when it leads somewhere — `docs/decisions/2026-09-recovery-routes-name-what-is-actually-there.md`
+- Reflection subjects and the root journal feed — `docs/decisions/2026-09-reflection-subjects-and-the-journal-feed.md`
+- Root Archive recovery guidance — `docs/decisions/2026-09-root-archive-recovery-guidance.md`
+- Task and reflection writes record one reversible row action — `docs/decisions/2026-09-row-operation-history.md`
+- Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps — `docs/decisions/2026-09-schema-version-4-conversion.md`
+- Schema version 5 backfills durable Activity identity without changing history — `docs/decisions/2026-09-schema-version-5-conversion.md`
+- Explicit section edits reverse only their operation's changes — `docs/decisions/2026-09-section-edit-undo-boundaries.md`
+- A section removal commits one scoped, expiring Undo record beside its canonical writes — `docs/decisions/2026-09-section-removal-undo-records.md`
+- A recorded Restore is a new action, and a shortcut action owns only its placement — `docs/decisions/2026-09-section-restore-and-shortcut-history.md`
+- A section update's history label names its recorded edit — `docs/decisions/2026-09-section-update-history-labels.md`
+- Container sections own their rows; view sections own nothing — `docs/decisions/2026-09-sections-own-their-data.md`
+- Task checkboxes reopen, task titles select, and editing lives in the drawer — `docs/decisions/2026-09-task-checkbox-reopen-and-selection.md`
+- Task Delete names its existing recovery routes — `docs/decisions/2026-09-task-delete-recovery-feedback.md`
+- A task step's Undo and Redo refuse while its section is archived — `docs/decisions/2026-09-task-history-under-archived-sections.md`
+- A task cannot follow its parent into an archived section — `docs/decisions/2026-09-task-reparent-archived-section.md`
+- What the Todos page decides for itself: ties, access, completion and arrival — `docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md`
+- Web specs start from empty browser storage — `docs/decisions/2026-09-web-specs-start-with-empty-storage.md`
+- What undo means for an archived row — `docs/decisions/2026-09-what-undo-means-for-an-archived-row.md`
+- Where the project navigation column lives, and what moved with it — `docs/decisions/2026-09-where-the-project-navigation-column-lives.md`
+- Nested project work is called a workstream — `docs/decisions/2026-09-workstream-user-terminology.md`
+- The accent stays orange in dark and blue in light — `docs/decisions/2026-10-accents-stay-split-per-theme.md`
+- Connecting an agent becomes a product surface in Settings › AI & Agents — `docs/decisions/2026-10-agent-connections-are-a-product-surface.md`
+- App-owned icons are one monochrome SVG set; user emoji stay content — `docs/decisions/2026-10-app-icons-are-one-svg-set.md`
+- Archive is always visitable — `docs/decisions/2026-10-archive-is-always-visitable.md`
+- Breakpoints live beside the design tokens — `docs/decisions/2026-10-breakpoints-beside-the-tokens.md`
+- Control primitives are global classes over native elements — `docs/decisions/2026-10-control-primitives-are-global-classes.md`
+- Add workstream defaults to the open workstream, and adding a task does not open its details — `docs/decisions/2026-10-creation-defaults-follow-the-open-work.md`
+- Depth blurs panes and leaves translucent sheets unblurred — `docs/decisions/2026-10-depth-blur-budget.md`
+- A failure speaks product words, keeps its reason under Details, and offers Try again for a read — `docs/decisions/2026-10-failures-speak-product-words.md`
+- Feedback is one toast with receipt-specific Undo — `docs/decisions/2026-10-feedback-is-one-toast-with-undo.md`
+- Pending, saved and failed feedback stays on the object it is about — `docs/decisions/2026-10-feedback-stays-on-the-object.md`
+- The redesign follows direction B, Depth, held to the eight principles and the glass constraints — `docs/decisions/2026-10-frosted-glass-depth-direction.md`
+- Ghost buttons have a faint edge at rest — `docs/decisions/2026-10-ghost-buttons-have-a-faint-resting-edge.md`
+- Lifts use the browser's top layer — `docs/decisions/2026-10-lifts-use-the-top-layer.md`
+- Markdown stores source and renders safely — `docs/decisions/2026-10-markdown-source-and-rendering.md`
+- More is a menu with a single-commit details dialog — `docs/decisions/2026-10-more-is-a-menu-with-a-details-dialog.md`
+- Navigation condenses into one tree — `docs/decisions/2026-10-one-navigation-tree.md`
+- Prototype data is disposable until further notice; working seeds are what must survive — `docs/decisions/2026-10-prototype-data-is-disposable.md`
+- Prototype scaffolding stays visible during the redesign — `docs/decisions/2026-10-prototype-scaffolding-stays-for-now.md`
+- The Sub-Projects section is retired; Work is the hierarchy surface — `docs/decisions/2026-10-retiring-the-sub-projects-section.md`
+- Route focus lands lost focus after user navigation — `docs/decisions/2026-10-route-focus-lands-lost-focus.md`
+- Rows open their canonical owner — `docs/decisions/2026-10-rows-open-their-canonical-owner.md`
+- Schema version 6 converts Rich Text to Markdown and retires it — `docs/decisions/2026-10-schema-version-6-markdown-conversion.md`
+- Section chrome is quiet at rest on every device — `docs/decisions/2026-10-section-chrome-is-quiet-at-rest.md`
+- A Markdown section's config is validated on every write — `docs/decisions/2026-10-section-config-validated-on-write.md`
+- The theme follows the device preference, and an explicit choice persists — `docs/decisions/2026-10-theme-follows-device-and-persists.md`
+- Untitled shortcut sources name their owner — `docs/decisions/2026-10-untitled-shortcut-sources-name-their-owner.md`
+- A workstream's Work canvas takes shortcuts the way a root's Home does — `docs/decisions/2026-10-work-canvas-shortcut-destinations.md`
+- A root's first page is named by its project, never "Home" — `docs/decisions/2026-11-a-root-first-page-is-named-by-its-project.md`
+- Archived pages are read-only, with a banner that restores in place — `docs/decisions/2026-11-archived-pages-are-read-only.md`
+- A project archive can take its named workstreams down with it — `docs/decisions/2026-11-cascading-project-archive.md`
+- The digest's overdue line leads to the tasks — `docs/decisions/2026-11-digest-overdue-line-leads-to-the-tasks.md`
+- Titles name the place most specific first, the h1 names the current page, and a skip link leads into main — `docs/decisions/2026-11-document-titles-and-skip-link.md`
+- An empty workspace offers the first project — `docs/decisions/2026-11-empty-workspace-offers-the-first-project.md`
+- Focus after a successful Try again goes to the recovered region's heading — `docs/decisions/2026-11-focus-after-try-again-goes-to-the-heading.md`
+- The navigation tree reads project place from a context the project route publishes — `docs/decisions/2026-11-navigation-reads-project-place-from-a-context.md`
+- On-demand loading: what may leave the initial bundle, and how it is prefetched — `docs/decisions/2026-11-on-demand-loading-and-prefetch.md`
+- A Task List shows its count in the frame header — `docs/decisions/2026-11-task-list-shows-its-count.md`
+- A toast says one short message; a longer reason opens from "View details" — `docs/decisions/2026-11-toasts-say-it-short-with-view-details.md`
+- A new workstream opens, and its toast's Undo returns to the parent — `docs/decisions/2026-11-undoing-a-new-workstream-returns-to-its-parent.md`
