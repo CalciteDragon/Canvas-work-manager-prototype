@@ -102,3 +102,15 @@ test('control census includes the resize slider and its box', () => {
   assert.equal(slider?.role, 'slider');
   assert.deepEqual([slider.width, slider.height], [80, 32]);
 });
+
+test('walk env.sh --print-paths puts the data file under ux-output/walk-env on this platform', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { resolve, sep } = await import('node:path');
+  const envSh = resolve(import.meta.dirname, 'walk', 'env.sh');
+  const printed = Object.fromEntries(execFileSync('bash', [envSh, '--print-paths', 'w-probe', '4322', '5322'], { encoding: 'utf8' })
+    .trim().split('\n').map(line => line.split('=')));
+  const walkEnv = resolve(import.meta.dirname, '..', 'ux-output', 'walk-env');
+  assert.equal(resolve(printed.data), resolve(walkEnv, 'w-probe.json'));
+  assert.ok(resolve(printed.data).startsWith(walkEnv + sep));
+  assert.equal(resolve(printed.out), walkEnv);
+});
