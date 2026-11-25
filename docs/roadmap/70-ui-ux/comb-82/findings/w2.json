@@ -1,0 +1,498 @@
+{
+  "auditor": "w2",
+  "attestation": "I read AGENTS.md section 1 for orientation only (it was in my context) and then only the four brief files named in my launch (common, inventory, decisions, w2) plus the walk-rig scripts env.sh and walk.mjs (by listing apps/e2e/ux/walk/ I also saw the names static.mjs, walkd.mjs and repro, which I did not open). I did not open the C82 captures, any other docs, decision entries, git history, app source or .prototype files; facts come from my own walk through the rig. I ran the provided t12-setup.js without reading it. I met no earlier audit ids or wording. I opened the development state page (/prototype/state) only as a user would during T10 and saved no friction note and never called the notes endpoint. I stopped my daemon with walk.mjs quit and a process-group kill, and ports 4323 and 5323 were released.",
+  "findings": [
+    {
+      "id": "C82-W2-001",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Archive page › archived item row › title",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "state": "populated (3 archived items)",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/041-t09-archive.png (Legacy attic card: content pushed right of an empty ~80px left column)",
+        "apps/e2e/ux-output/walk/w2/042-t09-archive-list.png (section item title \"Markdown\" wraps one letter per line; \"Old permit copy\" squeezed)",
+        "computed on the Markdown item: li.archived-region__entry display:grid, grid-template-columns \"44px 1.4375px 156.562px\"; strong.archived-region__name width 1px, height 180px"
+      ],
+      "repro": [
+        "1. seed nested-projects; open /app at 375x812",
+        "2. tap Menu › Home renovation, then Menu › Archive",
+        "3. scroll the item list"
+      ],
+      "expected": "Each archived item reads as a compact row on a phone, with its name on one line beside or above its Restore button.",
+      "actual": "Every row keeps an empty 44px leading column, the name column collapses to about 1px, and the Section item's name \"Markdown\" is stacked vertically one letter per line; descriptions are squeezed into the right half of the card.",
+      "lens": "task:T09",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design; WCAG 2.2 SC 1.4.10 Reflow",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-002",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Work canvas › section frame › tools (rename, collapse, move, remove)",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "state": "populated, touch",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/028-t05-before-remove.png (Progress: four bare icons — pencil, chevron, dots, boxed x — no text)",
+        "Remove button: aria-label \"Remove section Progress\", title \"Remove section\" (only shown on hover); no visible text",
+        "T05 step 1: the remove control had to be guessed among four unlabeled icons"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen on a phone",
+        "2. look at any section's row of four icons under its heading",
+        "3. try to find which one removes the section without hovering"
+      ],
+      "expected": "On a touch screen, each section tool says what it does, or its meaning is otherwise discoverable without hover.",
+      "actual": "The tools are four unlabeled glyphs whose only description is a hover tooltip; a phone user cannot see it and must guess (the boxed x removes the section at once, with only an Undo toast as safety).",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-003",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Work canvas › section frame › tool icons",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "busy-week",
+      "state": "populated, at rest",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/052-t12-tools-crop.png (Markdown tools at rest)",
+        "computed: button color rgb(76, 84, 100), effective opacity 0.55, 16x16 svg, on a near-white card → about rgb(157,161,170) on ~rgb(248,249,252), roughly 2.5:1",
+        "confidence inferred: contrast computed from the measured color and opacity, not measured on pixels"
+      ],
+      "repro": [
+        "1. seed busy-week; open /projects/project-launch on a phone",
+        "2. look at the icons under the Markdown heading without touching anything"
+      ],
+      "expected": "Controls a user must operate are drawn at a contrast at least 3:1 against their background.",
+      "actual": "Section tool icons are faded to 55% opacity at rest, about 2.5:1 against the card; on a phone there is no hover to reveal them more strongly.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.4.11 Non-text Contrast",
+      "severity": "S3",
+      "confidence": "inferred",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-004",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Work canvas › insertion point between sections",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "state": "populated, touch",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/015-t03-kitchen-top.png (thin \"+\" between Flow layout and Markdown, and between Markdown and Task List)",
+        "apps/e2e/ux-output/walk/w2/016-t03-insert-crop.png",
+        "computed: button 327x44, its only content a 10x10 svg \"+\", no visible text",
+        "apps/e2e/ux-output/walk/w2/017-t03-more.png (dead end: the More menu has no way to add a section)"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen on a phone",
+        "2. look for a way to add a new Task List on the first screen"
+      ],
+      "expected": "A visible, recognisable control to add a section near where the user is looking.",
+      "actual": "The only adding controls on screen are 10px \"+\" glyphs between sections with no label; \"Add a section\" exists only at the very bottom of a long canvas (about 2600px down). I first tried the header's More menu, which has no such item.",
+      "lens": "task:T03",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-005",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Work canvas › Task List › add-task field",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "state": "add draft, touch",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/020-t03-one-task.png",
+        "after tapping Add task, document.activeElement is the \"Add task\" button, not the Task title field",
+        "apps/e2e/ux-output/walk/w2/021-t03-two-tasks.png"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen on a phone",
+        "2. tap Task title, type a title, tap Add task",
+        "3. try to type the next title"
+      ],
+      "expected": "After adding a task, the field is ready for the next one, so a list can be entered in a row.",
+      "actual": "Focus stays on the Add task button, so the on-screen keyboard closes and the field must be tapped again for each task.",
+      "lens": "task:T03",
+      "heuristic": "Nielsen #7 Flexibility and efficiency of use",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-006",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "dashboard › Today / Daily Digest overdue task link › project workspace › Task List",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "overdue-chaos",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/048-t11-landed.png (after tapping \"Notify stakeholders\": Task List heading visible, the task itself is not on screen)",
+        "row \"Notify stakeholders\" at y=1036 in an 812px viewport; no selected/highlight state (no aria-current, no outline); focus on the \"Task List\" heading",
+        "apps/e2e/ux-output/walk/w2/024-t04-landed.png (same for \"Review rejected rows\")",
+        "link href ends at #section-…-tasks (the section, not the task)"
+      ],
+      "repro": [
+        "1. seed overdue-chaos; open /app on a phone",
+        "2. tap \"Notify stakeholders\" under Today › Overdue",
+        "3. look for the task"
+      ],
+      "expected": "Tapping a specific task lands on that task, visible and marked, where it lives.",
+      "actual": "It lands on the Task List section; the chosen task is below the fold and not marked, so the user must scroll and scan the list for it.",
+      "lens": "task:T11",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-007",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Task List › task detail drawer › Status, Project, Priority",
+      "inventoryRow": "Task detail drawer",
+      "seed": "overdue-chaos",
+      "state": "task-drawer",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/025-t04-drawer.png (Project \"project-client-migration\"; Status \"todo · Overdue\"; Priority \"medium\")"
+      ],
+      "repro": [
+        "1. seed overdue-chaos; open Client migration",
+        "2. tap the title \"Review rejected rows\"",
+        "3. read the drawer"
+      ],
+      "expected": "The drawer names the project as \"Client migration\" and shows status and priority in the same words as the rows (\"In progress\", \"High priority\").",
+      "actual": "It shows the internal id \"project-client-migration\" and raw lower-case values \"todo\" and \"medium\".",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-008",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › dates across task rows, task drawer, activity and reflections",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/025-t04-drawer.png (Due date field \"08/20/2026\")",
+        "apps/e2e/ux-output/walk/w2/022-t03-done.png (rows \"Due 2026-09-18\", \"Completed 2026-08-24\")",
+        "apps/e2e/ux-output/walk/w2/031-t05-bottom-toast.png (Recent Activity \"24 Aug, 16:00\")",
+        "Home renovation canvas, Reflections (Home renovation) shortcut, accessibility tree: time \"2026-08-24T17:00:00.000Z\""
+      ],
+      "repro": [
+        "1. seed nested-projects; open Home renovation; scroll to the Reflections (Home renovation) shortcut",
+        "2. open Kitchen; read task rows and Recent Activity",
+        "3. seed overdue-chaos; open a task's details and read Due date"
+      ],
+      "expected": "Dates read in one familiar format throughout the app.",
+      "actual": "Four formats appear: ISO dates on rows, US \"08/20/2026\" in the drawer, \"24 Aug, 16:00\" in activity, and a raw machine timestamp \"2026-08-24T17:00:00.000Z\" on reflections.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-009",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Recent Activity section › section removal line",
+      "inventoryRow": "Recent Activity section and shared feed",
+      "seed": "nested-projects",
+      "state": "after removing and restoring sections",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/031-t05-bottom-toast.png (Recent Activity: \"Section removed “Kitchen”\")",
+        "region text: \"Section removed “Kitchen” / Section removal undone “Kitchen” / Section removed “Kitchen”\""
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen",
+        "2. tap the remove icon on Progress",
+        "3. read Recent Activity"
+      ],
+      "expected": "The line names the section that was removed (\"Progress\").",
+      "actual": "It reads \"Section removed “Kitchen”\", which looks like Kitchen itself was removed; which section went is not said anywhere in the line.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A section's activity event names its project, not the section"
+    },
+    {
+      "id": "C82-W2-010",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace (Kitchen) › Timeline section › own entry",
+      "inventoryRow": "Timeline section",
+      "seed": "nested-projects",
+      "state": "populated",
+      "evidence": [
+        "Kitchen canvas, Timeline: \"Kitchen Project active\"",
+        "Home renovation canvas, Timeline: \"Kitchen Workstream active\"",
+        "apps/e2e/ux-output/walk/w2/014-t03-kitchen.png"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Home renovation and read Kitchen's Timeline entry",
+        "2. open Kitchen and read its own Timeline entry"
+      ],
+      "expected": "Kitchen is called a workstream in both places.",
+      "actual": "Its parent's Timeline says \"Workstream active\"; Kitchen's own Timeline says \"Project active\".",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Home renovation Timeline vs Kitchen Timeline",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-011",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "shortcut picker group heading; page settings popover first row",
+      "inventoryRow": "Shortcut picker",
+      "seed": "nested-projects",
+      "state": "open",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/035-t07-picker.png (group \"Home renovation · Home\")",
+        "apps/e2e/ux-output/walk/w2/037-t08-pages.png (row \"Home  Required\")",
+        "apps/e2e/ux-output/walk/w2/008-t02-menu-in-project.png (tree names the page \"Home renovation\")"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen; tap a \"+\" between sections, then Add shortcut",
+        "2. open Menu › pencil › Pages of Home renovation…"
+      ],
+      "expected": "The project's first page carries the same name everywhere it is listed.",
+      "actual": "The navigation tree calls it \"Home renovation\"; the shortcut picker and page settings call it \"Home\".",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: navigation tree vs shortcut picker and page settings",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-012",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "settings › AI & Agents",
+      "inventoryRow": "`/settings/agents`",
+      "seed": "agent-heavy",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/045-t10-agents.png (connections with permissions and Revoke; no connect control; page buttons: Settings, Revoke ×3)",
+        "apps/e2e/ux-output/walk/w2/046-t10-settings.png (Settings entry: AI & Agents, Archived projects, Appearance)",
+        "apps/e2e/ux-output/walk/w2/047-t10-proto-state.png (development state page: AGENT CONNECTION lists fixture tokens with Copy token only)"
+      ],
+      "repro": [
+        "1. seed agent-heavy; open /app on a phone",
+        "2. Menu › AI & Agents",
+        "3. look for a way to connect a new agent; then Settings; then /prototype/state"
+      ],
+      "expected": "A way to connect a new agent from where connected agents are listed.",
+      "actual": "Nothing offers to connect a new agent: AI & Agents only edits or revokes existing connections, Settings has no such entry, and the development page only copies pre-made tokens. The task could not be finished.",
+      "lens": "task:T10",
+      "heuristic": "Nielsen #3 User control and freedom",
+      "severity": "S1",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-013",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Project layout notice",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "nested-projects",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/003-t01-created.png (empty project: notice \"Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state.\")",
+        "apps/e2e/ux-output/walk/w2/015-t03-kitchen-top.png",
+        "apps/e2e/ux-output/walk/w2/050-t12-failure.png (\"Grid layout\" variant)"
+      ],
+      "repro": [
+        "1. seed any; open any project on a phone",
+        "2. read the card under the project header"
+      ],
+      "expected": "The first screen of a project on a phone shows the project's content, and any instructions are ones a phone can follow.",
+      "actual": "Every project spends its first screen on a \"Flow layout\" card telling the user to press Ctrl/Cmd+Shift+D, a keyboard shortcut a phone cannot press.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": "Prototype scaffolding stays visible during the redesign"
+    },
+    {
+      "id": "C82-W2-014",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "phone navigation drawer › pencil menu › Pages popover",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "state": "page settings open",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/037-t08-pages.png (drawer closed as the popover opened)",
+        "apps/e2e/ux-output/walk/w2/038-t08-hidden.png (after unticking Reflections: no saved line, tree not visible)",
+        "apps/e2e/ux-output/walk/w2/039-t08-tree-hidden.png (needed to close the popover and reopen Menu to see the change)"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Home renovation on a phone",
+        "2. Menu › pencil › Pages of Home renovation…",
+        "3. untick Reflections"
+      ],
+      "expected": "Seeing the page disappear from (or return to) the navigation, or a confirmation, right after the change.",
+      "actual": "Opening Pages closes the drawer, and the toggle gives no confirmation; to check it the user must dismiss the popover and reopen Menu, and again to switch it back on.",
+      "lens": "task:T08",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-015",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › Work canvas › Task List › read failure",
+      "inventoryRow": "Task List section",
+      "seed": "busy-week",
+      "state": "error (task list read failed)",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/050-t12-failure.png (\"Couldn’t load this task list.\" under an active Add a task field)",
+        "Task title textbox enabled: true; Add task button enabled: true while the error shows"
+      ],
+      "repro": [
+        "1. seed busy-week; open /projects/project-launch",
+        "2. run t12-setup.js (task list read fails)",
+        "3. look at the Task List"
+      ],
+      "expected": "While the list cannot be read, the section does not invite adding to it, or says what adding will do.",
+      "actual": "The Add a task field and button stay active above the \"Couldn’t load this task list.\" error.",
+      "lens": "states",
+      "heuristic": "Nielsen #5 Error prevention",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-016",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "phone navigation drawer › project tree › Add workstream",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "state": "drawer open in a project",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/008-t02-menu-in-project.png (tree: no add control; only a back chevron and a pencil)",
+        "apps/e2e/ux-output/walk/w2/011-t02-pencil.png (pencil menu: Pages of Home renovation…, Add workstream)"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen on a phone",
+        "2. look for a way to create a workstream under Kitchen"
+      ],
+      "expected": "An add control near the workstreams in the tree or on Kitchen's page.",
+      "actual": "Add workstream is two levels down behind Menu and a pencil icon, an icon that reads as \"edit\" rather than \"add\"; nothing on Kitchen's page or the tree rows hints at it (it is also in the header's More menu).",
+      "lens": "task:T02",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-017",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "project workspace › project header › breadcrumb",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "state": "new workstream open",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/013-t02-created.png (\"Home renovation › Kitchen\" pills on line one, \"› Lighting\" alone on line two)"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen on a phone",
+        "2. create a workstream \"Lighting\" under Kitchen",
+        "3. read the breadcrumb"
+      ],
+      "expected": "The breadcrumb reads as one path, wrapping between whole items.",
+      "actual": "The ancestors are tall pills and the current item drops alone onto a second, smaller line, so the path reads as two unrelated rows.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W2-018",
+      "auditor": "w2",
+      "theme": "light",
+      "viewport": "375x812",
+      "persona": "user-demo",
+      "surface": "toast after Undo of a section removal",
+      "inventoryRow": "Section removal/recovery feedback",
+      "seed": "nested-projects",
+      "state": "after Undo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w2/030-t05-restored.png (toast \"Undone: Removed the Progress section.\")"
+      ],
+      "repro": [
+        "1. seed nested-projects; open Kitchen",
+        "2. remove Progress",
+        "3. tap Undo in the toast"
+      ],
+      "expected": "A plain statement such as the section being back.",
+      "actual": "The toast reads \"Undone: Removed the Progress section.\", which leads with the word \"Removed\" for a section that has just come back.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

@@ -1,0 +1,570 @@
+{
+  "auditor": "w2",
+  "inputMode": "touch",
+  "viewport": "375x812",
+  "theme": "light",
+  "personas": [
+    "user-demo"
+  ],
+  "tasks": [
+    {
+      "task": "T01",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 2,
+      "keystrokes": 11,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Phone navigation drawer",
+        "New project form",
+        "Project workspace"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The empty dashboard's \"New project\" button was the first thing I saw; it opened the navigation drawer with a focused name field rather than a form in place, which surprised me but worked.",
+      "steps": [
+        {
+          "expect": "Tapping New project opens a name form.",
+          "action": "tap \"New project\" in Get started",
+          "observed": "The navigation drawer slid in with an inline Project name field, already focused, and Create.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/002-t01-after-new.png"
+        },
+        {
+          "expect": "Typing a name and tapping Create opens the new project.",
+          "action": "type \"Garden plan\"; tap Create",
+          "observed": "Opened /projects/… titled Garden plan, empty canvas with Add a section; header Undo offers \"Created Garden plan\". A Flow layout card tells me to press Ctrl/Cmd+Shift+D.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/003-t01-created.png"
+        }
+      ],
+      "verification": "Page title \"Garden plan · Canvas Work Manager\" and h1 Garden plan; Undo names the creation.",
+      "findings": [
+        "C82-W2-013"
+      ]
+    },
+    {
+      "task": "T02",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 7,
+      "keystrokes": 8,
+      "deadEnds": 0,
+      "surfaces": [
+        "Phone navigation drawer",
+        "Project workspace",
+        "Pencil menu",
+        "Workstream creation dialog"
+      ],
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "I opened Menu expecting an add control by Kitchen in the tree; there was none, and I only found Add workstream by trying the pencil icon at the top of the drawer.",
+      "steps": [
+        {
+          "expect": "Menu shows projects including Kitchen.",
+          "action": "tap Menu",
+          "observed": "Only \"Home renovation\" is listed at top level.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/005-t02-menu.png"
+        },
+        {
+          "expect": "Opening Home renovation shows its workstreams.",
+          "action": "tap Home renovation in the drawer",
+          "observed": "The project opened and the drawer closed; the page shows no workstreams.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/007-t02-renovation.png"
+        },
+        {
+          "expect": "The drawer now shows Kitchen with an add option.",
+          "action": "tap Menu",
+          "observed": "Tree shows pages, Kitchen (with a chevron) and Garden; no add control except a pencil icon.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/008-t02-menu-in-project.png"
+        },
+        {
+          "expect": "Kitchen opens.",
+          "action": "tap Kitchen; tap Menu",
+          "observed": "Kitchen opened; tree unchanged.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/010-t02-kitchen-menu.png"
+        },
+        {
+          "expect": "The pencil edits something; maybe it has an add.",
+          "action": "tap the pencil (Edit project)",
+          "observed": "Menu: \"Pages of Home renovation…\", \"Add workstream\".",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/011-t02-pencil.png"
+        },
+        {
+          "expect": "A dialog with Kitchen as parent.",
+          "action": "tap Add workstream",
+          "observed": "Dialog with Name (focused) and Parent defaulting to Kitchen, \"Inside Kitchen\".",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/012-t02-dialog.png"
+        },
+        {
+          "expect": "The workstream is created under Kitchen.",
+          "action": "type \"Lighting\"; tap Create",
+          "observed": "Lighting opened, breadcrumb Home renovation › Kitchen › Lighting (wrapping awkwardly), toast \"Created Lighting under Kitchen.\" with Undo.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/013-t02-created.png"
+        }
+      ],
+      "verification": "Breadcrumb shows Kitchen as parent; toast \"Created Lighting under Kitchen.\"",
+      "findings": [
+        "C82-W2-016",
+        "C82-W2-017"
+      ]
+    },
+    {
+      "task": "T03",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 14,
+      "keystrokes": 36,
+      "deadEnds": 1,
+      "surfaces": [
+        "Dashboard",
+        "Project workspace",
+        "More menu",
+        "Section creation dialog",
+        "Task List section",
+        "Task row"
+      ],
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Kitchen's first screen had no labelled way to add a section; I tried the header's More menu first, then guessed that the faint \"+\" between sections adds one.",
+      "steps": [
+        {
+          "expect": "Kitchen opens from the dashboard.",
+          "action": "tap Kitchen under Active Projects",
+          "observed": "Kitchen canvas with Markdown, Task List, Progress, Reflections, Timeline, Recent Activity.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/015-t03-kitchen-top.png"
+        },
+        {
+          "expect": "More holds \"Add section\".",
+          "action": "tap ⋯ More project actions",
+          "observed": "Edit details, Status, Open archive, Pages, Add workstream, Archive workstream; no section creation.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/017-t03-more.png"
+        },
+        {
+          "expect": "The small + adds something here.",
+          "action": "tap outside to close; tap the \"+\" between Markdown and Task List",
+          "observed": "Dialog \"Add a section\" with Section type and Name.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/018-t03-insert-dialog.png"
+        },
+        {
+          "expect": "A Task List named Pantry appears.",
+          "action": "pick Task List in the native picker; tap Name; type \"Pantry\"; tap Create",
+          "observed": "Pantry section appeared and its heading took focus.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/019-t03-created.png"
+        },
+        {
+          "expect": "Tasks are added and the field stays ready.",
+          "action": "tap Task title; type \"Buy shelf liners\"; tap Add task; tap Task title again; type \"Label the jars\"; tap Add task",
+          "observed": "Both tasks added (\"2 tasks\"); after each add, focus stayed on the button so I had to tap the field again.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/021-t03-two-tasks.png"
+        },
+        {
+          "expect": "Both tasks show as done.",
+          "action": "tap both checkboxes",
+          "observed": "Both struck through, \"Done Completed 2026-08-24\".",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/022-t03-done.png"
+        }
+      ],
+      "verification": "Pantry's accessibility tree shows both checkboxes \"Reopen task …\" [checked].",
+      "findings": [
+        "C82-W2-004",
+        "C82-W2-005"
+      ]
+    },
+    {
+      "task": "T04",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 5,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Project workspace",
+        "Task row",
+        "Task detail drawer"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The dashboard's Today widget lists overdue tasks first; tapping one took me to its list (not to the task), and tapping the title opened a drawer with a date field.",
+      "steps": [
+        {
+          "expect": "Tapping the overdue task shows it.",
+          "action": "tap \"Review rejected rows\" on the dashboard",
+          "observed": "Client migration opened scrolled to the Task List; the task was off screen and not marked.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/024-t04-landed.png"
+        },
+        {
+          "expect": "Tapping the title opens details.",
+          "action": "scroll; tap \"Review rejected rows\"",
+          "observed": "Full-screen drawer: Title, Priority \"medium\", Due date 08/20/2026, Status \"todo · Overdue\", Project \"project-client-migration\".",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/025-t04-drawer.png"
+        },
+        {
+          "expect": "Choosing a new date saves.",
+          "action": "tap Due date; pick 2026-08-31",
+          "observed": "\"Due date saved.\"; Overdue disappeared from status.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/026-t04-date-changed.png"
+        },
+        {
+          "expect": "The row shows the new date.",
+          "action": "tap Close",
+          "observed": "Row reads \"Due 2026-08-31\".",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/027-t04-verified.png"
+        }
+      ],
+      "verification": "Row text \"Review rejected rows / Due 2026-08-31\" with no Overdue mark.",
+      "findings": [
+        "C82-W2-006",
+        "C82-W2-007",
+        "C82-W2-008"
+      ]
+    },
+    {
+      "task": "T05",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 2,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Project workspace",
+        "Section frame",
+        "Toast"
+      ],
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Sections carry four unlabeled icons; I guessed the boxed x was remove. Bringing it back was the toast's Undo.",
+      "steps": [
+        {
+          "expect": "One of the icons removes the section.",
+          "action": "tap the boxed-x icon on Progress",
+          "observed": "Progress vanished at once (no confirmation); toast \"Removed the Progress section.\" with Undo and Dismiss, which stayed for over 30 s.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/029-t05-removed.png"
+        },
+        {
+          "expect": "Undo brings it back in place.",
+          "action": "tap Undo",
+          "observed": "Progress returned in its place, its heading focused; toast \"Undone: Removed the Progress section.\"",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/030-t05-restored.png"
+        },
+        {
+          "expect": "Activity names the removed section.",
+          "action": "scroll to Recent Activity (after also removing Timeline to time the toast)",
+          "observed": "Lines read \"Section removed “Kitchen”\", not the section name.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/031-t05-bottom-toast.png"
+        }
+      ],
+      "verification": "Progress region present again in the canvas (count 1) after Undo.",
+      "findings": [
+        "C82-W2-002",
+        "C82-W2-003",
+        "C82-W2-009",
+        "C82-W2-018"
+      ]
+    },
+    {
+      "task": "T06",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 4,
+      "keystrokes": 19,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Project workspace",
+        "Markdown section and source editor"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The Markdown section has a visible Edit button under its text.",
+      "steps": [
+        {
+          "expect": "Edit opens a text editor.",
+          "action": "tap Kitchen on the dashboard; tap Edit in Markdown",
+          "observed": "Textarea with the source, focused with caret at the end; Preview, Save, Cancel.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/033-t06-editor.png"
+        },
+        {
+          "expect": "Saving shows the new text.",
+          "action": "tap into the text; type \" Order handles too.\"; tap Save",
+          "observed": "Rendered text \"Appliances and finishes before cabinets are ordered. Order handles too.\" with Edit again.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/034-t06-saved.png"
+        }
+      ],
+      "verification": "Markdown region paragraph contains the appended sentence after save.",
+      "findings": []
+    },
+    {
+      "task": "T07",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 4,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Project workspace",
+        "Section creation dialog",
+        "Shortcut picker",
+        "Shortcut frame"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Having learned the \"+\" in T03, I opened it and found \"Add shortcut\" in the corner of the Add a section dialog.",
+      "steps": [
+        {
+          "expect": "The add dialog offers shortcuts.",
+          "action": "tap Kitchen; tap the \"+\" before Markdown; tap Add shortcut",
+          "observed": "Picker grouped by place: \"Home renovation · Home\", \"Home renovation · Reflections\", \"Home renovation / Garden · Work canvas\", each section with Add and Preview.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/035-t07-picker.png"
+        },
+        {
+          "expect": "Garden's notes appear on Kitchen as a shortcut.",
+          "action": "tap Add on Garden's Markdown",
+          "observed": "\"Markdown (Garden)\" appeared first on Kitchen, read-only, with its origin and Open source.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/036-t07-added.png"
+        }
+      ],
+      "verification": "Kitchen's section headings start with \"Markdown (Garden)\".",
+      "findings": [
+        "C82-W2-011"
+      ]
+    },
+    {
+      "task": "T08",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 11,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Phone navigation drawer",
+        "Pencil menu",
+        "Page settings popover",
+        "Project workspace"
+      ],
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "I knew from T02 the pencil held \"Pages of Home renovation…\"; a fresh user would not expect page visibility behind an edit icon.",
+      "steps": [
+        {
+          "expect": "Pages lists the pages with toggles.",
+          "action": "tap Menu; Home renovation; Menu; pencil; Pages of Home renovation…",
+          "observed": "Popover with checkboxes Home (Required), Todos, Archive, Reflections; the drawer closed.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/037-t08-pages.png"
+        },
+        {
+          "expect": "Unticking hides Reflections with some sign.",
+          "action": "tap the Reflections checkbox",
+          "observed": "Unticked; no confirmation and the navigation is not visible.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/038-t08-hidden.png"
+        },
+        {
+          "expect": "Reflections is gone from the tree.",
+          "action": "tap outside; tap Menu",
+          "observed": "Tree shows Todos and Archive only.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/039-t08-tree-hidden.png"
+        },
+        {
+          "expect": "Ticking it brings it back.",
+          "action": "tap pencil; Pages…; tap Reflections checkbox",
+          "observed": "Ticked; header Undo reads \"Enabled the reflections page\"; tree shows Reflections again.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/040-t08-restored.png"
+        }
+      ],
+      "verification": "After closing the popover and reopening Menu, the tree lists Reflections under Home renovation again.",
+      "findings": [
+        "C82-W2-014"
+      ]
+    },
+    {
+      "task": "T09",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 5,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Phone navigation drawer",
+        "Archive page",
+        "Toast",
+        "Project workspace"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The project tree lists an Archive page directly under Home renovation.",
+      "steps": [
+        {
+          "expect": "Archive lists archived things with Restore.",
+          "action": "tap Menu; Home renovation; Menu; Archive",
+          "observed": "3 items (Legacy attic, Markdown, Old permit copy) each with Restore; on the phone the rows have an empty left column and the \"Markdown\" name is one letter per line.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/042-t09-archive-list.png"
+        },
+        {
+          "expect": "The task comes back.",
+          "action": "tap Restore on Old permit copy",
+          "observed": "Item left the list (2 items); toast \"Restored “Old permit copy” to Home renovation.\" with Go to it, Undo, Dismiss.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/043-t09-restored.png"
+        }
+      ],
+      "verification": "Toast's Go to it (not counted) opened the Task List where \"Old permit copy\" is a row again.",
+      "findings": [
+        "C82-W2-001"
+      ]
+    },
+    {
+      "task": "T10",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "blocked",
+      "clicks": 4,
+      "keystrokes": 17,
+      "deadEnds": 3,
+      "surfaces": [
+        "Phone navigation drawer",
+        "AI & Agents settings",
+        "Settings",
+        "Development state page"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "AI & Agents in the drawer showed each agent's permissions at once; no screen offered to connect a new agent, so I stopped after Settings, the avatar and the development page.",
+      "steps": [
+        {
+          "expect": "AI & Agents shows what agents may do.",
+          "action": "tap Menu; tap AI & Agents",
+          "observed": "Claude, Cursor and Retired assistant with permission checkboxes, last used and Revoke. Claude may read projects, read/modify tasks, read/write reflections, read the workspace overview; not modify projects.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/045-t10-agents.png"
+        },
+        {
+          "expect": "A connect button somewhere on this page.",
+          "action": "scroll the page",
+          "observed": "Only Settings and three Revoke buttons.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/045-t10-agents.png"
+        },
+        {
+          "expect": "Settings has a connect entry.",
+          "action": "tap the Settings breadcrumb",
+          "observed": "AI & Agents, Archived projects, Appearance; nothing to connect.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/046-t10-settings.png"
+        },
+        {
+          "expect": "The avatar opens an account menu.",
+          "action": "tap the top-right avatar",
+          "observed": "Nothing happened.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/046-t10-settings.png"
+        },
+        {
+          "expect": "The development page named in the layout notice has a connect control.",
+          "action": "type /prototype/state in the address bar",
+          "observed": "Agent Connection lists the three existing agents with Copy token; says permissions live in Settings; no way to add one.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/047-t10-proto-state.png"
+        }
+      ],
+      "verification": "Not reached: no surface offers a new connection; I stopped at the development state page.",
+      "findings": [
+        "C82-W2-012"
+      ]
+    },
+    {
+      "task": "T11",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Project workspace",
+        "Task List section"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The Today widget lists overdue tasks as links at the top of the dashboard.",
+      "steps": [
+        {
+          "expect": "Tapping the task opens it where it lives, shown and marked.",
+          "action": "tap \"Notify stakeholders\" under Today › Overdue",
+          "observed": "Client migration opened at its Task List heading; the task sat below the fold (y 1036 of 812) with no highlight.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/048-t11-landed.png"
+        }
+      ],
+      "verification": "URL /projects/project-client-migration/pages/home#section-…-tasks; the row \"Notify stakeholders\" exists in that list after scrolling.",
+      "findings": [
+        "C82-W2-006"
+      ]
+    },
+    {
+      "task": "T12",
+      "persona": "user-demo",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Project workspace",
+        "Task List section"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The failed list shows a red error box with Try again inside the section.",
+      "steps": [
+        {
+          "expect": "The failed list explains itself and offers a retry.",
+          "action": "scroll to the Task List",
+          "observed": "\"Couldn’t load this task list.\" with Try again and Details; the Add a task field above it stays active.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w2/050-t12-failure.png"
+        },
+        {
+          "expect": "Try again loads the tasks.",
+          "action": "tap Try again",
+          "observed": "Three tasks appeared, \"3 tasks\" in the header, focus on the Task List heading.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w2/051-t12-recovered.png"
+        }
+      ],
+      "verification": "Task List accessibility tree lists the three task rows after the retry.",
+      "findings": [
+        "C82-W2-015"
+      ]
+    }
+  ]
+}

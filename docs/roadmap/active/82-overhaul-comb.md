@@ -74,6 +74,29 @@ orchestrator starts `static.mjs` on 4201 (`setsid`, pgid file, as 0a), counts `.
 W1 and W2 as two cold foreground subagents each told to read `briefs/common.md` and its own brief, then stops 4201. Rerun: (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test
 --config ux/slice82.config.ts capture.ts`; `UX_COMB=tasks|surfaces[:group] … comb-verification.ts`; `node --import
 tsx ux/report.ts ux-output/37dd16e2303e7d8968905de74767710d6b02b85c`.
+**Step 1 done (2026-11-25): walkthroughs W1 and W2.** The orchestrator served the `C82` build (`apps/web/dist`, built
+at 0b, no product commit since) with `static.mjs` on 4201 (`setsid`, pgid file; it listens on `[::1]`, so probe
+`localhost:4201`, not `127.0.0.1`), launched W1 (4322/5322, `--theme light`) and W2 (4323/5323, `--touch --theme
+light`) as two cold foreground subagents at once, each told only to read `briefs/common.md`, `inventory.md`,
+`decisions.md` and its own brief, then stopped 4201. Both walkers reported their ports released; afterwards nothing
+listened on 4200, 4201, 4310, 4320–4329 or 5320–5329 and no `walkd`, `env.sh`, `static.mjs`, host or headless
+Chromium process was left. `.prototype/notes.json` 1570 lines before and after. **Filed:**
+[`findings/w1.json`](../70-ui-ux/comb-82/findings/w1.json) 20 (S1 1, S2 5, S3 14; W1's report said 6/13, the file is
+the record) and [`walkthroughs/w1.json`](../70-ui-ux/comb-82/walkthroughs/w1.json) (1440×900, mouse, T01–T06 light,
+T07–T12 dark, `data-theme` checked per task); [`findings/w2.json`](../70-ui-ux/comb-82/findings/w2.json) 18 (S1 1, S2 6,
+S3 11) and [`walkthroughs/w2.json`](../70-ui-ux/comb-82/walkthroughs/w2.json) (375x812, touch, light). Outcomes: T01–T09,
+T11, T12 completed and **T10 blocked** in both walks (no control connects a new agent; both file it S1). Five findings
+name a decision in `decisionReopened`. The findings were not edited. Spot check: the Acceptance 4 id pattern finds no
+Gate 1 id in either file. Attestations: W1 read the host's `/api/activity` once to confirm a double save it had seen
+in the app (said in its attestation; admission at 4b judges it); W2 reached `/prototype/state` by typing the address
+in T10 (counted as keystrokes). `comb.test.mjs` by hand: 79 tests, 68 pass, 11 skipped, 0 fail;
+`build-comb.mjs --check`: comb files valid. **Trap (for steps 2–4b briefs and launch messages):** `walkd`'s working
+directory is `apps/prototype-host` (`env.sh` `cd`s there), so a relative path in `run` (e.g. `page.screenshot({ path:
+'apps/e2e/…' })`) writes into the product tree: W1 left one stray screenshot under `apps/prototype-host/apps/e2e/…`
+(an earlier take of its cited `018-t03-handle-zoom.png`); the orchestrator moved it to
+`ux-output/walk/w1/018-t03-handle-zoom.stray-cwd.png` and removed the untracked folder, so `git diff --stat
+<plan-accept>..HEAD -- apps/web packages apps/prototype-host prototype` stays empty. Tell walkers to pass absolute
+paths (or use `shot`). **Next: step 2** (W3 and W4) the same way, ports 4324/5324 and 4325/5325.
 
 ## Goal
 

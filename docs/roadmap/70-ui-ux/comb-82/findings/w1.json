@@ -1,0 +1,312 @@
+{
+  "auditor": "w1",
+  "attestation": "I read AGENTS.md section 1 for orientation only (it was loaded into my session context automatically) and otherwise read only common.md, inventory.md, decisions.md and w1.md in comb-82/briefs, the t12-setup.js file the brief names, and the walk-rig env.sh. I did not open the captures, git history, docs outside the briefs, .prototype files or web source. To understand a T04 observation I read the running host's /api/activity response once (it lists 8 update events for one task); the in-app Undo walk in the finding shows the same thing. I met no earlier audit's ids or wording. I opened the development panel once during T10 as a last resort and closed it without touching the note field; I saved no friction note and never called the notes endpoint. I used no app theme control: the dark scheme came from emulateMedia before T07, as the brief says. I stopped my daemon with walk.mjs quit and a process-group kill, and the stop check printed 'ports 4322 5322 released'.",
+  "findings": [
+    {
+      "id": "C82-W1-001", "auditor": "w1",
+      "surface": "settings › AI & Agents › page (connect action)",
+      "inventoryRow": "`/settings/agents`", "seed": "agent-heavy", "theme": "dark", "viewport": "1440x900",
+      "state": "populated (three connections)", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/043-t10-01-agents.png (intro reads 'What each connected agent is allowed to do', no connect control)",
+        "apps/e2e/ux-output/walk/w1/044-t10-02-bottom.png (page bottom: last card is the revoked agent, nothing after it)",
+        "run getByRole('button').allInnerTexts() on /settings/agents returned only Light, New project (+) and three Revoke buttons",
+        "apps/e2e/ux-output/walk/w1/046-t10-03-settings.png (/settings: only links to AI & Agents and Archived projects, plus Appearance)",
+        "apps/e2e/ux-output/walk/w1/047-t10-04-devpanel.png (development panel's Agent connection list: Copy token for the three fixture agents only, 'Read-only')",
+        "T10 steps 3-6"
+      ],
+      "repro": ["1. seed agent-heavy as Demo User", "2. open /app and click AI & Agents in the sidebar", "3. scroll to the bottom of the page", "4. look for any way to add or connect an agent here, on /settings and on the dashboard"],
+      "expected": "The page that lists what connected agents may do also lets the user connect a new agent, or points to where that is done.",
+      "actual": "No control anywhere in the product connects a new agent. The page only edits and revokes the three existing connections. The development panel lists tokens for the same three fixture agents only.",
+      "lens": "task:T10", "heuristic": "Nielsen #7 Flexibility and efficiency of use / task completeness",
+      "severity": "S1", "confidence": "observed",
+      "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents"
+    },
+    {
+      "id": "C82-W1-002", "auditor": "w1",
+      "surface": "project workspace › Task detail drawer › Due date field",
+      "inventoryRow": "Task detail drawer", "seed": "overdue-chaos", "theme": "light", "viewport": "1440x900",
+      "state": "task-drawer, editing due date by typing", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/023-t04-04-date.png (after typing 09042026 the drawer says 'Due date saved.')",
+        "apps/e2e/ux-output/walk/w1/026-t04-05-undo-steps.png (after three header Undo clicks the row reads 'Due 0002-09-04 Overdue')",
+        "run: three Undo clicks returned row texts 'Due 0202-09-04', 'Due 0020-09-04', 'Due 0002-09-04' in turn",
+        "host /api/activity listed 8 'Updated \"Review rejected rows\"' events within 72 ms from one typed date"
+      ],
+      "repro": ["1. seed overdue-chaos as Demo User", "2. open Client migration, click 'Review rejected rows' to open its details", "3. click the month part of Due date and type 09042026", "4. close the drawer and click the header Undo button three times, reading the row's due date after each"],
+      "expected": "Typing one date saves one change, and one Undo restores the previous date (2026-08-20).",
+      "actual": "Each keystroke that forms a valid date is saved as its own change, including years 0002, 0020 and 0202. Undo steps back through those nonsense dates one at a time, and the original date is many Undos away.",
+      "lens": "task:T04", "heuristic": "Nielsen #5 Error prevention; #3 User control and freedom",
+      "severity": "S2", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-003", "auditor": "w1",
+      "surface": "dashboard › Today widget › overdue task link → project workspace › Task List",
+      "inventoryRow": "Dashboard widgets", "seed": "overdue-chaos", "theme": "both", "viewport": "1440x900",
+      "state": "populated, arriving from a dashboard task link", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/049-t11-02-landed.png (after clicking 'Notify stakeholders' the page shows the Task List; that row is cut off at the bottom edge, y=873 of 900)",
+        "apps/e2e/ux-output/walk/w1/021-t04-02-opened.png (same in light for 'Review rejected rows': no row is marked)",
+        "run: focus is the Task List h2; the target row has no selected or current attribute; the URL hash names the section (#section-section-project-client-migration-tasks), not the task"
+      ],
+      "repro": ["1. seed overdue-chaos as Demo User", "2. on /app click 'Notify stakeholders' in Today", "3. look for the task on the page that opens"],
+      "expected": "Following a link named after one task shows that task, scrolled into view and marked (or with its details open).",
+      "actual": "The link opens the project with focus on the Task List heading. The named task is not marked, not opened, and here sits half below the fold, so the user has to find it again among the other overdue rows.",
+      "lens": "task:T11", "heuristic": "Nielsen #1 Visibility of system status; #6 Recognition rather than recall",
+      "severity": "S2", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-004", "auditor": "w1",
+      "surface": "project workspace › Work canvas › section frame › Remove section button",
+      "inventoryRow": "Canvas insertion and section chrome", "seed": "nested-projects", "theme": "light", "viewport": "1440x900",
+      "state": "just after removing a section", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/028-t05-01-hover-remove.png (pointer on Markdown's Remove button, at about x=1383 y=417)",
+        "apps/e2e/ux-output/walk/w1/029-t05-03-after-remove.png (after the click, Task List moves up and its Remove button sits under the same pointer, drawn in its red hover state)"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Home renovation › Kitchen", "3. click Markdown's Remove section button (top right of the frame)", "4. leave the pointer where it is and look at the button under it"],
+      "expected": "After a destructive click, nothing destructive lands under the pointer straight away.",
+      "actual": "The next section slides up so its Remove button is under the pointer, already highlighted. A second click, a double-click or an impatient re-click removes a second section with no confirmation.",
+      "lens": "task:T05", "heuristic": "Nielsen #5 Error prevention",
+      "severity": "S2", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-005", "auditor": "w1",
+      "surface": "project workspace › Recent Activity section › section-added line",
+      "inventoryRow": "Recent Activity section and shared feed", "seed": "nested-projects", "theme": "light", "viewport": "1440x900",
+      "state": "after adding a Task List named 'Lighting jobs'", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/017-t03-05-created.png (Recent Activity: 'Demo User  Section added “Kitchen”  Kitchen' right after creating the 'Lighting jobs' section)",
+        "apps/e2e/ux-output/walk/w1/019-t03-07-done.png (same line under the task lines, which do name their tasks)"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Kitchen, click Add a section, choose Task List, name it 'Lighting jobs', Create", "3. read the newest line in Recent Activity"],
+      "expected": "The activity line names the section that was added ('Lighting jobs'), just as task lines name the task.",
+      "actual": "It reads 'Section added “Kitchen”'. The quotes make Kitchen look like the new section's name, and the section's real name appears nowhere.",
+      "lens": "task:T03", "heuristic": "Nielsen #2 Match between system and the real world; internal consistency (task lines quote the task, section lines quote the project)",
+      "severity": "S2", "confidence": "observed",
+      "decisionReopened": "A section's activity event names its project, not the section"
+    },
+    {
+      "id": "C82-W1-006", "auditor": "w1",
+      "surface": "project workspace › Task detail drawer › Project, Status and Priority",
+      "inventoryRow": "Task detail drawer", "seed": "overdue-chaos", "theme": "light", "viewport": "1440x900",
+      "state": "task-drawer", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/022-t04-03-drawer.png (bottom: 'Project  project-client-migration', 'Status  todo · Overdue'; Priority select shows 'medium')",
+        "aria: combobox Priority options 'low', 'medium', 'high'; the task rows on the same page say 'High priority'"
+      ],
+      "repro": ["1. seed overdue-chaos as Demo User", "2. open Client migration and click 'Review rejected rows' to open its details", "3. read the Priority options and the Status and Project lines"],
+      "expected": "The drawer names the project as the user knows it ('Client migration') and uses the same words for status and priority as the rows.",
+      "actual": "Project shows the internal id 'project-client-migration'. Status shows 'todo', and priority options are lowercase 'low/medium/high', while the rows say 'High priority', 'In progress' and 'Blocked'.",
+      "lens": "task:T04", "heuristic": "Nielsen #2 Match between system and the real world; #4 Consistency (task row vs task drawer)",
+      "severity": "S2", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-007", "auditor": "w1",
+      "surface": "project workspace › Timeline section › row status column",
+      "inventoryRow": "Timeline section", "seed": "nested-projects", "theme": "light", "viewport": "1440x900",
+      "state": "populated", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/013-t03-02-bottom.png (Timeline rows: 'Project active', 'Task todo', 'Milestone upcoming', 'Workstream active')"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Kitchen and scroll to Timeline"],
+      "expected": "Statuses read as words, capitalised as elsewhere ('Active', 'To do').",
+      "actual": "The column shows raw lowercase values ('active', 'todo', 'upcoming'), while the header pill on the same page says 'Active'.",
+      "lens": "copy", "heuristic": "Nielsen #4 Consistency and standards (project header pill vs Timeline column)",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-008", "auditor": "w1",
+      "surface": "shortcut picker › group heading; More › Pages popover › first page",
+      "inventoryRow": "Shortcut picker", "seed": "nested-projects", "theme": "dark", "viewport": "1440x900",
+      "state": "picker open; page settings open", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/034-t07-03-picker.png (group heading 'Home renovation · Home')",
+        "apps/e2e/ux-output/walk/w1/038-t08-03-pages.png (Pages list: 'Home  Required')",
+        "the sidebar names the same page 'Home renovation' (007-t02-03-reno.png), and the dashboard is also titled 'Home'"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Kitchen, click an insertion point, click Add shortcut, read the first group heading", "3. open Home renovation, More project actions › Pages of Home renovation…, read the first row"],
+      "expected": "A root's first page is called by the same name everywhere, the one the sidebar uses.",
+      "actual": "The picker and the Pages popover call it 'Home', while the sidebar calls it 'Home renovation'. 'Home' is also the dashboard's name.",
+      "lens": "consistency", "heuristic": "Nielsen #4 Consistency and standards (sidebar vs shortcut picker / Pages popover)",
+      "severity": "S3", "confidence": "observed",
+      "decisionReopened": "A root's first page is named by its project, never \"Home\""
+    },
+    {
+      "id": "C82-W1-009", "auditor": "w1",
+      "surface": "project navigation › pencil button (Edit project) › Add workstream",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)", "seed": "nested-projects", "theme": "light", "viewport": "1440x900",
+      "state": "workstream open", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/008-t02-04-kitchen.png (tree rows for Kitchen and Garden have no add affordance; top has only a chevron and a pencil)",
+        "apps/e2e/ux-output/walk/w1/009-t02-05-pencil.png (pencil, named 'Edit project', opens a menu holding 'Add workstream')"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Home renovation › Kitchen", "3. look for a way to add a workstream under Kitchen"],
+      "expected": "Creating something new is offered by an add (+) affordance near the tree, as the sidebar's Projects group does with its +.",
+      "actual": "Creation sits behind a pencil icon named 'Edit project'. Nothing in the tree or the icon suggests that adding happens there, so I opened Kitchen first and then had to guess.",
+      "lens": "task:T02", "heuristic": "Nielsen #6 Recognition rather than recall; internal consistency (Projects '+' vs pencil for Add workstream)",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-010", "auditor": "w1",
+      "surface": "dashboard › Get started › New project button → sidebar inline form",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar", "seed": "empty", "theme": "light", "viewport": "1440x900",
+      "state": "empty workspace", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/001-t01-01-start.png (New project button in main content at x≈1093)",
+        "apps/e2e/ux-output/walk/w1/002-t01-02-form.png (the click opens a narrow form in the sidebar at x≈20-220, about 900 px away; 'No projects yet' still shows under it; nothing changes near the clicked button)"
+      ],
+      "repro": ["1. seed empty as Demo User", "2. on /app click New project in the Get started band", "3. look for the form"],
+      "expected": "The form opens where the user clicked, or the change is clearly drawn to the user's eye.",
+      "actual": "Only focus moves, into a small field in the far-left sidebar. The main content stays the same, and 'No projects yet' stays under the form.",
+      "lens": "task:T01", "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3", "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-011", "auditor": "w1",
+      "surface": "project workspace › Pages popover (from More) › canvas below",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)", "seed": "nested-projects", "theme": "dark", "viewport": "1440x900",
+      "state": "page settings open", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/037-t08-02-more.png (More menu open: 'Flow layout' band at y≈272 text / box top 248)",
+        "apps/e2e/ux-output/walk/w1/038-t08-03-pages.png (Pages popover open: the band and every section below are 24 px lower)",
+        "run: Flow layout box top 272 with the popover open, 248 after closing it"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Home renovation", "3. More project actions › Pages of Home renovation…", "4. compare the canvas position with the popover closed"],
+      "expected": "Opening a popover leaves the page under it still.",
+      "actual": "The whole canvas jumps down 24 px when the Pages popover opens and back up when it closes.",
+      "lens": "hierarchy", "heuristic": "WCAG 2.2 / layout stability (unexpected shift); Nielsen #4",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-012", "auditor": "w1",
+      "surface": "project workspace › section frame › left edge resize glyph",
+      "inventoryRow": "Canvas insertion and section chrome", "seed": "nested-projects", "theme": "both", "viewport": "1440x900",
+      "state": "section hovered", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/018-t03-handle-zoom.png (crop: a half-hidden resize glyph sticking out of the left edge of Recent Activity and Lighting jobs)",
+        "apps/e2e/ux-output/walk/w1/035-t07-04-added.png (dark: the same glyphs at x≈264 beside the shortcut and the Task List)",
+        "run: element at (264,720) is an aria-hidden 12 px wide app-section-resize-handle child at x=258; the only operable sliders ('Resize …') are on the right edge at x=1400"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Kitchen", "3. hover any section and look at its left edge"],
+      "expected": "Resize chrome appears where it can be used, drawn in full.",
+      "actual": "A clipped copy of the resize glyph shows on the left edge, half inside the frame. It is hidden from assistive technology and does not act as the resize slider, which sits on the right edge.",
+      "lens": "affordance", "heuristic": "Nielsen #8 Aesthetic and minimalist design; false affordance",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-013", "auditor": "w1",
+      "surface": "dashboard › Today / Upcoming / Active Projects rows; shortcut frame › read-only task rows",
+      "inventoryRow": "Dashboard widgets", "seed": "overdue-chaos", "theme": "both", "viewport": "1440x900",
+      "state": "populated", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/020-t04-01-start.png (Today rows: row starts at x≈314, title at x≈359; the gap is empty)",
+        "apps/e2e/ux-output/walk/w1/006-t02-02-reno.png (Active Projects rows: empty gap, then the emoji pressed against the title, '🍳Kitchen')",
+        "apps/e2e/ux-output/walk/w1/035-t07-04-added.png (read-only shortcut rows keep the same empty gap where the checkbox would be)"
+      ],
+      "repro": ["1. seed overdue-chaos as Demo User", "2. look at the rows in Today on /app"],
+      "expected": "Row content starts at the row's padding, or the gap holds something.",
+      "actual": "Every row leaves a blank gutter of about 45 px before the title, so the titles look indented under nothing. In Active Projects the emoji then touches the title with no space.",
+      "lens": "hierarchy", "heuristic": "Nielsen #8 Aesthetic and minimalist design; internal consistency (Task List rows use that gutter for a checkbox)",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-014", "auditor": "w1",
+      "surface": "dashboard › Today widget › row meta ('Overdue')",
+      "inventoryRow": "Dashboard widgets", "seed": "overdue-chaos", "theme": "both", "viewport": "1440x900",
+      "state": "populated", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/048-t11-01-dashboard.png (dark: 'In progress High priority Due 2026-08-18 Overdue' all in one grey run)",
+        "apps/e2e/ux-output/walk/w1/049-t11-02-landed.png (same tasks in the Task List: items spaced apart, 'Overdue' in red)"
+      ],
+      "repro": ["1. seed overdue-chaos as Demo User", "2. compare a Today row on /app with the same task's row in Client migration's Task List"],
+      "expected": "The same task shows its overdue state the same way in both places.",
+      "actual": "On the dashboard 'Overdue' is plain grey text run together with status, priority and date, with no separators. In the Task List it is red and spaced apart.",
+      "lens": "consistency", "heuristic": "Nielsen #4 Consistency and standards (dashboard Today row vs Task List row)",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-015", "auditor": "w1",
+      "surface": "project › Archive page › item actions",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items", "seed": "nested-projects", "theme": "dark", "viewport": "1440x900",
+      "state": "populated", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/041-t09-01-archive.png (Legacy attic's Restore ends left of Markdown's and Old permit copy's buttons)",
+        "run: right edges Legacy attic Restore 1354 px, Restore saved content 1362 px"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Home renovation › Archive", "3. compare the right edges of the item buttons"],
+      "expected": "The item actions line up on one right edge.",
+      "actual": "The workstream item's Restore is 8 px further in than the other items' buttons.",
+      "lens": "hierarchy", "heuristic": "internal consistency (workstream item vs section/task items in one list)",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-016", "auditor": "w1",
+      "surface": "toast › after Undo of a section removal",
+      "inventoryRow": "Section removal/recovery feedback", "seed": "nested-projects", "theme": "light", "viewport": "1440x900",
+      "state": "removal undone", "persona": "user-demo",
+      "evidence": ["apps/e2e/ux-output/walk/w1/030-t05-04-undone.png (toast: 'Undone: Removed the Markdown section.')"],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Kitchen, remove the Markdown section", "3. click Undo in the toast and read the toast"],
+      "expected": "A plain statement of the result, e.g. that the Markdown section is back.",
+      "actual": "It stacks two contradicting past tenses ('Undone: Removed …'), so the user has to work out that the section has come back.",
+      "lens": "copy", "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-017", "auditor": "w1",
+      "surface": "global shell › sidebar inside a project",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar", "seed": "overdue-chaos", "theme": "both", "viewport": "1440x900",
+      "state": "project open", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/020-t04-01-start.png (on /app the sidebar holds Home, Calendar, Search, both projects, Settings)",
+        "apps/e2e/ux-output/walk/w1/049-t11-02-landed.png (in Client migration the sidebar holds only a bare chevron, a pencil and 'Client migration'; Life admin, Home and Settings are gone)",
+        "apps/e2e/ux-output/walk/w1/004-t01-04-hover.png (the chevron's only label is the hover tooltip 'All projects')"
+      ],
+      "repro": ["1. seed overdue-chaos as Demo User", "2. click Client migration in the sidebar", "3. look for Home, Settings or the other project"],
+      "expected": "The global destinations stay reachable from the sidebar while inside a project.",
+      "actual": "Opening a project swaps the whole sidebar for that project's tree. Getting back to Home, Settings or another project needs the unlabeled chevron, whose meaning shows only on hover.",
+      "lens": "ia", "heuristic": "Nielsen #6 Recognition rather than recall; #3 User control and freedom",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-018", "auditor": "w1",
+      "surface": "project workspace › Task detail drawer › Due date field",
+      "inventoryRow": "Task detail drawer", "seed": "overdue-chaos", "theme": "light", "viewport": "1440x900",
+      "state": "task-drawer", "persona": "user-demo",
+      "evidence": ["apps/e2e/ux-output/walk/w1/022-t04-03-drawer.png (Due date field '08/20/2026'; the row behind it says 'Due 2026-08-20')"],
+      "repro": ["1. seed overdue-chaos as Demo User", "2. open Client migration, click 'Review rejected rows'", "3. compare the drawer's Due date with the row"],
+      "expected": "One date format throughout.",
+      "actual": "The drawer field shows month/day/year, while every row, header and widget uses year-month-day.",
+      "lens": "consistency", "heuristic": "Nielsen #4 Consistency and standards (task row vs drawer field)",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-019", "auditor": "w1",
+      "surface": "project header › date label",
+      "inventoryRow": "Project header and More menu", "seed": "nested-projects", "theme": "light", "viewport": "1440x900",
+      "state": "root vs workstream", "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w1/007-t02-03-reno.png (Home renovation header: 'TARGET DATE 2026-12-15')",
+        "apps/e2e/ux-output/walk/w1/008-t02-04-kitchen.png (Kitchen header: 'DUE DATE 2026-09-04')"
+      ],
+      "repro": ["1. seed nested-projects as Demo User", "2. open Home renovation and read the header date label", "3. open Kitchen and read it again"],
+      "expected": "The same header field has the same name.",
+      "actual": "The root says 'Target date' and the workstream says 'Due date'. Nothing explains whether these are different things.",
+      "lens": "consistency", "heuristic": "Nielsen #4 Consistency and standards (root header vs workstream header)",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    },
+    {
+      "id": "C82-W1-020", "auditor": "w1",
+      "surface": "settings › AI & Agents › revoked connection card",
+      "inventoryRow": "`/settings/agents`", "seed": "agent-heavy", "theme": "dark", "viewport": "1440x900",
+      "state": "revoked", "persona": "user-demo",
+      "evidence": ["apps/e2e/ux-output/walk/w1/044-t10-02-bottom.png ('Retired assistant  Revoked' card: full disabled permission list and a disabled Revoke button)"],
+      "repro": ["1. seed agent-heavy as Demo User", "2. open AI & Agents and scroll to 'Retired assistant'"],
+      "expected": "A revoked connection reads as finished: no action offered that cannot be taken.",
+      "actual": "The card keeps the full permission checklist (one box still ticked) and a dimmed Revoke button. It looks like a live connection whose controls are broken, with no reason given and no next step.",
+      "lens": "states", "heuristic": "Nielsen #8 Aesthetic and minimalist design; #1 Visibility of system status",
+      "severity": "S3", "confidence": "observed", "decisionReopened": null
+    }
+  ]
+}
