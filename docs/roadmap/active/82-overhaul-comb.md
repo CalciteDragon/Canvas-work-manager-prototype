@@ -5,8 +5,8 @@
 (Open questions 1–8 resolved: Q1 (a), Q2 (c), Q3 (b), Q4 (c), Q5 (a), Q6 (a), Q7 (a), Q8 (a)), after five review
 rounds and two review rounds of the acceptance amendment; new Open question 9 (lens and reproduction daemons) blocks
 nothing before step 3. **`<plan-accept>` = the acceptance commit, subject
-"docs(slice 82): plan taken up by the user; answers to Q1–Q8 recorded (§77, §78)"; its hash: PLAN_ACCEPT_HASH** (filled in by the next commit; until then
-`git log --grep 'plan taken up by the user; answers to Q1–Q8'`).
+"docs(slice 82): plan taken up by the user; answers to Q1–Q8 recorded (§77, §78)"; its hash: `8c1a524`** (`8c1a5248596a566f202b0e02368de4bb7e4d4849`, recorded by the follow-up docs commit,
+since a commit cannot name its own hash).
 **No implementation yet.** `CURRENT_SLICE = 82` (`2e0f500`). Next: **step 0a** (rig and tests). No bundle measured
 (no web code in this slice).
 
@@ -581,7 +581,7 @@ question carries its answer, and the plan above reads the answers as settled.
   `session.mjs` only if step 0a's Acceptance 1 fails; Q7 (a) `comb.test.mjs` by hand at each step and in the
   Acceptance check, not in `pnpm test`; Q8 (a) measured contrast and the `color-contrast` incomplete count reported
   outside the stop rule, L5's failures still findings with a severity. `<plan-accept>` is the acceptance commit
-  (its hash in the State header). Places changed: the State header; § Build (walk-rig bullet cites Q6 (a); the
+  (`8c1a524`, its hash recorded in the State header by a follow-up docs commit). Places changed: the State header; § Build (walk-rig bullet cites Q6 (a); the
   tally's contrast lines are outside the stop rule per Q8 (a); the Gate 3 bullet is always held, with the S2
   proposal per Q4 (c)); § Do not (Q2, Q3); § Scope check (Q1, Q2 conditionals settled); § Acceptance check
   (`<plan-accept>` defined as the acceptance commit; item 1 reads Q6 (a) as the method and (a′) as the fallback only
@@ -596,7 +596,7 @@ question carries its answer, and the plan above reads the answers as settled.
   answer's "confirms its ports are released" (it matches Acceptance 1). Round 2: a cold reviewer confirmed the round-1
   fixes and returned 1 substantive finding (the Do-not exception named only walkers, while the plan also runs the
   orchestrator's `static.mjs`, probes, lens browsers and reproduction host as daemons) and 3 minor (comb-list routing
-  wins over slices 9 and 81.1; how `PLAN_ACCEPT_HASH` is found; the review count), all applied: the Do-not line names
+  wins over slices 9 and 81.1; how the `<plan-accept>` hash is found; the review count), all applied: the Do-not line names
   what Q6 (a) covers and new Open question 9 asks about the lens and reproduction daemons, which Q6 (a) does not
   name. Outside the plan: the umbrella's handoff line and `goals.md`'s "Now" line.
 
