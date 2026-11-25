@@ -40,7 +40,7 @@ section removal; two row failures; drawer Saving… then Saved; a failed section
 Renovation archive cascade confirmation; the edit-project menu; the tree at depth (five levels, in the drawer at
 375); the skip link focused. All captured, zero axe violations; the only console errors are the injected 500s.
 **`report.ts`** (run alone): `index.html` with the task table, `contact-sheet.html` and `.png` (heading still says
-"Gate 0", `report.ts:21`; the digest must say so), `axe-summary.json` (194 scans, **0 serious/critical**),
+"Gate 0", `report.ts:21`; the digest must say so), `axe-summary.json` (194 scans, **0 serious/critical**; 16 cells carry 40 moderate/minor violations: `landmark-unique` 12, `heading-order` 8, `aria-allowed-role`, `landmark-no-duplicate-banner`, `page-has-heading-one`, `landmark-main-is-top-level`, `landmark-no-duplicate-main` 4 each — raw, for the lenses, not findings),
 `coverage.json` (38 inventory rows, all `not-individually-verified`, as at every capture: the rig never marks a row
 verified). Axe `color-contrast` incomplete on **194/194** cells (as at Slice 81; Q8 (a)). **Coverage gaps:** the
 three matrix gaps above; `/prototype/*` reached by lenses only (Q1 (a)); no Storybook capture. `comb.test.mjs` by
@@ -48,7 +48,12 @@ hand: 59 pass, 20 skipped, 0 fail; `build-comb.mjs --check` valid. **Trap:** the
 minutes in one cell before `kitchen-collapsed-light-375` (wall 18:56–19:48), and `timeout 590` around `pnpm exec
 playwright` did not stop it (probably the signal reached pnpm, not the runner; not investigated); later steps should wrap the runner as
 `timeout -k 20 590 ./node_modules/.bin/playwright …` or split ranges smaller. All rig ports (4258, 4358) were free
-after every run. **Next: step 0c** (briefs). Rerun: (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test
+after every run. *Review* (one cold reviewer over `6ad932a..1e500ee`): no substantive findings; 5 minor, checked: the row-failure
+surface clicks the page's first unchecked boxes rather than the first Task List's (both failures did land in the Task
+List, ARIA lines 71 and 80, so the capture holds); the core-task test does not assert all twelve ids (all twelve are
+present); `build-comb.mjs --check` does not validate `core-tasks.json` (only the step 5 tally reads it); the moderate
+axe counts (now above); `surfaces.json` keeps entries of removed surfaces (none removed). None changes the rig, which
+is frozen at `C82`. **Next: step 0c** (briefs). Rerun: (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test
 --config ux/slice82.config.ts capture.ts`; `UX_COMB=tasks|surfaces[:group] … comb-verification.ts`; `node --import
 tsx ux/report.ts ux-output/37dd16e2303e7d8968905de74767710d6b02b85c`.
 
