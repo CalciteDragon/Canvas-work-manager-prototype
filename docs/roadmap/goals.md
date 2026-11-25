@@ -161,8 +161,8 @@ slice. What else it surfaced joins the [§8 comb list](active/70-ui-ux-overhaul.
 Slice 81.1, the six TH13 content-layout findings, stays queued.
 
 **Active — [Slice 82, the protocol §8 comb](active/82-overhaul-comb.md)** (started 2026-11-24), then redesign slice 8
-(agent connections), in that order unless the user says otherwise. The comb's plan is written and reviewed and awaits
-the user's acceptance and answers; nothing is implemented. See the umbrella's
+(agent connections), in that order unless the user says otherwise. The comb's plan is written, reviewed and **accepted
+by the user (2026-11-24) with all eight recommendations**; no implementation yet, step 0a (rig and tests) is next. See the umbrella's
 [handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes

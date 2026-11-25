@@ -1,10 +1,14 @@
-<!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 if the direction needs amending" -->
+<!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 (always held, Q5 (a))" -->
 # Slice 82 — Protocol §8 comb
 
-**State (2026-11-24):** **plan written and reviewed in five rounds** (round 5 returned no substantive findings),
-**awaiting the user's acceptance and answers to Open questions 1–8. No implementation yet.** `CURRENT_SLICE = 82`
-(`2e0f500`). Next, after acceptance: the acceptance session records `<plan-accept>` here; then **step 0a** (rig and
-tests). No bundle measured (no web code in this slice).
+**State (2026-11-24):** **plan accepted by the user (2026-11-24, user decision) with all eight recommendations**
+(Open questions 1–8 resolved: Q1 (a), Q2 (c), Q3 (b), Q4 (c), Q5 (a), Q6 (a), Q7 (a), Q8 (a)), after five review
+rounds and two review rounds of the acceptance amendment; new Open question 9 (lens and reproduction daemons) blocks
+nothing before step 3. **`<plan-accept>` = the acceptance commit, subject
+"docs(slice 82): plan taken up by the user; answers to Q1–Q8 recorded (§77, §78)"; its hash: PLAN_ACCEPT_HASH** (filled in by the next commit; until then
+`git log --grep 'plan taken up by the user; answers to Q1–Q8'`).
+**No implementation yet.** `CURRENT_SLICE = 82` (`2e0f500`). Next: **step 0a** (rig and tests). No bundle measured
+(no web code in this slice).
 
 ## Goal
 
@@ -39,7 +43,7 @@ the orchestrator's (protocol §2: synthesis is never delegated). Gate 3 sits bet
   code changes in this slice, so the ceiling is not in play).
 - **The walk rig works on Linux, driven by foreground commands.** `walk/env.sh` was written for Git Bash on Windows
   (`pwd -W` with no fallback on the data path, `env.sh:14`). Step 0a fixes that and proves the daemon lifecycle
-  that foreground-only sessions need (Open question 6). `walkd.mjs:24` hard-codes the static origin 4201, so the
+  that foreground-only sessions need (Q6 (a), with the user-approved detached walker daemons). `walkd.mjs:24` hard-codes the static origin 4201, so the
   **orchestrator** starts one `static.mjs` on 4201 per auditor step and stops it after; walkers start only their own
   `env.sh`.
 - **A fresh comb.** Four task walkthroughs (W1 mouse 1440, W2 touch 375, W3 keyboard, W4 personas Alex and Sam)
@@ -70,10 +74,12 @@ the orchestrator's (protocol §2: synthesis is never delegated). Gate 3 sits bet
   line per §8 criterion: open S1; open S2 by theme with TH12 counted; the core-task table against the baseline with
   dead ends; serious/critical axe per colour theme and per cell, **plus** axe's `incomplete` `color-contrast` count
   (at Slice 81 every one of the 194 cells reported contrast incomplete and none serious, so "zero serious" alone
-  measures nothing on glass) and L5's measured contrast results; and "mostly S3": the admitted comb findings by
+  measures nothing on glass) and L5's measured contrast results, both reported **outside the stop rule** (Q8 (a);
+  L5's failures are still findings with a severity); and "mostly S3": the admitted comb findings by
   severity, split new / still open / regression / introduced.
 - **Gate 3 artifact.** A digest the user can read in minutes plus the `C82` contact sheet (§ Visual acceptance).
-  The user routes every open S1/S2, answers any direction amendment, and says whether a stop-rule number is set now.
+  Gate 3 is always held after step 5 (Q5 (a)). The user routes every open S1/S2, answers any direction amendment,
+  and sets or defers the S2 stop-rule number the digest proposes from this comb's tally (Q4 (c)).
 - **Closing.** Gate 3 answers become decision entries or dated amendments, `direction.md` amendments (dated), the
   umbrella's handoff and sequence (with the routed ids per slice), and a `planned/` candidate for the comb fixes if
   routed. No product code changes.
@@ -90,13 +96,17 @@ the routed fixes are a `planned/` candidate or listed per slice in the umbrella;
 ## Do not
 
 - Fix anything in the product: no web, domain, contracts, host, seed or MCP change. Every finding, including an S1, is
-  recorded and routed at Gate 3 (Open questions 2 and 3).
+  recorded and routed at Gate 3 (Q2 (c), Q3 (b)).
 - Plan or start redesign slice 8 (agent connections), Slice 81.1 (TH13 content layouts) or redesign slice 9
   (vocabulary). None has a `planned/` file; this slice routes findings to them **in the umbrella's list only** and
   creates no plan for them.
 - Show an auditor the Gate 1 evidence or anything that quotes it (§ Auditor isolation).
 - Propose fixes inside findings (protocol §4.3).
-- Use ports 4200 or 4310 as listeners, `route.continue()`, more than two browser jobs, or `run_in_background`.
+- Use ports 4200 or 4310 as listeners, `route.continue()`, more than two browser jobs, or `run_in_background` (the approved exception, Q6 (a): the walk-rig
+  daemons Q6 (a) describes, the orchestrator's `static.mjs` on 4201 and its Acceptance 1 probes and each walker's own
+  `env.sh`, started detached with `setsid … >log 2>&1 </dev/null &` and stopped, `walk.mjs … quit` plus a kill of
+  the process group or a kill of `static.mjs`, before the step or the walker reports; lens and reproduction daemons:
+  Open question 9).
 - Raise the bundle ceiling; claim the stop rule holds; close the umbrella; pass Gate 3 for the user.
 - Rewrite a decision entry, the Gate 1 `themes.json`, `reproduction.json` or a Gate 1 finding record. Amend; add
   files.
@@ -107,24 +117,26 @@ the routed fixes are a `planned/` candidate or listed per slice in the umbrella;
 
 The comb covers every surface the matrix reaches, because every surface changed: tokens (71), primitives (72), lifts
 and focus (73), feedback (74–75), section chrome (76), rows (77), states (78–79), the archive cascade (80) and the
-shell (81) all paint or behave on every route (Open question 1). It **records**; the fixes it finds are routed at
-Gate 3. The comb list is re-verified and filed, not fixed (Open question 2).
+shell (81) all paint or behave on every route (Q1 (a): the whole matrix plus the listed runtime surfaces, with
+`/prototype/*` reached by lenses only, not by task walks). It **records**; the fixes it finds are routed at Gate 3.
+The comb list is re-verified and filed here and fixed in Slice 82.1 after Gate 3 (Q2 (c)).
 
 ## Acceptance check
 
 Commands run from the repository root unless they say `(in apps/e2e)`. `<plan-accept>` is the commit at which the
-user accepts the plan; the acceptance session records its hash in the State header. `C82` is the commit step 0b
+user accepts the plan: the docs-only commit "docs(slice 82): plan taken up by the user; answers to Q1–Q8 recorded
+(§77, §78)", whose hash the State header records. `C82` is the commit step 0b
 captures: the commit that adds the rig files; nothing is committed between the first capture command and the last.
 
 1. **Rig (step 0a).** `bash apps/e2e/ux/walk/env.sh --print-paths w-probe 4322 5322` prints a data path under
-   `apps/e2e/ux-output/walk-env/` (never `/w-probe.json`). Under Q6 (a): with the orchestrator's `node
+   `apps/e2e/ux-output/walk-env/` (never `/w-probe.json`). The method (Q6 (a)): with the orchestrator's `node
    apps/e2e/ux/walk/static.mjs apps/web/dist/web/browser 4201` (any current build; 0b rebuilds at `C82`) and two
    probes, `env.sh w-probe 4322 5322` and `env.sh w-probe2 4323 5323`, started detached (`setsid … >log 2>&1
    </dev/null &`, so the foreground command does not wait on an open pipe), the foreground commands `node apps/e2e/ux/walk/walk.mjs 5322 seed
    nested-projects`, `… goto /projects/project-kitchen`, `… shot kitchen`, `… axe kitchen` succeed on both probes and
    leave a PNG and an axe JSON in `apps/e2e/ux-output/walk/w-probe*/`; stopping one probe (`… quit` and a kill of its
    process group) leaves the other answering; after the orchestrator stops everything, nothing listens on 4201,
-   4322, 4323, 5322 or 5323. Under (a′): `node apps/e2e/ux/walk/session.mjs` runs a step file with the same four
+   4322, 4323, 5322 or 5323. Only if this detached lifecycle fails, the fallback (Q6 (a′)): `node apps/e2e/ux/walk/session.mjs` runs a step file with the same four
    actions in one foreground command and leaves the same files. `node --test apps/e2e/ux/harness.test.mjs` passes.
 2. **Capture (step 0b).** `pnpm --filter web build` succeeds; the initial bundle is recorded in the State header.
    (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test --config ux/slice82.config.ts capture.ts`, in four
@@ -197,20 +209,21 @@ captures: the commit that adds the rig files; nothing is committed between the f
   `cascading-archive-verification.ts`), and the edit-project menu, the drawer tree at depth and the skip link
   focused (81, `navigation-tree-verification.ts`).
 - **No pairs.** This slice changes no product code, so every cell is evidence, not a pair. The Gate 0 captures
-  (`c94f0f0e…`) are not on this machine; the comparison baseline for the sheet is Open question 5.
+  (`c94f0f0e…`) are not on this machine; per Q5 (a) there is no before/after sheet: the `C82` contact sheet stands
+  alone.
 - **Disk.** `apps/e2e/ux-output` holds 6.9 GB of earlier commit folders. Step 0b deletes none; it records free space
   first and stops if under 3 GB (the user decides what to prune).
 
 ## Visual acceptance
 
-There are no before/after pairs: nothing is fixed. What the user looks at, at Gate 3 (Open question 5):
+There are no before/after pairs: nothing is fixed. What the user looks at, at Gate 3 (Q5 (a): always held after step 5; local files, no publication):
 
 - `comb-82/gate3.md`: the counts (filed, admitted by severity, new / still open / regression / introduced), the
   stop-rule tally, the re-prioritised theme list with each theme's status, each open S1/S2 with its proposed route,
   the comb-list verdicts, the core-task table, any direction amendment proposed and the S2 number proposal
-  (Open question 4), each decision with options and a recommendation.
+  from this comb's tally (Q4 (c)), each decision with options and a recommendation.
 - The contact sheet at `C82` (`report.ts`'s `contact-sheet.html`), and per admitted S1/S2 one crop from the
-  finding's evidence, linked from the digest.
+  finding's evidence, named in the digest as a code-span path.
 
 ## Behaviour vs. appearance
 
@@ -273,17 +286,18 @@ green untouched.
 
 ## Severity and routing rule (what this slice fixes)
 
-This slice fixes **nothing in the product** (recommended answers to Open questions 2 and 3). It produces a routed
-list. Proposed routes, for the user at Gate 3:
+This slice fixes **nothing in the product** (Q2 (c), Q3 (b), user decision 2026-11-24). It produces a routed
+list. Routes (comb-list items to 82.1 decided by Q2 (c); the rest proposed for the
+user at Gate 3, Q3 (b)):
 
 - the five agent-connection S1s and anything about connecting, revoking or inspecting agents → redesign slice 8;
 - vocabulary, ids, enums, casing and dates (TH14) → redesign slice 9;
 - the six TH13 content layouts already queued → Slice 81.1, plus any new narrow-layout finding the user adds to it;
 - TH12 scaffolding → open by decision, counted in the tally;
-- everything else S1/S2 (including the comb list's copy and focus items) → a new follow-on, **Slice 82.1 — comb
+- everything else S1/S2, and every comb-list item still open at `C82` whatever its severity (Q2 (c)) even where an earlier bullet would also fit, → a new follow-on, **Slice 82.1 — comb
   fixes**, created at step 7 with `roadmap.mjs new` as a `planned/` candidate carrying the routed ids, ordered before
-  redesign slice 8 unless the user orders otherwise;
-- S3 → left in the ledger, listed in the digest, routed only if the user picks some.
+  redesign slice 8 unless the user orders otherwise; a new S1 that blocks a core task goes first in 82.1 (Q3 (b));
+- S3 (comb-list items excepted, Q2 (c)) → left in the ledger, listed in the digest, routed only if the user picks some.
 
 Routes to slices 8, 9 and 81.1 are written as id lists in the umbrella's sequence, not as plans.
 
@@ -301,7 +315,7 @@ Routes to slices 8, 9 and 81.1 are written as id lists in the umbrella's sequenc
 |---|---|---|
 | `apps/e2e/ux/walk/env.sh` | modify (0a) | Linux paths (no `pwd -W` without a fallback); data under `ux-output/walk-env/`; `--print-paths` dry run |
 | `apps/e2e/ux/harness.test.mjs` | modify (0a, test first) | `env.sh --print-paths` gives a data path under `ux-output/walk-env/` (red on Linux today) |
-| `apps/e2e/ux/walk/session.mjs` | create only if Q6 needs it (0a) | Foreground fallback: one process per walker step file, replaying from the seed, so page state is explicit |
+| `apps/e2e/ux/walk/session.mjs` | create only if Acceptance 1's detached lifecycle fails (0a, Q6 (a′)) | Foreground fallback: one process per walker step file, replaying from the seed, so page state is explicit |
 | `apps/e2e/ux/slice82.config.ts` | create (0b) | Capture config on 4258/4358, `.prototype/ux-slice82.json`, `UX_OBJECTS=1` |
 | `apps/e2e/ux/comb-verification.ts` | create (0b) | Core tasks T01–T12 and the runtime surfaces |
 | `apps/e2e/ux/walk/repro/c82-*.js` | create (4a–4b) | The orchestrator's reproduction scripts |
@@ -344,7 +358,7 @@ Each step is one fresh session; each ends with a State header update and a commi
 
 - **0a. Rig and tests.** Write `harness.test.mjs`'s `--print-paths` test (red on Linux) and `comb.test.mjs`'s
   schema tests against small fixtures (red: no validator); fix `env.sh`, write `build-comb.mjs`'s validator, prove
-  the detached walk lifecycle (Acceptance 1), and write `session.mjs` only if Q6 says so. Update `testing/how.md`.
+  the detached walk lifecycle (Acceptance 1), and write `session.mjs` only if Acceptance 1 fails, per Q6 (a′). Update `testing/how.md`.
 - **0b. Recapture.** Write `slice82.config.ts` and `comb-verification.ts` and commit them (`C82`); build the web app,
   record the bundle, check disk. Capture the four matrix ranges, then the core tasks and runtime surfaces; run
   `report.ts` (it launches Chromium for `contact-sheet.png`, `report.ts:27`, so it runs alone); then write and
@@ -398,8 +412,8 @@ No product behaviour changes, so no product test is written or changed. The tool
 
 Each consistency test is skipped while its input file does not yet exist (the comb is mid-run between steps) and is
 required from the step that writes it. The fixtures hold one good set and one bad file per check, and each check is
-seen rejecting its bad file at 0a. Where `comb.test.mjs` runs is Open
-question 7. Evidence paths (screenshots under the git-ignored `ux-output/`) are checked by `build-comb.mjs` at step 4a
+seen rejecting its bad file at 0a. `comb.test.mjs` runs by hand at
+each step and in the Acceptance check only, not in the root `pnpm test` (Q7 (a)). Evidence paths (screenshots under the git-ignored `ux-output/`) are checked by `build-comb.mjs` at step 4a
 on this machine, not by the test.
 
 ## Boundaries touched
@@ -419,8 +433,8 @@ on this machine, not by the test.
 - Meeting the stop rule, or deciding it holds. This comb reports the tally; the final comb after slices 8 and 9 is
   the one that may stop the umbrella.
 - Storybook capture, drag frames, race and fault fixtures (the matrix's known gaps, `matrix.ts:22-26`).
-- A published page (ChatGPT Site or Claude artifact). The Gate 3 artifact is local unless the user asks
-  (Open question 5).
+- A published page (ChatGPT Site or Claude artifact). The Gate 3 artifact is local files, no publication
+  (Q5 (a)).
 - New capture surfaces beyond the listed runtime ones; changing `matrix.ts` (it would change the denominator every
   sheet profile uses).
 - Editing or re-running `build-ledger.mjs` (it would regenerate the Gate 1 `themes.json`).
@@ -428,7 +442,11 @@ on this machine, not by the test.
 
 ## Open questions
 
-1. **What "changed surfaces" means.** *Context:* protocol §8 says "a fresh comb on the changed surfaces"; no comb has
+Questions 1–8 were resolved by the user on 2026-11-24, each as recommended; question 9 is open and blocks
+nothing before step 3. The options are kept as written; each
+question carries its answer, and the plan above reads the answers as settled.
+
+1. **Resolved (user decision, 2026-11-24): (a).** **What "changed surfaces" means.** *Context:* protocol §8 says "a fresh comb on the changed surfaces"; no comb has
    run since Gate 1, and slices 71–81 changed tokens, primitives, patterns and the shell, which paint every route.
    *Options:* (a) the whole matrix, all six seeds, both themes, three widths, plus the listed runtime surfaces;
    (b) only surfaces a slice record lists in its capture scope as "must change"; (c) only the patterns and shell
@@ -436,29 +454,34 @@ on this machine, not by the test.
    `/prototype/*`. *Recommendation:* (a), with `/prototype/*` (dev tooling, TH12 by decision) reached by lenses only,
    not by task walks. *Impact:* (a) is the most auditor time and the only option that can find regressions on
    surfaces no slice listed; (b) and (c) are cheaper and blind to exactly the cross-cutting changes the overhaul made.
-2. **The comb list (items 1–22).** *Context:* 21 open wording, focus and consistency items the user parked for the
+   *Answer (user decision, 2026-11-24, as recommended):* **(a)** — the whole matrix (all six seeds, both themes, three widths) plus the listed runtime surfaces, with `/prototype/*` reached by lenses only, not by task walks.
+2. **Resolved (user decision, 2026-11-24): (c).** **The comb list (items 1–22).** *Context:* 21 open wording, focus and consistency items the user parked for the
    comb (item 1 is closed by Slices 80–81). *Options:* (a) fix them in this slice; (b) re-verify and file them only;
    (c) split: re-verify and file here, fix in a follow-on (Slice 82.1) after Gate 3 with the comb's new S1/S2.
    *Recommendation:* (c). *Impact:* (a) puts web code and the bundle into a recording slice and lets the comb's
    evidence predate its fixes; (c) keeps one commit as evidence and lets Gate 3 order the fixes with everything
    else; (b) without a follow-on leaves them nowhere.
-3. **New S1/S2 findings.** *Context:* the comb will find some; slices 8, 9 and 81.1 are pending, and TH12's S2s
+   *Answer (user decision, 2026-11-24, as recommended):* **(c)** — re-verify and file comb items 1–22 here; fix them in a follow-on Slice 82.1 after Gate 3.
+3. **Resolved (user decision, 2026-11-24): (b).** **New S1/S2 findings.** *Context:* the comb will find some; slices 8, 9 and 81.1 are pending, and TH12's S2s
    stay open by decision. *Options:* (a) fix here; (b) route each at Gate 3 to slice 8, 9, 81.1, open-by-decision or
    a new Slice 82.1 (§ Severity and routing rule); (c) route everything to the existing slices only. *Recommendation:*
    (b), and a new S1 that blocks a core task goes first in 82.1. *Impact:* (b) adds one slice before agent
    connections; (c) overloads slice 9 with non-vocabulary items.
-4. **The stop rule's S2 number.** *Context:* protocol §8 needs "S2 findings below an agreed number"; none is agreed.
+   *Answer (user decision, 2026-11-24, as recommended):* **(b)** — route each new S1/S2 at Gate 3 to slice 8, slice 9, 81.1, open-by-decision or a new Slice 82.1; a new S1 that blocks a core task goes first in 82.1.
+4. **Resolved (user decision, 2026-11-24): (c).** **The stop rule's S2 number.** *Context:* protocol §8 needs "S2 findings below an agreed number"; none is agreed.
    *Options:* (a) choose a number now; (b) leave it to the final comb after slices 8 and 9; (c) have Gate 3 propose
    one from this comb's tally, for the user to set or defer. *Recommendation:* (c). *Impact:* a number chosen now has
    no data; one set at Gate 3 is informed and still early enough to steer 82.1, 8 and 9.
-5. **Gate 3: when and what.** *Context:* protocol §8 holds Gate 3 "if the direction needs amending". Routing the
+   *Answer (user decision, 2026-11-24, as recommended):* **(c)** — Gate 3 proposes the S2 stop-rule number from this comb's tally, for the user to set or defer.
+5. **Resolved (user decision, 2026-11-24): (a).** **Gate 3: when and what.** *Context:* protocol §8 holds Gate 3 "if the direction needs amending". Routing the
    open S1/S2 needs the user regardless. The Gate 0 captures are not on this machine (the private ChatGPT Site holds
    them). *Options:* (a) always hold Gate 3 after step 5, reviewing the digest, the theme list, the routing, any
    direction amendment and the `C82` contact sheet; (b) hold it only if a direction amendment is proposed, routing by
    default; (c) as (a), plus a before/after sheet against the oldest full local capture instead of Gate 0.
    *Recommendation:* (a), local files, no publication. *Impact:* (b) routes S1/S2 without the product owner; (c)
    costs a session of sheet work and compares against a build that is not the baseline.
-6. **Auditor method, count and rig lifecycle.** *Context:* Gate 1 used eleven auditors (four walks, seven lenses)
+   *Answer (user decision, 2026-11-24, as recommended):* **(a)** — always hold Gate 3 after step 5 (digest, theme list, routing, any direction amendment, the `C82` contact sheet); local files, no publication.
+6. **Resolved (user decision, 2026-11-24): (a).** **Auditor method, count and rig lifecycle.** *Context:* Gate 1 used eleven auditors (four walks, seven lenses)
    and the walk rig's daemon (`env.sh` + `walkd.mjs`, one persistent page per auditor). This environment runs
    subagents and long commands in the foreground and allows two browser jobs. *Options:* (a) eleven auditors as Gate
    1; the orchestrator starts one `static.mjs` on 4201 per step, and each walker starts its own `env.sh`
@@ -469,12 +492,14 @@ on this machine, not by the test.
    auditor sessions; a detached daemon is outside the "never background" rule's letter only in that it outlives one
    command, never the walker's turn; (a′) loses the walker's live page between steps; (b) halves the cost and loses
    lens independence; (c) loses the capture-based lenses that found most S3s.
-7. **Where `comb.test.mjs` runs.** *Context:* `build-sheet.test.mjs` lives in the same folder and is run by hand
+   *Answer (user decision, 2026-11-24, as recommended):* **(a)** — eleven auditors as Gate 1; walkers start their own `env.sh` daemon detached as above, and every walker stops it (`walk.mjs … quit` plus a kill of its process group) and confirms its ports are released before it reports. The user explicitly approves this narrow exception to the foreground-only rule. If step 0a's Acceptance 1 shows the detached lifecycle fails, fall back to (a′), the `session.mjs` replay driver, without a new question.
+7. **Resolved (user decision, 2026-11-24): (a).** **Where `comb.test.mjs` runs.** *Context:* `build-sheet.test.mjs` lives in the same folder and is run by hand
    (`testing/how.md:538`); the root `pnpm test` runs only `scripts/*.test.mjs` and the workspace packages.
    *Options:* (a) by hand at each step and in the Acceptance check only; (b) add it to the root `test` script.
    *Recommendation:* (a), matching `build-sheet.test.mjs`. *Impact:* (b) puts disposable evidence checks into the
    offline gate; its skip-while-absent rule keeps it green mid-run, but a half-written file would fail `pnpm test`.
-8. **Contrast and the stop rule.** *Context:* §8 asks for zero serious or critical axe violations in either theme.
+   *Answer (user decision, 2026-11-24, as recommended):* **(a)** — `comb.test.mjs` runs by hand at each step and in the Acceptance check only, not in the root `pnpm test`.
+8. **Resolved (user decision, 2026-11-24): (a).** **Contrast and the stop rule.** *Context:* §8 asks for zero serious or critical axe violations in either theme.
    Over frosted glass axe cannot decide contrast: at Slice 81 all 194 cells reported `color-contrast` *incomplete*
    and none serious, so the criterion passes without measuring. The user accepted Depth's demo tints at Gate 1:
    worst-case AA "is reported on every sheet but no longer gates" (umbrella, *Answered after Gate 1*). *Options:*
@@ -484,6 +509,17 @@ on this machine, not by the test.
    failures are still findings with a severity. *Impact:* (b) reopens the contrast answer and could block the stop
    rule on the accepted tints; (a) leaves the axe criterion as "zero serious on what axe can decide", which the digest
    says plainly.
+   *Answer (user decision, 2026-11-24, as recommended):* **(a)** — report L5's measured contrast and axe's `color-contrast` incomplete count in the tally and digest, outside the stop rule (keeps the Gate 1 answer); L5's failures are still findings with a severity.
+9. **Lens and reproduction daemons under Q6 (a).** *Context:* the user's Q6 (a) approval names the walkers' detached
+   `env.sh` daemons and the orchestrator's `static.mjs` on 4201 (and step 0a's probes, which prove them). The plan also
+   runs walk-rig daemons for the lens browsers (step 3, 4326–4327 / 5326–5327) and the orchestrator's reproduction
+   host (steps 4a–4b, 4320 / 5320), which Q6 (a)'s text does not name. *Options:* (a) they use the same detached
+   lifecycle on the same terms (started with `setsid`, stopped with `quit` plus a process-group kill and their ports
+   confirmed released before the lens or the step reports); (b) they use the (a′) `session.mjs` replay driver, one
+   foreground process per step file, even if the detached lifecycle works. *Recommendation:* (a), the same mechanism
+   and the same stop rule the user approved, with (b) as the fallback. *Impact:* blocks nothing in steps 0a–2; it
+   must be answered before step 3 (lenses) starts. (b) needs `session.mjs` written even when 0a's Acceptance 1
+   passes.
 
 ## Revisions
 
@@ -535,6 +571,34 @@ on this machine, not by the test.
 - **Round 5 (2026-11-24):** a cold closure reviewer re-checked the load-bearing facts and returned **no substantive
   findings**, plus two minor ones, both applied: two `walkd.mjs` line citations (:40 seed, :36 run), and W4 runs T12
   as a `T12-equiv` on the persona's own project. Review closed.
+
+- **Acceptance (2026-11-24, user decision):** the user accepted the plan with all eight recommendations: Q1 (a) the
+  whole matrix, `/prototype/*` by lenses only; Q2 (c) re-verify and file comb items 1–22 here, fix in Slice 82.1
+  after Gate 3; Q3 (b) route new S1/S2 at Gate 3 to slice 8, slice 9, 81.1, open-by-decision or 82.1, a new S1 that
+  blocks a core task first in 82.1; Q4 (c) Gate 3 proposes the S2 stop-rule number from the tally; Q5 (a) Gate 3
+  always held after step 5, local files, no publication; Q6 (a) eleven auditors, walkers' detached `env.sh` daemons
+  (an explicitly approved exception to the foreground-only rule), always stopped before the walker reports, (a′)
+  `session.mjs` only if step 0a's Acceptance 1 fails; Q7 (a) `comb.test.mjs` by hand at each step and in the
+  Acceptance check, not in `pnpm test`; Q8 (a) measured contrast and the `color-contrast` incomplete count reported
+  outside the stop rule, L5's failures still findings with a severity. `<plan-accept>` is the acceptance commit
+  (its hash in the State header). Places changed: the State header; § Build (walk-rig bullet cites Q6 (a); the
+  tally's contrast lines are outside the stop rule per Q8 (a); the Gate 3 bullet is always held, with the S2
+  proposal per Q4 (c)); § Do not (Q2, Q3); § Scope check (Q1, Q2 conditionals settled); § Acceptance check
+  (`<plan-accept>` defined as the acceptance commit; item 1 reads Q6 (a) as the method and (a′) as the fallback only
+  if it fails); § Capture scope (no before/after sheet, per Q5 (a)); § Visual acceptance (Q5 (a), Q4 (c)); § Severity
+  and routing rule (Q2/Q3 decided; the core-task S1 goes first in 82.1); the change list's `session.mjs` row; step
+  0a of the Implementation sequence (`session.mjs` only if Acceptance 1 fails, per Q6 (a′)), not renumbered;
+  § Test plan (Q7 (a)); § Explicit non-goals (Q5 (a)); § Open questions (each marked resolved with its answer, the
+  options kept); the plan summary (Gate 3 always held); § Do not (the approved detached-daemon exception); the crop
+  wording in § Visual acceptance (code-span paths, matching Acceptance 8). Review of this amendment: one cold
+  reviewer, 2 substantive findings (the comb list must reach 82.1 whatever its severity, per Q2 (c); the plan summary
+  still said "Gate 3 if the direction needs amending") and 5 minor, all checked and applied except keeping the Q6
+  answer's "confirms its ports are released" (it matches Acceptance 1). Round 2: a cold reviewer confirmed the round-1
+  fixes and returned 1 substantive finding (the Do-not exception named only walkers, while the plan also runs the
+  orchestrator's `static.mjs`, probes, lens browsers and reproduction host as daemons) and 3 minor (comb-list routing
+  wins over slices 9 and 81.1; how `PLAN_ACCEPT_HASH` is found; the review count), all applied: the Do-not line names
+  what Q6 (a) covers and new Open question 9 asks about the lens and reproduction daemons, which Q6 (a) does not
+  name. Outside the plan: the umbrella's handoff line and `goals.md`'s "Now" line.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

@@ -420,7 +420,9 @@ redesign slice 7 (the user's choice, 2026-11-09; alternative B picked 2026-11-10
 **Active: [Slice 82, the protocol §8 comb](82-overhaul-comb.md)** (started 2026-11-24), then redesign slice 8
 (agent connections), in that order unless the user says otherwise. The comb is a full re-capture, the core-task
 scripts, a fresh comb with new auditors, theme re-prioritisation, Gate 3, and the comb list below. Its plan is
-written and reviewed and **awaits the user's acceptance and answers to its Open questions**; nothing is implemented.
+written, reviewed and **accepted by the user (2026-11-24) with all eight recommendations** (Open questions 1–8
+resolved in the plan; its new Open question 9, on the lens and reproduction daemons, must be answered
+before step 3); no implementation yet, step 0a (rig and tests) is next.
 
 ### §8 comb list
 
