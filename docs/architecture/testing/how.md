@@ -8,6 +8,15 @@ a current read, so a race is verified against the canonical write refusal too.
 
 ## Runtime flow
 
+Slice 82 (the protocol §8 comb) uses `ux/slice82.config.ts` on its own ports (web 4258, host 4358) and
+`.prototype/ux-slice82.json` (copied from `prototype/seeds/empty.json` before the run), one build and no
+`UX_BEFORE`; its host runs through `tsx` directly so stopping the run releases 4358. `testMatch` is `capture.ts`
+(the matrix, run in four `UX_MATCH` ranges) and `ux/comb-verification.ts`, which `UX_COMB` selects: `tasks` runs
+the core tasks (only T10's known dead end is allowed), `surfaces` (or `surfaces:<group>`, one of `feedback`,
+`placement`, `states`, `archive`, `navigation`) captures the post-Gate 1 runtime surfaces (`SURFACES`, light at 1440
+and dark at 375) into `ux-output/<HEAD>/comb/` with a screenshot, an axe JSON (violations and `incomplete`) and an
+ARIA snapshot per frame, merged into `comb/surfaces.json` so a group can be rerun alone.
+
 Slice 81 uses `ux/slice81.config.ts` on the same ports (web 4257, host 4357; never with another rig),
 `.prototype/ux-slice81.json` and the `1a0fb0d` baseline in `apps/e2e/ux-output/slice81-baseline-web/browser`,
 built in a temporary worktree. Its `testMatch` is `capture.ts` and `ux/navigation-tree-verification.ts`, which
