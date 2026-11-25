@@ -482,10 +482,28 @@ test command:
 - `static.mjs <dist> 4201` serves a production web build.
 - `env.sh <name> <hostPort> <ctlPort> [--touch] [--theme light]` starts a host on its own port with
   its own data file, copied from the empty seed. It also starts `walkd.mjs`, a headless Chromium
-  page that forwards `localhost:4200` to 4201 and `:4310` to that host.
+  page that forwards `localhost:4200` to 4201 and `:4310` to that host. It runs on Linux as well
+  as Git Bash (`pwd -W` falls back to `pwd`); `env.sh --print-paths <name> …` prints the data and
+  log paths, all under `apps/e2e/ux-output/walk-env/`, and exits (a `harness.test.mjs` case).
 - `walk.mjs <ctlPort> seed|goto|run|shot|aria|axe|console|quit` drives the page.
 
-Data, logs and screenshots go to git-ignored `apps/e2e/ux-output/walk*`. Use ports 4320 and
+Data, logs and screenshots go to git-ignored `apps/e2e/ux-output/walk*`.
+
+A session whose commands must all run in the foreground starts the static server and each `env.sh`
+detached, recording the process group from inside, and stops each with `quit` plus a group kill
+(Slice 82 step 0a proved two daemons side by side this way, and every port released):
+
+```bash
+setsid bash -c 'echo $$ > w1.pgid; exec bash apps/e2e/ux/walk/env.sh w1 4322 5322' >w1.log 2>&1 </dev/null &
+node apps/e2e/ux/walk/walk.mjs 5322 seed nested-projects   # … goto, shot, axe, run -f
+node apps/e2e/ux/walk/walk.mjs 5322 quit; kill -TERM -- -"$(cat w1.pgid)"
+ss -ltnH 'sport = :4322 or sport = :5322'                 # prints nothing once released
+```
+
+Two traps, both met there. `$!` after `setsid … &` is not the group to kill, because `setsid` may
+fork; record `$$` before `exec`, as above. And `env.sh` starts the host through `tsx` directly,
+not `pnpm --filter … start`: pnpm does not pass a kill on to its child, so a host started that way
+outlived the script and kept its port. Use ports 4320 and
 up, so no auditor shares a host with another or touches the developer's 4200/4310.
 
 The trap: a `page.route` handler must call `route.fallback()`, never `route.continue()`.
@@ -536,6 +554,14 @@ is listed as an exception, with the baseline client width (375 px) and a scroll 
 than the baseline's (625 px); new or increased overflow, including on `/prototype/state`, fails.
 Open-lift and Lab geometry is listed as intended movement. Contrast stays reported-only. Run
 `node --test docs/roadmap/70-ui-ux/tooling/build-sheet.test.mjs` for its fixture-based gates.
+
+The Slice 82 comb has its own validator, `docs/roadmap/70-ui-ux/tooling/build-comb.mjs`, over
+`docs/roadmap/70-ui-ux/comb-82/` (findings, walkthroughs, verdicts, the Gate 1 ledger, the comb
+list, themes); it also generates `comb-82/tally.json`, the stop-rule tally, once `themes.json`
+exists (`--check` validates only). `node --test docs/roadmap/70-ui-ux/tooling/comb.test.mjs` runs
+every check against `comb-fixtures.mjs` (one good set, one bad file per check) and then over the
+real folder, skipping a check while its inputs are not written. Like `build-sheet.test.mjs` it is
+run by hand at each comb step, never by `pnpm test`.
 
 ### Feedback toast (Slice 74)
 

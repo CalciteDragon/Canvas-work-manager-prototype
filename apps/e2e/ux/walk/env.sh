@@ -4,8 +4,12 @@
 # Usage: env.sh [--print-paths] <name> <hostPort> <ctlPort> [daemon args...]
 #   --print-paths prints the paths it would use (out=, data=, hostLog=, walkdLog=) and exits.
 # Works under Git Bash on Windows (`pwd -W`) and on Linux/macOS (`pwd`). From a foreground-only
-# session start it detached and stop it with `walk.mjs <ctl> quit` plus a kill of its process group:
-#   setsid bash apps/e2e/ux/walk/env.sh w1 4322 5322 >log 2>&1 </dev/null &
+# session start it detached, recording its process group, and stop it with `walk.mjs <ctl> quit`
+# plus a kill of that group (`$!` is not the group: setsid may fork):
+#   setsid bash -c 'echo $$ > w1.pgid; exec bash apps/e2e/ux/walk/env.sh w1 4322 5322' >w1.log 2>&1 </dev/null &
+#   ...; node apps/e2e/ux/walk/walk.mjs 5322 quit; kill -TERM -- -"$(cat w1.pgid)"
+# The host runs through tsx directly, not `pnpm --filter … start`: pnpm does not pass the kill on,
+# so a host started through it outlives this script and keeps its port.
 set -u
 PRINT=0
 if [ "${1:-}" = "--print-paths" ]; then PRINT=1; shift; fi
@@ -21,8 +25,8 @@ if [ "$PRINT" = 1 ]; then
 fi
 mkdir -p "$OUT"
 cp "$REPO/prototype/seeds/empty.json" "$DATA"
-cd "$REPO"
-CWM_HOST_PORT=$HOSTPORT CWM_DATA_FILE="$DATA" pnpm --filter @cwm/prototype-host start > "$OUT/$NAME-host.log" 2>&1 &
+cd "$REPO/apps/prototype-host"
+CWM_HOST_PORT=$HOSTPORT CWM_DATA_FILE="$DATA" ./node_modules/.bin/tsx main.ts > "$OUT/$NAME-host.log" 2>&1 &
 HOSTPID=$!
 for i in $(seq 1 60); do curl -sf "http://127.0.0.1:$HOSTPORT/prototype/state" > /dev/null && break; sleep 1; done
 node "$RIG/walkd.mjs" --name "$NAME" --host "$HOSTPORT" --ctl "$CTL" "$@" > "$OUT/$NAME-walkd.log" 2>&1 &
