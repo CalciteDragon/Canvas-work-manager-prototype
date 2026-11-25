@@ -96,7 +96,14 @@ directory is `apps/prototype-host` (`env.sh` `cd`s there), so a relative path in
 (an earlier take of its cited `018-t03-handle-zoom.png`); the orchestrator moved it to
 `ux-output/walk/w1/018-t03-handle-zoom.stray-cwd.png` and removed the untracked folder, so `git diff --stat
 <plan-accept>..HEAD -- apps/web packages apps/prototype-host prototype` stays empty. Tell walkers to pass absolute
-paths (or use `shot`). **Next: step 2** (W3 and W4) the same way, ports 4324/5324 and 4325/5325.
+paths (or use `shot`). `pnpm test` (first run: seven 5 s web timeouts under load, all seven specs green alone; a full
+re-run green) and `pnpm lint` green. Commit `3beaebf`. *Review* (one cold reviewer over `3beaebf`, process and schema
+only): no substantive findings; 5 minor, checked: C82-W1-008 cites its screenshot by bare file name in prose (the full
+path is elsewhere in the file; step 4a's evidence-path check must resolve it or admission attaches the path, the
+finding is not edited); W1's `/api/activity` read (left to 4b, above); C82-W2-010 sits in no task's `findings` list
+(allowed for findings met on the way); the stray screenshot is cited nowhere; the step paragraphs run on without blank
+lines (the header's existing style, kept). **Next: step 2** (W3 and W4) the same way, ports 4324/5324 and
+4325/5325, with the `cwd` trap in the launch messages.
 
 ## Goal
 
