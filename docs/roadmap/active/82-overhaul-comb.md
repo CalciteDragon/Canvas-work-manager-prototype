@@ -104,6 +104,19 @@ finding is not edited); W1's `/api/activity` read (left to 4b, above); C82-W2-01
 (allowed for findings met on the way); the stray screenshot is cited nowhere; the step paragraphs run on without blank
 lines (the header's existing style, kept). **Next: step 2** (W3 and W4) the same way, ports 4324/5324 and
 4325/5325, with the `cwd` trap in the launch messages.
+**Step 2 attempted (2026-11-25), not done: both walkers stopped by the account's usage limit.** The orchestrator
+served the `C82` build on 4201 (`setsid`, pgid file) and launched W3 and W4 cold, with the `cwd` trap (absolute
+paths or `shot`) in both launch messages. Partway through (W3 after T05; W4 in Sam's T05-equiv) both agents died
+on an API rate limit (HTTP 429, "5-hour limit"). Neither had written `findings/` or `walkthroughs/` files (only
+screenshots and a scratch script under `ux-output/walk/w3|w4/`), so **nothing was filed and nothing is committed as
+evidence**; the partial walks are discarded. The orchestrator then stopped both daemons (`quit` plus group kill)
+and 4201: nothing listened on 4200, 4201, 4310, 4320–4329 or 5320–5329, no rig process was left, and
+`.prototype/notes.json` stayed at 1570 lines. No product file changed. **Next: redo step 2 from the start** (both
+walkers fresh; the start command's `rm -rf ux-output/walk/<name>` clears the partial screenshots; W4's content
+built up without reseeding, so it cannot resume mid-walk). **Traps:** launch both walker subagents explicitly in
+the foreground (`run_in_background: false`; the Agent tool's default is background, which this session hit), and
+start step 2 with a fresh usage window, since two full walks cost a lot; a walker cut off mid-walk leaves its
+daemon running, so the orchestrator must stop it with § 4's stop commands.
 
 ## Goal
 
