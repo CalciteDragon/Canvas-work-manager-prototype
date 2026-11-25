@@ -85,26 +85,71 @@ export function goodFiles() {
   };
 }
 
-/** Each entry: the check it targets, and a function that breaks one file of a good set in place. */
+/**
+ * Each check's bad files: one change each, and the error message that change must produce, so a
+ * check is seen rejecting a file for its own reason and every sub-rule is exercised.
+ */
 export const badFiles = {
-  'findings-format': f => { delete f['findings/w2.json'].findings[0].heuristic; },
-  'findings-id': f => { f['findings/w2.json'].findings[0].id = 'W2-001'; },
-  'findings-severity': f => { f['findings/w2.json'].findings[0].severity = 'S4'; },
-  'findings-lens': f => { f['findings/w2.json'].findings[0].lens = 'vibes'; },
-  'findings-no-fix': f => { f['findings/l5.json'].findings[0].suggestion = 'Make the text darker.'; },
-  'decision-reopened': f => { f['findings/w2.json'].findings[1].decisionReopened = 'A decision nobody wrote'; },
-  'attestation': f => { f['findings/l5.json'].attestation = ' '; },
-  'contrast-table': f => { f['findings/l5.json'].contrastTable = f['findings/l5.json'].contrastTable.filter(r => r.theme === 'light'); },
-  'unique-ids': f => { f['findings/l5.json'].findings[0].id = 'C82-W2-001'; f['findings/l5.json'].findings[0].auditor = 'w2'; },
-  'verdicts': f => { delete f['reproduction.json'].verdicts['C82-W2-002']; f['reproduction.json'].verdicts['C82-W9-001'] = { status: 'reproduced' }; },
-  'verdict-status': f => { f['reproduction.json'].verdicts['C82-W2-002'].status = 'maybe'; },
-  'classification': f => { delete f['reproduction.json'].verdicts['C82-W2-001'].matches; },
-  'classification-ledger': f => { f['reproduction.json'].verdicts['C82-L5-001'].classification = 'still-open'; },
-  'ledger-vocabulary': f => { f['ledger.json'].entries[0].basis = 'table'; f['ledger.json'].entries[1].status = 'kinda-open'; },
-  'ledger-complete': f => { f['ledger.json'].entries.pop(); },
-  'themes': f => { f['themes.json'].themes[2].combIds.push('C82-W2-002'); f['themes.json'].themes[4].combIds.push('C82-L5-001'); },
-  'comb-list': f => { f['comb-list.json'].items.pop(); f['comb-list.json'].records = []; },
-  'tally': f => { f['tally.json'].openS1.comb = []; },
-  'walkthroughs': f => { f['walkthroughs/w2.json'].inputMode = 'mouse'; f['walkthroughs/w4.json'].tasks.pop(); },
-  'tally-criteria': f => { delete f['tally.json'].contrastIncomplete; delete f['tally.json'].combSeverity; },
+  'findings-format': [
+    { break: f => { delete f['findings/w2.json'].findings[0].heuristic; }, expect: /missing heuristic/ },
+    { break: f => { f['findings/w2.json'].findings[0].evidence = []; }, expect: /evidence must be a non-empty list/ },
+    { break: f => { f['findings/l5.json'].auditor = 'l4'; }, expect: /file auditor l4 is not l5/ },
+  ],
+  'findings-id': [{ break: f => { f['findings/w2.json'].findings[0].id = 'W2-001'; }, expect: /id should match/ }],
+  'findings-severity': [{ break: f => { f['findings/w2.json'].findings[0].severity = 'S4'; }, expect: /severity S4/ }],
+  'findings-lens': [
+    { break: f => { f['findings/w2.json'].findings[0].lens = 'vibes'; }, expect: /lens vibes/ },
+    { break: f => { f['findings/w2.json'].findings[0].lens = 'task:T13'; }, expect: /lens task:T13/ },
+  ],
+  'findings-no-fix': [{ break: f => { f['findings/l5.json'].findings[0].suggestion = 'Make the text darker.'; }, expect: /suggestion proposes a fix/ }],
+  'decision-reopened': [
+    { break: f => { f['findings/w2.json'].findings[1].decisionReopened = 'A decision nobody wrote'; }, expect: /is not a title or path/ },
+    { break: f => { f['findings/w2.json'].findings[1].decisionReopened = 'Section chrome'; }, expect: /is not a title or path/ },
+  ],
+  'attestation': [{ break: f => { f['findings/l5.json'].attestation = ' '; }, expect: /empty attestation/ }],
+  'contrast-table': [{ break: f => { f['findings/l5.json'].contrastTable = f['findings/l5.json'].contrastTable.filter(r => r.theme === 'light'); }, expect: /no dark rows/ }],
+  'unique-ids': [{ break: f => { f['findings/w2.json'].findings[1].id = 'C82-W2-001'; }, expect: /C82-W2-001: filed in w2 and w2/ }],
+  'verdicts': [
+    { break: f => { delete f['reproduction.json'].verdicts['C82-W2-002']; }, expect: /C82-W2-002: filed but has no verdict/ },
+    { break: f => { f['reproduction.json'].verdicts['C82-W9-001'] = { status: 'reproduced', severity: 'S3' }; }, expect: /C82-W9-001: has a verdict but was never filed/ },
+  ],
+  'verdict-status': [
+    { break: f => { f['reproduction.json'].verdicts['C82-W2-002'].status = 'maybe'; }, expect: /status maybe/ },
+    { break: f => { delete f['reproduction.json'].verdicts['C82-L5-001'].note; }, expect: /reproduced-partly needs a note/ },
+    { break: f => { f['reproduction.json'].verdicts['C82-W2-002'].severity = 's2'; }, expect: /verdict severity s2/ },
+  ],
+  'classification': [
+    { break: f => { delete f['reproduction.json'].verdicts['C82-W2-001'].matches; }, expect: /must name a Gate 1 id/ },
+    { break: f => { f['reproduction.json'].verdicts['C82-W2-001'].classification = 'old'; }, expect: /classification old/ },
+  ],
+  'classification-ledger': [{ break: f => { f['reproduction.json'].verdicts['C82-L5-001'].classification = 'still-open'; }, expect: /still-open matches W1-001, which the ledger marks closed/ }],
+  'ledger-vocabulary': [
+    { break: f => { f['ledger.json'].entries[1].status = 'kinda-open'; }, expect: /ledger status kinda-open/ },
+    { break: f => { f['ledger.json'].entries[0].basis = 'table'; }, expect: /must rest on a record's Outcome/ },
+    { break: f => { f['ledger.json'].entries[0].source = 'docs/roadmap/completed/81-one-navigation-tree.md:10'; }, expect: /is not inside the record's Outcome/ },
+    { break: f => { Object.assign(f['ledger.json'].entries[0], { basis: 'answer', source: 'docs/roadmap/completed/81-one-navigation-tree.md:1870' }); }, expect: /is not an answer line/ },
+  ],
+  'ledger-complete': [{ break: f => { f['ledger.json'].entries.pop(); }, expect: /L2-003: appears 0 times/ }],
+  'themes': [
+    { break: f => { f['themes.json'].themes[2].combIds.push('C82-W2-002'); }, expect: /C82-W2-002 is not an admitted comb id/ },
+    { break: f => { f['themes.json'].themes[4].combIds.push('C82-W2-001'); }, expect: /C82-W2-001: in 2 themes/ },
+    { break: f => { f['themes.json'].themes[2].openGate1Ids = []; }, expect: /L2-003: open in the ledger but in 0 themes/ },
+  ],
+  'comb-list': [
+    { break: f => { f['comb-list.json'].items.pop(); }, expect: /comb item 22: 0 entries/ },
+    { break: f => { f['comb-list.json'].records = []; }, expect: /comb item 2: open but no C82-CL-02 record/ },
+  ],
+  'tally': [
+    { break: f => { f['tally.json'].openS1.comb = []; }, expect: /openS1 differs/ },
+    { break: f => { delete f['tally.json']; }, expect: /tally.json does not/ },
+  ],
+  'walkthroughs': [
+    { break: f => { f['walkthroughs/w2.json'].inputMode = 'mouse'; }, expect: /w2: must be viewport 375x812 with inputMode touch/ },
+    { break: f => { f['walkthroughs/w4.json'].tasks.pop(); }, expect: /user-alex has 0 runs of T12/ },
+    { break: f => { f['walkthroughs/w3.json'] = { ...f['walkthroughs/w2.json'], auditor: 'w3', viewport: '1440x900', inputMode: 'mouse' }; }, expect: /w3: must be inputMode keyboard/ },
+  ],
+  'tally-criteria': [
+    { break: f => { delete f['tally.json'].contrastIncomplete; }, expect: /no contrastIncomplete line/ },
+    { break: f => { f['tally.json'].axe = null; }, expect: /no axe line/ },
+  ],
 };

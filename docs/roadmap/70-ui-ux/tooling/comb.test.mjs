@@ -43,14 +43,16 @@ test('every test-plan check is implemented and has a bad fixture', () => {
   assert.deepEqual(Object.keys(badFiles).sort(), Object.keys(CHECKS).sort());
 });
 
-for (const name of Object.keys(badFiles)) {
-  test(`fixture: ${name} accepts the good set and rejects its bad file`, () => {
-    assert.deepEqual(check(good(), name), [], 'the good set passes');
-    const files = good();
-    badFiles[name](files);
-    const errors = check(files, name);
-    assert.ok(Array.isArray(errors) && errors.length > 0, `the bad file is rejected (got ${JSON.stringify(errors)})`);
-  });
+for (const [name, variants] of Object.entries(badFiles)) {
+  test(`fixture: ${name} accepts the good set`, () => assert.deepEqual(check(good(), name), []));
+  for (const [i, { break: breakFile, expect }] of variants.entries()) {
+    test(`fixture: ${name} rejects bad file ${i + 1} (${expect.source})`, () => {
+      const files = good();
+      breakFile(files);
+      const errors = check(files, name) ?? [];
+      assert.ok(errors.some(e => expect.test(e)), `want an error matching ${expect}; got ${JSON.stringify(errors)}`);
+    });
+  }
 }
 
 // The real comb folder. A check reports null (skipped) while its inputs are absent.

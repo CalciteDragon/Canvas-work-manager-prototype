@@ -7,8 +7,20 @@ rounds and two review rounds of the acceptance amendment; new Open question 9 (l
 nothing before step 3. **`<plan-accept>` = the acceptance commit, subject
 "docs(slice 82): plan taken up by the user; answers to Q1–Q8 recorded (§77, §78)"; its hash: `8c1a524`** (`8c1a5248596a566f202b0e02368de4bb7e4d4849`, recorded by the follow-up docs commit,
 since a commit cannot name its own hash).
-**No implementation yet.** `CURRENT_SLICE = 82` (`2e0f500`). Next: **step 0a** (rig and tests). No bundle measured
-(no web code in this slice).
+**Step 0a done (2026-11-24): rig and tests.** `63bc1d2` (env.sh on Linux with `--print-paths`; `build-comb.mjs`
+validator, `comb.test.mjs`, `comb-fixtures.mjs`), `1855e62` (host via `tsx`, so a group kill releases its port;
+`testing/how.md`), and the review-fix commit that records this header. **Acceptance 1 passed by the detached
+lifecycle (Q6 (a)); `session.mjs` was not written (no (a′)).** `static.mjs` on 4201 and probes `w-probe`
+(4322/5322) and `w-probe2` (4323/5323) started with `setsid`; `seed nested-projects`, `goto
+/projects/project-kitchen`, `shot kitchen`, `axe kitchen` succeeded on both (PNG and axe JSON in
+`ux-output/walk/w-probe*/`); after probe 1's `quit` and group kill, 4322/5322 were free and probe 2 still answered;
+after the stop, nothing listened on 4201, 4322, 4323, 5322 or 5323. `harness.test.mjs` 10/10; `comb.test.mjs` by hand:
+59 pass, 20 skipped (no `comb-82/` yet). **Traps for later steps (briefs must carry them):** `$!` after `setsid … &`
+is not the process group (setsid may fork), so record it from inside: `setsid bash -c 'echo $$ > w1.pgid; exec bash
+apps/e2e/ux/walk/env.sh w1 4322 5322' >log 2>&1 </dev/null &`, then `walk.mjs <ctl> quit; kill -TERM -- -"$(cat
+w1.pgid)"`; and a host started through `pnpm --filter … start` survives the kill (fixed in `env.sh`; never start a
+rig host through pnpm). File shapes step 0b–5 must follow are in `build-comb.mjs`'s header (see Revisions, step 0a).
+`CURRENT_SLICE = 82` (`2e0f500`). **Next: step 0b** (recapture). No bundle measured (no web code in this slice).
 
 ## Goal
 
@@ -599,6 +611,24 @@ question carries its answer, and the plan above reads the answers as settled.
   wins over slices 9 and 81.1; how the `<plan-accept>` hash is found; the review count), all applied: the Do-not line names
   what Q6 (a) covers and new Open question 9 asks about the lens and reproduction daemons, which Q6 (a) does not
   name. Outside the plan: the umbrella's handoff line and `goals.md`'s "Now" line.
+
+- **Step 0a (2026-11-24):** small defaults the plan left open, fixed in `build-comb.mjs`'s header so later steps
+  write to them: a findings file is `{ auditor, attestation, findings: [...] }` (L5 adds `contrastTable`), not Gate
+  1's bare array, and its `auditor` is its file name (`w1` … `l7`); `reproduction.json` keys verdicts by id and each
+  verdict carries `severity`; the comb list's `C82-CL-nn` records live in `comb-list.json` and are **not** filed
+  verdicts (the orchestrator re-verifies them itself), but the tally counts the open ones in the S1 line, a
+  `comb-list` row of the S2 line and the severity split; `briefs/decisions.md` lists one decision per line as
+  `- <title> — `<path>``, and `decisionReopened` must equal a title or path exactly; a ledger `basis` is `outcome`
+  (the cited line is inside the record's `## Outcome`) or `answer` (the cited line says "answer"); ledger status
+  `advanced` counts as open for *still open*; every ledger-open Gate 1 id sits in exactly one theme's
+  `openGate1Ids`; `core-tasks.json` is `{ tasks: [{ id, clicks, keystrokes, deadEnds, baselineClicks, slice81Clicks }] }`;
+  the tally's axe and contrast-incomplete lines read a committed digest `comb-82/axe.json` (`ux-output/` is
+  git-ignored), written at step 5 from `axe-summary.json`, and the tally check fails once `themes.json` exists
+  without a tally or with a null line. A cold reviewer of the step's diff returned 4 substantive findings (the CLI
+  guard, null tally lines, S2 ids that could fall out of the tally, a substring decision match and an unchecked
+  answer basis) and 4 minor ones (bad fixtures changing two things, lens range, auditor vs file name, stale tally
+  blocking regeneration, doc order); all checked against the code, all applied, except an eleven-file completeness
+  check, which stays with Acceptance 5's listing.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

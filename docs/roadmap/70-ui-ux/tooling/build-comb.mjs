@@ -14,10 +14,12 @@
 //   themes.json                    { themes: [{ id, title, status, priority, openGate1Ids, combIds }] }
 //   core-tasks.json                { tasks: [{ id, clicks, keystrokes, deadEnds, baselineClicks, slice81Clicks }] }
 //   axe.json                       { cells, perTheme: { light|dark: { serious, critical } }, cellsWithSeriousOrCritical, colorContrastIncomplete }
-//   briefs/decisions.md            the stripped decision list a `decisionReopened` must quote
+//   briefs/decisions.md            the stripped decision list; one decision per line, `- <title> — `<path>``.
+//                                  A `decisionReopened` must equal one title or one path exactly.
 // and the Gate 1 verdicts (`../reproduction.json`) for the ledger and the classification.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const GATE1_FIELDS = ['id', 'surface', 'inventoryRow', 'seed', 'theme', 'viewport', 'state', 'persona', 'evidence', 'repro', 'expected', 'actual', 'lens', 'heuristic', 'severity', 'confidence', 'decisionReopened'];
 export const LENSES = ['hierarchy', 'consistency', 'affordance', 'states', 'accessibility', 'copy', 'ia'];
@@ -49,9 +51,19 @@ export function loadComb(dir, { gate1, repo }) {
     tally: readJson(join(dir, 'tally.json')),
     coreTasks: readJson(join(dir, 'core-tasks.json')),
     axe: readJson(join(dir, 'axe.json')),
-    decisions: existsSync(decisions) ? readFileSync(decisions, 'utf8') : null,
+    decisions: existsSync(decisions) ? parseDecisions(readFileSync(decisions, 'utf8')) : null,
     gate1: readJson(gate1),
   };
+}
+
+/** Titles and paths from `- <title> — \`<path>\`` lines. */
+export function parseDecisions(text) {
+  const names = new Set();
+  for (const line of text.split('\n')) {
+    const match = /^- (.+?) — `([^`]+)`\s*$/.exec(line.trim());
+    if (match) { names.add(match[1].trim()); names.add(match[2].trim()); names.add(match[2].trim().replace(/^docs\/decisions\//, '')); }
+  }
+  return names;
 }
 
 const hasFindings = c => Object.keys(c.findings).length > 0;
@@ -75,6 +87,7 @@ export const CHECKS = {
       for (const field of [...GATE1_FIELDS, 'auditor']) if (!(field in record)) err(`${where(file, record)}: missing ${field}`);
       for (const field of ['evidence', 'repro']) if (field in record && (!Array.isArray(record[field]) || record[field].length === 0)) err(`${where(file, record)}: ${field} must be a non-empty list`);
       for (const field of GATE1_FIELDS.filter(f => !['evidence', 'repro', 'decisionReopened'].includes(f))) if (field in record && (typeof record[field] !== 'string' || !record[field].trim())) err(`${where(file, record)}: ${field} must be a non-empty string`);
+      if (file !== 'comb-list' && c.findings[file].auditor !== file) err(`${file}: file auditor ${c.findings[file].auditor} is not ${file}`);
       if (file !== 'comb-list' && record.auditor !== c.findings[file].auditor) err(`${where(file, record)}: auditor ${record.auditor} is not the file's ${c.findings[file].auditor}`);
     }
   })),
@@ -88,7 +101,7 @@ export const CHECKS = {
     for (const { file, record } of records(c)) if (!['S1', 'S2', 'S3'].includes(record.severity)) err(`${where(file, record)}: severity ${record.severity}`);
   })),
   'findings-lens': c => (!hasFindings(c) && !c.combList ? null : collect(err => {
-    for (const { file, record } of records(c)) if (!LENSES.includes(record.lens) && !/^task:T\d{2}(-equiv)?$/.test(String(record.lens))) err(`${where(file, record)}: lens ${record.lens}`);
+    for (const { file, record } of records(c)) if (!LENSES.includes(record.lens) && !/^task:T(0[1-9]|1[0-2])(-equiv)?$/.test(String(record.lens))) err(`${where(file, record)}: lens ${record.lens}`);
   })),
   'findings-no-fix': c => (!hasFindings(c) && !c.combList ? null : collect(err => {
     const walk = (value, path, file, record) => {
@@ -103,9 +116,9 @@ export const CHECKS = {
     for (const { file, record } of records(c)) {
       const value = record.decisionReopened;
       if (value === null) continue;
-      if (typeof value !== 'string' || value.trim().length < 8) err(`${where(file, record)}: decisionReopened must be null or a decision title or path`);
+      if (typeof value !== 'string' || !value.trim()) err(`${where(file, record)}: decisionReopened must be null or a decision title or path`);
       else if (c.decisions === null) err(`${where(file, record)}: briefs/decisions.md is missing, so "${value}" cannot be checked`);
-      else if (!c.decisions.includes(value.trim())) err(`${where(file, record)}: "${value}" is not a title or path in briefs/decisions.md`);
+      else if (!c.decisions.has(value.trim())) err(`${where(file, record)}: "${value}" is not a title or path in briefs/decisions.md`);
     }
   })),
   'attestation': c => (!hasFindings(c) ? null : collect(err => {
@@ -138,6 +151,7 @@ export const CHECKS = {
     for (const [id, verdict] of Object.entries(c.reproduction.verdicts ?? {})) {
       if (!VERDICTS.includes(verdict?.status)) err(`${id}: status ${verdict?.status} is not one of ${VERDICTS.join(', ')}`);
       if (verdict?.status === 'reproduced-partly' && !String(verdict.note ?? '').trim()) err(`${id}: reproduced-partly needs a note`);
+      if (!['S1', 'S2', 'S3'].includes(verdict?.severity)) err(`${id}: verdict severity ${verdict?.severity}`);
     }
   })),
   'classification': c => (!c.themes || !c.reproduction ? null : collect(err => {
@@ -170,6 +184,7 @@ export const CHECKS = {
       if (line < 1 || line > lines.length) { err(`${entry.id}: ${entry.source} is past the end of the file`); continue; }
       const outcome = lines.findIndex(l => /^## Outcome/.test(l)) + 1;
       if (entry.basis === 'outcome' && (outcome === 0 || line <= outcome)) err(`${entry.id}: ${entry.source} is not inside the record's Outcome`);
+      if (entry.basis === 'answer' && !/answer/i.test(lines[line - 1])) err(`${entry.id}: ${entry.source} is not an answer line`);
     }
   })),
   'ledger-complete': c => (!c.ledger ? null : collect(err => {
@@ -188,6 +203,12 @@ export const CHECKS = {
       if (!admitted.has(id)) err(`${theme.id}: ${id} is not an admitted comb id`);
       placed.set(id, [...(placed.get(id) ?? []), theme.id]);
     }
+    if (c.ledger) {
+      const open = (c.ledger.entries ?? []).filter(e => LEDGER_OPEN.includes(e.status)).map(e => e.id), held = new Map();
+      for (const theme of themes) for (const id of theme.openGate1Ids ?? []) held.set(id, (held.get(id) ?? 0) + 1);
+      for (const id of open) if (held.get(id) !== 1) err(`${id}: open in the ledger but in ${held.get(id) ?? 0} themes' openGate1Ids (want 1)`);
+      for (const id of held.keys()) if (!open.includes(id)) err(`${id}: listed as open in a theme but the ledger does not mark it open`);
+    }
     for (const id of admitted) if ((placed.get(id) ?? []).length !== 1) err(`${id}: in ${(placed.get(id) ?? []).length} themes (want 1: ${(placed.get(id) ?? []).join(', ') || 'none'})`);
   })),
   'comb-list': c => (!c.combList ? null : collect(err => {
@@ -201,7 +222,8 @@ export const CHECKS = {
     }
     for (const item of items) if (!(item.item >= 1 && item.item <= 22)) err(`comb item ${item.item}: outside 1–22`);
   })),
-  'tally': c => (!c.tally ? null : collect(err => {
+  'tally': c => (!c.tally && !c.themes ? null : collect(err => {
+    if (!c.tally) return err('themes.json exists but tally.json does not; run build-comb.mjs');
     const want = computeTally(c);
     for (const key of new Set([...Object.keys(want), ...Object.keys(c.tally)])) if (canonical(want[key]) !== canonical(c.tally[key])) err(`tally.json ${key} differs from what build-comb.mjs computes; regenerate it, never hand-edit`);
   })),
@@ -221,8 +243,9 @@ export const CHECKS = {
       }
     }
   })),
-  'tally-criteria': c => (!c.tally ? null : collect(err => {
-    for (const key of TALLY_CRITERIA) if (!(key in c.tally)) err(`tally.json: no ${key} line`);
+  'tally-criteria': c => (!c.tally && !c.themes ? null : collect(err => {
+    if (!c.tally) return err('themes.json exists but tally.json does not; run build-comb.mjs');
+    for (const key of TALLY_CRITERIA) if (c.tally[key] === undefined || c.tally[key] === null) err(`tally.json: no ${key} line (an input file is missing)`);
   })),
 };
 
@@ -255,9 +278,12 @@ export function computeTally(c) {
   }
   const tasks = c.coreTasks?.tasks ?? null;
   const table = c.findings.l5?.contrastTable ?? null;
+  const combListRecords = combListOpen.map(id => recordById.get(id)).filter(Boolean);
+  openS2ByTheme['comb-list'] = { gate1: 0, comb: combListRecords.filter(r => r.severity === 'S2').length, total: combListRecords.filter(r => r.severity === 'S2').length };
   const combSeverity = {};
   for (const s of ['S1', 'S2', 'S3']) {
     combSeverity[s] = Object.fromEntries([...CLASSIFICATIONS, 'unclassified'].map(k => [k, 0]));
+    combSeverity[s].combListOpen = combListRecords.filter(r => r.severity === s).length;
     for (const id of admitted.filter(id => severity(id) === s)) combSeverity[s][CLASSIFICATIONS.includes(verdicts[id].classification) ? verdicts[id].classification : 'unclassified']++;
   }
   return {
@@ -284,10 +310,11 @@ export function computeTally(c) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const here = import.meta.dirname, dir = resolve(here, '..', 'comb-82');
   const comb = loadComb(dir, { gate1: resolve(here, '..', 'reproduction.json'), repo: resolve(here, '..', '..', '..', '..') });
-  const results = runChecks(comb, Object.keys(CHECKS).filter(name => name !== 'tally'));
+  // The tally checks run after regeneration, so a stale tally never blocks its own rewrite.
+  const results = runChecks(comb, Object.keys(CHECKS).filter(name => !name.startsWith('tally')));
   const failed = Object.entries(results).filter(([, errors]) => errors?.length);
   for (const [name, errors] of failed) for (const e of errors) console.error(`${name}: ${e}`);
   for (const [name, errors] of Object.entries(results)) if (errors === null) console.log(`${name}: skipped (inputs not written yet)`);
@@ -296,5 +323,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     writeFileSync(join(dir, 'tally.json'), `${JSON.stringify(computeTally(comb), null, 2)}\n`);
     console.log('wrote comb-82/tally.json');
   }
+  const tally = runChecks(loadComb(dir, { gate1: resolve(here, '..', 'reproduction.json'), repo: comb.repo }), ['tally', 'tally-criteria']);
+  for (const [name, errors] of Object.entries(tally)) for (const e of errors ?? []) console.error(`${name}: ${e}`);
+  if (Object.values(tally).some(errors => errors?.length)) process.exit(1);
   console.log('comb files valid');
 }

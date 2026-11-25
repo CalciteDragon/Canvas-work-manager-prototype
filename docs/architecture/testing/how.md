@@ -487,7 +487,8 @@ test command:
   log paths, all under `apps/e2e/ux-output/walk-env/`, and exits (a `harness.test.mjs` case).
 - `walk.mjs <ctlPort> seed|goto|run|shot|aria|axe|console|quit` drives the page.
 
-Data, logs and screenshots go to git-ignored `apps/e2e/ux-output/walk*`.
+Data, logs and screenshots go to git-ignored `apps/e2e/ux-output/walk*`. Use ports 4320 and
+up, so no auditor shares a host with another or touches the developer's 4200/4310.
 
 A session whose commands must all run in the foreground starts the static server and each `env.sh`
 detached, recording the process group from inside, and stops each with `quit` plus a group kill
@@ -503,8 +504,7 @@ ss -ltnH 'sport = :4322 or sport = :5322'                 # prints nothing once 
 Two traps, both met there. `$!` after `setsid … &` is not the group to kill, because `setsid` may
 fork; record `$$` before `exec`, as above. And `env.sh` starts the host through `tsx` directly,
 not `pnpm --filter … start`: pnpm does not pass a kill on to its child, so a host started that way
-outlived the script and kept its port. Use ports 4320 and
-up, so no auditor shares a host with another or touches the developer's 4200/4310.
+outlived the script and kept its port.
 
 The trap: a `page.route` handler must call `route.fallback()`, never `route.continue()`.
 `continue()` bypasses the forwarding route, and a handler that delays and then falls back
