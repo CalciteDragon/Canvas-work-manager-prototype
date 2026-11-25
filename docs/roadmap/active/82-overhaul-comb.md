@@ -20,7 +20,37 @@ is not the process group (setsid may fork), so record it from inside: `setsid ba
 apps/e2e/ux/walk/env.sh w1 4322 5322' >log 2>&1 </dev/null &`, then `walk.mjs <ctl> quit; kill -TERM -- -"$(cat
 w1.pgid)"`; and a host started through `pnpm --filter … start` survives the kill (fixed in `env.sh`; never start a
 rig host through pnpm). File shapes step 0b–5 must follow are in `build-comb.mjs`'s header (see Revisions, step 0a).
-`CURRENT_SLICE = 82` (`2e0f500`). **Next: step 0b** (recapture). No bundle measured (no web code in this slice).
+`CURRENT_SLICE = 82` (`2e0f500`).
+**Step 0b done (2026-11-24): recapture.** **`C82` = `37dd16e`** (`37dd16e2303e7d8968905de74767710d6b02b85c`, "test(slice
+82): comb recapture rig …": `apps/e2e/ux/slice82.config.ts` on 4258/4358, host through `tsx`;
+`apps/e2e/ux/comb-verification.ts`, `UX_COMB=tasks|surfaces[:group]`; `testing/how.md`, `what.md`). Nothing was
+committed between the first capture command and the last. **Bundle 932.25 kB** initial (`pnpm --filter web build`;
+equal to Slice 81's close, 932.25 kB — the brief's 932.12 kB is the Gate 2 figure before Slice 81's real-use fix;
+ceiling 1,150 kB untouched; the existing 850 kB warning budget still warns). Disk: 109 GB free before and after
+(`ux-output` 6.9 GB, plus 246 MB for `C82`; nothing pruned). **Matrix:** `apps/e2e/ux-output/37dd16e…/index.json`
+**194/194 captured**, `gaps` = the three `matrix.ts` entries (Storybook, rare races/fault fixtures, dragging and
+keyboard resize/move); ranges `^[a-d]` 38 cells 1.6 min, `^[e-k]` 70 cells (one cell, `kitchen-shortcut-picker-light-375`,
+failed on a 30 s `waitForLoadState` and passed alone in 7 s), `^[l-o]` 36 cells 1.6 min, `^[p-z]` 50 cells 2.2 min.
+**Core tasks** (`tasks/tasks.json`, recorded in [`comb-82/core-tasks.json`](../70-ui-ux/comb-82/core-tasks.json)):
+identical to Slice 81's after counts — T01 2/16, T02 3/19, T03 10/38, T04 1/0, T05 2/0, T06 2/16, T07 3/0, T08 4/0,
+T09 1/0, T11 1/0, T12 1/0; over baseline only **T08** (4 vs 3, the accepted +1); dead end only **T10** (the known one,
+"Find Connect agent control"); **no regression against Slice 81**. **Runtime surfaces** (`comb/surfaces.json`, 8
+surfaces × light 1440 / dark 375, 20 frames, each PNG + axe JSON with `incomplete` + ARIA): toast with Undo after a
+section removal; two row failures; drawer Saving… then Saved; a failed section read then recovered by Try again; the
+Renovation archive cascade confirmation; the edit-project menu; the tree at depth (five levels, in the drawer at
+375); the skip link focused. All captured, zero axe violations; the only console errors are the injected 500s.
+**`report.ts`** (run alone): `index.html` with the task table, `contact-sheet.html` and `.png` (heading still says
+"Gate 0", `report.ts:21`; the digest must say so), `axe-summary.json` (194 scans, **0 serious/critical**),
+`coverage.json` (38 inventory rows, all `not-individually-verified`, as at every capture: the rig never marks a row
+verified). Axe `color-contrast` incomplete on **194/194** cells (as at Slice 81; Q8 (a)). **Coverage gaps:** the
+three matrix gaps above; `/prototype/*` reached by lenses only (Q1 (a)); no Storybook capture. `comb.test.mjs` by
+hand: 59 pass, 20 skipped, 0 fail; `build-comb.mjs --check` valid. **Trap:** the `^[e-k]` run stalled for about 47
+minutes in one cell before `kitchen-collapsed-light-375` (wall 18:56–19:48), and `timeout 590` around `pnpm exec
+playwright` did not stop it (probably the signal reached pnpm, not the runner; not investigated); later steps should wrap the runner as
+`timeout -k 20 590 ./node_modules/.bin/playwright …` or split ranges smaller. All rig ports (4258, 4358) were free
+after every run. **Next: step 0c** (briefs). Rerun: (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test
+--config ux/slice82.config.ts capture.ts`; `UX_COMB=tasks|surfaces[:group] … comb-verification.ts`; `node --import
+tsx ux/report.ts ux-output/37dd16e2303e7d8968905de74767710d6b02b85c`.
 
 ## Goal
 

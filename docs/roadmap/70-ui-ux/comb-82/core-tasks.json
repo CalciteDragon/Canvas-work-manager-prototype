@@ -1,0 +1,237 @@
+{
+  "commit": "37dd16e2303e7d8968905de74767710d6b02b85c",
+  "capturedBy": "UX_COMB=tasks pnpm exec playwright test --config ux/slice82.config.ts comb-verification.ts (in apps/e2e)",
+  "source": "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/tasks/tasks.json",
+  "baseline": "docs/roadmap/70-ui-ux/baseline.json (Gate 0, T01-T10; T11 and T12 have none)",
+  "slice81": "Slice 81 after counts at 38178e1 (completed/81-one-navigation-tree.md Outcome)",
+  "counting": "Completed pointer actions and typed characters/chords. Native selects count as one selection; native date physical keystrokes unmeasured. Setup navigation excluded.",
+  "overBaseline": [
+    "T08"
+  ],
+  "deadEnds": [
+    "T10"
+  ],
+  "regressionsAgainstSlice81": [],
+  "notes": {
+    "T08": "4 clicks against a baseline of 3: the +1 accepted at Slice 81 (page settings behind the pencil, decision 3).",
+    "T10": "The known dead end at \"Find Connect agent control\" (no Connect agent control; slice 8), unchanged since Gate 0."
+  },
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Create a root project",
+      "status": "completed",
+      "clicks": 2,
+      "keystrokes": 16,
+      "deadEnds": 0,
+      "surfaces": [
+        "Home",
+        "Create project"
+      ],
+      "baselineClicks": 3,
+      "baselineKeystrokes": 16,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 2,
+      "slice81Keystrokes": 16,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T02",
+      "title": "Create a workstream under Kitchen",
+      "status": "completed",
+      "clicks": 3,
+      "keystrokes": 19,
+      "deadEnds": 0,
+      "surfaces": [
+        "Navigation tree",
+        "Edit project menu",
+        "Workstream dialog"
+      ],
+      "baselineClicks": 3,
+      "baselineKeystrokes": 19,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 3,
+      "slice81Keystrokes": 19,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T03",
+      "title": "Add a Task List and complete two tasks",
+      "status": "completed",
+      "clicks": 10,
+      "keystrokes": 38,
+      "deadEnds": 0,
+      "surfaces": [
+        "Work canvas",
+        "Section dialog",
+        "Task List"
+      ],
+      "baselineClicks": 10,
+      "baselineKeystrokes": 38,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 10,
+      "slice81Keystrokes": 38,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T04",
+      "title": "Find an overdue task and reschedule it",
+      "status": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Task List",
+        "Task drawer"
+      ],
+      "baselineClicks": 1,
+      "baselineKeystrokes": 0,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 1,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T05",
+      "title": "Remove a section and undo removal",
+      "status": "completed",
+      "clicks": 2,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Work canvas",
+        "Toast"
+      ],
+      "baselineClicks": 2,
+      "baselineKeystrokes": 0,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 2,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T06",
+      "title": "Edit and save Markdown",
+      "status": "completed",
+      "clicks": 2,
+      "keystrokes": 16,
+      "deadEnds": 0,
+      "surfaces": [
+        "Markdown",
+        "Markdown editor"
+      ],
+      "baselineClicks": 2,
+      "baselineKeystrokes": 16,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 2,
+      "slice81Keystrokes": 16,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T07",
+      "title": "Place a shortcut on Work",
+      "status": "completed",
+      "clicks": 3,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Work canvas",
+        "Section dialog",
+        "Shortcut picker"
+      ],
+      "baselineClicks": 3,
+      "baselineKeystrokes": 0,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 3,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T08",
+      "title": "Hide and re-enable Reflections",
+      "status": "completed",
+      "clicks": 4,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Navigation tree",
+        "Edit project menu",
+        "Page settings"
+      ],
+      "baselineClicks": 3,
+      "baselineKeystrokes": 0,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 4,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T09",
+      "title": "Restore an archived item",
+      "status": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Archive"
+      ],
+      "baselineClicks": 1,
+      "baselineKeystrokes": 0,
+      "baselineDeadEnds": 0,
+      "slice81Clicks": 1,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T10",
+      "title": "Inspect permissions and connect an agent",
+      "status": "blocked",
+      "clicks": 0,
+      "keystrokes": 0,
+      "deadEnds": 1,
+      "surfaces": [
+        "Agent settings"
+      ],
+      "baselineClicks": 0,
+      "baselineKeystrokes": 0,
+      "baselineDeadEnds": 1,
+      "slice81Clicks": 0,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 1
+    },
+    {
+      "id": "T11",
+      "title": "Open an overdue task from the dashboard",
+      "status": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard"
+      ],
+      "baselineClicks": null,
+      "baselineKeystrokes": null,
+      "baselineDeadEnds": null,
+      "slice81Clicks": 1,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 0
+    },
+    {
+      "id": "T12",
+      "title": "Recover a section after a failed read",
+      "status": "completed",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Task List"
+      ],
+      "baselineClicks": null,
+      "baselineKeystrokes": null,
+      "baselineDeadEnds": null,
+      "slice81Clicks": 1,
+      "slice81Keystrokes": 0,
+      "slice81DeadEnds": 0
+    }
+  ]
+}
