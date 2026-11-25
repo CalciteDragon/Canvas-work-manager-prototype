@@ -1,0 +1,515 @@
+{
+  "auditor": "w4",
+  "attestation": "I read AGENTS.md §1 for orientation only and otherwise read only the four brief files (common.md, inventory.md, decisions.md, w4.md), t12-setup.js, the walk-rig scripts (env.sh, walk.mjs) and my own output under apps/e2e/ux-output/walk/w4/. I did not open the captures, any other docs/ file, any decision entry, .prototype/, git history, web-app source or other auditors' outputs; listing docs/roadmap/70-ui-ux/comb-82/ showed that findings/walkthroughs files for w1 and w2 exist, which I did not open. I met no earlier audit ids or wording. I saved no friction note and never touched the notes endpoint; in the development dialog I used only the Persona control (once I briefly read its other controls' labels through the accessibility tree, including the Agent connection list, without operating them). One rig slip: while a menu was open my scripted typing acted as type-ahead and opened the Project details dialog, which I cancelled without changes (noted in Sam's T02-equiv). The walk was interrupted once by an API usage limit during Sam's T09-equiv and resumed with the same daemon and the same data, with nothing redone. At the end I stopped my daemon with common.md § 4's stop commands; the result is reported in my final message.",
+  "findings": [
+    {
+      "id": "C82-W4-001",
+      "auditor": "w4",
+      "surface": "project workspace › Work canvas › Task List › add-task field",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated, after adding a task with the mouse",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/014-t03-alex-one-task.png: after clicking 'Add task', document.activeElement is the 'Add task' button (<button type=submit class=\"button button--primary\">Add task</button>), not the emptied 'Task title' field",
+        "apps/e2e/ux-output/walk/w4/015-t03-alex-two-tasks.png: the next title typed ('Book ferry') went nowhere; clicking 'Add task' again shows the red 'Enter a task title.' error and the field is marked invalid (aria: textbox \"Task title\" [invalid], alert \"Enter a task title.\")",
+        "Task T03-equiv (Alex), second task"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. open Alex private plan, Add a section › Task List › Create",
+        "3. click the 'Task title' field, type a title, click 'Add task'",
+        "4. type a second title straight away",
+        "5. click 'Add task'"
+      ],
+      "expected": "After adding one task the emptied title field is ready for the next one, so typing a second title and clicking Add task adds it.",
+      "actual": "Focus stays on the Add task button; the typed characters are lost and the second click shows 'Enter a task title.' in red, so every further task needs an extra click into the field first.",
+      "lens": "task:T03-equiv",
+      "heuristic": "Nielsen #7 Flexibility and efficiency of use; WCAG 2.2 SC 3.3.1 error shown for input the user did type",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-002",
+      "auditor": "w4",
+      "surface": "project workspace › Work canvas › section frame › start-edge resize handle",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "section chrome revealed (Task List just created / hovered)",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/012-t03-alex-tasklist.png: left edge of the Task List frame at x≈258–270, y≈415–458, a narrow pill with a squeezed glyph; the right edge at x≈1400–1424 shows a full-width pill with the ↔ glyph",
+        "apps/e2e/ux-output/walk/w4/019-t03-alex-both-done.png: same asymmetry, left pill at x≈258",
+        "computed boxes: start-edge [data-resize-handle] (aria-hidden) 12×44 at x=258; end-edge slider 'Resize Task List' 24×44 at x=1400"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. open Alex private plan and add a Task List section",
+        "3. hover the section and compare its left and right edge handles"
+      ],
+      "expected": "The two edge handles of a section look the same, or the one that cannot be used is not drawn.",
+      "actual": "The left handle is drawn at half the width of the right one, with its glyph squeezed, and it is not exposed as a control (aria-hidden) while the right one is the 'Resize Task List' slider; it reads as a clipped or broken control.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: start-edge vs end-edge resize handle of the same section frame",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-003",
+      "auditor": "w4",
+      "surface": "project workspace › Task detail drawer › Status and Project lines",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "task-drawer",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/020-setup-t04-drawer.png: bottom of the drawer reads 'Status  todo' and 'Project  project-alex-private'",
+        "apps/e2e/ux-output/walk/w4/025-t04-alex-date-typed.png: same lines; aria: term Status / definition 'todo' (and 'todo · Overdue' in 021-setup-t04-due-set.png), term Project / definition 'project-alex-private'",
+        "Priority select options are lowercase 'low', 'medium', 'high' while every other label in the drawer is sentence case",
+        "apps/e2e/ux-output/walk/w4/070-setup-t04-sam-drawer.png (Sam): for a project the user created, the Project line reads the generated id 'project-60f448ca'"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. open Alex private plan, add a Task List and a task",
+        "3. click the task's title to open its details",
+        "4. read the Status and Project lines at the bottom"
+      ],
+      "expected": "The drawer names the task's project by its name ('Alex private plan') and its status in words ('To do').",
+      "actual": "It shows the internal identifier 'project-alex-private' and the raw status value 'todo' (and 'todo · Overdue'); the priority choices are the raw lowercase values.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-004",
+      "auditor": "w4",
+      "surface": "global shell › sidebar › Projects list › a project without an emoji",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated, a project created through New project",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/022-t04-alex-dashboard.png: sidebar Projects list: '🔒 Alex private plan' text starts at x≈47, 'Alex bike trip' (created in T01) has no icon and its text starts at x≈20, out of line with its sibling",
+        "apps/e2e/ux-output/walk/w4/006-t01-alex-created.png: inside the project the same 'Alex bike trip' carries a 📁 folder icon in the project column and in the header",
+        "apps/e2e/ux-output/walk/w4/040-setup-t08-enabled.png: same pattern in the project column: page link 'Reflections' has no icon (text at x≈36) while sibling workstream 'Budget' has its emoji at x≈36 and text at x≈63; the Pages popover beside it draws Reflections with an icon",
+        "apps/e2e/ux-output/walk/w4/071-t04-sam-dashboard.png (Sam): the dashboard row shows '📁 Community garden plan' while the sidebar lists 'Community garden plan' with no icon, flush left"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. create a project with the sidebar's + (New project)",
+        "3. go to Home (/app) and look at the Projects list"
+      ],
+      "expected": "Every project in the list is drawn the same way (icon slot and name aligned), and a project looks the same in the global list as inside its own workspace.",
+      "actual": "The new project has no icon and its name sits flush left, misaligned with the project above it, while its own workspace shows it with a folder icon.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: global sidebar Projects list vs project column and header of the same project",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-005",
+      "auditor": "w4",
+      "surface": "dashboard › Today › overdue task link → project workspace › Task List",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "overdue task, followed from the dashboard",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/022-t04-alex-dashboard.png: Today › Overdue › link 'Renew passport' (href /projects/project-alex-private/pages/home#section-section-45975d9b)",
+        "apps/e2e/ux-output/walk/w4/023-t04-alex-opened.png: after the click, focus is on the Task List section's h2; the 'Renew passport' row has only its ordinary overdue edge; no row is selected, highlighted or opened",
+        "Task T04-equiv, step 2",
+        "apps/e2e/ux-output/walk/w4/049-t11-alex-opened.png (T11-equiv): same on a workstream: link 'Get quotes' lands on Budget's Task List heading, row not marked",
+        "apps/e2e/ux-output/walk/w4/094-t11-sam-opened.png (Sam, T11-equiv): link 'Label packets' (href /projects/project-701f68a1#section-section-fa50484f) lands with window.scrollY 0, focus on the Task List h2 at y≈762, and the 'Label packets' row at y 874–924 in a 900px viewport: the followed task is half below the fold and still unmarked"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. in Alex private plan add a Task List and a task, give it due date 2026-08-20",
+        "3. go to /app and click the task's name under Today › Overdue"
+      ],
+      "expected": "Following a link named after a task lands on that task: its row is marked, or its details open.",
+      "actual": "It lands on the whole Task List (focus on the list heading, page not scrolled) and nothing indicates which row was followed; when the list sits low on the canvas the task itself is partly off screen, so the user must scroll and scan again for the task they just clicked.",
+      "lens": "task:T04-equiv",
+      "heuristic": "Nielsen #1 Visibility of system status (where am I after following a link)",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-006",
+      "auditor": "w4",
+      "surface": "global shell and project workspace › icon-only buttons › hover",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated, mouse hover on icon buttons",
+      "persona": "user-alex",
+      "evidence": [
+        "computed on /projects/project-alex-private: title attribute present on 'Undo: …', 'Nothing to redo', 'Remove section Task List' (title 'Remove section'), 'Delete task …'; absent on 'Rename Task List', 'Collapse Task List', 'Move Task List', 'More project actions', 'All projects', 'Edit project' and the sidebar's 'New project' (+); no [role=tooltip] element appears on hover",
+        "apps/e2e/ux-output/walk/w4/004-t01-alex-hover-plus.png: hovering the + beside PROJECTS shows only a grey tint, no name",
+        "apps/e2e/ux-output/walk/w4/027-t05-alex-remove-hover.png: the section's four header icons (pencil, chevron, dots, boxed ×) are unlabelled glyphs"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. open Alex private plan with a Task List on it",
+        "3. rest the mouse on each icon in the section header, the header's ⋯, and the project column's back arrow and pencil"
+      ],
+      "expected": "Every icon-only button tells a mouse user its name when hovered, the same way across the app.",
+      "actual": "Only some do (Undo/Redo, Remove section, Delete task); Rename, Collapse, Move, More, All projects, Edit project and New project give no name on hover, so a mouse user must guess from the glyph (e.g. the dots icon is Move, the pencil in the project column is a structure menu, not an edit field).",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall; internal consistency: section header Remove (titled) vs Rename/Collapse/Move (untitled)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-007",
+      "auditor": "w4",
+      "surface": "project workspace › Section creation dialog › Add a shortcut › source group heading",
+      "inventoryRow": "Shortcut picker",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "shortcut picker, sources available",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/037-t07-alex-picker.png: group heading 'Alex private plan · Home'; buttons named 'Add Notes, Alex private plan · Home'",
+        "the same page is called 'Alex private plan' everywhere else: the project column link, the h1, the breadcrumb ('Alex private plan › Budget'), the shortcut frame's source line ('Alex private plan', 038-t07-alex-shortcut.png); no 'Home' page is named anywhere in the project",
+        "apps/e2e/ux-output/walk/w4/039-t08-alex-pages.png: the project's Pages popover also lists the first page as 'Home  Required'",
+        "apps/e2e/ux-output/walk/w4/081-t07-sam-picker.png (Sam): 'Community garden plan · Home'"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. give Alex private plan a section (e.g. Notes)",
+        "3. open its workstream Budget, Add a section › Add shortcut",
+        "4. read the group heading"
+      ],
+      "expected": "The picker names the source page the way the navigation and header do ('Alex private plan').",
+      "actual": "It names it 'Alex private plan · Home', introducing a 'Home' page the user has never seen in this project (the global dashboard is the only 'Home' in the sidebar).",
+      "lens": "copy",
+      "heuristic": "Internal consistency: shortcut picker heading vs project column, h1 and breadcrumb",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-008",
+      "auditor": "w4",
+      "surface": "project workspace › Archive page › item count",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated, one archived section",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/045-t09-alex-archive.png: top right of the Project recovery block reads '1 items'",
+        "aria on /projects/project-alex-private/pages/archive: text '1 items'",
+        "apps/e2e/ux-output/walk/w4/090-t09-sam-archive.png (Sam): '1 items' again for one archived workstream"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. in Alex private plan add a Markdown section, then remove it and dismiss the toast",
+        "3. More (⋯) › Open archive"
+      ],
+      "expected": "A single archived item is counted as '1 item'.",
+      "actual": "The count reads '1 items'.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards (grammatical number)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-009",
+      "auditor": "w4",
+      "surface": "dashboard › Today and Active Projects rows; project workspace › Archive page › archived item card",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/045-t09-alex-archive.png: the 'Notes' card's text starts at x≈351 while the card starts at x≈305 with 12px padding: a ≈34px empty band on the left, with nothing in it",
+        "apps/e2e/ux-output/walk/w4/022-t04-alex-dashboard.png: Today › Overdue row 'Renew passport' starts at x≈359 inside a row that starts at x≈314, same empty band",
+        "apps/e2e/ux-output/walk/w4/001-000-demo-dashboard.png (Demo, for comparison): Active Projects rows show the same blank band before the project emoji",
+        "apps/e2e/ux-output/walk/w4/071-t04-sam-dashboard.png (Sam): Daily Digest › Overdue tasks row: same empty band left of 'Water seedlings' inside a narrow card, so the project name '📁 Community garden plan' wraps to two lines"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Alex",
+        "2. give a task an overdue date and open /app; look at the Today row",
+        "3. archive a section and open the project's Archive page; look at the item card"
+      ],
+      "expected": "Row content starts at the row's padding, or the reserved space holds the icon it is reserved for.",
+      "actual": "Each row has an empty band on its left before the title, so the titles sit indented with nothing explaining the gap; it reads as a missing icon.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: object rows (dashboard, Archive) vs task rows in a Task List, whose content starts at the padding",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-010",
+      "auditor": "w4",
+      "surface": "settings › AI & Agents › connect a new agent",
+      "inventoryRow": "`/settings/agents`",
+      "seed": "agent-heavy",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "empty (Alex) and populated (Demo)",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/053-t10-alex-agents.png: Alex's /settings/agents: heading, intro line, empty sentence; no button or link to connect an agent",
+        "apps/e2e/ux-output/walk/w4/054-t10-alex-settings.png: /settings lists AI & Agents, Archived projects and Appearance; nothing about connecting",
+        "apps/e2e/ux-output/walk/w4/056-ref-demo-agents.png (Demo, same seed, for comparison): populated cards with permission checkboxes, Last used and Revoke; still no connect control anywhere on the page",
+        "Task T10 (Alex), second half",
+        "apps/e2e/ux-output/walk/w4/099-t10-sam-agents.png and 100-t10-sam-settings.png (Sam): same, no connect action on AI & Agents or Settings"
+      ],
+      "repro": [
+        "1. seed agent-heavy, switch to Alex (or stay Demo)",
+        "2. open AI & Agents from the sidebar",
+        "3. look for a way to connect a new agent; then try Settings"
+      ],
+      "expected": "The AI & Agents page offers a way to connect a new agent (e.g. a Connect action that gives the user what the agent needs).",
+      "actual": "Neither the empty page (Alex) nor the populated one (Demo) nor Settings has any connect action; the only way to get an agent token is the prototype development panel's Agent connection list, which is not a product surface. The task cannot be completed.",
+      "lens": "task:T10",
+      "heuristic": "Nielsen #3 User control and freedom / task completion; the page's intro promises managing connected agents but offers no way to add one",
+      "severity": "S1",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-011",
+      "auditor": "w4",
+      "surface": "settings › AI & Agents › empty state",
+      "inventoryRow": "`/settings/agents`",
+      "seed": "agent-heavy",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "empty, second persona on a seed that has agents for Demo",
+      "persona": "user-alex",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/053-t10-alex-agents.png: 'No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.' while the agent-heavy seed is the one loaded",
+        "aria: paragraph with code 'agent-heavy'",
+        "apps/e2e/ux-output/walk/w4/099-t10-sam-agents.png (Sam): the same 'Load the agent-heavy seed…' sentence with agent-heavy loaded"
+      ],
+      "repro": [
+        "1. seed agent-heavy",
+        "2. switch to Alex in the development dialog",
+        "3. open AI & Agents"
+      ],
+      "expected": "An empty agents page tells this person they have no agents yet and what to do next, in product words.",
+      "actual": "It tells Alex to load the very seed that is already loaded, naming a developer seed ('agent-heavy') and the development panel; following it would not show Alex any agent (the seed's agents belong to Demo).",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; #9 help users recognise and recover (the advice is wrong for this state)",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-012",
+      "auditor": "w4",
+      "surface": "global shell › sidebar › inline New project form › Project name field",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "inline New project form open, name being typed",
+      "persona": "user-sam",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/060-t01-sam-typed.png: after typing 'Community garden plan' (21 characters) the field shows only 'y garden plan'; the field is about 120px wide beside the Create button",
+        "apps/e2e/ux-output/walk/w4/005-t01-alex-form.png: the same narrow field for Alex"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Sam",
+        "2. on /app click New project (dashboard or sidebar +)",
+        "3. type 'Community garden plan'"
+      ],
+      "expected": "A project name of a few words is visible in full while it is typed, so it can be checked before Create.",
+      "actual": "The field shows about a dozen characters; the beginning of an ordinary three-word name scrolls out of view.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #5 Error prevention (the user cannot see what they are about to commit)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-013",
+      "auditor": "w4",
+      "surface": "dashboard › Get started › New project button → sidebar inline form",
+      "inventoryRow": "`/app` dashboard",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "empty workspace (Sam has no projects)",
+      "persona": "user-sam",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/057-sam-dashboard-start.png: the dashboard's 'Get started' line with a primary 'New project' button at x≈1037–1149, y≈164–204",
+        "apps/e2e/ux-output/walk/w4/059-t01-sam-form.png: after clicking it, nothing changes around the button; the form appears in the sidebar at x≈16–219, y≈250–316, about 900px away, with focus moved into its field"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Sam",
+        "2. on /app click the blue 'New project' button in the Get started line"
+      ],
+      "expected": "The form for the new project appears where the user clicked, or the button visibly leads the eye to it.",
+      "actual": "The button stays as it was and the form opens silently at the far left in the sidebar; a mouse user looking at the button sees no response unless they notice the sidebar change.",
+      "lens": "task:T01",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-014",
+      "auditor": "w4",
+      "surface": "project workspace › Task detail drawer › Due date field › typing a date",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "task-drawer, due date typed digit by digit",
+      "persona": "user-sam",
+      "evidence": [
+        "Sam T04-equiv: typed 08282026 into the Due date field of 'Water seedlings'; the field ended at 08/28/2026 with 'Due date saved.'",
+        "apps/e2e/ux-output/walk/w4/074-t04-sam-undo-probe.png: one click on the header's 'Undo: Updated \"Water seedlings\"' leaves the row at 'Due 0202-08-28 Overdue', and the Undo button still reads 'Undo: Updated \"Water seedlings\"' (more partial-year saves behind it); Redo returns 'Due 2026-08-28'",
+        "Alex T04-equiv typed 08312026 the same way (025-t04-alex-date-typed.png), so the same partial saves were recorded there"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Sam, create a project with a Task List and a task",
+        "2. open the task's details, click the Due date field, type 08282026",
+        "3. close the drawer and click the project header's Undo once"
+      ],
+      "expected": "Typing one date records one change: the due date is saved once, when the date is complete, and one Undo returns the previous date.",
+      "actual": "Every keystroke that forms a valid date is saved as its own change (years 0002, 0020, 0202, 2026); one Undo produces a due date in the year 202, shown as overdue, and several Undos are needed to get back.",
+      "lens": "task:T04-equiv",
+      "heuristic": "Nielsen #3 User control and freedom (Undo should reverse the user's action, not a fragment of it); #5 Error prevention",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-015",
+      "auditor": "w4",
+      "surface": "project workspace › Work canvas › Markdown section created without a name › title and Edit button",
+      "inventoryRow": "Markdown section and source editor",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated, section added with the optional Name left blank",
+      "persona": "user-sam",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/078-setup-t06-sam-md.png and 079-t06-sam-editing.png: the notes section's heading is 'Markdown'",
+        "aria: region 'Markdown', toolbar 'Markdown tools', buttons 'Rename Markdown', 'Remove section Markdown', 'Edit Markdown for Markdown'"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Sam, create a project",
+        "2. Add a section, keep Section type 'Markdown', leave Name empty, Create"
+      ],
+      "expected": "A notes section someone did not name gets a plain, readable default heading, and its controls read naturally.",
+      "actual": "Its heading is the format's name, 'Markdown', and its edit control is announced 'Edit Markdown for Markdown'.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-016",
+      "auditor": "w4",
+      "surface": "project workspace › More menu › Archive project confirmation › buttons",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "archive confirmation open (workstream)",
+      "persona": "user-sam",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/087-setup-t09-sam-archive-confirm.png: dialog 'Archive “Seed swap”?' with 'Archive it' and 'Cancel' touching edge to edge",
+        "bounding boxes: 'Archive it' x=425 w=92.9 → right edge 517.9; 'Cancel' x=517.9: gap 0px"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Sam, create a project and a workstream",
+        "2. open the workstream, ⋯ › Archive project…"
+      ],
+      "expected": "The destructive action and Cancel are separated like the button pairs in every other dialog (e.g. Add a section's Cancel/Create).",
+      "actual": "The two buttons have no gap between them, so they read as one split control and the destructive 'Archive it' sits right against 'Cancel'.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: archive confirmation buttons vs Add a section / Add workstream dialog buttons; Nielsen #5 Error prevention",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-017",
+      "auditor": "w4",
+      "surface": "project workspace › Archive page › archived workstream › Restore as",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated, one archived workstream that was Planning before archive",
+      "persona": "user-sam",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/087-setup-t09-sam-archive-confirm.png: Seed swap's status before archiving: Planning",
+        "apps/e2e/ux-output/walk/w4/090-t09-sam-archive.png: archive card's 'Restore as' select preselects 'Active' (aria: option \"Active\" [selected]); the archived workstream's own banner also preselected Active (088-setup-t09-sam-archived.png)",
+        "apps/e2e/ux-output/walk/w4/091-t09-sam-restored.png: status 'Restored Seed swap as Active.'"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Sam, create a project and a workstream (status Planning)",
+        "2. archive the workstream",
+        "3. open the project's Archive and click Restore without touching 'Restore as'"
+      ],
+      "expected": "Bringing something back returns it as it was (Planning) unless the user chooses otherwise.",
+      "actual": "Restore defaults to 'Active', so a plain Restore silently changes the workstream's status from Planning to Active.",
+      "lens": "task:T09-equiv",
+      "heuristic": "Nielsen #3 User control and freedom (undoing an archive should not change other state)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W4-018",
+      "auditor": "w4",
+      "surface": "project workspace › Work canvas › Task List shortcut and Task List › read failure › Try again",
+      "inventoryRow": "Shortcut frame",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "error (task read failed once, then recovered)",
+      "persona": "user-sam",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w4/095-t12-sam-failed.png: on Seed swap two red boxes 'Couldn’t load this task list.', one in the shortcut 'Task List (Community garden plan)' at y≈507, one in Seed swap's own Task List at y≈840, each with its own Try again",
+        "apps/e2e/ux-output/walk/w4/096-t12-sam-after-first.png: after clicking the first Try again the shortcut shows its tasks but the second box stays ('Try again' count 1); focus moved to the shortcut heading",
+        "apps/e2e/ux-output/walk/w4/097-t12-sam-recovered.png: only a second click on the other Try again brought back 'Label packets'"
+      ],
+      "repro": [
+        "1. seed nested-projects, switch to Sam; create a project with a Task List, a workstream with a shortcut to it and its own Task List",
+        "2. on the workstream run t12-setup.js (task read fails once)",
+        "3. click the first Try again"
+      ],
+      "expected": "One failed load is recovered with one Try again, or each box makes clear it covers only its own list.",
+      "actual": "The same failure is shown twice in identical words, and the first Try again only repairs the shortcut; the user, seeing the page still broken below, has to find and press a second Try again.",
+      "lens": "task:T12-equiv",
+      "heuristic": "Nielsen #9 Help users recognise, diagnose and recover from errors",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

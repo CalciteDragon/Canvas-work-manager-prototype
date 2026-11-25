@@ -1,0 +1,1202 @@
+{
+  "auditor": "w4",
+  "inputMode": "mouse",
+  "viewport": "1440x900",
+  "theme": "light",
+  "personas": [
+    "user-alex",
+    "user-sam"
+  ],
+  "themeNote": "Browser scheme light throughout (daemon --theme light). Alex (prefers light) and Sam (prefers dark) both rendered data-theme=light on every task; Sam's dark preference never applied and no stored theme overrode the device scheme. The top bar offered 'Dark' as a toggle for both.",
+  "setupObservations": [
+    {
+      "persona": "user-alex",
+      "task": "T01",
+      "action": "seed nested-projects as Demo, then Ctrl+Shift+D, chose Alex in the development dialog's Persona control, closed the dialog (the dialog switch worked; no fallback used)",
+      "observed": "App reloaded as Alex: top bar reads Alex, sidebar lists only 'Alex private plan' (lock emoji). Dashboard shows just Upcoming (full width, Next 14 days) and Today (half width); Demo's dashboard on the same seed has Today, Fun Fact, Upcoming (7 days), Daily Digest and Active Projects. The Persona buttons in the dialog carry no pressed/selected state, unlike Seed and Theme.",
+      "evidence": "apps/e2e/ux-output/walk/w4/001-000-demo-dashboard.png; apps/e2e/ux-output/walk/w4/003-alex-dashboard-start.png"
+    },
+    {
+      "persona": "user-alex",
+      "task": "T04-equiv",
+      "action": "In Alex private plan's Task List, added task 'Renew passport', opened its details (click on title), set Due date to 2026-08-20, closed the drawer.",
+      "observed": "Drawer opened as a right-hand sheet with 'Changes save automatically.'; 'Due date saved.' after the change; status line became 'todo · Overdue'; the Project line shows the raw id 'project-alex-private' (C82-W4-003). Row shows 'Due 2026-08-20 Overdue'.",
+      "evidence": "apps/e2e/ux-output/walk/w4/020-setup-t04-drawer.png; apps/e2e/ux-output/walk/w4/021-setup-t04-due-set.png"
+    },
+    {
+      "persona": "user-alex",
+      "task": "T06-equiv",
+      "action": "In Alex private plan: Add a section › Markdown, Name 'Notes', Create; then Edit, typed 'Packing list: tent, stove.', Save.",
+      "observed": "New Markdown section shows 'No notes yet.' and an Edit button; editor with Preview/Save/Cancel; saved text rendered.",
+      "evidence": "apps/e2e/ux-output/walk/w4/031-setup-t06-md-created.png; apps/e2e/ux-output/walk/w4/033-setup-t06-saved.png"
+    },
+    {
+      "persona": "user-alex",
+      "task": "T08-equiv",
+      "action": "Pencil › 'Pages of Alex private plan…', ticked Reflections (off by default on Alex's project), clicked outside to close.",
+      "observed": "Reflections was unticked at first, so the task as worded ('hide it') did not apply to Alex's project until it was enabled. After enabling, 'Reflections' appears in the project column under the project, drawn without an icon (text at x≈36) while the sibling workstream 'Budget' has its emoji there and text at x≈63; the popover itself gives Reflections an icon.",
+      "evidence": "apps/e2e/ux-output/walk/w4/039-t08-alex-pages.png; apps/e2e/ux-output/walk/w4/040-setup-t08-enabled.png"
+    },
+    {
+      "persona": "user-alex",
+      "task": "T09-equiv",
+      "action": "In Alex private plan, hovered the Notes section, clicked its Remove section (boxed ×), then Dismiss on the toast.",
+      "observed": "Removed at once with no warning, although a shortcut to Notes had just been placed on Budget's canvas (T07-equiv).",
+      "evidence": "apps/e2e/ux-output/walk/w4/043-setup-t09-removed.png"
+    },
+    {
+      "persona": "user-alex",
+      "task": "T11-equiv",
+      "action": "On Budget: Add a section › Task List › Create; added 'Get quotes'; opened its details, Due date 2026-08-21; closed.",
+      "observed": "Row shows 'Due 2026-08-21 Overdue'. The 'Added “Get quotes”.' line stays under the add field after the drawer is closed. The Notes shortcut placed in T07-equiv shows the restored Notes text again.",
+      "evidence": "apps/e2e/ux-output/walk/w4/047-setup-t11-budget.png"
+    },
+    {
+      "persona": "user-alex",
+      "task": "T10",
+      "action": "seed agent-heavy, then Ctrl+Shift+D › Persona › Alex › Close (dialog switch; persona had also survived the reseed in localStorage). Afterwards, for reference only, switched to Demo User in the same dialog and opened /settings/agents.",
+      "observed": "Alex's sidebar on agent-heavy: 'No projects yet' under PROJECTS; dashboard Upcoming and Today only. The development dialog's 'Agent connection' list shows Demo's agents (Claude, Cursor with tokens) while Alex is the persona. Demo's AI & Agents page lists the agents but no connect action.",
+      "evidence": "apps/e2e/ux-output/walk/w4/052-t10-alex-dashboard.png; apps/e2e/ux-output/walk/w4/056-ref-demo-agents.png"
+    },
+    {
+      "persona": "user-sam",
+      "task": "T01",
+      "action": "seed nested-projects, Ctrl+Shift+D › Persona › Sam › Close (dialog switch worked). Then, as setup, goto /projects/project-kitchen (Demo's project) as Sam.",
+      "observed": "Sam: top bar 'Sam' with 🌱; data-theme light although Sam prefers dark (browser scheme light). Dashboard: Get started + Daily Digest only. Kitchen link: page 'This project isn’t available — It may have been removed, or it isn’t shared with you.' with 'Go to Home', title 'Project not available'; nothing of Demo's shown.",
+      "evidence": "apps/e2e/ux-output/walk/w4/057-sam-dashboard-start.png; apps/e2e/ux-output/walk/w4/058-setup-sam-foreign-link.png"
+    },
+    {
+      "persona": "user-sam",
+      "task": "T04-equiv",
+      "action": "In Community garden plan's Task List: typed 'Water seedlings' + Enter, opened its details, Due date 2026-08-19, closed.",
+      "observed": "Row 'Due 2026-08-19 Overdue'. The drawer again shows 'Project  project-60f448ca'-style raw id (C82-W4-003).",
+      "evidence": "apps/e2e/ux-output/walk/w4/070-setup-t04-sam-drawer.png"
+    },
+    {
+      "persona": "user-sam",
+      "task": "T06-equiv",
+      "action": "In Community garden plan: Add a section, kept Markdown, left Name empty, Create; Edit, typed 'Plot 4 needs new soil.', Save.",
+      "observed": "The unnamed section is titled 'Markdown' (C82-W4-015).",
+      "evidence": "apps/e2e/ux-output/walk/w4/078-setup-t06-sam-md.png"
+    },
+    {
+      "persona": "user-sam",
+      "task": "T08-equiv",
+      "action": "Pencil › 'Pages of Community garden plan…', ticked Reflections, clicked outside.",
+      "observed": "Reflections off by default on a new project, as for Alex; enabling adds a 'Reflections' link under the project.",
+      "evidence": "apps/e2e/ux-output/walk/w4/083-setup-t08-sam-pages.png"
+    },
+    {
+      "persona": "user-sam",
+      "task": "T09-equiv",
+      "action": "On Seed swap: ⋯ › Archive project…, then 'Archive it'.",
+      "observed": "Confirmation 'Archive “Seed swap”? It leaves the sidebar; you can undo it from the header.' with 'Archive it' and 'Cancel' touching (C82-W4-016). After archiving, the page shows an '“Seed swap” is archived.' banner with Restore as [Active] / Restore and a toast 'Archived Seed swap.' (Undo, Dismiss) that had gone by the time I tried to dismiss it; the column kept 'Seed swap Archived' while on its page.",
+      "evidence": "apps/e2e/ux-output/walk/w4/087-setup-t09-sam-archive-confirm.png; apps/e2e/ux-output/walk/w4/088-setup-t09-sam-archived.png"
+    },
+    {
+      "persona": "user-sam",
+      "task": "T11-equiv",
+      "action": "On Seed swap: Add a section › Task List; 'Label packets' + Enter; details › Due date 2026-08-22; closed.",
+      "observed": "Row 'Due 2026-08-22 Overdue'. Seed swap's status shows Active after the T09-equiv restore.",
+      "evidence": "apps/e2e/ux-output/walk/w4/092-setup-t11-sam.png"
+    },
+    {
+      "persona": "user-sam",
+      "task": "T10",
+      "action": "seed agent-heavy, Ctrl+Shift+D › Persona › Sam › Close.",
+      "observed": "Sam on agent-heavy: 'No projects yet', dashboard Get started + Daily Digest; data-theme light.",
+      "evidence": "apps/e2e/ux-output/walk/w4/098-t10-sam-dashboard.png"
+    },
+    {
+      "persona": "user-alex",
+      "task": "T10",
+      "action": "After Sam's runs: seed nested-projects, development dialog › Alex, then goto /projects/project-kitchen (Demo's project) as Alex.",
+      "observed": "'This project isn’t available — It may have been removed, or it isn’t shared with you.' with 'Go to Home'; title 'Project not available'; nothing of Demo's shown (same as Sam).",
+      "evidence": "apps/e2e/ux-output/walk/w4/102-setup-alex-foreign-link.png"
+    }
+  ],
+  "tasks": [
+    {
+      "task": "T01",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 2,
+      "keystrokes": 14,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "New project form",
+        "Project workspace"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Looked at the sidebar first; the small + beside the PROJECTS label was the only creation control on the page and its hover/name reads 'New project'. The inline form focused its field at once.",
+      "steps": [
+        {
+          "expect": "A + next to PROJECTS opens a way to name a new project.",
+          "action": "Clicked the + beside PROJECTS in the sidebar.",
+          "observed": "An inline 'Project name' field with a Create button appeared above the project list, field focused.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/005-t01-alex-form.png"
+        },
+        {
+          "expect": "Typing a name and pressing Create opens the new empty project.",
+          "action": "Typed 'Alex bike trip', clicked Create.",
+          "observed": "Navigated to /projects/project-51f35b8a: header 'Alex bike trip', Planning, 'No tasks to measure', an empty canvas with 'Add a section'. The sidebar switched to a project-only view: a back arrow and a pencil, and only this project listed.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/006-t01-alex-created.png"
+        }
+      ],
+      "verification": "URL /projects/project-51f35b8a, h1 'Alex bike trip', title 'Alex bike trip · Canvas Work Manager', Undo offers 'Created \"Alex bike trip\"'.",
+      "findings": []
+    },
+    {
+      "task": "T02-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Create a new workstream ('Budget') under Alex's own project Alex private plan.",
+      "clicks": 4,
+      "keystrokes": 6,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Edit project menu",
+        "Workstream creation dialog"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Opened the project from the sidebar, then tried the pencil ('Edit project') at the top of the project's sidebar column; its menu had 'Add workstream'. The ⋯ More button in the header was the other candidate.",
+      "steps": [
+        {
+          "expect": "Opening my project shows its workspace and somewhere to add a sub-part.",
+          "action": "Clicked 'Alex private plan' in the sidebar.",
+          "observed": "Project opened (Active, No tasks to measure, empty canvas). The sidebar became a project column: back arrow, pencil, and the single project.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/007-t02-alex-private.png"
+        },
+        {
+          "expect": "The pencil edits the project or offers structure actions.",
+          "action": "Clicked the pencil (Edit project).",
+          "observed": "Menu with 'Pages of Alex private plan…' and 'Add workstream'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/008-t02-alex-pencil.png"
+        },
+        {
+          "expect": "A dialog asks the name, parent preset to this project.",
+          "action": "Clicked 'Add workstream'.",
+          "observed": "Dialog 'Add workstream': Name (focused), Parent = Alex private plan, 'Inside Alex private plan', Cancel / Create.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/009-t02-alex-dialog.png"
+        },
+        {
+          "expect": "The workstream is created and shown under the project.",
+          "action": "Typed 'Budget', clicked Create.",
+          "observed": "Navigated to the new workstream 'Budget' (breadcrumb Alex private plan › Budget); sidebar nests Budget under Alex private plan; toast 'Created Budget under Alex private plan.' with Undo and Dismiss.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/010-t02-alex-created.png"
+        }
+      ],
+      "verification": "URL /projects/project-fff1b343, title 'Budget · Alex private plan · Canvas Work Manager', nav tree shows Budget nested under Alex private plan.",
+      "findings": []
+    },
+    {
+      "task": "T03-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Alex private plan (Alex's own project), add a Task List, add two tasks to it and mark both done.",
+      "clicks": 12,
+      "keystrokes": 31,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Section creation dialog",
+        "Task List section",
+        "Task row"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The empty canvas's 'Add a section' button was the obvious start; Task List is the second option of the Section type select (Markdown preselected). Adding tasks was plain, but the second task needed a retry because focus did not return to the field.",
+      "steps": [
+        {
+          "expect": "The project's empty canvas offers a way to add a list.",
+          "action": "Opened Alex private plan from the sidebar, clicked 'Add a section'.",
+          "observed": "Dialog 'Add a section' with 'Add shortcut', Section type (Markdown preselected), Name (optional), Cancel/Create.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/011-t03-alex-add-section.png"
+        },
+        {
+          "expect": "Choosing Task List and Create puts an empty task list on the canvas.",
+          "action": "Chose 'Task List' in the select, clicked Create.",
+          "observed": "A 'Task List' section with a 'Task title' field, 'Add task' and 'No tasks yet. Add the first one above.'",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/012-t03-alex-tasklist.png"
+        },
+        {
+          "expect": "Typing a title and clicking Add task adds it and leaves the field ready for the next.",
+          "action": "Clicked the field, typed 'Pay deposit', clicked Add task.",
+          "observed": "Task added; 'Added “Pay deposit”.' Focus stayed on the Add task button.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/014-t03-alex-one-task.png"
+        },
+        {
+          "expect": "Typing the second title goes into the field.",
+          "action": "Typed 'Book ferry', clicked Add task.",
+          "observed": "Nothing had been typed into the field; red 'Enter a task title.' error appeared.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/015-t03-alex-two-tasks.png"
+        },
+        {
+          "expect": "Clicking into the field first works.",
+          "action": "Clicked the field, typed 'Book ferry', clicked Add task.",
+          "observed": "Second task added; header count '2 tasks'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/017-t03-alex-two-tasks-ok.png"
+        },
+        {
+          "expect": "Ticking each checkbox marks it done.",
+          "action": "Clicked the checkbox of Pay deposit, then of Book ferry.",
+          "observed": "Both struck through with 'Done  Completed 2026-08-24'; project progress '100% complete'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/019-t03-alex-both-done.png"
+        }
+      ],
+      "verification": "aria: both rows have checkbox 'Reopen task …' [checked] and 'Done'; header Progress '100% complete'; Undo reads 'Completed \"Book ferry\"'.",
+      "findings": [
+        "C82-W4-001",
+        "C82-W4-002"
+      ]
+    },
+    {
+      "task": "T04-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Find Alex's own overdue task (Renew passport, due 2026-08-20, made overdue in setup) and move its due date to 2026-08-31.",
+      "clicks": 4,
+      "keystrokes": 8,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Today widget",
+        "Project workspace",
+        "Task List section",
+        "Task detail drawer"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Alex's dashboard shows only Upcoming and Today; the overdue task appears under Today › OVERDUE with a red edge, so finding it was immediate. The link opens the list, not the task, so a second click on the title opened its details where the Due date field is.",
+      "steps": [
+        {
+          "expect": "The dashboard flags overdue work.",
+          "action": "Looked at /app.",
+          "observed": "Today widget: OVERDUE › 'Renew passport', 'Due 2026-08-20 Overdue', '🔒 Alex private plan'. Upcoming says nothing scheduled.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/022-t04-alex-dashboard.png"
+        },
+        {
+          "expect": "Clicking the task opens it (details or highlighted row).",
+          "action": "Clicked 'Renew passport'.",
+          "observed": "Opened Alex private plan at the Task List section; focus on the list heading; the row itself is not marked or opened.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/023-t04-alex-opened.png"
+        },
+        {
+          "expect": "Clicking the row's title opens its details with a due date.",
+          "action": "Clicked the 'Renew passport' title, then the Due date field.",
+          "observed": "Drawer 'Task details' opened; Due date field shows 08/20/2026.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/024-t04-alex-date-click.png"
+        },
+        {
+          "expect": "Typing a later date saves it.",
+          "action": "Typed 08312026.",
+          "observed": "Field 08/31/2026, 'Due date saved.', status loses '· Overdue'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/025-t04-alex-date-typed.png"
+        },
+        {
+          "expect": "Closing shows the row no longer overdue.",
+          "action": "Clicked the drawer's close (×).",
+          "observed": "Row reads 'Due 2026-08-31' without 'Overdue'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/026-t04-alex-done.png"
+        }
+      ],
+      "verification": "aria: row 'Renew passport' time 'Due 2026-08-31', no 'Overdue'; Undo reads 'Updated \"Renew passport\"'.",
+      "findings": [
+        "C82-W4-005"
+      ]
+    },
+    {
+      "task": "T05-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Alex private plan, remove the Task List section, then bring it back.",
+      "clicks": 3,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Section chrome",
+        "Toast"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The boxed × at the right of the section header turns red on hover, which read as remove; no name appeared on hover. The toast after removal offered Undo directly.",
+      "steps": [
+        {
+          "expect": "The section header has a remove control.",
+          "action": "Opened Alex private plan, hovered the Task List header, clicked the boxed × (Remove section Task List).",
+          "observed": "Section removed at once with no confirmation; canvas back to 'This canvas is empty.'; toast 'Removed the Task List section.' with Undo, Open archive, Dismiss.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/029-t05-alex-toast.png"
+        },
+        {
+          "expect": "Undo brings the list back with its tasks.",
+          "action": "Clicked Undo in the toast.",
+          "observed": "Task List back with its three tasks and '3 tasks'; progress 67%; header Redo offers 'Removed the Task List section'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/030-t05-alex-restored.png"
+        }
+      ],
+      "verification": "aria: region 'Task List' with three task articles; Redo button 'Redo: Removed the Task List section'.",
+      "findings": []
+    },
+    {
+      "task": "T06-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Alex private plan, change the text of its Markdown 'Notes' section (made in setup) and save it.",
+      "clicks": 3,
+      "keystrokes": 11,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Markdown section and source editor"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The Notes section shows a labelled 'Edit' button under its text, which I chose over the header's pencil (that pencil is Rename, which would have been the wrong door). The editor opened with the caret at the end of the text.",
+      "steps": [
+        {
+          "expect": "The notes show their text with a way to edit it.",
+          "action": "Opened Alex private plan from the sidebar.",
+          "observed": "Notes section shows 'Packing list: tent, stove.' and an 'Edit' button; the header also has a pencil.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/034-t06-alex-page.png"
+        },
+        {
+          "expect": "Edit opens the text for changing.",
+          "action": "Clicked Edit.",
+          "observed": "A source textarea with Preview, Save, Cancel; focus in it, caret at end.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/035-t06-alex-editor.png"
+        },
+        {
+          "expect": "Save stores and shows the new text.",
+          "action": "Typed ' Add a map.', clicked Save.",
+          "observed": "Rendered 'Packing list: tent, stove. Add a map.'; header Undo reads 'Edited Markdown in the Notes section'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/036-t06-alex-saved.png"
+        }
+      ],
+      "verification": "aria: Notes paragraph 'Packing list: tent, stove. Add a map.'; Undo 'Edited Markdown in the Notes section'.",
+      "findings": []
+    },
+    {
+      "task": "T07-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Put a shortcut on the Work canvas of Alex's workstream Budget to the Notes section that lives on Alex private plan.",
+      "clicks": 5,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Section creation dialog",
+        "Shortcut picker",
+        "Shortcut frame"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "There is no 'shortcut' control on the canvas itself; 'Add a section' opens a dialog whose top-right button is 'Add shortcut'. The picker lists only Alex's own sections (no Demo content leaked).",
+      "steps": [
+        {
+          "expect": "Budget's empty canvas offers adding something.",
+          "action": "Opened Alex private plan, then Budget in the project column, clicked 'Add a section'.",
+          "observed": "Section dialog with an 'Add shortcut' button top right.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/037-t07-alex-picker.png"
+        },
+        {
+          "expect": "Add shortcut lists sections from elsewhere.",
+          "action": "Clicked 'Add shortcut'.",
+          "observed": "'Add a shortcut' lists 'Alex private plan · Home' › Notes and Task List, each with Add and a Preview disclosure; footer Back / Cancel and a top-right 'Add a section'.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/037-t07-alex-picker.png"
+        },
+        {
+          "expect": "Add places a read-only copy of Notes here.",
+          "action": "Clicked Add beside Notes.",
+          "observed": "Dialog closed; a 'Notes' shortcut frame (link icon, 'Alex private plan', 'Read-only here. Open the source to change it.', the text, 'Open source').",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/038-t07-alex-shortcut.png"
+        }
+      ],
+      "verification": "aria: region 'Notes' on /projects/project-fff1b343 with 'Read-only here…' and link 'Open source' to /projects/project-alex-private/pages/home#section-section-75ea5974.",
+      "findings": [
+        "C82-W4-007"
+      ]
+    },
+    {
+      "task": "T08-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Alex private plan (Alex's own root project), hide its Reflections page, then turn it back on. Reflections starts off on Alex's project, so it was turned on once in setup.",
+      "clicks": 5,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Edit project menu",
+        "Page settings popover",
+        "Navigation tree"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Knew from T02 that the project column's pencil holds 'Pages of Alex private plan…'; that popover lists Home (Required), Todos, Archive and Reflections as checkboxes.",
+      "steps": [
+        {
+          "expect": "The pencil menu leads to page settings.",
+          "action": "Opened Alex private plan, clicked the pencil, chose 'Pages of Alex private plan…'.",
+          "observed": "Popover 'Pages — Choose which optional views appear in this project.' with Home (Required, checked, dimmed), Todos, Archive, Reflections (checked).",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/040-setup-t08-enabled.png"
+        },
+        {
+          "expect": "Unticking Reflections hides it from the navigation.",
+          "action": "Unticked Reflections.",
+          "observed": "Reflections disappeared from the project column; Undo reads 'Disabled the reflections page'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/041-t08-alex-hidden.png"
+        },
+        {
+          "expect": "Ticking it again brings it back.",
+          "action": "Ticked Reflections.",
+          "observed": "'Reflections' link back under Alex private plan; Undo reads 'Enabled the reflections page'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/042-t08-alex-back-on.png"
+        }
+      ],
+      "verification": "aria nav: link 'Reflections' → /projects/project-alex-private/pages/reflections present again.",
+      "findings": []
+    },
+    {
+      "task": "T09-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Bring back something archived in Alex private plan: its Notes section, removed (archived) in setup with the toast dismissed.",
+      "clicks": 4,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project header More menu",
+        "Archive page",
+        "Toast"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The project's page list has no Archive (it is unticked in Pages), so I tried the header's ⋯ More menu, which has 'Open archive'. The Archive page then appeared in the project column too.",
+      "steps": [
+        {
+          "expect": "The project's menu leads to archived things.",
+          "action": "Opened Alex private plan, clicked ⋯ (More project actions).",
+          "observed": "Menu: Edit details…, Status (Planning/Active/On Hold/Completed), Open archive, Pages of Alex private plan…, Add workstream, Archive project….",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/044-t09-alex-more.png"
+        },
+        {
+          "expect": "Open archive lists the removed Notes with a restore action.",
+          "action": "Clicked 'Open archive'.",
+          "observed": "Archive page: 'Project recovery', '1 items', card 'Notes · Section · Origin: Alex private plan › Notes · Archived directly · Keeps its text · Returns at the end of its page, not its old position.' with 'Restore saved content'. 'Archive' now listed in the project column.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/045-t09-alex-archive.png"
+        },
+        {
+          "expect": "Restoring returns it to the project.",
+          "action": "Clicked 'Restore saved content'.",
+          "observed": "'Nothing is ready to restore in this project.'; toast 'Restored “Notes” to Alex private plan.' with Go to it, Undo, Dismiss.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/046-t09-alex-restored.png"
+        }
+      ],
+      "verification": "Toast 'Restored “Notes” to Alex private plan.' with link 'Go to it' to the section; Archive empty.",
+      "findings": [
+        "C82-W4-008"
+      ]
+    },
+    {
+      "task": "T11-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "From Alex's dashboard, open Alex's own overdue task 'Get quotes' (in the Budget workstream, made overdue in setup) where it lives.",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Today widget",
+        "Project workspace",
+        "Task List section"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Today › OVERDUE lists 'Get quotes' with its owner 'Budget'; the task name is the link. It opens the Budget workstream at its Task List, with the list's heading focused; the row itself is not marked (as in C82-W4-005).",
+      "steps": [
+        {
+          "expect": "The dashboard lists the overdue task and its place.",
+          "action": "Looked at /app.",
+          "observed": "Upcoming lists 'Renew passport' (Due 2026-08-31, Alex private plan); Today › OVERDUE lists 'Get quotes' (Due 2026-08-21 Overdue, Budget).",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/048-t11-alex-dashboard.png"
+        },
+        {
+          "expect": "Clicking the task opens Budget at that task.",
+          "action": "Clicked 'Get quotes'.",
+          "observed": "Budget workstream opened (breadcrumb Alex private plan › Budget), Task List with the overdue 'Get quotes' row visible; focus on the Task List heading; row not highlighted.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/049-t11-alex-opened.png"
+        }
+      ],
+      "verification": "URL /projects/project-fff1b343#section-section-c63c5323; row 'Get quotes' with 'Due 2026-08-21 Overdue' on screen.",
+      "findings": [
+        "C82-W4-005"
+      ]
+    },
+    {
+      "task": "T12-equiv",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "On Alex's own workstream Budget (which holds a Task List), the list has just failed to load (t12-setup.js run from that page); get it working again.",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Project workspace",
+        "Task List section"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The failure is drawn inside the Task List in a red box, 'Couldn’t load this task list.', with 'Try again' on the same line and a collapsed Details; Try again was the obvious act.",
+      "steps": [
+        {
+          "expect": "The broken list says so and offers a way to retry.",
+          "action": "Looked at the page after the setup reload.",
+          "observed": "Task List frame: add field still present, red box 'Couldn’t load this task list.' with Try again and Details; the list's heading carries a focus outline; the Notes shortcut above loaded normally.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/050-t12-alex-failed.png"
+        },
+        {
+          "expect": "Try again reloads the list.",
+          "action": "Clicked Try again.",
+          "observed": "The task 'Get quotes' (Due 2026-08-21 Overdue) is back; focus moved to the Task List heading.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/051-t12-alex-recovered.png"
+        }
+      ],
+      "verification": "aria: Task List region contains the article 'Get quotes'; no alert text left. Console shows only the two induced 500s.",
+      "findings": []
+    },
+    {
+      "task": "T10",
+      "persona": "user-alex",
+      "theme": "light",
+      "outcome": "blocked",
+      "clicks": 3,
+      "keystrokes": 0,
+      "deadEnds": 1,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "AI & Agents settings",
+        "Settings"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "'AI & Agents' sits under Settings in the sidebar and was the obvious place. As Alex it is empty (the seed's agents are Demo's), so there is no existing agent to inspect, and the page has no way to connect one; Settings itself was a dead end. Stopped on /settings/agents.",
+      "steps": [
+        {
+          "expect": "AI & Agents lists connected agents and their permissions, with a way to connect another.",
+          "action": "Clicked 'AI & Agents' in the sidebar.",
+          "observed": "Intro line, then 'No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.' No connect action.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/053-t10-alex-agents.png"
+        },
+        {
+          "expect": "Settings might hold a connect option.",
+          "action": "Clicked 'Settings' in the breadcrumb/sidebar.",
+          "observed": "Links to AI & Agents and Archived projects, and Appearance radios. Nothing about connecting.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/054-t10-alex-settings.png"
+        },
+        {
+          "expect": "Back on AI & Agents, something I missed.",
+          "action": "Clicked 'AI & Agents' again.",
+          "observed": "Same empty page; blocked.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/055-t10-alex-agents-again.png"
+        }
+      ],
+      "verification": "Not reached. For reference (setup, uncounted) the same page as Demo on this seed lists Claude, Cursor and a revoked 'Retired assistant' with permission checkboxes, but also has no connect action (056-ref-demo-agents.png).",
+      "findings": [
+        "C82-W4-010",
+        "C82-W4-011"
+      ]
+    },
+    {
+      "task": "T01",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "clicks": 2,
+      "keystrokes": 21,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Get started",
+        "Navigation",
+        "New project form",
+        "Project workspace"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Sam's empty dashboard leads with 'Projects hold your tasks… Start with your first.' and a blue New project button; that was the obvious act. The form it opened is in the sidebar, not near the button.",
+      "steps": [
+        {
+          "expect": "The empty workspace invites a first project.",
+          "action": "Looked at /app as Sam.",
+          "observed": "'Get started' sentence with a New project button, and a Daily Digest card ('You completed 0 tasks during the last 7 days.'). Sidebar: 'No projects yet'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/057-sam-dashboard-start.png"
+        },
+        {
+          "expect": "Clicking New project opens a name field next to it.",
+          "action": "Clicked the dashboard's New project button.",
+          "observed": "The button area did not change; a 'Project name' field and Create appeared in the sidebar with focus.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/059-t01-sam-form.png"
+        },
+        {
+          "expect": "The name is visible while typing.",
+          "action": "Typed 'Community garden plan'.",
+          "observed": "Field shows only 'y garden plan'.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/060-t01-sam-typed.png"
+        },
+        {
+          "expect": "Create opens the new project.",
+          "action": "Clicked Create.",
+          "observed": "Opened /projects/project-60f448ca 'Community garden plan', Planning, empty canvas.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/061-t01-sam-created.png"
+        }
+      ],
+      "verification": "Title 'Community garden plan · Canvas Work Manager'; Undo 'Created \"Community garden plan\"'.",
+      "findings": [
+        "C82-W4-013",
+        "C82-W4-012"
+      ]
+    },
+    {
+      "task": "T02-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Create a workstream ('Seed swap') under Sam's own project Community garden plan (created in Sam's T01).",
+      "clicks": 4,
+      "keystrokes": 9,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project header More menu",
+        "Workstream creation dialog",
+        "Project workspace"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Used the header's ⋯ More menu this time (Alex used the column's pencil); it also carries 'Add workstream'. Rig slip, not counted: my first attempt typed the name while the menu was still open; the menu's type-ahead opened 'Edit details…' (Project details dialog), which I cancelled without changes before repeating the step.",
+      "steps": [
+        {
+          "expect": "Sam's dashboard shows the new project somewhere.",
+          "action": "Looked at /app.",
+          "observed": "Only the Daily Digest card; the project appears only in the sidebar (no project or task widget for Sam).",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/062-t02-sam-dashboard.png"
+        },
+        {
+          "expect": "The project's ⋯ menu offers Add workstream.",
+          "action": "Opened Community garden plan, clicked ⋯, chose 'Add workstream'.",
+          "observed": "Dialog 'Add workstream', Parent = Community garden plan.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/066-t02-sam-dialog2.png"
+        },
+        {
+          "expect": "Create opens the new workstream.",
+          "action": "Typed 'Seed swap', clicked Create.",
+          "observed": "Opened 'Seed swap' under Community garden plan; toast 'Created Seed swap under Community garden plan.'",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/067-t02-sam-created2.png"
+        }
+      ],
+      "verification": "Title 'Seed swap · Community garden plan · Canvas Work Manager'; nav nests Seed swap under the project.",
+      "findings": []
+    },
+    {
+      "task": "T03-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Community garden plan (Sam's own project), add a Task List, add two tasks to it and mark both done.",
+      "clicks": 8,
+      "keystrokes": 24,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Section creation dialog",
+        "Task List section",
+        "Task row"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Same path as Alex: Add a section › Task List. This time each title was submitted with Enter, and the field kept focus, so the second task went in without the extra click that clicking Add task needs (C82-W4-001).",
+      "steps": [
+        {
+          "expect": "Add a section › Task List gives an empty list.",
+          "action": "Opened Community garden plan, Add a section, chose Task List, Create.",
+          "observed": "Empty Task List with 'Task title' field.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/068-t03-sam-two-tasks.png"
+        },
+        {
+          "expect": "Enter adds a task and leaves the field ready.",
+          "action": "Clicked the field, typed 'Order compost', Enter, typed 'Fix fence', Enter.",
+          "observed": "Both tasks added; focus stayed in the field; 'Added “Fix fence”.'",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/068-t03-sam-two-tasks.png"
+        },
+        {
+          "expect": "Ticking both marks them done.",
+          "action": "Clicked both checkboxes.",
+          "observed": "Both struck through, Done; Progress '100% complete' (status still 'Planning').",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/069-t03-sam-done.png"
+        }
+      ],
+      "verification": "aria: two 'Reopen task …' checkboxes in the Task List; Progress 100% complete.",
+      "findings": []
+    },
+    {
+      "task": "T04-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Find Sam's own overdue task (Water seedlings, due 2026-08-19, made overdue in setup) and move its due date to 2026-08-28.",
+      "clicks": 5,
+      "keystrokes": 8,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Daily Digest widget",
+        "Project workspace",
+        "Task List section",
+        "Task detail drawer"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Sam's dashboard has only the Daily Digest; it now says '1 task is overdue.' and lists the task as a link. The link lands on the Task List, not the task; the title opens the details drawer where Due date is.",
+      "steps": [
+        {
+          "expect": "The dashboard flags the overdue task.",
+          "action": "Looked at /app.",
+          "observed": "Daily Digest: '1 task is overdue.' and an 'Overdue tasks' list with 'Water seedlings · Due 2026-08-19 Overdue · 📁 Community garden plan' (the project name wraps in the narrow card).",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/071-t04-sam-dashboard.png"
+        },
+        {
+          "expect": "Clicking the task opens it.",
+          "action": "Clicked 'Water seedlings'.",
+          "observed": "Opened the project at its Task List; the row is not marked.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/072-t04-sam-opened.png"
+        },
+        {
+          "expect": "The details drawer lets me change the date.",
+          "action": "Clicked the task title, clicked Due date, typed 08282026.",
+          "observed": "'Due date saved.', field 08/28/2026.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/073-t04-sam-date.png"
+        },
+        {
+          "expect": "Closing shows the new date.",
+          "action": "Clicked close (×).",
+          "observed": "Row 'Due 2026-08-28', not overdue.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/073-t04-sam-date.png"
+        },
+        {
+          "expect": "(Probe, not counted) One Undo returns the old date.",
+          "action": "Clicked the header Undo once, read the row, then Redo.",
+          "observed": "Row became 'Due 0202-08-28 Overdue'; Undo still offered another 'Updated'. Redo restored 2026-08-28.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/074-t04-sam-undo-probe.png"
+        }
+      ],
+      "verification": "Row 'Water seedlings' reads 'Due 2026-08-28' with no Overdue (after the Redo of the probe).",
+      "findings": [
+        "C82-W4-005",
+        "C82-W4-014"
+      ]
+    },
+    {
+      "task": "T05-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Community garden plan, remove the Task List section, then bring it back.",
+      "clicks": 3,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Section chrome",
+        "Toast"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Same boxed × in the section header; removal is immediate and the toast (still up after about nine seconds of waiting) offers Undo.",
+      "steps": [
+        {
+          "expect": "Remove takes the section off the canvas with a way back.",
+          "action": "Opened Community garden plan, hovered the Task List header, clicked Remove section.",
+          "observed": "Section gone; toast 'Removed the Task List section.' with Undo, Open archive, Dismiss; it was still showing after ~9 s.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/076-t05-sam-after-wait.png"
+        },
+        {
+          "expect": "Undo restores it with its tasks.",
+          "action": "Clicked Undo in the toast.",
+          "observed": "Task List back with '3 tasks'; header Redo offers 'Removed the Task List section'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/077-t05-sam-restored.png"
+        }
+      ],
+      "verification": "aria: region 'Task List' with '3 tasks'.",
+      "findings": []
+    },
+    {
+      "task": "T06-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Community garden plan, change the text of its Markdown notes section (made in setup, left unnamed) and save it.",
+      "clicks": 3,
+      "keystrokes": 14,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Markdown section and source editor"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The notes section (titled 'Markdown') has a labelled Edit button under its text. The editor opens tall, so its Save button is below the first screen and needed a scroll (not counted).",
+      "steps": [
+        {
+          "expect": "Edit opens the text.",
+          "action": "Opened Community garden plan, clicked Edit under the notes.",
+          "observed": "Monospace source editor, caret at the end; Preview/Save/Cancel below the fold.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/079-t06-sam-editing.png"
+        },
+        {
+          "expect": "Save stores the change.",
+          "action": "Typed ' Order 2 bags.', scrolled, clicked Save.",
+          "observed": "Rendered 'Plot 4 needs new soil. Order 2 bags.'",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/080-t06-sam-saved.png"
+        }
+      ],
+      "verification": "aria: Markdown paragraph 'Plot 4 needs new soil. Order 2 bags.'",
+      "findings": []
+    },
+    {
+      "task": "T07-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Put a shortcut on the Work canvas of Sam's workstream Seed swap to the Task List that lives on Community garden plan.",
+      "clicks": 5,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project workspace",
+        "Section creation dialog",
+        "Shortcut picker",
+        "Shortcut frame"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Same path as Alex: Add a section › Add shortcut › Add. The picker again groups the source as 'Community garden plan · Home' (C82-W4-007) and lists only Sam's own sections.",
+      "steps": [
+        {
+          "expect": "Seed swap's Add a section leads to shortcuts.",
+          "action": "Opened Community garden plan, then Seed swap in the column, Add a section, Add shortcut.",
+          "observed": "Picker lists 'Community garden plan · Home' › Markdown and Task List.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/081-t07-sam-picker.png"
+        },
+        {
+          "expect": "Add places a read-only view of the list.",
+          "action": "Clicked Add beside Task List.",
+          "observed": "Shortcut frame 'Task List (Community garden plan)', '3 tasks', source line 'Community garden plan', 'Read-only here…', three rows as links, 'Open source'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/082-t07-sam-shortcut.png"
+        }
+      ],
+      "verification": "aria: region 'Task List (Community garden plan)' on /projects/project-701f68a1 with link 'Open source'.",
+      "findings": [
+        "C82-W4-007"
+      ]
+    },
+    {
+      "task": "T08-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "In Community garden plan (Sam's own root project), hide its Reflections page, then turn it back on. Reflections starts off, so it was enabled once in setup.",
+      "clicks": 5,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project header More menu",
+        "Page settings popover",
+        "Navigation tree"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Used the header's ⋯ › 'Pages of Community garden plan…' (the same popover the column's pencil opens). Unticking and ticking Reflections hid and restored its link at once.",
+      "steps": [
+        {
+          "expect": "Page settings list Reflections as a toggle.",
+          "action": "Opened the project, ⋯, 'Pages of Community garden plan…'.",
+          "observed": "Popover beside the ⋯ button with Home (Required), Todos, Archive, Reflections (ticked).",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/084-t08-sam-popover.png"
+        },
+        {
+          "expect": "Unticking hides it.",
+          "action": "Unticked Reflections.",
+          "observed": "Reflections gone from the project column.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/085-t08-sam-hidden.png"
+        },
+        {
+          "expect": "Ticking brings it back.",
+          "action": "Ticked Reflections.",
+          "observed": "Reflections back in the column; Undo 'Enabled the reflections page'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/086-t08-sam-back.png"
+        }
+      ],
+      "verification": "aria nav: link 'Reflections' → /projects/project-60f448ca/pages/reflections.",
+      "findings": []
+    },
+    {
+      "task": "T09-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "Bring back something archived in Community garden plan: its workstream Seed swap, archived in setup through ⋯ › Archive project….",
+      "clicks": 4,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Project header More menu",
+        "Archive page"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Seed swap had left the project column, so I went to the project's ⋯ › Open archive (known from Alex's run). The card offers 'Restore as' (preset Active) and Restore.",
+      "steps": [
+        {
+          "expect": "The archived workstream is gone from the project's navigation.",
+          "action": "Opened Community garden plan from the sidebar.",
+          "observed": "Column lists the project and Reflections only.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/089-t09-sam-project.png"
+        },
+        {
+          "expect": "⋯ › Open archive lists it.",
+          "action": "Clicked ⋯, 'Open archive'.",
+          "observed": "Archive: '1 items', card 'Seed swap · Workstream · Origin: Community garden plan › Seed swap · Work canvas · Open Seed swap history · Archived directly', Restore as [Active], Restore.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/090-t09-sam-archive.png"
+        },
+        {
+          "expect": "Restore returns it as it was.",
+          "action": "Clicked Restore.",
+          "observed": "'Restored Seed swap as Active.'; Seed swap back in the column; 'Nothing is ready to restore in this project.' Its status is now Active, not Planning.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/091-t09-sam-restored.png"
+        }
+      ],
+      "verification": "aria nav: link 'Seed swap' back under Community garden plan; status message 'Restored Seed swap as Active.'",
+      "findings": [
+        "C82-W4-008",
+        "C82-W4-017"
+      ]
+    },
+    {
+      "task": "T11-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "From Sam's dashboard, open Sam's own overdue task 'Label packets' (in workstream Seed swap, made overdue in setup) where it lives.",
+      "clicks": 1,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Daily Digest widget",
+        "Project workspace",
+        "Task List section"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "The Daily Digest's 'Overdue tasks' list names the task as a link. It opened Seed swap, but the page did not scroll: the target list's heading is near the bottom of the screen and the task row is half below the fold, unmarked (C82-W4-005).",
+      "steps": [
+        {
+          "expect": "The dashboard lists the overdue task.",
+          "action": "Looked at /app.",
+          "observed": "Daily Digest: overdue count and 'Overdue tasks' › 'Label packets · Due 2026-08-22'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/093-t11-sam-dashboard.png"
+        },
+        {
+          "expect": "Clicking shows that task where it lives.",
+          "action": "Clicked 'Label packets'.",
+          "observed": "Seed swap opened at the top (scrollY 0); the shortcut list fills the screen; the real Task List heading is at the bottom with focus, and the 'Label packets' row is cut by the fold.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/094-t11-sam-opened.png"
+        }
+      ],
+      "verification": "URL /projects/project-701f68a1#section-section-fa50484f; row 'Label packets' (Due 2026-08-22 Overdue) present in Seed swap's Task List after a scroll.",
+      "findings": [
+        "C82-W4-005"
+      ]
+    },
+    {
+      "task": "T12-equiv",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "completed",
+      "equivalent": "On Sam's workstream Seed swap (its own Task List plus a shortcut to Community garden plan's Task List), the task read has just failed (t12-setup.js run from that page); get it working again.",
+      "clicks": 2,
+      "keystrokes": 0,
+      "deadEnds": 0,
+      "surfaces": [
+        "Project workspace",
+        "Shortcut frame",
+        "Task List section"
+      ],
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Two identical red 'Couldn’t load this task list.' boxes appeared, the first inside the shortcut. I pressed the first Try again; it fixed only the shortcut, so I scrolled down and pressed the second.",
+      "steps": [
+        {
+          "expect": "The failed list says so with a retry.",
+          "action": "Looked at the page after the setup reload.",
+          "observed": "Both the shortcut and Seed swap's Task List show 'Couldn’t load this task list.' with Try again and Details; focus outline on the Task List heading.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/095-t12-sam-failed.png"
+        },
+        {
+          "expect": "Try again reloads the tasks.",
+          "action": "Clicked the first Try again (in the shortcut).",
+          "observed": "Shortcut recovered; the own Task List still failed.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/096-t12-sam-after-first.png"
+        },
+        {
+          "expect": "The second Try again fixes the rest.",
+          "action": "Scrolled, clicked the remaining Try again.",
+          "observed": "'Label packets' back; no failure left.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w4/097-t12-sam-recovered.png"
+        }
+      ],
+      "verification": "No 'Try again' left on the page; four task rows rendered including 'Label packets'.",
+      "findings": [
+        "C82-W4-018"
+      ]
+    },
+    {
+      "task": "T10",
+      "persona": "user-sam",
+      "theme": "light",
+      "outcome": "blocked",
+      "clicks": 3,
+      "keystrokes": 0,
+      "deadEnds": 1,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "AI & Agents settings",
+        "Settings"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "AI & Agents in the sidebar was the obvious place. As Sam it is empty, with the same advice to load the already-loaded 'agent-heavy' seed, and no way to connect an agent; Settings was a dead end. Stopped on /settings/agents.",
+      "steps": [
+        {
+          "expect": "AI & Agents lists agents and lets me connect one.",
+          "action": "Clicked 'AI & Agents'.",
+          "observed": "'No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.' No connect action.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/099-t10-sam-agents.png"
+        },
+        {
+          "expect": "Settings may hold it.",
+          "action": "Clicked the breadcrumb 'Settings'.",
+          "observed": "AI & Agents, Archived projects, Appearance; nothing to connect.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/100-t10-sam-settings.png"
+        },
+        {
+          "expect": "Back on the page, something missed.",
+          "action": "Clicked 'AI & Agents'.",
+          "observed": "Same empty page; blocked.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w4/101-t10-sam-agents-again.png"
+        }
+      ],
+      "verification": "Not reached.",
+      "findings": [
+        "C82-W4-010",
+        "C82-W4-011"
+      ]
+    }
+  ]
+}

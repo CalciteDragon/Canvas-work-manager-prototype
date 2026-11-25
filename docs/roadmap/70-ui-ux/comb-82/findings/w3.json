@@ -1,0 +1,318 @@
+{
+  "auditor": "w3",
+  "attestation": "I read AGENTS.md §1 for orientation only (it was also shown to me as session context, which includes the rest of the file; I did not act on its start-up reading list) and otherwise read only common.md, inventory.md, decisions.md, w3.md and t12-setup.js in comb-82/briefs, plus the rig scripts env.sh and walk.mjs (and the walk folder listing). I did not open docs/architecture, docs/decisions entries, the spec, other roadmap files, .prototype/, git history, web source, the C82 captures, or other auditors' outputs; a directory listing of comb-82/ showed that findings/ and walkthroughs/ already held w1.json and w2.json and that a core-tasks.json exists, which I did not open. I met no earlier audit's ids or wording. Evidence comes only from my own keyboard walk at 1440x900 in dark theme as Demo User. I opened the development panel once (Ctrl+Shift+D) to look for an agent-connect control and saved no friction note and never called the notes endpoint. Scratch helpers (k.mjs, add.py, temporary JSON) live in apps/e2e/ux-output/walk/w3/; two temporary JSON files were briefly written to /tmp in T02 and deleted at once. At the end I stopped my daemon with common.md § 4's stop commands and ports 4324 and 5324 were reported released.",
+  "findings": [
+    {
+      "id": "C82-W3-001",
+      "auditor": "w3",
+      "surface": "project workspace › project header › h1 (focus after creating a project)",
+      "inventoryRow": "Project header and More menu",
+      "seed": "empty",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "just created a project from the sidebar form",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/004-t01-after-create.png (the h1 'Garden plan' framed by a full-width orange 2px box, same ring as the inputs)",
+        "activeElement H1 tabindex=-1, :focus-visible true, outline solid 2px rgb(255,173,127)"
+      ],
+      "repro": [
+        "1. seed empty, open /app",
+        "2. Tab 6 times to the sidebar 'New project' (+) and press Enter",
+        "3. type a name, press Enter",
+        "4. look at the project title"
+      ],
+      "expected": "After arriving on the new project, the title reads as a heading; a box that looks like a text field signals something to type into.",
+      "actual": "Focus lands on the h1 with :focus-visible, which draws the same 2px orange box used on text inputs across the full header width, so the title looks like an editable field; typing does nothing.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #4 Consistency and standards (input focus ring vs. heading focus ring)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W3-002",
+      "auditor": "w3",
+      "surface": "global shell › navigation tree › root project link (focus after choosing it)",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "dashboard, choosing a root project from the top-level tree",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/006-t02-renovation.png (page changed, no focus ring anywhere)",
+        "document.activeElement is BODY immediately after Enter and still BODY after a further wait",
+        "apps/e2e/ux-output/walk/w3/007-t02-after-tab.png: the next Tab lands on the header's Undo button, skipping the now-expanded tree (Todos, Archive, Reflections, Kitchen, Garden)"
+      ],
+      "repro": [
+        "1. seed nested-projects, open /app",
+        "2. Tab 7 times to 'Home renovation' in the sidebar",
+        "3. press Enter",
+        "4. read document.activeElement; press Tab"
+      ],
+      "expected": "After choosing a project, focus lands somewhere predictable (the new page's heading, or stays on the chosen link) so the next Tab continues from there.",
+      "actual": "The tree is redrawn into the project's own tree, the focused link disappears and focus falls to <body> with no visible indicator; the next Tab jumps into the project header, past the workstream links the user would want next, so reaching Kitchen takes 3 Shift+Tabs.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 2.4.3 Focus Order",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "Route focus lands lost focus after user navigation"
+    },
+    {
+      "id": "C82-W3-003",
+      "auditor": "w3",
+      "surface": "project workspace › project header › More menu › 'Status' group label",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "More menu open by keyboard, first item focused",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/010-t02-more.png",
+        "apps/e2e/ux-output/walk/w3/010b-t02-more-crop.png (the 'Status' label sits flush under the focused item's ring, outdented about 24px left of the item text, and the first item's ring touches the menu's own border)"
+      ],
+      "repro": [
+        "1. seed nested-projects, open /projects/project-kitchen",
+        "2. Tab to 'More project actions' and press Enter",
+        "3. look at the top of the menu"
+      ],
+      "expected": "Group labels in a menu have breathing room and align with the items they label.",
+      "actual": "'Status' is squeezed against the focused 'Edit details…' ring with no gap and starts left of the item text column; the focus ring of the first item merges with the menu outline.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design (grouping alignment)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W3-004",
+      "auditor": "w3",
+      "surface": "project workspace › Task List › task detail drawer › Status, Project and Priority values",
+      "inventoryRow": "Task detail drawer",
+      "seed": "overdue-chaos",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "task-drawer",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/021-t04-drawer.png (bottom of the drawer: 'Status in_progress · Overdue', 'Project project-client-migration'; Priority select reads 'high')",
+        "apps/e2e/ux-output/walk/w3/022-t04-date-typed.png (same values after saving)",
+        "the row behind the drawer says 'In progress' and 'High priority', and the header says 'Client migration'"
+      ],
+      "repro": [
+        "1. seed overdue-chaos, open /projects/project-client-migration",
+        "2. Tab to 'Export legacy records, open details' and press Enter",
+        "3. read the bottom of the drawer and the Priority field"
+      ],
+      "expected": "The drawer names the status, priority and project in the same words as the row and the header ('In progress', 'High', 'Client migration').",
+      "actual": "It shows the stored identifiers: 'in_progress', 'project-client-migration', and a lowercase 'high' priority option.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world; internal consistency (task row vs. task drawer)",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W3-005",
+      "auditor": "w3",
+      "surface": "project workspace › Progress section › formula buttons (Count pressed)",
+      "inventoryRow": "Progress section",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated; focus elsewhere on the page",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/025-t05-after-remove.png: the toast's focused 'Undo' and the unfocused 'Count' button bottom-left both carry an orange double edge",
+        "computed on Count (aria-pressed=true, not focused): border 1px solid rgb(255,173,127) + box-shadow inset 0 0 0 2px rgb(255,173,127); the focus ring elsewhere is outline solid 2px rgb(255,173,127)",
+        "apps/e2e/ux-output/walk/w3/015-t03-after-create.png bottom-left: same Count ring while focus is on the 'Fixtures' heading"
+      ],
+      "repro": [
+        "1. seed nested-projects, open /projects/project-kitchen",
+        "2. Tab to any control (e.g. the header 'More project actions')",
+        "3. look at the Progress section's 'Count' button"
+      ],
+      "expected": "Only the element that has keyboard focus wears the focus ring; a selected option looks different from a focused one.",
+      "actual": "The pressed 'Count' button is drawn with the same orange colour and weight as the focus ring, so a keyboard user sees two focused-looking controls on screen and must hunt for which one is real.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 2.4.7 Focus Visible (focus indicator distinguishable); internal consistency (focus ring vs. pressed state)",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W3-006",
+      "auditor": "w3",
+      "surface": "project workspace › Add a shortcut dialog › source group heading; also More › Pages popover",
+      "inventoryRow": "Shortcut picker",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "shortcut picker open from Kitchen's first insertion point",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/030-t07-picker.png: group headings 'Home renovation · Home' and 'Home renovation · Reflections'",
+        "focused button accessible name: 'Add Markdown, Home renovation · Home'",
+        "the navigation tree and breadcrumb never show a page called 'Home' for Home renovation (tree: Home renovation, Todos, Archive, Reflections)",
+        "apps/e2e/ux-output/walk/w3/033-t08-pages.png: the 'Pages' popover of Home renovation also lists 'Home — Required' (checkbox 'Home page is required')"
+      ],
+      "repro": [
+        "1. seed nested-projects, open /projects/project-kitchen",
+        "2. Tab to 'Insert before Markdown', Enter",
+        "3. Shift+Tab to 'Add shortcut', Enter",
+        "4. read the first group heading"
+      ],
+      "expected": "The picker names the root's first page the way the tree does, by the project's name.",
+      "actual": "It calls it 'Home', a page name that appears nowhere else in the project's navigation; a user can confuse it with the global 'Home' dashboard.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards (navigation tree vs. shortcut picker)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": "A root's first page is named by its project, never \"Home\""
+    },
+    {
+      "id": "C82-W3-007",
+      "auditor": "w3",
+      "surface": "project Archive page › archived item list › Restore buttons",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated (3 archived items)",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/037-t09-restore-focused.png: the 'Restore' beside 'Restore as' (Legacy attic) stops short of the other two buttons' right edge",
+        "measured right edges: 'Restore Legacy attic' 1354px, 'Restore saved content for Markdown' 1362px, 'Restore Old permit copy' 1362px",
+        "the item text column starts at x=351 while the section intro above starts at x=288"
+      ],
+      "repro": [
+        "1. seed nested-projects, open /projects/project-renovation/pages/archive",
+        "2. compare the right edges of the three Restore buttons"
+      ],
+      "expected": "The action column of a list lines up from row to row.",
+      "actual": "The first row's Restore is inset 8px from the others, so the action column is ragged.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design (alignment)",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W3-008",
+      "auditor": "w3",
+      "surface": "settings › AI & Agents (and Settings, development panel › Agent connection)",
+      "inventoryRow": "`/settings/agents`",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated (Claude, Cursor, Retired assistant)",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/039-t10-agents.png and 040-t10-end.png: the page's whole Tab order is breadcrumb 'Settings', Claude's 7 permission checkboxes + Revoke, Cursor's 7 + Revoke, then back to 'Skip to content' — no control to add or connect an agent",
+        "aria of main on /settings/agents: list of three agent cards, no button or link about connecting",
+        "apps/e2e/ux-output/walk/w3/041-t10-settings.png: /settings offers AI & Agents, Archived projects and Appearance only",
+        "development panel › 'Agent connection' region lists fixture tokens with 'Copy token' and says 'Read-only. Permissions and Revoke live in Settings → AI & Agents'"
+      ],
+      "repro": [
+        "1. seed agent-heavy, open /app",
+        "2. Tab 10 times to 'AI & Agents', Enter",
+        "3. Tab through the whole page",
+        "4. also check /settings and the development panel (Ctrl+Shift+D)"
+      ],
+      "expected": "The page that shows what connected agents may do also lets the user connect a new one (a connect or add action, with the steps or token it needs).",
+      "actual": "There is no way to connect a new agent anywhere in the product; the page can only change permissions of, or revoke, agents that already exist. Task T10's second half cannot be done.",
+      "lens": "task:T10",
+      "heuristic": "Nielsen #3 User control and freedom / #6 Recognition rather than recall (missing entry point)",
+      "severity": "S1",
+      "confidence": "observed",
+      "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents"
+    },
+    {
+      "id": "C82-W3-009",
+      "auditor": "w3",
+      "surface": "global development dialog (Ctrl/Cmd+Shift+D) › closing with Escape",
+      "inventoryRow": "Global development dialog",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "opened from /settings with focus on the sidebar 'Settings' link, then Escape",
+      "persona": "user-demo",
+      "evidence": [
+        "before: activeElement = sidebar link 'Settings'; Ctrl+Shift+D moves focus to the aside 'Prototype development panel'",
+        "after Escape: panel hidden, document.activeElement = BODY",
+        "apps/e2e/ux-output/walk/w3/042-t10-devpanel.png (panel open)"
+      ],
+      "repro": [
+        "1. seed agent-heavy, open /settings",
+        "2. Tab to the sidebar 'Settings' link",
+        "3. press Ctrl+Shift+D, then Escape",
+        "4. read document.activeElement"
+      ],
+      "expected": "Closing the panel returns focus to the control that had it before it opened.",
+      "actual": "Focus falls to <body>; the next Tab restarts from the top of the page.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 2.4.3 Focus Order",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-W3-010",
+      "auditor": "w3",
+      "surface": "dashboard › Today widget › overdue task link → project workspace › Task List",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "overdue-chaos",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated; arriving from a dashboard task link",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/043-t11-focused-link.png (the 'Review rejected rows' link focused in Today)",
+        "apps/e2e/ux-output/walk/w3/044-t11-landed.png: page opens at the top of Client migration, focus on the 'Task List' h2; the 'Review rejected rows' row is the third of five, 812px down, styled like its neighbours (no selected or target state; its classes are only task-row / overdue)",
+        "every Today and Daily Digest task link carries the same URL, …/pages/home#section-section-project-client-migration-tasks, with no task in it",
+        "apps/e2e/ux-output/walk/w3/020-t04-opened.png: the same for 'Export legacy records' in T04"
+      ],
+      "repro": [
+        "1. seed overdue-chaos, open /app",
+        "2. Tab, Enter (skip link), Tab x3 to 'Review rejected rows', Enter",
+        "3. look for the task on the page that opens; count Tabs to reach it"
+      ],
+      "expected": "Choosing a specific task from the dashboard lands on that task in its list: shown, marked or focused, so the next key acts on it.",
+      "actual": "It lands on the list as a whole; the chosen task is not marked or focused, so the user finds it again by eye, and a keyboard user needs 11 more Tabs to reach its title (more in a longer list).",
+      "lens": "task:T11",
+      "heuristic": "Nielsen #1 Visibility of system status; WCAG 2.2 SC 2.4.3 Focus Order",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "Rows open their canonical owner"
+    },
+    {
+      "id": "C82-W3-011",
+      "auditor": "w3",
+      "surface": "project workspace › Task List section › 'Add a task' field while the list failed to load",
+      "inventoryRow": "Task List section",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "error (task list read failed)",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/w3/046-t12-start.png: 'Couldn’t load this task list.' with Try again, while the 'Task title' field and orange 'Add task' button above it look fully active",
+        "computed: the field's disabled=false, readOnly=false; Tab order during the failure is Rename Task List → field → Add task → Try again (the field and its primary button come before the recovery action)"
+      ],
+      "repro": [
+        "1. seed busy-week, open /projects/project-launch",
+        "2. run the T12 setup (task list read fails once)",
+        "3. Tab to the Task List and look at the add field and button"
+      ],
+      "expected": "While a list cannot be shown, adding to it is either unavailable or clearly separate from the failure, and the recovery action comes first.",
+      "actual": "The add field and its primary-coloured button stay enabled above the error and are reached before Try again, inviting the user to add into a list whose contents they cannot see. (What an add does in this state was not tried: the failure is lifted after setup.)",
+      "lens": "states",
+      "heuristic": "Nielsen #5 Error prevention",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

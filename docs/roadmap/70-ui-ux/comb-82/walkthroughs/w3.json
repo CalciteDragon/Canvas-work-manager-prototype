@@ -1,0 +1,669 @@
+{
+  "auditor": "w3",
+  "inputMode": "keyboard",
+  "viewport": "1440x900",
+  "theme": "dark",
+  "personas": [
+    "user-demo"
+  ],
+  "tasks": [
+    {
+      "task": "T01",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 19,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "Inline new project form",
+        "Project workspace"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 6 Tab presses: skip link, theme button, Home, Calendar, Search, then the sidebar '+' New project (the dashboard's own 'New project' button would have come later). The inline form opens with focus already in the name field.",
+      "steps": [
+        {
+          "expect": "Focus starts at the top of the page; first Tab reaches a skip link.",
+          "action": "Tab",
+          "observed": "Skip to content, visible orange 2px ring.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/001-001-t01-start.png"
+        },
+        {
+          "expect": "A New project control within a few Tabs.",
+          "action": "Tab x5",
+          "observed": "Theme button, Home, Calendar, Search, then the sidebar '+' 'New project'; ring visible each time.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/002-t01-newproject-focused.png"
+        },
+        {
+          "expect": "A form or dialog with focus in the name field.",
+          "action": "Enter",
+          "observed": "Inline 'Project name' field opens in the sidebar with focus in it.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/003-t01-form.png"
+        },
+        {
+          "expect": "Project is created and opened.",
+          "action": "type 'Garden plan', Enter",
+          "observed": "Navigates to /projects/project-a2581a16; focus on the h1, which shows an input-like orange box.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/004-t01-after-create.png"
+        }
+      ],
+      "verification": "URL /projects/project-a2581a16, h1 'Garden plan', navigation tree lists it, Undo 'Created \"Garden plan\"' offered.",
+      "findings": [
+        "C82-W3-001"
+      ]
+    },
+    {
+      "task": "T02",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 39,
+      "deadEnds": 1,
+      "surfaces": [
+        "Dashboard",
+        "Navigation tree",
+        "Project workspace",
+        "Project header More menu",
+        "Add workstream dialog",
+        "Toast"
+      ],
+      "firstCorrectActionFoundImmediately": false,
+      "discoverability": "Rendered data-theme dark. 15 Tab, 3 Shift+Tab, 7 ArrowDown. I opened Home renovation, lost focus to the body, went back to Kitchen and expanded its workstreams expecting an 'add' there (dead end); 'Add workstream' was in Kitchen's header More menu, eighth item.",
+      "steps": [
+        {
+          "expect": "Home renovation in the sidebar tree within a few Tabs.",
+          "action": "Tab x7, Enter",
+          "observed": "Opens Home renovation; focus falls to <body>, no ring visible.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/006-t02-renovation.png"
+        },
+        {
+          "expect": "Next Tab continues in the sidebar tree.",
+          "action": "Tab",
+          "observed": "Lands on the header Undo ('Nothing to undo', aria-disabled), past the tree.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/007-t02-after-tab.png"
+        },
+        {
+          "expect": "Kitchen reachable going back.",
+          "action": "Shift+Tab x3, Enter",
+          "observed": "Kitchen opens; focus stays on the Kitchen link.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/008-t02-kitchen.png"
+        },
+        {
+          "expect": "Expanding Kitchen's workstreams shows an add control.",
+          "action": "Tab, Enter on 'Show Kitchen’s workstreams'",
+          "observed": "Only Cabinets is listed; no add control. Dead end.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/009-t02-expanded.png"
+        },
+        {
+          "expect": "Kitchen's header actions hold workstream creation.",
+          "action": "Tab x6 to 'More project actions', Enter",
+          "observed": "Menu opens with focus on 'Edit details…'; 'Status' label cramped against the ring.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/010-t02-more.png"
+        },
+        {
+          "expect": "Arrows move through the menu.",
+          "action": "ArrowDown x7, Enter on 'Add workstream'",
+          "observed": "Dialog 'Add workstream', focus in Name, Parent preset to Kitchen.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/011-t02-dialog.png"
+        },
+        {
+          "expect": "Workstream created and opened.",
+          "action": "type 'Lighting', Enter",
+          "observed": "Opens Lighting with breadcrumb Home renovation › Kitchen › Lighting; toast 'Created Lighting under Kitchen.' with Undo/Dismiss; focus on the h1.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/012-t02-created.png"
+        }
+      ],
+      "verification": "URL /projects/project-554c2880, breadcrumb Home renovation › Kitchen › Lighting, tree shows Lighting under Kitchen.",
+      "findings": [
+        "C82-W3-002",
+        "C82-W3-003"
+      ]
+    },
+    {
+      "task": "T03",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 92,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation tree",
+        "Project workspace",
+        "Canvas insertion point",
+        "Add a section dialog",
+        "Task List section"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 26 Tab, 7 Shift+Tab, 1 ArrowDown, 2 Space. The first Tab stop after the header was 'Insert before Markdown', a '+' line between sections, which opened 'Add a section' with a type select; adding tasks kept focus in the field, and checkboxes were reached by Tab. I overshot the new list's field by 4 Tabs because the section toolbar comes first.",
+      "steps": [
+        {
+          "expect": "Open Home renovation then Kitchen from the tree.",
+          "action": "Tab x7, Enter; Shift+Tab x3, Enter",
+          "observed": "Focus falls to <body> after opening Home renovation (as in T02); Shift+Tab from there reaches Garden, then Kitchen.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/013-t03-insert-focused.png"
+        },
+        {
+          "expect": "An add-section control near the top of the canvas.",
+          "action": "Tab x7",
+          "observed": "'Insert before Markdown' focused: a full-width orange box spanning the gap between the layout notice and Markdown with a '+' in the middle.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/013-t03-insert-focused.png"
+        },
+        {
+          "expect": "A chooser for the section type.",
+          "action": "Enter",
+          "observed": "Dialog 'Add a section', focus on the Section type select (Markdown).",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/014-t03-create-dialog.png"
+        },
+        {
+          "expect": "Pick Task List, name it, create.",
+          "action": "ArrowDown, Tab, type 'Fixtures', Enter",
+          "observed": "Section 'Fixtures' created above Markdown; focus on its h2; empty text 'No tasks yet. Add the first one above.'",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/015-t03-after-create.png"
+        },
+        {
+          "expect": "Next Tab reaches the Add a task field.",
+          "action": "Tab x6, Shift+Tab x4",
+          "observed": "Order: Rename (toolbar, one stop), field, Add task, Resize, next insertion point, next toolbar. Came back to the field.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/015-t03-after-create.png"
+        },
+        {
+          "expect": "Enter adds a task and keeps focus in the field.",
+          "action": "type 2 titles, Enter after each",
+          "observed": "Both tasks added; focus stays in the field; count reads '2 tasks'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/016-t03-two-tasks.png"
+        },
+        {
+          "expect": "Space on each checkbox marks it done.",
+          "action": "Tab x2, Space, Tab x3, Space",
+          "observed": "Both checked, struck through, 'Done Completed 2026-08-24'; rows stay in place, focus stays on the checkbox with a visible ring.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/018-t03-both-done.png"
+        }
+      ],
+      "verification": "aria: both checkboxes 'Reopen task …' [checked]; Progress section reads 3 of 4 tasks complete.",
+      "findings": [
+        "C82-W3-002"
+      ]
+    },
+    {
+      "task": "T04",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 17,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Today widget",
+        "Project workspace",
+        "Task List section",
+        "Task detail drawer"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 11 Tab presses. The skip link put me in main, and the first link there was an overdue task in Today. It opened the project with focus on the Task List heading (not the task), so I tabbed 5 more times to the row's title button, which opens the details drawer with the Due date field.",
+      "steps": [
+        {
+          "expect": "Skip link takes me into the dashboard content.",
+          "action": "Tab, Enter, Tab",
+          "observed": "Focus on main, then on 'Export legacy records' (Today, marked Overdue).",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/019-t04-first-link.png"
+        },
+        {
+          "expect": "Opening the task shows that task.",
+          "action": "Enter",
+          "observed": "Opens Client migration at #section-…-tasks; focus on the Task List h2, the task itself is not focused or marked.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/020-t04-opened.png"
+        },
+        {
+          "expect": "Row's title opens its details.",
+          "action": "Tab x5, Enter",
+          "observed": "Drawer 'Task details' opens with focus on its heading; status/project shown as raw ids.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/021-t04-drawer.png"
+        },
+        {
+          "expect": "Change the due date by typing.",
+          "action": "Tab x4 (the fourth moved into the date's day segment), type '30'",
+          "observed": "Date 08/30/2026, 'Saved' shows beside the label; the row loses 'Overdue'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/022-t04-date-typed.png"
+        },
+        {
+          "expect": "Escape closes the drawer and returns focus to the row.",
+          "action": "Escape",
+          "observed": "Drawer closes; focus returns to the row's title button with a visible ring.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/023-t04-closed.png"
+        }
+      ],
+      "verification": "Row reads 'Due 2026-08-30' without 'Overdue'; header Undo reads 'Undo: Updated \"Export legacy records\"'.",
+      "findings": [
+        "C82-W3-004"
+      ]
+    },
+    {
+      "task": "T05",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 25,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation tree",
+        "Project workspace",
+        "Section toolbar",
+        "Toast"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 15 Tab, 3 Shift+Tab, 3 ArrowRight. Each section's toolbar is one Tab stop whose buttons are reached with arrow keys; the last is 'Remove section Markdown'. Removal is immediate and focus moves into the toast's Undo, so bringing it back was one Enter.",
+      "steps": [
+        {
+          "expect": "Reach Kitchen from the tree.",
+          "action": "Tab x7, Enter; Shift+Tab x3, Enter",
+          "observed": "Same focus loss after opening Home renovation as in T02; Kitchen opens.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/024-t05-remove-focused.png"
+        },
+        {
+          "expect": "A remove action on the section.",
+          "action": "Tab x8 to 'Rename Markdown', ArrowRight x3",
+          "observed": "Collapse, Move, then 'Remove section Markdown'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/024-t05-remove-focused.png"
+        },
+        {
+          "expect": "The section is removed, perhaps with a confirmation.",
+          "action": "Enter",
+          "observed": "Removed at once; toast 'Removed the Markdown section.' with Undo / Open archive / Dismiss; focus moves to Undo with a visible ring. The pressed 'Count' button also looks focused.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/025-t05-after-remove.png"
+        },
+        {
+          "expect": "Undo brings the section back.",
+          "action": "Enter",
+          "observed": "Markdown is back in its place; focus on its h2; status 'Undone: Removed the Markdown section.'",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/026-t05-after-undo.png"
+        }
+      ],
+      "verification": "aria: region 'Markdown' is again the first section of Kitchen's canvas.",
+      "findings": [
+        "C82-W3-002",
+        "C82-W3-005"
+      ]
+    },
+    {
+      "task": "T06",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 88,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation tree",
+        "Project workspace",
+        "Markdown section",
+        "Markdown source editor"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 18 Tab, 3 Shift+Tab. The Markdown section shows an 'Edit' button right under the text, one Tab after the section toolbar; it opens a source textarea with focus inside, and Save is two Tabs on.",
+      "steps": [
+        {
+          "expect": "Reach Kitchen.",
+          "action": "Tab x7, Enter; Shift+Tab x3, Enter",
+          "observed": "Focus loss after Home renovation again; Kitchen opens.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/027-t06-editor.png"
+        },
+        {
+          "expect": "An edit control on the notes.",
+          "action": "Tab x9, Enter on 'Edit'",
+          "observed": "Source textarea 'Markdown source for Markdown' with focus, plus Preview / Save / Cancel.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/027-t06-editor.png"
+        },
+        {
+          "expect": "Replace the text.",
+          "action": "Ctrl+A, type the new sentence (62 characters)",
+          "observed": "Text replaced in the textarea.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/028-t06-typed.png"
+        },
+        {
+          "expect": "Save commits and leaves edit mode.",
+          "action": "Tab x2, Enter on Save",
+          "observed": "Rendered text updated; focus returns to the Edit button; the header Undo becomes active. No other saved confirmation is shown.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/029-t06-saved.png"
+        }
+      ],
+      "verification": "aria: paragraph 'Appliances, finishes and lighting before cabinets are ordered.' in region Markdown.",
+      "findings": [
+        "C82-W3-002"
+      ]
+    },
+    {
+      "task": "T07",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 24,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation tree",
+        "Project workspace",
+        "Canvas insertion point",
+        "Add a section dialog",
+        "Add a shortcut dialog",
+        "Shortcut frame"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 15 Tab, 4 Shift+Tab. Having seen 'Add shortcut' in the Add a section dialog during T03, I went straight there (Shift+Tab from the type select). The picker lists every source section grouped by project and page, each with an Add button.",
+      "steps": [
+        {
+          "expect": "Reach Kitchen.",
+          "action": "Tab x7, Enter; Shift+Tab x3, Enter",
+          "observed": "Focus loss after Home renovation again; Kitchen opens.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/030-t07-picker.png"
+        },
+        {
+          "expect": "Insertion point opens the dialog with a shortcut option.",
+          "action": "Tab x7, Enter, Shift+Tab, Enter on 'Add shortcut'",
+          "observed": "'Add a shortcut' list, focus on the 'Add a section' toggle at top-right; groups 'Home renovation · Home', 'Home renovation · Reflections' …",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/030-t07-picker.png"
+        },
+        {
+          "expect": "Add places the shortcut on Kitchen's canvas.",
+          "action": "Tab, Enter on 'Add Markdown, Home renovation · Home'",
+          "observed": "Dialog closes; 'Markdown (Home renovation)' shortcut appears first on Kitchen's canvas, read-only, with 'Open source'; focus on its h2.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/031-t07-added.png"
+        }
+      ],
+      "verification": "aria: region 'Markdown (Home renovation)' with 'Read-only here. Open the source to change it.' and link to /projects/project-renovation/pages/home#section-section-project-renovation-brief.",
+      "findings": [
+        "C82-W3-002",
+        "C82-W3-006"
+      ]
+    },
+    {
+      "task": "T08",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 24,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation tree",
+        "Project workspace",
+        "Project header More menu",
+        "Page settings popover"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 12 Tab, 6 ArrowDown, 2 Space. I had seen 'Pages of Home renovation…' in the More menu during T02; it opens a 'Pages' popover of checkboxes with focus on the first optional page. Unchecking hides the tree link at once; checking brings it back.",
+      "steps": [
+        {
+          "expect": "Open Home renovation.",
+          "action": "Tab x7, Enter",
+          "observed": "Opens; focus falls to <body> (as in T02).",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/032-t08-menu.png"
+        },
+        {
+          "expect": "Project actions hold page settings.",
+          "action": "Tab x3 to More, Enter, ArrowDown x6, Enter on 'Pages of Home renovation…'",
+          "observed": "'Pages' popover: Home (Required, disabled), Todos, Archive, Reflections; focus on 'Show Todos page'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/033-t08-pages.png"
+        },
+        {
+          "expect": "Unchecking hides the page.",
+          "action": "Tab x2, Space on 'Show Reflections page'",
+          "observed": "Reflections disappears from the tree; focus stays on the checkbox.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/034-t08-hidden.png"
+        },
+        {
+          "expect": "Checking brings it back.",
+          "action": "Space",
+          "observed": "Reflections link back in the tree.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/035-t08-restored.png"
+        },
+        {
+          "expect": "Escape closes the popover and returns focus.",
+          "action": "Escape",
+          "observed": "Popover closes; focus on 'More project actions'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/035-t08-restored.png"
+        }
+      ],
+      "verification": "Tree links read Home renovation, Todos, Archive, Reflections, Kitchen, Garden after the second toggle (and lacked Reflections after the first).",
+      "findings": [
+        "C82-W3-002",
+        "C82-W3-006"
+      ]
+    },
+    {
+      "task": "T09",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 32,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Navigation tree",
+        "Project Archive page",
+        "Toast"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 24 Tab, 5 Shift+Tab. 'Archive' is a page in the project's tree. The page lists three archived items, each with its origin links before its Restore button, so reaching the third item's Restore took 17 Tabs.",
+      "steps": [
+        {
+          "expect": "Open Home renovation and find its archive.",
+          "action": "Tab x7, Enter; Shift+Tab x5, Enter on 'Archive'",
+          "observed": "Focus to <body> after Home renovation (as in T02); Shift+Tab walks back up the tree to Archive; Archive page opens with focus kept on the tree link.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/036-t09-archive.png"
+        },
+        {
+          "expect": "Each archived item has a Restore.",
+          "action": "Tab x17",
+          "observed": "Passes the tree, breadcrumb, header, and each item's origin/history links; 'Restore Old permit copy' focused with a visible ring. Restore buttons are not aligned.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/037-t09-restore-focused.png"
+        },
+        {
+          "expect": "The item comes back with confirmation.",
+          "action": "Enter",
+          "observed": "List drops to 2 items; toast 'Restored “Old permit copy” to Home renovation.' with Go to it / Undo / Dismiss; focus moves to 'Go to it'.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/038-t09-restored.png"
+        }
+      ],
+      "verification": "Archive count went from 3 items to 2; status 'Restored “Old permit copy” to Home renovation.'; header progress changed 17% → 14% (the task is live again).",
+      "findings": [
+        "C82-W3-002",
+        "C82-W3-007"
+      ]
+    },
+    {
+      "task": "T10",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "blocked",
+      "clicks": 0,
+      "keystrokes": 42,
+      "deadEnds": 2,
+      "surfaces": [
+        "Dashboard",
+        "Navigation",
+        "AI & Agents settings",
+        "Settings",
+        "Development panel"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 38 Tab presses. 'AI & Agents' sits under Settings in the sidebar (10 Tabs) and shows each agent's permissions as checkboxes — the first half was immediate. Nothing on that page, on /settings, or in the development panel connects a new agent; I stopped there.",
+      "steps": [
+        {
+          "expect": "An agents or settings entry in the sidebar.",
+          "action": "Tab x10, Enter on 'AI & Agents'",
+          "observed": "/settings/agents: Claude, Cursor (and revoked Retired assistant) with permission checkboxes, last-used line and Revoke.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/039-t10-agents.png"
+        },
+        {
+          "expect": "A 'Connect agent' control somewhere on the page.",
+          "action": "Tab x20 through the page",
+          "observed": "Only checkboxes and Revoke buttons; Tab wraps to the skip link.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/040-t10-end.png"
+        },
+        {
+          "expect": "Settings index offers connecting.",
+          "action": "Tab x8 to sidebar 'Settings', Enter",
+          "observed": "Links to AI & Agents and Archived projects, plus Appearance. Dead end.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/041-t10-settings.png"
+        },
+        {
+          "expect": "The development panel (hinted on project pages) has agent tools.",
+          "action": "Ctrl+Shift+D, read, Escape",
+          "observed": "'Agent connection' lists fixture tokens read-only and points back to Settings → AI & Agents. Dead end; Escape drops focus to <body>.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/042-t10-devpanel.png"
+        }
+      ],
+      "verification": "Part 1 seen (Claude: Read projects, Read/Modify tasks, Read/Write reflections, Read workspace overview). Part 2 not reachable: no connect action in /settings/agents, /settings or the development panel.",
+      "findings": [
+        "C82-W3-008",
+        "C82-W3-009"
+      ]
+    },
+    {
+      "task": "T11",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 18,
+      "deadEnds": 0,
+      "surfaces": [
+        "Dashboard",
+        "Today widget",
+        "Project workspace",
+        "Task List section",
+        "Task detail drawer"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 15 Tab presses. Skip link, then the Today widget lists the overdue tasks as links first; one Enter opens the project at its Task List. The chosen task was not marked there, so I tabbed 11 times to its title and opened its details.",
+      "steps": [
+        {
+          "expect": "Overdue tasks are linked from the dashboard.",
+          "action": "Tab, Enter (skip link), Tab x3",
+          "observed": "'Review rejected rows' (Overdue, Client migration) focused in Today.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/043-t11-focused-link.png"
+        },
+        {
+          "expect": "Opens the task where it lives, showing that task.",
+          "action": "Enter",
+          "observed": "Client migration opens at its Task List; focus on the list's h2; the task is third of five, unmarked and below the fold.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/044-t11-landed.png"
+        },
+        {
+          "expect": "Reach the task and open it.",
+          "action": "Tab x11, Enter",
+          "observed": "Drawer for 'Review rejected rows' opens, focus on its heading.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/045-t11-drawer.png"
+        }
+      ],
+      "verification": "URL /projects/project-client-migration/pages/home#section-section-project-client-migration-tasks; the Task List contains the 'Review rejected rows' row (data-task-id task-chaos-review); its drawer opened.",
+      "findings": [
+        "C82-W3-010"
+      ]
+    },
+    {
+      "task": "T12",
+      "persona": "user-demo",
+      "theme": "dark",
+      "outcome": "completed",
+      "clicks": 0,
+      "keystrokes": 19,
+      "deadEnds": 0,
+      "surfaces": [
+        "Project workspace",
+        "Task List section (error)"
+      ],
+      "firstCorrectActionFoundImmediately": true,
+      "discoverability": "Rendered data-theme dark. 18 Tab presses. After the reload focus was on <body>; the Task List frame showed 'Couldn’t load this task list.' with a 'Try again' button, which I reached by tabbing straight down the page (past the tree, header, Markdown section and the list's own add field).",
+      "steps": [
+        {
+          "expect": "A visible error with a retry.",
+          "action": "(look)",
+          "observed": "Red-bordered box 'Couldn’t load this task list.' with Try again and a Details disclosure; the add field above it stays enabled.",
+          "mismatch": true,
+          "evidence": "apps/e2e/ux-output/walk/w3/046-t12-start.png"
+        },
+        {
+          "expect": "Reach Try again by Tab.",
+          "action": "Tab x18",
+          "observed": "Skip link, theme, tree (4), header (3), Markdown (4 stops), Task List toolbar, field, Add task, then Try again with a visible ring.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/047-t12-tryagain-focused.png"
+        },
+        {
+          "expect": "The list loads and focus lands somewhere sensible.",
+          "action": "Enter",
+          "observed": "Three tasks appear with '3 tasks'; focus moves to the Task List h2.",
+          "mismatch": false,
+          "evidence": "apps/e2e/ux-output/walk/w3/048-t12-recovered.png"
+        }
+      ],
+      "verification": "aria: region 'Task List' lists Approve homepage copy, Run launch QA, Verify analytics events; no alert remains.",
+      "findings": [
+        "C82-W3-011"
+      ]
+    }
+  ],
+  "keystrokeTotal": 439
+}

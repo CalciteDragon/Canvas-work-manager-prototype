@@ -117,6 +117,29 @@ built up without reseeding, so it cannot resume mid-walk). **Traps:** launch bot
 the foreground (`run_in_background: false`; the Agent tool's default is background, which this session hit), and
 start step 2 with a fresh usage window, since two full walks cost a lot; a walker cut off mid-walk leaves its
 daemon running, so the orchestrator must stop it with § 4's stop commands.
+**Step 2 done (2026-11-25): walkthroughs W3 and W4, second attempt.** The orchestrator served the `C82` build on
+4201 again (`setsid`, pgid file) and launched W3 (4324/5324, `--theme dark`) and W4 (4325/5325, `--theme light`) at
+once as two cold **foreground** subagents with the `cwd` trap in the launch messages. A new instruction in the launch
+message told each walker to write its two files after every task. W3 finished. W4 hit the usage limit again,
+during Sam's T09-equiv, but its files held Alex T01–T12 and Sam T01–T08-equiv, and its daemon (Sam's built-up data)
+was still running. **Deviation from "redo from the start":** after the limit reset, the orchestrator resumed the
+same W4 agent with the same daemon and data rather than discarding a nearly finished walk (W4's attestation
+records the interruption, and nothing was redone). Then 4201 was stopped: nothing listened on 4200, 4201, 4310,
+4320–4329 or 5320–5329, no rig process was left, `.prototype/notes.json` 1570 lines before and after, and
+`git diff --stat <plan-accept>..HEAD -- apps/web packages apps/prototype-host prototype` stays empty (no stray
+`cwd` file this time). **Filed:** [`findings/w3.json`](../70-ui-ux/comb-82/findings/w3.json) 11 (S1 1, S2 4, S3
+6; four name a decision in `decisionReopened`) and [`walkthroughs/w3.json`](../70-ui-ux/comb-82/walkthroughs/w3.json)
+(1440×900, keyboard, dark, Demo, 439 keys, no clicks; T01–T09, T11 and T12 completed, **T10 blocked**, filed as S1,
+which W3 notes blocks every user, not only keyboard users); [`findings/w4.json`](../70-ui-ux/comb-82/findings/w4.json) 18 (S1 1, S2 5, S3 12) and
+[`walkthroughs/w4.json`](../70-ui-ux/comb-82/walkthroughs/w4.json) (Alex and Sam, mouse, light; T01 as written,
+T02–T09, T11, T12 as `-equiv`, **T10 blocked** for both; persona switched by the development dialog each time, no
+`localStorage` fallback; both rendered light, including Sam, whose stored preference is dark; a direct link to
+`project-kitchen` showed "This project isn't available" to both). The findings were not edited. Spot check: the
+Acceptance 4 id pattern finds no Gate 1 id or note id in either walker's files. Attestations to judge at 4b: W3
+wrote two temp JSON files under `/tmp` and deleted them; W4's scripted typing once opened Project details by menu
+type-ahead (cancelled, no change). `comb.test.mjs` by hand: 79 tests, 68 pass, 11 skipped, 0 fail;
+`build-comb.mjs --check`: comb files valid. *Review* (one cold reviewer, process and schema only): no substantive findings; minors checked: the resumed W4 departs from "redo from the start" (disclosed above); some evidence entries are free text without a path (allowed by common.md § 6); the screenshots live only under the git-ignored `ux-output/walk/w3|w4/` (53 and 104 files), as at step 1, so do not prune them before 4b. **Next: step 3** (lenses L1–L7), **once the user answers Open question 9** (lens
+and reproduction daemons; recommendation (a)), which the plan says must be answered before step 3 starts.
 
 ## Goal
 
