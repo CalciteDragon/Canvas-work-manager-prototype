@@ -152,6 +152,32 @@ and kept ("L1–L7" in the answer names the step, as the user worded it, while o
 the *Lenses* bullet and step 3 refer to Q6 (a)'s rule rather than repeating "nothing detached outliving the session"). **Next: step 3** (lenses L1–L7), in two batches if needed (L1–L4, then L5–L7), at most two lens
 browsers at once; the orchestrator starts and stops `static.mjs` on 4201 around the batch, as at steps 1 and 2.
 
+**Step 3 done (2026-11-26): lenses L1–L7.** At takeover, the L1, L2 and L4 drafts had an
+"In progress" attestation, and two lens daemons and the static server were running. Both daemons
+answered `quit` and their process groups and the static group were terminated. The drafts were set aside
+outside the repository and those lenses started fresh. Seven cold subagents filed
+[`l1.json`](../70-ui-ux/comb-82/findings/l1.json) (9),
+[`l2.json`](../70-ui-ux/comb-82/findings/l2.json) (10),
+[`l3.json`](../70-ui-ux/comb-82/findings/l3.json) (10),
+[`l4.json`](../70-ui-ux/comb-82/findings/l4.json) (7),
+[`l5.json`](../70-ui-ux/comb-82/findings/l5.json) (12),
+[`l6.json`](../70-ui-ux/comb-82/findings/l6.json) (20), and
+[`l7.json`](../70-ui-ux/comb-82/findings/l7.json) (10): 78 findings (S1 1, S2 60, S3 17), pending
+admission. The orchestrator kept the findings as filed. Each lens sampled native-resolution regions
+in all 194 matrix first screens, 492 scroll frames and 20 runtime frames, with larger checks as needed.
+Attestations describe the scope. L3 and L4 used detached rigs on 4326/5326 and 4327/5327, then released
+their port pairs for L5 and L7 respectively, with at most two lens browsers at a time.
+**Q8 (a):** L5 measured 108 pairs across nine views in both themes using computed colors and backdrop
+pixel sampling where required. All measured pairs met their thresholds (5.992:1–18.083:1). L5 checked
+214 axe artifacts and reports unresolved axe `incomplete` cases. The contrast measurements and
+incomplete counts go into the digest outside the stop rule. Each report passed the hand-run comb tests
+(final: 69 passed, 10 skipped for later-step inputs, 0 failed). Static 4201 and both lens pairs are free
+and no live rig process remains. `.prototype/notes.json` stayed at 1570 lines. The product diff from
+`8c1a524` is empty. `pnpm test` then `pnpm lint` passed. One cold review of the staged diff found no
+substantive process or schema issues. The reviewer independently checked the contrast arithmetic, the
+current port state, and the absence of earlier audit IDs. Bundle last measured at C82 (932.25 kB).
+**Next: step 4a** (ledger and comb list).
+
 ## Goal
 
 Run the [overhaul protocol's](../../guides/ui-ux-overhaul-protocol.md) §8 pass once, mid-overhaul, after the

@@ -1,0 +1,564 @@
+{
+  "auditor": "l6",
+  "attestation": "I read AGENTS.md §1 for orientation and kept to the cold brief’s allowed material. I viewed native-resolution crops from all 706 PNGs, covering 194 first screens, 492 scroll frames, and 20 runtime frames across both themes and the available viewport sizes. I used visible-text extraction and the accessibility trees across the matrix and runtime captures to cross-check wording, and opened larger original-resolution areas to verify cited evidence. The visual batches covered selected areas of each frame. I encountered no earlier audit reference, saved no friction notes, and started no browser or daemon.",
+  "findings": [
+    {
+      "id": "C82-L6-001",
+      "auditor": "l6",
+      "surface": "Kitchen › task details › Project name",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "task-drawer",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.png (bottom of drawer)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-task-drawer-light-1440.aria.yml (Project definition)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-task-drawer-dark-375.aria.yml (same behavior with Client migration)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Open the task details for Choose appliance finishes."
+      ],
+      "expected": "Project identifies the owning place by its display name, Kitchen.",
+      "actual": "The Project value reads “project-kitchen”. The other drawer capture also uses an ID, “project-client-migration”.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-002",
+      "auditor": "l6",
+      "surface": "Kitchen › task details › Status",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "task-drawer",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-task-drawer-light-1440.aria.yml (Status definition)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.png (Status row)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-task-drawer-dark-375.aria.yml (Status definition)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-light-1024.png (task status vocabulary on Todos)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Open the task details for Choose appliance finishes."
+      ],
+      "expected": "Task state uses the same readable labels as the project's Todos page.",
+      "actual": "Status reads “todo” in Kitchen and “done” in Client migration. Todos uses “To do” and “Done” for those states.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-003",
+      "auditor": "l6",
+      "surface": "Kitchen › task details › Estimate",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "task-drawer",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.png (Estimate field)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-task-drawer-light-1440.aria.yml (Estimate spinbutton)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-1440.aria.yml (weighted progress copy)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Open the task details for Choose appliance finishes."
+      ],
+      "expected": "The field communicates the unit of the task estimate before a number is entered.",
+      "actual": "The field label is only “Estimate”. The field supplies no hint that the Progress section refers to the same values as “estimate points”.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-004",
+      "auditor": "l6",
+      "surface": "Website launch › Timeline › status",
+      "inventoryRow": "Timeline section",
+      "seed": "busy-week",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-1440.scroll-0-3.png (Run launch QA row)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-1440.aria.yml (Task in_progress)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/row-failure-light-1440.png (same task in Task List)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User.",
+        "2. Open Website launch.",
+        "3. Scroll to the Timeline and read the Run launch QA row."
+      ],
+      "expected": "The task's status is the same readable label as in its Task List.",
+      "actual": "Timeline displays “in_progress”; the Task List displays “In progress” for “Run launch QA”.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-005",
+      "auditor": "l6",
+      "surface": "Reflections › journal and canvas section › entry timestamp",
+      "inventoryRow": "/projects/:root/pages/reflections",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-dark-375.scroll-0-1.png (A clear decision timestamp)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-light-1440.aria.yml (Journal time elements)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-1440.scroll-0-3.png (the same formatting in a Reflections section)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-project-light-1440.aria.yml (the Recent Activity date format)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation and select Reflections.",
+        "3. Scroll to the Journal and read when A clear decision was written."
+      ],
+      "expected": "The date and time can be read as ordinary text, as in Recent Activity.",
+      "actual": "“A clear decision” shows “2026-08-24T17:00:00.000Z”. Canvas reflections also print complete timestamps such as “2026-08-21T19:00:00.000Z”.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-006",
+      "auditor": "l6",
+      "surface": "Kitchen › Pages of Home renovation › required page",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "page-settings",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-dark-375.png (required first row)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-light-1440.aria.yml (checkbox name)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-project-light-1440.aria.yml (root project's current link and heading)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Choose Pages of Home renovation from the project actions."
+      ],
+      "expected": "The required page is called by the name used in the project navigation, Home renovation.",
+      "actual": "The row shows “Home” with “Required”. The accessible control name is “Home page is required”.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A root's first page is named by its project, never \"Home\""
+    },
+    {
+      "id": "C82-L6-007",
+      "auditor": "l6",
+      "surface": "Kitchen › Add a shortcut › source headings",
+      "inventoryRow": "Shortcut picker",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "shortcut-picker",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-shortcut-picker-dark-375.png (first source group)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-shortcut-picker-light-1440.aria.yml (first group heading and Add button names)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-project-light-1440.aria.yml (root project's current link and heading)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Open Add a section, then Add a shortcut.",
+        "4. Read the source location in the first group."
+      ],
+      "expected": "The source location uses the same page name as project navigation.",
+      "actual": "The group is called “Home renovation · Home”; its buttons repeat that location, for example “Add Markdown, Home renovation · Home”.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A root's first page is named by its project, never \"Home\""
+    },
+    {
+      "id": "C82-L6-008",
+      "auditor": "l6",
+      "surface": "Settings › AI & Agents › retired connection",
+      "inventoryRow": "/settings/agents",
+      "seed": "agent-heavy",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/settings-agents-dark-375.scroll-0-3.png (Retired assistant card)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/settings-agents-light-1440.aria.yml (Revoked label and disabled checked permission)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User.",
+        "2. Open Settings, then AI & Agents.",
+        "3. Scroll to Retired assistant and read the permission group."
+      ],
+      "expected": "The revoked connection's text makes clear whether any grants still apply.",
+      "actual": "The card says “Revoked” and “What Retired assistant may do”, with “Read projects” checked and disabled.",
+      "lens": "copy",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-009",
+      "auditor": "l6",
+      "surface": "Home renovation › Archive › Markdown item title",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-375.scroll-0-1.png (Markdown item title beside Restore saved content)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-1440.aria.yml (item title and action)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation and select Archive.",
+        "3. Scroll to the archived Markdown item."
+      ],
+      "expected": "The section name is legible as one word so the user can identify the item next to the restore action.",
+      "actual": "“Markdown” wraps into a vertical stack, one letter per line beside “Restore saved content”.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-010",
+      "auditor": "l6",
+      "surface": "Home renovation › Archive › item provenance",
+      "inventoryRow": "/projects/:root/pages/archive and archived items",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-375.scroll-0-1.png (item provenance and origin lines)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-1440.aria.yml (recovery introduction and item labels)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation and select Archive.",
+        "3. Read the recovery guidance and the status under Old permit copy."
+      ],
+      "expected": "Recovery copy identifies what the archive label means for the item and its parent.",
+      "actual": "The guidance calls the contents “independently archived work”; the item status is “Archived directly”. Neither phrase explains the other or says which action made Old permit copy appear here.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-011",
+      "auditor": "l6",
+      "surface": "Website launch › Markdown › edit button",
+      "inventoryRow": "Markdown section and source editor",
+      "seed": "busy-week",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/row-failure-light-1440.png (Markdown section button)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-1440.aria.yml (Markdown edit button name)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-project-details-light-1440.aria.yml (same name on another canvas)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User.",
+        "2. Open Website launch.",
+        "3. Find the edit button in the Markdown section."
+      ],
+      "expected": "The accessible name identifies the edit action and the target once.",
+      "actual": "The visible label is “Edit”. Its accessible name reads “Edit Markdown for Markdown”.",
+      "lens": "copy",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-012",
+      "auditor": "l6",
+      "surface": "Kitchen › Progress › formula controls",
+      "inventoryRow": "Progress section",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "grid",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-grid-light-1440.aria.yml (Progress region controls)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-1440.aria.yml (weighted progress measure expressed as estimate points)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Scroll to Progress and read the controls for changing how it is measured."
+      ],
+      "expected": "The options indicate what each formula measures and the unit of the manual value.",
+      "actual": "The controls are labeled “Count”, “Weighted”, “Manual” and “Use manual”, with no formula explanation or unit on the manual input.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-013",
+      "auditor": "l6",
+      "surface": "Home renovation › Reflections › Write a reflection › title",
+      "inventoryRow": "/projects/:root/pages/reflections",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-dark-375.png (form heading and field)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-light-1440.aria.yml (separate text and textbox name)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation and select Reflections.",
+        "3. Read the field label just below Write a reflection."
+      ],
+      "expected": "The field has a persistent visible label that identifies what to type.",
+      "actual": "The standalone visible text above the field is “Reflections”. The field's accessible name and placeholder say “Optional title”, which is the only visible wording that identifies the field before it is filled in.",
+      "lens": "copy",
+      "heuristic": "WCAG 2.2 SC 3.3.2 Labels or Instructions",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-014",
+      "auditor": "l6",
+      "surface": "Kitchen › Add workstream › project edit menu trigger",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "edit-project-menu-open",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/edit-project-menu-open-light-1440.aria.yml (Edit project trigger and both menuitems)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/edit-project-menu-open-dark-375.aria.yml (same naming with navigation drawer)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Open the pencil menu named Edit project."
+      ],
+      "expected": "The control's name indicates that it offers page settings and workstream creation.",
+      "actual": "The trigger is named “Edit project”, while its menu shows “Pages of Home renovation…” and “Add workstream”. It contains no action named Edit project or Edit details.",
+      "lens": "copy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-015",
+      "auditor": "l6",
+      "surface": "Kitchen › Timeline › item type",
+      "inventoryRow": "Timeline section",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "grid",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-grid-light-1440.scroll-0-2.png (Kitchen and Cabinets row types)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-grid-light-1440.aria.yml (Kitchen's Timeline item)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-light-1024.png (Kitchen labeled Workstream)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Scroll to Timeline and read the Kitchen row."
+      ],
+      "expected": "Kitchen is identified as a workstream wherever its type is displayed.",
+      "actual": "Kitchen's Timeline calls Kitchen “Project” and its child Cabinets “Workstream”. The Todos page calls Kitchen “Workstream”.",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "lens": "copy",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "Nested project work is called a workstream"
+    },
+    {
+      "id": "C82-L6-016",
+      "auditor": "l6",
+      "surface": "Global navigation › Calendar and Search › unavailable message",
+      "inventoryRow": "`/calendar`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/calendar-dark-375.png (Calendar message)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/search-dark-375.png (Search message)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/calendar-light-1440.aria.yml (Calendar message at desktop width)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/search-light-1440.aria.yml (Search message at desktop width)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User.",
+        "2. Open Calendar from global navigation and read its message.",
+        "3. Open Search and read its message."
+      ],
+      "expected": "Users can understand each feature's availability in ordinary language without the project build schedule.",
+      "actual": "Calendar says “The workspace calendar arrives in Slice 18 (§37).” Search says “Workspace search arrives with the command palette in Slice 21 (§40, §41).” The slice numbers and section references have no explanation on either page.",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "lens": "copy",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": "Prototype scaffolding stays visible during the redesign"
+    },
+    {
+      "id": "C82-L6-017",
+      "auditor": "l6",
+      "surface": "Home › Daily Digest and Active Projects › workstream type",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-1440.scroll-0-1.png (Daily Digest and Active Projects)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-1440.aria.yml (closest deadline paragraph)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-1440.scroll-0-3.png (Launch communications labeled Workstream in Timeline)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-dashboard-light-1024.aria.yml (same wording for Kitchen)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User.",
+        "2. Open Home.",
+        "3. Scroll to Daily Digest and Active Projects."
+      ],
+      "expected": "The dashboard uses workstream terminology when reporting on nested work.",
+      "actual": "Daily Digest says “The Launch communications project has the closest deadline — due in 3 days, on 2026-08-27.” The same item appears under “Active Projects”, while the Website launch timeline labels it “Workstream”.",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "lens": "copy",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "Nested project work is called a workstream"
+    },
+    {
+      "id": "C82-L6-018",
+      "auditor": "l6",
+      "surface": "Home › Recent Progress › task link text",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1024x768",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-dashboard-light-1024.scroll-0-1.png (Recent Progress title wraps)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-dashboard-light-1024.aria.yml (original task title)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home at 1024×768.",
+        "3. Scroll to Recent Progress."
+      ],
+      "expected": "Completed task names retain readable words next to dates and other metadata.",
+      "actual": "“Approve the lighting plan” breaks into six lines as “Appro” / “ve” / “the” / “lighti” / “ng” / “plan” beside “Done Completed 2026-08-23”.",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "lens": "hierarchy",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L6-019",
+      "auditor": "l6",
+      "surface": "Kitchen › Recent Activity › section removal entry",
+      "inventoryRow": "Recent Activity section and shared feed",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "remove-feedback",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-remove-feedback-light-1440.scroll-0-3.png (activity line and toast in one frame)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-remove-feedback-dark-375.scroll-0-4.png (same text at phone width)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-remove-feedback-light-1440.aria.yml (activity entry)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Kitchen under Home renovation.",
+        "3. Remove its Markdown section and scroll to Recent Activity."
+      ],
+      "expected": "The entry identifies the section that was removed and the workstream it belonged to.",
+      "actual": "Recent Activity says Section archived “Kitchen” with “Kitchen” as the location. The toast says “Removed the Markdown section.” The activity line appears to name Kitchen as the archived section and omits the section name Markdown.",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "lens": "copy",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A section's activity event names its project, not the section"
+    },
+    {
+      "id": "C82-L6-020",
+      "auditor": "l6",
+      "surface": "Home › Recent Agent Activity › event text",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.scroll-0-4.png (second and third activity entries)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.scroll-0-5.png (same entries in light theme)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.aria.yml (original activity wording)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User.",
+        "2. Open Home at 375×812.",
+        "3. Scroll to Recent Agent Activity."
+      ],
+      "expected": "The descriptions of what each agent did keep whole words readable next to the timestamp.",
+      "actual": "“Updated ‘Triage the overnight agent errors’” breaks “Updated” into “Update” / “d” and “overnight” into “overnig” / “ht”. The words in “Created ‘Document the tool input schemas’” break in the same way.",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "lens": "hierarchy",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

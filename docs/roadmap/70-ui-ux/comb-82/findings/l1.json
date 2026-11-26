@@ -1,0 +1,277 @@
+{
+  "auditor": "l1",
+  "attestation": "I read AGENTS.md §1 for orientation only and used the common, inventory, decisions and L1 briefs and the permitted C82 captures. I kept to the forbidden-reading list and encountered no earlier audit text or IDs. I reviewed native-resolution crops of all 194 first screens, all 492 indexed scroll frames, and all dedicated runtime screens. I scanned the matrix layout files and used larger crops and accessibility artifacts where the narrow crops showed something to investigate. I saved no friction note and started no browser, host, or daemon.",
+  "findings": [
+    {
+      "id": "C82-L1-001",
+      "auditor": "l1",
+      "surface": "Home dashboard › Today and Upcoming › task title",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "overdue-chaos",
+      "theme": "both",
+      "viewport": "1024x768",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-dashboard-light-1024.png (first two overdue titles break inside words while the metadata fits one line)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-dashboard-dark-1024.png (same)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-dashboard-light-1024.layout.json (Export legacy records link is 26.3px wide by 157.5px tall)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-dashboard-light-1440.png (same task on one line)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-dashboard-dark-375.png (same task wraps at a word boundary)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.png (Upcoming task breaks inside Review and Claude)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.layout.json (Review the Claude connection permissions link is 41.9px by 225px)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-light-1024.scroll-0-4.png (Recent Progress also breaks its first title to one character per line)"
+      ],
+      "repro": [
+        "1. Load overdue-chaos as Demo User",
+        "2. Open /app at 1024×768",
+        "3. Read the first titles in Today › Overdue. For another example, load agent-heavy and inspect Upcoming at the same width"
+      ],
+      "expected": "Task names remain scannable and wrap at word boundaries at medium widths.",
+      "actual": "Export legacy records breaks into seven fragments, beginning Exp, ort, leg and acy. The accompanying status, priority, date and overdue metadata remain on one line. The task title is substantially easier to read at both 1440px and 375px.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-002",
+      "auditor": "l1",
+      "surface": "Project workspace › Archive › Markdown recovery row",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.scroll-0-1.png (Markdown title reads one letter per line alongside Restore saved content)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-375.scroll-0-1.png (same row in dark theme)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.aria.yml (strong Markdown is the full item label)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.layout.json (Restore saved content starts at x140.4, takes 156.6px)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-1024.png (same Markdown name on one line)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User",
+        "2. Open Home renovation › Archive at 375×812",
+        "3. Scroll to the archived Markdown section"
+      ],
+      "expected": "The archived item’s name is legible as a word so a user can identify the item before restoring it.",
+      "actual": "The label Markdown occupies eight lines of one character each alongside the Restore saved content button.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-003",
+      "auditor": "l1",
+      "surface": "Design Lab › live component preview column",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.png (only a strip of the live preview panel fits at the right edge)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.png (same)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.scroll-0-1.png (vertical scrolling still leaves only the right-edge strip)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.layout.json (main is 375px wide and its scrollWidth is 626px, preview controls begin beyond x375)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-1440.png (controls and previews are visible side by side at desktop width)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User",
+        "2. Open /prototype/design at 375×812",
+        "3. Look at the live component previews and scroll down"
+      ],
+      "expected": "On a phone, the controls and previews can be read within the same viewport width.",
+      "actual": "The previews start near the right edge of the phone and extend offscreen. The main scroll region is 251px wider than the viewport, so reading the previews requires horizontal movement.",
+      "lens": "hierarchy",
+      "heuristic": "WCAG 2.2 SC 1.4.10 Reflow",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-004",
+      "auditor": "l1",
+      "surface": "Global shell › top bar › focused skip link",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "skip link focused",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/skip-link-focused-light-1440.png (upper left, the skip label visibly overprints Canvas Work Manager)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/skip-link-focused-dark-375.png (upper left, the skip label visibly intersects Menu and Canvas Work Manager)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/skip-link-focused-dark-375.aria.yml (Skip to content, Menu and Canvas Work Manager are separate elements)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/surfaces.json (focus for both frames is Skip to content)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User",
+        "2. Open Cabinets from a fresh navigation",
+        "3. Press Tab to focus Skip to content. Compare at light 1440×900 and dark 375×812"
+      ],
+      "expected": "The focused skip link reads clearly as a single label.",
+      "actual": "The area behind the focused skip label remains translucent enough that the underlying top-bar words show through in the same space as the label. The overprint occurs at the two captured widths of 1440px and 375px.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-005",
+      "auditor": "l1",
+      "surface": "Project workspace › Reflections › optional subject",
+      "inventoryRow": "`/projects/:root/pages/reflections`",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-light-375.png (first screen ends at the Add reflection button)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-light-375.scroll-0-1.png (optional Subject select is in a different card below Add reflection)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-light-375.layout.json (button y766, select y973.5)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-dark-1024.layout.json (button y694.5, select y863.5)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-light-1440.layout.json (button y694.5, select y863.5)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/reflections-light-375.aria.yml (Add reflection listed before the Subject combobox)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User",
+        "2. Open Home renovation › Reflections",
+        "3. Start a reflection about completed work and scan the composer for how to associate the work before adding the reflection"
+      ],
+      "expected": "While composing a reflection, the optional subject reads as part of the choices available before submission.",
+      "actual": "The composer appears to end at Add reflection. A separate About completed work card containing the Subject field follows the submit action, below the first screen at the captured widths.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-006",
+      "auditor": "l1",
+      "surface": "Project workspace › archive confirmation › action buttons",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "archive-confirm",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-archive-confirm-dark-375.png (Archive all and Cancel meet at the border)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-archive-confirm-light-375.layout.json (Archive all starts at x43 and ends at x142.8, where Cancel starts)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-archive-confirm-light-1440.layout.json (Archive all ends at x524.8, where Cancel starts)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/archive-cascade-confirm-dark-375.png (same touching actions for the root project)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-section-create-light-375.layout.json (12px gap between Cancel and Create in the creation dialog)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User",
+        "2. Open Kitchen and select Archive workstream from More",
+        "3. Inspect the two final actions in the confirmation at 375×812 and 1440×900"
+      ],
+      "expected": "Cancel and the destructive confirmation are immediately distinguishable as separate controls.",
+      "actual": "Archive all and Cancel have a zero-width gap between their borders. Other captured dialogs display visible separation between adjacent actions.",
+      "lens": "hierarchy",
+      "heuristic": "Internal consistency between archive-confirmation actions and section-creation actions",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-007",
+      "auditor": "l1",
+      "surface": "Home dashboard › task cards › content alignment",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-375.png (empty strip in front of Today task titles and project labels)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-light-375.scroll-0-1.png (same blank strip in Upcoming cards)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-375.layout.json (first Verify analytics events title begins at x139 and is 142px wide)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-dark-375.layout.json (the task row for Verify analytics events begins at x107 after an actual completion control)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-dashboard-light-375.scroll-0-2.png (same indent in Daily Digest)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User",
+        "2. Open /app at 375×812",
+        "3. Compare the left edge of Today’s task cards with their title and metadata. Scroll to Upcoming"
+      ],
+      "expected": "A read-only card uses the available width for its title and metadata.",
+      "actual": "Dashboard task cards leave about 65px of blank space between their left edge and their content even though there is no control in that space. Titles wrap and metadata stacks in the remaining narrow column.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-008",
+      "auditor": "l1",
+      "surface": "Project workspace › Home and Work canvases › layout experiment panel",
+      "inventoryRow": "Home and workstream Work canvases",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-dark-375.png (Grid layout panel above Markdown, with keyboard and route instructions; task rows start below the first screen)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-project-light-375.layout.json (first Markdown content y459.5, Task List body y705.5, Add task y729)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-project-light-375.png (Flow layout panel takes the same place on another project)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-archived-dark-375.png (Flow layout panel also precedes the archived empty canvas)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User",
+        "2. Open Website launch at 375×812",
+        "3. Scan the initial viewport for the project’s existing work"
+      ],
+      "expected": "The first screen of a project gives priority to the project’s work.",
+      "actual": "A full-width development-only layout panel occupies about 90px directly below the project header, before any canvas content. At 375px, the first screen reaches the task-add controls but cuts off the existing task rows.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L1-009",
+      "auditor": "l1",
+      "surface": "Home dashboard › Recent Agent Activity › event summary and timestamp",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.scroll-0-4.png (Updated, overnight, Document and schemas all break across lines inside words)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.scroll-0-4.png (same summary and timestamp alignment in dark theme)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.aria.yml (full unbroken event summaries)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-project-light-375.scroll-0-2.png (the same Updated event fits three lines across whole words in the wider Recent Activity section)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User",
+        "2. Open /app at 375×812",
+        "3. Scroll to Recent Agent Activity and read the second Claude event"
+      ],
+      "expected": "The event text can be read in whole words and scanned against its date.",
+      "actual": "The event summary starts at about x139 and has about 58px before the timestamp column, while a broad strip of the card is empty on its left. Updated breaks after Update and overnight breaks into overnig and ht. The Create event below breaks Document and schemas.",
+      "lens": "hierarchy",
+      "heuristic": "Internal consistency between dashboard Recent Agent Activity and the project Recent Activity section",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

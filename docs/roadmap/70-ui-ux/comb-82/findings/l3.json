@@ -1,0 +1,293 @@
+{
+  "auditor": "l3",
+  "attestation": "I read AGENTS.md §1 for orientation and used the permitted briefs, C82 captures, walk rig, and my own running app. I saw five existing filenames in my own walk directory from an interrupted L3 run, preserved them, and did not use them as evidence. I did not read prohibited materials or save a friction note. I reviewed two sampled regions at native resolution from each of the 194 first screens, 492 scroll frames, and 20 runtime captures. I opened selected frames in full and checked the accessibility trees and layout data for the findings. I stopped the walk daemon and verified that ports 4326 and 5326 were released. I used no browser in the follow-up pass.",
+  "findings": [
+    {
+      "id": "C82-L3-001",
+      "auditor": "l3",
+      "surface": "global shell › phone navigation drawer › dismiss",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "menu open",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/phone-menu-light-375.png (no visible close control inside the drawer)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/phone-menu-dark-375.png (same in dark)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/phone-menu-light-375.aria.yml (two Close navigation buttons; the live in-drawer button measured 24 × 1 CSS px with clip-path inset(50%) before keyboard focus)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User at 375 × 812",
+        "2. Open Home, tap Menu, and look for how to return without following a link"
+      ],
+      "expected": "The open drawer makes dismissal apparent to someone using touch.",
+      "actual": "The drawer covers Menu and the labeled Close navigation control is visually clipped until focused. Tapping the unmarked backdrop closes the drawer.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #3 User control and freedom",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-002",
+      "auditor": "l3",
+      "surface": "project workspace › canvas › insert before a section",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated canvas",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-grid-dark-375.png (small low-emphasis plus marks centered in the section gaps)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-markdown-edit-light-375.png (light-theme marks)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-project-dark-1024.png (same gap affordance at 1024)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/edit-project-menu-open-light-1440.png (same gap affordance at 1440)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-grid-dark-375.layout.json (Insert before Markdown is a button; a live phone view measured the first insertion hitbox at 327 × 44 CSS px and its parent at 0.55 opacity in light)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User at 375 × 812",
+        "2. Open Kitchen and look in the gap above Markdown",
+        "3. Tap the small plus"
+      ],
+      "expected": "The canvas indicates where a section can be inserted and makes the action recognizable without hover.",
+      "actual": "The only at-rest mark is a faint plus in the gap with no label or visible button perimeter. The button occupies the width of the gap, much wider than the visible mark. The full Add a section label appears at the end of the canvas.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-003",
+      "auditor": "l3",
+      "surface": "project workspace › Work canvas › Markdown › remove",
+      "inventoryRow": "Canvas insertion and section chrome",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated canvas",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-grid-dark-375.png (fourth Markdown toolbar icon is a small outlined rectangle with an ×)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-markdown-edit-light-375.png (same in light)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/toast-undo-section-removal-dark-375.png (removal feedback after activation)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User at 375 × 812",
+        "2. Open Kitchen and examine the Markdown toolbar",
+        "3. Tap the square × without using a keyboard or screen reader"
+      ],
+      "expected": "The control for removing a whole section communicates its consequence before use.",
+      "actual": "The square × has no visible action label. Tapping it immediately removes the section. The toast is the first visible text identifying the action and offering Undo.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #5 Error prevention",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-004",
+      "auditor": "l3",
+      "surface": "project workspace › Task List › task title",
+      "inventoryRow": "Task row",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated task list",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-grid-dark-375.scroll-0-1.png (the task title looks like bold row text)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-light-1440.png (unadorned task title at desktop width)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-light-375.png (task titles use a distinct link color)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-dark-375.aria.yml (task title button explicitly opens details)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User at 375 × 812",
+        "2. Open Kitchen and scroll to Task List",
+        "3. Look at Choose appliance finishes, then tap its title"
+      ],
+      "expected": "A task title that opens the details drawer has a visible affordance before it is tapped.",
+      "actual": "The title looks like plain bold row text. Tapping it opens the drawer. Task titles in Todos use a distinct link color.",
+      "lens": "affordance",
+      "heuristic": "Internal consistency between Task List task titles and Todos task titles",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-005",
+      "auditor": "l3",
+      "surface": "project workspace › Task List › failed completion",
+      "inventoryRow": "Task row",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "all",
+      "state": "completion refused",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/row-failure-dark-375.png (the alert ends in Try again with a Details disclosure below)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/row-failure-dark-375.aria.yml (Try again is alert text while the checkbox retains its Complete name)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/row-failure-light-1440.png (the same row feedback at desktop width)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/section-failed-recovered-dark-375.png (a task-list read failure has a visible Try again button)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User and open Website launch",
+        "2. Arrange for the next task-completion write to fail once",
+        "3. Check Run launch QA and look at the row feedback for how to retry"
+      ],
+      "expected": "After being told to try again, the person can identify how to retry the failed completion.",
+      "actual": "“Try again.” is part of the alert sentence. Details is the only labeled action next to it. The original checkbox remains available and the feedback gives no visible cue to use it again.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-006",
+      "auditor": "l3",
+      "surface": "Design Lab › phone live preview",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.png (only a sliver of the first live preview is visible)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.png (same in light)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.layout.json (live controls extend beyond the main region; in the browser main measured 375 CSS px wide with 626 CSS px of scroll width)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User at 375 × 812",
+        "2. Open /prototype/design",
+        "3. Use the token controls and look for their effect in the live fixtures"
+      ],
+      "expected": "The live previews can be read with the controls in the phone viewport, or their continuation is apparent.",
+      "actual": "The live fixtures sit in a second column mostly outside the viewport. The main region scrolls horizontally, with only the clipped edge of the fixture visible on arrival.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-007",
+      "auditor": "l3",
+      "surface": "project workspace › task detail drawer › project field",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "task drawer",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-task-drawer-dark-375.png (the Project field displays a machine identifier)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-dark-375.png (Project reads project-kitchen during the write)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.aria.yml (definition project-kitchen persists after Priority saved)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User",
+        "2. Open Kitchen and tap Choose appliance finishes in Task List",
+        "3. Read the Project field"
+      ],
+      "expected": "The Project field identifies the task’s workspace in the same words used by its heading and breadcrumb.",
+      "actual": "The drawer displays project-kitchen. The workspace heading and breadcrumb call the workstream Kitchen.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-008",
+      "auditor": "l3",
+      "surface": "project workspace › Archive › archived Markdown row",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated Archive",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.scroll-0-1.png (Markdown breaks one character per line beside Restore saved content)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-375.scroll-0-1.png (same in dark)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-1024.scroll-0-1.png (the same row has a readable title at 1024)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.layout.json (Restore saved content for Markdown measures 156.56 × 44 CSS px)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.aria.yml (restore button is associated with Markdown)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User at 375 × 812",
+        "2. Open Home renovation › Archive",
+        "3. Scroll to the Markdown row and identify which item Restore saved content affects"
+      ],
+      "expected": "The archived item name is legible beside its restore action.",
+      "actual": "The restore button occupies most of the row and Markdown breaks into eight single-character lines. The button sits midway down the stacked letters.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-009",
+      "auditor": "l3",
+      "surface": "Home › Recent Progress › completed task link",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "1024x768",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-1024.scroll-0-3.png (Configure deployment is split into single characters)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.scroll-0-3.png (same in dark)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-light-1024.scroll-0-3.png (Approve homepage copy shows the same behavior)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-1024.aria.yml (Configure deployment is a link)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User at 1024 × 768",
+        "2. Open Home and scroll to Recent Progress",
+        "3. Try to identify the completed task link"
+      ],
+      "expected": "A person can recognize the completed task and read its link text before opening it.",
+      "actual": "Configure deployment reads vertically, effectively one letter per line. The narrow task title sits beside the status and completion date, and strikethrough further interrupts the letters.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L3-010",
+      "auditor": "l3",
+      "surface": "Home › Recent Agent Activity › event descriptions",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.scroll-0-5.png (Updated, overnight, Document, and schemas break in the middle)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.scroll-0-5.png (same in dark)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-1024.scroll-0-4.png (wider rendering maintains words)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.aria.yml (event descriptions are present in full)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User at 375 × 812",
+        "2. Open Home and scroll to Recent Agent Activity",
+        "3. Read Claude’s updates and identify the affected tasks"
+      ],
+      "expected": "Agent action summaries are readable at phone width so the person can tell what changed.",
+      "actual": "The timestamp sits to the right of a narrow event-description column. Words such as Updated and overnight break midword, and one event uses most of the visible vertical space.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

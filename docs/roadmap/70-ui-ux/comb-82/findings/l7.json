@@ -1,0 +1,286 @@
+{
+  "auditor": "l7",
+  "attestation": "I read AGENTS.md §1 for orientation and kept to the brief, C82 captures, and my own walk rig and output. I did not encounter earlier audits or save a friction note. I extracted navigation and headings from all 194 matrix accessibility trees and 20 runtime frames. I reviewed native-scale crops from all 194 matrix first screens, 492 matrix scroll frames, and 20 runtime screenshots, with original uncropped screenshots and layout data for selected evidence. The visual review sampled the navigation and landmarks in each frame. I used Demo User in the live browser with rendered dark at 1440×900 and light at 375×812. I quit the daemon, sent TERM to its process group, and verified ports 4327 and 5327 were released. I did not restart the rig for the capture review.",
+  "findings": [
+    {
+      "id": "C82-L7-001",
+      "auditor": "l7",
+      "surface": "Home renovation › Archive › Markdown › Origin",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-1440.aria.yml (Markdown Origin points to the archived-notes section anchor)",
+        "apps/e2e/ux-output/walk/l7/001-archived-markdown-origin-destination.png (missing-container notice in the root canvas)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation, then Archive.",
+        "3. In the archived Markdown entry, activate Home renovation after Origin."
+      ],
+      "expected": "The Origin link leads to a location available to inspect while the Markdown is archived.",
+      "actual": "The link leaves Archive and opens the live canvas with “The container this link points at is not on this page any more.”",
+      "lens": "ia",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A recovery route is offered only when it leads somewhere"
+    },
+    {
+      "id": "C82-L7-002",
+      "auditor": "l7",
+      "surface": "Home dashboard › Today and Daily Digest › overdue task links",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "overdue-chaos",
+      "theme": "both",
+      "viewport": "all",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/overdue-chaos-dashboard-light-1440.aria.yml (all four named tasks share the Task List anchor in both widgets)",
+        "apps/e2e/ux-output/walk/l7/006-overdue-task-destination.png (Today lands at Task List)",
+        "apps/e2e/ux-output/walk/l7/007-digest-overdue-task-destination.png (Daily Digest lands at Task List)"
+      ],
+      "repro": [
+        "1. Load overdue-chaos as Demo User and open Home.",
+        "2. Activate Finish field mapping in Today.",
+        "3. Return to Home and activate Notify stakeholders in Daily Digest."
+      ],
+      "expected": "Activating a link named for a specific overdue task brings that task into focus.",
+      "actual": "Both links focus the Task List heading. None of the four task links identifies or selects a task at the destination, so the user has to find the named row again.",
+      "lens": "ia",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L7-003",
+      "auditor": "l7",
+      "surface": "Kitchen › Pages of Home renovation › required page",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "page-settings",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-dark-375.png (required page is Home)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-light-1440.aria.yml (tree names root Home renovation; required page is Home)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-project-light-1024.aria.yml (Home renovation is the root page heading)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-shortcut-picker-dark-375.png (shortcut picker calls the same root canvas Home renovation · Home)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation and use its navigation to open Kitchen.",
+        "3. In More project actions, open Pages of Home renovation and compare the required page label with the root navigation label."
+      ],
+      "expected": "Page settings use the same name for the required page as the project tree and its heading.",
+      "actual": "The required page is called Home in settings. The same destination appears as Home renovation in the project tree and as the page heading. Home also names the workspace dashboard.",
+      "lens": "ia",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A root's first page is named by its project, never \"Home\""
+    },
+    {
+      "id": "C82-L7-004",
+      "auditor": "l7",
+      "surface": "Kitchen › Pages of Home renovation › Archive toggle",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "page-settings",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-light-1440.aria.yml (Archive is presented as an optional view)",
+        "apps/e2e/ux-output/walk/l7/004-archive-hidden.png (sidebar Archive link disappears when unchecked)",
+        "apps/e2e/ux-output/walk/l7/008-archive-open-after-hiding.png (More still opens the same Archive page)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User and open Kitchen.",
+        "2. Open More project actions, then Pages of Home renovation.",
+        "3. Clear Show Archive page and close the panel.",
+        "4. Open More project actions and choose Open archive."
+      ],
+      "expected": "The page setting indicates the scope of what is hidden, so users know whether Archive is still reachable.",
+      "actual": "Archive is grouped with optional pages and its control is named Show Archive page. Clearing it removes the sidebar entry while Open archive still visits the same page.",
+      "lens": "ia",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L7-005",
+      "auditor": "l7",
+      "surface": "Workspace navigation › Calendar and Search",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "all",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/calendar-light-1440.aria.yml (ordinary Workspace link lands on Slice 18 text)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/search-light-1440.aria.yml (ordinary Workspace link lands on Slice 21 text)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/calendar-dark-375.png (Calendar contains roadmap prose)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/search-dark-375.png (Search contains roadmap prose)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User.",
+        "2. From workspace navigation, open Calendar.",
+        "3. Open Search from the same navigation."
+      ],
+      "expected": "Primary navigation communicates whether those workspace tools are available before users follow the links.",
+      "actual": "Both entries look like working destinations in the same list as Home. The destination pages contain internal slice and spec references in place of a calendar or a search interface.",
+      "lens": "ia",
+      "heuristic": "Nielsen #5 Error prevention",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L7-006",
+      "auditor": "l7",
+      "surface": "Settings › AI & Agents › connecting an agent",
+      "inventoryRow": "`/settings/agents`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "all",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/settings-agents-light-1440.aria.yml (agent list with permissions and revoke controls)",
+        "apps/e2e/ux-output/walk/l7/010-settings-agent-connections.png (complete product surface after scrolling)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-light-1440.aria.yml (fixture agent connection roster and Copy token controls)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User and open Settings.",
+        "2. Open AI & Agents and inspect the page through the last agent card for a way to connect another agent."
+      ],
+      "expected": "The settings destination for agent connections provides an entry point to connect an agent or explains how to start.",
+      "actual": "AI & Agents shows permissions and Revoke for existing agents only. Its main content contains no connect action or connection instructions. Existing fixture tokens appear in the separate development dialog.",
+      "lens": "ia",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S1",
+      "confidence": "observed",
+      "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents"
+    },
+    {
+      "id": "C82-L7-007",
+      "auditor": "l7",
+      "surface": "Kitchen › project navigation › All projects",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "state": "workspace navigation expanded from Kitchen",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/edit-project-menu-open-light-1440.aria.yml (All projects is above the project tree)",
+        "apps/e2e/ux-output/walk/l7/005-all-projects-expanded.png (Kitchen is the main page but Workspace sidebar no longer shows Kitchen)",
+        "apps/e2e/ux-output/walk/l7/009-all-projects-return.png (selecting Home renovation reloads the root canvas and restores project navigation)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User and open Kitchen.",
+        "2. Activate All projects in its project navigation.",
+        "3. Try to return to Kitchen’s project tree from the new sidebar."
+      ],
+      "expected": "A user browsing the workspace sidebar while Kitchen remains open can bring back the tree for the current page.",
+      "actual": "All projects keeps Kitchen open but replaces its tree with workspace navigation. The sidebar has no current Kitchen entry or entry to return to its tree. Choosing Home renovation navigates away to the root canvas before the Kitchen entry is available again.",
+      "lens": "ia",
+      "heuristic": "Nielsen #3 User control and freedom",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L7-008",
+      "auditor": "l7",
+      "surface": "Design Lab › controls and live specimens",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.png (controls fill most of the width, with only a sliver of the live specimen visible)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.png (same placement in light)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.layout.json (main client width 375 px, content scroll width 626 px)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User at 375×812.",
+        "2. Open /prototype/design and inspect the controls and their live specimens."
+      ],
+      "expected": "The controls and the live examples they affect are legible in the phone viewport.",
+      "actual": "The controls occupy most of the phone viewport. The introduction and live specimens begin around x=327 and extend to the right beyond the visible page; reading them requires horizontal scrolling.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L7-009",
+      "auditor": "l7",
+      "surface": "Home dashboard › Recent Progress › completed task link",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "1024x768",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.scroll-0-3.png (Configure deployment link is one letter per line beside completion metadata)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-1024.scroll-0-3.png (same layout in light)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.aria.yml (Recent Progress contains Configure deployment link)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User at 1024×768.",
+        "2. Open Home and scroll to Recent Progress.",
+        "3. Read the completed task link for Configure deployment."
+      ],
+      "expected": "The linked task name is readable at a glance before opening it.",
+      "actual": "The link breaks into nearly one letter per line and spans most of the height of the card beside its status and completion date.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L7-010",
+      "auditor": "l7",
+      "surface": "Home renovation › Archive › archived Markdown title",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-375.scroll-0-1.png (Markdown title stacks one letter per line beside Restore saved content)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.scroll-0-1.png (same layout in light)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.aria.yml (Markdown title and Restore saved content action)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User at 375×812.",
+        "2. Open Home renovation and select Archive.",
+        "3. Scroll to the Markdown entry between Legacy attic and Old permit copy."
+      ],
+      "expected": "The archived item name is easy to read before choosing which item to restore.",
+      "actual": "The Markdown title wraps to one letter per line, making the name difficult to identify next to its Restore saved content button.",
+      "lens": "hierarchy",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

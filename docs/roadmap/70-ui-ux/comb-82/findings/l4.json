@@ -1,0 +1,201 @@
+{
+  "auditor": "l4",
+  "attestation": "I read AGENTS.md §1 for orientation and stayed within the allowed comb briefs, C82 captures and my isolated walk output. A directory listing showed filenames from the interrupted walk, which I did not open or use. For the visual pass I reviewed native-resolution crops from all 686 matrix screenshots and scroll frames and all 20 supplemental runtime frames, and opened larger originals for suspected defects. I also scanned the accessibility trees for state copy across all 194 cells. The crops sample parts of each frame and my review did not inspect every region of every original. I wrote no friction note. I stopped the walk rig after the initial pass and verified ports 4327 and 5327 were released. The visual follow-up used the stored captures.",
+  "findings": [
+    {
+      "id": "C82-L4-001",
+      "auditor": "l4",
+      "surface": "project workspace › Home renovation canvas › Reflections shortcut",
+      "inventoryRow": "Shortcut frame",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "1440x900",
+      "state": "source page disabled",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/l4/015-hidden-reflections-shortcut-l4.png (read-only message and Open source link)",
+        "apps/e2e/ux-output/walk/l4/016-hidden-reflections-after-open-l4.png (back at the top of Home renovation, no notice)",
+        "apps/e2e/ux-output/walk/l4/021-hidden-reflections-dark-fallback-confirm-l4.png (375x812 dark fallback with notice after revisiting project)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo and open Home renovation › Reflections.",
+        "2. Open Edit project › Pages of Home renovation and uncheck Show Reflections page.",
+        "3. On the Home renovation canvas, dismiss the fallback notice. Scroll to Reflections (Home renovation) and select Open source."
+      ],
+      "expected": "The shortcut tells me when its source is switched off. A link labeled Open source takes me to an available source.",
+      "actual": "The shortcut still shows the three entries and tells me to open the source to change them. Open source jumps to the top of the same canvas. After dismissing the earlier notice there is no feedback on this navigation. In a fresh project visit the link instead shows the switched-off notice and an Enable Reflections action.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A recovery route is offered only when it leads somewhere"
+    },
+    {
+      "id": "C82-L4-002",
+      "auditor": "l4",
+      "surface": "dashboard › Projects navigation and Active Projects widget",
+      "inventoryRow": "`/app` dashboard",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "partially recovered after workspace error",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/l4/004-dashboard-failed-l4.png (workspace failure on Home and sidebar)",
+        "apps/e2e/ux-output/walk/l4/005-dashboard-recovered-sidebar-failed.png (loaded Active Projects and failed sidebar displayed together)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo. In the development dialog set Failure rate to 100%, close the dialog and reload Home.",
+        "2. Set Failure rate back to 0% without reloading. Select the Try again button in Home’s main content."
+      ],
+      "expected": "Once Home reconnects and shows my active projects, the Projects sidebar reflects that recovery or describes its own outstanding refresh.",
+      "actual": "Home loads active projects from the workspace, while the sidebar still says it couldn’t reach the workspace and leaves the project tree missing until I separately select its Try again.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L4-003",
+      "auditor": "l4",
+      "surface": "project workspace › Task List › add task form and task detail drawer › priority",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "write disconnected",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/l4/009-refused-task-draft-l4.png (red title field despite retained valid draft, announced invalid)",
+        "apps/e2e/ux-output/walk/l4/017-drawer-priority-failed-l4.png (priority announced invalid after disconnected save)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo and open Kitchen.",
+        "2. Simulate connection failure on task POST and PATCH only, leaving reads available.",
+        "3. Type a nonempty task title and Add task. Open Choose appliance finishes and change Priority to high."
+      ],
+      "expected": "An interrupted save reports a connection problem and keeps valid entries distinguishable from inputs that need correction.",
+      "actual": "The title is marked invalid with a red outline after the POST connection failure. The priority control is also marked invalid after the PATCH connection failure, even after the selection returns to its previous valid value.",
+      "lens": "states",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose, and recover from errors",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L4-004",
+      "auditor": "l4",
+      "surface": "project workspace › Work canvas › Task List",
+      "inventoryRow": "Task List section",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "state": "partially loaded after successful add",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/section-failed-recovered-dark-375.png (Add task remains available during initial read failure)",
+        "apps/e2e/ux-output/walk/l4/007-add-while-read-failed-l4-confirm.png (only newly added row appears beside an unqualified read error)",
+        "apps/e2e/ux-output/walk/l4/008-add-visible-after-retry-l4-confirm.png (all three saved rows appear on successful retry)"
+      ],
+      "repro": [
+        "1. Seed nested-projects as Demo. Block only GET requests for section-project-kitchen-tasks, leaving task writes available. Open Kitchen.",
+        "2. Add a task named State audit item while the list displays a read error.",
+        "3. Observe the one visible row, then restore the read and select Try again."
+      ],
+      "expected": "A partially shown list makes clear that the visible new task was saved and existing tasks are temporarily unavailable.",
+      "actual": "The list replaces the initial no-rows failure with a mixed state: the new row appears without a count, next to the unchanged message that this task list didn’t load. The two existing rows return after retry.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L4-005",
+      "auditor": "l4",
+      "surface": "dashboard › Recent Progress › completed task row",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "1024x768",
+      "state": "populated with completion metadata",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-1024.scroll-0-3.png (the completed task title is a one-character column)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.scroll-0-3.png (same row in dark)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.aria.yml (Configure deployment, Done, High priority and completion date)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-dashboard-light-1024.scroll-0-2.png (ordinary completed rows also split words)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1440.scroll-0-2.png (the same row has a readable title at desktop width)"
+      ],
+      "repro": [
+        "1. Seed agent-heavy as Demo. Open Home at 1024×768.",
+        "2. Scroll to Recent Progress and read the completed Configure deployment row."
+      ],
+      "expected": "The title of completed work remains readable alongside its status, priority and completion date.",
+      "actual": "The title wraps into a column as narrow as one character per line. A single completed task row takes roughly 423 pixels vertically even though its card has unused space. In nested-projects, ordinary completion rows split titles such as Approve the lighting plan into chunks across six lines.",
+      "lens": "states",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L4-006",
+      "auditor": "l4",
+      "surface": "dashboard › Recent Agent Activity › activity entry",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated with activity entries",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.scroll-0-4.png (activity verbs and task names split mid-word beside timestamps)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.scroll-0-4.png (same mid-word wrapping in dark)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.aria.yml (intact strings confirm complete text exists)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-1024.scroll-0-4.png (the same activity entries wrap at word boundaries)"
+      ],
+      "repro": [
+        "1. Seed agent-heavy as Demo. Open Home on a 375×812 phone.",
+        "2. Scroll to Recent Agent Activity and read the entries for Triage the overnight agent errors and Document the tool input schemas."
+      ],
+      "expected": "I can scan each agent action and the associated item while viewing its timestamp.",
+      "actual": "The action column breaks ordinary words mid-word, including Updated, overnight, Document and schemas. Two entries nearly fill the viewport while the timestamp sits to their right.",
+      "lens": "states",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L4-007",
+      "auditor": "l4",
+      "surface": "Design Lab › live component and state examples",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "default phone layout",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.png (only a sliver of the examples appears beside token controls)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.scroll-0-16.png (later frames still show controls and the sliver)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.layout.json (main client width 375, scroll width 626)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-1440.scroll-0-8.png (controls and example content coexist on screen)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.aria.yml (Empty, loading and failed shared examples are present)"
+      ],
+      "repro": [
+        "1. Seed agent-heavy as Demo and open /prototype/design at 375×812.",
+        "2. Scroll vertically through the live examples."
+      ],
+      "expected": "The live component examples and their alternative states fit on screen as I scroll through the lab on a phone.",
+      "actual": "The token controls occupy most of the viewport. The adjacent examples start at x≈328, leaving about 47 pixels visible. Vertical scrolling does not reveal their full width. The main region has 626 pixels of horizontal content in a 375-pixel viewport.",
+      "lens": "states",
+      "heuristic": "WCAG 2.2 SC 1.4.10 Reflow",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

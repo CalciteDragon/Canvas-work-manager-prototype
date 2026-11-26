@@ -1,0 +1,301 @@
+{
+  "auditor": "l2",
+  "attestation": "I read AGENTS.md §1 for orientation and the permitted Slice 82 briefs, stayed within the reading restrictions, and used only the prescribed command to inspect stylesheet literals. I saved no friction note and started no daemon. I surveyed native-resolution regions of all 194 matrix first screens, all 492 listed scroll frames and all 20 runtime frames, then opened the relevant full frames and supporting accessibility trees or layout records for comparisons that needed confirmation. The desktop scroll frames show the Project details and Add workstream dialogs even though the corresponding light 1440px first screens show Kitchen without them.",
+  "findings": [
+    {
+      "id": "C82-L2-001",
+      "auditor": "l2",
+      "surface": "project workspace › Project details dialog › footer",
+      "inventoryRow": "Project header and More menu",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "project-details",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-project-details-dark-375.png (Save is left of Cancel)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-work-create-dark-375.png (Cancel is left of Create)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-section-create-dark-375.png (Cancel is left of Create)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-archive-confirm-light-1440.png (Archive all is left of Cancel)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/archive-cascade-confirm-dark-375.png (root archive confirmation repeats the order and its buttons touch)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-project-details-dark-375.aria.yml (lines 30–31 list Save then Cancel)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User at 375px in dark mode.",
+        "2. Open Kitchen, open More and choose Edit details. Note the order of Save and Cancel.",
+        "3. Cancel, open More again and choose Add workstream. Compare the position of Cancel with its position in Project details.",
+        "4. Cancel and open Archive workstream from More to compare the confirmation footer."
+      ],
+      "expected": "Cancel and the committing action keep a predictable order across the project dialogs.",
+      "actual": "Cancel sits to the left of Create in the workstream and section forms, then to the right of Save in Project details and Archive all in the archive confirmation.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Project details and archive confirmation vs Add workstream and Add a section",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-002",
+      "auditor": "l2",
+      "surface": "project workspace › Pages settings › required first page",
+      "inventoryRow": "Navigation tree, pencil menu, page settings and breadcrumb (Slice 81)",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "page-settings",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-dark-375.png (required page reads Home)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-page-settings-light-1440.png (required page still reads Home)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-shortcut-picker-dark-375.png (root canvas sources are under Home renovation · Home)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-shortcut-picker-light-1440.png (the same source label appears in light mode)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-dark-1024.png (the first page link in the root navigation reads Home renovation)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation and note its first page link in the project navigation.",
+        "3. Open Kitchen, then choose Pages of Home renovation from More. Read the required page label.",
+        "4. Close settings, open Add a section and switch to Add a shortcut. Read the heading for the root canvas group."
+      ],
+      "expected": "The root canvas keeps the same visible name in navigation, page settings and section source selection.",
+      "actual": "The navigation labels the root canvas Home renovation, the Pages popover calls it Home, and the shortcut picker labels the source group Home renovation · Home.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: root navigation vs Pages settings and shortcut picker",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": "A root's first page is named by its project, never \"Home\""
+    },
+    {
+      "id": "C82-L2-003",
+      "auditor": "l2",
+      "surface": "project workspace › Task Details › status",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "drawer-saving",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.png (status reads todo · Overdue)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-task-drawer-light-1440.aria.yml (Status definition is todo)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-dark-375.scroll-0-1.png (the same task reads Task To do)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-dark-375.aria.yml (lines 81–86 identify Choose appliance finishes and its To do status)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation’s Todos and find Choose appliance finishes. Read its status.",
+        "3. Open that task in Kitchen and read Status in its details drawer."
+      ],
+      "expected": "The same task status uses the same wording in Todos and Task Details.",
+      "actual": "Todos displays To do while Task Details displays todo for Choose appliance finishes.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Todos task row vs Task Details status",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-004",
+      "auditor": "l2",
+      "surface": "project workspace › Task Details › project name",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "drawer-saving",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.png (Project shows project-kitchen)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.aria.yml (lines 80–81 name the Project field and its value)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-dark-375.scroll-0-1.png (the same task’s location includes the display name Kitchen)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation’s Todos and find Choose appliance finishes. Read its location.",
+        "3. Open that task in Kitchen and read Project in its details drawer."
+      ],
+      "expected": "The task’s owning project uses its workspace display name in both places.",
+      "actual": "Todos identifies the owner as Kitchen in the location trail. Task Details shows project-kitchen in the Project field.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Todos task location vs Task Details project field",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-005",
+      "auditor": "l2",
+      "surface": "project workspace › Task List › task completion failure",
+      "inventoryRow": "Task row",
+      "seed": "busy-week",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "row-failure",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/row-failure-dark-375.png (Try again is part of the error sentence, with only a Details disclosure below)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/row-failure-dark-375.aria.yml (line 62 is an alert ending in Try again)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/section-failed-recovered-dark-375.png (Try again is an actionable control in a failed Task List)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/section-failed-recovered-dark-375.aria.yml (line 48 identifies a Try again button)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User and open Website launch.",
+        "2. Force task completion to fail and attempt to complete Verify analytics events. Read the error and available actions.",
+        "3. Compare with a Task List whose initial read fails, as captured on Kitchen in nested-projects."
+      ],
+      "expected": "When the interface uses the phrase Try again, the task row makes it clear which action repeats the failed operation.",
+      "actual": "The task completion alert ends with Try again but presents it as part of the sentence. The failed Task List read uses the same words for a button.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: task completion failure vs Task List read failure",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-006",
+      "auditor": "l2",
+      "surface": "Home › Recent Progress › completed task row",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "theme": "both",
+      "viewport": "1024x768",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-1024.scroll-0-3.png (Approve homepage copy falls to one character per line and overlaps the metadata column)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-light-1024.scroll-0-3.png (same collapse in light mode)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-1440.scroll-0-2.png (the same title wraps at word boundaries)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-375.scroll-0-4.png (the same title stays legible and metadata moves below it)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-1024.aria.yml (lines 132–138 show the complete title and its status metadata)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo User.",
+        "2. Open Home at 1024 × 768 and scroll to Recent Progress.",
+        "3. Compare Approve homepage copy at the same location at 1440 and 375 pixels wide."
+      ],
+      "expected": "The same completed task title remains readable at the middle width, as it does at the larger and smaller widths.",
+      "actual": "At 1024px the title becomes a tall stack of individual letters beside the status and completion date. Phone and desktop captures show normal word wrapping.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Recent Progress at 1024px vs its 1440px and 375px layouts",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-007",
+      "auditor": "l2",
+      "surface": "project workspace › Archive › archived Markdown row",
+      "inventoryRow": "`/projects/:root/pages/archive` and archived items",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-375.scroll-0-1.png (Markdown title collapses to one character per line and the restore button meets the title)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-light-375.scroll-0-1.png (same title collapse in light mode)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-1024.scroll-0-1.png (Markdown is readable on a single line)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/archive-dark-375.aria.yml (lines 47–49 identify Markdown and Restore saved content)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. Open Home renovation’s Archive at 375 × 812 and scroll to the Markdown item.",
+        "3. Compare the same item at 1024 × 768."
+      ],
+      "expected": "The archived item’s name remains readable next to its recovery control at each width.",
+      "actual": "At 375px the letters of Markdown stack individually in the name column next to Restore saved content. The same row displays the full word at 1024px.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Archive Markdown row at 375px vs 1024px",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-008",
+      "auditor": "l2",
+      "surface": "Home › Recent Agent Activity › event descriptions",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.scroll-0-5.png (Updated and overnight break in the middle as timestamp holds its column)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.scroll-0-5.png (same tight wrapping in light mode)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-project-dark-375.scroll-0-3.png (the same event and timestamp fit in one readable Recent Activity row)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.aria.yml (lines 92–95 confirm the unbroken event text and timestamp)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User at 375 × 812.",
+        "2. Open Home and scroll to Recent Agent Activity. Find Claude’s update to Triage the overnight agent errors.",
+        "3. Open Work Manager and compare the same entry in Recent Activity."
+      ],
+      "expected": "The same event description is comparably readable in the two activity feeds at the same width.",
+      "actual": "The dashboard gives the description so little space beside its timestamp that Updated and overnight break mid-word. The project feed wraps the same entry on whole words.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Home Recent Agent Activity vs Work Manager Recent Activity at 375px",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-009",
+      "auditor": "l2",
+      "surface": "project workspace › Todos › cancelled task row",
+      "inventoryRow": "`/projects/:root/pages/todos`",
+      "seed": "nested-projects",
+      "theme": "dark",
+      "viewport": "375x812",
+      "state": "populated",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-dark-375.scroll-0-1.png (Compare a cancelled quote is crossed out and has no checkbox)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-project-light-1024.scroll-0-1.png (same task is shown with regular title styling and a checkbox)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/todos-dark-375.aria.yml (lines 71–78 give a task link and delete, with no Complete checkbox in this item)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-project-light-1024.aria.yml (lines 97–102 expose a checkbox named Complete Compare a cancelled quote beside the Cancelled status)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo User.",
+        "2. In Home renovation’s work canvas, find Compare a cancelled quote in Task List.",
+        "3. Open the project’s Todos and find the same cancelled task. Compare its status styling and completion control."
+      ],
+      "expected": "The same cancelled task communicates the same state and available completion action on both surfaces.",
+      "actual": "Todos crosses out its title and withholds the completion checkbox. Task List gives it the same title styling and a Complete checkbox as an unfinished task, despite labeling it Cancelled.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Todos cancelled task row vs Task List cancelled task row",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L2-010",
+      "auditor": "l2",
+      "surface": "prototype › Design Lab › live component previews",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "375x812",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.png (token controls fill most of the phone and the Task rows preview is clipped at the right edge)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.scroll-0-12.png (vertical scrolling leaves the preview column clipped)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-1440.png (both columns and their controls fit on desktop)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.layout.json (document width equals viewport width, 375px)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo User.",
+        "2. Open /prototype/design at 375 × 812 and scroll to inspect its live component previews.",
+        "3. Compare the preview column at 1440 × 900."
+      ],
+      "expected": "On a phone the Design Lab lets the user see its live previews as well as its controls, as the desktop layout does.",
+      "actual": "The two columns remain side by side at 375px. The token controls take up most of the viewport and only a sliver of the preview column appears on the right, including after vertical scrolling.",
+      "lens": "consistency",
+      "heuristic": "Internal consistency: Design Lab live previews at 375px vs 1440px",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    }
+  ]
+}

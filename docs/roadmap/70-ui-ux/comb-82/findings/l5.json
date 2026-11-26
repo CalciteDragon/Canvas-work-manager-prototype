@@ -1,0 +1,1443 @@
+{
+  "auditor": "l5",
+  "attestation": "I read AGENTS.md §1 for orientation and limited my reading to the allowed briefs, C82 capture artifacts, the walk rig, and my own output. I encountered no earlier audit wording and saved no friction note. I reviewed native-resolution regions from 194 matrix first screens, 492 matrix scroll frames and 20 runtime images, opening complete frames and layout evidence for selected concerns. These crops sampled regions of each frame. I scanned all 214 accessibility trees for landmarks, headings, unnamed controls and live regions, and all 214 captured axe results, including incomplete rule IDs. I enumerated small boxes in all 84 phone layout files. Some axe incomplete results remain unconfirmed, including runtime announcement behavior. I used the original browser as Demo User, checked the rendered theme in every measured cell, and tabbed through the dense project view in each theme. I quit that daemon, terminated its process group, and verified that ports 4326 and 5326 were released. The capture follow-up used no browser.",
+  "findings": [
+    {
+      "id": "C82-L5-001",
+      "auditor": "l5",
+      "surface": "global shell › focused skip link",
+      "inventoryRow": "Global shell, desktop sidebar, phone navigation drawer, top bar",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "skip link focused",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/skip-link-focused-light-1440.png (upper left, skip label overlaps product title)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/skip-link-focused-dark-375.png (upper left, skip label overlaps Menu and the product title)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo.",
+        "2. Open /projects/project-cabinets with a fresh keyboard focus sequence.",
+        "3. Press Tab and read Skip to content."
+      ],
+      "expected": "The focused skip link has a readable label distinct from the header behind it.",
+      "actual": "Header text remains visible through the skip link and overlaps its label. On the phone the underlying Menu text also crosses the label.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.4.3 Contrast (Minimum)",
+      "severity": "S2",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-002",
+      "auditor": "l5",
+      "surface": "development dialog › duplicate banner landmarks",
+      "inventoryRow": "Global development dialog",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "development dialog open",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-dark-1440.axe.json (axe landmark-no-duplicate-banner)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-dark-375.axe.json (axe landmark-no-duplicate-banner)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-light-1440.axe.json (axe landmark-no-duplicate-banner)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-light-375.axe.json (axe landmark-no-duplicate-banner)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-light-1440.aria.yml (banner at the start of the shell and inside the dialog)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo and open /app.",
+        "2. Open the development dialog with Ctrl+Shift+D.",
+        "3. Inspect banner landmarks."
+      ],
+      "expected": "The app banner is distinguishable in landmark navigation while the dialog is open.",
+      "actual": "The accessibility tree exposes two unnamed banners, one for the app and one within the development dialog.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-003",
+      "auditor": "l5",
+      "surface": "development dialog › dialog role",
+      "inventoryRow": "Global development dialog",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "development dialog open",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-dark-1440.axe.json (axe aria-allowed-role)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-dark-375.axe.json (axe aria-allowed-role)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-light-1440.axe.json (axe aria-allowed-role)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/dev-panel-light-375.axe.json (axe aria-allowed-role)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo and open /app.",
+        "2. Open the development dialog with Ctrl+Shift+D.",
+        "3. Check the dialog role in axe."
+      ],
+      "expected": "The development dialog uses a role valid for its HTML element so its semantics are portable across assistive technology.",
+      "actual": "Axe flags role=dialog on the aside element in both themes and widths. Chromium nevertheless exposes it as a dialog.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 4.1.2 Name, Role, Value",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-004",
+      "auditor": "l5",
+      "surface": "prototype state › nested main landmarks",
+      "inventoryRow": "`/prototype/state`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "all",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-dark-1440.axe.json (axe landmark-no-duplicate-main)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-dark-375.axe.json (axe landmark-no-duplicate-main)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-1440.axe.json (axe landmark-no-duplicate-main)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-375.axe.json (axe landmark-no-duplicate-main)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-dark-1440.axe.json (axe landmark-main-is-top-level)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-dark-375.axe.json (axe landmark-main-is-top-level)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-1440.axe.json (axe landmark-main-is-top-level)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-375.axe.json (axe landmark-main-is-top-level)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-1440.aria.yml (two nested main entries)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo.",
+        "2. Open /prototype/state.",
+        "3. Inspect the main landmark structure."
+      ],
+      "expected": "Landmark navigation identifies one main content region.",
+      "actual": "The prototype state inspector exposes its own main inside the shell main, yielding two nested main landmarks.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-005",
+      "auditor": "l5",
+      "surface": "prototype state › section headings",
+      "inventoryRow": "`/prototype/state`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "all",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-dark-1440.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-dark-375.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-1440.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-375.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-state-light-1440.aria.yml (heading levels)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo.",
+        "2. Open /prototype/state.",
+        "3. Inspect the heading navigation order."
+      ],
+      "expected": "The controls are grouped in a heading hierarchy under Prototype state.",
+      "actual": "The heading list jumps from the page title at level 1 to Persona at level 3, and peer sections like Seed and Current date are also level 3.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-006",
+      "auditor": "l5",
+      "surface": "Design Lab › specimen headings",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "all",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-1440.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-1440.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.axe.json (axe heading-order)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-1440.aria.yml (heading levels)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo.",
+        "2. Open /prototype/design.",
+        "3. Inspect the heading navigation order."
+      ],
+      "expected": "Heading levels communicate which component samples belong to a parent section.",
+      "actual": "The heading list jumps from Design Lab at level 1 to Task rows live component at level 3 without a level 2 parent.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-007",
+      "auditor": "l5",
+      "surface": "Design Lab › specimen landmarks",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "theme": "both",
+      "viewport": "all",
+      "state": "default",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-1440.axe.json (axe landmark-unique)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.axe.json (axe landmark-unique)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-1440.axe.json (axe landmark-unique)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.axe.json (axe landmark-unique)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-1440.aria.yml (repeated landmark names)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo.",
+        "2. Open /prototype/design.",
+        "3. Inspect the landmark list."
+      ],
+      "expected": "Users can identify individual navigation and content landmarks by name.",
+      "actual": "The embedded component specimens repeat Workspace and Breadcrumb navigation labels and section region names in the landmark list.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-008",
+      "auditor": "l5",
+      "surface": "project workspace › loading state",
+      "inventoryRow": "`/projects/:projectId` and `/projects/:projectId/pages/:pageKind` workspace",
+      "seed": "nested-projects",
+      "theme": "both",
+      "viewport": "all",
+      "state": "loading",
+      "persona": "user-demo",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-loading-dark-1440.axe.json (axe page-has-heading-one)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-loading-dark-375.axe.json (axe page-has-heading-one)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-loading-light-1440.axe.json (axe page-has-heading-one)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-loading-light-375.axe.json (axe page-has-heading-one)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/kitchen-loading-light-1440.aria.yml (main has a plain Loading project paragraph and empty status)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo.",
+        "2. Open the development dialog and set a network delay.",
+        "3. Open Kitchen and inspect the main region while the project is loading."
+      ],
+      "expected": "A screen-reader user who navigates by headings can locate and identify the main content while the project loads.",
+      "actual": "The captured loading state has no level-one heading. The main region exposes Loading project… as a paragraph.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.2 SC 1.3.1 Info and Relationships",
+      "severity": "S3",
+      "confidence": "observed",
+      "decisionReopened": null
+    },
+    {
+      "id": "C82-L5-009",
+      "auditor": "l5",
+      "theme": "both",
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "confidence": "observed",
+      "severity": "S2",
+      "surface": "dashboard › Recent Progress › task title",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "busy-week",
+      "viewport": "1024x768",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-light-1024.scroll-0-3.png (Approve homepage copy is one character per line with a strikethrough)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-dark-1024.scroll-0-3.png (same row and wrapping)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/busy-week-dashboard-light-1024.aria.yml (full task title and widget heading)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/nested-projects-dashboard-dark-1024.scroll-0-2.png (similar narrow title in this seed)"
+      ],
+      "repro": [
+        "1. Load busy-week as Demo.",
+        "2. Open /app with a 1024 × 768 viewport.",
+        "3. Scroll to Recent Progress and read Approve homepage copy."
+      ],
+      "expected": "Completed task titles remain readable as words when the dashboard column narrows.",
+      "actual": "Approve homepage copy stacks almost entirely one character per line. A strike runs through each character, and the metadata sits beside the middle of the letter column.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design (legibility)"
+    },
+    {
+      "id": "C82-L5-010",
+      "auditor": "l5",
+      "theme": "both",
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "confidence": "observed",
+      "severity": "S2",
+      "surface": "dashboard › Recent Agent Activity › activity description",
+      "inventoryRow": "Dashboard widgets",
+      "seed": "agent-heavy",
+      "viewport": "375x812",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.scroll-0-4.png (Updated and overnight are split mid-word beside the timestamp)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-light-375.scroll-0-4.png (same activity rows and wrapping)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/agent-heavy-dashboard-dark-375.aria.yml (full activity text)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo.",
+        "2. Open /app with a 375 × 812 viewport.",
+        "3. Scroll to Claude’s entries in Recent Agent Activity."
+      ],
+      "expected": "An activity description remains readable when laid out next to its timestamp.",
+      "actual": "The description is confined to a narrow letter column beside the time. Lines split Updated into Update and d and overnight into overnig and ht. The document title below has the same fragmentation.",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design (legibility)"
+    },
+    {
+      "id": "C82-L5-011",
+      "auditor": "l5",
+      "theme": "both",
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "confidence": "observed",
+      "severity": "S2",
+      "surface": "Design Lab › phone layout › component specimens",
+      "inventoryRow": "`/prototype/design`",
+      "seed": "agent-heavy",
+      "viewport": "375x812",
+      "state": "default",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.scroll-0-14.png (specimen column extends past the right edge)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.scroll-0-14.png (same side-by-side layout)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-light-375.layout.json (main viewport width 375 and scrollWidth 626)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/prototype-design-dark-375.layout.json (same overflow in dark theme)"
+      ],
+      "repro": [
+        "1. Load agent-heavy as Demo.",
+        "2. Open /prototype/design with a 375 × 812 viewport.",
+        "3. Scroll down and try to read a specimen alongside the Design Lab controls."
+      ],
+      "expected": "Users can read and operate ordinary component specimens in a phone-width layout with vertical scrolling.",
+      "actual": "The token controls and specimen column stay side by side. The main content is measured at 626 CSS pixels wide in a 375 CSS pixel viewport, leaving only a strip of the specimen column visible at the default horizontal position.",
+      "heuristic": "WCAG 2.2 SC 1.4.10 Reflow (horizontal overflow observed at the available 375px capture width)"
+    },
+    {
+      "id": "C82-L5-012",
+      "auditor": "l5",
+      "theme": "both",
+      "persona": "user-demo",
+      "lens": "accessibility",
+      "decisionReopened": null,
+      "confidence": "inferred",
+      "severity": "S2",
+      "surface": "task details drawer › priority save feedback",
+      "inventoryRow": "Task detail drawer",
+      "seed": "nested-projects",
+      "viewport": "all",
+      "state": "priority saving and saved",
+      "evidence": [
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-dark-375.png (Saving alongside Priority)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-light-1440.aria.yml (drawer has the high selection but no Saving text under the dialog)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.png (Saved alongside Priority)",
+        "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/comb/drawer-saving-saved-dark-375.aria.yml (Priority saved appears as a paragraph under the dialog)"
+      ],
+      "repro": [
+        "1. Load nested-projects as Demo and set a simulated network delay in the development dialog.",
+        "2. Open Kitchen, then open Choose appliance finishes.",
+        "3. Set Priority to high and inspect the visible and accessible feedback before and after the change finishes."
+      ],
+      "expected": "Someone using assistive technology can learn that their priority change is saving and when it finishes while staying focused on the field.",
+      "actual": "The visual field label reports Saving, while the captured drawer accessibility tree lacks that message. After completion, Priority saved appears as a paragraph rather than a status entry in the tree. Whether a screen reader speaks the completion message is unverified.",
+      "heuristic": "WCAG 2.2 SC 4.1.3 Status Messages"
+    }
+  ],
+  "contrastTable": [
+    {
+      "element": "body: Fun Fact",
+      "cell": "busy-week-dashboard",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafd",
+      "ratio": 17.325,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: prototype AI byline",
+      "cell": "busy-week-dashboard",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f9fafd",
+      "ratio": 7.292,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "button: theme selector",
+      "cell": "busy-week-dashboard",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#d8d9ef",
+      "ratio": 12.995,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: Verify analytics events",
+      "cell": "busy-week-dashboard",
+      "theme": "light",
+      "fg": "#1f4fd0",
+      "bg": "#ffffff",
+      "ratio": 6.802,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: overdue date",
+      "cell": "busy-week-dashboard",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#ffffff",
+      "ratio": 7.61,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: overdue badge",
+      "cell": "busy-week-dashboard",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#faf6f5",
+      "ratio": 7.09,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: Fun Fact",
+      "cell": "busy-week-dashboard",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#131624",
+      "ratio": 16.35,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: prototype AI byline",
+      "cell": "busy-week-dashboard",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#131624",
+      "ratio": 9.423,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "button: theme selector",
+      "cell": "busy-week-dashboard",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#2c2a52",
+      "ratio": 12.24,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: Verify analytics events",
+      "cell": "busy-week-dashboard",
+      "theme": "dark",
+      "fg": "#ffad7f",
+      "bg": "#1a1f2e",
+      "ratio": 9.017,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: overdue date",
+      "cell": "busy-week-dashboard",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1f2e",
+      "ratio": 8.603,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: overdue badge",
+      "cell": "busy-week-dashboard",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#211e28",
+      "ratio": 8.592,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: Markdown section paragraph",
+      "cell": "nested-projects-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafd",
+      "ratio": 17.325,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: due or target date",
+      "cell": "nested-projects-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafc",
+      "ratio": 17.314,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "button: Edit Markdown",
+      "cell": "nested-projects-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafd",
+      "ratio": 17.325,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: project navigation",
+      "cell": "nested-projects-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#ffffff",
+      "ratio": 18.083,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "placeholder: Add a task",
+      "cell": "nested-projects-project",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f0f3fa",
+      "ratio": 6.851,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: Markdown section paragraph",
+      "cell": "nested-projects-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#131624",
+      "ratio": 16.35,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: due or target date",
+      "cell": "nested-projects-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#131725",
+      "ratio": 16.225,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "button: Edit Markdown",
+      "cell": "nested-projects-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#131624",
+      "ratio": 16.35,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: project navigation",
+      "cell": "nested-projects-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#20253a",
+      "ratio": 13.767,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "placeholder: Add a task",
+      "cell": "nested-projects-project",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#0f111e",
+      "ratio": 9.833,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: task title",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f6f6ff",
+      "ratio": 16.83,
+      "required": "3:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: Changes save automatically",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f6f6ff",
+      "ratio": 7.083,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: No description yet",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f6f7ff",
+      "ratio": 7.127,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: selected priority",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f0f2fb",
+      "ratio": 16.187,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: task details label",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f7f7ff",
+      "ratio": 7.14,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: title field label",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f7f8ff",
+      "ratio": 7.185,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: task title input",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#eff1fb",
+      "ratio": 16.055,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: task title",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#1b1d36",
+      "ratio": 14.97,
+      "required": "3:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: Changes save automatically",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1b1d36",
+      "ratio": 8.628,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: No description yet",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1d35",
+      "ratio": 8.659,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: selected priority",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#121423",
+      "ratio": 16.605,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: task details label",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1d33",
+      "ratio": 8.683,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: title field label",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#191c33",
+      "ratio": 8.768,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer: task title input",
+      "cell": "nested-projects-kitchen-task-drawer",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#121425",
+      "ratio": 16.569,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Edit details",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#fcfcff",
+      "ratio": 17.658,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Status group label",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#fcfcff",
+      "ratio": 7.432,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: active status",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fbfe",
+      "ratio": 17.444,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Archive workstream",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "light",
+      "fg": "#a51f15",
+      "bg": "#fefeff",
+      "ratio": 7.423,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Open archive",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#fdfdff",
+      "ratio": 17.799,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Edit details",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#1b1e34",
+      "ratio": 14.897,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Status group label",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1e33",
+      "ratio": 8.616,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: active status",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#171b2b",
+      "ratio": 15.549,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Archive workstream",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "dark",
+      "fg": "#ff9c9c",
+      "bg": "#191d2e",
+      "ratio": 8.346,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "menu: Open archive",
+      "cell": "nested-projects-kitchen-more",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#191d2f",
+      "ratio": 15.178,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: recovery explanation",
+      "cell": "nested-projects-archive",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#e9edf7",
+      "ratio": 6.495,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: archive provenance",
+      "cell": "nested-projects-archive",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#ffffff",
+      "ratio": 7.61,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "button: restore saved content",
+      "cell": "nested-projects-archive",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#eeefef",
+      "ratio": 15.696,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: history",
+      "cell": "nested-projects-archive",
+      "theme": "light",
+      "fg": "#1f4fd0",
+      "bg": "#ffffff",
+      "ratio": 6.802,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "control text: restore as",
+      "cell": "nested-projects-archive",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f3f5fb",
+      "ratio": 16.589,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: recovery explanation",
+      "cell": "nested-projects-archive",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#0d0f1a",
+      "ratio": 10.002,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: archive provenance",
+      "cell": "nested-projects-archive",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1f2e",
+      "ratio": 8.603,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "button: restore saved content",
+      "cell": "nested-projects-archive",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#292d3c",
+      "ratio": 12.441,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: history",
+      "cell": "nested-projects-archive",
+      "theme": "dark",
+      "fg": "#ffad7f",
+      "bg": "#1a1f2e",
+      "ratio": 9.017,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "control text: restore as",
+      "cell": "nested-projects-archive",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#121622",
+      "ratio": 16.412,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: Markdown section paragraph",
+      "cell": "overdue-chaos-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafd",
+      "ratio": 17.325,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: due or target date",
+      "cell": "overdue-chaos-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafd",
+      "ratio": 17.325,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "button: Edit Markdown",
+      "cell": "overdue-chaos-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafd",
+      "ratio": 17.325,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: project navigation",
+      "cell": "overdue-chaos-project",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#ffffff",
+      "ratio": 18.083,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "placeholder: Add a task",
+      "cell": "overdue-chaos-project",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f0f3fa",
+      "ratio": 6.851,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: Markdown section paragraph",
+      "cell": "overdue-chaos-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#131624",
+      "ratio": 16.35,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: due or target date",
+      "cell": "overdue-chaos-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#131624",
+      "ratio": 16.35,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "button: Edit Markdown",
+      "cell": "overdue-chaos-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#131624",
+      "ratio": 16.35,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: project navigation",
+      "cell": "overdue-chaos-project",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#20253a",
+      "ratio": 13.767,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "placeholder: Add a task",
+      "cell": "overdue-chaos-project",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#0f111e",
+      "ratio": 9.833,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "body: agent permission explanation",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#e9eaf7",
+      "ratio": 6.37,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: workspace permission explanation",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#ffffff",
+      "ratio": 7.61,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: Claude last used",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#ffffff",
+      "ratio": 7.61,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "button: Revoke Claude",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "light",
+      "fg": "#a51f15",
+      "bg": "#f6e8e7",
+      "ratio": 6.276,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: Settings breadcrumb",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#dfc6bf",
+      "ratio": 11.166,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "control text: Read projects",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#ffffff",
+      "ratio": 18.083,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "body: agent permission explanation",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#11121d",
+      "ratio": 9.756,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "secondary: workspace permission explanation",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1f2e",
+      "ratio": 8.603,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: Claude last used",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1f2e",
+      "ratio": 8.603,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "button: Revoke Claude",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "dark",
+      "fg": "#ff9c9c",
+      "bg": "#3e333f",
+      "ratio": 5.992,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "link: Settings breadcrumb",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#6d483f",
+      "ratio": 7.209,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "control text: Read projects",
+      "cell": "agent-heavy-settings-agents",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#1a1f2e",
+      "ratio": 14.926,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "body: Ground carries ambient colour",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#ffffff",
+      "ratio": 7.61,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: value-slider helper",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#ffffff",
+      "ratio": 7.61,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "button: Copy CSS",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#ffffff",
+      "ratio": 18.083,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "link: Open Kitchen",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#1f4fd0",
+      "bg": "#f3f6fd",
+      "ratio": 6.287,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "placeholder: Project name",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#eff0f8",
+      "ratio": 6.7,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer specimen: Owner / Due date / Description",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f9fbfe",
+      "ratio": 7.341,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "dialog specimen: Ready to create",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f9fafe",
+      "ratio": 17.336,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "dialog specimen: Create",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#ffffff",
+      "bg": "#1f4fd0",
+      "ratio": 6.802,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "menu specimen: Edit details",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#f8fafe",
+      "ratio": 17.305,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "toast specimen: Removed the Notes section",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#ffffff",
+      "ratio": 18.083,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "body: Ground carries ambient colour",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1f2e",
+      "ratio": 8.603,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "secondary: value-slider helper",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1f2e",
+      "ratio": 8.603,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "button: Copy CSS",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#20253a",
+      "ratio": 13.767,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "link: Open Kitchen",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#ffad7f",
+      "bg": "#0e121f",
+      "ratio": 10.254,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "placeholder: Project name",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#12111c",
+      "ratio": 9.803,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer specimen: Owner / Due date / Description",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#171b2b",
+      "ratio": 8.962,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "dialog specimen: Ready to create",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#171b2b",
+      "ratio": 15.549,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "dialog specimen: Create",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#1a1208",
+      "bg": "#ffad7f",
+      "ratio": 10.173,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "menu specimen: Edit details",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#161a2b",
+      "ratio": 15.694,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "toast specimen: Removed the Notes section",
+      "cell": "agent-heavy-prototype-design",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#20253a",
+      "ratio": 13.767,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "drawer section heading: Projects",
+      "cell": "nested-projects-phone-menu",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#fbf8fa",
+      "ratio": 7.215,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer control text: New project",
+      "cell": "nested-projects-phone-menu",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#fbfcfe",
+      "ratio": 17.615,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer link: Home",
+      "cell": "nested-projects-phone-menu",
+      "theme": "light",
+      "fg": "#121620",
+      "bg": "#ffffff",
+      "ratio": 18.083,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "drawer link: Home renovation",
+      "cell": "nested-projects-phone-menu",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#fbfbfd",
+      "ratio": 7.363,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer secondary link: Archived projects",
+      "cell": "nested-projects-phone-menu",
+      "theme": "light",
+      "fg": "#4c5464",
+      "bg": "#f8f9fc",
+      "ratio": 7.229,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer section heading: Projects",
+      "cell": "nested-projects-phone-menu",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#201f2d",
+      "ratio": 8.497,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer control text: New project",
+      "cell": "nested-projects-phone-menu",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#171c2d",
+      "ratio": 15.395,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer link: Home",
+      "cell": "nested-projects-phone-menu",
+      "theme": "dark",
+      "fg": "#f2f4fa",
+      "bg": "#20253a",
+      "ratio": 13.767,
+      "required": "4.5:1",
+      "method": "computed"
+    },
+    {
+      "element": "drawer link: Home renovation",
+      "cell": "nested-projects-phone-menu",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1a1c2d",
+      "ratio": 8.819,
+      "required": "4.5:1",
+      "method": "sampled"
+    },
+    {
+      "element": "drawer secondary link: Archived projects",
+      "cell": "nested-projects-phone-menu",
+      "theme": "dark",
+      "fg": "#b4bccc",
+      "bg": "#1b1f2f",
+      "ratio": 8.574,
+      "required": "4.5:1",
+      "method": "sampled"
+    }
+  ]
+}
