@@ -4,6 +4,8 @@
 //
 //   node docs/roadmap/70-ui-ux/tooling/build-comb.mjs           validate; write tally.json once themes.json exists
 //   node docs/roadmap/70-ui-ux/tooling/build-comb.mjs --check   validate only
+//   node docs/roadmap/70-ui-ux/tooling/build-comb.mjs --evidence  list evidence paths that do not resolve on this
+//                                                                 machine (ux-output/ is git-ignored; step 4a, not the test)
 //
 // Files it reads (each optional until the step that writes it):
 //   findings/{w1..w4,l1..l7}.json  { auditor, attestation, findings: [record], contrastTable? (l5) }
@@ -310,7 +312,36 @@ export function computeTally(c) {
   };
 }
 
+const EVIDENCE_PATH = /(?:apps\/e2e\/ux-output\/[^\s:()'",;]+|(?<![\w/.-])[\w.-]+\.(?:png|json|yml))/g;
+/**
+ * Resolves the file paths cited in evidence (free text without a path is allowed, briefs § 6). A repo-relative
+ * path must exist; a bare file name is looked up in the auditor's walk folder, then in the capture folder `c82`.
+ * Returns `{ checked, missing: [{ id, path }], bare: [{ id, path, resolved }] }`.
+ */
+export function checkEvidence(c, repo, { c82 = null } = {}) {
+  const out = { checked: 0, missing: [], bare: [] };
+  const walk = file => join('apps/e2e/ux-output/walk', file === 'comb-list' ? 'repro' : file);
+  for (const { file, record } of records(c)) for (const text of record.evidence ?? []) for (const [path] of String(text).matchAll(EVIDENCE_PATH)) {
+    const clean = path.replace(/[.]+$/, '');
+    out.checked++;
+    if (clean.includes('/')) { if (!existsSync(resolve(repo, clean))) out.missing.push({ id: record.id, path: clean }); continue; }
+    const dirs = [walk(file), ...(c82 ? [join('apps/e2e/ux-output', c82), join('apps/e2e/ux-output', c82, 'comb')] : [])];
+    const hit = dirs.map(d => join(d, clean)).find(candidate => existsSync(resolve(repo, candidate)));
+    if (hit) out.bare.push({ id: record.id, path: clean, resolved: hit }); else out.missing.push({ id: record.id, path: clean });
+  }
+  return out;
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  if (process.argv.includes('--evidence')) {
+    const here = import.meta.dirname, dir = resolve(here, '..', 'comb-82'), repo = resolve(here, '..', '..', '..', '..');
+    const c82 = '37dd16e2303e7d8968905de74767710d6b02b85c';
+    const result = checkEvidence(loadComb(dir, { gate1: resolve(here, '..', 'reproduction.json'), repo }), repo, { c82 });
+    for (const { id, path, resolved } of result.bare) console.log(`bare: ${id} ${path} -> ${resolved}`);
+    for (const { id, path } of result.missing) console.error(`missing: ${id} ${path}`);
+    console.log(`evidence: ${result.checked} paths checked, ${result.bare.length} bare names resolved, ${result.missing.length} missing`);
+    process.exit(result.missing.length ? 1 : 0);
+  }
   const here = import.meta.dirname, dir = resolve(here, '..', 'comb-82');
   const comb = loadComb(dir, { gate1: resolve(here, '..', 'reproduction.json'), repo: resolve(here, '..', '..', '..', '..') });
   // The tally checks run after regeneration, so a stale tally never blocks its own rewrite.

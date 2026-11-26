@@ -567,7 +567,9 @@ Open-lift and Lab geometry is listed as intended movement. Contrast stays report
 The Slice 82 comb has its own validator, `docs/roadmap/70-ui-ux/tooling/build-comb.mjs`, over
 `docs/roadmap/70-ui-ux/comb-82/` (findings, walkthroughs, verdicts, the Gate 1 ledger, the comb
 list, themes); it also generates `comb-82/tally.json`, the stop-rule tally, once `themes.json`
-exists (`--check` validates only). `node --test docs/roadmap/70-ui-ux/tooling/comb.test.mjs` runs
+exists (`--check` validates only; `--evidence` lists cited evidence paths that do not resolve on this
+machine, resolving a bare file name in the auditor's `ux-output/walk/<name>/`, since `ux-output/` is
+git-ignored and no test can see it). `node --test docs/roadmap/70-ui-ux/tooling/comb.test.mjs` runs
 every check against `comb-fixtures.mjs` (one good set, one bad file per check) and then over the
 real folder, skipping a check while its inputs are not written. Like `build-sheet.test.mjs` it is
 run by hand at each comb step, never by `pnpm test`.

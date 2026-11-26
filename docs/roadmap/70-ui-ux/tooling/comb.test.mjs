@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { CHECKS, computeTally, loadComb, runChecks } from './build-comb.mjs';
+import { CHECKS, checkEvidence, computeTally, loadComb, runChecks } from './build-comb.mjs';
 import { badFiles, goodFiles } from './comb-fixtures.mjs';
 
 const REPO = resolve(import.meta.dirname, '..', '..', '..', '..');
@@ -54,6 +54,25 @@ for (const [name, variants] of Object.entries(badFiles)) {
     });
   }
 }
+
+// Evidence paths (step 4a): resolved on this machine by `build-comb.mjs --evidence`, never against the real
+// git-ignored captures here; this proves only the resolver, on a temporary tree.
+test('evidence: a cited path resolves from the repo or by bare name in the auditor\'s walk folder', () => {
+  const root = mkdtempSync(join(tmpdir(), 'comb82-ev-'));
+  try {
+    const shots = join(root, 'apps/e2e/ux-output/walk/w1');
+    mkdirSync(shots, { recursive: true });
+    writeFileSync(join(shots, 'a.png'), '');
+    writeFileSync(join(shots, 'b.png'), '');
+    const comb = { findings: { w1: { auditor: 'w1', findings: [{ id: 'C82-W1-001', evidence: [
+      'apps/e2e/ux-output/walk/w1/a.png (seen)', 'as in b.png, the drawer', 'apps/e2e/ux-output/walk/w1/gone.png: lost', 'free text, no path',
+    ] }] } }, combList: null };
+    const result = checkEvidence(comb, root);
+    assert.equal(result.checked, 3);
+    assert.deepEqual(result.missing, [{ id: 'C82-W1-001', path: 'apps/e2e/ux-output/walk/w1/gone.png' }]);
+    assert.deepEqual(result.bare, [{ id: 'C82-W1-001', path: 'b.png', resolved: 'apps/e2e/ux-output/walk/w1/b.png' }]);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 // The real comb folder. A check reports null (skipped) while its inputs are absent.
 const real = existsSync(COMB) ? loadComb(COMB, { gate1: GATE1, repo: REPO }) : null;
