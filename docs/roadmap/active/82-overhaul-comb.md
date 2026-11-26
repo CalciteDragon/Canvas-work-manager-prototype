@@ -1,10 +1,10 @@
 <!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 (always held, Q5 (a))" -->
 # Slice 82 — Protocol §8 comb
 
-**State (2026-11-24):** **plan accepted by the user (2026-11-24, user decision) with all eight recommendations**
+**State (2026-11-26):** **plan accepted by the user (2026-11-24, user decision) with all eight recommendations**
 (Open questions 1–8 resolved: Q1 (a), Q2 (c), Q3 (b), Q4 (c), Q5 (a), Q6 (a), Q7 (a), Q8 (a)), after five review
-rounds and two review rounds of the acceptance amendment; new Open question 9 (lens and reproduction daemons) blocks
-nothing before step 3. **`<plan-accept>` = the acceptance commit, subject
+rounds and two review rounds of the acceptance amendment; new Open question 9 (lens and reproduction daemons) blocked
+nothing before step 3 and was **answered by the user on 2026-11-26: (a)** (see the end of this header). **`<plan-accept>` = the acceptance commit, subject
 "docs(slice 82): plan taken up by the user; answers to Q1–Q8 recorded (§77, §78)"; its hash: `8c1a524`** (`8c1a5248596a566f202b0e02368de4bb7e4d4849`, recorded by the follow-up docs commit,
 since a commit cannot name its own hash).
 **Step 0a done (2026-11-24): rig and tests.** `63bc1d2` (env.sh on Linux with `--print-paths`; `build-comb.mjs`
@@ -68,8 +68,9 @@ switches it, but the app's own theme switch sticks across a reseed, so W1 switch
 Afterwards 4201, 4322 and 5322 were free and `.prototype/notes.json` stayed at 1570 lines. L2's token-escape command
 prints 7 lines, none with an id. `comb.test.mjs` by hand: 59 pass, 20 skipped, 0 fail. **Ports:** W1 4322/5322, W2
 4323/5323, W3 4324/5324, W4 4325/5325; lens browsers L3 and L5 on 4326/5326, L4 and L7 on 4327/5327 (one pair each per
-batch, L1–L4 then L5–L7); L1, L2, L6 work from the captures. **Lens briefs depend on Open question 9:** a lens holds
-a browser only if its launch message says so; L5's `contrastTable` needs one. **Next: step 1** (W1 and W2): the
+batch, L1–L4 then L5–L7); L1, L2, L6 work from the captures. **Lens browsers:** a lens holds
+a browser only if its launch message says so (Open question 9 answered (a), 2026-11-26: the step 3 launch messages
+allow L3, L4, L5 and L7 one each, on Q6 (a)'s detached lifecycle and stop rule); L5's `contrastTable` needs one. **Next: step 1** (W1 and W2): the
 orchestrator starts `static.mjs` on 4201 (`setsid`, pgid file, as 0a), counts `.prototype/notes.json` lines, launches
 W1 and W2 as two cold foreground subagents each told to read `briefs/common.md` and its own brief, then stops 4201. Rerun: (in apps/e2e) `UX_MATCH=<range> pnpm exec playwright test
 --config ux/slice82.config.ts capture.ts`; `UX_COMB=tasks|surfaces[:group] … comb-verification.ts`; `node --import
@@ -138,8 +139,18 @@ T02–T09, T11, T12 as `-equiv`, **T10 blocked** for both; persona switched by t
 Acceptance 4 id pattern finds no Gate 1 id or note id in either walker's files. Attestations to judge at 4b: W3
 wrote two temp JSON files under `/tmp` and deleted them; W4's scripted typing once opened Project details by menu
 type-ahead (cancelled, no change). `comb.test.mjs` by hand: 79 tests, 68 pass, 11 skipped, 0 fail;
-`build-comb.mjs --check`: comb files valid. *Review* (one cold reviewer, process and schema only): no substantive findings; minors checked: the resumed W4 departs from "redo from the start" (disclosed above); some evidence entries are free text without a path (allowed by common.md § 6); the screenshots live only under the git-ignored `ux-output/walk/w3|w4/` (53 and 104 files), as at step 1, so do not prune them before 4b. **Next: step 3** (lenses L1–L7), **once the user answers Open question 9** (lens
-and reproduction daemons; recommendation (a)), which the plan says must be answered before step 3 starts.
+`build-comb.mjs --check`: comb files valid. *Review* (one cold reviewer, process and schema only): no substantive findings; minors checked: the resumed W4 departs from "redo from the start" (disclosed above); some evidence entries are free text without a path (allowed by common.md § 6); the screenshots live only under the git-ignored `ux-output/walk/w3|w4/` (53 and 104 files), as at step 1, so do not prune them before 4b. **Next: step 3** (lenses L1–L7).
+**Open question 9 answered (2026-11-26, user decision): (a), as recommended.** The lens browsers (step 3, L3 and L5
+on 4326/5326, L4 and L7 on 4327/5327) and the orchestrator's reproduction host (steps 4a and 4b, 4320/5320) use the
+walkers' detached lifecycle and stop rule: started with `setsid … >log 2>&1 </dev/null &` inside one foreground
+command, stopped with `walk.mjs … quit` plus a kill of the process group, their ports confirmed released before the
+lens or the step reports, nothing detached outliving the session; the (a′) `session.mjs` replay driver is the
+fallback if the detached lifecycle fails, without a new question. W4 from step 2 is **kept as filed** (the user did
+not ask for a rerun; its resumed-walk deviation is disclosed above). Recorded docs-only (no product code, no rig
+change, no capture). *Review* (one cold reviewer over the diff): no substantive findings; minors checked
+and kept ("L1–L7" in the answer names the step, as the user worded it, while only L3, L4, L5 and L7 hold a browser;
+the *Lenses* bullet and step 3 refer to Q6 (a)'s rule rather than repeating "nothing detached outliving the session"). **Next: step 3** (lenses L1–L7), in two batches if needed (L1–L4, then L5–L7), at most two lens
+browsers at once; the orchestrator starts and stops `static.mjs` on 4201 around the batch, as at steps 1 and 2.
 
 ## Goal
 
@@ -236,8 +247,9 @@ the routed fixes are a `planned/` candidate or listed per slice in the umbrella;
 - Use ports 4200 or 4310 as listeners, `route.continue()`, more than two browser jobs, or `run_in_background` (the approved exception, Q6 (a): the walk-rig
   daemons Q6 (a) describes, the orchestrator's `static.mjs` on 4201 and its Acceptance 1 probes and each walker's own
   `env.sh`, started detached with `setsid … >log 2>&1 </dev/null &` and stopped, `walk.mjs … quit` plus a kill of
-  the process group or a kill of `static.mjs`, before the step or the walker reports; lens and reproduction daemons:
-  Open question 9).
+  the process group or a kill of `static.mjs`, before the step or the walker reports; and, by Open question 9 (a) (user decision, 2026-11-26), the lens browsers'
+  daemons (step 3, 4326–4327 / 5326–5327) and the orchestrator's reproduction host (steps 4a and 4b, 4320 / 5320) on
+  the same terms, each stopped and its ports confirmed released before the lens or the step reports).
 - Raise the bundle ceiling; claim the stop rule holds; close the umbrella; pass Gate 3 for the user.
 - Rewrite a decision entry, the Gate 1 `themes.json`, `reproduction.json` or a Gate 1 finding record. Amend; add
   files.
@@ -401,7 +413,10 @@ green untouched.
   place for the persona walking it. T11 and T12 are new since
   Gate 1, whose walks covered T01–T10; that difference is recorded in the digest.
 - **Lenses (L1–L7)** read the `C82` captures at full resolution (crops, `layout.json`, `aria.yml`, `axe.json`), may
-  hold one walk-rig browser to confirm a fact, and use the given token-escape command (L2). **Themes:** `walkd` sets
+  hold one walk-rig browser to confirm a fact (L3 and L5 on 4326/5326, L4 and L7 on 4327/5327, when the launch
+  message allows it; the lens starts that `env.sh` daemon detached and stops it, `walk.mjs … quit` plus a kill of its
+  process group, confirming its ports are released before it reports: Q6 (a)'s lifecycle, extended by Open
+  question 9 (a); fallback (a′) `session.mjs`), and use the given token-escape command (L2). **Themes:** `walkd` sets
   the colour scheme at launch (`--theme`, default dark, `walkd.mjs:23`); each brief names the theme per daemon, and
   W1 switches with `page.emulateMedia({ colorScheme })` through `run` halfway through its tasks and records a
   per-task `theme` field (Gate 1's file-level `theme` stays as the starting theme); a persona's stored
@@ -500,7 +515,9 @@ Each step is one fresh session; each ends with a State header update and a commi
   orchestrator checks each file passes `comb.test.mjs` and the notes line count; it does not edit findings.
 - **2. Walkthroughs W3 (keyboard) and W4 (personas).** Same.
 - **3. Lenses L1–L7.** Seven cold foreground subagents over the captures, at most two holding a browser; two batches
-  (L1–L4, L5–L7) if one session cannot hold seven reports.
+  (L1–L4, L5–L7) if one session cannot hold seven reports. A lens browser is an `env.sh` daemon on the walkers'
+  detached lifecycle and stop rule (Open question 9 (a)): the lens stops it and confirms 4326/5326 or 4327/5327
+  released before it reports; the orchestrator confirms the same before the step reports.
 - **4a. Ledger and comb list.** Build `ledger.json` by the rule in § Build; re-verify comb items 1–22 and write
   `comb-list.json` and the `C82-CL-*` records. Items that need more than a click: item 6 (a write failing while the
   workspace is unreachable) by a routed failure with `route.fallback()`; items 12 and 13 (`restore_project` and the
@@ -508,8 +525,12 @@ Each step is one fresh session; each ends with a State header update and a commi
   with the fixture token `prototype-user-a-readwrite` (`packages/prototype-data` `agent-tokens.ts:18-22`), on the
   `nested-projects` seed (it holds `agent-claude`, which the token needs, `agent-tokens.ts:15-16`), driven by an SDK
   `Client` script in `repro/` that initialises a Streamable HTTP session first; item 16 (a live frame rewriting an open confirmation) by a second write to host 4320
-  while the confirmation is open.
-- **4b. Reproduction.** The orchestrator serves the static build on 4201 for 4a and 4b too. Reproduce every filed
+  while the confirmation is open. Host 4320 is the reproduction host, on the detached lifecycle and stop rule 4b names
+  (Open question 9 (a)).
+- **4b. Reproduction.** The orchestrator serves the static build on 4201 for 4a and 4b too, and runs the
+  reproduction host (4320, control 5320) for both as an `env.sh` daemon on the walkers' detached lifecycle and stop
+  rule (Open question 9 (a)): started with `setsid`, stopped with `walk.mjs 5320 quit` plus a kill of its process
+  group, 4320 and 5320 confirmed released before 4a or 4b reports, fallback (a′) `session.mjs`. Reproduce every filed
   finding (host 4320, scripts `repro/c82-*.js`), confirm decision
   citations, write `reproduction.json`, record friction notes.
 - **5. Synthesis and the Gate 3 artifact.** Classify against the ledger, cluster, write `comb-82/themes.json`, generate `tally.json`,
@@ -573,8 +594,7 @@ on this machine, not by the test.
 
 ## Open questions
 
-Questions 1–8 were resolved by the user on 2026-11-24, each as recommended; question 9 is open and blocks
-nothing before step 3. The options are kept as written; each
+Questions 1–8 were resolved by the user on 2026-11-24 and question 9 on 2026-11-26, each as recommended. The options are kept as written; each
 question carries its answer, and the plan above reads the answers as settled.
 
 1. **Resolved (user decision, 2026-11-24): (a).** **What "changed surfaces" means.** *Context:* protocol §8 says "a fresh comb on the changed surfaces"; no comb has
@@ -641,7 +661,7 @@ question carries its answer, and the plan above reads the answers as settled.
    rule on the accepted tints; (a) leaves the axe criterion as "zero serious on what axe can decide", which the digest
    says plainly.
    *Answer (user decision, 2026-11-24, as recommended):* **(a)** — report L5's measured contrast and axe's `color-contrast` incomplete count in the tally and digest, outside the stop rule (keeps the Gate 1 answer); L5's failures are still findings with a severity.
-9. **Lens and reproduction daemons under Q6 (a).** *Context:* the user's Q6 (a) approval names the walkers' detached
+9. **Resolved (user decision, 2026-11-26): (a).** **Lens and reproduction daemons under Q6 (a).** *Context:* the user's Q6 (a) approval names the walkers' detached
    `env.sh` daemons and the orchestrator's `static.mjs` on 4201 (and step 0a's probes, which prove them). The plan also
    runs walk-rig daemons for the lens browsers (step 3, 4326–4327 / 5326–5327) and the orchestrator's reproduction
    host (steps 4a–4b, 4320 / 5320), which Q6 (a)'s text does not name. *Options:* (a) they use the same detached
@@ -651,6 +671,7 @@ question carries its answer, and the plan above reads the answers as settled.
    and the same stop rule the user approved, with (b) as the fallback. *Impact:* blocks nothing in steps 0a–2; it
    must be answered before step 3 (lenses) starts. (b) needs `session.mjs` written even when 0a's Acceptance 1
    passes.
+   *Answer (user decision, 2026-11-26, as recommended):* **(a)** — the lens browsers (step 3, L1–L7, 4326–4327 / 5326–5327) and the orchestrator's reproduction host (steps 4a and 4b, 4320 / 5320) use the same detached lifecycle and stop rule the user approved for the walkers: started with `setsid`, stopped with `quit` plus a process-group kill, ports confirmed released before the lens or the step reports, nothing detached outliving the session; the (a′) `session.mjs` replay driver is the fallback. The user did not ask to rerun W4: step 2's W4 is kept as filed (its resumed-walk deviation is disclosed in the State header).
 
 ## Revisions
 
@@ -760,6 +781,20 @@ question carries its answer, and the plan above reads the answers as settled.
   dialog (a `localStorage` fallback named); T12's file is path-free (it reloads the current page), so W4 runs it from
   its own project; lens browsers are gated on the launch message until Open question 9 is answered; L5's contrast
   cells, elements and the pixel-sampling method are named, and its `contrastTable` rows add `cell` and `method`.
+
+- **Open question 9 answered (2026-11-26, user decision):** **(a)**, as recommended. The lens browsers (step 3,
+  L1–L7, 4326–4327 / 5326–5327) and the orchestrator's reproduction host (steps 4a and 4b, 4320 / 5320) use the same
+  detached lifecycle and stop rule the user approved for the walkers (started with `setsid`, stopped with `quit` plus
+  a process-group kill, ports confirmed released before the lens or the step reports, nothing detached outliving the
+  session), with the (a′) `session.mjs` replay driver as the fallback. The user did not ask to rerun W4: step 2's W4
+  is kept as filed (its resumed-walk deviation stays disclosed in the State header). Places changed: the State header
+  (date; the acceptance line's "blocks nothing before step 3"; step 0c's lens-browser line; step 2's "Next", now
+  unconditional, and a new paragraph recording the answer); § Do not (the daemon exception now names the lens and
+  reproduction daemons instead of deferring to Open question 9); § Auditor isolation and method (*Lenses*: the lens
+  browser's ports, lifecycle and fallback); § Implementation sequence steps 3, 4a and 4b (lifecycle and stop rule;
+  not renumbered); § Open questions (intro, and question 9 marked resolved with its answer, the options kept). The
+  step 0c entry above still says lens browsers were gated "until Open question 9 is answered"; it is a frozen record
+  and is not rewritten. Docs only: no product code, rig, brief or capture change.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
