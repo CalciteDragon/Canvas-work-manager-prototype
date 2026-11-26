@@ -1,0 +1,726 @@
+{
+  "verifiedAt": "C82 (37dd16e2303e7d8968905de74767710d6b02b85c) build, 2026-11-26, slice 82 step 4a",
+  "method": "Re-verified by the orchestrator (not auditors), Q2 (c): static build on 4201, reproduction host 4320 / control 5320 (env.sh daemon, detached lifecycle, Open question 9 (a)); desktop 1440x900 light, item 22 and item 11 also on a 375x812 touch daemon; MCP through apps/e2e/ux/walk/repro/c82-mcp.mjs (Streamable HTTP, fixture token prototype-user-a-readwrite, nested-projects). Severity is the orchestrator's; every non-closed item routes to Slice 82.1 whatever its severity (Q2 (c)). Not fixed here.",
+  "items": [
+    {
+      "item": 1,
+      "status": "closed",
+      "noteId": "note-2026-11-05-002",
+      "record": null,
+      "note": "Re-checked at C82: an archived root with its workstreams cascaded (Home renovation) draws no \"No workstreams yet\" in the tree or on the page; nor does Legacy attic. Closed by Slice 80 (Q6 (a)) and Slice 81's Outcome (the tree draws no empty sentence under a root).",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/002-cl01-renovation-archived.png",
+        "apps/e2e/ux-output/walk/repro/001-cl01-legacy.png"
+      ]
+    },
+    {
+      "item": 2,
+      "status": "open",
+      "noteId": "note-2026-11-05-003",
+      "record": "C82-CL-02",
+      "note": "The detail tells the user to \"Restore or move the new dependent\" about a workstream that was always there and is live: \"Restore\" does not apply and \"new\" is wrong."
+    },
+    {
+      "item": 3,
+      "status": "open",
+      "noteId": "note-2026-11-05-004",
+      "record": "C82-CL-03",
+      "note": "Preview still says \"Unsaved preview\" over the saved text, with nothing unsaved."
+    },
+    {
+      "item": 4,
+      "status": "open",
+      "noteId": "note-2026-11-05-005",
+      "record": "C82-CL-04",
+      "note": "Archive offers \"Go to it\" and Undo; Settings offers \"Open it\" and no Undo, for the same restore."
+    },
+    {
+      "item": 5,
+      "status": "open",
+      "noteId": null,
+      "record": "C82-CL-05",
+      "note": "The intro \"Open a row to work on it where it lives.\" sits over \"Restore to view 12 hidden todos.\", with no rows."
+    },
+    {
+      "item": 6,
+      "status": "open",
+      "noteId": null,
+      "record": "C82-CL-06",
+      "note": "The header keeps \"History unavailable\" and a bare Retry after the workspace is reachable; nothing re-reads until Retry is pressed."
+    },
+    {
+      "item": 7,
+      "status": "open",
+      "noteId": null,
+      "record": "C82-CL-07",
+      "note": "The refusal nests quotes (\"“Reactivated “Legacy attic””\") and shows a record id in brackets."
+    },
+    {
+      "item": 8,
+      "status": "partly-closed",
+      "noteId": null,
+      "record": "C82-CL-08",
+      "note": "Partly closed: history_blocked is a headline with details; restoredItemFeedback still reads as two full sentences in one message. history_expired, history_retired and history_unavailable were not reached on the rig."
+    },
+    {
+      "item": 9,
+      "status": "open",
+      "noteId": null,
+      "record": "C82-CL-09",
+      "note": "Every dashboard row keeps an empty 46 px control gutter before its title."
+    },
+    {
+      "item": 10,
+      "status": "open",
+      "noteId": null,
+      "record": "C82-CL-10",
+      "note": "Wording unchanged since the user called it unclear at Gate 2 (Slice 80)."
+    },
+    {
+      "item": 11,
+      "status": "open",
+      "noteId": null,
+      "record": "C82-CL-11",
+      "note": "The two buttons touch with no gap at 1440 and at 375 on touch."
+    },
+    {
+      "item": 12,
+      "status": "open",
+      "noteId": "note-2026-11-09-008",
+      "record": "C82-CL-12",
+      "note": "\"still has active workstreams\" lists Garden, which is Completed."
+    },
+    {
+      "item": 13,
+      "status": "open",
+      "noteId": "note-2026-11-09-008",
+      "record": "C82-CL-13",
+      "note": "It names them by id only."
+    },
+    {
+      "item": 14,
+      "status": "open",
+      "noteId": "note-2026-11-09-008",
+      "record": "C82-CL-14",
+      "note": "History says \"Reactivated\", toasts say \"Restored\"."
+    },
+    {
+      "item": 15,
+      "status": "open",
+      "noteId": "note-2026-11-09-002",
+      "record": "C82-CL-15",
+      "note": "\"On Hold\" in the chip, \"On hold\" in the Restore as selects."
+    },
+    {
+      "item": 16,
+      "status": "open",
+      "noteId": "note-2026-11-09-003",
+      "record": "C82-CL-16",
+      "note": "The open confirmation rewrites its list and count in place with no notice."
+    },
+    {
+      "item": 17,
+      "status": "open",
+      "noteId": "note-2026-11-09-005",
+      "record": "C82-CL-17",
+      "note": "The visible button reads only \"Restore\"; only the sentence (and the accessible name) says it restores Home renovation."
+    },
+    {
+      "item": 18,
+      "status": "open",
+      "noteId": "note-2026-11-24-002",
+      "record": "C82-CL-18",
+      "note": "Kitchen's workstreams stay collapsed on Kitchen; Cabinets and the new one are hidden until Show Kitchen’s workstreams."
+    },
+    {
+      "item": 19,
+      "status": "open",
+      "noteId": "note-2026-11-24-003",
+      "record": "C82-CL-19",
+      "note": "Legacy shelving is reachable only by URL; nothing says it exists."
+    },
+    {
+      "item": 20,
+      "status": "open",
+      "noteId": "note-2026-11-24-004",
+      "record": "C82-CL-20",
+      "note": "Focus falls to body after Undo and after Redo of a workstream creation."
+    },
+    {
+      "item": 21,
+      "status": "open",
+      "noteId": "note-2026-11-24-005",
+      "record": "C82-CL-21",
+      "note": "\"1 items\"."
+    },
+    {
+      "item": 22,
+      "status": "open",
+      "noteId": "note-2026-11-24-006",
+      "record": "C82-CL-22",
+      "note": "Unchanged since Slice 81: the header takes 202 px of 812 on Cabinets (a quarter of the screen)."
+    }
+  ],
+  "records": [
+    {
+      "id": "C82-CL-02",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "project header › Undo refusal › View details",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Legacy attic restored from Archive, then header Undo",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/010-cl02-cl07-refusal.png",
+        "dialog text: \"Legacy shelving [project-legacy-child]: Restore or move the new dependent, then try Undo again.\""
+      ],
+      "repro": [
+        "1. seed nested-projects",
+        "2. /projects/project-renovation/pages/archive: Restore Legacy attic (as Active)",
+        "3. open /projects/project-legacy, press the header Undo",
+        "4. View details"
+      ],
+      "expected": "The reason names what blocks the Undo: Legacy shelving inside the attic is live, so the attic cannot go back to archived.",
+      "actual": "The detail tells the user to \"Restore or move the new dependent\" about a workstream that was always there and is live: \"Restore\" does not apply and \"new\" is wrong.",
+      "lens": "copy",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose and recover from errors",
+      "severity": "S2"
+    },
+    {
+      "id": "C82-CL-03",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "Markdown section › edit › Preview",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "typed draft, Cancel, Edit, Discard draft, Preview",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/011-cl03-preview-after-discard.png",
+        "Preview after Discard draft: \"Unsaved preview\" over \"Appliances and finishes before cabinets are ordered.\" (the saved text)"
+      ],
+      "repro": [
+        "1. seed nested-projects, open /projects/project-kitchen",
+        "2. Markdown: Edit, type \" DRAFT\", Preview, Cancel",
+        "3. Edit (\"Your unsaved draft is back.\"), Discard draft",
+        "4. Preview"
+      ],
+      "expected": "With the draft discarded, Preview shows the saved text without an unsaved label.",
+      "actual": "Preview still says \"Unsaved preview\" over the saved text, with nothing unsaved.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-04",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": "Feedback is one toast with receipt-specific Undo",
+      "auditor": "orchestrator",
+      "surface": "restore toast (project Archive vs Settings › Archived projects)",
+      "inventoryRow": "`/projects/:projectId/pages/archive`",
+      "state": "Legacy attic restored as Active from each place",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/008-cl04-archive-restore.png",
+        "apps/e2e/ux-output/walk/repro/009-cl04-settings-restore.png",
+        "Archive: \"Restored Legacy attic as Active.\" with Go to it, Undo, Dismiss; Settings: the same sentence with Open it, Dismiss and no Undo; focus lands on Go to it / Open it"
+      ],
+      "repro": [
+        "1. seed nested-projects; /projects/project-renovation/pages/archive: Restore Legacy attic",
+        "2. reseed; /settings/archived-projects: Restore Legacy attic",
+        "3. compare the two toasts"
+      ],
+      "expected": "One restore gives one feedback: the same link name and the same Undo wherever it starts.",
+      "actual": "Archive offers \"Go to it\" and Undo; Settings offers \"Open it\" and no Undo, for the same restore.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-05",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "Todos page of an archived root",
+      "inventoryRow": "`/projects/:projectId/pages/todos`",
+      "state": "Home renovation archived with its three workstreams (MCP archive_project)",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/005-cl05-todos-archived.png",
+        "main text: \"Everything under this project, in due-date order. Open a row to work on it where it lives.\" then \"Restore to view 12 hidden todos.\""
+      ],
+      "repro": [
+        "1. seed nested-projects; archive project-renovation with Kitchen, Cabinets, Garden (MCP, c82-mcp.mjs)",
+        "2. open Home renovation › Todos"
+      ],
+      "expected": "An archived root's Todos says why nothing is listed and how to bring it back, without an instruction to open rows that are not there.",
+      "actual": "The intro \"Open a row to work on it where it lives.\" sits over \"Restore to view 12 hidden todos.\", with no rows.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-06",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "project header history after a failed write",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "workspace unreachable (writes and history reads refused at the network), then reachable again",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/001-cl06-header-retry.png",
+        "script apps/e2e/ux/walk/repro/c82-item06-unreachable-write.js: during, history buttons \"History unavailable\", \"History unavailable\", \"Retry\"; 4 s after the network returns, the same three"
+      ],
+      "repro": [
+        "1. seed nested-projects",
+        "2. node apps/e2e/ux/walk/walk.mjs 5320 run -f apps/e2e/ux/walk/repro/c82-item06-unreachable-write.js (adds a task on Kitchen while /api writes and history reads are refused; route.fallback() for the rest)",
+        "3. read the header history before and after the route is lifted"
+      ],
+      "expected": "Once the workspace answers again, the history re-reads itself (or says how), so Undo of the next write is available.",
+      "actual": "The header keeps \"History unavailable\" and a bare Retry after the workspace is reachable; nothing re-reads until Retry is pressed.",
+      "lens": "states",
+      "heuristic": "Nielsen #9 Help users recover from errors",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-07",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "Undo refusal details view",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "as item 2",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/010-cl02-cl07-refusal.png",
+        "text: \"“Reactivated “Legacy attic”” can’t be undone…\" and \"Legacy shelving [project-legacy-child]: …\""
+      ],
+      "repro": [
+        "as C82-CL-02, steps 1–4"
+      ],
+      "expected": "Product copy with one level of quotation and no record ids (direction §8).",
+      "actual": "The refusal nests quotes (\"“Reactivated “Legacy attic””\") and shows a record id in brackets.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-08",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "feedback toast messages",
+      "inventoryRow": "`/projects/:projectId/pages/archive`",
+      "state": "blocked Undo; a cascade restore from Archive",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/012-cl08-blocked-toast.png",
+        "apps/e2e/ux-output/walk/repro/013-cl08-cascade-restore-toast.png",
+        "blocked Undo toast is now the headline \"Couldn’t undo.\" with View details; cascade restore toast: \"Restored Kitchen as Active. 1 workstream came back as it was.\" in one line",
+        "expired/retired/unavailable not reached: past the 24 h window the button reads \"Nothing to undo\""
+      ],
+      "repro": [
+        "1. as C82-CL-02 steps 1–3 for the blocked toast",
+        "2. seed nested-projects; MCP archive_project project-kitchen with project-cabinets; /projects/project-renovation/pages/archive: Restore Kitchen"
+      ],
+      "expected": "Every long toast is a short headline plus a reason, as the blocked Undo now is.",
+      "actual": "Partly closed: history_blocked is a headline with details; restoredItemFeedback still reads as two full sentences in one message. history_expired, history_retired and history_unavailable were not reached on the rig.",
+      "lens": "copy",
+      "heuristic": "Nielsen #8 Aesthetic and minimalist design",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-09",
+      "seed": "busy-week",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "dashboard task rows",
+      "inventoryRow": "`/app`",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/015-cl09-dashboard.png",
+        "row left 313, title left 359: a 46 px empty gutter before every title (Today and Upcoming)"
+      ],
+      "repro": [
+        "1. seed busy-week",
+        "2. open /app"
+      ],
+      "expected": "Dashboard rows start their content at the row edge, or the gutter holds a control.",
+      "actual": "Every dashboard row keeps an empty 46 px control gutter before its title.",
+      "lens": "hierarchy",
+      "heuristic": "Gestalt alignment / Nielsen #8",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-10",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "archive confirmation › late refusal",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "live stream blocked; a workstream added under Kitchen while its confirmation is open",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/019-cl10-late-refusal.png",
+        "status: \"The workstreams under “Kitchen” changed. Choose Archive again to confirm the current list.\""
+      ],
+      "repro": [
+        "1. seed nested-projects; walk.mjs run: context.route(/\\/prototype\\/events/, r => r.abort())",
+        "2. run -f apps/e2e/ux/walk/repro/c82-open-archive-confirm.js",
+        "3. MCP create_project {kind: subproject, name: Late drawers, parentProjectId: project-kitchen}",
+        "4. press Archive all"
+      ],
+      "expected": "The refusal says plainly what changed and what to do next.",
+      "actual": "Wording unchanged since the user called it unclear at Gate 2 (Slice 80).",
+      "lens": "copy",
+      "heuristic": "Nielsen #9 Help users recognize, diagnose and recover from errors",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-11",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900 and 375x812 touch",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "archive confirmation buttons",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Kitchen's confirmation open",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/016-cl11-cl16-confirm-before.png",
+        "apps/e2e/ux-output/walk/repro-touch/002-cl11-confirm-375-touch.png",
+        "1440: Archive all 425–525, Cancel 525–598; 375 touch: Archive all 43–143, Cancel 143–216 (no gap)"
+      ],
+      "repro": [
+        "1. seed nested-projects",
+        "2. run -f apps/e2e/ux/walk/repro/c82-open-archive-confirm.js (Kitchen › More › Archive)"
+      ],
+      "expected": "A gap separates the destructive Archive all from Cancel, especially on touch.",
+      "actual": "The two buttons touch with no gap at 1440 and at 375 on touch.",
+      "lens": "affordance",
+      "heuristic": "Fitts / error prevention (Nielsen #5)",
+      "severity": "S2"
+    },
+    {
+      "id": "C82-CL-12",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "archive refusal (MCP archive_project; the web's Details)",
+      "inventoryRow": "`/mcp`",
+      "state": "archive_project on project-renovation without workstream ids",
+      "evidence": [
+        "MCP via apps/e2e/ux/walk/repro/c82-mcp.mjs: isError, \"project \\\"project-renovation\\\" still has active workstreams: \\\"Kitchen\\\" [project-kitchen], \\\"Cabinets\\\" [project-cabinets], \\\"Garden\\\" [project-garden]\"; get_project project-garden: status completed"
+      ],
+      "repro": [
+        "1. seed nested-projects (host 4320)",
+        "2. node apps/e2e/ux/walk/repro/c82-mcp.mjs '[[\"archive_project\",{\"projectId\":\"project-renovation\"}]]'"
+      ],
+      "expected": "The refusal calls the blocking workstreams live (not archived), since the rule is about live ones.",
+      "actual": "\"still has active workstreams\" lists Garden, which is Completed.",
+      "lens": "copy",
+      "heuristic": "Nielsen #2 Match between system and the real world",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-13",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "MCP restore_project refusal on a marked workstream",
+      "inventoryRow": "`/mcp`",
+      "state": "Home renovation archived with its workstreams",
+      "evidence": [
+        "MCP: restore_project project-cabinets → isError \"project \\\"project-cabinets\\\" was archived with \\\"project-renovation\\\"; restore \\\"project-renovation\\\" to bring it back\""
+      ],
+      "repro": [
+        "1. seed nested-projects",
+        "2. c82-mcp.mjs archive_project project-renovation with archiveWorkstreamIds [project-kitchen, project-cabinets, project-garden]",
+        "3. c82-mcp.mjs restore_project {projectId: project-cabinets, status: active}"
+      ],
+      "expected": "The refusal names both projects by name and id, as the archive refusal does.",
+      "actual": "It names them by id only.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-14",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "project header history label",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Home renovation restored from its banner after a cascade archive",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/007-cl14-restored-toast.png",
+        "header Undo label: \"Undo: Reactivated \\\"Home renovation\\\" and 3 workstreams\"; the toasts say \"Restored …\""
+      ],
+      "repro": [
+        "1. seed nested-projects; MCP cascade archive of project-renovation",
+        "2. /projects/project-renovation: Restore as On hold, Restore",
+        "3. read the header Undo button's label"
+      ],
+      "expected": "History and toasts use one verb for one action.",
+      "actual": "History says \"Reactivated\", toasts say \"Restored\".",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-15",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "status chip vs Restore as select",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Home renovation restored as On hold",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/007-cl14-restored-toast.png",
+        "status chip \"On Hold\"; every Restore as select option \"On hold\""
+      ],
+      "repro": [
+        "as C82-CL-14"
+      ],
+      "expected": "One casing for one status.",
+      "actual": "\"On Hold\" in the chip, \"On hold\" in the Restore as selects.",
+      "lens": "consistency",
+      "heuristic": "Nielsen #4 Consistency and standards",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-16",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "archive confirmation under a live frame",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Kitchen's confirmation open; an agent adds a workstream under Kitchen",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/016-cl11-cl16-confirm-before.png",
+        "apps/e2e/ux-output/walk/repro/018-cl16-confirm-after-live-frame.png",
+        "before: \"Archive “Kitchen” and its 1 workstream?\" Cabinets; after the MCP write: \"its 2 workstreams?\", Late drawers · Planning added; live regions empty; focus stays on Cancel"
+      ],
+      "repro": [
+        "1. seed nested-projects; run -f c82-open-archive-confirm.js",
+        "2. second write to host 4320 while it is open: c82-mcp.mjs create_project {kind: subproject, name: Late drawers, parentProjectId: project-kitchen}",
+        "3. read the dialog after 1.5 s"
+      ],
+      "expected": "When the list being confirmed changes, the dialog says so (or announces the new count).",
+      "actual": "The open confirmation rewrites its list and count in place with no notice.",
+      "lens": "states",
+      "heuristic": "Nielsen #1 Visibility of system status; error prevention",
+      "severity": "S2"
+    },
+    {
+      "id": "C82-CL-17",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "marked workstream banner",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Cabinets marked (archived with Home renovation)",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/003-cl17-cabinets-banner.png",
+        "sentence: \"“Cabinets” was archived with “Home renovation”. Restoring “Home renovation” brings it back.\"; control: \"Restore as [Planning|Active|On hold|Completed] Restore\", visible label \"Restore\", accessible name \"Restore Home renovation\""
+      ],
+      "repro": [
+        "1. seed nested-projects; MCP cascade archive of project-renovation",
+        "2. open /projects/project-cabinets"
+      ],
+      "expected": "The visible control says it restores the owner (e.g. \"Restore Home renovation\").",
+      "actual": "The visible button reads only \"Restore\"; only the sentence (and the accessible name) says it restores Home renovation.",
+      "lens": "affordance",
+      "heuristic": "Nielsen #2 / predictability of actions",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-18",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "navigation tree on the current item",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Kitchen current; an agent adds a workstream under Kitchen",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/002-cl18-kitchen-tree.png",
+        "tree: Home renovation, Todos, Archive, Reflections, Kitchen, Garden; button \"Show Kitchen’s workstreams\" aria-expanded=false; MCP-created \"Pantry shelves\" not in the tree (0 nodes) after 1.5 s"
+      ],
+      "repro": [
+        "1. seed nested-projects; open /projects/project-kitchen",
+        "2. c82-mcp.mjs create_project {kind: subproject, name: Pantry shelves, parentProjectId: project-kitchen}"
+      ],
+      "expected": "The current item shows its own workstreams, so one an agent adds is seen.",
+      "actual": "Kitchen's workstreams stay collapsed on Kitchen; Cabinets and the new one are hidden until Show Kitchen’s workstreams.",
+      "lens": "ia",
+      "heuristic": "Nielsen #1 Visibility of system status",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-19",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": "Live work under an archived ancestor is hidden, and cannot be newly created",
+      "auditor": "orchestrator",
+      "surface": "live workstream under an archived parent",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "Legacy attic archived, Legacy shelving live",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/001-cl01-legacy.png",
+        "on /projects/project-legacy: tree ends at \"Legacy attic Archived\", no Legacy shelving link anywhere (0)"
+      ],
+      "repro": [
+        "1. seed nested-projects",
+        "2. open /projects/project-legacy; look for Legacy shelving in the tree and on the page"
+      ],
+      "expected": "Live work can be found from where it lives, or the page says it is hidden and how to reach it.",
+      "actual": "Legacy shelving is reachable only by URL; nothing says it exists.",
+      "lens": "ia",
+      "heuristic": "Nielsen #6 Recognition rather than recall",
+      "severity": "S2"
+    },
+    {
+      "id": "C82-CL-20",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "project header Undo/Redo of a workstream creation",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "workstream \"Hinge samples\" created under Cabinets, then header Undo and Redo by keyboard",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/005-cl20-after-redo-workstream.png",
+        "after Undo and after Redo: document.activeElement is body; next Tab goes to the breadcrumb",
+        "contrast: Undo/Redo of a task or a section creation keeps focus on the history button (script c82-item20-undo-focus.js)"
+      ],
+      "repro": [
+        "1. seed nested-projects; /projects/project-cabinets",
+        "2. Edit project › Add workstream, name Hinge samples, Create",
+        "3. focus the header Undo, Enter; then Redo, Enter"
+      ],
+      "expected": "Focus stays on the history control (or lands on a named target) after Undo or Redo.",
+      "actual": "Focus falls to body after Undo and after Redo of a workstream creation.",
+      "lens": "accessibility",
+      "heuristic": "WCAG 2.4.3 Focus Order",
+      "severity": "S2"
+    },
+    {
+      "id": "C82-CL-21",
+      "seed": "busy-week",
+      "theme": "light",
+      "viewport": "1440x900",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": null,
+      "auditor": "orchestrator",
+      "surface": "project Archive count",
+      "inventoryRow": "`/projects/:projectId/pages/archive`",
+      "state": "one archived entry (Task List section removed)",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro/007-cl21-one-items.png",
+        "Archive region: \"1 items\""
+      ],
+      "repro": [
+        "1. seed busy-week; /projects/project-course: remove the Task List section",
+        "2. open the project Archive"
+      ],
+      "expected": "\"1 item\".",
+      "actual": "\"1 items\".",
+      "lens": "copy",
+      "heuristic": "Nielsen #2",
+      "severity": "S3"
+    },
+    {
+      "id": "C82-CL-22",
+      "seed": "nested-projects",
+      "theme": "light",
+      "viewport": "375x812 touch",
+      "persona": "user-demo",
+      "confidence": "observed",
+      "decisionReopened": "Navigation condenses into one tree",
+      "auditor": "orchestrator",
+      "surface": "phone project header",
+      "inventoryRow": "`/projects/:projectId`",
+      "state": "populated",
+      "evidence": [
+        "apps/e2e/ux-output/walk/repro-touch/001-cl22-cabinets-375-touch.png",
+        "header.project-header top 72: bottom 274 (Cabinets, 202 px), 250 (Kitchen and root Todos, 178 px), 208 (root, 136 px); identical to the 2026-11-24 note (script c82-item22-phone-header.js)"
+      ],
+      "repro": [
+        "1. touch daemon 375x812; seed nested-projects",
+        "2. run -f apps/e2e/ux/walk/repro/c82-item22-phone-header.js on that daemon (a resized desktop page gives lower figures)"
+      ],
+      "expected": "Only if the comb wants it: the phone header leaves more of the first screen to content.",
+      "actual": "Unchanged since Slice 81: the header takes 202 px of 812 on Cabinets (a quarter of the screen).",
+      "lens": "hierarchy",
+      "heuristic": "Content over chrome (direction)",
+      "severity": "S3"
+    }
+  ]
+}

@@ -18,7 +18,8 @@
 //   axe.json                       { cells, perTheme: { light|dark: { serious, critical } }, cellsWithSeriousOrCritical, colorContrastIncomplete }
 //   briefs/decisions.md            the stripped decision list; one decision per line, `- <title> — `<path>``.
 //                                  A `decisionReopened` must equal one title or one path exactly.
-// and the Gate 1 verdicts (`../reproduction.json`) for the ledger and the classification.
+// and the Gate 1 verdicts (`../reproduction.json`) for the ledger and the classification. Extra keys are allowed and
+// not checked (the ledger's severity, theme, slice, route and note; the comb list's noteId, evidence, verifiedAt, method).
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

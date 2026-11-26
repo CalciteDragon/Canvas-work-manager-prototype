@@ -177,6 +177,51 @@ and no live rig process remains. `.prototype/notes.json` stayed at 1570 lines. T
 substantive process or schema issues. The reviewer independently checked the contrast arithmetic, the
 current port state, and the absence of earlier audit IDs. Bundle last measured at C82 (932.25 kB).
 **Next: step 4a** (ledger and comb list).
+**Step 4a done (2026-11-26): ledger and comb list.** **Ledger** ([`ledger.json`](../70-ui-ux/comb-82/ledger.json),
+`f6f4d2f`): the 296 admitted Gate 1 ids, built by one cold foreground subagent by § Build's rule and checked by the
+orchestrator: **closed 195, partly-closed 1, advanced 3, open-routed 56, open-by-decision 17, open-unrouted 24**;
+79 ids no record names (the five agent S1s → slice 8, TH14 → slice 9, TH12 → open by decision, the six TH13
+layouts → 81.1, TH02 leftovers unrouted); ten TH01 ids Slice 71 left open (71:74) are open-unrouted. Orchestrator's
+change to the subagent's draft: L2-012, L2-016 and L1-006 were `partly-closed` on Slice 81's "reproduce only in
+part" (81:700), which means an earlier slice fixed one part and 81 closed the rest, so they are `closed` (81:1865).
+Judgment calls kept, for step 5: L6-003 partly-closed (Revoke's failure text to slice 8, 78:720); W1-026, W3-012,
+W2-009, W4-008 closed on 75's Outcome "evidences" (75:627, with 74:106 and 81:695); L7-009, L7-021 routed "comb" and
+W1-041, W4-016 "slice 9 or the comb" (81:1166), which step 5 must settle; latest record wins for ids named twice.
+**Evidence paths** (`64a80b9`, the Test plan's step 4a check): `build-comb.mjs --evidence` resolves every cited
+path on this machine (a bare file name in the auditor's `ux-output/walk/<name>/`, test first in `comb.test.mjs`):
+461 paths, 8 bare names resolved (C82-W1-008, W3-008 and six W4), **0 missing**. **Comb list**
+([`comb-list.json`](../70-ui-ux/comb-82/comb-list.json)): items 1–22 re-verified by the orchestrator at the `C82`
+build (static 4201; reproduction host 4320/5320, `setsid` + pgid files under `ux-output/walk-env/`), Q2 (c), no
+fixes: **item 1 closed** (no "No workstreams yet" on archived Home renovation or Legacy attic); **item 8
+partly-closed** (blocked Undo is now a headline with View details; the cascade restore toast is still two
+sentences in one; expired/retired/unavailable not reachable, past the window the button reads "Nothing to undo");
+**items 2–7, 9–22 open**, records `C82-CL-02`…`22` (S2: 2, 11, 16, 19, 20; the rest S3; severity is the
+orchestrator's, the route is 82.1 for all, Q2 (c)). Methods as planned: item 6 by
+[`repro/c82-item06-unreachable-write.js`](../../../apps/e2e/ux/walk/repro/c82-item06-unreachable-write.js) (writes and
+history reads refused, `route.fallback()` otherwise: the header keeps a bare Retry after the network returns);
+items 12–13 by [`repro/c82-mcp.mjs`](../../../apps/e2e/ux/walk/repro/c82-mcp.mjs) (SDK `Client`, Streamable HTTP,
+protocol pinned, fixture token `prototype-user-a-readwrite`, `nested-projects`); item 16 by
+[`repro/c82-open-archive-confirm.js`](../../../apps/e2e/ux/walk/repro/c82-open-archive-confirm.js) plus an MCP
+`create_project` under Kitchen while the confirmation is open (the list became "its 2 workstreams", nothing
+announced); item 10 by the same with the event stream aborted, so the late refusal fires. Item 20 reproduces for a
+workstream creation (focus on `body` after Undo and Redo), not for a task or a section creation (focus stays on the
+history button). Item 22 measured on a second, touch 375×812 daemon on the same ports: 202/178/178/136 px, identical
+to the note; a resized desktop page gives lower figures, so the touch daemon is the way to measure it. Evidence
+screenshots are under the git-ignored `ux-output/walk/repro/` and `repro-touch/` (some numbers repeat after the
+daemon restart, and superseded takes stay on disk; only the paths the records cite count). Afterwards nothing
+listened on 4200, 4201, 4310, 4320–4329 or 5320–5329, no rig process was left, `.prototype/notes.json` 1570 lines
+(no product friction met; 4b records friction notes), and the product diff from `8c1a524` is empty.
+`comb.test.mjs` by hand: 80 tests, 73 pass, 7 skipped, 0 fail. `pnpm test` then `pnpm lint` green. **Trap (for 4b):**
+in a `walk.mjs run` script, never `context.unrouteAll()`: it removes walkd's own 4200→4201 and 4310→host routes
+and the daemon stops loading the app (it happened once here; the daemon was restarted). Unroute only your own
+handler, `context.unroute(pattern, handler)`. Also, `run` scripts share one function scope per call, so do not
+declare `out` (it is a parameter). *Review* (one cold reviewer over `f6f4d2f`, `64a80b9` and the staged diff, process
+and schema only): no substantive findings. Minors, checked: the item 22 script's comment and CL-22's repro said a
+resized desktop page (fixed: it now restores the viewport it found and says to run it on a touch daemon); the
+ledger and comb list carry keys the `build-comb.mjs` header did not list (now listed as unchecked extras).
+Kept as they are: 46 ids close on 81:1865's general "closes as built" (allowed by the rule); 14 TH02 open-unrouted
+sources name `themes.json TH02`, not a line (allowed for open ids); `--evidence` checks only `ux-output/` paths
+and bare `.png/.json/.yml` names (the cited `repro/*.js` exist). **Next: step 4b** (reproduction of the 145 filed findings).
 
 ## Goal
 
