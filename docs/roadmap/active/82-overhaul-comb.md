@@ -222,7 +222,7 @@ ledger and comb list carry keys the `build-comb.mjs` header did not list (now li
 Kept as they are: 46 ids close on 81:1865's general "closes as built" (allowed by the rule); 14 TH02 open-unrouted
 sources name `themes.json TH02`, not a line (allowed for open ids); `--evidence` checks only `ux-output/` paths
 and bare `.png/.json/.yml` names (the cited `repro/*.js` exist). **Next: step 4b** (reproduction of the 145 filed findings).
-**Step 4b done (2026-11-26): reproduction.** [`reproduction.json`](../70-ui-ux/comb-82/reproduction.json): a
+**Step 4b done (2026-11-26): reproduction** (`90e7669`). [`reproduction.json`](../70-ui-ux/comb-82/reproduction.json): a
 verdict for each of the **145** filed ids and no other: **reproduced 143, reproduced-partly 2, not-reproduced 0,
 not-reached 0, unverified 0** (severity is the auditor's, unchanged: S1 5, S2 80, S3 60). The two partly
 reproduced findings: **C82-W1-013** (the 46 px dashboard row gutter reproduces; the Active Projects emoji touching
