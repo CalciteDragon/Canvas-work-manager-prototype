@@ -1,7 +1,7 @@
 <!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 (always held, Q5 (a))" -->
 # Slice 82 — Protocol §8 comb
 
-**State (2026-11-26):** **plan accepted by the user (2026-11-24, user decision) with all eight recommendations**
+**State (2026-11-26):** **Awaiting Gate 3 (step 5 done).** The **plan was accepted by the user (2026-11-24, user decision) with all eight recommendations**
 (Open questions 1–8 resolved: Q1 (a), Q2 (c), Q3 (b), Q4 (c), Q5 (a), Q6 (a), Q7 (a), Q8 (a)), after five review
 rounds and two review rounds of the acceptance amendment; new Open question 9 (lens and reproduction daemons) blocked
 nothing before step 3 and was **answered by the user on 2026-11-26: (a)** (see the end of this header). **`<plan-accept>` = the acceptance commit, subject
@@ -261,6 +261,25 @@ only): 1 substantive finding, which does not hold: L2-009's attached decision, k
 method named only one measured row (reworded); "a fresh seed per script" (reworded). Kept as they are: W4-008 rests on
 the source line, as its method says, and W2-003 on the measured 0.55 opacity, without re-measuring the auditor's
 2.5:1 ratio. **Next: step 5** (synthesis and the Gate 3 artifact).
+
+**Step 5 done (2026-11-26): synthesis and Gate 3 artifact.** See
+[Gate 3](../70-ui-ux/comb-82/gate3.md), [themes](../70-ui-ux/comb-82/themes.json),
+and [tally](../70-ui-ux/comb-82/tally.json). All 145 admitted verdicts are classified (S1 5,
+S2 80, S3 60). The five S1 records repeat the existing T10 blocker. The proposals route every open S1/S2,
+including the 37 unresolved Gate 1 records, and count all 14 TH12 scaffolding S2s in the 117-record
+S2 total. Proposed threshold **fewer than 15**; Gate 3 also decides task arrival, touch chrome, the T08
+baseline exception, and whether to check the Archive friction note. The 21 outstanding comb-list
+items remain assigned to 82.1 under Q2 (c). The user owns Gate 3. Step 7 and the 82.1 candidate
+await the answers. C82 initial bundle remains the 932.25 kB measurement from step 0b.
+
+**Pre-Gate acceptance.** 1: path probe and harness rerun (10/10), with the two-daemon test evidenced
+by step 0a. 2–3: checked the C82 index, matrix, reports, core tasks and runtime files from step 0b.
+4: brief grep clean. 5: eleven findings files, four walkthroughs, L5 in both themes, and unchanged
+notes line counts during the auditor steps per their State records. 6–7: 296 Gate 1 ledger IDs, 22 comb
+items, 145 verdicts and 145 class assignments, exactly one theme per admitted C82 ID, stable regeneration,
+and empty Gate 1 diff. 8: contact sheet and all 90 crop paths checked locally. 9: closure awaits Gate 3.
+The product diff from plan acceptance is empty. Step 5 opened no listeners. The comb's hand-run suite
+passed 81/81. The synthesis commit is recorded in git with subject `docs(slice 82): prepare Gate 3 synthesis (§8)`.
 
 ## Goal
 
@@ -582,6 +601,7 @@ Routes to slices 8, 9 and 81.1 are written as id lists in the umbrella's sequenc
 |---|---|---|
 | `tooling/comb.test.mjs` | create (0a, test first) | Schema and consistency tests (§ Test plan) |
 | `tooling/build-comb.mjs` | create (0a skeleton, 5) | Validates the comb files, generates `tally.json` |
+| `tooling/comb-fixtures.mjs` | create (0a), update (5) | Exercise the tally's per-colour-theme summaries |
 | `comb-82/core-tasks.json` | create (0b) | T01–T12 at `C82` against the baseline |
 | `comb-82/briefs/*.md`, `briefs/t12-setup.js` | create (0c) | Common brief, inventory, decisions list, the T12 starting failure, eleven auditor briefs |
 | `comb-82/findings/{w1..w4,l1..l7}.json` | create (1–3) | Filed findings, by auditor |
@@ -590,6 +610,7 @@ Routes to slices 8, 9 and 81.1 are written as id lists in the umbrella's sequenc
 | `comb-82/ledger.json` | create (4a) | Status of the 296 Gate 1 admitted findings with a source line each |
 | `comb-82/comb-list.json` | create (4a) | Items 1–22: status at `C82`, note id, the `C82-CL-nn` record where still open |
 | `comb-82/themes.json` | create (5) | Re-prioritised themes: status, priority, open Gate 1 ids, admitted comb ids, new TH16+ |
+| `comb-82/axe.json` | create (5) | Matrix counts from the raw C82 axe artifacts, available for offline tally regeneration |
 | `comb-82/tally.json` | create (5, generated) | The stop-rule tally |
 | `comb-82/gate3.md` | create (5) | Digest and decisions for Gate 3 |
 
@@ -905,6 +926,14 @@ question carries its answer, and the plan above reads the answers as settled.
   not renumbered); § Open questions (intro, and question 9 marked resolved with its answer, the options kept). The
   step 0c entry above still says lens browsers were gated "until Open question 9 is answered"; it is a frozen record
   and is not rewritten. Docs only: no product code, rig, brief or capture change.
+
+- **Step 5 (2026-11-26):** kept the fifteen Gate 1 theme IDs and wrote the updated list under `comb-82/`.
+  Retained a compact axe input from the raw C82 matrix so tally regeneration works offline, including the
+  task comparison table and colour-theme contrast denominators. A cold reviewer checked the diff and found
+  several Gate 1 matches where the original problem was on a different surface or had a different failure
+  mode. Corrected those matches, removed stale match keys, corrected two misleading evidence frames and
+  the Archive row label, and repaired the severity table. Crop evidence stays in the local capture folder.
+  Gate 3 routing and direction are proposals in the digest.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

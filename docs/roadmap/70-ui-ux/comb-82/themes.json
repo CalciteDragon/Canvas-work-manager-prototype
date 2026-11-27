@@ -1,0 +1,409 @@
+{
+  "priorityRule": "Highest open severity in the theme. Route and sequence by root cause and approved slice scope. TH12 includes the slice 8 blockers and the scaffolding held open by decision.",
+  "themes": [
+    {
+      "id": "TH01",
+      "title": "Surfaces, spacing and alignment have no system",
+      "layer": "tokens",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L1-001",
+        "L1-002",
+        "L1-003",
+        "L1-005",
+        "L1-008",
+        "L1-019",
+        "L1-022",
+        "L1-025",
+        "L1-030",
+        "L2-011"
+      ],
+      "combIds": [
+        "C82-L1-005",
+        "C82-W3-003"
+      ]
+    },
+    {
+      "id": "TH02",
+      "title": "Colour alone carries state, and states collide",
+      "layer": "tokens",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L1-011",
+        "L3-004",
+        "L3-011",
+        "L3-022",
+        "L4-006",
+        "L4-013",
+        "L5-016",
+        "L5-017",
+        "W1-007",
+        "W1-020",
+        "W1-034",
+        "W1-053",
+        "W2-032",
+        "W4-011",
+        "W4-014"
+      ],
+      "combIds": [
+        "C82-L6-008",
+        "C82-W1-014",
+        "C82-W1-020",
+        "C82-W3-005"
+      ]
+    },
+    {
+      "id": "TH03",
+      "title": "The token set stops short",
+      "layer": "tokens",
+      "status": "closed",
+      "priority": "none",
+      "openGate1Ids": [],
+      "combIds": []
+    },
+    {
+      "id": "TH04",
+      "title": "No shared control primitives",
+      "layer": "primitives",
+      "status": "closed",
+      "priority": "none",
+      "openGate1Ids": [],
+      "combIds": []
+    },
+    {
+      "id": "TH05",
+      "title": "No action hierarchy",
+      "layer": "primitives",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "W1-050"
+      ],
+      "combIds": [
+        "C82-L1-006",
+        "C82-L2-001",
+        "C82-L3-004",
+        "C82-W4-006",
+        "C82-W4-016"
+      ]
+    },
+    {
+      "id": "TH06",
+      "title": "Overlays and focus do not follow the user",
+      "layer": "primitives",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [],
+      "combIds": [
+        "C82-L1-004",
+        "C82-L3-001",
+        "C82-L5-001",
+        "C82-L5-003",
+        "C82-W1-011",
+        "C82-W2-014",
+        "C82-W3-001",
+        "C82-W3-009"
+      ]
+    },
+    {
+      "id": "TH07",
+      "title": "Feedback is detached from the action",
+      "layer": "patterns",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L3-023"
+      ],
+      "combIds": [
+        "C82-L2-005",
+        "C82-L3-005",
+        "C82-L4-003",
+        "C82-L5-012"
+      ]
+    },
+    {
+      "id": "TH08",
+      "title": "Section chrome is hidden yet heavy",
+      "layer": "patterns",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L6-010",
+        "W1-028"
+      ],
+      "combIds": [
+        "C82-L3-002",
+        "C82-L3-003",
+        "C82-W1-004",
+        "C82-W1-012",
+        "C82-W2-002",
+        "C82-W2-003",
+        "C82-W2-004",
+        "C82-W4-002"
+      ]
+    },
+    {
+      "id": "TH09",
+      "title": "The same object takes many shapes",
+      "layer": "patterns",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L1-027"
+      ],
+      "combIds": [
+        "C82-L1-007",
+        "C82-L2-009",
+        "C82-L7-002",
+        "C82-W1-003",
+        "C82-W1-013",
+        "C82-W1-015",
+        "C82-W2-006",
+        "C82-W3-007",
+        "C82-W3-010",
+        "C82-W4-005",
+        "C82-W4-009"
+      ]
+    },
+    {
+      "id": "TH10",
+      "title": "Empty, loading, error and archived states are accidental",
+      "layer": "patterns",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [],
+      "combIds": [
+        "C82-L4-002",
+        "C82-L4-004",
+        "C82-L5-008",
+        "C82-W2-015",
+        "C82-W3-011",
+        "C82-W4-017",
+        "C82-W4-018"
+      ]
+    },
+    {
+      "id": "TH11",
+      "title": "Two navigation trees and no single \"you are here\"",
+      "layer": "shell",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L7-009",
+        "L7-021",
+        "L7-022"
+      ],
+      "combIds": [
+        "C82-L2-002",
+        "C82-L4-001",
+        "C82-L6-006",
+        "C82-L6-007",
+        "C82-L7-001",
+        "C82-L7-003",
+        "C82-L7-004",
+        "C82-L7-007",
+        "C82-W1-008",
+        "C82-W1-017",
+        "C82-W2-011",
+        "C82-W3-002",
+        "C82-W3-006",
+        "C82-W4-004",
+        "C82-W4-007"
+      ]
+    },
+    {
+      "id": "TH12",
+      "title": "Prototype scaffolding inside the product",
+      "layer": "shell",
+      "status": "open",
+      "priority": "S1",
+      "openGate1Ids": [
+        "L1-007",
+        "L1-024",
+        "L4-021",
+        "L6-001",
+        "L6-002",
+        "L6-020",
+        "L6-022",
+        "L6-023",
+        "L7-011",
+        "L7-012",
+        "L7-013",
+        "L7-014",
+        "L7-015",
+        "W1-005",
+        "W1-052",
+        "W2-003",
+        "W2-031",
+        "W3-020",
+        "W4-003",
+        "W4-006",
+        "W4-022",
+        "W4-023"
+      ],
+      "combIds": [
+        "C82-L1-003",
+        "C82-L1-008",
+        "C82-L2-010",
+        "C82-L3-006",
+        "C82-L4-007",
+        "C82-L5-002",
+        "C82-L5-004",
+        "C82-L5-005",
+        "C82-L5-006",
+        "C82-L5-007",
+        "C82-L5-011",
+        "C82-L6-016",
+        "C82-L7-005",
+        "C82-L7-006",
+        "C82-L7-008",
+        "C82-W1-001",
+        "C82-W2-012",
+        "C82-W2-013",
+        "C82-W3-008",
+        "C82-W4-010",
+        "C82-W4-011"
+      ]
+    },
+    {
+      "id": "TH13",
+      "title": "Narrow and touch layouts are squeezed desktop",
+      "layer": "shell",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L1-004",
+        "L1-018",
+        "L5-018",
+        "W2-015",
+        "W2-022",
+        "W2-028"
+      ],
+      "combIds": [
+        "C82-L1-001",
+        "C82-L1-002",
+        "C82-L1-009",
+        "C82-L2-006",
+        "C82-L2-007",
+        "C82-L2-008",
+        "C82-L3-008",
+        "C82-L3-009",
+        "C82-L3-010",
+        "C82-L4-005",
+        "C82-L4-006",
+        "C82-L5-009",
+        "C82-L5-010",
+        "C82-L6-009",
+        "C82-L6-018",
+        "C82-L6-020",
+        "C82-L7-009",
+        "C82-L7-010",
+        "C82-W2-001",
+        "C82-W2-017"
+      ]
+    },
+    {
+      "id": "TH14",
+      "title": "System vocabulary leaks into the interface",
+      "layer": "content",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "L2-003",
+        "L2-004",
+        "L2-005",
+        "L4-015",
+        "L4-019",
+        "L4-025",
+        "L6-004",
+        "L6-005",
+        "L6-007",
+        "L6-008",
+        "L6-011",
+        "L6-012",
+        "L6-013",
+        "L6-014",
+        "L6-017",
+        "L6-018",
+        "L6-019",
+        "L6-021",
+        "L6-024",
+        "L6-025",
+        "L6-026",
+        "L6-027",
+        "L7-016",
+        "W1-025",
+        "W1-027",
+        "W1-033",
+        "W1-035",
+        "W1-039",
+        "W1-051",
+        "W2-013",
+        "W2-017",
+        "W2-019",
+        "W3-015",
+        "W4-010",
+        "W4-013",
+        "W4-027",
+        "W4-030"
+      ],
+      "combIds": [
+        "C82-L2-003",
+        "C82-L2-004",
+        "C82-L3-007",
+        "C82-L6-001",
+        "C82-L6-002",
+        "C82-L6-003",
+        "C82-L6-004",
+        "C82-L6-005",
+        "C82-L6-010",
+        "C82-L6-011",
+        "C82-L6-012",
+        "C82-L6-013",
+        "C82-L6-015",
+        "C82-L6-017",
+        "C82-L6-019",
+        "C82-W1-005",
+        "C82-W1-006",
+        "C82-W1-007",
+        "C82-W1-016",
+        "C82-W1-018",
+        "C82-W1-019",
+        "C82-W2-007",
+        "C82-W2-008",
+        "C82-W2-009",
+        "C82-W2-010",
+        "C82-W2-018",
+        "C82-W3-004",
+        "C82-W4-003",
+        "C82-W4-008",
+        "C82-W4-015"
+      ]
+    },
+    {
+      "id": "TH15",
+      "title": "Task-flow defaults work against the user",
+      "layer": "page",
+      "status": "open",
+      "priority": "S2",
+      "openGate1Ids": [
+        "W1-041",
+        "W4-016"
+      ],
+      "combIds": [
+        "C82-L6-014",
+        "C82-W1-002",
+        "C82-W1-009",
+        "C82-W1-010",
+        "C82-W2-005",
+        "C82-W2-016",
+        "C82-W4-001",
+        "C82-W4-012",
+        "C82-W4-013",
+        "C82-W4-014"
+      ]
+    }
+  ]
+}

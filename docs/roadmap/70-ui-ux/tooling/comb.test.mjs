@@ -84,3 +84,20 @@ for (const name of Object.keys(CHECKS)) {
     assert.deepEqual(errors, []);
   });
 }
+
+test('tally preserves the task comparison and reports contrast gaps by colour theme outside the stop rule', () => {
+  const files = goodFiles();
+  const dir = writeComb(files);
+  try {
+    const tally = computeTally(loadComb(dir, { gate1: join(dir, 'gate1/reproduction.json'), repo: REPO }));
+    assert.equal(tally.coreTasks.tasks.length, 12);
+    assert.deepEqual(tally.coreTasks.overBaseline, ['T08']);
+    assert.deepEqual(tally.coreTasks.withDeadEnds, ['T10']);
+    assert.deepEqual(tally.contrastIncomplete.perTheme, {
+      light: { cells: 1, of: 1 },
+      dark: { cells: 1, of: 1 },
+    });
+    assert.equal(tally.contrastIncomplete.outsideStopRule, true);
+    assert.equal(tally.measuredContrast.outsideStopRule, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

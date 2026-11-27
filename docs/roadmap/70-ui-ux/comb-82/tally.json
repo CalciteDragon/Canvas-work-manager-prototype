@@ -1,0 +1,422 @@
+{
+  "generatedBy": "docs/roadmap/70-ui-ux/tooling/build-comb.mjs",
+  "openS1": {
+    "comb": [
+      "C82-L7-006",
+      "C82-W1-001",
+      "C82-W2-012",
+      "C82-W3-008",
+      "C82-W4-010"
+    ],
+    "gate1": [
+      "L7-015",
+      "W1-052",
+      "W2-031",
+      "W3-020",
+      "W4-023"
+    ],
+    "combList": []
+  },
+  "openS2ByTheme": {
+    "TH01": {
+      "gate1": 1,
+      "comb": 1,
+      "total": 2
+    },
+    "TH02": {
+      "gate1": 8,
+      "comb": 2,
+      "total": 10
+    },
+    "TH03": {
+      "gate1": 0,
+      "comb": 0,
+      "total": 0
+    },
+    "TH04": {
+      "gate1": 0,
+      "comb": 0,
+      "total": 0
+    },
+    "TH05": {
+      "gate1": 0,
+      "comb": 1,
+      "total": 1
+    },
+    "TH06": {
+      "gate1": 0,
+      "comb": 3,
+      "total": 3
+    },
+    "TH07": {
+      "gate1": 1,
+      "comb": 4,
+      "total": 5
+    },
+    "TH08": {
+      "gate1": 0,
+      "comb": 5,
+      "total": 5
+    },
+    "TH09": {
+      "gate1": 0,
+      "comb": 6,
+      "total": 6
+    },
+    "TH10": {
+      "gate1": 0,
+      "comb": 2,
+      "total": 2
+    },
+    "TH11": {
+      "gate1": 1,
+      "comb": 9,
+      "total": 10
+    },
+    "TH12": {
+      "gate1": 6,
+      "comb": 8,
+      "total": 14,
+      "openByDecision": true
+    },
+    "TH13": {
+      "gate1": 6,
+      "comb": 19,
+      "total": 25
+    },
+    "TH14": {
+      "gate1": 8,
+      "comb": 16,
+      "total": 24
+    },
+    "TH15": {
+      "gate1": 1,
+      "comb": 4,
+      "total": 5
+    },
+    "comb-list": {
+      "gate1": 0,
+      "comb": 5,
+      "total": 5
+    }
+  },
+  "coreTasks": {
+    "tasks": [
+      {
+        "id": "T01",
+        "title": "Create a root project",
+        "status": "completed",
+        "clicks": 2,
+        "keystrokes": 16,
+        "deadEnds": 0,
+        "surfaces": [
+          "Home",
+          "Create project"
+        ],
+        "baselineClicks": 3,
+        "baselineKeystrokes": 16,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 2,
+        "slice81Keystrokes": 16,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T02",
+        "title": "Create a workstream under Kitchen",
+        "status": "completed",
+        "clicks": 3,
+        "keystrokes": 19,
+        "deadEnds": 0,
+        "surfaces": [
+          "Navigation tree",
+          "Edit project menu",
+          "Workstream dialog"
+        ],
+        "baselineClicks": 3,
+        "baselineKeystrokes": 19,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 3,
+        "slice81Keystrokes": 19,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T03",
+        "title": "Add a Task List and complete two tasks",
+        "status": "completed",
+        "clicks": 10,
+        "keystrokes": 38,
+        "deadEnds": 0,
+        "surfaces": [
+          "Work canvas",
+          "Section dialog",
+          "Task List"
+        ],
+        "baselineClicks": 10,
+        "baselineKeystrokes": 38,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 10,
+        "slice81Keystrokes": 38,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T04",
+        "title": "Find an overdue task and reschedule it",
+        "status": "completed",
+        "clicks": 1,
+        "keystrokes": 0,
+        "deadEnds": 0,
+        "surfaces": [
+          "Task List",
+          "Task drawer"
+        ],
+        "baselineClicks": 1,
+        "baselineKeystrokes": 0,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 1,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T05",
+        "title": "Remove a section and undo removal",
+        "status": "completed",
+        "clicks": 2,
+        "keystrokes": 0,
+        "deadEnds": 0,
+        "surfaces": [
+          "Work canvas",
+          "Toast"
+        ],
+        "baselineClicks": 2,
+        "baselineKeystrokes": 0,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 2,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T06",
+        "title": "Edit and save Markdown",
+        "status": "completed",
+        "clicks": 2,
+        "keystrokes": 16,
+        "deadEnds": 0,
+        "surfaces": [
+          "Markdown",
+          "Markdown editor"
+        ],
+        "baselineClicks": 2,
+        "baselineKeystrokes": 16,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 2,
+        "slice81Keystrokes": 16,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T07",
+        "title": "Place a shortcut on Work",
+        "status": "completed",
+        "clicks": 3,
+        "keystrokes": 0,
+        "deadEnds": 0,
+        "surfaces": [
+          "Work canvas",
+          "Section dialog",
+          "Shortcut picker"
+        ],
+        "baselineClicks": 3,
+        "baselineKeystrokes": 0,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 3,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T08",
+        "title": "Hide and re-enable Reflections",
+        "status": "completed",
+        "clicks": 4,
+        "keystrokes": 0,
+        "deadEnds": 0,
+        "surfaces": [
+          "Navigation tree",
+          "Edit project menu",
+          "Page settings"
+        ],
+        "baselineClicks": 3,
+        "baselineKeystrokes": 0,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 4,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T09",
+        "title": "Restore an archived item",
+        "status": "completed",
+        "clicks": 1,
+        "keystrokes": 0,
+        "deadEnds": 0,
+        "surfaces": [
+          "Archive"
+        ],
+        "baselineClicks": 1,
+        "baselineKeystrokes": 0,
+        "baselineDeadEnds": 0,
+        "slice81Clicks": 1,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T10",
+        "title": "Inspect permissions and connect an agent",
+        "status": "blocked",
+        "clicks": 0,
+        "keystrokes": 0,
+        "deadEnds": 1,
+        "surfaces": [
+          "Agent settings"
+        ],
+        "baselineClicks": 0,
+        "baselineKeystrokes": 0,
+        "baselineDeadEnds": 1,
+        "slice81Clicks": 0,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 1
+      },
+      {
+        "id": "T11",
+        "title": "Open an overdue task from the dashboard",
+        "status": "completed",
+        "clicks": 1,
+        "keystrokes": 0,
+        "deadEnds": 0,
+        "surfaces": [
+          "Dashboard"
+        ],
+        "baselineClicks": null,
+        "baselineKeystrokes": null,
+        "baselineDeadEnds": null,
+        "slice81Clicks": 1,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 0
+      },
+      {
+        "id": "T12",
+        "title": "Recover a section after a failed read",
+        "status": "completed",
+        "clicks": 1,
+        "keystrokes": 0,
+        "deadEnds": 0,
+        "surfaces": [
+          "Task List"
+        ],
+        "baselineClicks": null,
+        "baselineKeystrokes": null,
+        "baselineDeadEnds": null,
+        "slice81Clicks": 1,
+        "slice81Keystrokes": 0,
+        "slice81DeadEnds": 0
+      }
+    ],
+    "overBaseline": [
+      "T08"
+    ],
+    "overSlice81": [],
+    "withDeadEnds": [
+      "T10"
+    ]
+  },
+  "axe": {
+    "cells": 194,
+    "perTheme": {
+      "dark": {
+        "cells": 97,
+        "serious": 0,
+        "critical": 0
+      },
+      "light": {
+        "cells": 97,
+        "serious": 0,
+        "critical": 0
+      }
+    },
+    "cellsWithSeriousOrCritical": []
+  },
+  "contrastIncomplete": {
+    "cells": 194,
+    "of": 194,
+    "perTheme": {
+      "dark": {
+        "cells": 97,
+        "of": 97
+      },
+      "light": {
+        "cells": 97,
+        "of": 97
+      }
+    },
+    "outsideStopRule": true
+  },
+  "measuredContrast": {
+    "rows": 108,
+    "failures": [],
+    "perTheme": {
+      "light": {
+        "rows": 54,
+        "failures": 0,
+        "lowest": {
+          "element": "button: Revoke Claude",
+          "cell": "agent-heavy-settings-agents",
+          "theme": "light",
+          "fg": "#a51f15",
+          "bg": "#f6e8e7",
+          "ratio": 6.276,
+          "required": "4.5:1",
+          "method": "sampled"
+        }
+      },
+      "dark": {
+        "rows": 54,
+        "failures": 0,
+        "lowest": {
+          "element": "button: Revoke Claude",
+          "cell": "agent-heavy-settings-agents",
+          "theme": "dark",
+          "fg": "#ff9c9c",
+          "bg": "#3e333f",
+          "ratio": 5.992,
+          "required": "4.5:1",
+          "method": "sampled"
+        }
+      }
+    },
+    "outsideStopRule": true
+  },
+  "combSeverity": {
+    "S1": {
+      "new": 0,
+      "still-open": 5,
+      "regression": 0,
+      "introduced": 0,
+      "unclassified": 0,
+      "combListOpen": 0
+    },
+    "S2": {
+      "new": 42,
+      "still-open": 28,
+      "regression": 4,
+      "introduced": 6,
+      "unclassified": 0,
+      "combListOpen": 5
+    },
+    "S3": {
+      "new": 36,
+      "still-open": 12,
+      "regression": 6,
+      "introduced": 6,
+      "unclassified": 0,
+      "combListOpen": 16
+    }
+  }
+}

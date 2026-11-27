@@ -1,0 +1,21 @@
+{
+  "source": "apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/index.json",
+  "method": "Count each serious or critical axe rule violation per cell and each cell with color-contrast in incomplete, using the raw artifacts indexed by C82.",
+  "cells": 194,
+  "perTheme": {
+    "dark": {
+      "cells": 97,
+      "serious": 0,
+      "critical": 0,
+      "colorContrastIncomplete": 97
+    },
+    "light": {
+      "cells": 97,
+      "serious": 0,
+      "critical": 0,
+      "colorContrastIncomplete": 97
+    }
+  },
+  "cellsWithSeriousOrCritical": [],
+  "colorContrastIncomplete": 194
+}

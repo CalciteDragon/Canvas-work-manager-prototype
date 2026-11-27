@@ -15,7 +15,7 @@
 //   comb-list.json                 { items: [{ item, status, note, record }], records: [record] }
 //   themes.json                    { themes: [{ id, title, status, priority, openGate1Ids, combIds }] }
 //   core-tasks.json                { tasks: [{ id, clicks, keystrokes, deadEnds, baselineClicks, slice81Clicks }] }
-//   axe.json                       { cells, perTheme: { light|dark: { serious, critical } }, cellsWithSeriousOrCritical, colorContrastIncomplete }
+//   axe.json                       C82 matrix counts from raw axe JSON, with per-theme counts and any serious/critical cells
 //   briefs/decisions.md            the stripped decision list; one decision per line, `- <title> — `<path>``.
 //                                  A `decisionReopened` must equal one title or one path exactly.
 // and the Gate 1 verdicts (`../reproduction.json`) for the ledger and the classification. Extra keys are allowed and
@@ -281,6 +281,8 @@ export function computeTally(c) {
   }
   const tasks = c.coreTasks?.tasks ?? null;
   const table = c.findings.l5?.contrastTable ?? null;
+  const colourThemes = Object.entries(c.axe?.perTheme ?? {});
+  const belowRequired = row => row.ratio < ratio(row.required);
   const combListRecords = combListOpen.map(id => recordById.get(id)).filter(Boolean);
   openS2ByTheme['comb-list'] = { gate1: 0, comb: combListRecords.filter(r => r.severity === 'S2').length, total: combListRecords.filter(r => r.severity === 'S2').length };
   const combSeverity = {};
@@ -298,15 +300,32 @@ export function computeTally(c) {
     },
     openS2ByTheme,
     coreTasks: tasks && {
+      tasks,
       overBaseline: tasks.filter(t => typeof t.baselineClicks === 'number' && t.clicks > t.baselineClicks).map(t => t.id),
       overSlice81: tasks.filter(t => typeof t.slice81Clicks === 'number' && t.clicks > t.slice81Clicks).map(t => t.id),
       withDeadEnds: tasks.filter(t => t.deadEnds > 0).map(t => t.id),
     },
-    axe: c.axe && { cells: c.axe.cells, perTheme: c.axe.perTheme, cellsWithSeriousOrCritical: c.axe.cellsWithSeriousOrCritical },
-    contrastIncomplete: c.axe && { cells: c.axe.colorContrastIncomplete, of: c.axe.cells, outsideStopRule: true },
+    axe: c.axe && {
+      cells: c.axe.cells,
+      perTheme: Object.fromEntries(colourThemes.map(([theme, { cells, serious, critical }]) =>
+        [theme, { cells, serious, critical }])),
+      cellsWithSeriousOrCritical: c.axe.cellsWithSeriousOrCritical,
+    },
+    contrastIncomplete: c.axe && {
+      cells: c.axe.colorContrastIncomplete,
+      of: c.axe.cells,
+      perTheme: Object.fromEntries(colourThemes.map(([theme, stats]) =>
+        [theme, { cells: stats.colorContrastIncomplete, of: stats.cells }])),
+      outsideStopRule: true,
+    },
     measuredContrast: table && {
       rows: table.length,
-      failures: table.filter(row => row.ratio < ratio(row.required)).map(row => `${row.element} (${row.theme}) ${row.ratio}:1 < ${row.required}`),
+      failures: table.filter(belowRequired).map(row => `${row.element} (${row.theme}) ${row.ratio}:1 < ${row.required}`),
+      perTheme: Object.fromEntries(['light', 'dark'].map(theme => {
+        const rows = table.filter(row => row.theme === theme);
+        const lowest = rows.reduce((min, row) => !min || row.ratio < min.ratio ? row : min, null);
+        return [theme, { rows: rows.length, failures: rows.filter(belowRequired).length, lowest }];
+      })),
       outsideStopRule: true,
     },
     combSeverity,

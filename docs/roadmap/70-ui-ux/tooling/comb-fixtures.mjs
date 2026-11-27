@@ -78,7 +78,10 @@ export function goodFiles() {
       tasks: TASKS.map(id => ({ id, clicks: id === 'T08' ? 4 : 2, keystrokes: 0, deadEnds: id === 'T10' ? 1 : 0, baselineClicks: id === 'T11' || id === 'T12' ? null : 3, slice81Clicks: id === 'T08' ? 4 : 2 })),
     },
     'axe.json': {
-      cells: 2, perTheme: { light: { serious: 0, critical: 0 }, dark: { serious: 1, critical: 0 } },
+      cells: 2, perTheme: {
+        light: { cells: 1, serious: 0, critical: 0, colorContrastIncomplete: 1 },
+        dark: { cells: 1, serious: 1, critical: 0, colorContrastIncomplete: 1 },
+      },
       cellsWithSeriousOrCritical: ['busy-week-dashboard-dark-1440'], colorContrastIncomplete: 2,
     },
     // tally.json is added by the test from computeTally(), so the good set stays consistent by construction.
