@@ -279,7 +279,8 @@ notes line counts during the auditor steps per their State records. 6–7: 296 G
 items, 145 verdicts and 145 class assignments, exactly one theme per admitted C82 ID, stable regeneration,
 and empty Gate 1 diff. 8: contact sheet and all 90 crop paths checked locally. 9: closure awaits Gate 3.
 The product diff from plan acceptance is empty. Step 5 opened no listeners. The comb's hand-run suite
-passed 81/81. The synthesis commit is recorded in git with subject `docs(slice 82): prepare Gate 3 synthesis (§8)`.
+passed 81/81. `pnpm test` then `pnpm lint` passed. Synthesis commit: `e4dd0d9`
+(`docs(slice 82): prepare Gate 3 synthesis (§8)`).
 
 ## Goal
 
