@@ -1,0 +1,1175 @@
+{
+ "method": "Slice 82 step 4b, orchestrator reproduction at C82 (37dd16e) on 2026-11-26: the C82 build served by walk/static.mjs on 4201; reproduction host 4320/5320 as an env.sh daemon (1440x900 light, then touch 375x812 for the three touch-only findings), started with setsid and stopped with walk.mjs quit plus a process-group kill; fresh seed per script. Scripts apps/e2e/ux/walk/repro/c82-4b-*.js (routes use route.fallback()); screenshots under the git-ignored apps/e2e/ux-output/walk/repro4b/ and repro4b-touch/. Capture-backed findings were checked against apps/e2e/ux-output/37dd16e2303e7d8968905de74767710d6b02b85c/ (PNG, aria.yml, axe.json). Severity is the auditor's, unchanged. decisionCitation: confirmed (the auditor's citation holds), attached (the orchestrator named the decision a finding reopens), none. Findings that do not reproduce stay listed with their verdict; none is deleted.",
+ "totals": {
+  "filed": 145,
+  "reproduced": 143,
+  "reproduced-partly": 2,
+  "not-reproduced": 0,
+  "not-reached": 0,
+  "unverified": 0
+ },
+ "verdicts": {
+  "C82-W1-001": {
+   "status": "reproduced",
+   "severity": "S1",
+   "auditor": "w1",
+   "method": "c82-4b-agents.js: AI & Agents main has only three Revoke buttons and a Settings link; Settings links only AI & Agents and Archived projects; no connect control anywhere",
+   "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W1-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w1",
+   "method": "c82-4b-nested-write.js: typing 09042026 into Due date saved each valid year; three header Undos give 0202-09-04, 0020-09-04, 0002-09-04",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-003": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w1",
+   "method": "c82-4b-dashboard-focus.js: Today 'Notify stakeholders' opens /projects/project-client-migration/pages/home#section-…-tasks with focus on 'h2 Task List'; the row sits at y 887 in a 900 px viewport, not marked or focused",
+   "decisionReopened": "Rows open their canonical owner",
+   "decisionCitation": "attached"
+  },
+  "C82-W1-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w1",
+   "method": "c82-4b-nested-write.js: after clicking Remove section Markdown, the element under the unmoved pointer is 'Remove section Task List'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w1",
+   "method": "c82-4b-nested-write.js: adding Task List 'Lighting jobs' writes 'Section added “Kitchen”' / 'Kitchen'; the section name appears nowhere",
+   "decisionReopened": "A section's activity event names its project, not the section",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W1-006": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read.js: drawer for 'Choose appliance finishes' ends 'Status todo / Project project-kitchen'; Priority options 'low, medium, high' (same component on overdue-chaos)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-007": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read.js: Kitchen Timeline rows read 'active', 'todo', 'upcoming' while the header pill reads 'Active'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-008": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read.js: Pages popover first row 'Home / Required'; shortcut picker group 'Home renovation · Home' (the finding's 'Home' is the page part of that heading)",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W1-009": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read.js: the pencil 'Edit project' opens a menu of only 'Pages of Home renovation…' and 'Add workstream'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-010": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-new-project.js + empty-new-project-form.png: Get started New project moves focus to a 122 px 'Project name' field at x 20 in the sidebar; main does not change and 'No projects yet' stays under the form",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-011": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read2.js: Kitchen's first section sits at y 384, 408 with the Pages popover open, 384 after it closes (24 px)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-012": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read2.js + np-kitchen-hover-tasklist.png: the start-edge glyph is 10–12 px wide and aria-hidden; the end-edge one is the 24 px 'Resize Task List' slider",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-013": {
+   "status": "reproduced-partly",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-dashboard-focus.js measures a 46 px blank gutter before the title on the 'Notify stakeholders' row; oc-dash-1440.png shows the same gutter on every Today and Upcoming row. Not checked: whether the Active Projects emoji touches its title (that row sits in the inner scroller and was not reached).",
+   "note": "c82-4b-dashboard-focus.js measures a 46 px blank gutter before the title on the 'Notify stakeholders' row; oc-dash-1440.png shows the same gutter on every Today and Upcoming row. Not checked: whether the Active Projects emoji touches its title (that row sits in the inner scroller and was not reached).",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-014": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "oc-dash-1440.png: on the dashboard 'Overdue' is grey rgb(76,84,100) and runs on with status, priority and date; in the Task List it is red rgb(165,31,21)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-015": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read.js: Archive Restore right edges 1354 (Legacy attic workstream) vs 1362 (others)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-016": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-write.js: after Undo the toast reads 'Undone: Removed the Markdown section.'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-017": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "np-kitchen-hover-tasklist.png: inside a project the sidebar shows only that project's tree; the way back is the unlabeled chevron 'All projects' with no title",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-018": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read.js: the drawer Due date is a native date input, shown mm/dd/yyyy in the en-US locale, while rows show 2026-09-18",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-019": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-nested-read2.js: Home renovation's header says 'TARGET DATE', Kitchen's 'DUE DATE'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W1-020": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w1",
+   "method": "c82-4b-agents.js: Retired assistant card reads Revoked, keeps seven disabled permission boxes (Read projects ticked) and a disabled Revoke, no reason or next step",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w2",
+   "method": "capture archive-light-375.scroll-0-1: Markdown stacked one letter per line beside Restore saved content, every row keeps an empty leading column",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w2",
+   "method": "same capture as C82-L3-003; only Remove section has a title (hover), c82-4b-nested-read.js",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-003": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-touch.js on a touch 375x812 daemon: section tool buttons render at an effective opacity of 0.55 at rest (colour rgb(76,84,100)); the 2.5:1 figure was not re-measured",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w2",
+   "method": "same capture as C82-L3-002; the More menu has no add-section item (c82-4b-nested-read.js moreMenu)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-005": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-nested-write.js: after Add task focus stays on the 'Add task' button; typing the next title goes nowhere and the next Add shows 'Enter a task title.'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-006": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w2",
+   "method": "same facts as C82-W1-003 (layout-independent destination and focus)",
+   "decisionReopened": "Rows open their canonical owner",
+   "decisionCitation": "attached"
+  },
+  "C82-W2-007": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w2",
+   "method": "same facts as C82-W1-006",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-008": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-nested-read.js: raw timestamp on reflections, ISO on rows, drawer date input (en-US shows mm/dd/yyyy), activity '24 Aug, 16:00' (four formats)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-009": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w2",
+   "method": "c82-4b-nested-write.js: removing a section writes 'Section archived “Kitchen”' / 'Kitchen' (the verb at C82 is 'archived', not 'removed'; the section's name is missing either way)",
+   "decisionReopened": "A section's activity event names its project, not the section",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W2-010": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-nested-read.js: Home renovation's Timeline lists Kitchen as 'Workstream active'; Kitchen's own Timeline lists it as 'Project active'",
+   "decisionReopened": "Nested project work is called a workstream",
+   "decisionCitation": "attached"
+  },
+  "C82-W2-011": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "same facts as C82-W1-008",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "attached"
+  },
+  "C82-W2-012": {
+   "status": "reproduced",
+   "severity": "S1",
+   "auditor": "w2",
+   "method": "c82-4b-agents.js (same facts as C82-W1-001; layout-independent)",
+   "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents",
+   "decisionCitation": "attached"
+  },
+  "C82-W2-013": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-nested-read2.js: Kitchen shows 'Flow layout — Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state' above the canvas",
+   "decisionReopened": "Prototype scaffolding stays visible during the redesign",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W2-014": {
+   "status": "reproduced-partly",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-touch.js on a touch 375x812 daemon: choosing Pages from the drawer's pencil menu closes the drawer (reproduced), but unticking Reflections does show a confirmation, the toast 'Disabled the reflections page.' with Undo, Open Home renovation and Dismiss (touch-pages-toggle.png), so 'the toggle gives no confirmation' does not reproduce",
+   "note": "c82-4b-touch.js on a touch 375x812 daemon: choosing Pages from the drawer's pencil menu closes the drawer (reproduced), but unticking Reflections does show a confirmation, the toast 'Disabled the reflections page.' with Undo, Open Home renovation and Dismiss (touch-pages-toggle.png), so 'the toggle gives no confirmation' does not reproduce",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-015": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-busy-week.js (GET /api/tasks routed to 500, route.fallback otherwise): Task title field and Add task stay enabled above 'Couldn’t load this task list.'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-016": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "same facts as C82-W1-009; Add workstream is also in More project actions",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-017": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "c82-4b-touch.js on a touch 375x812 daemon: on Cabinets the ancestors Home renovation and Kitchen are 44 px pills at y 89 and the current 'Cabinets' drops alone to a 20 px line at y 137",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W2-018": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w2",
+   "method": "same facts as C82-W1-016",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W3-001": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w3",
+   "method": "c82-4b-new-project.js, dark: after creating a project (by mouse or the sidebar + by keyboard) focus is on the 916 px h1, :focus-visible, outline 2 px solid rgb(255,173,127)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W3-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w3",
+   "method": "c82-4b-keyboard-new.js, dark: Enter on the sidebar's Home renovation link leaves focus on body; the next Tab lands on the header's 'Nothing to undo', past the workstream links",
+   "decisionReopened": "Route focus lands lost focus after user navigation",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W3-003": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w3",
+   "method": "c82-4b-keyboard-new.js: in More project actions the 'Status' label's top (235) equals the first item's bottom (no gap) and starts 12 px left of the item text",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W3-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w3",
+   "method": "same facts as C82-W1-006 (raw status value and project id; 'in_progress' is the same raw rendering for an in-progress task)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W3-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w3",
+   "method": "c82-4b-nested-read2.js, dark: the focus ring is 2 px solid rgb(255,173,127); the pressed Count has the same colour border and a 2 px inset ring",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W3-006": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w3",
+   "method": "same facts as C82-W1-008",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W3-007": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w3",
+   "method": "same facts as C82-W1-015",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W3-008": {
+   "status": "reproduced",
+   "severity": "S1",
+   "auditor": "w3",
+   "method": "c82-4b-agents.js (same facts as C82-W1-001)",
+   "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W3-009": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w3",
+   "method": "c82-4b-dashboard-focus.js: on /settings with focus on the Settings link, Ctrl+Shift+D then Escape leaves focus on body",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W3-010": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w3",
+   "method": "same facts as C82-W1-003",
+   "decisionReopened": "Rows open their canonical owner",
+   "decisionCitation": "confirmed"
+  },
+  "C82-W3-011": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w3",
+   "method": "same facts as C82-W2-015",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w4",
+   "method": "same facts as C82-W2-005",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-002": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "same facts as C82-W1-012",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-003": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w4",
+   "method": "same facts as C82-W1-006",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-004": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "c82-4b-new-project.js: projects created without an emoji put their name at x 20 in the sidebar, while emoji projects' names start at about x 47 (np-kitchen-hover-tasklist.png); the workspace header shows a folder icon (solo-archive-1440.png)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w4",
+   "method": "same facts as C82-W1-003 (the same link for any persona's overdue task)",
+   "decisionReopened": "Rows open their canonical owner",
+   "decisionCitation": "attached"
+  },
+  "C82-W4-006": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "c82-4b-nested-read.js: icon buttons All projects, Edit project, More project actions, Rename/Collapse/Move <section> have no title; only Undo, Redo and Remove section carry one",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-007": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "same facts as C82-W1-008 (shown here on Home renovation; Alex's project uses the same '<project> · Home' heading)",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "attached"
+  },
+  "C82-W4-008": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "apps/web/src/app/features/projects/pages/archive-page.html:22 renders '{{ store.items().length }} items' with no singular; live, an empty new Markdown section removed left nothing to restore, so the one-item page was not re-rendered here (W4's own evidence shows it)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-009": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "dashboard gutter as C82-W1-013 (46 px); the Archive card's empty leading column as C82-W2-001",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-010": {
+   "status": "reproduced",
+   "severity": "S1",
+   "auditor": "w4",
+   "method": "c82-4b-agents.js (same facts; Alex's page is the empty state)",
+   "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents",
+   "decisionCitation": "attached"
+  },
+  "C82-W4-011": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w4",
+   "method": "c82-4b-agents.js: Alex's AI & Agents says 'No agent has been connected to this workspace. Load the agent-heavy seed from the development panel to see one.' while agent-heavy is loaded",
+   "decisionReopened": "Prototype scaffolding stays visible during the redesign",
+   "decisionCitation": "attached"
+  },
+  "C82-W4-012": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "c82-4b-new-project.js: the field is 120 px wide; 'Community garden plan' needs 195 px and scrolls 75 px out of view",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-013": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "same facts as C82-W1-010 (the dashboard button itself does not change)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-014": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "w4",
+   "method": "same facts as C82-W1-002",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-015": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "c82-4b-nested-write.js: a Markdown section named by its format has an Edit button named 'Edit Markdown for Markdown'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-016": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "c82-4b-nested-write.js: the archive confirmation's Archive all ends at x 525 and Cancel starts at x 525 (no gap)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-017": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "c82-4b-archive-count.js: a new workstream 'Pantry' (status Planning) archived and listed in Archive defaults Restore as to 'Active'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-W4-018": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "w4",
+   "method": "c82-4b-shortcut-failure.js on Home renovation (Task List (Kitchen) shortcut plus its own Task List; the same component setup W4 built): two identical 'Couldn’t load this task list.' and the first Try again repairs only one",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l1",
+   "method": "c82-4b-narrow.js overdue-chaos /app 1024: Today 'Export legacy records' 26 px wide, 7 lines; 'Finish field mapping' 4 lines (Upcoming uses the same row)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l1",
+   "method": "same capture as C82-W2-001",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-003": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l1",
+   "method": "c82-4b-narrow / live at 375: /prototype/design main scrollWidth 626 in a 375 viewport; specimen headings start at x 344",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l1",
+   "method": "captures comb/skip-link-focused-light-1440 and -dark-375: 'Canvas Work Manager' (and Menu at 375) show through the focused skip label",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l1",
+   "method": "c82-4b-nested-read.js: Reflections page puts Add reflection before the 'About completed work / Optional / Subject' card",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-006": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l1",
+   "method": "capture kitchen-archive-confirm-dark-375: Archive all and Cancel touch with no gap",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-007": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l1",
+   "method": "capture busy-week-dashboard-dark-375: a blank strip of about 65 px before each Today card's content",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L1-008": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l1",
+   "method": "same card as C82-W2-013; capture busy-week-project-dark-375 shows it (Grid layout) above the canvas",
+   "decisionReopened": "Prototype scaffolding stays visible during the redesign",
+   "decisionCitation": "attached"
+  },
+  "C82-L1-009": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l1",
+   "method": "capture agent-heavy-dashboard-light-375.scroll-0-4 (Update/d, overnig/ht, Documen/t, schema/s); live c82-4b-narrow.js at 375: description column 79 px, 'deployment' and 'Document' break mid-word (the resized desktop page draws a slightly wider column than the touch capture)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "captures kitchen-work-create-dark-375 and kitchen-section-create-dark-375 (Cancel then Create), kitchen-project-details-dark-375 (Save then Cancel), kitchen-archive-confirm-dark-375 (Archive all then Cancel); live, the Add workstream dialog reads Cancel then Create (c82-4b-archive-count.js)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "same facts as C82-W1-008",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L2-003": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l2",
+   "method": "same facts as C82-W1-006; Todos shows 'To do' for the same task",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "same facts as C82-W1-006",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "capture comb/row-failure-dark-375.aria.yml: 'alert: Couldn’t complete “Run launch QA”. Try again.' followed only by a Details group, no Try again button",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-006": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "c82-4b-narrow.js busy-week /app 1024: 'Approve homepage copy' 0 px wide, 19 lines",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-007": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "same capture as C82-W2-001",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-008": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "same facts as C82-L1-009",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L2-009": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "c82-4b-nested-read.js/read2: Todos strikes 'Compare a cancelled quote' and gives no checkbox; the Task List row has 'Complete Compare a cancelled quote' and no strike",
+   "decisionReopened": "Rows open their canonical owner",
+   "decisionCitation": "attached"
+  },
+  "C82-L2-010": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l2",
+   "method": "same facts as C82-L1-003",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "capture phone-menu-light-375: the open drawer shows no close control (aria has 'Close navigation', visually clipped); the backdrop is unmarked",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "capture kitchen-grid-dark-375: only small faint '+' marks between sections; the labelled Add a section is at the end of the canvas",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-003": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "capture kitchen-grid-dark-375: the section tools are four unlabelled glyphs, the fourth a boxed ×",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-004": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l3",
+   "method": "c82-4b-nested-read2.js: Task List titles are rgb(18,22,32) weight 600, Todos titles are link blue rgb(31,79,208)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "same capture as C82-L2-005",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-006": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "same facts as C82-L1-003",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-007": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l3",
+   "method": "same facts as C82-W1-006",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-008": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "same capture as C82-W2-001",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-009": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "c82-4b-narrow.js agent-heavy /app 1024: Recent Progress 'Configure deployment' 0 px wide, 383 px tall (17 lines)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L3-010": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l3",
+   "method": "same facts as C82-L1-009",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L4-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l4",
+   "method": "c82-4b-hidden-page.js: with the Reflections page switched off, the shortcut still lists the entries with 'Read-only here. Open the source to change it.'; Open source (scrolled to 3206) lands on /pages/home at the top with the switched-off notice and Enable Reflections (the fresh-visit variant; the after-dismiss variant was not re-run)",
+   "decisionReopened": "A recovery route is offered only when it leads somewhere",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L4-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l4",
+   "method": "c82-4b-failure-rate.js, the lens's own method (development dialog Failure rate 100 %, reload, back to 0 %): Home's main Try again loads Home and Active Projects while the sidebar still says 'Couldn’t reach your workspace, so your projects didn’t load.' (a routed 500 on every /api read, c82-4b-failures.js, recovers both: the defect needs the injected failure)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L4-003": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l4",
+   "method": "c82-4b-failures.js (task POST and PATCH aborted, route.fallback otherwise): the kept title is aria-invalid with a red border beside 'Couldn’t add “Order hinges”. Try again.'; Priority back at 'medium' stays aria-invalid with a red border, 'Priority: Not saved. Try again.'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L4-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l4",
+   "method": "c82-4b-busy-week.js: adding during the failure shows the new row under the unchanged 'Couldn’t load this task list.' with no count; after Try again the three rows return beside it ('4 tasks')",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L4-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l4",
+   "method": "same as C82-L3-009; nested-projects 'Approve the lighting plan' 44 px wide, 6 lines",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L4-006": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l4",
+   "method": "same facts as C82-L1-009",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L4-007": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l4",
+   "method": "same facts as C82-L1-003",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l5",
+   "method": "same captures as C82-L1-004",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-002": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l5",
+   "method": "capture dev-panel-dark-1440.axe.json: landmark-no-duplicate-banner (1 node)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-003": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l5",
+   "method": "capture dev-panel-dark-1440.axe.json: aria-allowed-role (1 node, role=dialog on aside)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-004": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l5",
+   "method": "c82-4b-agents.js: /prototype/state has two main landmarks, one nested in the other",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-005": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l5",
+   "method": "c82-4b-agents.js: /prototype/state headings H1 Prototype state then H3 Persona, Seed, Current date…",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-006": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l5",
+   "method": "c82-4b-agents.js: /prototype/design headings H1 Design Lab then H3 Task rows live component",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-007": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l5",
+   "method": "c82-4b-agents.js: /prototype/design repeats Workspace (4x) and Breadcrumb (2x) navigation labels",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-008": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l5",
+   "method": "capture kitchen-loading-dark-1440: axe page-has-heading-one; aria has only 'paragraph: Loading project…'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-009": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l5",
+   "method": "same facts as C82-L2-006",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-010": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l5",
+   "method": "same facts as C82-L1-009",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-011": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l5",
+   "method": "same facts as C82-L1-003",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L5-012": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l5",
+   "method": "captures comb/drawer-saving-dark-375 and -saved: the aria tree has no Saving status for Priority, and 'Priority saved.' is a plain paragraph",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "same facts as C82-W1-006",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-002": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l6",
+   "method": "same facts as C82-W1-006; Todos shows 'To do' and 'Done'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-003": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-nested-read.js: the drawer field label is only 'Estimate', with no hint or unit",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-busy-week.js: Website launch's Timeline shows 'Run launch QA / Task / in_progress'; its Task List row says 'In progress'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-nested-read.js: Journal entry 'A clear decision' shows 2026-08-24T17:00:00.000Z",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-006": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-nested-read.js: Pages popover row 'Home / Required', control named 'Home page is required'",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L6-007": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-nested-read.js: picker group heading 'Home renovation · Home'",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L6-008": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-agents.js (same card facts as C82-W1-020)",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-009": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "same capture as C82-W2-001",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-010": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-nested-read.js: guidance says 'independently archived work', items say 'Archived directly'",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-011": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l6",
+   "method": "same facts as C82-W4-015 (visible label 'Edit')",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-012": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "capture kitchen-grid-light-1440.aria.yml: Count [pressed], Weighted, 'Manual' spinbutton '0', Use manual, no explanation or unit",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-013": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l6",
+   "method": "c82-4b-nested-read.js: the only visible text naming the title field is its 'Optional title' placeholder under the 'Reflections' heading",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-014": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "same facts as C82-W1-009",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-015": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "same facts as C82-W2-010; Kitchen's Timeline calls Cabinets 'Workstream'; Todos calls Kitchen 'Workstream'",
+   "decisionReopened": "Nested project work is called a workstream",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L6-016": {
+   "status": "reproduced",
+   "severity": "S3",
+   "auditor": "l6",
+   "method": "c82-4b-agents.js: /calendar 'arrives in Slice 18 (§37)', /search 'arrives with the command palette in Slice 21 (§40, §41)'",
+   "decisionReopened": "Prototype scaffolding stays visible during the redesign",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L6-017": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-busy-week.js: Daily Digest says 'The Launch communications project has the closest deadline…'; the Timeline labels it 'Workstream'",
+   "decisionReopened": "Nested project work is called a workstream",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L6-018": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "c82-4b-narrow.js nested-projects /app 1024: 'Approve the lighting plan' 44 px wide, 6 lines; 'Approve the cabinet measurements' 8 lines",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L6-019": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "same facts as C82-W2-009; the toast says 'Removed the Markdown section.'",
+   "decisionReopened": "A section's activity event names its project, not the section",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L6-020": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l6",
+   "method": "same facts as C82-L1-009",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L7-001": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "c82-4b-nested-read2 follow-up: the Markdown Origin link opens /pages/home#section-…-archived-notes, which shows 'The container this link points at is not on this page any more.'",
+   "decisionReopened": "A recovery route is offered only when it leads somewhere",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L7-002": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "same facts as C82-W1-003",
+   "decisionReopened": "Rows open their canonical owner",
+   "decisionCitation": "attached"
+  },
+  "C82-L7-003": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "same facts as C82-L6-006",
+   "decisionReopened": "A root's first page is named by its project, never \"Home\"",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L7-004": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "c82-4b-nested-read.js: Pages lists Archive with the optional views ('Show Archive page'), while More › Open archive stays in the menu",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L7-005": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "c82-4b-agents.js: Calendar and Search are ordinary Workspace links next to Home; their pages hold only the slice/spec sentence",
+   "decisionReopened": "Prototype scaffolding stays visible during the redesign",
+   "decisionCitation": "attached"
+  },
+  "C82-L7-006": {
+   "status": "reproduced",
+   "severity": "S1",
+   "auditor": "l7",
+   "method": "c82-4b-agents.js (same facts as C82-W1-001)",
+   "decisionReopened": "Connecting an agent becomes a product surface in Settings › AI & Agents",
+   "decisionCitation": "confirmed"
+  },
+  "C82-L7-007": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "c82-4b-hidden-page.js: All projects on Kitchen keeps /projects/project-kitchen but the sidebar lists only Home renovation among projects, no Kitchen entry",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L7-008": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "same facts as C82-L1-003",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L7-009": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "same facts as C82-L3-009",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  },
+  "C82-L7-010": {
+   "status": "reproduced",
+   "severity": "S2",
+   "auditor": "l7",
+   "method": "same capture as C82-W2-001",
+   "decisionReopened": null,
+   "decisionCitation": "none"
+  }
+ }
+}

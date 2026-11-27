@@ -222,6 +222,45 @@ ledger and comb list carry keys the `build-comb.mjs` header did not list (now li
 Kept as they are: 46 ids close on 81:1865's general "closes as built" (allowed by the rule); 14 TH02 open-unrouted
 sources name `themes.json TH02`, not a line (allowed for open ids); `--evidence` checks only `ux-output/` paths
 and bare `.png/.json/.yml` names (the cited `repro/*.js` exist). **Next: step 4b** (reproduction of the 145 filed findings).
+**Step 4b done (2026-11-26): reproduction.** [`reproduction.json`](../70-ui-ux/comb-82/reproduction.json): a
+verdict for each of the **145** filed ids and no other: **reproduced 143, reproduced-partly 2, not-reproduced 0,
+not-reached 0, unverified 0** (severity is the auditor's, unchanged: S1 5, S2 80, S3 60). The two partly
+reproduced findings: **C82-W1-013** (the 46 px dashboard row gutter reproduces; the Active Projects emoji touching
+its title was not reached, inside the inner scroller) and **C82-W2-014** (the phone drawer closes when Pages opens,
+but unticking a page *does* show a toast, "Disabled the reflections page." with Undo). Notes where the reproduction
+differs from the filed wording but the defect holds: C82-W2-009's activity verb is "archived", not "removed";
+C82-L4-002 reproduces only through the development dialog's Failure rate (the lens's own method), because a routed 500 on
+every read recovers both the main region and the sidebar; C82-W4-008's "1 items" is confirmed from
+`archive-page.html:22` (no singular), because an empty new Markdown section removed left nothing to restore, so the
+one-item page was not re-rendered. **Method:** the orchestrator served the `C82` build on 4201 and ran the
+reproduction host 4320/5320 as an `env.sh` daemon (1440×900 light; then restarted as touch 375×812 for C82-W2-003,
+-014 and -017), `setsid` plus pgid files under `ux-output/walk-env/`, a fresh seed per script (except `hidden-page`, which runs on
+the state `keyboard-new` leaves, Reflections switched off), and scripts
+[`repro/c82-4b-*.js`](../../../apps/e2e/ux/walk/repro/c82-4b-agents.js) (agents, narrow, nested-read, nested-read2,
+nested-write, archive-count, dashboard-focus, keyboard-new, hidden-page, new-project, busy-week, shortcut-failure,
+failures, failure-rate, touch; routes `route.fallback()`, own handlers unrouted). Screenshots are in the git-ignored
+`ux-output/walk/repro4b/` and `repro4b-touch/`. Capture-backed lens findings (word breaks at 375, skip link, axe
+landmarks and headings, aria button order, row-failure alert) were checked against the `C82` PNG, `aria.yml` and
+`axe.json` files and, where cheap, live. Trap: a desktop page resized to 375 lays out the dashboard's agent activity
+column wider (79 px) than the touch capture, so 375 word breaks are judged on the capture or a touch daemon.
+**Decision citations** (`decisionCitation` per verdict): 20 auditor citations **confirmed**; 13 **attached** by
+the orchestrator to sibling findings that left the field null but describe the same defect: agent connection (W2-012,
+W4-010), root first page "Home" (W2-011, W4-007), prototype scaffolding (L1-008, L7-005, W4-011), rows open their
+canonical owner (W1-003, W2-006, W4-005, L7-002, L2-009), workstream terminology (W2-010); 112 none. L2-009 is attached to "Rows open their canonical owner" because that
+decision keeps Todos' own template *for* its different cancelled-task rule, which is what L2-009 contradicts. Every value
+equals a `decisions.md` title. **Attestations judged:** W1's single `/api/activity` read (eight update events for one task, T04)
+backs C82-W1-002, which reproduced in the app through header Undo alone, so it is admitted. W3's temp files under `/tmp` and
+W4's type-ahead slip changed no evidence. The spot check for Gate 1 wording found nothing to exclude. 69 verdicts rest on the captures or on "same facts as"
+another id: the defect is the same component or page, observed once.
+**Friction:** one note, `note-2026-11-26-001` (a workstream's own `/pages/archive` address silently shows its canvas;
+not filed as a finding, because no auditor reported it; for step 5 and Gate 3). `.prototype/notes.json` 1570 → 1578
+lines. Afterwards nothing listened on 4200, 4201, 4310, 4320–4329 or 5320–5329 and no rig process was left. The
+product diff from `8c1a524` is empty. `comb.test.mjs` by hand: 80 tests, 75 pass, 5 skipped (step 5 inputs), 0 fail;
+`build-comb.mjs --check` valid. `pnpm test` then `pnpm lint` green. *Review* (one cold reviewer, process and schema
+only): 1 substantive finding, which does not hold: L2-009's attached decision, kept for the reason above. Minors: W1-013's
+method named only one measured row (reworded); "a fresh seed per script" (reworded). Kept as they are: W4-008 rests on
+the source line, as its method says, and W2-003 on the measured 0.55 opacity, without re-measuring the auditor's
+2.5:1 ratio. **Next: step 5** (synthesis and the Gate 3 artifact).
 
 ## Goal
 

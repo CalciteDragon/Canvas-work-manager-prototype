@@ -1565,6 +1565,14 @@
       "projectId": "project-cabinets",
       "slice": 81,
       "note": "Slice 81 real use (375 touch, iPhone 13 emulation at 375x812): header.project-header measured 202 px tall on Cabinets (top 72, bottom 274), Kitchen and root Todos 178 (bottom 250), the root 136 (bottom 208). Open question 20 was answered (a), height check; the end edges recorded at step 12 (Cabinets ~290, Todos ~267, root ~225) came from a different measurement of the header's start (89 px) and are the figures in the Outcome. No action; recorded so the comb measures one way."
+    },
+    {
+      "id": "note-2026-11-26-001",
+      "createdAt": "2026-11-26T18:00:00.000Z",
+      "route": "/projects/project-garden/pages/archive",
+      "projectId": "project-garden",
+      "slice": 82,
+      "note": "Slice 82 step 4b reproduction (C82 build, nested-projects): a workstream's own Archive address (/projects/project-garden/pages/archive, likewise project-kitchen) silently shows that workstream's canvas instead, with no notice, while its More › Open archive goes to the root's Archive (/projects/project-renovation/pages/archive). A typed or shared archive link for a workstream lands somewhere else without saying so. The Archive belongs to the root. Not filed as a comb finding, because no auditor reported it. Recorded for step 5 and Gate 3."
     }
   ]
 }
