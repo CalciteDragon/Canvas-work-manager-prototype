@@ -158,11 +158,12 @@ and a pencil menu for page settings and Add workstream. The phone gets one Menu 
 have breadcrumbs, and pages have titles, a skip link and one `h1`. The initial bundle is 932.25 kB under the
 unchanged 1,150 kB ceiling. Real use across both seeds, three input modes and MCP found one defect, fixed in the
 slice. What else it surfaced joins the [§8 comb list](active/70-ui-ux-overhaul.md#8-comb-list) as items 18–22.
-Slice 81.1, the six TH13 content-layout findings, stays queued.
-
-**Active — [Slice 82, the protocol §8 comb](active/82-overhaul-comb.md)** (started 2026-11-24), then redesign slice 8
-(agent connections), in that order unless the user says otherwise. The comb's plan is written, reviewed and **accepted
-by the user (2026-11-24) with all eight recommendations**; no implementation yet, step 0a (rig and tests) is next. See the umbrella's
+**Slice 82 completed — Gate 3 passed (2026-11-26).** The [protocol §8 comb](completed/82-overhaul-comb.md)
+recaptured the matrix, repeated the core tasks and routed the verified findings. Next is planning
+[Slice 82.1 — Comb fixes](planned/82.1-comb-fixes.md), with date Undo and exact task arrival first,
+then redesign slice 8 (agent connections), then redesign slice 9 (vocabulary). Slice 81.1 stays queued
+with the expanded dashboard and Archive layout scope. The umbrella stays active. The agreed stop rule
+is fewer than 15 open S2 records, including the 14 left open by decision. See the umbrella’s
 [handoff](active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan).
 
 **Done — two shortcut friction notes.** On 2026-10-09 the user promoted two Slice 65 notes

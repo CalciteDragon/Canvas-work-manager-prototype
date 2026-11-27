@@ -415,81 +415,18 @@ redesign slice 7 (the user's choice, 2026-11-09; alternative B picked 2026-11-10
 - **Real use (step 15, 2026-11-24).** It ran on `nested-projects` and `busy-week` at 1440 mouse, 1440 keyboard and
   375 touch, plus MCP `create_project` under Kitchen (the live frame refreshed the tree). One defect fixed
   (`18efc35`: an archived row's name broke inside a word in the drawer). Comb items 18–22 below.
-- **Queued:** Slice 81.1, the six TH13 content-layout findings.
-
-**Active: [Slice 82, the protocol §8 comb](82-overhaul-comb.md)** (started 2026-11-24), then redesign slice 8
-(agent connections), in that order unless the user says otherwise. The comb is a full re-capture, the core-task
-scripts, a fresh comb with new auditors, theme re-prioritisation, Gate 3, and the comb list below. Its plan is
-written, reviewed and **accepted by the user (2026-11-24) with all eight recommendations** (Open questions 1–8
-resolved in the plan; its new Open question 9, on the lens and reproduction daemons, must be answered
-before step 3); no implementation yet, step 0a (rig and tests) is next.
+**Completed: [Slice 82, the protocol §8 comb](../completed/82-overhaul-comb.md).** The user passed
+[Gate 3](../70-ui-ux/comb-82/gate3.md#gate-3-answers) on 2026-11-26. Plan
+[Slice 82.1 — Comb fixes](../planned/82.1-comb-fixes.md) next, starting with date Undo and exact task
+arrival, then redesign slice 8 (agent connections), then redesign slice 9 (vocabulary).
+Slice 81.1 stays queued with the expanded dashboard and Archive layouts. The §8 stop rule requires
+fewer than 15 open S2 records, including the 14 open by decision. T08 keeps its accepted four-click
+exception and the tally still shows 4 vs 3.
 
 ### §8 comb list
 
-Follow-up items waiting for the protocol §8 comb. The first five are the user's decisions of
-2026-11-05 (Slice 79, Open questions 10 and 11). The notes are in `.prototype/notes.json`.
-
-1. An archived root's project navigation says "No workstreams yet" over its archived workstreams
-   (`note-2026-11-05-002`).
-2. The undo refusal's line for Legacy shelving, "Restore or move the new dependent, then try Undo
-   again.", is wrong for a dependent that was always there and is live (`note-2026-11-05-003`).
-3. Preview still says "Unsaved preview" after Discard draft, over the saved text
-   (`note-2026-11-05-004`).
-4. Restore toasts differ: Archive gives "Go to it" with Undo, and Settings gives "Open it" with no Undo
-   (`note-2026-11-05-005`).
-5. The Todos intro sentence, "Open a row to work on it where it lives.", sits over "Restore to view N
-   hidden todos." on archived Home renovation.
-
-Carried from the slices' records:
-
-6. Slice 78: whether the history should re-read itself after a write failed while the workspace was
-   unreachable. Today the header keeps a bare Retry.
-7. Slice 79: the refusal view's nested quotes and `[id]`s (direction §8 says no record ids).
-8. Slice 79: long toast messages that are not yet a headline plus a reason (`history_blocked`,
-   `history_expired`, `history_retired`, `history_unavailable`, `restoredItemFeedback`, and statuses
-   naming a long title), listed under its Step 13 Q9.
-9. Slice 79: the dashboard rows' empty control gutter.
-
-Added by Slice 80 (the user's Gate 2, 2026-11-09):
-
-10. The late archive refusal, "The workstreams under “X” changed. Choose Archive again to confirm the
-    current list.", reads unclear to the user, who had no better wording yet.
-11. The archive confirmation's "Archive all" / "Archive it" and "Cancel" touch with no gap (true
-    before Slice 80 too).
-
-Added by Slice 80's real use (2026-11-09; nothing broken, all reads wrong):
-
-12. The archive refusal's prefix, "still has active workstreams:", calls Completed workstreams
-    "active". The rule is about live ones. The refusal reaches agents and the web's Details
-    (`note-2026-11-09-008`).
-13. `restore_project` on a marked workstream names the owner and itself by id only, where the archive
-    refusal gives names and ids (`note-2026-11-09-008`).
-14. History labels say "Reactivated “X” and N workstreams", where the toasts say "Restored"
-    (`note-2026-11-09-008`).
-15. "On Hold" in More and the status chip, and "On hold" in every "Restore as" select
-    (`note-2026-11-09-002`).
-16. A live frame rewrites an open archive confirmation's list with no notice
-    (`note-2026-11-09-003`).
-17. On a marked workstream, the banner's "Restore as … Restore" restores its owner. Only the sentence
-    says so (`note-2026-11-09-005`).
-
-Item 4 ("Go to it" and "Open it") was met again in Slice 80's real use (`note-2026-11-09-006`).
-
-Item 1 is closed: Slice 80 (Q6 (a)) dropped "No workstreams yet" on a read-only page, and Slice 81's one tree
-draws no empty sentence under a root.
-
-Added by Slice 81's real use (2026-11-24; one defect fixed there, these left for the comb):
-
-18. On the current item, its own workstreams stay collapsed (only ancestors open, Q4 (a)). Cabinets is a
-    click away on Kitchen, and a workstream an agent adds under Kitchen arrives from the live frame but
-    stays hidden (`note-2026-11-24-002`).
-19. Legacy shelving, live under the archived Legacy attic, cannot be reached from the tree or the attic's
-    page, only by URL (`note-2026-11-24-003`).
-20. Focus falls to `body` after header Undo or Redo of a creation ("Creation undone"). This predates Slice 81
-    (`note-2026-11-24-004`).
-21. Archive counts one entry as "1 items" (`note-2026-11-24-005`).
-22. The phone header's end edge (Open question 20, answered (a) for Slice 81). It ends at about 290 px on
-    Cabinets, 267 on Todos and 225 on a root at 375 (`note-2026-11-24-006`). Only if the comb wants it.
+The re-verified [comb list](../70-ui-ux/comb-82/comb-list.json) records item 1 as closed and
+C82-CL-02 through C82-CL-22 as routed to 82.1.
 
 ### Redesign slice 6b (States) — planning brief
 
@@ -584,16 +521,29 @@ closed, capture scope, visual acceptance, and behaviour versus appearance.
 7. **One navigation tree** (TH11, TH13, and the Add workstream part of TH15). Shell alternatives
    first, since the decision leaves the exact shape open; then implement with §77 test changes.
    Includes the phone pattern, document titles, a skip link and breadcrumbs.
-8. **Agent connections** (the five S1 findings). A cross-system slice: contracts, domain, host,
-   seeds and web, within §80. Its token mechanism is the first design question. It can run
-   before slice 7 if the user wants the S1 closed sooner, but it needs slice 2's form primitives.
-9. **Vocabulary** (TH14). Product words for ids, enums, dates and casing. Leave TH12 untouched,
-   because scaffolding stays.
+8. **Agent connections.** A cross-system slice within §80. Its token mechanism is the first design
+   question. Address the T10 blocker first. Gate 3 routed five C82 S1 records and their five Gate 1
+   predecessors, plus three S2 records.
+   - Existing agent-connection and revoke flow: C82-L7-006, C82-W1-001, C82-W2-012, C82-W3-008, C82-W4-010, C82-L6-008.
+   - Unresolved Gate 1: L3-023, L7-015, W1-052, W1-053, W2-031, W3-020, W4-023.
+9. **Vocabulary** (TH14). Product words for IDs, enums, dates and casing. Gate 3 routed 24 S2 records.
+   - Drawer ids, enum labels and estimate units: C82-L2-004, C82-L6-001, C82-L6-003, C82-W1-006, C82-W2-007, C82-W3-004, C82-W4-003.
+   - Timeline statuses, reflection dates, archive provenance, progress vocabulary and activity naming: C82-L6-004, C82-L6-005, C82-L6-010, C82-L6-012, C82-L6-015, C82-L6-017, C82-L6-019, C82-W1-005, C82-W2-009.
+   - Unresolved Gate 1: L2-003, L2-004, L6-004, L6-005, L6-007, L6-011, L7-016, W1-025.
+
+**Queued Slice 81.1** (25 S2 records). Gate 3 kept the additional dashboard and Archive layout groups here.
+- Existing Archive item title and dashboard task layout debt: C82-L1-001, C82-L1-002, C82-L2-007, C82-L3-008, C82-L6-009, C82-L7-010.
+- Extend the queued dashboard layout work to Recent Progress and Recent Agent Activity: C82-L1-009, C82-L2-006, C82-L2-008, C82-L3-009, C82-L3-010, C82-L4-005, C82-L4-006, C82-L5-009, C82-L5-010, C82-L6-018, C82-L6-020, C82-L7-009.
+- Archived Markdown recovery row at phone width: C82-W2-001.
+- Unresolved Gate 1: L1-004, L1-018, L5-018, W2-015, W2-022, W2-028.
+
+**Open by decision** (14 S2 records, counted in the stop rule).
+- Design Lab phone overflow and prototype scaffolding, including placeholder and seed guidance: C82-L1-003, C82-L2-010, C82-L3-006, C82-L4-007, C82-L5-011, C82-L7-005, C82-L7-008, C82-W4-011.
+- Unresolved Gate 1: L1-024, L6-001, L6-023, L7-011, L7-013, W4-022.
 
 After each layer group: re-capture (`pnpm --filter @cwm/e2e ux:capture`), run a fresh comb with
 new auditors (the rig in `apps/e2e/ux/walk/`), and hold Gate 3 if the direction needs amending.
-Stop rule: protocol §8. Keep TH12's open S2 findings visible in that count; they are open by
-decision.
+Stop rule: [protocol §8](../../guides/ui-ux-overhaul-protocol.md#8-phase-5--iterate-and-stop). Count all open S2 records, including TH12, against the agreed threshold of fewer than 15.
 
 ### Answered after Gate 1 (2026-10-14)
 

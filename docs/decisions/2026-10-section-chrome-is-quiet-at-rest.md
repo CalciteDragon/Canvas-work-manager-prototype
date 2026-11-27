@@ -64,3 +64,5 @@ the project header's independent left edge belongs to slice 7.
 **Amended 2026-10-21 — Gate 2 accepted.** The user accepted slice 76's before/after sheet.
 Its completed record contains the measurements, verification limits and deferred findings;
 the quiet chrome direction is accepted.
+
+**Amended, 2026-11-26 — Gate 3 accepted.** On touch, section insertion has a visible label, and users have a readable way to identify section tools before they act. Quiet desktop chrome stays. See [Gate 3](../roadmap/70-ui-ux/comb-82/gate3.md#gate-3-answers).

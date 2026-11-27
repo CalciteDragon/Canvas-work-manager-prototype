@@ -45,6 +45,10 @@ action per surface.
    **Implemented in Slice 76 (2026-10-20):** the accepted touch rest emphasis, named headings,
    roving toolbar and persistent insertion follow
    [quiet section chrome](../../decisions/2026-10-section-chrome-is-quiet-at-rest.md).
+
+   **Amended, 2026-11-26 — Gate 3.** On touch, section insertion has a visible label, and users
+   have a readable way to identify section tools before they act. Quiet desktop chrome stays.
+
 6. **Answer where the user acted.** New things scroll into view and take focus. Confirmation
    and Undo appear next to the change. Pending shows within 100 ms, and failures name the row
    that failed. Today a new section lands at y=872 on a 900 px screen with focus on the body,
@@ -66,6 +70,10 @@ action per surface.
 8. **One "you are here", in product words.** One navigation hierarchy marks the current place,
    and the heading and the document title agree with it. The interface never shows record ids,
    enum spellings, slice numbers, § numbers or prototype tooling (TH11, TH12, TH14).
+
+   **Amended, 2026-11-26 — Gate 3.** Task-title links must reveal and identify the exact task at
+   its canonical owner and provide a keyboard arrival target. Slice 82.1 verifies arrival with intact
+   and missing destinations.
 
 ## Glass constraints (apply to every alternative)
 

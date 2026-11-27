@@ -16,7 +16,6 @@ verification follow-ups rather than feature slices.
 | Slice | Title | Summary | Plan |
 |---|---|---|---|
 | 70 | Slice 70 — UI/UX overhaul — evidence and direction | User-requested frosted-glass redesign: evidence and direction through Gate 1 (done), then the redesign slices in layer order until the protocol's stop rule | [70-ui-ux-overhaul.md](active/70-ui-ux-overhaul.md) |
-| 82 | Slice 82 — Protocol §8 comb | Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 (always held, Q5 (a)) | [82-overhaul-comb.md](active/82-overhaul-comb.md) |
 
 ### Planned
 
@@ -29,6 +28,7 @@ verification follow-ups rather than feature slices.
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
+| 82.1 | Slice 82.1 — Comb fixes | Address the Gate 3 comb routes, starting with date Undo and exact task arrival | [82.1-comb-fixes.md](planned/82.1-comb-fixes.md) |
 
 ### Completed
 
@@ -121,4 +121,5 @@ verification follow-ups rather than feature slices.
 | 79 | Slice 79 — States: empty, archived and editing | 2026-11-05 | Redesign slice 6b-2 (TH10): first-run block on an empty workspace, archived pages read-only with restore in place and hidden counts, archive refusal said first, the digest's overdue tasks, Markdown drafts kept, Task List count, short toasts with View details; Gate 2 accepted | [79-empty-archived-and-editing.md](completed/79-empty-archived-and-editing.md) |
 | 80 | Slice 80 — Cascading project archive | 2026-11-09 | Archive a project with its named live workstreams in one confirmed step, marked with their statuses; every restore, Undo and Redo moves exactly that group; the web, MCP and history agree; real use on nested-projects found no defect; Gate 2 accepted | [80-cascading-project-archive.md](completed/80-cascading-project-archive.md) |
 | 81 | Slice 81 — One navigation tree | 2026-11-24 | One sidebar tree replaces the project column, with one current item, a back-chevron and a pencil menu (page settings, Add workstream, also in More); the phone has one Menu and a drawer with no Close; breadcrumbs, document titles, a skip link and one h1; 932.25 kB under the unchanged 1,150 kB ceiling; T08 +1 accepted, T10 the known dead end, Open question 20 (a); real use on nested-projects and busy-week in three modes plus MCP fixed one defect; Gate 2 accepted | [81-one-navigation-tree.md](completed/81-one-navigation-tree.md) |
+| 82 | Slice 82 — Protocol §8 comb | 2026-11-26 | Completed the protocol §8 comb and recorded Gate 3 routing, decisions and the Slice 82.1 handoff | [82-overhaul-comb.md](completed/82-overhaul-comb.md) |
 <!-- roadmap:end -->

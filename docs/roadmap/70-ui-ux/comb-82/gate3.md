@@ -23,7 +23,7 @@ both the Gate 1 and C82 IDs when a defect persists. The routing rows group repea
 
 The fresh comb has 60 S3 of 145 (41.4%), so §8’s “mostly S3” criterion fails. The separate comb list
 adds five S2 and sixteen S3 records. T11 and T12 extend the earlier T01–T10 walk coverage. W4’s run
-was resumed after an interruption, as disclosed in the [Slice 82 plan](../../active/82-overhaul-comb.md).
+was resumed after an interruption, as disclosed in the [Slice 82 plan](../../completed/82-overhaul-comb.md).
 
 ## Re-prioritised themes
 
@@ -170,6 +170,17 @@ The [comb list](comb-list.json) records the full wording and evidence for each i
    silently shows its canvas (`note-2026-11-26-001`). Leave it in the friction log, or request a 82.1
    check alongside the incorrect Archive links. Recommend the check, with no added finding or severity
    until verified in that scope.
+
+## Gate 3 answers
+
+The product owner passed Gate 3 on 2026-11-26 and accepted all six recommendations.
+
+1. Approved the proposed routing. Five C82 S1 records and their five Gate 1 predecessors go to redesign slice 8. Of 117 open S2 records, 51 go to 82.1, 25 to 81.1, 24 to redesign slice 9, three to redesign slice 8 and 14 stay open by decision. All 21 outstanding comb-list items go to 82.1, including five counted in its S2 total. Plan 82.1 next, with date Undo and exact task arrival first, then redesign slices 8 and 9. Slice 81.1 stays queued with all three dashboard and Archive layout groups. Other S3 observations stay in the ledger. [Comb routes and priority after Gate 3](../../../decisions/2026-11-comb-routes-and-priority.md).
+2. Set the stop rule to **fewer than 15 open S2 records**, counting the 14 open-by-decision records. A later gate may explicitly revisit the threshold. [The overhaul stops below 15 open S2 records](../../../decisions/2026-11-overhaul-s2-stop-threshold.md).
+3. Task-title links must reveal and identify the exact task at its canonical owner and provide a keyboard arrival target. Slice 82.1 verifies arrival with intact and missing destinations. [Rows open their canonical owner](../../../decisions/2026-10-rows-open-their-canonical-owner.md).
+4. On touch, section insertion has a visible label, and users have a readable way to identify section tools before they act. Quiet desktop chrome stays. [Section chrome is quiet at rest](../../../decisions/2026-10-section-chrome-is-quiet-at-rest.md).
+5. Keep the four-click T08 page-settings path as a narrow exception to the protocol §8 three-click baseline. The tally keeps the observed 4 vs 3. [T08 keeps its four-click page-settings path](../../../decisions/2026-11-t08-baseline-exception.md).
+6. Slice 82.1 checks a workstream’s own `/pages/archive` fallback alongside the incorrect Archive links (`note-2026-11-26-001`). A finding and severity require verification in that slice. [Verify the workstream Archive fallback in Slice 82.1](../../../decisions/2026-11-check-workstream-archive-fallback.md).
 
 ## Evidence crops
 

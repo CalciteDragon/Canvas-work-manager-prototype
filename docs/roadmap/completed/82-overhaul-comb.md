@@ -1,7 +1,7 @@
-<!-- plan id="82" status="active" summary="Mid-overhaul protocol §8 pass after the patterns and navigation layers: full re-capture and core-task run, a fresh cold comb (task walks incl. 375 touch, seven lenses), verified findings, theme re-prioritisation and Gate 3 (always held, Q5 (a))" -->
+<!-- completed-record id="82" closed="2026-11-26" summary="Completed the protocol §8 comb and recorded Gate 3 routing, decisions and the Slice 82.1 handoff" -->
 # Slice 82 — Protocol §8 comb
 
-**State (2026-11-26):** **Awaiting Gate 3 (step 5 done).** The **plan was accepted by the user (2026-11-24, user decision) with all eight recommendations**
+**State (2026-11-26):** **Gate 3 passed and step 7 recorded.** The **plan was accepted by the user (2026-11-24, user decision) with all eight recommendations**
 (Open questions 1–8 resolved: Q1 (a), Q2 (c), Q3 (b), Q4 (c), Q5 (a), Q6 (a), Q7 (a), Q8 (a)), after five review
 rounds and two review rounds of the acceptance amendment; new Open question 9 (lens and reproduction daemons) blocked
 nothing before step 3 and was **answered by the user on 2026-11-26: (a)** (see the end of this header). **`<plan-accept>` = the acceptance commit, subject
@@ -281,6 +281,19 @@ and empty Gate 1 diff. 8: contact sheet and all 90 crop paths checked locally. 9
 The product diff from plan acceptance is empty. Step 5 opened no listeners. The comb's hand-run suite
 passed 81/81. `pnpm test` then `pnpm lint` passed. Synthesis commit: `e4dd0d9`
 (`docs(slice 82): prepare Gate 3 synthesis (§8)`).
+
+**Steps 6 and 7 (2026-11-26).** The product owner passed [Gate 3](../70-ui-ux/comb-82/gate3.md#gate-3-answers)
+on the handoff at `e977268` and accepted all six recommendations. Routing is recorded in the
+[umbrella](../active/70-ui-ux-overhaul.md#next-chat-handoff--phase-3-slice-plan): 51 of 117 open S2s
+to 82.1, 25 to 81.1 including the extra dashboard and Archive layouts, 24 to redesign slice 9,
+three to redesign slice 8 with the agent S1s, and 14 open by decision. The 21 outstanding comb-list
+items go to 82.1 and other S3s stay recorded. The stop rule is fewer than 15 open S2s. Task links
+arrive at the exact task with a keyboard target; touch insertion is labelled and section tools are
+readable before action. T08 keeps four clicks as an explicit three-click baseline exception.
+82.1 checks the workstream `/pages/archive` fallback alongside the Archive links and classifies it
+only after verification. Next: plan [82.1](../planned/82.1-comb-fixes.md), date Undo and task arrival
+first, then redesign slices 8 and 9. 81.1 stays queued. C82 remains the last initial bundle measurement,
+932.25 kB. The closing session changes docs only.
 
 ## Goal
 
@@ -936,8 +949,43 @@ question carries its answer, and the plan above reads the answers as settled.
   the Archive row label, and repaired the severity table. Crop evidence stays in the local capture folder.
   Gate 3 routing and direction are proposals in the digest.
 
+- **Step 7 (2026-11-26):** recorded the user's six Gate 3 answers: accepted routing and 82.1
+  priority (date Undo and exact task arrival first), fewer than 15 open S2 records, exact-task
+  arrival with a keyboard target, touch labels with quiet desktop chrome, T08's four-click
+  exception, and scoped workstream Archive fallback verification before classification. Added four
+  indexed decisions and two dated amendments, updated principles 5 and 8 and the protocol §8 stop
+  rule, and carried the ID lists into the umbrella and the 82.1 candidate. Updated the handoff and goals.
+
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
 
-Not yet written.
+The C82 build at `37dd16e` was recaptured across 194 matrix cells and eight additional runtime
+surfaces (20 frames). The core-task scripts, four walkthroughs and seven lenses fed the
+[Gate 3 digest](../70-ui-ux/comb-82/gate3.md). Of the 145 admitted findings, 143 reproduced and
+two reproduced partly: five S1s, 80 S2s and 60 S3s. The five fresh S1s and their five Gate 1
+predecessors describe the same T10 agent-connection blocker. The tally has 117 open S2 records
+(32 Gate 1, 80 fresh, five comb-list). Axe reported zero serious or critical violations in both
+themes. Contrast evidence sits outside the stop rule, and 60 of 145 fresh findings are S3.
+T10 and the open severity counts still prevent umbrella closure.
+
+The user passed Gate 3 on 2026-11-26. Redesign slice 8 gets the agent S1s and three S2s;
+redesign slice 9 gets 24 S2s; 81.1 gets 25 S2s and stays queued with the expanded dashboard and
+Archive groups; 14 scaffolding S2s stay open by decision. The [82.1 candidate](../planned/82.1-comb-fixes.md)
+gets 51 S2s and all 21 outstanding comb-list items, with five of those counted in both totals.
+Other S3s stay recorded. Plan 82.1 next, starting with date Undo and exact task arrival, then
+redesign slices 8 and 9. The amended direction requires an exact, keyboard-reachable task arrival
+and readable touch controls with visible insertion labels. Protocol §8 now requires fewer than 15
+open S2 records and allows T08's four-click page-settings path against three baseline clicks.
+The workstream Archive fallback is queued for verification without a finding or severity at this gate.
+
+Usage-limit interruptions discarded the first W3/W4 runs. W4 then resumed from the same daemon
+and accumulated data after a second interruption, as attested in the walk. The lens takeover stopped
+leftover daemons and restarted incomplete drafts. The closure used the Codex fallback. For future
+runs, pass absolute evidence paths or use `shot`, checkpoint walk files per task, and check daemon
+process groups and ports at teardown. The run's operating details and acceptance evidence are in the
+State record above.
+
+The decision log, direction, protocol guide, umbrella handoff, goals and generated board reflect the
+Gate 3 answers. The closure only changed documentation. `CURRENT_SLICE` stays at 82 and the last
+measured initial bundle remains 932.25 kB. There are no unresolved Gate 3 questions.

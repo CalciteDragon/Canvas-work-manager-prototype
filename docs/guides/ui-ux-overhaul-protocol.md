@@ -221,6 +221,12 @@ Stop when all of these hold:
 - zero serious or critical axe violations in either theme;
 - a fresh comb produces mostly S3 findings — diminishing returns.
 
+**Slice 70 Gate 3 amendment (2026-11-26).** The agreed ceiling is fewer than 15 open S2
+records, including records open by decision. A later gate may explicitly revisit the number.
+T08 page settings is the sole baseline exception: its accepted four-click path may stand against
+three baseline clicks, and the tally still reports 4 vs 3. The no-dead-ends requirement applies
+to every task. See [The overhaul stops below 15 open S2 records](../decisions/2026-11-overhaul-s2-stop-threshold.md) and [T08 keeps its four-click page-settings path](../decisions/2026-11-t08-baseline-exception.md).
+
 Close the umbrella with an outcome that links the baseline and final contact sheets.
 
 ---

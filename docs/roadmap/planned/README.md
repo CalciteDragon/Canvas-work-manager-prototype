@@ -10,6 +10,8 @@ A candidate starts with `node scripts/roadmap.mjs start docs/roadmap/planned/<fi
 which moves it to `active/` where the full plan is written. Create a new one with
 `node scripts/roadmap.mjs new <id> <slug> --title "…" --summary "…"`.
 
-The seven files here are §82's candidate list as the original build order staged it
+Seven of the eight candidates are §82's candidate list as the original build order staged it
 (Slices 18–24). Their numbers are reserved; their order on the board is numeric and says
 nothing about priority.
+
+[Slice 82.1 — Comb fixes](82.1-comb-fixes.md) is the Gate 3 follow-up and is next under the overhaul umbrella.

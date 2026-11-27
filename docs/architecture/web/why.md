@@ -111,6 +111,9 @@ through transform and opacity, and every value a token
 ([decision](../../decisions/2026-10-frosted-glass-depth-direction.md),
 [direction](../../roadmap/70-ui-ux/direction.md)).
 
+Gate 3 later accepted the [comb routes and priority](../../decisions/2026-11-comb-routes-and-priority.md),
+the [S2 threshold](../../decisions/2026-11-overhaul-s2-stop-threshold.md) and the [T08 exception](../../decisions/2026-11-t08-baseline-exception.md).
+
 The same gate also decided four more things. Theme behavior and split accents are implemented;
 Slice 81 built the one navigation tree and the workstream creation default (Parent is the open
 workstream, and a new workstream opens). Task quick-add preserves selection without opening

@@ -17,10 +17,14 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 ## Whole prototype
 
+- [Comb routes and priority after Gate 3](2026-11-comb-routes-and-priority.md) — Slice 82 Gate 3, current.
+- [The overhaul stops below 15 open S2 records](2026-11-overhaul-s2-stop-threshold.md) — Slice 82 Gate 3, current.
+- [T08 keeps its four-click page-settings path](2026-11-t08-baseline-exception.md) — Slice 82 Gate 3, current.
+
 [Section chrome is quiet at rest on every device](2026-10-section-chrome-is-quiet-at-rest.md)
 — Slice 76: plain section headings, one toolbar stop, persistent insertion, full plus hit
 areas and optimistic collapse with frame-level failure. The canvas-chrome and section-name
-decisions carry 2026-10-20 amendments. The user accepted Slice 76 Gate 2 on 2026-10-21.
+decisions carry 2026-10-20 amendments. The user accepted Slice 76 Gate 2 on 2026-10-21. *Amended 2026-11-26:* visible insertion labels and readable tool identification on touch.
 
 [Pending, saved and failed feedback stays on the object](2026-10-feedback-stays-on-the-object.md)
 — Slice 75: pending vocabulary, the saved cue, failures on their row, field or card, new items
@@ -158,9 +162,11 @@ Archive-label revision; both entries record acceptance.
 
 ## Web app
 
+- [Verify the workstream Archive fallback in Slice 82.1](2026-11-check-workstream-archive-fallback.md) — Slice 82 Gate 3, verification queued for 82.1.
+
 | Decision | What it decides | Status |
 |---|---|---|
-| [Rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md) | Shared row anatomy; title navigation outside the owner, selection inside; Preview stays contained | Slice 77 |
+| [Rows open their canonical owner](2026-10-rows-open-their-canonical-owner.md) | Shared row anatomy; title navigation outside the owner, selection inside; Preview stays contained | amended 2026-11-26 (exact task arrival, queued for 82.1) |
 | [Archived pages are read-only, with a banner that restores in place](2026-11-archived-pages-are-read-only.md) | Outermost archived owner; absent canvas and section write controls; local, unsaved collapse (Q4 (a)); static Task List rows with no drawer (Q5 (a)); what stays in the header | current (Slice 79); amended (Slice 80: two banner sentences, status buttons absent on a marked project) |
 | [The digest's overdue line leads to the tasks](2026-11-digest-overdue-line-leads-to-the-tasks.md) | Up to five overdue tasks under the digest's prose, each linking to its owner section through `task-origin-link.ts`, then a muted "and N more overdue" (Q1 (a)); web only | current (Slice 79) |
 | [A Task List shows its count in the frame header](2026-11-task-list-shows-its-count.md) | "N tasks" after the frame's name, reported only by `summary: true` types (NG0303); none while loading, failed, empty or collapsed; the drag hint covers quick-add | current (Slice 79) |

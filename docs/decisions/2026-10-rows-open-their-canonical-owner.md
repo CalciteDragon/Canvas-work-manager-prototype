@@ -47,3 +47,5 @@ shift (`note-2026-10-22-002`) is a known follow-up, not a reversal.
 **Amended, 2026-11-04 — Slice 79.** The drag explanation no longer takes a line above the list: it
 covers the quick-add row while a drag lasts, so the rows hold still under the pointer. Its wording
 is unchanged ([decision](2026-11-task-list-shows-its-count.md)).
+
+**Amended, 2026-11-26 — Gate 3 accepted.** Task-title links must reveal and identify the exact task at its canonical owner and provide a keyboard arrival target. Slice 82.1 verifies arrival with intact and missing destinations. See [Gate 3](../roadmap/70-ui-ux/comb-82/gate3.md#gate-3-answers).
